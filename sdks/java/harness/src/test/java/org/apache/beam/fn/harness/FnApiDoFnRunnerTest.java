@@ -45,8 +45,6 @@ import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -62,7 +60,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -388,6 +385,7 @@ public class FnApiDoFnRunnerTest {
         .build();
   }
 
+
   private static class TestSideInputDoFn extends DoFn<String, String> {
     private final PCollectionView<String> defaultSingletonSideInput;
     private final PCollectionView<String> singletonSideInput;
@@ -420,21 +418,26 @@ public class FnApiDoFnRunnerTest {
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
     PCollectionView<Iterable<String>> iterableSideInputView =
         valuePCollection.apply(View.asIterable());
-    PCollection<String> outputPCollection = valuePCollection.apply(TEST_PTRANSFORM_ID, ParDo.of(
+
+    DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
         new TestSideInputDoFn(
             defaultSingletonSideInputView,
             singletonSideInputView,
-            iterableSideInputView))
-        .withSideInputs(
-            defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView));
-
-    SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
-    String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
-    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
-
-    RunnerApi.PTransform pTransform = pProto.getComponents().getTransformsOrThrow(
-        pProto.getComponents().getTransformsOrThrow(TEST_PTRANSFORM_ID).getSubtransforms(0));
+            iterableSideInputView),
+        WindowingStrategy.globalDefault(),
+        ImmutableList.of(),
+        StringUtf8Coder.of(),
+        new TupleTag<String>("mainOutput"));
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
+            .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
+            .build();
+    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
+        .setSpec(functionSpec)
+        .putInputs("input", "inputTarget")
+        .putOutputs("mainOutput", "mainOutputTarget")
+        .build();
 
     ImmutableMap<StateKey, ByteString> stateData = ImmutableMap.of(
         multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
@@ -446,21 +449,21 @@ public class FnApiDoFnRunnerTest {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put(Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+    consumers.put("mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new FnApiDoFnRunner.NewFactory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         fakeClient,
         TEST_PTRANSFORM_ID,
         pTransform,
         Suppliers.ofInstance("57L")::get,
-        pProto.getComponents().getPcollectionsMap(),
-        pProto.getComponents().getCodersMap(),
-        pProto.getComponents().getWindowingStrategiesMap(),
+        ImmutableMap.of(),
+        ImmutableMap.of(),
+        ImmutableMap.of(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
@@ -468,12 +471,12 @@ public class FnApiDoFnRunnerTest {
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
 
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+    assertThat(consumers.keySet(), containsInAnyOrder("inputTarget", "mainOutputTarget"));
 
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        Iterables.getOnlyElement(consumers.get("inputTarget"));
     mainInput.accept(valueInGlobalWindow("X"));
     mainInput.accept(valueInGlobalWindow("Y"));
     assertThat(mainOutputValues, contains(

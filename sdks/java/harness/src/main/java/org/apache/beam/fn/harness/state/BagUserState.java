@@ -68,7 +68,7 @@ public class BagUserState<T> {
             DataStreams.inbound(
                 StateFetchingIterators.usingPartialRequestWithStateKey(
                     beamFnStateClient,
-                    partialRequestSupplier))));
+                    partialRequestSupplier::get))));
     this.newValues = new ArrayList<>();
     this.unmodifiableNewValues = Collections.unmodifiableList(newValues);
   }

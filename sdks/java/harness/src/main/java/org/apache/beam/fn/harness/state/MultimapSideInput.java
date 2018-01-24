@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.state;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.function.Supplier;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
@@ -31,18 +32,36 @@ import org.apache.beam.sdk.transforms.Materializations.MultimapView;
  * <p>TODO: Support block level caching and prefetch.
  */
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
+
+  /**
+   * A {@link Supplier} for {@link StateRequest.Builder}s with a {@link StateKey.MultimapSideInput}
+   * key partially populated containing all fields but the
+   * {@link StateKey.MultimapSideInput#getKey() user key}.
+   */
+  @FunctionalInterface
+  public interface StateRequestBuilderWithPartialKey extends Supplier<StateRequest.Builder> {
+
+    /**
+     * Returns a {@link StateRequest.Builder}s with a {@link StateKey.MultimapSideInput}
+     * key partially populated containing all fields but the
+     * {@link StateKey.MultimapSideInput#getKey() user key}.
+     */
+    @Override
+    StateRequest.Builder get();
+  }
+
   private final BeamFnStateClient beamFnStateClient;
   private final String sideInputId;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
-  private final Supplier<StateRequest.Builder> partialRequestSupplier;
+  private final StateRequestBuilderWithPartialKey partialRequestSupplier;
 
   public MultimapSideInput(
       BeamFnStateClient beamFnStateClient,
       String sideInputId,
       Coder<K> keyCoder,
       Coder<V> valueCoder,
-      Supplier<StateRequest.Builder> partialRequestSupplier) {
+      StateRequestBuilderWithPartialKey partialRequestSupplier) {
     this.beamFnStateClient = beamFnStateClient;
     this.sideInputId = sideInputId;
     this.keyCoder = keyCoder;
@@ -51,39 +70,25 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
   }
 
   public Iterable<V> get(K k) {
+    ByteString.Output output = ByteString.newOutput();
+    try {
+      keyCoder.encode(k, output);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to encode key %s for side input id %s.", k, sideInputId),
+          e);
+    }
     return new LazyCachingIteratorToIterable<>(
         new DataStreams.DataStreamDecoder(valueCoder,
             DataStreams.inbound(
                 StateFetchingIterators.usingPartialRequestWithStateKey(
                     beamFnStateClient,
-                    new RequestSupplierForKey(k)))));
+                    () -> buildStateRequest(output.toByteString())))));
   }
 
-  /** Lazily encodes and caches the key on first use. */
-  private class RequestSupplierForKey implements Supplier<StateRequest.Builder> {
-    private final K k;
-    private ByteString encodedK;
-
-    private RequestSupplierForKey(K k) {
-      this.k = k;
-    }
-
-    @Override
-    public StateRequest.Builder get() {
-      if (encodedK == null) {
-        ByteString.Output output = ByteString.newOutput();
-        try {
-          keyCoder.encode(k, output);
-        } catch (IOException e) {
-          throw new IllegalStateException(
-              String.format("Failed to encode key %s for side input id %s.", k, sideInputId),
-              e);
-        }
-        encodedK = output.toByteString();
-      }
-      StateRequest.Builder builder = partialRequestSupplier.get();
-      builder.getStateKeyBuilder().getMultimapSideInputBuilder().setKey(encodedK);
-      return builder;
-    }
+  private StateRequest.Builder buildStateRequest(ByteString encodedK) {
+    StateRequest.Builder builder = partialRequestSupplier.get();
+    builder.getStateKeyBuilder().getMultimapSideInputBuilder().setKey(encodedK);
+    return builder;
   }
 }

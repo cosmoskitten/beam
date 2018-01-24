@@ -73,6 +73,10 @@ public class PCollectionViewTranslation {
     return view;
   }
 
+  /**
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into
+   * a {@link ViewFn} using the URN.
+   */
   public static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
       throws InvalidProtocolBufferException {
     RunnerApi.FunctionSpec spec = viewFn.getSpec();
@@ -86,6 +90,10 @@ public class PCollectionViewTranslation {
             spec.getPayload().toByteArray(), "Custom ViewFn");
   }
 
+  /**
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into
+   * a {@link WindowMappingFn} using the URN.
+   */
   public static WindowMappingFn<?> windowMappingFnFromProto(
       RunnerApi.SdkFunctionSpec windowMappingFn)
       throws InvalidProtocolBufferException {
