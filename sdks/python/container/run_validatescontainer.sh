@@ -73,6 +73,7 @@ docker images | grep "$CONTAINER.*$TAG"
 
 # Push the container
 docker tag $CONTAINER:$TAG $CONTAINER:$TAG
+gcloud docker --authorize-only
 gcloud docker -- push $CONTAINER
 
 # INFRA does not install virtualenv
