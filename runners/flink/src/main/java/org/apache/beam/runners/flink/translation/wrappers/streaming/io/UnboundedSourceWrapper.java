@@ -338,7 +338,7 @@ public class UnboundedSourceWrapper<
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     super.close();
     if (localReaders != null) {
       for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
