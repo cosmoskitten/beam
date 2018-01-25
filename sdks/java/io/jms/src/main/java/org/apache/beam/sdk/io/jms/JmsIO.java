@@ -299,9 +299,9 @@ public class JmsIO {
           "withQueue() and withTopic() are exclusive");
 
       // handles unbounded source to bounded conversion if maxNumRecords is set.
-      Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
+      Unbounded<T> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
 
-      PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
+      PTransform<PBegin, PCollection<T>> transform = unbounded;
 
       if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
         transform = unbounded.withMaxReadTime(getMaxReadTime())
@@ -327,8 +327,8 @@ public class JmsIO {
      * application.
      */
     @VisibleForTesting
-    UnboundedSource<JmsRecord, JmsCheckpointMark> createSource() {
-      return new UnboundedJmsSource(this);
+    UnboundedSource<T, JmsCheckpointMark> createSource() {
+      return new UnboundedJmsSource<T>(this);
     }
 
   }
@@ -336,7 +336,7 @@ public class JmsIO {
   private JmsIO() {}
 
   /**
-   * An interface used by {@link JdbcIO.Read} for converting each row of the {@link ResultSet} into
+   * An interface used by {@link JmsIO.Read} for converting each jms {@link Message} into
    * an element of the resulting {@link PCollection}.
    */
   @FunctionalInterface
@@ -348,35 +348,35 @@ public class JmsIO {
    * An unbounded JMS source.
    */
   @VisibleForTesting
-  protected static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
+  protected static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
-    private final Read spec;
+    private final Read<T> spec;
 
-    public UnboundedJmsSource(Read spec) {
+    public UnboundedJmsSource(Read<T> spec) {
       this.spec = spec;
     }
 
     @Override
-    public List<UnboundedJmsSource> split(
+    public List<UnboundedJmsSource<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
-      List<UnboundedJmsSource> sources = new ArrayList<>();
+      List<UnboundedJmsSource<T>> sources = new ArrayList<>();
       if (spec.getTopic() != null) {
         // in the case of a topic, we create a single source, so an unique subscriber, to avoid
         // element duplication
-        sources.add(new UnboundedJmsSource(spec));
+        sources.add(new UnboundedJmsSource<T>(spec));
       } else {
         // in the case of a queue, we allow concurrent consumers
         for (int i = 0; i < desiredNumSplits; i++) {
-          sources.add(new UnboundedJmsSource(spec));
+          sources.add(new UnboundedJmsSource<T>(spec));
         }
       }
       return sources;
     }
 
     @Override
-    public UnboundedJmsReader createReader(PipelineOptions options,
+    public UnboundedJmsReader<T> createReader(PipelineOptions options,
                                            JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader(this, checkpointMark);
+      return new UnboundedJmsReader<T>(this, checkpointMark);
     }
 
     @Override
@@ -385,8 +385,8 @@ public class JmsIO {
     }
 
     @Override
-    public Coder<JmsRecord> getOutputCoder() {
-      return SerializableCoder.of(JmsRecord.class);
+    public Coder<T> getOutputCoder() {
+      return this.spec.getCoder();
     }
 
   }
