@@ -17,17 +17,15 @@
  */
 package org.apache.beam.fn.harness;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import com.google.common.base.Suppliers;
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
@@ -41,7 +39,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -241,7 +238,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           checkArgument(
               Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
                   sideInput.getAccessPattern().getUrn()),
-              "This runner is only capable of dealing with %s materializations "
+              "This SDK is only capable of dealing with %s materializations "
                   + "but was asked to handle %s for PCollectionView with tag %s.",
               Materializations.MULTIMAP_MATERIALIZATION_URN,
               sideInput.getAccessPattern().getUrn(),
@@ -771,40 +768,40 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       return (ValueState<T>) stateKeyObjectCache.computeIfAbsent(
           createOrUseCachedBagUserStateKey(id),
           new Function<StateKey, Object>() {
-        @Override
-        public Object apply(StateKey key) {
-          return new ValueState<T>() {
-            private final BagUserState<T> impl = createBagUserState(key, coder);
-
             @Override
-            public void clear() {
-              impl.clear();
-            }
+            public Object apply(StateKey key) {
+              return new ValueState<T>() {
+                private final BagUserState<T> impl = createBagUserState(key, coder);
 
-            @Override
-            public void write(T input) {
-              impl.clear();
-              impl.append(input);
-            }
+                @Override
+                public void clear() {
+                  impl.clear();
+                }
 
-            @Override
-            public T read() {
-              Iterator<T> value = impl.get().iterator();
-              if (value.hasNext()) {
-                return value.next();
-              } else {
-                return null;
-              }
-            }
+                @Override
+                public void write(T input) {
+                  impl.clear();
+                  impl.append(input);
+                }
 
-            @Override
-            public ValueState<T> readLater() {
-              // TODO: Support prefetching.
-              return this;
+                @Override
+                public T read() {
+                  Iterator<T> value = impl.get().iterator();
+                  if (value.hasNext()) {
+                    return value.next();
+                  } else {
+                    return null;
+                  }
+                }
+
+                @Override
+                public ValueState<T> readLater() {
+                  // TODO: Support prefetching.
+                  return this;
+                }
+              };
             }
-          };
-        }
-      });
+          });
     }
 
     @Override
@@ -812,39 +809,39 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       return (BagState<T>) stateKeyObjectCache.computeIfAbsent(
           createOrUseCachedBagUserStateKey(id),
           new Function<StateKey, Object>() {
-        @Override
-        public Object apply(StateKey key) {
-          return new BagState<T>() {
-            private final BagUserState<T> impl = createBagUserState(key, elemCoder);
-
             @Override
-            public void add(T value) {
-              impl.append(value);
-            }
+            public Object apply(StateKey key) {
+              return new BagState<T>() {
+                private final BagUserState<T> impl = createBagUserState(key, elemCoder);
 
-            @Override
-            public ReadableState<Boolean> isEmpty() {
-              return ReadableStates.immediate(!impl.get().iterator().hasNext());
-            }
+                @Override
+                public void add(T value) {
+                  impl.append(value);
+                }
 
-            @Override
-            public Iterable<T> read() {
-              return impl.get();
-            }
+                @Override
+                public ReadableState<Boolean> isEmpty() {
+                  return ReadableStates.immediate(!impl.get().iterator().hasNext());
+                }
 
-            @Override
-            public BagState<T> readLater() {
-              // TODO: Support prefetching.
-              return this;
-            }
+                @Override
+                public Iterable<T> read() {
+                  return impl.get();
+                }
 
-            @Override
-            public void clear() {
-              impl.clear();
+                @Override
+                public BagState<T> readLater() {
+                  // TODO: Support prefetching.
+                  return this;
+                }
+
+                @Override
+                public void clear() {
+                  impl.clear();
+                }
+              };
             }
-          };
-        }
-      });
+          });
     }
 
     @Override
@@ -867,74 +864,74 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
           createOrUseCachedBagUserStateKey(id),
           new Function<StateKey, Object>() {
-        @Override
-        public Object apply(StateKey key) {
-          // TODO: Support squashing accumulators depending on whether we know of all
-          // remote accumulators and local accumulators or just local accumulators.
-          return new CombiningState<InputT, AccumT, OutputT>() {
-            private final BagUserState<AccumT> impl = createBagUserState(key, accumCoder);
-
             @Override
-            public AccumT getAccum() {
-              Iterator<AccumT> iterator = impl.get().iterator();
-              if (iterator.hasNext()) {
-                return iterator.next();
-              }
-              return combineFn.createAccumulator();
+            public Object apply(StateKey key) {
+              // TODO: Support squashing accumulators depending on whether we know of all
+              // remote accumulators and local accumulators or just local accumulators.
+              return new CombiningState<InputT, AccumT, OutputT>() {
+                private final BagUserState<AccumT> impl = createBagUserState(key, accumCoder);
+
+                @Override
+                public AccumT getAccum() {
+                  Iterator<AccumT> iterator = impl.get().iterator();
+                  if (iterator.hasNext()) {
+                    return iterator.next();
+                  }
+                  return combineFn.createAccumulator();
+                }
+
+                @Override
+                public void addAccum(AccumT accum) {
+                  Iterator<AccumT> iterator = impl.get().iterator();
+
+                  // Only merge if there was a prior value
+                  if (iterator.hasNext()) {
+                    accum = combineFn.mergeAccumulators(ImmutableList.of(iterator.next(), accum));
+                    // Since there was a prior value, we need to clear.
+                    impl.clear();
+                  }
+
+                  impl.append(accum);
+                }
+
+                @Override
+                public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
+                  return combineFn.mergeAccumulators(accumulators);
+                }
+
+                @Override
+                public CombiningState<InputT, AccumT, OutputT> readLater() {
+                  return this;
+                }
+
+                @Override
+                public OutputT read() {
+                  Iterator<AccumT> iterator = impl.get().iterator();
+                  if (iterator.hasNext()) {
+                    return combineFn.extractOutput(iterator.next());
+                  }
+                  return combineFn.defaultValue();
+                }
+
+                @Override
+                public void add(InputT value) {
+                  AccumT newAccumulator = combineFn.addInput(getAccum(), value);
+                  impl.clear();
+                  impl.append(newAccumulator);
+                }
+
+                @Override
+                public ReadableState<Boolean> isEmpty() {
+                  return ReadableStates.immediate(!impl.get().iterator().hasNext());
+                }
+
+                @Override
+                public void clear() {
+                  impl.clear();
+                }
+              };
             }
-
-            @Override
-            public void addAccum(AccumT accum) {
-              Iterator<AccumT> iterator = impl.get().iterator();
-
-              // Only merge if there was a prior value
-              if (iterator.hasNext()) {
-                accum = combineFn.mergeAccumulators(ImmutableList.of(iterator.next(), accum));
-                // Since there was a prior value, we need to clear.
-                impl.clear();
-              }
-
-              impl.append(accum);
-            }
-
-            @Override
-            public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-              return combineFn.mergeAccumulators(accumulators);
-            }
-
-            @Override
-            public CombiningState<InputT, AccumT, OutputT> readLater() {
-              return this;
-            }
-
-            @Override
-            public OutputT read() {
-              Iterator<AccumT> iterator = impl.get().iterator();
-              if (iterator.hasNext()) {
-                return combineFn.extractOutput(iterator.next());
-              }
-              return combineFn.defaultValue();
-            }
-
-            @Override
-            public void add(InputT value) {
-              AccumT newAccumulator = combineFn.addInput(getAccum(), value);
-              impl.clear();
-              impl.append(newAccumulator);
-            }
-
-            @Override
-            public ReadableState<Boolean> isEmpty() {
-              return ReadableStates.immediate(!impl.get().iterator().hasNext());
-            }
-
-            @Override
-            public void clear() {
-              impl.clear();
-            }
-          };
-        }
-      });
+          });
     }
 
     @Override
@@ -1116,7 +1113,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       String id,
       WindowMappingFn<W> windowMappingFn,
       Coder<W> windowCoder) {
-      ByteString.Output encodedWindowOut = ByteString.newOutput();
+    ByteString.Output encodedWindowOut = ByteString.newOutput();
     try {
       windowCoder.encode(windowMappingFn.getSideInputWindow(currentWindow), encodedWindowOut);
     } catch (IOException e) {
