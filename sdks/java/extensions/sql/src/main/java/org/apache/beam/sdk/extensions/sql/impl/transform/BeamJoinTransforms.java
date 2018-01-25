@@ -22,14 +22,14 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -61,16 +61,14 @@ public class BeamJoinTransforms {
       // build the type
       // the name of the join field is not important
       List<String> names = new ArrayList<>(joinColumns.size());
-      List<Integer> types = new ArrayList<>(joinColumns.size());
+      List<Coder> types = new ArrayList<>(joinColumns.size());
       for (int i = 0; i < joinColumns.size(); i++) {
         names.add("c" + i);
         types.add(isLeft
-            ? BeamSqlRecordHelper.getSqlRecordType(input).getFieldTypeByIndex(
-                joinColumns.get(i).getKey())
-            : BeamSqlRecordHelper.getSqlRecordType(input).getFieldTypeByIndex(
-                joinColumns.get(i).getValue()));
+            ? input.getDataType().getFieldCoder(joinColumns.get(i).getKey())
+            : input.getDataType().getFieldCoder(joinColumns.get(i).getValue()));
       }
-      BeamRecordSqlType type = BeamRecordSqlType.create(names, types);
+      BeamRecordType type = new BeamRecordType(names, types);
 
       // build the row
       List<Object> fieldValues = new ArrayList<>(joinColumns.size());
@@ -149,17 +147,16 @@ public class BeamJoinTransforms {
   /**
    * As the method name suggests: combine two rows into one wide row.
    */
-  private static BeamRecord combineTwoRowsIntoOneHelper(BeamRecord leftRow,
-      BeamRecord rightRow) {
+  private static BeamRecord combineTwoRowsIntoOneHelper(BeamRecord leftRow, BeamRecord rightRow) {
     // build the type
     List<String> names = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     names.addAll(leftRow.getDataType().getFieldNames());
     names.addAll(rightRow.getDataType().getFieldNames());
 
-    List<Integer> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    types.addAll(BeamSqlRecordHelper.getSqlRecordType(leftRow).getFieldTypes());
-    types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldTypes());
-    BeamRecordSqlType type = BeamRecordSqlType.create(names, types);
+    List<Coder> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
+    types.addAll(leftRow.getDataType().getRecordCoder().getCoders());
+    types.addAll(rightRow.getDataType().getRecordCoder().getCoders());
+    BeamRecordType type = new BeamRecordType(names, types);
 
     List<Object> fieldValues = new ArrayList<>(leftRow.getDataValues());
     fieldValues.addAll(rightRow.getDataValues());
@@ -171,15 +168,14 @@ public class BeamJoinTransforms {
    */
   public static class JoinAsLookup
       extends PTransform<PCollection<BeamRecord>, PCollection<BeamRecord>> {
-//    private RexNode joinCondition;
+
     BeamSqlSeekableTable seekableTable;
-    BeamRecordSqlType lkpRowType;
-//    int factTableColSize = 0; // TODO
-    BeamRecordSqlType joinSubsetType;
+    BeamRecordType lkpRowType;
+    BeamRecordType joinSubsetType;
     List<Integer> factJoinIdx;
 
     public JoinAsLookup(RexNode joinCondition, BeamSqlSeekableTable seekableTable,
-        BeamRecordSqlType lkpRowType, int factTableColSize) {
+        BeamRecordType lkpRowType, int factTableColSize) {
       this.seekableTable = seekableTable;
       this.lkpRowType = lkpRowType;
       joinFieldsMapping(joinCondition, factTableColSize);
@@ -188,7 +184,7 @@ public class BeamJoinTransforms {
     private void joinFieldsMapping(RexNode joinCondition, int factTableColSize) {
       factJoinIdx = new ArrayList<>();
       List<String> lkpJoinFieldsName = new ArrayList<>();
-      List<Integer> lkpJoinFieldsType = new ArrayList<>();
+      List<Coder> lkpJoinFieldsType = new ArrayList<>();
 
       RexCall call = (RexCall) joinCondition;
       if ("AND".equals(call.getOperator().getName())) {
@@ -198,20 +194,20 @@ public class BeamJoinTransforms {
           int lkpJoinIdx = ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
               - factTableColSize;
           lkpJoinFieldsName.add(lkpRowType.getFieldNameByIndex(lkpJoinIdx));
-          lkpJoinFieldsType.add(lkpRowType.getFieldTypeByIndex(lkpJoinIdx));
+          lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
         factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
         int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex()
             - factTableColSize;
         lkpJoinFieldsName.add(lkpRowType.getFieldNameByIndex(lkpJoinIdx));
-        lkpJoinFieldsType.add(lkpRowType.getFieldTypeByIndex(lkpJoinIdx));
+        lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = BeamRecordSqlType.create(lkpJoinFieldsName, lkpJoinFieldsType);
+      joinSubsetType = new BeamRecordType(lkpJoinFieldsName, lkpJoinFieldsType);
     }
 
     @Override

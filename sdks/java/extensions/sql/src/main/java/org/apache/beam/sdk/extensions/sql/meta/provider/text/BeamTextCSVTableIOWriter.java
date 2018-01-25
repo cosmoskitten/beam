@@ -21,12 +21,12 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRecord2CsvLine;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
@@ -37,13 +37,13 @@ import org.apache.commons.csv.CSVFormat;
 public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>, PDone>
     implements Serializable {
   private String filePattern;
-  protected BeamRecordSqlType beamRecordSqlType;
+  protected BeamRecordType beamRecordType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamRecordSqlType beamRecordSqlType, String filePattern,
-      CSVFormat csvFormat) {
+  public BeamTextCSVTableIOWriter(BeamRecordType beamRecordType, String filePattern,
+                                  CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamRecordSqlType = beamRecordSqlType;
+    this.beamRecordType = beamRecordType;
     this.csvFormat = csvFormat;
   }
 

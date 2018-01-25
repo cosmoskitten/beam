@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -43,14 +43,14 @@ public class BeamValuesRelTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("string_table",
         MockedBoundedTable.of(
-            Types.VARCHAR, "name",
-            Types.VARCHAR, "description"
+            SqlTypeCoder.VARCHAR, "name",
+            SqlTypeCoder.VARCHAR, "description"
         )
     );
     sqlEnv.registerTable("int_table",
         MockedBoundedTable.of(
-            Types.INTEGER, "c0",
-            Types.INTEGER, "c1"
+            SqlTypeCoder.INTEGER, "c0",
+            SqlTypeCoder.INTEGER, "c1"
         )
     );
   }
@@ -62,8 +62,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.VARCHAR, "name",
-            Types.VARCHAR, "description"
+            SqlTypeCoder.VARCHAR, "name",
+            SqlTypeCoder.VARCHAR, "description"
         ).addRows(
             "hello", "world",
             "james", "bond"
@@ -78,8 +78,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.INTEGER, "c0",
-            Types.INTEGER, "c1"
+            SqlTypeCoder.INTEGER, "c0",
+            SqlTypeCoder.INTEGER, "c1"
         ).addRows(
             1, 2
         ).getRows()
@@ -93,8 +93,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.INTEGER, "EXPR$0",
-            Types.CHAR, "EXPR$1"
+            SqlTypeCoder.INTEGER, "EXPR$0",
+            SqlTypeCoder.CHAR, "EXPR$1"
         ).addRows(
             1, "1"
         ).getRows()
