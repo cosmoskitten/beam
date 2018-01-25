@@ -152,7 +152,7 @@ public class SplittableDoFnOperator<
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     super.close();
 
     executorService.shutdown();
