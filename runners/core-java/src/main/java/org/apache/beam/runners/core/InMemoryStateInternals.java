@@ -642,6 +642,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
   }
 
+  /** Like {@link CoderUtils#clone} but without a checked exception. */
   private static <T> T uncheckedClone(Coder<T> coder, T value) {
     try {
       return CoderUtils.clone(coder, value);
