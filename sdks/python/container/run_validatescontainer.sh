@@ -45,6 +45,8 @@ command -v docker
 command -v gcloud
 docker -v
 gcloud -v
+gcloud components update --quiet
+gcloud -v
 
 # ensure maven version is 3.5 or above
 TMPDIR=$(mktemp -d)
@@ -72,9 +74,8 @@ rm -rf $TMPDIR
 docker images | grep "$CONTAINER.*$TAG"
 
 # Push the container
-docker tag $CONTAINER:$TAG $CONTAINER:$TAG
 gcloud docker --authorize-only
-gcloud docker -- push $CONTAINER
+gcloud docker -- push $CONTAINER:$TAG
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
