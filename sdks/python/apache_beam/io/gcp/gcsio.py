@@ -20,9 +20,12 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
+import cStringIO
 import errno
 import fnmatch
+import io
 import logging
+import multiprocessing
 import os
 import re
 import threading
@@ -31,11 +34,12 @@ import traceback
 
 import httplib2
 
-from apache_beam.utils import retry
-from apache_beam.io.filesystemio import BufferedReader
-from apache_beam.io.filesystemio import BufferedWriter
 from apache_beam.io.filesystemio import Downloader
+from apache_beam.io.filesystemio import DownloaderStream
+from apache_beam.io.filesystemio import PipeStream
 from apache_beam.io.filesystemio import Uploader
+from apache_beam.io.filesystemio import UploaderStream
+from apache_beam.utils import retry
 
 __all__ = ['GcsIO']
 
@@ -190,12 +194,14 @@ class GcsIO(object):
       ~exceptions.ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
-      downloader = GcsDownloader(self.client, filename)
-      return BufferedReader(downloader, filename, buffer_size=read_buffer_size,
-                            mode=mode)
+      downloader = GcsDownloader(self.client, filename,
+                                 buffer_size=read_buffer_size)
+      return io.BufferedReader(DownloaderStream(downloader, mode=mode),
+                               buffer_size=read_buffer_size)
     elif mode == 'w' or mode == 'wb':
       uploader = GcsUploader(self.client, filename, mime_type)
-      return BufferedWriter(uploader, filename, mode=mode)
+      return io.BufferedWriter(UploaderStream(uploader, mode=mode),
+                               buffer_size=128 * 1024)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
@@ -460,10 +466,11 @@ class GcsIO(object):
 
 
 class GcsDownloader(Downloader):
-  def __init__(self, client, path):
+  def __init__(self, client, path, buffer_size):
     self._client = client
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
+    self._buffer_size = buffer_size
 
     # Get object state.
     self._get_request = (storage.StorageObjectsGetRequest(
@@ -481,7 +488,12 @@ class GcsDownloader(Downloader):
 
     # Ensure read is from file of the correct generation.
     self._get_request.generation = metadata.generation
-    self._downloader = None
+
+    # Initialize read buffer state.
+    self.download_stream = cStringIO.StringIO()
+    self._downloader = transfer.Download(
+        self.download_stream, auto_transfer=False, chunksize=self._buffer_size)
+    self._client.objects.Get(self._get_request, download=self._downloader)
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
@@ -492,13 +504,10 @@ class GcsDownloader(Downloader):
   def size(self):
     return self._size
 
-  def start(self, download_stream, buffer_size):
-    self._downloader = transfer.Download(
-        download_stream, auto_transfer=False, chunksize=buffer_size)
-    self._client.objects.Get(self._get_request, download=self._downloader)
-
   def get_range(self, start, end):
+    self.download_stream.truncate(0)
     self._downloader.GetRange(start, end)
+    return self.download_stream.getvalue()
 
 
 class GcsUploader(Uploader):
@@ -507,25 +516,18 @@ class GcsUploader(Uploader):
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
-    self._insert_request = None
-    self._upload = None
-    self._upload_thread = None
     self._last_error = None
-    self._child_conn = None
 
-  @property
-  def last_error(self):
-    return self._upload_thread.last_error
-
-  # TODO: document, rename method?, rename child_conn maybe
-  def start(self, child_conn):
+    # Set up communication with child thread.
+    parent_conn, child_conn = multiprocessing.Pipe()
     self._child_conn = child_conn
+    self._conn = parent_conn
 
     # Set up uploader.
     self._insert_request = (storage.StorageObjectsInsertRequest(
         bucket=self._bucket, name=self._name))
     self._upload = transfer.Upload(
-        BufferedWriter.PipeStream(self._child_conn),
+        PipeStream(self._child_conn),
         self._mime_type,
         chunksize=WRITE_CHUNK_SIZE)
     self._upload.strategy = transfer.RESUMABLE_UPLOAD
@@ -535,6 +537,10 @@ class GcsUploader(Uploader):
     self._upload_thread.daemon = True
     self._upload_thread.last_error = None
     self._upload_thread.start()
+
+  @property
+  def last_error(self):
+    return self._upload_thread.last_error
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   # There is retry logic in the underlying transfer library but we should make
@@ -556,10 +562,14 @@ class GcsUploader(Uploader):
     finally:
       self._child_conn.close()
 
+  def put(self, data):
+    self._conn.send_bytes(data.tobytes())
+
   def finish(self):
+    self._conn.close()
     # TODO(udim): Add timeout=DEFAULT_HTTP_TIMEOUT_SECONDS * 2 and check
     # isAlive.
     self._upload_thread.join()
     # Check for exception since the last _flush_write_buffer() call.
-    if self._upload_thread.last_error:
+    if self._upload_thread.last_error is not None:
       raise self._upload_thread.last_error  # pylint: disable=raising-bad-type

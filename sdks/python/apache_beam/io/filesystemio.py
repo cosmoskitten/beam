@@ -17,37 +17,24 @@
 """Utilities for ``FileSystem`` implementations."""
 
 import abc
-import cStringIO
-import logging
-import multiprocessing
+import io
 import os
-import traceback
 
-__all__ = ['Downloader', 'Uploader', 'BufferedReader', 'BufferedWriter']
+__all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
+           'PipeStream']
 
 
 class Downloader(object):
-  """A download interface for a single file.
+  """Download interface for a single file.
 
-  Ranges to download are requested in get_range. Data is streamed to a
-  user-provided download_stream.
+  Implementations should support random access reads.
   """
 
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractproperty
   def size(self):
-    """Size of the file to download"""
-
-  @abc.abstractmethod
-  def start(self, download_stream, buffer_size):
-    """Initialize downloader.
-
-    Args:
-      download_stream: (cStringIO.StringIO) A buffer where downloaded data is
-        streamed to.
-      buffer_size: Maximum range size for get_range calls.
-    """
+    """Size of file to download."""
 
   @abc.abstractmethod
   def get_range(self, start, end):
@@ -57,19 +44,16 @@ class Downloader(object):
       0 <= start <= end: Fetch the bytes from start to end.
 
     Args:
-      start: (int) Where to start fetching bytes. (See above.)
-      end: (int) Where to stop fetching bytes. (See above.)
+      start: (int) Initial byte offset.
+      end: (int) Final byte offset, inclusive.
 
     Returns:
-      None. Streams bytes to download_stream provided in call to start.
+      (string) A buffer containing the requested data.
     """
 
 
 class Uploader(object):
-  """An upload interface for a single file.
-
-  Data to upload is sent via ``multiprocessing.Pipe`` connection objects.
-  """
+  """Upload interface for a single file."""
 
   __metaclass__ = abc.ABCMeta
 
@@ -78,204 +62,59 @@ class Uploader(object):
     """Last error encountered for this instance."""
 
   @abc.abstractmethod
-  def start(self, upload_conn):
-    """Initialize uploader to upload data sent to upload_conn.
-
-    Closes upload_conn on error. Use last_error to get actual error.
+  def put(self, data):
+    """Write data to file sequentially.
 
     Args:
-      upload_conn: (multiprocessing.Connection) Where data to upload will be
-        sent to.
+      data: (memoryview) Data to write.
     """
 
   @abc.abstractmethod
   def finish(self):
-    """Upload any remaining data and close the file."""
+    """Signal to upload any remaining data and close the file.
+
+    File should be fully written upon return from this method.
+
+    Raises:
+      Any error encountered during the upload.
+    """
 
 
-# TODO: Consider using cStringIO instead of buffers and data_lists when reading.
-class BufferedReader(object):
-  """A class for reading files from stateless services.
+class DownloaderStream(io.RawIOBase):
+  """Provides a stream interface for Downloader objects."""
 
-  Provides a Python File object-like interface.
-  """
-
-  def __init__(self,
-               downloader,
-               path,
-               buffer_size,
-               mode='r'):
-    """Initialize reader and downloader.
+  def __init__(self, downloader, mode='r'):
+    """Initializes the stream.
 
     Args:
       downloader: (Downloader) Filesystem dependent implementation.
-      path: (string) Path of file to download. Used for logging only.
-      buffer_size: (int) How many bytes to read at a time.
-      mode: (string) Python file mode to return (for Python File compatibility).
+      mode: (string) Python mode attribute for this stream.
     """
-    self.downloader = downloader
-    self.path = path
+    self._downloader = downloader
     self.mode = mode
-    self.buffer_size = buffer_size
+    self._position = 0
 
-    # Initialize read buffer state.
-    self.download_stream = cStringIO.StringIO()
-    self.downloader.start(self.download_stream, self.buffer_size)
-    self.position = 0
-    self.buffer = ''
-    self.buffer_start_position = 0
-    self.closed = False
+  def readinto(self, b):
+    """Read up to len(b) bytes into b.
 
-  def __iter__(self):
-    return self
-
-  def __next__(self):
-    """Read one line delimited by '\\n' from the file.
-    """
-    return next(self)
-
-  def next(self):
-    """Read one line delimited by '\\n' from the file.
-    """
-    line = self.readline()
-    if not line:
-      raise StopIteration
-    return line
-
-  def read(self, size=-1):
-    """Read data from a file.
+    Returns number of bytes read (0 for EOF).
 
     Args:
-      size: Number of bytes to read. Actual number of bytes read is always
-            equal to size unless EOF is reached. If size is negative or
-            unspecified, read the entire file.
-
-    Returns:
-      data read as str.
-
-    Raises:
-      IOError: When this buffer is closed.
+      b: (bytearray/memoryview) Buffer to read into.
     """
-    return self._read_inner(size=size, readline=False)
+    self._checkClosed()
+    if self._position >= self._downloader.size:
+      return 0
 
-  def readline(self, size=-1):
-    """Read one line delimited by '\\n' from the file.
-
-    Mimics behavior of the readline() method on standard file objects.
-
-    A trailing newline character is kept in the string. It may be absent when a
-    file ends with an incomplete line. If the size argument is non-negative,
-    it specifies the maximum string size (counting the newline) to return.
-    A negative size is the same as unspecified. Empty string is returned
-    only when EOF is encountered immediately.
-
-    Args:
-      size: Maximum number of bytes to read. If not specified, readline stops
-        only on '\\n' or EOF.
-
-    Returns:
-      The data read as a string.
-
-    Raises:
-      IOError: When this buffer is closed.
-    """
-    return self._read_inner(size=size, readline=True)
-
-  def _read_inner(self, size=-1, readline=False):
-    """Shared implementation of read() and readline()."""
-    self._check_open()
-    if not self._remaining():
-      return ''
-
-    # Prepare to read.
-    data_list = []
-    if size is None:
-      size = -1
-    to_read = min(size, self._remaining())
-    if to_read < 0:
-      to_read = self._remaining()
-    break_after = False
-
-    while to_read > 0:
-      # If we have exhausted the buffer, get the next segment.
-      # TODO(ccy): We should consider prefetching the next block in another
-      # thread.
-      self._fetch_next_if_buffer_exhausted()
-
-      # Determine number of bytes to read from buffer.
-      buffer_bytes_read = self.position - self.buffer_start_position
-      bytes_to_read_from_buffer = min(
-          len(self.buffer) - buffer_bytes_read, to_read)
-
-      # If readline is set, we only want to read up to and including the next
-      # newline character.
-      if readline:
-        next_newline_position = self.buffer.find('\n', buffer_bytes_read,
-                                                 len(self.buffer))
-        if next_newline_position != -1:
-          bytes_to_read_from_buffer = (
-              1 + next_newline_position - buffer_bytes_read)
-          break_after = True
-
-      # Read bytes.
-      data_list.append(self.buffer[buffer_bytes_read:buffer_bytes_read +
-                                   bytes_to_read_from_buffer])
-      self.position += bytes_to_read_from_buffer
-      to_read -= bytes_to_read_from_buffer
-
-      if break_after:
-        break
-
-    return ''.join(data_list)
-
-  def _fetch_next_if_buffer_exhausted(self):
-    if not self.buffer or (
-        self.buffer_start_position + len(self.buffer) <= self.position):
-      bytes_to_request = min(self._remaining(), self.buffer_size)
-      self.buffer_start_position = self.position
-      try:
-        result = self._get_segment(self.position, bytes_to_request)
-      except Exception as e:  # pylint: disable=broad-except
-        tb = traceback.format_exc()
-        logging.error(
-            ('Exception while fetching %d bytes from position %d of %s: '
-             '%s\n%s'),
-            bytes_to_request, self.position, self.path, e, tb)
-        raise
-
-      self.buffer = result
-      return
-
-  def _remaining(self):
-    return self.downloader.size - self.position
-
-  def close(self):
-    """Close the current file."""
-    self.closed = True
-    self.download_stream = None
-    self.downloader = None
-    self.buffer = None
-
-  def _get_segment(self, start, size):
-    """Get the given segment of the current file."""
-    if size == 0:
-      return ''
-    end = start + size - 1
-    self.downloader.get_range(start, end)
-    value = self.download_stream.getvalue()
-    # Clear the cStringIO object after we've read its contents.
-    self.download_stream.truncate(0)
-    assert len(value) == size
-    return value
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exception_type, exception_value, traceback):
-    self.close()
+    start = self._position
+    end = min(self._position + len(b) - 1, self._downloader.size - 1)
+    data = self._downloader.get_range(start, end)
+    self._position += len(data)
+    b[:len(data)] = data
+    return len(data)
 
   def seek(self, offset, whence=os.SEEK_SET):
-    """Set the file's current offset.
+    """Set the stream's current offset.
 
     Note if the new offset is out of bound, it is adjusted to either 0 or EOF.
 
@@ -286,25 +125,130 @@ class BufferedReader(object):
         (seek relative to the end, offset should be negative).
 
     Raises:
-      IOError: When this buffer is closed.
-      ValueError: When whence is invalid.
+      ValueError: When this stream is closed or if whence is invalid.
     """
-    self._check_open()
-
-    self.buffer = ''
-    self.buffer_start_position = -1
+    self._checkClosed()
 
     if whence == os.SEEK_SET:
-      self.position = offset
+      self._position = offset
     elif whence == os.SEEK_CUR:
-      self.position += offset
+      self._position += offset
     elif whence == os.SEEK_END:
-      self.position = self.downloader.size + offset
+      self._position = self._downloader.size + offset
     else:
       raise ValueError('Whence mode %r is invalid.' % whence)
 
-    self.position = min(self.position, self.downloader.size)
-    self.position = max(self.position, 0)
+    self._position = min(self._position, self._downloader.size)
+    self._position = max(self._position, 0)
+    return self._position
+
+  def tell(self):
+    """Tell the stream's current offset.
+
+    Returns:
+      current offset in reading this stream.
+
+    Raises:
+      ValueError: When this buffer is closed.
+    """
+    self._checkClosed()
+    return self._position
+
+  def seekable(self):
+    return True
+
+  def readable(self):
+    return True
+
+
+class UploaderStream(io.RawIOBase):
+  """Provides a stream interface for Downloader objects."""
+
+  def __init__(self, uploader, mode='w'):
+    """Initializes the stream.
+
+    Args:
+      uploader: (Uploader) Filesystem dependent implementation.
+      mode: (string) Python mode attribute for this stream.
+    """
+    self._uploader = uploader
+    self.mode = mode
+    self._position = 0
+
+  def write(self, b):
+    """Write bytes from b.
+
+    Returns number of bytes written (<= len(b)).
+
+    Args:
+      b: (memoryview) Buffer with data to write.
+    """
+    self._checkClosed()
+    try:
+      self._uploader.put(b)
+    except IOError:
+      # TODO(udim): Call self._uploader.finish() instead (once
+      # GcsUploader.finish() calls join() with timeout), and remove last_error
+      # property. Rely on finish() to raise any internal errors encountered.
+      if self._uploader.last_error:
+        raise self._uploader.last_error  # pylint: disable=raising-bad-type
+      else:
+        raise
+
+    bytes_written = len(b)
+    self._position += bytes_written
+    return bytes_written
+
+  def close(self):
+    """Complete the upload and close this stream.
+
+    This method has no effect if the stream is already closed.
+
+    Raises:
+      Any error encountered by the uploader.
+    """
+    if not self.closed:
+      self._uploader.finish()
+
+    super(UploaderStream, self).close()
+
+  def writable(self):
+    return True
+
+
+class PipeStream(object):
+  """A class that presents a pipe connection as a readable stream."""
+
+  def __init__(self, recv_pipe):
+    self.conn = recv_pipe
+    self.closed = False
+    self.position = 0
+    self.remaining = ''
+
+  def read(self, size):
+    """Read data from the wrapped pipe connection.
+
+    Args:
+      size: Number of bytes to read. Actual number of bytes read is always
+            equal to size unless EOF is reached.
+
+    Returns:
+      data read as str.
+    """
+    data_list = []
+    bytes_read = 0
+    while bytes_read < size:
+      bytes_from_remaining = min(size - bytes_read, len(self.remaining))
+      data_list.append(self.remaining[0:bytes_from_remaining])
+      self.remaining = self.remaining[bytes_from_remaining:]
+      self.position += bytes_from_remaining
+      bytes_read += bytes_from_remaining
+      if not self.remaining:
+        try:
+          self.remaining = self.conn.recv_bytes()
+        except EOFError:
+          break
+    return ''.join(data_list)
 
   def tell(self):
     """Tell the file's current offset.
@@ -313,180 +257,21 @@ class BufferedReader(object):
       current offset in reading this file.
 
     Raises:
-      IOError: When this buffer is closed.
+      IOError: When this stream is closed.
     """
     self._check_open()
     return self.position
 
-  def _check_open(self):
-    if self.closed:
-      raise IOError('Buffer is closed.')
-
-  def seekable(self):
-    return True
-
-  def readable(self):
-    return True
-
-  def writable(self):
-    return False
-
-
-# TODO: Consider using cStringIO instead of buffers and data_lists when reading
-# and writing.
-class BufferedWriter(object):
-  """A class for writing files from stateless services.
-
-  Provides a Python File object-like interface.
-  """
-
-  class PipeStream(object):
-    """A class that presents a pipe connection as a readable stream."""
-
-    def __init__(self, recv_pipe):
-      self.conn = recv_pipe
-      self.closed = False
-      self.position = 0
-      self.remaining = ''
-
-    def read(self, size):
-      """Read data from the wrapped pipe connection.
-
-      Args:
-        size: Number of bytes to read. Actual number of bytes read is always
-              equal to size unless EOF is reached.
-
-      Returns:
-        data read as str.
-      """
-      data_list = []
-      bytes_read = 0
-      while bytes_read < size:
-        bytes_from_remaining = min(size - bytes_read, len(self.remaining))
-        data_list.append(self.remaining[0:bytes_from_remaining])
-        self.remaining = self.remaining[bytes_from_remaining:]
-        self.position += bytes_from_remaining
-        bytes_read += bytes_from_remaining
-        if not self.remaining:
-          try:
-            self.remaining = self.conn.recv_bytes()
-          except EOFError:
-            break
-      return ''.join(data_list)
-
-    def tell(self):
-      """Tell the file's current offset.
-
-      Returns:
-        current offset in reading this file.
-
-      Raises:
-        IOError: When this stream is closed.
-      """
-      self._check_open()
-      return self.position
-
-    def seek(self, offset, whence=os.SEEK_SET):
-      # The apitools.base.py.transfer.Upload class insists on seeking to the end
-      # of a stream to do a check before completing an upload, so we must have
-      # this no-op method here in that case.
-      if whence == os.SEEK_END and offset == 0:
-        return
-      elif whence == os.SEEK_SET and offset == self.position:
-        return
-      raise NotImplementedError
-
-    def _check_open(self):
-      if self.closed:
-        raise IOError('Stream is closed.')
-
-  def __init__(self,
-               uploader,
-               path,
-               mode='w',
-               mime_type='application/octet-stream'):
-    self.uploader = uploader
-    self.path = path
-    self.mode = mode
-    self.closed = False
-    self.position = 0
-
-    # A small buffer to avoid CPU-heavy per-write pipe calls.
-    self.write_buffer = bytearray()
-    self.write_buffer_size = 128 * 1024
-
-    # Set up communication with uploader.
-    parent_conn, child_conn = multiprocessing.Pipe()
-    self.child_conn = child_conn
-    self.conn = parent_conn
-
-    self.uploader.start(child_conn)
-
-  def write(self, data):
-    """Write data to a file.
-
-    Args:
-      data: data to write as str.
-
-    Raises:
-      IOError: When this buffer is closed.
-    """
-    self._check_open()
-    if not data:
+  def seek(self, offset, whence=os.SEEK_SET):
+    # The gcsio.Uploader class insists on seeking to the end of a stream to
+    # do a check before completing an upload, so we must have this no-op
+    # method here in that case.
+    if whence == os.SEEK_END and offset == 0:
       return
-    self.write_buffer.extend(data)
-    if len(self.write_buffer) > self.write_buffer_size:
-      self._flush_write_buffer()
-    self.position += len(data)
-
-  def flush(self):
-    """Flushes any internal buffer to the underlying file."""
-    self._check_open()
-    self._flush_write_buffer()
-
-  def tell(self):
-    """Return the total number of bytes passed to write() so far."""
-    return self.position
-
-  def close(self):
-    """Close the current file."""
-    if self.closed:
-      logging.warn('Channel for %s is not open.', self.path)
+    elif whence == os.SEEK_SET and offset == self.position:
       return
-
-    self._flush_write_buffer()
-    self.closed = True
-    self.conn.close()
-    self.uploader.finish()
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, exception_type, exception_value, traceback):
-    self.close()
+    raise NotImplementedError
 
   def _check_open(self):
     if self.closed:
-      raise IOError('Buffer is closed.')
-
-  def seekable(self):
-    return False
-
-  def readable(self):
-    return False
-
-  def writable(self):
-    return True
-
-  def _flush_write_buffer(self):
-    try:
-      self.conn.send_bytes(buffer(self.write_buffer))
-      self.write_buffer = bytearray()
-    except IOError:
-      # TODO(udim): Call self.uploader.finish() instead (once
-      # GcsUploader.finish() calls join() with timeout), and remove last_error
-      # property. Rely on finish() to raise any internal errors encountered.
-      if self.uploader.last_error:
-        raise self.uploader.last_error  # pylint: disable=raising-bad-type
-      else:
-        raise
+      raise IOError('Stream is closed.')

@@ -32,9 +32,6 @@ try:
   from apache_beam.io.gcp.internal.clients import storage
   from apitools.base.py.exceptions import HttpError
 except ImportError:
-  # TODO: remove
-  logging.exception('foo')
-  raise
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -98,7 +95,9 @@ class FakeGcsObjects(object):
       stream = download.stream
 
       def get_range_callback(start, end):
-        assert start >= 0 and end >= start and end < len(f.contents)
+        if not (start >= 0 and end >= start and end < len(f.contents)):
+          raise ValueError(
+              'start=%d end=%d len=%s' % (start, end, len(f.contents)))
         stream.write(f.contents[start:end + 1])
 
       download.GetRange = get_range_callback
