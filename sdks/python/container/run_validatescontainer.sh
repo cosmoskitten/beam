@@ -45,8 +45,6 @@ command -v docker
 command -v gcloud
 docker -v
 gcloud -v
-gcloud components update --quiet
-gcloud -v
 
 # ensure maven version is 3.5 or above
 TMPDIR=$(mktemp -d)
@@ -61,21 +59,28 @@ then
   popd
 fi
 
+# install gcloud
+pushd $TMPDIR
+curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
+tar xf gcloud.tar.gz
+./google-cloud-sdk/install.sh
+. ./google-cloud-sdk/path.bash.inc
+gcloud -v
+
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
 $MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
 
-# Clean up tempdir
-rm -rf $TMPDIR
-
 # Verify it exists
 docker images | grep "$CONTAINER.*$TAG"
 
 # Push the container
-gcloud docker --authorize-only
 gcloud docker -- push $CONTAINER:$TAG
+
+# Clean up tempdir
+rm -rf $TMPDIR
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
