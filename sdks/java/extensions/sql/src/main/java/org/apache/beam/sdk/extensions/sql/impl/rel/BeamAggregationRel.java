@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -122,31 +123,31 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   /**
    * Type of sub-rowrecord used as Group-By keys.
    */
-  private BeamRecordSqlType exKeyFieldsSchema(RelDataType relDataType) {
-    BeamRecordSqlType inputRowType = CalciteUtils.toBeamRowType(relDataType);
+  private BeamRecordType exKeyFieldsSchema(RelDataType relDataType) {
+    BeamRecordType inputRowType = CalciteUtils.toBeamRowType(relDataType);
     List<String> fieldNames = new ArrayList<>();
-    List<Integer> fieldTypes = new ArrayList<>();
+    List<Coder> fieldTypes = new ArrayList<>();
     for (int i : groupSet.asList()) {
       if (i != windowFieldIdx) {
         fieldNames.add(inputRowType.getFieldNameByIndex(i));
-        fieldTypes.add(inputRowType.getFieldTypeByIndex(i));
+        fieldTypes.add(inputRowType.getFieldCoder(i));
       }
     }
-    return BeamRecordSqlType.create(fieldNames, fieldTypes);
+    return new BeamRecordType(fieldNames, fieldTypes);
   }
 
   /**
    * Type of sub-rowrecord, that represents the list of aggregation fields.
    */
-  private BeamRecordSqlType exAggFieldsSchema() {
+  private BeamRecordType exAggFieldsSchema() {
     List<String> fieldNames = new ArrayList<>();
-    List<Integer> fieldTypes = new ArrayList<>();
+    List<Coder> fieldTypes = new ArrayList<>();
     for (AggregateCall ac : getAggCallList()) {
       fieldNames.add(ac.name);
-      fieldTypes.add(CalciteUtils.toJavaType(ac.type.getSqlTypeName()));
+      fieldTypes.add(CalciteUtils.toCoder(ac.type.getSqlTypeName()));
     }
 
-    return BeamRecordSqlType.create(fieldNames, fieldTypes);
+    return new BeamRecordType(fieldNames, fieldTypes);
   }
 
   @Override
