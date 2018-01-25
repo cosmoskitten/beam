@@ -184,7 +184,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           // of any work to be done at the moment, but more might emerge later. In this case,
           // we must simply reschedule the original restriction - checkpointing a tracker that
           // hasn't claimed any work is not allowed.
-          residual = KV.of(tracker.currentRestriction(), processContext.lastReportedWatermark);
+          residual = KV.of(tracker.currentRestriction(), processContext.getLastReportedWatermark());
           // Don't call tracker.checkDone() - it's not done.
         }
       } else {
@@ -324,6 +324,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     public synchronized void updateWatermark(Instant watermark) {
       // Updating the watermark without any claimed blocks is allowed.
       lastReportedWatermark = watermark;
+    }
+
+    synchronized Instant getLastReportedWatermark() {
+      return lastReportedWatermark;
     }
 
     @Override
