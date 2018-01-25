@@ -28,6 +28,7 @@ import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -36,6 +37,7 @@ import javax.jms.MessageProducer;
 import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
@@ -170,6 +172,41 @@ public class JmsIOTest {
     PAssert
         .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
         .isEqualTo(new Long(5));
+    pipeline.run();
+
+    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    Message msg = consumer.receiveNoWait();
+    assertNull(msg);
+  }
+
+  @Test
+  public void testReadBytesMessages() throws Exception {
+
+    // produce message
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    BytesMessage message = session.createBytesMessage();
+    message.writeBytes("This Is A Test".getBytes());
+    producer.send(message);
+    producer.close();
+    session.close();
+    connection.close();
+
+    // read from the queue
+    PCollection<JmsRecord> output = pipeline.apply(
+            JmsIO.read()
+                    .withConnectionFactory(connectionFactory)
+                    .withQueue(QUEUE)
+                    .withUsername(USERNAME)
+                    .withPassword(PASSWORD)
+                    .withMaxNumRecords(1));
+
+    PAssert
+            .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
+            .isEqualTo(new Long(1));
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);
