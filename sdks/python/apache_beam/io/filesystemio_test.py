@@ -16,13 +16,132 @@
 #
 """Tests for filesystemio."""
 
-# TODO: cleanup unused
+import io
 import multiprocessing
 import os
 import threading
 import unittest
 
 from apache_beam.io import filesystemio
+
+
+class FakeDownloader(filesystemio.Downloader):
+
+  def __init__(self, data):
+    self._data = data
+    self.last_read_size = -1
+
+  @property
+  def size(self):
+    return len(self._data)
+
+  def get_range(self, start, end):
+    self.last_read_size = end - start + 1
+    return self._data[start:end + 1]
+
+
+class FakeUploader(filesystemio.Uploader):
+
+  def __init__(self):
+    self.data = ''
+    self.last_write_size = -1
+    self.finished = False
+
+  def last_error(self):
+    return None
+
+  def put(self, data):
+    assert not self.finished
+    self.data += data.tobytes()
+    self.last_write_size = len(data)
+
+  def finish(self):
+    self.finished = True
+
+
+class TestDownloaderStream(unittest.TestCase):
+
+  def test_file_attributes(self):
+    downloader = FakeDownloader(data=None)
+    stream = filesystemio.DownloaderStream(downloader)
+    self.assertEqual(stream.mode, 'r')
+    self.assertTrue(stream.readable())
+    self.assertFalse(stream.writable())
+    self.assertTrue(stream.seekable())
+
+  def test_read_empty(self):
+    downloader = FakeDownloader(data='')
+    stream = filesystemio.DownloaderStream(downloader)
+    self.assertEqual(stream.read(), '')
+
+  def test_read(self):
+    data = 'abcde'
+    downloader = FakeDownloader(data)
+    stream = filesystemio.DownloaderStream(downloader)
+
+    # Read size is exactly what was passed to read() (unbuffered).
+    self.assertEqual(stream.read(1), data[0])
+    self.assertEqual(downloader.last_read_size, 1)
+    self.assertEqual(stream.read(), data[1:])
+    self.assertEqual(downloader.last_read_size, len(data) - 1)
+
+  def test_read_buffered(self):
+    data = 'abcde'
+    downloader = FakeDownloader(data)
+    buffer_size = 2
+    stream = io.BufferedReader(filesystemio.DownloaderStream(downloader),
+                               buffer_size)
+
+    # Verify that buffering works and is reading ahead.
+    self.assertEqual(stream.read(1), data[0])
+    self.assertEqual(downloader.last_read_size, buffer_size)
+    self.assertEqual(stream.read(), data[1:])
+
+
+class TestUploaderStream(unittest.TestCase):
+
+  def test_file_attributes(self):
+    uploader = FakeUploader()
+    stream = filesystemio.UploaderStream(uploader)
+    self.assertEqual(stream.mode, 'w')
+    self.assertFalse(stream.readable())
+    self.assertTrue(stream.writable())
+    self.assertFalse(stream.seekable())
+
+  def test_write_empty(self):
+    uploader = FakeUploader()
+    stream = filesystemio.UploaderStream(uploader)
+    data = ''
+    stream.write(memoryview(data))
+    self.assertEqual(uploader.data, data)
+
+  def test_write(self):
+    data = 'abcde'
+    uploader = FakeUploader()
+    stream = filesystemio.UploaderStream(uploader)
+
+    # Unbuffered writes.
+    stream.write(memoryview(data[0]))
+    self.assertEqual(uploader.data[0], data[0])
+    self.assertEqual(uploader.last_write_size, 1)
+    stream.write(memoryview(data[1:]))
+    self.assertEqual(uploader.data, data)
+    self.assertEqual(uploader.last_write_size, len(data) - 1)
+
+  def test_write_buffered(self):
+    data = 'abcde'
+    uploader = FakeUploader()
+    buffer_size = 2
+    stream = io.BufferedWriter(filesystemio.UploaderStream(uploader),
+                               buffer_size)
+
+    # Verify that buffering works: doesn't write to uploader until buffer is
+    # filled.
+    stream.write(data[0])
+    self.assertEqual(-1, uploader.last_write_size)
+    stream.write(data[1:])
+    stream.close()
+    self.assertEqual(data, uploader.data)
 
 
 class TestPipeStream(unittest.TestCase):
@@ -56,7 +175,7 @@ class TestPipeStream(unittest.TestCase):
 
     for buffer_size in buffer_sizes:
       parent_conn, child_conn = multiprocessing.Pipe()
-      stream = filesystemio.BufferedWriter.PipeStream(child_conn)
+      stream = filesystemio.PipeStream(child_conn)
       child_thread = threading.Thread(
           target=self._read_and_verify, args=(stream, expected, buffer_size))
       child_thread.start()
@@ -64,5 +183,3 @@ class TestPipeStream(unittest.TestCase):
         parent_conn.send_bytes(data)
       parent_conn.close()
       child_thread.join()
-
-
