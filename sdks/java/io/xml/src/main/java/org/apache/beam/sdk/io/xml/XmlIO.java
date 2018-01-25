@@ -105,8 +105,7 @@ public class XmlIO {
   public static <T> Read<T> read() {
     return new AutoValue_XmlIO_Read.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset("UTF-8").build())
         .setMinBundleSize(1L)
         .setCompression(Compression.AUTO)
         .build();
@@ -134,8 +133,7 @@ public class XmlIO {
   public static <T> ReadFiles<T> readFiles() {
     return new AutoValue_XmlIO_ReadFiles.Builder<T>()
         .setConfiguration(
-            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset(
-                StandardCharsets.UTF_8.name()).build())
+            new AutoValue_XmlIO_MappingConfiguration.Builder<T>().setCharset("UTF-8").build())
         .build();
   }
 
@@ -146,7 +144,7 @@ public class XmlIO {
    * {@link FileIO#writeDynamic}.
    */
   public static <T> Write<T> write() {
-    return new AutoValue_XmlIO_Write.Builder<T>().setCharset(StandardCharsets.UTF_8.name()).build();
+    return new AutoValue_XmlIO_Write.Builder<T>().setCharset("UTF-8").build();
   }
 
   @AutoValue
@@ -632,7 +630,7 @@ public class XmlIO {
       }
 
       this.outputStream = Channels.newOutputStream(channel);
-      outputStream.write(("<" + getRootElement() + ">\n").getBytes(Charset.forName(getCharset())));
+      outputStream.write(("<" + getRootElement() + ">\n").getBytes(getCharset()));
     }
 
     @Override
@@ -646,7 +644,7 @@ public class XmlIO {
 
     @Override
     public void flush() throws IOException {
-      outputStream.write(("\n</" + getRootElement() + ">").getBytes(Charset.forName(getCharset())));
+      outputStream.write(("\n</" + getRootElement() + ">").getBytes(getCharset()));
     }
   }
 }

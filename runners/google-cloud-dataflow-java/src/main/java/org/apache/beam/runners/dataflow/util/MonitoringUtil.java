@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -196,9 +195,9 @@ public class MonitoringUtil {
       // that has the project name replaced with project id.
       return String.format(
           "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
-          URLEncoder.encode(regionId, StandardCharsets.UTF_8.name()),
-          URLEncoder.encode(jobId, StandardCharsets.UTF_8.name()),
-          URLEncoder.encode(projectName, StandardCharsets.UTF_8.name()));
+          URLEncoder.encode(regionId, "UTF-8"),
+          URLEncoder.encode(jobId, "UTF-8"),
+          URLEncoder.encode(projectName, "UTF-8"));
     } catch (UnsupportedEncodingException e) {
       // Should never happen.
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
