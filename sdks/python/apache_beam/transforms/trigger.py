@@ -286,7 +286,7 @@ class AfterProcessingTime(TriggerFn):
   def should_fire(self, watermark, window, context):
     # Firing evaluation deferred to be handled by the
     # GeneralTriggerDriver's process_timer routine
-    # TODO(mariagh): Move handling of the clock from
+    # TODO(mariagh): Move firing evaluation from
     # GeneralTriggerDriver's process_timer to here
     return False
 
