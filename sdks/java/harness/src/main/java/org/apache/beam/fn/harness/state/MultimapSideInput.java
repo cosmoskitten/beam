@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness.state;
 
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
@@ -32,44 +31,29 @@ import org.apache.beam.sdk.transforms.Materializations.MultimapView;
  */
 public class MultimapSideInput<K, V> implements MultimapView<K, V> {
 
-  /**
-   * A {@link Supplier} for {@link StateRequest.Builder}s with a
-   * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput}
-   * key partially populated containing all fields but the
-   * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput#getKey()
-   * user key}.
-   */
-  @FunctionalInterface
-  public interface StateRequestBuilderWithPartialKey extends Supplier<StateRequest.Builder> {
-
-    /**
-     * Returns a {@link StateRequest.Builder}s with a
-     * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput}
-     * key partially populated containing all fields but the
-     * {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.MultimapSideInput#getKey()
-     * user key}.
-     */
-    @Override
-    StateRequest.Builder get();
-  }
-
   private final BeamFnStateClient beamFnStateClient;
+  private final String instructionId;
+  private final String ptransformId;
   private final String sideInputId;
+  private final ByteString encodedWindow;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
-  private final StateRequestBuilderWithPartialKey partialRequestSupplier;
 
   public MultimapSideInput(
       BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      String ptransformId,
       String sideInputId,
+      ByteString encodedWindow,
       Coder<K> keyCoder,
-      Coder<V> valueCoder,
-      StateRequestBuilderWithPartialKey partialRequestSupplier) {
+      Coder<V> valueCoder) {
     this.beamFnStateClient = beamFnStateClient;
+    this.instructionId = instructionId;
+    this.ptransformId = ptransformId;
     this.sideInputId = sideInputId;
+    this.encodedWindow = encodedWindow;
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
-    this.partialRequestSupplier = partialRequestSupplier;
   }
 
   public Iterable<V> get(K k) {
@@ -81,17 +65,21 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
           String.format("Failed to encode key %s for side input id %s.", k, sideInputId),
           e);
     }
+    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
+    requestBuilder
+        .setInstructionReference(instructionId)
+        .getStateKeyBuilder()
+        .getMultimapSideInputBuilder()
+        .setPtransformId(ptransformId)
+        .setSideInputId(sideInputId)
+        .setWindow(encodedWindow)
+        .setKey(output.toByteString());
+
     return new LazyCachingIteratorToIterable<>(
         new DataStreams.DataStreamDecoder(valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.usingPartialRequestWithStateKey(
+                StateFetchingIterators.forFirstChunk(
                     beamFnStateClient,
-                    () -> buildStateRequest(output.toByteString())))));
-  }
-
-  private StateRequest.Builder buildStateRequest(ByteString encodedK) {
-    StateRequest.Builder builder = partialRequestSupplier.get();
-    builder.getStateKeyBuilder().getMultimapSideInputBuilder().setKey(encodedK);
-    return builder;
+                    requestBuilder.build()))));
   }
 }

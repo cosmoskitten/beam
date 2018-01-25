@@ -500,7 +500,7 @@ public class ParDoTranslation {
     return builder.build();
   }
 
-  private static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn) {
+  public static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()
@@ -527,7 +527,7 @@ public class ParDoTranslation {
     return payload.getSplittable();
   }
 
-  private static SdkFunctionSpec translateWindowMappingFn(WindowMappingFn<?> windowMappingFn) {
+  public static SdkFunctionSpec translateWindowMappingFn(WindowMappingFn<?> windowMappingFn) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
             FunctionSpec.newBuilder()

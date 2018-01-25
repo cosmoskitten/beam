@@ -23,9 +23,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
@@ -39,31 +37,19 @@ public class StateFetchingIterators {
   private StateFetchingIterators() {}
 
   /**
-   * A {@link Supplier} for {@link StateRequest.Builder}s with the {@link StateKey}
-   * already populated.
-   */
-  @FunctionalInterface
-  public interface StateRequestBuilderWithKey extends Supplier<StateRequest.Builder> {
-    /**
-     * Returns a {@link StateRequest.Builder} with the {@link StateKey} already populated.
-     */
-    @Override
-    StateRequest.Builder get();
-  }
-
-  /**
    * This adapter handles using the continuation token to provide iteration over all the chunks
-   * returned by the Beam Fn State API using the supplied state client and partially filled
-   * out state request containing a state key.
+   * returned by the Beam Fn State API using the supplied state client and state request for
+   * the first chunk of the state stream.
    *
    * @param beamFnStateClient A client for handling state requests.
-   * @param stateRequestBuilderWithKey See {@link StateRequestBuilderWithKey}.
-   * @return An {@code Iterator<ByteString>} representing all the requested data.
+   * @param stateRequestForFirstChunk A fully populated state request for the first (and possibly
+   * only) chunk of a state stream. This state request will be populated with a continuation token
+   * to request further chunks of the stream if required.
    */
-  public static Iterator<ByteString> usingPartialRequestWithStateKey(
+  public static Iterator<ByteString> forFirstChunk(
       BeamFnStateClient beamFnStateClient,
-      StateRequestBuilderWithKey stateRequestBuilderWithKey) {
-    return new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestBuilderWithKey);
+      StateRequest stateRequestForFirstChunk) {
+    return new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk);
   }
 
   /**
@@ -75,17 +61,17 @@ public class StateFetchingIterators {
   static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
     private enum State { READ_REQUIRED, HAS_NEXT, EOF };
     private final BeamFnStateClient beamFnStateClient;
-    private final StateRequestBuilderWithKey stateRequestBuilderWithKey;
+    private final StateRequest stateRequestForFirstChunk;
     private State currentState;
     private ByteString continuationToken;
     private ByteString next;
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient,
-        StateRequestBuilderWithKey stateRequestBuilderWithKey) {
+        StateRequest stateRequestForFirstChunk) {
       this.currentState = State.READ_REQUIRED;
       this.beamFnStateClient = beamFnStateClient;
-      this.stateRequestBuilderWithKey = stateRequestBuilderWithKey;
+      this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = ByteString.EMPTY;
     }
 
@@ -97,7 +83,7 @@ public class StateFetchingIterators {
         case READ_REQUIRED:
           CompletableFuture<StateResponse> stateResponseFuture = new CompletableFuture<>();
           beamFnStateClient.handle(
-              stateRequestBuilderWithKey.get().setGet(
+              stateRequestForFirstChunk.toBuilder().setGet(
                   StateGetRequest.newBuilder().setContinuationToken(continuationToken)),
               stateResponseFuture);
           StateResponse stateResponse;

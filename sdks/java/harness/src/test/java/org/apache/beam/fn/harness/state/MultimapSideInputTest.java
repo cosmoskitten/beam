@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,10 +40,12 @@ public class MultimapSideInputTest {
 
     MultimapSideInput<String, String> multimapSideInput = new MultimapSideInput<>(
         fakeBeamFnStateClient,
+        "instructionId",
+        "ptransformId",
         "sideInputId",
+        ByteString.copyFromUtf8("encodedWindow"),
         StringUtf8Coder.of(),
-        StringUtf8Coder.of(),
-        this::supplyRequest);
+        StringUtf8Coder.of());
     assertArrayEquals(new String[]{ "A1", "A2", "A3" },
         Iterables.toArray(multimapSideInput.get("A"), String.class));
     assertArrayEquals(new String[]{ "B1", "B2" },
@@ -53,15 +54,13 @@ public class MultimapSideInputTest {
         Iterables.toArray(multimapSideInput.get("unknown"), String.class));
   }
 
-  private StateRequest.Builder supplyRequest() {
-    return StateRequest.newBuilder().setStateKey(
-        StateKey.newBuilder().setMultimapSideInput(
-            StateKey.MultimapSideInput.newBuilder()));
-  }
-
   private StateKey key(String id) throws IOException {
     return StateKey.newBuilder().setMultimapSideInput(
-        StateKey.MultimapSideInput.newBuilder().setKey(encode(id))).build();
+        StateKey.MultimapSideInput.newBuilder()
+            .setPtransformId("ptransformId")
+            .setSideInputId("sideInputId")
+            .setWindow(ByteString.copyFromUtf8("encodedWindow"))
+            .setKey(encode(id))).build();
   }
 
   private ByteString encode(String ... values) throws IOException {

@@ -49,7 +49,6 @@ import org.apache.beam.fn.harness.state.BagUserState;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.MultimapSideInput;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -349,11 +348,16 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private BoundedWindow currentWindow;
 
   /**
-   * This member should only be accessed indirectly by calling
-   * {@link #createOrUseCachedBagUserStateKey} and is only valid during {@link #processElement}
+   * The lifetime of this member is only valid during {@link #processElement}
+   * and only when processing a {@link KV} and is null otherwise.
+   */
+  private ByteString encodedCurrentKey;
+
+  /**
+   * The lifetime of this member is only valid during {@link #processElement}
    * and is null otherwise.
    */
-  private StateKey.BagUserState cachedPartialBagUserStateKey;
+  private ByteString encodedCurrentWindow;
 
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
@@ -404,7 +408,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     } finally {
       currentElement = null;
       currentWindow = null;
-      cachedPartialBagUserStateKey = null;
+      encodedCurrentKey = null;
+      encodedCurrentWindow = null;
     }
   }
 
@@ -766,12 +771,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
       return (ValueState<T>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          createBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
               return new ValueState<T>() {
-                private final BagUserState<T> impl = createBagUserState(key, coder);
+                private final BagUserState<T> impl = createBagUserState(id, coder);
 
                 @Override
                 public void clear() {
@@ -807,12 +812,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
       return (BagState<T>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          createBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
               return new BagState<T>() {
-                private final BagUserState<T> impl = createBagUserState(key, elemCoder);
+                private final BagUserState<T> impl = createBagUserState(id, elemCoder);
 
                 @Override
                 public void add(T value) {
@@ -862,14 +867,14 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec, Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
       return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
+          createBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
               // TODO: Support squashing accumulators depending on whether we know of all
               // remote accumulators and local accumulators or just local accumulators.
               return new CombiningState<InputT, AccumT, OutputT>() {
-                private final BagUserState<AccumT> impl = createBagUserState(key, accumCoder);
+                private final BagUserState<AccumT> impl = createBagUserState(id, accumCoder);
 
                 @Override
                 public AccumT getAccum() {
@@ -941,32 +946,25 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>)
-          stateObjectCache.computeIfAbsent(
-              createOrUseCachedBagUserStateKey(id),
-              s ->
-                  bindCombining(
-                      id,
-                      spec,
-                      accumCoder,
-                      CombineFnUtil.bindContext(
-                          combineFn,
-                          new StateContext<BoundedWindow>() {
-                            @Override
-                            public PipelineOptions getPipelineOptions() {
-                              return pipelineOptions;
-                            }
+      return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
+          createBagUserStateKey(id),
+          key -> bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
+              new StateContext<BoundedWindow>() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return pipelineOptions;
+                }
 
-                            @Override
-                            public <T> T sideInput(PCollectionView<T> view) {
-                              return processBundleContext.sideInput(view);
-                            }
+                @Override
+                public <T> T sideInput(PCollectionView<T> view) {
+                  return processBundleContext.sideInput(view);
+                }
 
-                            @Override
-                            public BoundedWindow window() {
-                              return currentWindow;
-                            }
-                          })));
+                @Override
+                public BoundedWindow window() {
+                  return currentWindow;
+                }
+              })));
     }
 
     /**
@@ -980,37 +978,41 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       throw new UnsupportedOperationException("WatermarkHoldState is unsupported by the Fn API.");
     }
 
-    private <T> BagUserState<T> createBagUserState(String id, Coder<T> coder) {
-      BagUserState rval =
-          new BagUserState<>(
-              beamFnStateClient,
-              id,
-              coder,
-              new Supplier<StateRequest.Builder>() {
-                /** Memoizes the partial state key for the lifetime of the {@link BagUserState}. */
-                private final Supplier<StateKey.BagUserState> memoizingSupplier =
-                    Suppliers.memoize(() -> createOrUseCachedBagUserStateKey(id))::get;
-
-                @Override
-                public Builder get() {
-                  return StateRequest.newBuilder()
-                      .setInstructionReference(processBundleInstructionId.get())
-                      .setStateKey(StateKey.newBuilder().setBagUserState(memoizingSupplier.get()));
-                }
-              });
+    private <T> BagUserState<T> createBagUserState(
+        String stateId, Coder<T> valueCoder) {
+      BagUserState rval = new BagUserState<T>(
+          beamFnStateClient,
+          processBundleInstructionId.get(),
+          ptransformId,
+          stateId,
+          encodedCurrentWindow,
+          encodedCurrentKey,
+          valueCoder);
       stateFinalizers.add(rval::asyncClose);
       return rval;
     }
   }
 
+  private StateKey createBagUserStateKey(String stateId) {
+    cacheEncodedKeyAndWindowForKeyedContext();
+    StateKey.Builder builder = StateKey.newBuilder();
+    builder.getBagUserStateBuilder()
+        .setWindow(encodedCurrentWindow)
+        .setKey(encodedCurrentKey)
+        .setPtransformId(ptransformId)
+        .setUserStateId(stateId);
+    return builder.build();
+  }
+
   /**
-   * Memoizes a partially built {@link StateKey} saving on the encoding cost of the key and
-   * window across multiple state cells for the lifetime of {@link #processElement}.
+   * Memoizes an encoded key and window for the current element being processed saving on the
+   * encoding cost of the key and window across multiple state cells for the lifetime of
+   * {@link #processElement}.
    *
    * <p>This should only be called during {@link #processElement}.
    */
-  private <K> StateKey createOrUseCachedBagUserStateKey(String id) {
-    if (cachedPartialBagUserStateKey == null) {
+  private <K> void cacheEncodedKeyAndWindowForKeyedContext() {
+    if (encodedCurrentKey == null) {
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
           currentElement);
@@ -1032,22 +1034,18 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }
+      encodedCurrentKey = encodedKeyOut.toByteString();
+    }
 
+    if (encodedCurrentWindow == null) {
       ByteString.Output encodedWindowOut = ByteString.newOutput();
       try {
         windowingStrategy.getWindowFn().windowCoder().encode(currentWindow, encodedWindowOut);
       } catch (IOException e) {
         throw new IllegalStateException(e);
       }
-
-      cachedPartialBagUserStateKey = StateKey.BagUserState.newBuilder()
-          .setPtransformId(ptransformId)
-          .setKey(encodedKeyOut.toByteString())
-          .setWindow(encodedWindowOut.toByteString()).buildPartial();
+      encodedCurrentWindow = encodedWindowOut.toByteString();
     }
-    return StateKey.newBuilder()
-        .setBagUserState(cachedPartialBagUserStateKey.toBuilder().setUserStateId(id).build())
-        .build();
   }
 
   /**
@@ -1081,50 +1079,40 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         "Attempting to access unknown side input %s.",
         view);
     KvCoder<K, V> kvCoder = (KvCoder) sideInputSpec.getCoder();
-    return (T) stateKeyObjectCache.computeIfAbsent(
-        createPartialMultimapSideInputKey(
-            view.getId(),
-            sideInputSpec.getWindowMappingFn(),
-            sideInputSpec.getWindowCoder()),
-        new Function<StateKey, Object>() {
-          @Override
-          public Object apply(StateKey key) {
-            return sideInputSpec.getViewFn().apply(
-                createMultimapSideInput(key, kvCoder.getKeyCoder(), kvCoder.getValueCoder()));
-          }
-        });
-  }
 
-  private <K, V> MultimapSideInput<K, V> createMultimapSideInput(
-      StateKey stateKey,
-      Coder<K> keyCoder,
-      Coder<V> valueCoder) {
-    return new MultimapSideInput<>(
-        beamFnStateClient,
-        stateKey.getMultimapSideInput().getSideInputId(),
-        keyCoder,
-        valueCoder,
-        () -> StateRequest.newBuilder()
-            .setInstructionReference(processBundleInstructionId.get())
-            .setStateKey(stateKey));
-  }
-
-  private <W extends BoundedWindow> StateKey createPartialMultimapSideInputKey(
-      String id,
-      WindowMappingFn<W> windowMappingFn,
-      Coder<W> windowCoder) {
     ByteString.Output encodedWindowOut = ByteString.newOutput();
     try {
-      windowCoder.encode(windowMappingFn.getSideInputWindow(currentWindow), encodedWindowOut);
+      sideInputSpec.getWindowCoder().encode(
+          sideInputSpec.getWindowMappingFn().getSideInputWindow(currentWindow), encodedWindowOut);
     } catch (IOException e) {
       throw new IllegalStateException(e);
     }
+    ByteString encodedWindow = encodedWindowOut.toByteString();
 
-    return StateKey.newBuilder()
-        .setMultimapSideInput(StateKey.MultimapSideInput.newBuilder()
-            .setPtransformId(ptransformId)
-            .setSideInputId(id)
-            .setWindow(encodedWindowOut.toByteString()).build())
-        .build();
+    StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
+    cacheKeyBuilder.getMultimapSideInputBuilder()
+        .setPtransformId(ptransformId)
+        .setSideInputId(view.getId())
+        .setWindow(encodedWindow);
+    return (T) stateKeyObjectCache.computeIfAbsent(
+        cacheKeyBuilder.build(),
+        key -> sideInputSpec.getViewFn().apply(createMultimapSideInput(
+            view.getId(), encodedWindow, kvCoder.getKeyCoder(), kvCoder.getValueCoder())));
+  }
+
+  private <K, V> MultimapSideInput<K, V> createMultimapSideInput(
+      String sideInputId,
+      ByteString encodedWindow,
+      Coder<K> keyCoder,
+      Coder<V> valueCoder) {
+
+    return new MultimapSideInput<>(
+        beamFnStateClient,
+        processBundleInstructionId.get(),
+        ptransformId,
+        sideInputId,
+        encodedWindow,
+        keyCoder,
+        valueCoder);
   }
 }
