@@ -21,20 +21,22 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.util.Pair;
 import org.junit.Rule;
@@ -43,21 +45,21 @@ import org.junit.Rule;
  * Base class for all built-in functions integration tests.
  */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, Integer> JAVA_CLASS_TO_SQL_TYPE = ImmutableMap
-      .<Class, Integer> builder()
-      .put(Byte.class, Types.TINYINT)
-      .put(Short.class, Types.SMALLINT)
-      .put(Integer.class, Types.INTEGER)
-      .put(Long.class, Types.BIGINT)
-      .put(Float.class, Types.FLOAT)
-      .put(Double.class, Types.DOUBLE)
-      .put(BigDecimal.class, Types.DECIMAL)
-      .put(String.class, Types.VARCHAR)
-      .put(Date.class, Types.DATE)
-      .put(Boolean.class, Types.BOOLEAN)
+  private static final Map<Class, SqlTypeCoder> JAVA_CLASS_TO_CODER = ImmutableMap
+      .<Class, SqlTypeCoder> builder()
+      .put(Byte.class, SqlTypeCoder.TINYINT)
+      .put(Short.class, SqlTypeCoder.SMALLINT)
+      .put(Integer.class, SqlTypeCoder.INTEGER)
+      .put(Long.class, SqlTypeCoder.BIGINT)
+      .put(Float.class, SqlTypeCoder.FLOAT)
+      .put(Double.class, SqlTypeCoder.DOUBLE)
+      .put(BigDecimal.class, SqlTypeCoder.DECIMAL)
+      .put(String.class, SqlTypeCoder.VARCHAR)
+      .put(Date.class, SqlTypeCoder.DATE)
+      .put(Boolean.class, SqlTypeCoder.BOOLEAN)
       .build();
 
-  private static final BeamRecordSqlType RECORD_SQL_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRecordType RECORD_TYPE = BeamRecordSqlType.builder()
       .withDateField("ts")
       .withTinyIntField("c_tinyint")
       .withSmallIntField("c_smallint")
@@ -78,7 +80,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   protected PCollection<BeamRecord> getTestPCollection() {
     try {
       return MockedBoundedTable
-          .of(RECORD_SQL_TYPE)
+          .of(RECORD_TYPE)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -94,7 +96,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               9223372036854775807L
           )
           .buildIOReader(pipeline)
-          .setCoder(RECORD_SQL_TYPE.getRecordCoder());
+          .setCoder(RECORD_TYPE.getRecordCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -149,19 +151,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       System.out.println("SQL:>\n" + getSql());
       try {
         List<String> names = new ArrayList<>();
-        List<Integer> types = new ArrayList<>();
+        List<Coder> coders = new ArrayList<>();
         List<Object> values = new ArrayList<>();
 
         for (Pair<String, Object> pair : exps) {
           names.add(pair.getKey());
-          types.add(JAVA_CLASS_TO_SQL_TYPE.get(pair.getValue().getClass()));
+          coders.add(JAVA_CLASS_TO_CODER.get(pair.getValue().getClass()));
           values.add(pair.getValue());
         }
 
         PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(BeamRecordSqlType.create(names, types))
+                .of(new BeamRecordType(names, coders))
                 .addRows(values)
                 .getRows()
         );

@@ -18,9 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
 import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -48,10 +48,10 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price",
-            Types.TIMESTAMP, "order_time"
+            SqlTypeCoder.BIGINT, "order_id",
+            SqlTypeCoder.INTEGER, "site_id",
+            SqlTypeCoder.DOUBLE, "price",
+            SqlTypeCoder.TIMESTAMP, "order_time"
         ).addRows(
             1L, 1, 1.0, THE_DATE,
             2L, 2, 2.0, THE_DATE
@@ -75,9 +75,9 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                Types.BIGINT, "order_id",
-                Types.INTEGER, "site_id",
-                Types.BIGINT, "cnt"
+                SqlTypeCoder.BIGINT, "order_id",
+                SqlTypeCoder.INTEGER, "site_id",
+                SqlTypeCoder.BIGINT, "cnt"
             ).addRows(
                 1L, 1, 1L,
                 2L, 2, 1L
