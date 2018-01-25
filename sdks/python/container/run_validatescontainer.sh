@@ -43,6 +43,8 @@ test -d sdks/python/container
 # Verify docker and gcloud commands exist
 command -v docker
 command -v gcloud
+docker -v
+gcloud -v
 
 # ensure maven version is 3.5 or above
 TMPDIR=$(mktemp -d)
