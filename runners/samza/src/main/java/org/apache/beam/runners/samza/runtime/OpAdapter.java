@@ -78,6 +78,9 @@ public class OpAdapter<InT, OutT>
         case SIDE_INPUT:
           op.processSideInput(message.getViewId(), message.getViewElements(), emitter);
           break;
+        case SIDE_INPUT_WATERMARK:
+          op.processSideInputWatermark(message.getSideInputWatermark(), emitter);
+          break;
         default:
           throw new IllegalArgumentException(
               String.format("Unexpected input type: %s", message.getType()));

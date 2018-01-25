@@ -46,11 +46,9 @@ public interface Op<InT, OutT> extends Serializable {
                     SamzaExecutionContext executionContext,
                     OpEmitter<OutT> emitter) {}
 
-  void processElement(WindowedValue<InT> inputElement,
-                      OpEmitter<OutT> emitter);
+  void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);
 
-  default void processWatermark(Instant watermark,
-                                OpEmitter<OutT> emitter) {
+  default void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
     emitter.emitWatermark(watermark);
   }
 
@@ -59,6 +57,8 @@ public interface Op<InT, OutT> extends Serializable {
                                 OpEmitter<OutT> emitter) {
     throw new UnsupportedOperationException("Side inputs not supported for: " + this.getClass());
   }
+
+  default void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {}
 
   default void close() {}
 }

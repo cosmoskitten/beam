@@ -85,6 +85,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
 
   // TODO: add this to checkpointable state
   private transient Instant inputWatermark;
+  private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
 
   public DoFnOp(TupleTag<FnOutT> mainOutputTag,
@@ -111,6 +112,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
                    SamzaExecutionContext executionContext,
                    OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(null);
@@ -179,10 +181,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
     // Need to figure out a way to distinguish these two so the main input watermark can continue.
     this.inputWatermark = watermark;
 
-    if (watermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+    if (sideInputWatermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       // this means we will never see any more side input
       emitAllPushbackValues();
-      LOG.info("Step {} completed.", stepName);
     }
 
     final Instant actualInputWatermark = pushbackWatermarkHold.isBefore(inputWatermark)
@@ -227,6 +228,16 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
     // We may be able to advance the output watermark since we may have played some pushed back
     // events.
     processWatermark(this.inputWatermark, emitter);
+  }
+
+  @Override
+  public void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {
+    sideInputWatermark = watermark;
+
+    if (sideInputWatermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      // this means we will never see any more side input
+      processWatermark(this.inputWatermark, emitter);
+    }
   }
 
   private void fireTimer(TimerInternals.TimerData timer) {
