@@ -65,6 +65,7 @@ curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk
 tar xf gcloud.tar.gz
 ./google-cloud-sdk/install.sh
 . ./google-cloud-sdk/path.bash.inc
+popd
 gcloud -v
 
 # Build the container
