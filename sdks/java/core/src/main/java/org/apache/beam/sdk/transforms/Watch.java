@@ -712,7 +712,7 @@ public class Watch {
         ProcessContext c, final GrowthTracker<OutputT, KeyT, TerminationStateT> tracker)
         throws Exception {
       if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) {
-        LOG.debug("{} - polling input", c.element());
+        Instant now = Instant.now();
         Growth.PollResult<OutputT> res =
             spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
         // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
@@ -723,24 +723,29 @@ public class Watch {
         int numPending = tracker.addNewAsPending(res);
         if (numPending > 0) {
           LOG.info(
-              "{} - polling returned {} results, of which {} were new. The output is {}.",
+              "{} - current round of polling took {} ms and returned {} results, " +
+                  "of which {} were new. The output is {}.",
               c.element(),
+              new Duration(now, Instant.now()).getMillis(),
               res.getOutputs().size(),
               numPending,
               BoundedWindow.TIMESTAMP_MAX_VALUE.equals(res.getWatermark())
-                  ? "complete"
-                  : "incomplete");
+                  ? "final"
+                  : "not yet final");
         }
       }
+      int numEmitted = 0;
       while (tracker.hasPending()) {
         c.updateWatermark(tracker.getWatermark());
         Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
         if (!tracker.tryClaim(entry.getKey())) {
+          LOG.debug("{} - checkpointed after emitting {} results.", c.element(), numEmitted);
           return stop();
         }
         TimestampedValue<OutputT> nextPending = entry.getValue();
         c.outputWithTimestamp(
             KV.of(c.element(), nextPending.getValue()), nextPending.getTimestamp());
+        ++numEmitted;
       }
       Instant watermark = tracker.getWatermark();
       if (watermark != null) {
@@ -751,14 +756,18 @@ public class Watch {
       // No more pending outputs - future output will come from more polling,
       // unless output is complete or termination condition is reached.
       if (tracker.shouldPollMore()) {
+        LOG.debug(
+            "{} - emitted all known results so far; will resume polling in {} ms",
+            c.element(),
+            spec.getPollInterval().getMillis());
         return resume().withResumeDelay(spec.getPollInterval());
       }
+      LOG.debug("{} - emitted all known results and the output is final.", c.element());
       return stop();
     }
 
     private Growth.TerminationCondition<InputT, TerminationStateT> getTerminationCondition() {
-      return ((Growth.TerminationCondition<InputT, TerminationStateT>)
-          spec.getTerminationPerInput());
+      return (Growth.TerminationCondition<InputT, TerminationStateT>) spec.getTerminationPerInput();
     }
 
     @GetInitialRestriction
