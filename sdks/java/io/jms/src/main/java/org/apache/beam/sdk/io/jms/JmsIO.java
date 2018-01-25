@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
+import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
@@ -102,8 +104,8 @@ public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
-  public static Read read() {
-    return new AutoValue_JmsIO_Read.Builder().setMaxNumRecords(Long.MAX_VALUE).build();
+  public static <T> Read<T> read() {
+    return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
   public static Write write() {
@@ -115,7 +117,7 @@ public class JmsIO {
    * information on usage and configuration.
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<JmsRecord>> {
+  public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     /**
      * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html
@@ -134,19 +136,23 @@ public class JmsIO {
     @Nullable abstract String getPassword();
     abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
+    @Nullable abstract MessageMapper<T> getMessageMapper();
+    @Nullable abstract Coder<T> getCoder();
 
-    abstract Builder builder();
+    abstract Builder<T> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
-      abstract Builder setQueue(String queue);
-      abstract Builder setTopic(String topic);
-      abstract Builder setUsername(String username);
-      abstract Builder setPassword(String password);
-      abstract Builder setMaxNumRecords(long maxNumRecords);
-      abstract Builder setMaxReadTime(Duration maxReadTime);
-      abstract Read build();
+    abstract static class Builder<T> {
+      abstract Builder<T> setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder<T> setQueue(String queue);
+      abstract Builder<T> setTopic(String topic);
+      abstract Builder<T> setUsername(String username);
+      abstract Builder<T> setPassword(String password);
+      abstract Builder<T> setMaxNumRecords(long maxNumRecords);
+      abstract Builder<T> setMaxReadTime(Duration maxReadTime);
+      abstract Builder<T> setMessageMapper(MessageMapper<T> mesageMapper);
+      abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Read<T> build();
     }
 
     /**
@@ -163,7 +169,7 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Read withConnectionFactory(ConnectionFactory connectionFactory) {
+    public Read<T> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder().setConnectionFactory(connectionFactory).build();
     }
@@ -186,7 +192,7 @@ public class JmsIO {
      * @param queue The JMS queue name where to read messages from.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Read withQueue(String queue) {
+    public Read<T> withQueue(String queue) {
       checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
@@ -209,7 +215,7 @@ public class JmsIO {
      * @param topic The JMS topic name.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Read withTopic(String topic) {
+    public Read<T> withTopic(String topic) {
       checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
@@ -217,7 +223,7 @@ public class JmsIO {
     /**
      * Define the username to connect to the JMS broker (authenticated).
      */
-    public Read withUsername(String username) {
+    public Read<T> withUsername(String username) {
       checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
@@ -225,7 +231,7 @@ public class JmsIO {
     /**
      * Define the password to connect to the JMS broker (authenticated).
      */
-    public Read withPassword(String password) {
+    public Read<T> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
@@ -246,7 +252,7 @@ public class JmsIO {
      * @param maxNumRecords The max number of records to read from the JMS destination.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Read withMaxNumRecords(long maxNumRecords) {
+    public Read<T> withMaxNumRecords(long maxNumRecords) {
       checkArgument(maxNumRecords >= 0, "maxNumRecords must be > 0, but was: %d", maxNumRecords);
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
@@ -267,13 +273,23 @@ public class JmsIO {
      * @param maxReadTime The max read time duration.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Read withMaxReadTime(Duration maxReadTime) {
+    public Read<T> withMaxReadTime(Duration maxReadTime) {
       checkArgument(maxReadTime != null, "maxReadTime can not be null");
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
+    public Read<T> withMessageMapper(MessageMapper<T> messageMapper) {
+      checkArgument(messageMapper != null, "messageMapper can not be null");
+      return builder().setMessageMapper(messageMapper).build();
+    }
+
+    public Read<T> withCoder(Coder<T> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return builder().setCoder(coder).build();
+    }
+
     @Override
-    public PCollection<JmsRecord> expand(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
       checkArgument(
           getQueue() != null || getTopic() != null,
@@ -318,6 +334,15 @@ public class JmsIO {
   }
 
   private JmsIO() {}
+
+  /**
+   * An interface used by {@link JdbcIO.Read} for converting each row of the {@link ResultSet} into
+   * an element of the resulting {@link PCollection}.
+   */
+  @FunctionalInterface
+  public interface MessageMapper<T> extends Serializable {
+    T mapMessage(Message message) throws Exception;
+  }
 
   /**
    * An unbounded JMS source.
