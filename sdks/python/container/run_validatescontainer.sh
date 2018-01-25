@@ -85,9 +85,6 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
-# Clean up tempdir
-rm -rf $TMPDIR
-
 # INFRA does not install virtualenv
 pip install virtualenv --user
 
@@ -122,5 +119,8 @@ python setup.py nosetests \
 docker rmi $CONTAINER
 gcloud container images delete $CONTAINER --quiet \
   || echo 'gcloud container images delete failed'
+
+# Clean up tempdir
+rm -rf $TMPDIR
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
