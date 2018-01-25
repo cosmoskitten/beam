@@ -899,10 +899,7 @@ public class Watch {
       this.isOutputComplete = state.isOutputComplete;
       this.pollWatermark = state.pollWatermark;
       this.terminationState = state.terminationState;
-      this.pending = Maps.newLinkedHashMapWithExpectedSize(state.pending.size());
-      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : state.pending.entrySet()) {
-        this.pending.put(entry.getKey(), entry.getValue());
-      }
+      this.pending = Maps.newLinkedHashMap(state.pending);
     }
 
     @Override

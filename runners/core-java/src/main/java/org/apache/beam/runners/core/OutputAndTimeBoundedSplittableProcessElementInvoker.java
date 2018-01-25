@@ -242,15 +242,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       this.tracker = tracker;
     }
 
-    void checkClaimHasNotFailed() {
+    @Override
+    public void onClaimed(PositionT position) {
       checkState(
           !hasClaimFailed,
           "Must not call tryClaim() after it has previously returned false");
-    }
-
-    @Override
-    public void onClaimed(PositionT position) {
-      checkClaimHasNotFailed();
       if (numClaimedBlocks == 0) {
         // Claiming first block: can schedule the checkpoint now.
         // We don't schedule it right away to prevent checkpointing before any blocks are claimed,
@@ -265,7 +261,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void onClaimFailed(PositionT position) {
-      checkClaimHasNotFailed();
+      checkState(
+          !hasClaimFailed,
+          "Must not call tryClaim() after it has previously returned false");
       hasClaimFailed = true;
     }
 
