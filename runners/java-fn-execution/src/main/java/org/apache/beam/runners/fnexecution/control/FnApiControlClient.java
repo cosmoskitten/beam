@@ -131,7 +131,10 @@ class FnApiControlClient implements Closeable {
         if (response.getError().isEmpty()) {
           completableFuture.set(response);
         } else {
-          completableFuture.setException(new RuntimeException(response.getError()));
+          completableFuture.setException(
+              new RuntimeException("Error received from SDK harness for instruction "
+                  + response.getInstructionId()
+                  + ":" + response.getError()));
         }
       }
     }
