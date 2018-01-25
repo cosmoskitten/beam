@@ -723,8 +723,8 @@ public class Watch {
         int numPending = tracker.addNewAsPending(res);
         if (numPending > 0) {
           LOG.info(
-              "{} - current round of polling took {} ms and returned {} results, " +
-                  "of which {} were new. The output is {}.",
+              "{} - current round of polling took {} ms and returned {} results, "
+                  + "of which {} were new. The output is {}.",
               c.element(),
               new Duration(now, Instant.now()).getMillis(),
               res.getOutputs().size(),
@@ -735,18 +735,18 @@ public class Watch {
         }
       }
       int numEmitted = 0;
-      while (tracker.hasPending()) {
+      while (true) {
         c.updateWatermark(tracker.getWatermark());
         Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
-        if (!tracker.tryClaim(entry.getKey())) {
-          LOG.debug("{} - checkpointed after emitting {} results.", c.element(), numEmitted);
-          return stop();
+        if (entry == null || !tracker.tryClaim(entry.getKey())) {
+          break;
         }
         TimestampedValue<OutputT> nextPending = entry.getValue();
         c.outputWithTimestamp(
             KV.of(c.element(), nextPending.getValue()), nextPending.getTimestamp());
         ++numEmitted;
       }
+      LOG.debug("{} - emitted {} new results.", c.element(), numEmitted);
       Instant watermark = tracker.getWatermark();
       if (watermark != null) {
         // Null means the poll result did not provide a watermark and there were no new elements,
@@ -756,13 +756,12 @@ public class Watch {
       // No more pending outputs - future output will come from more polling,
       // unless output is complete or termination condition is reached.
       if (tracker.shouldPollMore()) {
-        LOG.debug(
+        LOG.info(
             "{} - emitted all known results so far; will resume polling in {} ms",
             c.element(),
             spec.getPollInterval().getMillis());
         return resume().withResumeDelay(spec.getPollInterval());
       }
-      LOG.debug("{} - emitted all known results and the output is final.", c.element());
       return stop();
     }
 
@@ -968,8 +967,11 @@ public class Watch {
     }
 
     @VisibleForTesting
+    @Nullable
     synchronized Map.Entry<HashCode, TimestampedValue<OutputT>> getNextPending() {
-      checkState (!pending.isEmpty(), "Pending set is empty");
+      if (pending.isEmpty()) {
+        return null;
+      }
       return pending.entrySet().iterator().next();
     }
 
