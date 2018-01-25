@@ -376,7 +376,7 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     super.close();
 
     // sanity check: these should have been flushed out by +Inf watermarks
