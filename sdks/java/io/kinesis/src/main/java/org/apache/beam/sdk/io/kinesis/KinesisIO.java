@@ -364,36 +364,91 @@ public final class KinesisIO {
       abstract Write build();
     }
 
+    /** Specify Kinesis stream name which will be used for writing, this name is required. */
     public Write withStreamName(String streamName) {
       return builder().setStreamName(streamName).build();
     }
 
+    /**
+     * Specify default partition key.
+     *
+     * <p>In case if you need to define more complicated logic for key partitioning then you can
+     * create your own implementation of {@link KinesisPartitioner} and specify it by
+     * {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)}
+     *
+     * <p>Using one of the methods {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)} or
+     * {@link KinesisIO.Write#withPartitionKey(String)} is required but not both in the same time.
+     */
     public Write withPartitionKey(String partitionKey) {
       return builder().setPartitionKey(partitionKey).build();
     }
 
+    /**
+     * Allows to specify custom implementation of {@link KinesisPartitioner}.
+     *
+     * <p>This method should be used to balance a distribution of new written records among all
+     * stream shards.
+     *
+     * <p>Using one of the methods {@link KinesisIO.Write#withPartitioner(KinesisPartitioner)} or
+     * {@link KinesisIO.Write#withPartitionKey(String)} is required but not both in the same time.
+     */
     public Write withPartitioner(KinesisPartitioner partitioner) {
       return builder().setPartitioner(partitioner).build();
     }
 
+    /**
+     * Specify the configuration properties for Kinesis Producer Library (KPL).
+     *
+     * <p>Example of creating new KPL configuration:
+     *
+     * {@code
+     * Properties properties = new Properties();
+     * properties.setProperty("CollectionMaxCount", "1000");
+     * properties.setProperty("ConnectTimeout", "10000");
+     */
     public Write withProducerProperties(Properties properties) {
       return builder().setProducerProperties(properties).build();
     }
 
+    /**
+     * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} creates new
+     * {@link IKinesisProducer} which is later used for writing to Kinesis.
+     *
+     * <p>This method should be used if {@link Write#withAWSClientsProvider(String, String, Regions)}
+     * does not suit well.
+     */
     public Write withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
       return builder().setAWSClientsProvider(awsClientsProvider).build();
     }
 
+    /**
+     * Specify credential details and region to be used to write to Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     */
     public Write withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
       return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
     }
 
+    /**
+     * Specify credential details and region to be used to write to Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Write#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with Kinesis service emulator.
+     */
     public Write withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
       return withAWSClientsProvider(
           new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
     }
 
+    /**
+     * Specify the number of retries that will be used to flush the outstanding records in
+     * case if they were not flushed from the first time. Default number of retries is
+     * {@code DEFAULT_NUM_RETRIES = 10}.
+     */
     public Write withRetries(int retries) {
       return builder().setRetries(retries).build();
     }
