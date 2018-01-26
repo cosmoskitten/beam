@@ -546,7 +546,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
                 Instant timestamp = input.getTimestamp();
                 Collection<W> windows =
                     windowFn.assignWindows(
-                        new TestAssignContext<>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                        new TestAssignContext<W>(windowFn, value, timestamp,
+                                                 GlobalWindow.INSTANCE));
                 return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
               } catch (Exception e) {
                 throw new RuntimeException(e);
