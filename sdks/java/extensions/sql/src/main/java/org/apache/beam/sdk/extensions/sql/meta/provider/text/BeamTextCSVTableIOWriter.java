@@ -40,17 +40,20 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>
   protected BeamRecordType beamRecordType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamRecordType beamRecordType, String filePattern,
+  public BeamTextCSVTableIOWriter(BeamRecordType beamRecordType,
+                                  String filePattern,
                                   CSVFormat csvFormat) {
     this.filePattern = filePattern;
     this.beamRecordType = beamRecordType;
     this.csvFormat = csvFormat;
   }
 
-  @Override public PDone expand(PCollection<BeamRecord> input) {
+  @Override
+  public PDone expand(PCollection<BeamRecord> input) {
     return input.apply("encodeRecord", ParDo.of(new DoFn<BeamRecord, String>() {
 
-      @ProcessElement public void processElement(ProcessContext ctx) {
+      @ProcessElement
+      public void processElement(ProcessContext ctx) {
         BeamRecord row = ctx.element();
         ctx.output(beamRecord2CsvLine(row, csvFormat));
       }

@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -81,6 +83,8 @@ public final class BeamTableUtils {
   }
 
   public static Object autoCastField(Coder coder, Object rawObj) {
+    checkArgument(coder instanceof SqlTypeCoder);
+
     if (rawObj == null) {
       return null;
     }

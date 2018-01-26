@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -63,17 +64,17 @@ public class BeamRecordSize implements KnownSize {
 
   private static final Map<SqlTypeCoder, Integer> ESTIMATED_FIELD_SIZES =
       ImmutableMap.<SqlTypeCoder, Integer>builder()
-          .put(SqlTypeCoder.TINYINT, bytes(Byte.SIZE))
-          .put(SqlTypeCoder.SMALLINT, bytes(Short.SIZE))
-          .put(SqlTypeCoder.INTEGER, bytes(Integer.SIZE))
-          .put(SqlTypeCoder.BIGINT, bytes(Long.SIZE))
-          .put(SqlTypeCoder.FLOAT, bytes(Float.SIZE))
-          .put(SqlTypeCoder.DOUBLE, bytes(Double.SIZE))
-          .put(SqlTypeCoder.DECIMAL, 32)
-          .put(SqlTypeCoder.BOOLEAN, 1)
-          .put(SqlTypeCoder.TIME, bytes(Long.SIZE))
-          .put(SqlTypeCoder.DATE, bytes(Long.SIZE))
-          .put(SqlTypeCoder.TIMESTAMP, bytes(Long.SIZE))
+          .put(SqlTypeCoders.TINYINT, bytes(Byte.SIZE))
+          .put(SqlTypeCoders.SMALLINT, bytes(Short.SIZE))
+          .put(SqlTypeCoders.INTEGER, bytes(Integer.SIZE))
+          .put(SqlTypeCoders.BIGINT, bytes(Long.SIZE))
+          .put(SqlTypeCoders.FLOAT, bytes(Float.SIZE))
+          .put(SqlTypeCoders.DOUBLE, bytes(Double.SIZE))
+          .put(SqlTypeCoders.DECIMAL, 32)
+          .put(SqlTypeCoders.BOOLEAN, 1)
+          .put(SqlTypeCoders.TIME, bytes(Long.SIZE))
+          .put(SqlTypeCoders.DATE, bytes(Long.SIZE))
+          .put(SqlTypeCoders.TIMESTAMP, bytes(Long.SIZE))
           .build();
 
   public static ParDo.SingleOutput<BeamRecord, BeamRecordSize> parDo() {
@@ -126,8 +127,8 @@ public class BeamRecordSize implements KnownSize {
   }
 
   private static boolean isString(Coder fieldType) {
-    return SqlTypeCoder.CHAR.equals(fieldType)
-        || SqlTypeCoder.VARCHAR.equals(fieldType);
+    return SqlTypeCoders.CHAR.equals(fieldType)
+        || SqlTypeCoders.VARCHAR.equals(fieldType);
   }
 
   private static Integer bytes(int size) {

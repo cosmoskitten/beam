@@ -28,6 +28,8 @@ import org.apache.beam.sdk.values.BeamRecordType;
  * <p>Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
  * for more details.
+ *
+ * <p>SQL types are represented by instances of {@link SqlTypeCoder}, see {@link SqlTypeCoders}.
  */
 public class BeamRecordSqlType {
   public static Builder builder() {
@@ -49,55 +51,55 @@ public class BeamRecordSqlType {
     }
 
     public Builder withTinyIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.TINYINT);
+      return withField(fieldName, SqlTypeCoders.TINYINT);
     }
 
     public Builder withSmallIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.SMALLINT);
+      return withField(fieldName, SqlTypeCoders.SMALLINT);
     }
 
     public Builder withIntegerField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.INTEGER);
+      return withField(fieldName, SqlTypeCoders.INTEGER);
     }
 
     public Builder withBigIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.BIGINT);
+      return withField(fieldName, SqlTypeCoders.BIGINT);
     }
 
     public Builder withFloatField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.FLOAT);
+      return withField(fieldName, SqlTypeCoders.FLOAT);
     }
 
     public Builder withDoubleField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.DOUBLE);
+      return withField(fieldName, SqlTypeCoders.DOUBLE);
     }
 
     public Builder withDecimalField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.DECIMAL);
+      return withField(fieldName, SqlTypeCoders.DECIMAL);
     }
 
     public Builder withBooleanField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.BOOLEAN);
+      return withField(fieldName, SqlTypeCoders.BOOLEAN);
     }
 
     public Builder withCharField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.CHAR);
+      return withField(fieldName, SqlTypeCoders.CHAR);
     }
 
     public Builder withVarcharField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.VARCHAR);
+      return withField(fieldName, SqlTypeCoders.VARCHAR);
     }
 
     public Builder withTimeField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.TIME);
+      return withField(fieldName, SqlTypeCoders.TIME);
     }
 
     public Builder withDateField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.DATE);
+      return withField(fieldName, SqlTypeCoders.DATE);
     }
 
     public Builder withTimestampField(String fieldName) {
-      return withField(fieldName, SqlTypeCoder.TIMESTAMP);
+      return withField(fieldName, SqlTypeCoders.TIMESTAMP);
     }
 
     private Builder() {
