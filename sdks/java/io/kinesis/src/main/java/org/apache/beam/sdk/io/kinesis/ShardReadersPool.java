@@ -103,6 +103,8 @@ class ShardReadersPool {
           queueCapacityPerShard * shardIteratorsMap.get().size());
       startReadingShards(shardIteratorsMap.get().values());
     } else {
+      // There are no shards to handle when restoring from an empty checkpoint. Empty checkpoints
+      // are generated when the last shard handled by this pool was closed
       recordsQueue = new ArrayBlockingQueue<>(1);
     }
   }
@@ -161,6 +163,9 @@ class ShardReadersPool {
         return CustomOptional.absent();
       }
       shardIteratorsMap.get().get(record.getShardId()).ackRecord(record);
+
+      // numberOfRecordsInAQueueByShard contains the counter for a given shard until the shard is
+      // closed and then it's counter reaches 0. Thus the access here is safe
       numberOfRecordsInAQueueByShard.get(record.getShardId()).decrementAndGet();
       return CustomOptional.of(record);
     } catch (InterruptedException e) {
@@ -223,13 +228,13 @@ class ShardReadersPool {
    */
   private void waitUntilAllShardRecordsRead(ShardRecordsIterator shardRecordsIterator)
       throws InterruptedException {
-    while (!allShardRecordsRead(shardRecordsIterator)) {
+    // Given shard is already closed so no more records will be read from it. Thus the counter for
+    // that shard will be strictly decreasing to 0.
+    AtomicInteger numberOfShardRecordsInAQueue = numberOfRecordsInAQueueByShard
+        .get(shardRecordsIterator.getShardId());
+    while (!(numberOfShardRecordsInAQueue.get() == 0)) {
       Thread.sleep(TimeUnit.SECONDS.toMillis(1));
     }
-  }
-
-  private boolean allShardRecordsRead(final ShardRecordsIterator shardRecordsIterator) {
-    return numberOfRecordsInAQueueByShard.get(shardRecordsIterator.getShardId()).get() == 0;
   }
 
   /**
