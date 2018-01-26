@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -37,24 +38,24 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class CalciteUtils {
   private static final BiMap<SqlTypeCoder, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<SqlTypeCoder, SqlTypeName>builder()
-          .put(SqlTypeCoder.TINYINT, SqlTypeName.TINYINT)
-          .put(SqlTypeCoder.SMALLINT, SqlTypeName.SMALLINT)
-          .put(SqlTypeCoder.INTEGER, SqlTypeName.INTEGER)
-          .put(SqlTypeCoder.BIGINT, SqlTypeName.BIGINT)
+          .put(SqlTypeCoders.TINYINT, SqlTypeName.TINYINT)
+          .put(SqlTypeCoders.SMALLINT, SqlTypeName.SMALLINT)
+          .put(SqlTypeCoders.INTEGER, SqlTypeName.INTEGER)
+          .put(SqlTypeCoders.BIGINT, SqlTypeName.BIGINT)
 
-          .put(SqlTypeCoder.FLOAT, SqlTypeName.FLOAT)
-          .put(SqlTypeCoder.DOUBLE, SqlTypeName.DOUBLE)
+          .put(SqlTypeCoders.FLOAT, SqlTypeName.FLOAT)
+          .put(SqlTypeCoders.DOUBLE, SqlTypeName.DOUBLE)
 
-          .put(SqlTypeCoder.DECIMAL, SqlTypeName.DECIMAL)
+          .put(SqlTypeCoders.DECIMAL, SqlTypeName.DECIMAL)
 
-          .put(SqlTypeCoder.CHAR, SqlTypeName.CHAR)
-          .put(SqlTypeCoder.VARCHAR, SqlTypeName.VARCHAR)
+          .put(SqlTypeCoders.CHAR, SqlTypeName.CHAR)
+          .put(SqlTypeCoders.VARCHAR, SqlTypeName.VARCHAR)
 
-          .put(SqlTypeCoder.DATE, SqlTypeName.DATE)
-          .put(SqlTypeCoder.TIME, SqlTypeName.TIME)
-          .put(SqlTypeCoder.TIMESTAMP, SqlTypeName.TIMESTAMP)
+          .put(SqlTypeCoders.DATE, SqlTypeName.DATE)
+          .put(SqlTypeCoders.TIME, SqlTypeName.TIME)
+          .put(SqlTypeCoders.TIMESTAMP, SqlTypeName.TIMESTAMP)
 
-          .put(SqlTypeCoder.BOOLEAN, SqlTypeName.BOOLEAN)
+          .put(SqlTypeCoders.BOOLEAN, SqlTypeName.BOOLEAN)
           .build();
 
   private static final BiMap<SqlTypeName, SqlTypeCoder> CALCITE_TO_BEAM_TYPE_MAPPING =

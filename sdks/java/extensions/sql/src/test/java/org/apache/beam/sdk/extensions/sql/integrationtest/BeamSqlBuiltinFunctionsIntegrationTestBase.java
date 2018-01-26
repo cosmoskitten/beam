@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
@@ -47,16 +48,16 @@ import org.junit.Rule;
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final Map<Class, SqlTypeCoder> JAVA_CLASS_TO_CODER = ImmutableMap
       .<Class, SqlTypeCoder> builder()
-      .put(Byte.class, SqlTypeCoder.TINYINT)
-      .put(Short.class, SqlTypeCoder.SMALLINT)
-      .put(Integer.class, SqlTypeCoder.INTEGER)
-      .put(Long.class, SqlTypeCoder.BIGINT)
-      .put(Float.class, SqlTypeCoder.FLOAT)
-      .put(Double.class, SqlTypeCoder.DOUBLE)
-      .put(BigDecimal.class, SqlTypeCoder.DECIMAL)
-      .put(String.class, SqlTypeCoder.VARCHAR)
-      .put(Date.class, SqlTypeCoder.DATE)
-      .put(Boolean.class, SqlTypeCoder.BOOLEAN)
+      .put(Byte.class, SqlTypeCoders.TINYINT)
+      .put(Short.class, SqlTypeCoders.SMALLINT)
+      .put(Integer.class, SqlTypeCoders.INTEGER)
+      .put(Long.class, SqlTypeCoders.BIGINT)
+      .put(Float.class, SqlTypeCoders.FLOAT)
+      .put(Double.class, SqlTypeCoders.DOUBLE)
+      .put(BigDecimal.class, SqlTypeCoders.DECIMAL)
+      .put(String.class, SqlTypeCoders.VARCHAR)
+      .put(Date.class, SqlTypeCoders.DATE)
+      .put(Boolean.class, SqlTypeCoders.BOOLEAN)
       .build();
 
   private static final BeamRecordType RECORD_TYPE = BeamRecordSqlType.builder()

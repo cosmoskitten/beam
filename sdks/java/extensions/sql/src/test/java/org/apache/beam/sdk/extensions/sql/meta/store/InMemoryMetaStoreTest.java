@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoder.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoder.VARCHAR;
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;

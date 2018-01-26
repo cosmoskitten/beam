@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Date;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
@@ -49,10 +49,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @BeforeClass
   public static void prepare() {
     BEAM_SQL_ENV.registerTable("ORDER_DETAILS", MockedUnboundedTable
-        .of(SqlTypeCoder.INTEGER, "order_id",
-            SqlTypeCoder.INTEGER, "site_id",
-            SqlTypeCoder.INTEGER, "price",
-            SqlTypeCoder.TIMESTAMP, "order_time"
+        .of(SqlTypeCoders.INTEGER, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.INTEGER, "price",
+            SqlTypeCoders.TIMESTAMP, "order_time"
         )
         .timestampColumnIndex(3)
         .addRows(
@@ -91,10 +91,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoder.INTEGER, "order_id",
-                SqlTypeCoder.INTEGER, "sum_site_id",
-                SqlTypeCoder.INTEGER, "order_id0",
-                SqlTypeCoder.INTEGER, "sum_site_id0").addRows(
+                SqlTypeCoders.INTEGER, "order_id",
+                SqlTypeCoders.INTEGER, "sum_site_id",
+                SqlTypeCoders.INTEGER, "order_id0",
+                SqlTypeCoders.INTEGER, "sum_site_id0").addRows(
                 1, 3, 1, 3,
                 2, 5, 2, 5
             ).getStringRows()
@@ -124,10 +124,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoder.INTEGER, "order_id",
-                SqlTypeCoder.INTEGER, "sum_site_id",
-                SqlTypeCoder.INTEGER, "order_id0",
-                SqlTypeCoder.INTEGER, "sum_site_id0"
+                SqlTypeCoders.INTEGER, "order_id",
+                SqlTypeCoders.INTEGER, "sum_site_id",
+                SqlTypeCoders.INTEGER, "order_id0",
+                SqlTypeCoders.INTEGER, "sum_site_id0"
             ).addRows(
                 1, 1, 1, 3,
                 2, 2, null, null,
@@ -154,10 +154,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoder.INTEGER, "order_id",
-                SqlTypeCoder.INTEGER, "sum_site_id",
-                SqlTypeCoder.INTEGER, "order_id0",
-                SqlTypeCoder.INTEGER, "sum_site_id0"
+                SqlTypeCoders.INTEGER, "order_id",
+                SqlTypeCoders.INTEGER, "sum_site_id",
+                SqlTypeCoders.INTEGER, "order_id0",
+                SqlTypeCoders.INTEGER, "sum_site_id0"
             ).addRows(
                 1, 3, 1, 1,
                 null, null, 2, 2,
@@ -185,10 +185,10 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoder.INTEGER, "order_id1",
-                SqlTypeCoder.INTEGER, "sum_site_id",
-                SqlTypeCoder.INTEGER, "order_id",
-                SqlTypeCoder.INTEGER, "sum_site_id0"
+                SqlTypeCoders.INTEGER, "order_id1",
+                SqlTypeCoders.INTEGER, "sum_site_id",
+                SqlTypeCoders.INTEGER, "order_id",
+                SqlTypeCoders.INTEGER, "sum_site_id0"
             ).addRows(
                 1, 1, 1, 3,
                 6, 2, null, null,
