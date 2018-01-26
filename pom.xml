@@ -1795,7 +1795,7 @@
               <configuration>
                 <finalName>apache-beam-${project.version}</finalName>
                 <descriptors>
-                  <descriptor>src/assembly.xml</descriptor>
+                  <descriptor>assembly.xml</descriptor>
                 </descriptors>
               </configuration>
             </execution>
