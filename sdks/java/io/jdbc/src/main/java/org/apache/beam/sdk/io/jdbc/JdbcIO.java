@@ -20,11 +20,15 @@ package org.apache.beam.sdk.io.jdbc;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -39,11 +43,16 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.BasicDataSource;
+import org.joda.time.Duration;
 
 /**
  * IO to read and write data on JDBC.
@@ -164,6 +173,7 @@ public class JdbcIO {
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
             .setBatchSize(DEFAULT_BATCH_SIZE)
+            .setBackOffEnabled(false)
             .build();
   }
 
@@ -513,6 +523,7 @@ public class JdbcIO {
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    abstract boolean isBackOffEnabled();
 
     abstract Builder<T> toBuilder();
 
@@ -522,6 +533,7 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+      abstract Builder<T> setBackOffEnabled(boolean backOffEnabled);
 
       abstract Write<T> build();
     }
@@ -547,6 +559,16 @@ public class JdbcIO {
       return toBuilder().setBatchSize(batchSize).build();
     }
 
+    /**
+     * Enable backoff and retry support to write.
+     *
+     * @param backOffEnabled True to enable backoff support, false else.
+     * @return the corresponding {@link Write}.
+     */
+    public Write<T> withBackOffEnabled(boolean backOffEnabled) {
+      return toBuilder().setBackOffEnabled(backOffEnabled).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       checkArgument(
@@ -563,10 +585,16 @@ public class JdbcIO {
 
       private final Write<T> spec;
 
+      private static final int MAX_RETRIES = 5;
+      private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
+              FluentBackoff.DEFAULT
+                      .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private int batchCount;
+      private List<T> records = new ArrayList();
 
       public WriteFn(Write<T> spec) {
         this.spec = spec;
@@ -589,9 +617,8 @@ public class JdbcIO {
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
 
-        preparedStatement.clearParameters();
-        spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
-        preparedStatement.addBatch();
+        records.add(record);
+        processRecord(record);
 
         batchCount++;
 
@@ -600,16 +627,56 @@ public class JdbcIO {
         }
       }
 
+      public void processRecord(T record) throws RuntimeException {
+        try {
+          preparedStatement.clearParameters();
+          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+          preparedStatement.addBatch();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+
       @FinishBundle
       public void finishBundle() throws Exception {
         executeBatch();
       }
 
-      private void executeBatch() throws SQLException {
+      private void executeBatch() throws SQLException, IOException, InterruptedException {
+        if (spec.isBackOffEnabled()) {
+          executeBatchWithBackOff();
+        } else {
+          if (batchCount > 0) {
+            preparedStatement.executeBatch();
+            connection.commit();
+            batchCount = 0;
+            records.clear();
+          }
+        }
+      }
+
+      private void executeBatchWithBackOff()
+              throws SQLException, IOException, InterruptedException {
         if (batchCount > 0) {
-          preparedStatement.executeBatch();
-          connection.commit();
+          Sleeper sleeper = Sleeper.DEFAULT;
+          BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+          while (true) {
+            // Batch upsert entities.
+            try {
+              int[] updates = preparedStatement.executeBatch();
+              connection.commit();
+              // Break if the commit threw no exception.
+              break;
+            } catch (SQLException exception) {
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                throw exception;
+              } else {
+                records.stream().forEach(this::processRecord);
+              }
+            }
+          }
           batchCount = 0;
+          records.clear();
         }
       }
 
