@@ -18,16 +18,12 @@
 package org.apache.beam.sdk.io.jms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import javax.jms.Connection;
@@ -58,6 +54,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * An unbounded source for JMS destinations (queues or topics).
@@ -392,19 +389,19 @@ public class JmsIO {
   }
 
   @VisibleForTesting
-  static class UnboundedJmsReader extends UnboundedReader<JmsRecord> {
+  static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
-    private UnboundedJmsSource source;
+    private UnboundedJmsSource<T> source;
     private JmsCheckpointMark checkpointMark;
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
 
-    private JmsRecord currentRecord;
+    private T currentMessage;
     private Instant currentTimestamp;
 
     public UnboundedJmsReader(
-        UnboundedJmsSource source,
+        UnboundedJmsSource<T> source,
         JmsCheckpointMark checkpointMark) {
       this.source = source;
       if (checkpointMark != null) {
@@ -412,7 +409,7 @@ public class JmsIO {
       } else {
         this.checkpointMark = new JmsCheckpointMark();
       }
-      this.currentRecord = null;
+      this.currentMessage = null;
     }
 
     @Override
@@ -457,38 +454,16 @@ public class JmsIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        TextMessage message = (TextMessage) this.consumer.receiveNoWait();
+        Message message = this.consumer.receiveNoWait();
 
         if (message == null) {
-          currentRecord = null;
+          currentMessage = null;
           return false;
         }
 
-        Map<String, Object> properties = new HashMap<>();
-        @SuppressWarnings("rawtypes")
-        Enumeration propertyNames = message.getPropertyNames();
-        while (propertyNames.hasMoreElements()) {
-          String propertyName = (String) propertyNames.nextElement();
-          properties.put(propertyName, message.getObjectProperty(propertyName));
-        }
-
-        JmsRecord jmsRecord = new JmsRecord(
-            message.getJMSMessageID(),
-            message.getJMSTimestamp(),
-            message.getJMSCorrelationID(),
-            message.getJMSReplyTo(),
-            message.getJMSDestination(),
-            message.getJMSDeliveryMode(),
-            message.getJMSRedelivered(),
-            message.getJMSType(),
-            message.getJMSExpiration(),
-            message.getJMSPriority(),
-            properties,
-            message.getText());
-
         checkpointMark.addMessage(message);
 
-        currentRecord = jmsRecord;
+        currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
 
         return true;
@@ -498,11 +473,11 @@ public class JmsIO {
     }
 
     @Override
-    public JmsRecord getCurrent() throws NoSuchElementException {
-      if (currentRecord == null) {
+    public T getCurrent() throws NoSuchElementException {
+      if (currentMessage == null) {
         throw new NoSuchElementException();
       }
-      return currentRecord;
+      return currentMessage;
     }
 
     @Override
@@ -512,7 +487,7 @@ public class JmsIO {
 
     @Override
     public Instant getCurrentTimestamp() {
-      if (currentRecord == null) {
+      if (currentMessage == null) {
         throw new NoSuchElementException();
       }
       return currentTimestamp;
@@ -524,7 +499,7 @@ public class JmsIO {
     }
 
     @Override
-    public UnboundedSource<JmsRecord, ?> getCurrentSource() {
+    public UnboundedSource<T, ?> getCurrentSource() {
       return source;
     }
 
