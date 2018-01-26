@@ -18,30 +18,20 @@
 
 package org.apache.beam.runners.core.construction;
 
-import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 
-/**
- * An interface that translates coders to components and back.
- *
- * <p>This interface is highly experimental, and incomplete. Coders must in the general case have
- * the capability to encode an additional payload, which is not currently supported. This exists as
- * a temporary measure.
- */
-@Experimental(Kind.CORE_RUNNERS_ONLY)
-public interface CoderTranslator<T extends Coder<?>> {
+/** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
+public interface CoderTranslatorRegistrar {
   /**
-  * Extract all component {@link Coder coders} within a coder.
+   * Returns a mapping of coder classes to the URN representing that coder.
+   *
+   * <p>URNs must map to only one coder.
    */
-  List<? extends Coder<?>> getComponents(T from);
+  Map<Class<? extends Coder>, String> getCoderURNs();
 
   /**
-   * Returns the
+   * Returns a mapping of URN to {@link CoderTranslator}.
    */
-  byte[] getPayload(T from);
-
-  /** Create a {@link Coder} from its component {@link Coder coders}. */
-  T fromComponents(List<Coder<?>> components, byte[] payload);
+  Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators();
 }
