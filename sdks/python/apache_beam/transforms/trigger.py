@@ -480,7 +480,7 @@ class Repeatedly(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other) and self.underlying == other.underlying
 
-  def on_element(self, element, window, context):  # get window from context?
+  def on_element(self, element, window, context):
     self.underlying.on_element(element, window, context)
 
   def on_merge(self, to_be_merged, merge_result, context):
@@ -1104,8 +1104,9 @@ class GeneralTriggerDriver(TriggerDriver):
     if (time_domain == TimeDomain.WATERMARK or
         time_domain == TimeDomain.REAL_TIME):
       if not self.is_merging or window in state.known_windows():
-        context = state.at(window)
-        if self.trigger_fn.should_fire(timestamp, window, context):
+        context = state.at(window, self.clock)
+        if self.trigger_fn.should_fire(timestamp, window,
+                                       context, time_domain):
           finished = self.trigger_fn.on_fire(timestamp, window, context)
           yield self._output(window, finished, state)
     else:
