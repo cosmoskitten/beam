@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -57,11 +58,8 @@ import org.joda.time.Instant;
  * serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@code DoFn}s can be tested in a particular
- * {@code Pipeline} by running that {@code Pipeline} on sample input
- * and then checking its output.  Unit testing of a {@code DoFn},
- * separately from any {@code ParDo} transform or {@code Pipeline},
- * can be done via the {@link DoFnTester} harness.
+ * <p>{@link DoFn DoFns} can be tested by using {@link TestStream}
+ * with the {@code DirectRunner}.
  *
  * <p>Implementations must define a method annotated with {@link ProcessElement}
  * that satisfies the requirements described there. See the {@link ProcessElement}
@@ -89,8 +87,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
   }
@@ -101,8 +98,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class FinishBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
 
@@ -137,8 +133,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class WindowedContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
 
