@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -541,11 +542,11 @@ public class JdbcIO {
     abstract static class AbstractWriteFn<RowT, InputT> extends DoFn<InputT, Void> {
       protected final AbstractWrite<RowT, InputT> spec;
 
-      protected DataSource dataSource;
-      protected Connection connection;
-      protected PreparedStatement preparedStatement;
+      protected transient DataSource dataSource;
+      protected transient Connection connection;
+      protected transient PreparedStatement preparedStatement;
 
-      protected int batchCount;
+      protected transient int batchCount;
 
       public AbstractWriteFn(AbstractWrite<RowT, InputT> spec) {
         this.spec = spec;
@@ -582,6 +583,7 @@ public class JdbcIO {
 
       @Teardown
       public void teardown() throws Exception {
+        executeBatch();
         try {
           if (preparedStatement != null) {
             preparedStatement.close();
