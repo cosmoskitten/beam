@@ -170,7 +170,7 @@ public class JmsIOTest {
             .withMaxNumRecords(5));
 
     PAssert
-        .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
+        .thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(new Long(5));
     pipeline.run();
 
@@ -197,16 +197,16 @@ public class JmsIOTest {
 
     // read from the queue
     PCollection<JmsRecord> output = pipeline.apply(
-            JmsIO.read()
-                    .withConnectionFactory(connectionFactory)
-                    .withQueue(QUEUE)
-                    .withUsername(USERNAME)
-                    .withPassword(PASSWORD)
-                    .withMaxNumRecords(1));
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withMaxNumRecords(1));
 
     PAssert
-            .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
-            .isEqualTo(new Long(1));
+        .thatSingleton(output.apply("Count", Count.globally()))
+        .isEqualTo(new Long(1));
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);
