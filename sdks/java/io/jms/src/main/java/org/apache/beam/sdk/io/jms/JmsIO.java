@@ -23,7 +23,10 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import javax.jms.Connection;
@@ -101,7 +104,46 @@ public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
-  public static <T> Read<T> read() {
+  public static Read<JmsRecord> read() {
+    return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
+            .setMaxNumRecords(Long.MAX_VALUE)
+            .setCoder(SerializableCoder.of(JmsRecord.class))
+            .setMessageMapper(new JmsIO.MessageMapper<JmsRecord>() {
+              @Override
+              public JmsRecord mapMessage(Message message) throws Exception {
+                TextMessage textMessage = (TextMessage) message;
+                Map<String, Object> properties = new HashMap<>();
+                @SuppressWarnings("rawtypes")
+                Enumeration propertyNames = textMessage.getPropertyNames();
+                while (propertyNames.hasMoreElements()) {
+                  String propertyName = (String) propertyNames.nextElement();
+                  properties.put(
+                          propertyName,
+                          textMessage.getObjectProperty(propertyName)
+                  );
+                }
+
+                JmsRecord jmsRecord = new JmsRecord(
+                        textMessage.getJMSMessageID(),
+                        textMessage.getJMSTimestamp(),
+                        textMessage.getJMSCorrelationID(),
+                        textMessage.getJMSReplyTo(),
+                        textMessage.getJMSDestination(),
+                        textMessage.getJMSDeliveryMode(),
+                        textMessage.getJMSRedelivered(),
+                        textMessage.getJMSType(),
+                        textMessage.getJMSExpiration(),
+                        textMessage.getJMSPriority(),
+                        properties,
+                        textMessage.getText());
+
+                return jmsRecord;
+              }
+            })
+            .build();
+  }
+
+  public static <T> Read<T> readMessage() {
     return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
@@ -294,6 +336,8 @@ public class JmsIO {
       checkArgument(
           getQueue() == null || getTopic() == null,
           "withQueue() and withTopic() are exclusive");
+      checkArgument(getMessageMapper() != null, "withMessageMapper() is required");
+      checkArgument(getCoder() != null, "withCoder() is required");
 
       // handles unbounded source to bounded conversion if maxNumRecords is set.
       Unbounded<T> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
@@ -345,7 +389,8 @@ public class JmsIO {
    * An unbounded JMS source.
    */
   @VisibleForTesting
-  protected static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
+  protected static class UnboundedJmsSource<T>
+          extends UnboundedSource<T, JmsCheckpointMark> {
 
     private final Read<T> spec;
 
@@ -414,7 +459,7 @@ public class JmsIO {
 
     @Override
     public boolean start() throws IOException {
-      Read spec = source.spec;
+      Read<T> spec = source.spec;
       ConnectionFactory connectionFactory = spec.getConnectionFactory();
       try {
         Connection connection;
