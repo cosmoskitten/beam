@@ -290,6 +290,24 @@
             <groupId>io.github.zlika</groupId>
             <artifactId>reproducible-build-maven-plugin</artifactId>
           </plugin>
+        </plugins>
+
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-resources-plugin</artifactId>
+              <version>${maven-resources-plugin.version}</version>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
+      <id>sign</id>
+      <build>
+        <plugins>
           <!-- We want to sign the artifacts, POM, and all attached artifacts -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -304,16 +322,6 @@
             </executions>
           </plugin>
         </plugins>
-
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-resources-plugin</artifactId>
-              <version>${maven-resources-plugin.version}</version>
-            </plugin>
-          </plugins>
-        </pluginManagement>
       </build>
     </profile>
 
@@ -1806,7 +1814,7 @@
             <useReleaseProfile>false</useReleaseProfile>
             <preparationGoals>clean install</preparationGoals>
             <goals>deploy</goals>
-            <arguments>-Prelease</arguments>
+            <arguments>-Prelease,sign</arguments>
             <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
         </plugin>
