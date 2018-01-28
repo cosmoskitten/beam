@@ -99,36 +99,6 @@ class Timestamp(object):
       other = Timestamp.of(other)
     return cmp(self.micros, other.micros)
 
-  def __eq__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros == other.micros
-
-  def __ne__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros != other.micros
-
-  def __lt__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros < other.micros
-
-  def __le__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros <= other.micros
-
-  def __gt__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros > other.micros
-
-  def __ge__(self, other):
-    if not isinstance(other, Duration):
-      other = Timestamp.of(other)
-    return self.micros >= other.micros
-
   def __hash__(self):
     return hash(self.micros)
 
@@ -206,36 +176,6 @@ class Duration(object):
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
     return cmp(self.micros, other.micros)
-
-  def __eq__(self, other):
-    if not isinstance(other, Timestamp):
-      other = Duration.of(other)
-    return self.micros == other.micros
-
-  def __ne__(self, other):
-    if not isinstance(other, Duration):
-      other = Duration.of(other)
-    return self.micros != other.micros
-
-  def __lt__(self, other):
-    if not isinstance(other, Duration):
-      other = Duration.of(other)
-    return self.micros < other.micros
-
-  def __le__(self, other):
-    if not isinstance(other, Duration):
-      other = Duration.of(other)
-    return self.micros <= other.micros
-
-  def __gt__(self, other):
-    if not isinstance(other, Duration):
-      other = Duration.of(other)
-    return self.micros > other.micros
-
-  def __ge__(self, other):
-    if not isinstance(other, Duration):
-      other = Duration.of(other)
-    return self.micros >= other.micros
 
   def __hash__(self):
     return hash(self.micros)

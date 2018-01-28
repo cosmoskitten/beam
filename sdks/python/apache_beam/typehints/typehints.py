@@ -66,6 +66,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 import collections
 import copy
 import sys
+import types
 
 import six
 
@@ -336,7 +337,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   if sys.version_info[0] == 2:
-    possible_classes.append(type)
+    possible_classes.append(types.ClassType)
   is_not_type_constraint = (
       not isinstance(type_param, tuple(possible_classes))
       and type_param is not None)
