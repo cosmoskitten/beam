@@ -847,7 +847,103 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      List<BigtableSource> splits =
+          splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return reduceSplits(splits, options);
+    }
+
+    private List<BigtableSource>
+        reduceSplits(List<BigtableSource> splits, PipelineOptions options) throws IOException {
+      final long maximumCountOfSplits = 15_360L;
+      int numberToCombine =
+          (int) ((splits.size() + maximumCountOfSplits - 1) / maximumCountOfSplits);
+      if (splits.size() < maximumCountOfSplits || numberToCombine < 2) {
+        return splits;
+      }
+      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
+      ImmutableList.Builder<ByteKeyRange> combinedRanges = ImmutableList.builder();
+      int counter = 0;
+      long size = 0;
+      List<ByteKeyRange> previousSourceRanges = null;
+      for (BigtableSource source : splits) {
+        counter++;
+        if (counter == numberToCombine
+            || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
+          reducedSplits.add(
+              new BigtableSource(
+                  config,
+                  filter,
+                  mergeRanges(combinedRanges.build()),
+                  size));
+          counter = 0;
+          size = source.getEstimatedSizeBytes(options);
+          previousSourceRanges = source.getRanges();
+          combinedRanges = ImmutableList.builder();
+          combinedRanges.addAll(previousSourceRanges);
+        } else {
+          previousSourceRanges = mergeRanges(source.getRanges());
+          combinedRanges.addAll(previousSourceRanges);
+          size += source.getEstimatedSizeBytes(options);
+        }
+      }
+      if (size > 0) {
+        reducedSplits.add(
+            new BigtableSource(
+                config,
+                filter,
+                mergeRanges(combinedRanges.build()),
+                size));
+      }
+      return reducedSplits.build();
+    }
+
+    /** Helper to validate range Adjacency.
+     * Ranges are considered adjacent if [1..100][100..200][200..300]
+     **/
+    private static boolean checkRangeAdjacency(List<ByteKeyRange> ranges,
+        List<ByteKeyRange> otherRanges) {
+      checkArgument(ranges != null || otherRanges != null, "Both ranges cannot be null.");
+      ImmutableList.Builder<ByteKeyRange> mergedRanges = ImmutableList.builder();
+      if (ranges != null) {
+        mergedRanges.addAll(ranges);
+      }
+      if (otherRanges != null) {
+        mergedRanges.addAll(otherRanges);
+      }
+      return checkRangeAdjacency(mergedRanges.build());
+    }
+
+    /** Helper to validate range Adjacency.
+     * Ranges are considered adjacent if [1..100][100..200][200..300]
+     **/
+    private static boolean checkRangeAdjacency(List<ByteKeyRange> ranges) {
+      int index = 0;
+      if (ranges.size() < 2) {
+        return true;
+      }
+      ByteKey lastEndKey = ranges.get(index++).getEndKey();
+      while (index < ranges.size()) {
+        ByteKeyRange currentKeyRange = ranges.get(index++);
+        if (!lastEndKey.equals(currentKeyRange.getStartKey())) {
+          return false;
+        }
+        lastEndKey = currentKeyRange.getEndKey();
+      }
+      return true;
+    }
+
+    /** Helper to combine/merge ByteKeyRange
+     * Ranges should only be merged if they are adjacent
+     * ex. [1..100][100..200][200..300] will result in [1..300]
+     * Note: this method will not check for adjacency see {@link #checkRangeAdjacency(List)}
+     **/
+    private static ImmutableList<ByteKeyRange> mergeRanges(List<ByteKeyRange> ranges) {
+      if (ranges.size() < 2) {
+        return ImmutableList.of(ranges.get(0));
+      }
+      return ImmutableList.of(ByteKeyRange.of(
+          ranges.get(0).getStartKey(),
+          ranges.get(ranges.size() - 1).getEndKey()));
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
