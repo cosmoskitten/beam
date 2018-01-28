@@ -126,34 +126,27 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
             .setMaxNumRecords(Long.MAX_VALUE)
             .setCoder(SerializableCoder.of(JmsRecord.class))
-            .setMessageMapper((MessageMapper<JmsRecord>) message -> {
-              TextMessage textMessage = (TextMessage) message;
-              Map<String, Object> properties = new HashMap<>();
-              @SuppressWarnings("rawtypes")
-              Enumeration propertyNames = textMessage.getPropertyNames();
-              while (propertyNames.hasMoreElements()) {
-                String propertyName = (String) propertyNames.nextElement();
-                properties.put(
-                        propertyName,
-                        textMessage.getObjectProperty(propertyName)
-                );
+            .setMessageMapper((MessageMapper<JmsRecord>) new MessageMapper<JmsRecord>() {
+
+              @Override public JmsRecord mapMessage(Message message) throws Exception {
+                TextMessage textMessage = (TextMessage) message;
+                Map<String, Object> properties = new HashMap<>();
+                @SuppressWarnings("rawtypes") Enumeration propertyNames = textMessage
+                    .getPropertyNames();
+                while (propertyNames.hasMoreElements()) {
+                  String propertyName = (String) propertyNames.nextElement();
+                  properties.put(propertyName, textMessage.getObjectProperty(propertyName));
+                }
+
+                JmsRecord jmsRecord = new JmsRecord(textMessage.getJMSMessageID(),
+                    textMessage.getJMSTimestamp(), textMessage.getJMSCorrelationID(),
+                    textMessage.getJMSReplyTo(), textMessage.getJMSDestination(),
+                    textMessage.getJMSDeliveryMode(), textMessage.getJMSRedelivered(),
+                    textMessage.getJMSType(), textMessage.getJMSExpiration(),
+                    textMessage.getJMSPriority(), properties, textMessage.getText());
+
+                return jmsRecord;
               }
-
-              JmsRecord jmsRecord = new JmsRecord(
-                      textMessage.getJMSMessageID(),
-                      textMessage.getJMSTimestamp(),
-                      textMessage.getJMSCorrelationID(),
-                      textMessage.getJMSReplyTo(),
-                      textMessage.getJMSDestination(),
-                      textMessage.getJMSDeliveryMode(),
-                      textMessage.getJMSRedelivered(),
-                      textMessage.getJMSType(),
-                      textMessage.getJMSExpiration(),
-                      textMessage.getJMSPriority(),
-                      properties,
-                      textMessage.getText());
-
-              return jmsRecord;
             })
             .build();
   }
