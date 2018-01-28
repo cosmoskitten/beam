@@ -64,8 +64,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from a JMS destination</h3>
  *
- * <p>JmsIO source returns unbounded collection of JMS records as {@code PCollection<JmsRecord<T>>}.
- * A {@link JmsRecord} includes JMS headers and properties, along with the JMS message payload.</p>
+ * <p>JmsIO source returns unbounded collection of JMS records as {@code PCollection<JmsRecord>}.
+ * A {@link JmsRecord} includes JMS headers and properties, along with the JMS {@link TextMessage} payload.</p>
  *
  * <p>To configure a JMS source, you have to provide a {@link javax.jms.ConnectionFactory}
  * and the destination (queue or topic) where to consume. The following example
@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
  * pipeline.apply(JmsIO.read()
  *    .withConnectionFactory(myConnectionFactory)
  *    .withQueue("my-queue")
- *    // above two are required configuration, returns PCollection<JmsRecord<byte[]>>
+ *    // above two are required configuration, returns PCollection<JmsRecord>
  *
  *    // rest of the settings are optional
  *
