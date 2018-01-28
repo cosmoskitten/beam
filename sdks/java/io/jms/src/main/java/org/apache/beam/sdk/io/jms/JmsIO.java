@@ -65,7 +65,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading from a JMS destination</h3>
  *
  * <p>JmsIO source returns unbounded collection of JMS records as {@code PCollection<JmsRecord>}.
- * A {@link JmsRecord} includes JMS headers and properties, along with the JMS {@link TextMessage} payload.</p>
+ * A {@link JmsRecord} includes JMS headers and properties,
+ * along with the JMS {@link javax.jms.TextMessage} payload.</p>
  *
  * <p>To configure a JMS source, you have to provide a {@link javax.jms.ConnectionFactory}
  * and the destination (queue or topic) where to consume. The following example
@@ -79,6 +80,23 @@ import org.slf4j.LoggerFactory;
  *    // above two are required configuration, returns PCollection<JmsRecord>
  *
  *    // rest of the settings are optional
+ *
+ * }</pre>
+ *
+ * <p>It is possible to read any type of JMS {@link javax.jms.Message} into a custom POJO
+ * using the following configuration:</p>
+ *
+ * <pre>{@code
+ *
+ * pipeline.apply(JmsIO.<T>read()
+ *    .withConnectionFactory(myConnectionFactory)
+ *    .withQueue("my-queue")
+ *    .withMessageMapper((MessageMapper<T>) message -> {
+ *      // code that maps message to T
+ *    })
+ *    .withCoder(
+ *      // a coder for T
+ *    )
  *
  * }</pre>
  *
@@ -108,37 +126,34 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<JmsRecord>()
             .setMaxNumRecords(Long.MAX_VALUE)
             .setCoder(SerializableCoder.of(JmsRecord.class))
-            .setMessageMapper(new JmsIO.MessageMapper<JmsRecord>() {
-              @Override
-              public JmsRecord mapMessage(Message message) throws Exception {
-                TextMessage textMessage = (TextMessage) message;
-                Map<String, Object> properties = new HashMap<>();
-                @SuppressWarnings("rawtypes")
-                Enumeration propertyNames = textMessage.getPropertyNames();
-                while (propertyNames.hasMoreElements()) {
-                  String propertyName = (String) propertyNames.nextElement();
-                  properties.put(
-                          propertyName,
-                          textMessage.getObjectProperty(propertyName)
-                  );
-                }
-
-                JmsRecord jmsRecord = new JmsRecord(
-                        textMessage.getJMSMessageID(),
-                        textMessage.getJMSTimestamp(),
-                        textMessage.getJMSCorrelationID(),
-                        textMessage.getJMSReplyTo(),
-                        textMessage.getJMSDestination(),
-                        textMessage.getJMSDeliveryMode(),
-                        textMessage.getJMSRedelivered(),
-                        textMessage.getJMSType(),
-                        textMessage.getJMSExpiration(),
-                        textMessage.getJMSPriority(),
-                        properties,
-                        textMessage.getText());
-
-                return jmsRecord;
+            .setMessageMapper((MessageMapper<JmsRecord>) message -> {
+              TextMessage textMessage = (TextMessage) message;
+              Map<String, Object> properties = new HashMap<>();
+              @SuppressWarnings("rawtypes")
+              Enumeration propertyNames = textMessage.getPropertyNames();
+              while (propertyNames.hasMoreElements()) {
+                String propertyName = (String) propertyNames.nextElement();
+                properties.put(
+                        propertyName,
+                        textMessage.getObjectProperty(propertyName)
+                );
               }
+
+              JmsRecord jmsRecord = new JmsRecord(
+                      textMessage.getJMSMessageID(),
+                      textMessage.getJMSTimestamp(),
+                      textMessage.getJMSCorrelationID(),
+                      textMessage.getJMSReplyTo(),
+                      textMessage.getJMSDestination(),
+                      textMessage.getJMSDeliveryMode(),
+                      textMessage.getJMSRedelivered(),
+                      textMessage.getJMSType(),
+                      textMessage.getJMSExpiration(),
+                      textMessage.getJMSPriority(),
+                      properties,
+                      textMessage.getText());
+
+              return jmsRecord;
             })
             .build();
   }
