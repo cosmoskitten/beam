@@ -863,7 +863,50 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      List<BigtableSource> splits =
+          splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return reduceSplits(splits, options);
+    }
+
+    private List<BigtableSource>
+        reduceSplits(List<BigtableSource> splits, PipelineOptions options) throws IOException {
+      final long maximumCountOfSplits = 15_360L;
+      if (splits.size() < maximumCountOfSplits) {
+        return splits;
+      }
+      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
+      BigtableSource start = null;
+      BigtableSource lastSeen = null;
+      int numberToCombine =
+          (int) ((splits.size() + maximumCountOfSplits - 1) / maximumCountOfSplits);
+      int counter = 0;
+      long size = 0;
+      for (BigtableSource source : splits) {
+        if (counter == 0) {
+          start = source;
+        }
+        size += source.getEstimatedSizeBytes(options);
+        counter++;
+        lastSeen = source;
+        if (counter == numberToCombine) {
+          ByteKey startKey = start.getRanges().get(0).getStartKey();
+          ByteKey endKey = source.getRanges().get(source.getRanges().size() - 1).getEndKey();
+          reducedSplits.add(
+              start.withSingleRange(ByteKeyRange.of(startKey, endKey))
+                  .withEstimatedSizeBytes(size));
+          counter = 0;
+          size = 0;
+          start = null;
+        }
+      }
+      if (start != null) {
+        ByteKey startKey = start.getRanges().get(0).getStartKey();
+        ByteKey endKey = lastSeen.getRanges().get(lastSeen.getRanges().size() - 1).getEndKey();
+        reducedSplits.add(
+            start.withSingleRange(ByteKeyRange.of(startKey, endKey))
+                .withEstimatedSizeBytes(size));
+      }
+      return reducedSplits.build();
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
