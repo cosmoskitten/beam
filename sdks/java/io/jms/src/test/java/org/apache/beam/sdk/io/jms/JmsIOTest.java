@@ -347,4 +347,18 @@ public class JmsIOTest {
     return count;
   }
 
+  /**
+   * A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}.
+   */
+  public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
+
+    @Override public String mapMessage(Message message) throws Exception {
+      BytesMessage bytesMessage = (BytesMessage) message;
+
+      byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
+
+      return new String(bytes);
+    }
+  }
+
 }
