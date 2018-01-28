@@ -44,6 +44,7 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -196,13 +197,16 @@ public class JmsIOTest {
     connection.close();
 
     // read from the queue
-    PCollection<JmsRecord> output = pipeline.apply(
-        JmsIO.read()
+    PCollection<String> output = pipeline.apply(
+        JmsIO.<String>readMessage()
             .withConnectionFactory(connectionFactory)
             .withQueue(QUEUE)
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
-            .withMaxNumRecords(1));
+            .withMaxNumRecords(1)
+            .withCoder(SerializableCoder.of(String.class))
+            .withMessageMapper(new BytesMessageToStringMessageMapper())
+    );
 
     PAssert
         .thatSingleton(output.apply("Count", Count.globally()))
