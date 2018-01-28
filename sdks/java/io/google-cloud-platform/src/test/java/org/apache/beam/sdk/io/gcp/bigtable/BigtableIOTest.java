@@ -595,6 +595,34 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  /** Tests Max Split Count. */
+  @Test
+  public void testMaxSplits() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 20000;
+    final int numSamples = 16000;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 15_360;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            null /*size*/);
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    // Test num splits and split equality.
+    assertThat(splits, hasSize(lessThan(maxSplit)));
+    assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
+
   /** Tests reading all rows from a split table with several key ranges. */
   @Test
   public void testReadingWithSplitsWithSeveralKeyRanges() throws Exception {
