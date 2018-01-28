@@ -20,8 +20,6 @@ import inspect
 import typing
 import unittest
 
-import six
-
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -63,7 +61,7 @@ class MainInputTest(unittest.TestCase):
 
   def test_loose_bounds(self):
     @typehints.with_input_types(typehints.Union[int, float, int])
-    @typehints.with_output_types(six.string_types)
+    @typehints.with_output_types(type)
     def format_number(x):
       return '%g' % x
     result = [1, 2, 3] | beam.Map(format_number)

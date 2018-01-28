@@ -96,7 +96,7 @@ class JsonValueTest(unittest.TestCase):
 
   def test_too_long_value(self):
     with self.assertRaises(TypeError):
-      to_json_value(int(1 << 64))
+      to_json_value(1 << 64)
 
 
 if __name__ == '__main__':

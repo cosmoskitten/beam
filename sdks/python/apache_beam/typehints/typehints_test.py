@@ -1045,17 +1045,17 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertEquals(typehints.Tuple[int, typehints.Any],
                       _positional_arg_hints(['x', 'y'], {'x': int}))
 
-  # def test_getcallargs_forhints(self):
-  #   func = lambda a, (b, c), *d: None
-  #   self.assertEquals(
-  #       {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
-  #       getcallargs_forhints(func, *[Any, Any]))
-  #   self.assertEquals(
-  #       {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
-  #       getcallargs_forhints(func, *[Any, Any, Any, int]))
-  #   self.assertEquals(
-  #       {'a': int, 'b': str, 'c': Any, 'd': Tuple[Any, ...]},
-  #       getcallargs_forhints(func, *[int, Tuple[str, Any]]))
+  def test_getcallargs_forhints(self):
+    func = lambda a, (b, c), *d: None
+    self.assertEquals(
+        {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
+        getcallargs_forhints(func, *[Any, Any]))
+    self.assertEquals(
+        {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
+        getcallargs_forhints(func, *[Any, Any, Any, int]))
+    self.assertEquals(
+        {'a': int, 'b': str, 'c': Any, 'd': Tuple[Any, ...]},
+        getcallargs_forhints(func, *[int, Tuple[str, Any]]))
 
 
 if __name__ == '__main__':
