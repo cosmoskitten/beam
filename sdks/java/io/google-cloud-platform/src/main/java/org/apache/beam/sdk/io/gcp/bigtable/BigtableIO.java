@@ -847,7 +847,69 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      List<BigtableSource> splits =
+          splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return reduceSplits(splits, options);
+    }
+
+    private List<BigtableSource>
+        reduceSplits(List<BigtableSource> splits, PipelineOptions options) throws IOException {
+      final long maximumCountOfSplits = 15_360L;
+      int numberToCombine =
+          (int) ((splits.size() + maximumCountOfSplits - 1) / maximumCountOfSplits);
+      if (splits.size() < maximumCountOfSplits || numberToCombine < 2) {
+        return splits;
+      }
+      ImmutableList.Builder<BigtableSource> reducedSplits = ImmutableList.builder();
+      ImmutableList.Builder<ByteKeyRange> currentSplits = ImmutableList.builder();
+      int counter = 0;
+      long size = 0;
+      for (BigtableSource source : splits) {
+        size += source.getEstimatedSizeBytes(options);
+        counter++;
+        currentSplits.addAll(source.getRanges());
+        if (counter == numberToCombine) {
+          List<ByteKeyRange> rangesToCombine = currentSplits.build();
+          if (!checkRangeAdjacency(rangesToCombine)) {
+            LOG.warn("Cannot reduce large number of splits as key ranges are not adjacent");
+            return splits;
+          }
+          ByteKey startKey = rangesToCombine.get(0).getStartKey();
+          ByteKey endKey = rangesToCombine.get(rangesToCombine.size() - 1).getEndKey();
+          reducedSplits.add(
+              new BigtableSource(config,
+                  filter,
+                  ImmutableList.of(ByteKeyRange.of(startKey, endKey)),
+                  size));
+          counter = 0;
+          size = 0;
+          currentSplits = ImmutableList.builder();
+        }
+      }
+      if (size > 0) {
+        reducedSplits.add(
+            new BigtableSource(config, filter, currentSplits.build(), size));
+      }
+      return reducedSplits.build();
+    }
+
+    /** Helper to validate range Adjacency.
+     * Ranges are considered adjacent if [1..100][100..200][200..300]
+     **/
+    private boolean checkRangeAdjacency(List<ByteKeyRange> ranges) {
+      int index = 0;
+      if (ranges.size() < 2) {
+        return true;
+      }
+      ByteKey lastEndKey = ranges.get(index++).getEndKey();
+      while (index < ranges.size()) {
+        ByteKeyRange currentKeyRange = ranges.get(index++);
+        if (!lastEndKey.equals(currentKeyRange.getStartKey())) {
+          return false;
+        }
+        lastEndKey = currentKeyRange.getEndKey();
+      }
+      return true;
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
