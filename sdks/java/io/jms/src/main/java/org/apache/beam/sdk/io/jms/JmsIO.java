@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  *
- * pipeline.apply(JmsIO.<T>read()
+ * pipeline.apply(JmsIO.<T>readMessage()
  *    .withConnectionFactory(myConnectionFactory)
  *    .withQueue("my-queue")
  *    .withMessageMapper((MessageMapper<T>) message -> {
