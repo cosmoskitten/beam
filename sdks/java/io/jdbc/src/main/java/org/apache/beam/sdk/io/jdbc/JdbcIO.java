@@ -143,6 +143,8 @@ import org.joda.time.Duration;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class JdbcIO {
+
+
   /**
    * Read data from a JDBC datasource.
    *
@@ -173,7 +175,6 @@ public class JdbcIO {
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
             .setBatchSize(DEFAULT_BATCH_SIZE)
-            .setBackOffEnabled(false)
             .build();
   }
 
@@ -523,7 +524,6 @@ public class JdbcIO {
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
-    abstract boolean isBackOffEnabled();
 
     abstract Builder<T> toBuilder();
 
@@ -533,7 +533,6 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
-      abstract Builder<T> setBackOffEnabled(boolean backOffEnabled);
 
       abstract Write<T> build();
     }
@@ -557,16 +556,6 @@ public class JdbcIO {
     public Write<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
-    }
-
-    /**
-     * Enable backoff and retry support to write.
-     *
-     * @param backOffEnabled True to enable backoff support, false else.
-     * @return the corresponding {@link Write}.
-     */
-    public Write<T> withBackOffEnabled(boolean backOffEnabled) {
-      return toBuilder().setBackOffEnabled(backOffEnabled).build();
     }
 
     @Override
@@ -593,7 +582,6 @@ public class JdbcIO {
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
-      private int batchCount;
       private List<T> records = new ArrayList();
 
       public WriteFn(Write<T> spec) {
@@ -610,7 +598,7 @@ public class JdbcIO {
 
       @StartBundle
       public void startBundle() {
-        batchCount = 0;
+        // nothing to do
       }
 
       @ProcessElement
@@ -618,16 +606,13 @@ public class JdbcIO {
         T record = context.element();
 
         records.add(record);
-        processRecord(record);
 
-        batchCount++;
-
-        if (batchCount >= spec.getBatchSize()) {
+        if (records.size() >= spec.getBatchSize()) {
           executeBatch();
         }
       }
 
-      public void processRecord(T record) throws RuntimeException {
+      public void processRecord(T record) {
         try {
           preparedStatement.clearParameters();
           spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
@@ -643,39 +628,28 @@ public class JdbcIO {
       }
 
       private void executeBatch() throws SQLException, IOException, InterruptedException {
-        if (spec.isBackOffEnabled()) {
-          executeBatchWithBackOff();
-        } else {
-          if (batchCount > 0) {
-            preparedStatement.executeBatch();
-            connection.commit();
-            batchCount = 0;
-            records.clear();
-          }
-        }
-      }
-
-      private void executeBatchWithBackOff()
-              throws SQLException, IOException, InterruptedException {
-        if (batchCount > 0) {
+        if (records.size() > 0) {
           Sleeper sleeper = Sleeper.DEFAULT;
           BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
           while (true) {
-            // Batch upsert entities.
             try {
-              int[] updates = preparedStatement.executeBatch();
+              // add each record in the statement batch
+              records.stream().forEach(this::processRecord);
+              // execute the batch
+              preparedStatement.executeBatch();
+              // commit the changes
               connection.commit();
-              // Break if the commit threw no exception.
               break;
             } catch (SQLException exception) {
+              // clean up the statement batch and the connection state
+              preparedStatement.clearBatch();
+              connection.rollback();
               if (!BackOffUtils.next(sleeper, backoff)) {
+                // we tried the max number of times
                 throw exception;
-              } else {
-                records.stream().forEach(this::processRecord);
               }
             }
           }
-          batchCount = 0;
           records.clear();
         }
       }
