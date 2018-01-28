@@ -86,6 +86,16 @@ class WindowedValue(object):
     # Returns False (0) if equal, and True (1) if not.
     return not WindowedValue._typed_eq(left, right)
 
+  def __eq__(left, right):  # pylint: disable=no-self-argument
+    if type(left) is not type(right):
+      return False
+    return WindowedValue._typed_eq(left, right)
+
+  def __ne__(left, right):  # pylint: disable=no-self-argument
+    if type(left) is not type(right):
+      return True
+    return not WindowedValue._typed_eq(left, right)
+
   @staticmethod
   def _typed_eq(left, right):
     return (left.timestamp_micros == right.timestamp_micros
