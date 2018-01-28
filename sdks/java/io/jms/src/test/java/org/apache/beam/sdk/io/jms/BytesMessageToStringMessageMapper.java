@@ -4,7 +4,7 @@ import javax.jms.BytesMessage;
 import javax.jms.Message;
 
 /**
- * hfghfh.
+ * A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}.
  */
 public class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
 
