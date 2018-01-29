@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -30,11 +31,21 @@ import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterAll;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -396,5 +407,100 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         boundedInput1.apply("testUnsupportedDistinct", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testUnsupportedGlobalWindowWithDefaultTrigger() {
+    exceptions.expect(IllegalStateException.class);
+    exceptions.expectCause(isA(UnsupportedOperationException.class));
+
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    PCollection<BeamRecord> input = unboundedInput1
+        .apply("unboundedInput1.globalWindow",
+               Window.<BeamRecord> into(new GlobalWindows()).triggering(DefaultTrigger.of()));
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+
+    input.apply("testUnsupportedGlobalWindows", BeamSql.query(sql));
+  }
+
+  @Test
+  public void testSupportsGlobalWindowWithCustomTrigger() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Trigger trigger = AfterAll.of(
+        AfterPane.elementCountAtLeast(79),
+        AfterWatermark.pastEndOfWindow());
+
+    PCollection<BeamRecord> input = unboundedInput1
+        .apply(
+            "unboundedInput1.globalWindow",
+            Window
+                .<BeamRecord>into(new GlobalWindows())
+                .triggering(trigger)
+                .accumulatingFiredPanes());
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+
+    input = input.apply("testInheritsWindowingStrategy", BeamSql.query(sql));
+
+    assertEquals(new GlobalWindows(), input.getWindowingStrategy().getWindowFn());
+    assertEquals(trigger.getContinuationTrigger(), input.getWindowingStrategy().getTrigger());
+  }
+
+  @Test
+  public void testInheritsCustomWindowingStrategy() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Trigger trigger = AfterAll.of(
+        AfterPane.elementCountAtLeast(79),
+        AfterWatermark.pastEndOfWindow());
+
+    FixedWindows fixedWindows = FixedWindows.of(Duration.millis(1));
+
+    PCollection<BeamRecord> input = unboundedInput1
+        .apply(
+            Window
+                .<BeamRecord>into(fixedWindows)
+                .triggering(trigger)
+                .withAllowedLateness(Duration.millis(345))
+                .accumulatingFiredPanes());
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+
+    input = input.apply("testInheritsWindowingStrategy", BeamSql.query(sql));
+
+    assertEquals(fixedWindows, input.getWindowingStrategy().getWindowFn());
+    assertEquals(trigger.getContinuationTrigger(), input.getWindowingStrategy().getTrigger());
+  }
+
+  @Test
+  public void testOverridesWindowAndInheritsTrigger() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Trigger trigger = AfterAll.of(
+        AfterPane.elementCountAtLeast(79),
+        AfterWatermark.pastEndOfWindow());
+
+    SlidingWindows overridenWindowFn = SlidingWindows
+        .of(Duration.standardHours(1))
+        .every(Duration.standardMinutes(30));
+
+    PCollection<BeamRecord> input = unboundedInput1
+        .apply(
+            Window
+                .<BeamRecord>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(trigger)
+                .withAllowedLateness(Duration.millis(345))
+                .accumulatingFiredPanes());
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION "
+        + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
+
+    input = input.apply("testOverridesWindowAndInheritsTrigger", BeamSql.query(sql));
+
+    assertEquals(overridenWindowFn, input.getWindowingStrategy().getWindowFn());
+    assertEquals(trigger.getContinuationTrigger(), input.getWindowingStrategy().getTrigger());
   }
 }
