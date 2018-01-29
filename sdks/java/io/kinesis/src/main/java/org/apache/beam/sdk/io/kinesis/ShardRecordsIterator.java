@@ -20,11 +20,9 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
