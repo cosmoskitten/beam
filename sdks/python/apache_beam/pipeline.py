@@ -62,6 +62,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
@@ -176,8 +177,9 @@ class Pipeline(object):
       if part.full_label in self.applied_labels:
         self.applied_labels.remove(part.full_label)
       if part.parts:
-        for part2 in part.parts:
-          self._remove_labels_recursively(part2)
+        for child_part in part.parts:
+          self.applied_labels.remove(child_part.full_label)
+          self._remove_labels_recursively(child_part)
 
   def _replace(self, override):
 
@@ -206,6 +208,10 @@ class Pipeline(object):
                 'have a single input. Tried to replace input of '
                 'AppliedPTransform %r that has %d inputs',
                 transform_node, len(inputs))
+          elif len(inputs) == 1:
+            input_node = inputs[0]
+          elif len(inputs) == 0:
+            input_node = pvalue.PBegin(self)
           transform_node.transform = replacement_transform
           self.pipeline.transforms_stack.append(transform_node)
 
@@ -214,7 +220,7 @@ class Pipeline(object):
           # during the expand below.
           self.pipeline._remove_labels_recursively(transform_node)
 
-          new_output = replacement_transform.expand(inputs[0])
+          new_output = replacement_transform.expand(input_node)
           if new_output.producer is None:
             # When current transform is a primitive, we set the producer here.
             new_output.producer = transform_node
@@ -223,8 +229,9 @@ class Pipeline(object):
           # another transform that produces a single output.
           # TODO: Support replacing PTransforms with multiple outputs.
           if (len(transform_node.outputs) > 1 or
-              not isinstance(transform_node.outputs[None], PCollection) or
-              not isinstance(new_output, PCollection)):
+              not isinstance(transform_node.outputs[None],
+                             (PCollection, PDone)) or
+              not isinstance(new_output, (PCollection, PDone))):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
