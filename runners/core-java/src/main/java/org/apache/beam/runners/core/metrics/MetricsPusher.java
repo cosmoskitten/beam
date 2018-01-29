@@ -57,22 +57,14 @@ public class MetricsPusher implements Serializable {
       MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
     if (instance == null) {
       instance = new MetricsPusher(pipelineOptions);
-      addMetricsContainerStepMap(metricsContainerStepMap);
       start();
-    } else {
-      /*
+    }
+    /*
       MetricsPusher.init will be called several times in a pipeline
       (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
       Then the singleton needs to register a new metricsContainerStepMap to merge
       */
-      addMetricsContainerStepMap(metricsContainerStepMap);
-      /*    if the thread is stopped, then it means that the pipeline is finished.
-      If we run multiple pipelines in the same JVM, as MetricsPusher is a singleton,
-      the instance will still be in memory but the thread will be stopped.*/
-      if (scheduledFuture.isCancelled()) {
-        start();
-      }
-    }
+    addMetricsContainerStepMap(metricsContainerStepMap);
   }
 
   /**
@@ -93,10 +85,11 @@ public class MetricsPusher implements Serializable {
         .scheduleAtFixedRate(new PushingThread(), 0, period,
             TimeUnit.SECONDS);
   }
-  private static synchronized void stop(){
+  private static synchronized void tearDown(){
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
     }
+    instance = null;
   }
 
   public static void pushMetrics(){
@@ -115,7 +108,11 @@ public class MetricsPusher implements Serializable {
       if (pipelineResult != null) {
         PipelineResult.State pipelineState = pipelineResult.getState();
         if (pipelineState.isTerminal()) {
-          stop();
+          tearDown();
+/*
+          it is the end of the pipeline, so set the instance to null so that it can be initialized
+          for the next pipeline runnin gin that JVM
+*/
         }
       }
 
