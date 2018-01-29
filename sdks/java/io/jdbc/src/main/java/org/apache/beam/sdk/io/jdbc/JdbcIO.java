@@ -53,6 +53,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write data on JDBC.
@@ -144,6 +146,7 @@ import org.joda.time.Duration;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class JdbcIO {
 
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIO.class);
 
   /**
    * Read data from a JDBC datasource.
@@ -582,7 +585,7 @@ public class JdbcIO {
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
-      private List<T> records = new ArrayList();
+      private List<T> records = new ArrayList<>();
 
       public WriteFn(Write<T> spec) {
         this.spec = spec;
@@ -596,11 +599,6 @@ public class JdbcIO {
         preparedStatement = connection.prepareStatement(spec.getStatement());
       }
 
-      @StartBundle
-      public void startBundle() {
-        // nothing to do
-      }
-
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
@@ -612,7 +610,7 @@ public class JdbcIO {
         }
       }
 
-      public void processRecord(T record) {
+      private void processRecord(T record) {
         try {
           preparedStatement.clearParameters();
           spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
@@ -628,30 +626,32 @@ public class JdbcIO {
       }
 
       private void executeBatch() throws SQLException, IOException, InterruptedException {
-        if (records.size() > 0) {
-          Sleeper sleeper = Sleeper.DEFAULT;
-          BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
-          while (true) {
-            try {
-              // add each record in the statement batch
-              records.stream().forEach(this::processRecord);
-              // execute the batch
-              preparedStatement.executeBatch();
-              // commit the changes
-              connection.commit();
-              break;
-            } catch (SQLException exception) {
-              // clean up the statement batch and the connection state
-              preparedStatement.clearBatch();
-              connection.rollback();
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                // we tried the max number of times
-                throw exception;
-              }
+        if (records.size() == 0) {
+          return;
+        }
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+        while (true) {
+          try {
+            // add each record in the statement batch
+            records.stream().forEach(this::processRecord);
+            // execute the batch
+            preparedStatement.executeBatch();
+            // commit the changes
+            connection.commit();
+            break;
+          } catch (SQLException exception) {
+            LOG.warn("SQL exception occurred, retrying", exception);
+            // clean up the statement batch and the connection state
+            preparedStatement.clearBatch();
+            connection.rollback();
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              // we tried the max number of times
+              throw exception;
             }
           }
-          records.clear();
         }
+        records.clear();
       }
 
       @Teardown
