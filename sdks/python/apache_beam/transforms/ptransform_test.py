@@ -2063,23 +2063,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(int, x.element_type)
 
   def test_eager_execution(self):
-
-    class DoubleDoFn(beam.DoFn):
-
-      def process(self, element):
-        return [2 * element]
-
-    doubled = [1, 2, 3, 4] | beam.ParDo(DoubleDoFn())
+    doubled = [1, 2, 3, 4] | beam.Map(lambda x: 2 * x)
     self.assertEqual([2, 4, 6, 8], doubled)
 
   def test_eager_execution_tagged_outputs(self):
-
-    class DoubleDoFn(beam.DoFn):
-
-      def process(self, element):
-        yield pvalue.TaggedOutput('bar', 2 * element)
-
-    result = [1, 2, 3, 4] | beam.ParDo(DoubleDoFn()).with_outputs('bar')
+    result = [1, 2, 3, 4] | beam.Map(
+        lambda x: pvalue.TaggedOutput('bar', 2 * x)).with_outputs('bar')
     self.assertEqual([2, 4, 6, 8], result.bar)
     with self.assertRaises(KeyError, msg='Tag \'foo\' is not a defined output tag'):
       result.foo
