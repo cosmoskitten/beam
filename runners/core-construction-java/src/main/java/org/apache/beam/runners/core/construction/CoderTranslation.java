@@ -52,7 +52,11 @@ public class CoderTranslation {
       loadTranslators();
 
   private static BiMap<Class<? extends Coder>, String> loadCoderURNs() {
+    System.out.println("Loading URNs");
     ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
+    ServiceLoader<CoderTranslatorRegistrar> load =
+        ServiceLoader.load(CoderTranslatorRegistrar.class);
+    System.out.println(load);
     for (CoderTranslatorRegistrar registrar : ServiceLoader.load(CoderTranslatorRegistrar.class)) {
       coderUrns.putAll(registrar.getCoderURNs());
     }
@@ -60,10 +64,13 @@ public class CoderTranslation {
   }
 
   private static Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> loadTranslators() {
+    System.out.println("Loading translators");
     ImmutableMap.Builder<Class<? extends Coder>, CoderTranslator<? extends Coder>> translators =
         ImmutableMap.builder();
-    for (CoderTranslatorRegistrar coderTranslatorRegistrar :
-        ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+    ServiceLoader<CoderTranslatorRegistrar> load =
+        ServiceLoader.load(CoderTranslatorRegistrar.class);
+    System.out.println(load);
+    for (CoderTranslatorRegistrar coderTranslatorRegistrar : load) {
       translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
     }
     return translators.build();
