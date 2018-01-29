@@ -16,16 +16,19 @@ public class DummyMetricsSink extends MetricsSink<Long> {
       public Long serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
         return metricQueryResults.counters().iterator().hasNext()
             ? metricQueryResults.counters().iterator().next().attempted()
-            : null;
+            : 0L;
       }
     };
   }
 
   @Override protected void writeSerializedMetrics(Long metrics) throws Exception {
-    counterValue = metrics != null ? metrics : 0L;
+    setCounterValue(metrics);
   }
   public static long getCounterValue(){
     return counterValue;
+  }
+  private static void setCounterValue(Long value){
+    counterValue = value;
   }
 
   public static void clear(){

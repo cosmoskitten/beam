@@ -32,7 +32,30 @@ public class MetricsPusher implements Serializable {
   private static ScheduledFuture<?> scheduledFuture;
   private static PipelineResult pipelineResult;
 
-  private MetricsPusher(PipelineOptions pipelineOptions) {
+
+  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
+    if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
+      metricsContainerStepMaps.add(metricsContainerStepMap);
+    }
+  }
+
+  public static synchronized void init(
+      MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
+    if (instance == null) {
+      instance = new MetricsPusher();
+      configureFromPipelineOptions(pipelineOptions);
+      metricsContainerStepMaps = new ArrayList<>();
+      start();
+    }
+    /*
+      MetricsPusher.init will be called several times in a pipeline
+      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
+      Then the singleton needs to register a new metricsContainerStepMap to merge
+      */
+    addMetricsContainerStepMap(metricsContainerStepMap);
+  }
+
+  private static void configureFromPipelineOptions(PipelineOptions pipelineOptions) {
     switch (pipelineOptions.getMetricsSink()) {
       case "org.apache.beam.runners.core.metrics.MetricsHttpSink":
         metricsSink = new MetricsHttpSink(pipelineOptions.getMetricsHttpSinkUrl());
@@ -44,27 +67,6 @@ public class MetricsPusher implements Serializable {
         pipelineOptions.getMetricsPushPeriod() != null
             ? pipelineOptions.getMetricsPushPeriod()
             : DEFAULT_PERIOD;
-    metricsContainerStepMaps = new ArrayList<>();
-  }
-
-  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
-    if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
-      metricsContainerStepMaps.add(metricsContainerStepMap);
-    }
-  }
-
-  public static synchronized void init(
-      MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
-    if (instance == null) {
-      instance = new MetricsPusher(pipelineOptions);
-      start();
-    }
-    /*
-      MetricsPusher.init will be called several times in a pipeline
-      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
-      Then the singleton needs to register a new metricsContainerStepMap to merge
-      */
-    addMetricsContainerStepMap(metricsContainerStepMap);
   }
 
   /**

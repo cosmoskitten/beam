@@ -24,14 +24,10 @@ public class JsonMetricsSerializer implements MetricsSerializer<String> {
     return objectMapper.writeValueAsString(metricResults);
   }
 
-  private class MetricQueryResultsSerializer extends StdSerializer<MetricQueryResults> {
+  private static class MetricQueryResultsSerializer extends StdSerializer<MetricQueryResults> {
 
     public MetricQueryResultsSerializer() {
-      this(null);
-    }
-
-    public MetricQueryResultsSerializer(Class<MetricQueryResults> t) {
-      super(t);
+      super(MetricQueryResults.class);
     }
 
     @Override
