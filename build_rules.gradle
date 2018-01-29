@@ -237,6 +237,9 @@ ext.applyJavaNature = {
     showViolations = true
     maxErrors = 0
   }
+  checkstyle {
+    toolVersion = "8.7"
+  }
 
   // Enables a plugin which can apply code formatting to source.
   // TODO: Should this plugin be enabled for all projects?
