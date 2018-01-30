@@ -30,6 +30,7 @@ import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.collect.Iterables;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -185,6 +186,23 @@ public class KinesisMockWriteTest {
   }
 
   @Test
+  public void testWriteFailed() {
+    KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
+
+    Iterable<byte[]> data = Arrays.asList("1".getBytes());
+    p.apply(Create.of(data))
+        .apply(
+            KinesisIO.write()
+                .withStreamName(STREAM)
+                .withPartitionKey(PARTITION_KEY)
+                .withAWSClientsProvider(new FakeKinesisProvider().setFailedFlush(true))
+                .withRetries(1));
+
+    thrown.expect(RuntimeException.class);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testWriteAndReadFromMockKinesis() {
     KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
@@ -228,12 +246,18 @@ public class KinesisMockWriteTest {
 
   private static final class FakeKinesisProvider implements AWSClientsProvider {
     private boolean isExistingStream = true;
+    private boolean isFailedFlush = false;
 
     public FakeKinesisProvider() {
     }
 
     public FakeKinesisProvider(boolean isExistingStream) {
       this.isExistingStream = isExistingStream;
+    }
+
+    public FakeKinesisProvider setFailedFlush(boolean failedFlush) {
+      isFailedFlush = failedFlush;
+      return this;
     }
 
     @Override
@@ -248,7 +272,7 @@ public class KinesisMockWriteTest {
 
     @Override
     public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
-      return new KinesisProducerMock(config);
+      return new KinesisProducerMock(config, isFailedFlush);
     }
 
     private AmazonKinesis getMockedAmazonKinesisClient() {

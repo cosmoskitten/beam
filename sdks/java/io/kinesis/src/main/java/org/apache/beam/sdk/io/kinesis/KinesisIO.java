@@ -24,9 +24,10 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+import com.amazonaws.services.kinesis.producer.Attempt;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
-import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.FutureCallback;
@@ -34,8 +35,11 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.LinkedBlockingDeque;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -468,9 +472,14 @@ public final class KinesisIO {
     }
 
     private static class KinesisWriterFn extends DoFn<byte[], Void> {
+
+      private static final int MAX_NUM_RECORDS = 100 * 1000;
+      private static final int MAX_NUM_FAILURES = 10;
+
       private final KinesisIO.Write spec;
       private transient IKinesisProducer producer;
       private transient KinesisPartitioner partitioner;
+      private transient LinkedBlockingDeque<KinesisWriteException> failures;
 
       public KinesisWriterFn(KinesisIO.Write spec) {
         this.spec = spec;
@@ -499,6 +508,9 @@ public final class KinesisIO {
         if (spec.getPartitioner() != null) {
           partitioner = spec.getPartitioner();
         }
+
+        /**  Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
+        failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
       }
 
       /**
@@ -515,8 +527,13 @@ public final class KinesisIO {
        */
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
-        ByteBuffer data = ByteBuffer.wrap(c.element());
+        checkForFailures();
 
+        // Need to avoid keeping too many futures in producer's map to prevent OOM.
+        // In usual case, it should exit immediately.
+        flush(MAX_NUM_RECORDS);
+
+        ByteBuffer data = ByteBuffer.wrap(c.element());
         String partitionKey = spec.getPartitionKey();
         String explicitHashKey = null;
 
@@ -533,66 +550,101 @@ public final class KinesisIO {
 
       @FinishBundle
       public void finishBundle() throws Exception {
-        // Flush all outstanding records, blocking call
-        flushSync();
+        checkForFailures();
 
-        // Check if outstanding records still exist
-        checkOutstandingRecords();
+        // Flush all outstanding records, blocking call
+        flushAll();
       }
 
       @Teardown
       public void tearDown() throws Exception {
         if (producer != null) {
           producer.destroy();
+          producer = null;
         }
       }
 
       /**
-       * Own implementation of {@link KinesisProducer#flushSync()} to prevent infinite loop in case
-       * of failures.
+       * Flush outstanding records until the total number will be less than required or
+       * number of retries will be exhausted.
        */
-      private void flushSync() {
+      private void flush(int numMax) throws InterruptedException, IOException {
         int retries = spec.getRetries();
+        int numOutstandingRecords = producer.getOutstandingRecordsCount();
 
-        while (producer.getOutstandingRecordsCount() > 0 && retries-- > 0) {
+        while (numOutstandingRecords > numMax && retries-- > 0) {
           producer.flush();
-          try {
-            Thread.sleep(1000);
-          } catch (InterruptedException e) {
-            LOG.warn("An exception occurred while flush: " + e);
-          }
+          // wait until outstanding records will be flushed
+          Thread.sleep(1000);
+          numOutstandingRecords = producer.getOutstandingRecordsCount();
         }
-      }
 
-      /**
-       * Check if some non-flushed records records still exist.
-       *
-       * @throws IOException
-       */
-      private void checkOutstandingRecords() throws IOException {
-        int outstandingRecordsCount = producer.getOutstandingRecordsCount();
-        if (outstandingRecordsCount > 0) {
+        if (numOutstandingRecords > numMax) {
           String message =
               String.format(
-                  "Number of outstanding records are greater than zero: %d",
-                  outstandingRecordsCount);
+                  "Number of outstanding records [%d] are greater than required [%d].",
+                  numOutstandingRecords,
+                  numMax);
           LOG.error(message);
           throw new IOException(message);
         }
       }
 
-      private static class UserRecordResultFutureCallback
-          implements FutureCallback<UserRecordResult> {
+      private void flushAll() throws InterruptedException, IOException {
+        flush(0);
+      }
 
-        @Override
-        public void onFailure(Throwable t) {
-          LOG.error("An exception occurred while processing a record", t);
+      /**
+       * If any write has asynchronously failed, fail the bundle with a useful error.
+       */
+      private void checkForFailures() throws IOException {
+        // Note that this function is never called by multiple threads and is the only place that
+        // we remove from failures, so this code is safe.
+        if (failures.isEmpty()) {
+          return;
         }
 
-        @Override
-        public void onSuccess(UserRecordResult result) {
+        StringBuilder logEntry = new StringBuilder();
+        int i = 0;
+        while (!failures.isEmpty()) {
+          i++;
+          KinesisWriteException exc = failures.remove();
+
+          logEntry.append("\n").append(exc.getMessage());
+          Throwable cause = exc.getCause();
+          if (cause != null) {
+            logEntry.append(": ").append(cause.getMessage());
+
+            if (cause instanceof UserRecordFailedException) {
+              List<Attempt> attempts = ((UserRecordFailedException) cause).getResult()
+                  .getAttempts();
+              for (Attempt attempt : attempts) {
+                if (attempt.getErrorMessage() != null) {
+                  logEntry.append("\n").append(attempt.getErrorMessage());
+                }
+              }
+            }
+          }
+        }
+        failures.clear();
+
+        String message =
+            String.format(
+                "Some errors occurred writing to Kinesis. First %d errors: %s",
+                i,
+                logEntry.toString());
+        LOG.error(message);
+        throw new IOException(message);
+      }
+
+      private class UserRecordResultFutureCallback implements FutureCallback<UserRecordResult> {
+        @Override public void onFailure(Throwable cause) {
+          failures.offer(new KinesisWriteException(cause));
+        }
+
+        @Override public void onSuccess(UserRecordResult result) {
           if (!result.isSuccessful()) {
-            LOG.warn("The record put was not successful");
+            failures.add(new KinesisWriteException("Put record was not successful."));
           }
         }
       }
@@ -608,5 +660,18 @@ public final class KinesisIO {
       LOG.warn("Error checking whether stream {} exists.", streamName, e);
     }
     return false;
+  }
+
+  /**
+   * An exception that puts information about the failed record.
+   */
+  static class KinesisWriteException extends IOException {
+    KinesisWriteException(String message) {
+      super(message);
+    }
+
+    KinesisWriteException(Throwable cause) {
+      super(cause);
+    }
   }
 }
