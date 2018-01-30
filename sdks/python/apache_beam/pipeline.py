@@ -232,8 +232,8 @@ class Pipeline(object):
           # Keeping the same label for the replaced node but recursively
           # removing labels of child transforms of original transform since they
           # will be replaced during the expand below. This is needed in case
-          # replacement contains children that have labels that conflicts with
-          # labels of the children of the original.
+          # the replacement contains children that have labels that conflicts
+          # with labels of the children of the original.
           self.pipeline._remove_labels_recursively(original_transform_node)
 
           new_output = replacement_transform.expand(inputs[0])
