@@ -266,6 +266,9 @@ class common_job_properties {
         // create new VirtualEnv, inherit already existing packages
         shell('virtualenv .env --system-site-packages')
 
+        // update setuptools and pip
+        shell('.env/bin/pip install --upgrade setuptools pip')
+
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install Perfkit benchmark requirements.
@@ -275,18 +278,6 @@ class common_job_properties {
         // Launch performance test.
         shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
-
-      // Temporarily run PerfKit jobs on few workers that doesn't have permission issues.
-    context.parameters {
-        nodeParam('TEST_HOST') {
-            description('force beam1')
-            defaultNodes(['beam1'])
-            allowedNodes(['beam1'])
-            trigger('multiSelectionDisallowed')
-            eligibility('IgnoreOfflineNodeEligibility')
-        }
-    }
-
   }
 
   /**
