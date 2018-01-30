@@ -246,6 +246,7 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      temp_dir: '$WORKSPACE',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
