@@ -546,12 +546,6 @@ class _ParDoEvaluator(_TransformEvaluator):
     dofn = (pickler.loads(pickler.dumps(transform.dofn))
             if self._perform_dofn_pickle_test else transform.dofn)
 
-    pipeline_options = self._evaluation_context.pipeline_options
-    if (pipeline_options is not None
-        and pipeline_options.view_as(TypeOptions).runtime_type_check):
-      dofn = TypeCheckWrapperDoFn(dofn, transform.get_type_hints())
-
-    dofn = OutputCheckWrapperDoFn(dofn, self._applied_ptransform.full_label)
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
 
