@@ -36,14 +36,16 @@ import org.joda.time.DateTime;
  */
 public class KinesisProducerMock implements IKinesisProducer {
 
+  private boolean isFailedFlush = false;
+
   private List<UserRecord> addedRecords = newArrayList();
 
   private KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
 
   public KinesisProducerMock(){}
 
-  public KinesisProducerMock(KinesisProducerConfiguration config) {
-
+  public KinesisProducerMock(KinesisProducerConfiguration config, boolean isFailedFlush) {
+    this.isFailedFlush = isFailedFlush;
   }
 
   @Override public ListenableFuture<UserRecordResult> addUserRecord(String stream,
@@ -96,6 +98,11 @@ public class KinesisProducerMock implements IKinesisProducer {
   }
 
   @Override public void flush() {
+    if (isFailedFlush) {
+      // don't flush
+      return;
+    }
+
     DateTime arrival = DateTime.now();
     for (int i = 0; i < addedRecords.size(); i++) {
       UserRecord record = addedRecords.get(i);
