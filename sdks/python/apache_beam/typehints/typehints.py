@@ -68,6 +68,8 @@ import copy
 import sys
 import types
 
+import six
+
 __all__ = [
     'Any',
     'Union',
@@ -802,7 +804,7 @@ class DictHint(CompositeTypeHint):
             'type dict. %s is of type %s.'
             % (dict_instance, dict_instance.__class__.__name__))
 
-      for key, value in dict_instance.iteritems():
+      for key, value in dict_instance.items():
         try:
           check_constraint(self.key_type, key)
         except CompositeTypeHintError as e:
@@ -985,6 +987,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
+@six.add_metaclass(GetitemConstructor)
 class WindowedTypeConstraint(TypeConstraint):
   """A type constraint for WindowedValue objects.
 
@@ -993,7 +996,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type
