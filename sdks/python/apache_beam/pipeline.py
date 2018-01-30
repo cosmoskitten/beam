@@ -195,7 +195,7 @@ class Pipeline(object):
           replacement_transform = override.get_replacement_transform(
               original_transform_node.transform)
 
-          replacement_trasform_node = AppliedPTransform(
+          replacement_transform_node = AppliedPTransform(
               original_transform_node.parent, replacement_transform,
               original_transform_node.full_label,
               original_transform_node.inputs)
@@ -208,16 +208,16 @@ class Pipeline(object):
             assert isinstance(original_transform_node.parent, AppliedPTransform)
             parent_parts = original_transform_node.parent.parts
             parent_parts[parent_parts.index(original_transform_node)] = (
-                replacement_trasform_node)
+                replacement_transform_node)
           else:
-            # Original transform has to be a root
+            # Original transform has to be a root.
             roots = self.pipeline.transforms_stack[0].parts
             assert original_transform_node in roots
             roots[roots.index(original_transform_node)] = (
-                replacement_trasform_node)
+                replacement_transform_node)
 
-          inputs = replacement_trasform_node.inputs
-          # # TODO:  Support replacing PTransforms with multiple inputs.
+          inputs = replacement_transform_node.inputs
+          # TODO:  Support replacing PTransforms with multiple inputs.
           if len(inputs) > 1:
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
@@ -227,17 +227,17 @@ class Pipeline(object):
 
           # We have to add the new AppliedTransform to the stack before expand()
           # and pop it out later to make sure that parts get added correctly.
-          self.pipeline.transforms_stack.append(replacement_trasform_node)
+          self.pipeline.transforms_stack.append(replacement_transform_node)
 
           # Keeping the same label for the replaced node but recursively
           # removing labels of child transforms of original transform since they
-          # will be replaced during the expand below.
-          # This is needed in-case replacement contains children that have
-          # lables that conflicts with lables of the children of the original.
+          # will be replaced during the expand below. This is needed in-case
+          # replacement contains children that have labels that conflicts with
+          # labels of the children of the original.
           self.pipeline._remove_labels_recursively(original_transform_node)
 
           new_output = replacement_transform.expand(inputs[0])
-          replacement_trasform_node.add_output(new_output)
+          replacement_transform_node.add_output(new_output)
 
           # We only support replacing transforms with a single output with
           # another transform that produces a single output.
