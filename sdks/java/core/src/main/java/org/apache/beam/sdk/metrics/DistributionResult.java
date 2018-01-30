@@ -37,6 +37,7 @@ public abstract class DistributionResult {
     return (1.0 * sum()) / count();
   }
 
+  /** Zero represents the identity element, and it is used to start combining distributions. */
   public static final DistributionResult ZERO = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
 
   public static DistributionResult create(long sum, long count, long min, long max) {
