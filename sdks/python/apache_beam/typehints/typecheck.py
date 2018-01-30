@@ -111,7 +111,6 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
-    self.dofn = dofn
     self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
@@ -194,6 +193,7 @@ class TypeCheckCombineFn(core.CombineFn):
     self._label = label
 
   def create_accumulator(self, *args, **kwargs):
+    print 'create_accumulator', self._combinefn, args, kwargs
     return self._combinefn.create_accumulator(*args, **kwargs)
 
   def add_input(self, accumulator, element, *args, **kwargs):
@@ -230,7 +230,7 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
   def enter_composite_transform(self, applied_transform):
     if isinstance(applied_transform.transform, core.CombinePerKey):
       self._in_combine = True
-      applied_transform.transform.fn = TypeCheckCombineFn(
+      self._wrapped_fn = applied_transform.transform.fn = TypeCheckCombineFn(
           applied_transform.transform.fn,
           applied_transform.transform.get_type_hints(),
           applied_transform.full_label)
@@ -240,10 +240,14 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
 
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
-    if isinstance(transform, core.ParDo) and not self._in_combine:
-      transform.fn = OutputCheckWrapperDoFn(
-          TypeCheckWrapperDoFn(
-              transform.fn,
-              transform.get_type_hints(),
-              applied_transform.full_label),
-          applied_transform.full_label)
+    if isinstance(transform, core.ParDo):
+      if self._in_combine:
+        if isinstance(transform.fn, core.CombineValuesDoFn):
+          transform.fn.combinefn = self._wrapped_fn
+      else:
+        transform.fn = transform.dofn = OutputCheckWrapperDoFn(
+            TypeCheckWrapperDoFn(
+                transform.fn,
+                transform.get_type_hints(),
+                applied_transform.full_label),
+            applied_transform.full_label)
