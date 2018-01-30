@@ -60,9 +60,25 @@ public abstract class WindowedValue<T> {
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
-    checkNotNull(pane);
-    checkArgument(windows.size() > 0);
+    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
+    if (windows.size() == 1) {
+      return of(value, timestamp, windows.iterator().next(), pane);
+    } else {
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+    }
+  }
+
+  /**
+   * @deprecated for use only in compatibility with old broken code
+   */
+  @Deprecated
+  public static <T> WindowedValue<T> createWithoutValidation(
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane) {
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
     } else {
@@ -78,7 +94,7 @@ public abstract class WindowedValue<T> {
       Instant timestamp,
       BoundedWindow window,
       PaneInfo pane) {
-    checkNotNull(pane);
+    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
@@ -594,7 +610,10 @@ public abstract class WindowedValue<T> {
           windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return WindowedValue.of(value, timestamp, windows, pane);
+
+      // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
+      // we call this deprecated no-validation path when decoding
+      return WindowedValue.createWithoutValidation(value, timestamp, windows, pane);
     }
 
     @Override
