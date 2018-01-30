@@ -250,8 +250,9 @@ public class JacksonTransformsTest {
 
       MyEmptyBean that = (MyEmptyBean) o;
 
-      if (myInt != that.myInt)
+      if (myInt != that.myInt) {
         return false;
+      }
       return myString != null ? myString.equals(that.myString) : that.myString == null;
     }
 
