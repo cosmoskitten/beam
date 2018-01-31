@@ -166,11 +166,16 @@ class TriggerFn(object):
     pass
 
   @abstractmethod
-  def should_fire(self, watermark, window, context, time_domain):
+  def should_fire(self, time_domain, timestamp, window, context):
     """Whether this trigger should cause the window to fire.
 
     Args:
-      watermark: (a lower bound on) the watermark of the system
+      time_domain: WATERMARK for event-time timers and REAL_TIME for
+          processing-time timers.
+      timestamp: for time_domain WATERMARK, it represents the
+          watermark: (a lower bound on) the watermark of the system
+          and for time_domain REAL_TIME, it represents the
+          trigger: timestamp of the processing-time timer.
       window: the window whose trigger is being considered
       context: a context (e.g. a TriggerContext instance) for managing state
           and setting timers
@@ -241,7 +246,7 @@ class DefaultTrigger(TriggerFn):
       if window.end != merge_result.end:
         context.clear_timer('', TimeDomain.WATERMARK)
 
-  def should_fire(self, watermark, window, context, time_domain):
+  def should_fire(self, time_domain, watermark, window, context):
     return watermark >= window.end
 
   def on_fire(self, watermark, window, context):
@@ -282,9 +287,8 @@ class AfterProcessingTime(TriggerFn):
     # timers will be kept through merging
     pass
 
-  def should_fire(self, timestamp, window, context, time_domain):
-    if (time_domain == TimeDomain.REAL_TIME
-        and context.get_current_time() > timestamp):
+  def should_fire(self, time_domain, timestamp, window, context):
+    if time_domain == TimeDomain.REAL_TIME:
       return True
 
   def on_fire(self, watermark, window, context):
@@ -360,16 +364,15 @@ class AfterWatermark(TriggerFn):
         self.early.on_merge(
             to_be_merged, merge_result, NestedContext(context, 'early'))
 
-  def should_fire(self, watermark, window, context,
-                  time_domain=TimeDomain.WATERMARK):
+  def should_fire(self, time_domain, watermark, window, context):
     if self.is_late(context):
-      return self.late.should_fire(
-          watermark, window, NestedContext(context, 'late'))
+      return self.late.should_fire(time_domain, watermark,
+                                   window, NestedContext(context, 'late'))
     elif watermark >= window.end:
       return True
     elif self.early:
-      return self.early.should_fire(
-          watermark, window, NestedContext(context, 'early'))
+      return self.early.should_fire(time_domain, watermark,
+                                    window, NestedContext(context, 'early'))
     return False
 
   def on_fire(self, watermark, window, context):
@@ -448,8 +451,7 @@ class AfterCount(TriggerFn):
     # states automatically merged
     pass
 
-  def should_fire(self, watermark, window, context,
-                  time_domain=TimeDomain.WATERMARK):
+  def should_fire(self, time_domain, watermark, window, context):
     return context.get_state(self.COUNT_TAG) >= self.count
 
   def on_fire(self, watermark, window, context):
@@ -486,9 +488,8 @@ class Repeatedly(TriggerFn):
   def on_merge(self, to_be_merged, merge_result, context):
     self.underlying.on_merge(to_be_merged, merge_result, context)
 
-  def should_fire(self, watermark, window, context,
-                  time_domain=TimeDomain.WATERMARK):
-    return self.underlying.should_fire(watermark, window, context, time_domain)
+  def should_fire(self, time_domain, watermark, window, context):
+    return self.underlying.should_fire(time_domain, watermark, window, context)
 
   def on_fire(self, watermark, window, context):
     if self.underlying.on_fire(watermark, window, context):
@@ -536,17 +537,19 @@ class _ParallelTriggerFn(TriggerFn):
       trigger.on_merge(
           to_be_merged, merge_result, self._sub_context(context, ix))
 
-  def should_fire(self, watermark, window, context, time_domain):
+  def should_fire(self, time_domain, watermark, window, context):
+    self._time_domain = time_domain
     return self.combine_op(
-        trigger.should_fire(watermark, window,
-                            self._sub_context(context, ix), time_domain)
+        trigger.should_fire(time_domain, watermark, window,
+                            self._sub_context(context, ix))
         for ix, trigger in enumerate(self.triggers))
 
   def on_fire(self, watermark, window, context):
     finished = []
     for ix, trigger in enumerate(self.triggers):
       nested_context = self._sub_context(context, ix)
-      if trigger.should_fire(watermark, window, nested_context):
+      if trigger.should_fire(TimeDomain.WATERMARK, watermark,
+                             window, nested_context):
         finished.append(trigger.on_fire(watermark, window, nested_context))
     return self.combine_op(finished)
 
@@ -630,11 +633,11 @@ class AfterEach(TriggerFn):
       self.triggers[ix].on_merge(
           to_be_merged, merge_result, self._sub_context(context, ix))
 
-  def should_fire(self, watermark, window, context, time_domain):
+  def should_fire(self, time_domain, watermark, window, context):
     ix = context.get_state(self.INDEX_TAG)
     if ix < len(self.triggers):
       return self.triggers[ix].should_fire(
-          watermark, window, self._sub_context(context, ix))
+          time_domain, watermark, window, self._sub_context(context, ix))
 
   def on_fire(self, watermark, window, context):
     ix = context.get_state(self.INDEX_TAG)
@@ -1088,8 +1091,8 @@ class GeneralTriggerDriver(TriggerDriver):
 
       # Maybe fire this window.
       watermark = MIN_TIMESTAMP
-      if self.trigger_fn.should_fire(watermark, window, context,
-                                     TimeDomain.WATERMARK):
+      if self.trigger_fn.should_fire(TimeDomain.WATERMARK, watermark,
+                                     window, context):
         finished = self.trigger_fn.on_fire(watermark, window, context)
         yield self._output(window, finished, state)
 
@@ -1101,12 +1104,11 @@ class GeneralTriggerDriver(TriggerDriver):
     if state.get_state(window, self.TOMBSTONE):
       return
 
-    if (time_domain == TimeDomain.WATERMARK or
-        time_domain == TimeDomain.REAL_TIME):
+    if time_domain in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
       if not self.is_merging or window in state.known_windows():
         context = state.at(window, self.clock)
-        if self.trigger_fn.should_fire(timestamp, window,
-                                       context, time_domain):
+        if self.trigger_fn.should_fire(time_domain, timestamp,
+                                       window, context):
           finished = self.trigger_fn.on_fire(timestamp, window, context)
           yield self._output(window, finished, state)
     else:
