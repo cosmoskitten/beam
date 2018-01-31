@@ -291,7 +291,7 @@ class AfterProcessingTime(TriggerFn):
     if time_domain == TimeDomain.REAL_TIME:
       return True
 
-  def on_fire(self, watermark, window, context):
+  def on_fire(self, timestamp, window, context):
     return True
 
   def reset(self, window, context):
