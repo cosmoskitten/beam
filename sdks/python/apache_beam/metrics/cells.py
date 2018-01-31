@@ -292,7 +292,7 @@ class DistributionData(object):
     return DistributionData(value, 1, value, value)
 
   def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.User.DistributionData(
+    return beam_fn_api_pb2.Metrics.PTransform.User.DistributionData(
         count=self.count, sum=self.sum, min=self.min, max=self.max)
 
   @staticmethod
