@@ -144,10 +144,10 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
+  final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
   private final AppliedPTransform<?, ?, ?> transform;
   private final BundleOutputManager outputManager;
-  private final DirectStepContext stepContext;
+  final DirectStepContext stepContext;
 
   private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 

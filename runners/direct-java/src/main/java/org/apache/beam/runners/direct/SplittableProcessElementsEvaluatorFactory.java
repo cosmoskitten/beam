@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.cache.CacheLoader;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -30,10 +29,11 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
+import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
-import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -50,9 +50,6 @@ class SplittableProcessElementsEvaluatorFactory<
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
-  private final EvaluationContext evaluationContext;
-  private final Collection<DoFnLifecycleManager> doFnLifecycleManagers =
-          new CopyOnWriteArrayList<>();
   private final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
                     .setThreadFactory(MoreExecutors.platformThreadFactory())
@@ -60,13 +57,25 @@ class SplittableProcessElementsEvaluatorFactory<
                     .build());
 
   SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
-    this.evaluationContext = evaluationContext;
     this.delegateFactory =
-        new ParDoEvaluatorFactory<>(
-            evaluationContext,
-            SplittableProcessElementsEvaluatorFactory
-                .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
-            ParDoEvaluatorFactory.basicDoFnCacheLoader());
+      new ParDoEvaluatorFactory<>(
+        evaluationContext,
+        SplittableProcessElementsEvaluatorFactory.
+          <InputT, OutputT, RestrictionT>processFnRunnerFactory(),
+          new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
+            @Override
+            public DoFnLifecycleManager load(final AppliedPTransform<?, ?, ?> application) {
+              if (!ProcessElements.class.isInstance(application.getTransform())) {
+                throw new IllegalArgumentException(
+                  "No know extraction of the fn from " + application);
+              }
+              final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+                (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
+                  application.getTransform();
+              final DoFn fn = ProcessElements.class.cast(application.getTransform()).getFn();
+              return DoFnLifecycleManager.of(transform.newProcessFn(fn));
+            }
+          });
   }
 
   @Override
@@ -82,9 +91,8 @@ class SplittableProcessElementsEvaluatorFactory<
 
   @Override
   public void cleanup() throws Exception {
-    delegateFactory.cleanup(); // should be a noop since we don't use the cache
-    ses.shutdownNow();
-    DoFnLifecycleManagers.removeAllFromManagers(doFnLifecycleManagers);
+    ses.shutdownNow(); // stop before cleaning
+    delegateFactory.cleanup();
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -96,44 +104,27 @@ class SplittableProcessElementsEvaluatorFactory<
       CommittedBundle<InputT> inputBundle)
       throws Exception {
     final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
-        application.getTransform();
+      application.getTransform();
+    final DoFnLifecycleManagerRemovingTransformEvaluator
+      <KeyedWorkItem<String, KV<InputT, RestrictionT>>> evaluator =
+      delegateFactory.createEvaluator(
+        (AppliedPTransform) application,
+        (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>) inputBundle.getPCollection(),
+        inputBundle.getKey(),
+        application.getTransform().getSideInputs(),
+        application.getTransform().getMainOutputTag(),
+        application.getTransform().getAdditionalOutputTags().getAll());
 
-    ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-        transform.newProcessFn(transform.getFn());
+    final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
+      (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+        ProcessFnRunner.class.cast(evaluator.underlying.fnRunner).getFn();
+    processFn.setStateInternalsFactory(key -> evaluator.underlying.stepContext.stateInternals());
 
-    DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
-    doFnLifecycleManagers.add(fnManager);
-    processFn =
-        ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
-            fnManager.<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>get());
-
-    String stepName = evaluationContext.getStepName(application);
-    final DirectExecutionContext.DirectStepContext stepContext =
-        evaluationContext
-            .getExecutionContext(application, inputBundle.getKey())
-            .getStepContext(stepName);
-
-    final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>>
-        parDoEvaluator =
-            delegateFactory.createParDoEvaluator(
-                application,
-                inputBundle.getKey(),
-                (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>)
-                    inputBundle.getPCollection(),
-                transform.getSideInputs(),
-                transform.getMainOutputTag(),
-                transform.getAdditionalOutputTags().getAll(),
-                stepContext,
-                processFn,
-                fnManager);
-
-    processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
-
-    processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
+    processFn.setTimerInternalsFactory(key -> evaluator.underlying.stepContext.timerInternals());
 
     OutputWindowedValue<OutputT> outputWindowedValue =
         new OutputWindowedValue<OutputT>() {
-          private final OutputManager outputManager = parDoEvaluator.getOutputManager();
+          private final OutputManager outputManager = evaluator.underlying.getOutputManager();
 
           @Override
           public void outputWindowedValue(
@@ -159,19 +150,15 @@ class SplittableProcessElementsEvaluatorFactory<
         new OutputAndTimeBoundedSplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, TrackerT>(
             transform.getFn(),
-            evaluationContext.getPipelineOptions(),
+            delegateFactory.evaluationContext.getPipelineOptions(),
             outputWindowedValue,
-            evaluationContext.createSideInputReader(transform.getSideInputs()),
-            // TODO: For better performance, use a higher-level executor?
-            // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the
-            // DirectRunner.
+            delegateFactory.evaluationContext.createSideInputReader(transform.getSideInputs()),
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.
             100,
             Duration.standardSeconds(1)));
-
-    return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnManager);
+    return evaluator;
   }
 
   private static <InputT, OutputT, RestrictionT>
