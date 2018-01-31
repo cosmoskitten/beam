@@ -107,7 +107,10 @@ public class SqlQuery2Test {
   }
 
   private static BeamRecord newBidRecord(Bid bid) {
-    return new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(bid));
+    return
+        BeamRecord
+            .withRecordType(BID_ADAPTER.getRecordType())
+            .withValues(BID_ADAPTER.getFieldsValues(bid))
+            .build();
   }
-
 }
