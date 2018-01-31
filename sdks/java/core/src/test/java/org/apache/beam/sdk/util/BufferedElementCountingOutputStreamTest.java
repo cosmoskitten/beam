@@ -171,6 +171,28 @@ public class BufferedElementCountingOutputStreamTest {
 
   }
 
+  @Test
+  public void testBehaviorWhenBufferPoolFull() throws Exception {
+    while (BUFFER_POOL.remainingCapacity() > 0) {
+      BUFFER_POOL.offer(ByteBuffer.allocate(256));
+    }
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    BufferedElementCountingOutputStream os = createAndWriteValues(toBytes("abcdefghij"), baos);
+    assertEquals(0, BUFFER_POOL.remainingCapacity());
+    os.finish();
+    assertEquals(0, BUFFER_POOL.remainingCapacity());
+  }
+
+  @Test
+  public void testBehaviorWhenBufferPoolEmpty() throws Exception {
+    BUFFER_POOL.clear();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    BufferedElementCountingOutputStream os = createAndWriteValues(toBytes("abcdefghij"), baos);
+    assertEquals(0, BUFFER_POOL.remainingCapacity());
+    os.finish();
+    assertEquals(1, BUFFER_POOL.remainingCapacity());
+  }
+
   private List<byte[]> toBytes(String ... values) {
     ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
     for (String value : values) {

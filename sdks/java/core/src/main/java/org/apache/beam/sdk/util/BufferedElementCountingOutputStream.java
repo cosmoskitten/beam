@@ -92,11 +92,11 @@ public class BufferedElementCountingOutputStream extends OutputStream {
     this.os = os;
     this.finished = false;
     this.count = 0;
-    ByteBuffer buf = BUFFER_POOL.poll();
-    if (buf == null) {
-      buf = ByteBuffer.allocate(bufferSize);
+    ByteBuffer buffer = BUFFER_POOL.poll();
+    if (buffer == null) {
+      buffer = ByteBuffer.allocate(bufferSize);
     }
-    this.buffer = buf;
+    this.buffer = buffer;
   }
 
 
