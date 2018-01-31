@@ -178,6 +178,7 @@ public class JdbcIO {
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
             .setBatchSize(DEFAULT_BATCH_SIZE)
+            .setLockSqlState("40001")
             .build();
   }
 
@@ -527,6 +528,7 @@ public class JdbcIO {
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    @Nullable abstract String getLockSqlState();
 
     abstract Builder<T> toBuilder();
 
@@ -536,6 +538,7 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+      abstract Builder<T> setLockSqlState(String lockSqlState);
 
       abstract Write<T> build();
     }
@@ -561,6 +564,19 @@ public class JdbcIO {
       return toBuilder().setBatchSize(batchSize).build();
     }
 
+    /**
+     * If a SQL exception occurs, {@link Write} is able to detect it's a deadlock
+     * based on the exception SQL state (see {@link SQLException#getSQLState()}).
+     * In that case, {@link Write} will use a backoff policy to retry.
+     *
+     * @param lockSqlState the {@link SQLException#getSQLState()} identifying a deadlock.
+     * @return the corresponding {@link Write}.
+     */
+    public Write<T> withLockSqlState(String lockSqlState) {
+      checkArgument(lockSqlState != null, "lockSqlState can not be null");
+      return toBuilder().setLockSqlState(lockSqlState).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       checkArgument(
@@ -584,7 +600,6 @@ public class JdbcIO {
 
       private DataSource dataSource;
       private Connection connection;
-      private PreparedStatement preparedStatement;
       private List<T> records = new ArrayList<>();
 
       public WriteFn(Write<T> spec) {
@@ -596,7 +611,6 @@ public class JdbcIO {
         dataSource = spec.getDataSourceConfiguration().buildDatasource();
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement());
       }
 
       @ProcessElement
@@ -610,7 +624,7 @@ public class JdbcIO {
         }
       }
 
-      private void processRecord(T record) {
+      private void processRecord(T record, PreparedStatement preparedStatement) {
         try {
           preparedStatement.clearParameters();
           spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
@@ -632,16 +646,22 @@ public class JdbcIO {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
         while (true) {
+          PreparedStatement preparedStatement = connection.prepareStatement(spec.getStatement());
           try {
             // add each record in the statement batch
-            records.stream().forEach(this::processRecord);
+            for (T record : records) {
+              processRecord(record, preparedStatement);
+            }
             // execute the batch
             preparedStatement.executeBatch();
             // commit the changes
             connection.commit();
             break;
           } catch (SQLException exception) {
-            LOG.warn("SQL exception occurred, retrying", exception);
+            if (!exception.getSQLState().equals(spec.getLockSqlState())) {
+              throw exception;
+            }
+            LOG.warn("Lock detected, retrying", exception);
             // clean up the statement batch and the connection state
             preparedStatement.clearBatch();
             connection.rollback();
@@ -649,6 +669,8 @@ public class JdbcIO {
               // we tried the max number of times
               throw exception;
             }
+          } finally {
+            preparedStatement.close();
           }
         }
         records.clear();
@@ -656,17 +678,11 @@ public class JdbcIO {
 
       @Teardown
       public void teardown() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            preparedStatement.close();
-          }
-        } finally {
-          if (connection != null) {
-            connection.close();
-          }
-          if (dataSource instanceof AutoCloseable) {
-            ((AutoCloseable) dataSource).close();
-          }
+        if (connection != null) {
+          connection.close();
+        }
+        if (dataSource instanceof AutoCloseable) {
+          ((AutoCloseable) dataSource).close();
         }
       }
     }
