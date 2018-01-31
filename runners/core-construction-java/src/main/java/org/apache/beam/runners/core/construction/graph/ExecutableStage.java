@@ -69,6 +69,9 @@ public interface ExecutableStage {
    */
   Collection<PCollectionNode> getOutputPCollections();
 
+  /**
+   * Get the transforms that perform processing within this {@link ExecutableStage}.
+   */
   Collection<PTransformNode> getTransforms();
 
   /**
