@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
@@ -120,10 +120,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
+  @Override public PCollection<BeamRow> buildBeamPipeline(PCollectionTuple inputPCollections
       , BeamSqlEnv sqlEnv) throws Exception {
     RelNode input = getInput();
-    PCollection<BeamRecord> upstream = BeamSqlRelUtils.getBeamRelInput(input)
+    PCollection<BeamRow> upstream = BeamSqlRelUtils.getBeamRelInput(input)
         .buildBeamPipeline(inputPCollections, sqlEnv);
     Type windowType = upstream.getWindowingStrategy().getWindowFn()
         .getWindowTypeDescriptor().getType();
@@ -135,7 +135,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
         nullsFirst);
     // first find the top (offset + count)
-    PCollection<List<BeamRecord>> rawStream =
+    PCollection<List<BeamRow>> rawStream =
         upstream
             .apply(
                 "extractTopOffsetAndFetch",
@@ -151,7 +151,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               .setCoder(ListCoder.of(upstream.getCoder()));
     }
 
-    PCollection<BeamRecord> orderedStream = rawStream.apply("flatten", Flatten.iterables());
+    PCollection<BeamRow> orderedStream = rawStream.apply("flatten", Flatten.iterables());
     orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return orderedStream;
@@ -177,7 +177,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<BeamRecord>, Serializable {
+  private static class BeamSqlRowComparator implements Comparator<BeamRow>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
@@ -190,7 +190,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(BeamRecord row1, BeamRecord row2) {
+    @Override public int compare(BeamRow row1, BeamRow row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 
 /**
  * {@code BeamSqlExpressionExecutor} fills the gap between relational
@@ -35,10 +35,10 @@ public interface BeamSqlExpressionExecutor extends Serializable {
   void prepare();
 
   /**
-   * apply transformation to input record {@link BeamRecord} with {@link BoundedWindow}.
+   * apply transformation to input record {@link BeamRow} with {@link BoundedWindow}.
    *
    */
-  List<Object> execute(BeamRecord inputRow, BoundedWindow window);
+  List<Object> execute(BeamRow inputRow, BoundedWindow window);
 
   void close();
 }

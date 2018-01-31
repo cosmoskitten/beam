@@ -22,14 +22,14 @@ import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -53,25 +53,25 @@ class BeamSqlExample {
     //define the input row format
     List<String> fieldNames = Arrays.asList("c1", "c2", "c3");
     List<Integer> fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
-    BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
-    BeamRecord row1 = new BeamRecord(type, 1, "row", 1.0);
-    BeamRecord row2 = new BeamRecord(type, 2, "row", 2.0);
-    BeamRecord row3 = new BeamRecord(type, 3, "row", 3.0);
+    BeamRowSqlType type = BeamRowSqlType.create(fieldNames, fieldTypes);
+    BeamRow row1 = new BeamRow(type, 1, "row", 1.0);
+    BeamRow row2 = new BeamRow(type, 2, "row", 2.0);
+    BeamRow row3 = new BeamRow(type, 3, "row", 3.0);
 
     //create a source PCollection with Create.of();
-    PCollection<BeamRecord> inputTable = PBegin.in(p).apply(Create.of(row1, row2, row3)
+    PCollection<BeamRow> inputTable = PBegin.in(p).apply(Create.of(row1, row2, row3)
         .withCoder(type.getRecordCoder()));
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
-    PCollection<BeamRecord> outputStream = inputTable.apply(
+    PCollection<BeamRow> outputStream = inputTable.apply(
         BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 
     // print the output record of case 1;
     outputStream.apply(
         "log_result",
         MapElements.via(
-            new SimpleFunction<BeamRecord, Void>() {
-              public @Nullable Void apply(BeamRecord input) {
+            new SimpleFunction<BeamRow, Void>() {
+              public @Nullable Void apply(BeamRow input) {
                 // expect output:
                 //  PCOLLECTION: [3, row, 3.0]
                 //  PCOLLECTION: [2, row, 2.0]
@@ -81,7 +81,7 @@ class BeamSqlExample {
             }));
 
     // Case 2. run the query with BeamSql.query over result PCollection of case 1.
-    PCollection<BeamRecord> outputStream2 =
+    PCollection<BeamRow> outputStream2 =
         PCollectionTuple.of(new TupleTag<>("CASE1_RESULT"), outputStream)
             .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
 
@@ -89,9 +89,9 @@ class BeamSqlExample {
     outputStream2.apply(
         "log_result",
         MapElements.via(
-            new SimpleFunction<BeamRecord, Void>() {
+            new SimpleFunction<BeamRow, Void>() {
               @Override
-              public @Nullable Void apply(BeamRecord input) {
+              public @Nullable Void apply(BeamRow input) {
                 // expect output:
                 //  CASE1_RESULT: [row, 5.0]
                 System.out.println("CASE1_RESULT: " + input.getDataValues());

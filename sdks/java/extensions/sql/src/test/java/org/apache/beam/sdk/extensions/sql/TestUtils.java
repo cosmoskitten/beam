@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 
 /**
  * Test utilities.
@@ -31,7 +31,7 @@ public class TestUtils {
   /**
    * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}.
    */
-  public static class BeamSqlRow2StringDoFn extends DoFn<BeamRecord, String> {
+  public static class BeamSqlRow2StringDoFn extends DoFn<BeamRow, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().toString());
@@ -41,9 +41,9 @@ public class TestUtils {
   /**
    * Convert list of {@code BeamSqlRow} to list of {@code String}.
    */
-  public static List<String> beamSqlRows2Strings(List<BeamRecord> rows) {
+  public static List<String> beamSqlRows2Strings(List<BeamRow> rows) {
     List<String> strs = new ArrayList<>();
-    for (BeamRecord row : rows) {
+    for (BeamRow row : rows) {
       strs.add(row.toString());
     }
 
@@ -68,8 +68,8 @@ public class TestUtils {
    * {@code}
    */
   public static class RowsBuilder {
-    private BeamRecordSqlType type;
-    private List<BeamRecord> rows = new ArrayList<>();
+    private BeamRowSqlType type;
+    private List<BeamRow> rows = new ArrayList<>();
 
     /**
      * Create a RowsBuilder with the specified row type info.
@@ -85,7 +85,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      BeamRecordSqlType beamSQLRowType = buildBeamSqlRowType(args);
+      BeamRowSqlType beamSQLRowType = buildBeamSqlRowType(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -98,11 +98,11 @@ public class TestUtils {
      * <p>For example:
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
-     *   beamRecordSqlType
+     *   beamRowSqlType
      * )}</pre>
      * @beamSQLRowType the record type.
      */
-    public static RowsBuilder of(final BeamRecordSqlType beamSQLRowType) {
+    public static RowsBuilder of(final BeamRowSqlType beamSQLRowType) {
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -129,7 +129,7 @@ public class TestUtils {
       return this;
     }
 
-    public List<BeamRecord> getRows() {
+    public List<BeamRow> getRows() {
       return rows;
     }
 
@@ -152,7 +152,7 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static BeamRecordSqlType buildBeamSqlRowType(Object... args) {
+  public static BeamRowSqlType buildBeamSqlRowType(Object... args) {
     List<Integer> types = new ArrayList<>();
     List<String> names = new ArrayList<>();
 
@@ -161,7 +161,7 @@ public class TestUtils {
       names.add((String) args[i + 1]);
     }
 
-    return BeamRecordSqlType.create(names, types);
+    return BeamRowSqlType.create(names, types);
   }
 
   /**
@@ -178,12 +178,12 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static List<BeamRecord> buildRows(BeamRecordSqlType type, List args) {
-    List<BeamRecord> rows = new ArrayList<>();
+  public static List<BeamRow> buildRows(BeamRowSqlType type, List args) {
+    List<BeamRow> rows = new ArrayList<>();
     int fieldCount = type.getFieldCount();
 
     for (int i = 0; i < args.size(); i += fieldCount) {
-      rows.add(new BeamRecord(type, args.subList(i, i + fieldCount)));
+      rows.add(new BeamRow(type, args.subList(i, i + fieldCount)));
     }
     return rows;
   }

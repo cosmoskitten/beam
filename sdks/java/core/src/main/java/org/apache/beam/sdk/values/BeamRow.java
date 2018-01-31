@@ -27,35 +27,35 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.BeamRowCoder;
 
 /**
- * {@link BeamRecord} is an immutable tuple-like type to represent one element in a
- * {@link PCollection}. The fields are described with a {@link BeamRecordType}.
+ * {@link BeamRow} is an immutable tuple-like type to represent one element in a
+ * {@link PCollection}. The fields are described with a {@link BeamRowType}.
  *
- * <p>By default, {@link BeamRecordType} only contains the name for each field. It
+ * <p>By default, {@link BeamRowType} only contains the name for each field. It
  * can be extended to support more sophisticated validation by overwriting
- * {@link BeamRecordType#validateValueType(int, Object)}.
+ * {@link BeamRowType#validateValueType(int, Object)}.
  *
- * <p>A Coder {@link BeamRecordCoder} is provided, which wraps the Coder for each data field.
+ * <p>A Coder {@link BeamRowCoder} is provided, which wraps the Coder for each data field.
  */
 @Experimental
-public class BeamRecord implements Serializable {
+public class BeamRow implements Serializable {
   //immutable list of field values.
   private List<Object> dataValues;
-  private BeamRecordType dataType;
+  private BeamRowType dataType;
 
   /**
-   * Creates a BeamRecord.
+   * Creates a BeamRow.
    * @param dataType type of the record
    * @param rawDataValues values of the record, record's size must match size of
-   *                      the {@code BeamRecordType}, or can be null, if it is null
+   *                      the {@code BeamRowType}, or can be null, if it is null
    *                      then every field is null.
    */
-  public BeamRecord(BeamRecordType dataType, List<Object> rawDataValues) {
+  public BeamRow(BeamRowType dataType, List<Object> rawDataValues) {
     if (dataType.getFieldNames().size() != rawDataValues.size()) {
       throw new IllegalArgumentException(
-          "Field count in BeamRecordType(" + dataType.getFieldNames().size()
+          "Field count in BeamRowType(" + dataType.getFieldNames().size()
               + ") and rawDataValues(" + rawDataValues.size() + ") must match!");
     }
 
@@ -72,9 +72,9 @@ public class BeamRecord implements Serializable {
   }
 
   /**
-   * see {@link #BeamRecord(BeamRecordType, List)}.
+   * see {@link #BeamRow(BeamRowType, List)}.
    */
-  public BeamRecord(BeamRecordType dataType, Object... rawdataValues) {
+  public BeamRow(BeamRowType dataType, Object... rawdataValues) {
     this(dataType, Arrays.asList(rawdataValues));
   }
 
@@ -287,15 +287,15 @@ public class BeamRecord implements Serializable {
   }
 
   /**
-   * Return {@link BeamRecordType} which describes the fields.
+   * Return {@link BeamRowType} which describes the fields.
    */
-  public BeamRecordType getDataType() {
+  public BeamRowType getDataType() {
     return dataType;
   }
 
   @Override
   public String toString() {
-    return "BeamRecord [dataValues=" + dataValues + ", dataType=" + dataType + "]";
+    return "BeamRow [dataValues=" + dataValues + ", dataType=" + dataType + "]";
   }
 
   @Override
@@ -309,7 +309,7 @@ public class BeamRecord implements Serializable {
     if (getClass() != obj.getClass()) {
       return false;
     }
-    BeamRecord other = (BeamRecord) obj;
+    BeamRow other = (BeamRow) obj;
     return toString().equals(other.toString());
   }
 

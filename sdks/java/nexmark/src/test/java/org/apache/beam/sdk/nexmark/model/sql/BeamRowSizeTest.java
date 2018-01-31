@@ -28,23 +28,23 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link BeamRecordSize}.
+ * Unit tests for {@link BeamRowSize}.
  */
-public class BeamRecordSizeTest {
+public class BeamRowSizeTest {
 
-  private static final BeamRecordSqlType RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRowSqlType RECORD_TYPE = BeamRowSqlType.builder()
       .withTinyIntField("f_tinyint")
       .withSmallIntField("f_smallint")
       .withIntegerField("f_int")
@@ -78,19 +78,19 @@ public class BeamRecordSizeTest {
 
   private static final long RECORD_SIZE = 91L;
 
-  private static final BeamRecord RECORD = new BeamRecord(RECORD_TYPE, VALUES);
+  private static final BeamRow RECORD = new BeamRow(RECORD_TYPE, VALUES);
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testCalculatesCorrectSize() throws Exception {
-    assertEquals(RECORD_SIZE, BeamRecordSize.of(RECORD).sizeInBytes());
+    assertEquals(RECORD_SIZE, BeamRowSize.of(RECORD).sizeInBytes());
   }
 
   @Test
   public void testParDoConvertsToRecordSize() throws Exception {
-    PCollection<BeamRecord> records = testPipeline.apply(
+    PCollection<BeamRow> records = testPipeline.apply(
         TestStream.create(RECORD_TYPE.getRecordCoder())
             .addElements(RECORD)
             .advanceWatermarkToInfinity());
@@ -102,10 +102,10 @@ public class BeamRecordSizeTest {
     testPipeline.run();
   }
 
-  static class CorrectSize implements SerializableFunction<Iterable<BeamRecord>, Void> {
+  static class CorrectSize implements SerializableFunction<Iterable<BeamRow>, Void> {
     @Override
-    public Void apply(Iterable<BeamRecord> input) {
-      BeamRecordSize recordSize = BeamRecordSize.of(Iterables.getOnlyElement(input));
+    public Void apply(Iterable<BeamRow> input) {
+      BeamRowSize recordSize = BeamRowSize.of(Iterables.getOnlyElement(input));
       assertThat(recordSize.sizeInBytes(), equalTo(RECORD_SIZE));
       return null;
     }

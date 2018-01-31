@@ -20,21 +20,21 @@ package org.apache.beam.sdk.nexmark.model.sql.adapter;
 
 import java.util.List;
 
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.values.BeamRowType;
 
 /**
  * Helper class to help map Java model fields to Beam SQL Record Type fields.
  */
 public abstract class ModelFieldsAdapter<T> {
 
-  private BeamRecordSqlType recordType;
+  private BeamRowSqlType recordType;
 
-  ModelFieldsAdapter(BeamRecordSqlType recordType) {
+  ModelFieldsAdapter(BeamRowSqlType recordType) {
     this.recordType = recordType;
   }
 
-  public BeamRecordType getRecordType() {
+  public BeamRowType getRecordType() {
     return recordType;
   }
 

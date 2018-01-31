@@ -19,26 +19,26 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 
 /**
  *
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
  *
  */
-public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
+public class BeamSqlProjectFn extends DoFn<BeamRow, BeamRow> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamRecordSqlType outputRowType;
+  private BeamRowSqlType outputRowType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamRecordSqlType outputRowType) {
+      BeamRowSqlType outputRowType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -52,14 +52,14 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamRecord inputRow = c.element();
+    BeamRow inputRow = c.element();
     List<Object> results = executor.execute(inputRow, window);
     List<Object> fieldsValue = new ArrayList<>(results.size());
     for (int idx = 0; idx < results.size(); ++idx) {
       fieldsValue.add(
           BeamTableUtils.autoCastField(outputRowType.getFieldTypeByIndex(idx), results.get(idx)));
     }
-    BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
+    BeamRow outRow = new BeamRow(outputRowType, fieldsValue);
 
     c.output(outRow);
   }

@@ -24,9 +24,9 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -38,33 +38,33 @@ import org.apache.commons.csv.CSVRecord;
  * Utility methods for working with {@code BeamTable}.
  */
 public final class BeamTableUtils {
-  public static BeamRecord csvLine2BeamRecord(
+  public static BeamRow csvLine2BeamRow(
       CSVFormat csvFormat,
       String line,
-      BeamRecordSqlType beamRecordSqlType) {
-    List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.getFieldCount());
+      BeamRowSqlType beamRowSqlType) {
+    List<Object> fieldsValue = new ArrayList<>(beamRowSqlType.getFieldCount());
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != beamRecordSqlType.getFieldCount()) {
+      if (rawRecord.size() != beamRowSqlType.getFieldCount()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamRecordSqlType.getFieldCount(), rawRecord.size()
+            beamRowSqlType.getFieldCount(), rawRecord.size()
         ));
       } else {
-        for (int idx = 0; idx < beamRecordSqlType.getFieldCount(); idx++) {
+        for (int idx = 0; idx < beamRowSqlType.getFieldCount(); idx++) {
           String raw = rawRecord.get(idx);
-          fieldsValue.add(autoCastField(beamRecordSqlType.getFieldTypeByIndex(idx), raw));
+          fieldsValue.add(autoCastField(beamRowSqlType.getFieldTypeByIndex(idx), raw));
         }
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
     }
-    return new BeamRecord(beamRecordSqlType, fieldsValue);
+    return new BeamRow(beamRowSqlType, fieldsValue);
   }
 
-  public static String beamRecord2CsvLine(BeamRecord row, CSVFormat csvFormat) {
+  public static String beamRow2CsvLine(BeamRow row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.getFieldCount(); i++) {

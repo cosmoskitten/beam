@@ -39,18 +39,18 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.DoubleCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.FloatCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.ShortCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimeCoder;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.BeamRowType;
 
 /**
- * Type provider for {@link BeamRecord} with SQL types.
+ * Type provider for {@link BeamRow} with SQL types.
  *
  * <p>Limited SQL types are supported now, visit
  * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
  * for more details.
  *
  */
-public class BeamRecordSqlType extends BeamRecordType {
+public class BeamRowSqlType extends BeamRowType {
   private static final Map<Integer, Class> JAVA_CLASSES = ImmutableMap
       .<Integer, Class>builder()
       .put(Types.TINYINT, Byte.class)
@@ -87,17 +87,17 @@ public class BeamRecordSqlType extends BeamRecordType {
 
   public List<Integer> fieldTypes;
 
-  protected BeamRecordSqlType(List<String> fieldsName, List<Coder> fieldsCoder) {
+  protected BeamRowSqlType(List<String> fieldsName, List<Coder> fieldsCoder) {
     super(fieldsName, fieldsCoder);
   }
 
-  private BeamRecordSqlType(List<String> fieldsName, List<Integer> fieldTypes
+  private BeamRowSqlType(List<String> fieldsName, List<Integer> fieldTypes
       , List<Coder> fieldsCoder) {
     super(fieldsName, fieldsCoder);
     this.fieldTypes = fieldTypes;
   }
 
-  public static BeamRecordSqlType create(List<String> fieldNames,
+  public static BeamRowSqlType create(List<String> fieldNames,
                                          List<Integer> fieldTypes) {
     if (fieldNames.size() != fieldTypes.size()) {
       throw new IllegalStateException("the sizes of 'dataType' and 'fieldTypes' must match.");
@@ -114,7 +114,7 @@ public class BeamRecordSqlType extends BeamRecordType {
       fieldCoders.add(CODERS.get(fieldType));
     }
 
-    return new BeamRecordSqlType(fieldNames, fieldTypes, fieldCoders);
+    return new BeamRowSqlType(fieldNames, fieldTypes, fieldCoders);
   }
 
   @Override
@@ -147,8 +147,8 @@ public class BeamRecordSqlType extends BeamRecordType {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj != null && obj instanceof BeamRecordSqlType) {
-      BeamRecordSqlType ins = (BeamRecordSqlType) obj;
+    if (obj != null && obj instanceof BeamRowSqlType) {
+      BeamRowSqlType ins = (BeamRowSqlType) obj;
       return fieldTypes.equals(ins.getFieldTypes()) && getFieldNames().equals(ins.getFieldNames());
     } else {
       return false;
@@ -162,7 +162,7 @@ public class BeamRecordSqlType extends BeamRecordType {
 
   @Override
   public String toString() {
-    return "BeamRecordSqlType [fieldNames=" + getFieldNames()
+    return "BeamRowSqlType [fieldNames=" + getFieldNames()
         + ", fieldTypes=" + fieldTypes + "]";
   }
 
@@ -171,7 +171,7 @@ public class BeamRecordSqlType extends BeamRecordType {
   }
 
   /**
-   * Builder class to construct {@link BeamRecordSqlType}.
+   * Builder class to construct {@link BeamRowSqlType}.
    */
   public static class Builder {
 
@@ -241,7 +241,7 @@ public class BeamRecordSqlType extends BeamRecordType {
       this.fieldTypes = ImmutableList.builder();
     }
 
-    public BeamRecordSqlType build() {
+    public BeamRowSqlType build() {
       return create(fieldNames.build(), fieldTypes.build());
     }
   }

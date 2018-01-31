@@ -28,13 +28,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.util.Pair;
 import org.junit.Rule;
@@ -57,7 +57,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       .put(Boolean.class, Types.BOOLEAN)
       .build();
 
-  private static final BeamRecordSqlType RECORD_SQL_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRowSqlType RECORD_SQL_TYPE = BeamRowSqlType.builder()
       .withDateField("ts")
       .withTinyIntField("c_tinyint")
       .withSmallIntField("c_smallint")
@@ -75,7 +75,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  protected PCollection<BeamRecord> getTestPCollection() {
+  protected PCollection<BeamRow> getTestPCollection() {
     try {
       return MockedBoundedTable
           .of(RECORD_SQL_TYPE)
@@ -145,7 +145,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
      * Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result.
      */
     public void buildRunAndCheck() {
-      PCollection<BeamRecord> inputCollection = getTestPCollection();
+      PCollection<BeamRow> inputCollection = getTestPCollection();
       System.out.println("SQL:>\n" + getSql());
       try {
         List<String> names = new ArrayList<>();
@@ -158,10 +158,10 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           values.add(pair.getValue());
         }
 
-        PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.query(getSql()));
+        PCollection<BeamRow> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(BeamRecordSqlType.create(names, types))
+                .of(BeamRowSqlType.create(names, types))
                 .addRows(values)
                 .getRows()
         );

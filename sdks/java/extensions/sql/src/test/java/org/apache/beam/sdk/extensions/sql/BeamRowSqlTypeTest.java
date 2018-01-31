@@ -26,9 +26,9 @@ import java.util.List;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link BeamRecordSqlType}.
+ * Unit tests for {@link BeamRowSqlType}.
  */
-public class BeamRecordSqlTypeTest {
+public class BeamRowSqlTypeTest {
 
   private static final List<Integer> TYPES = ImmutableList.of(
       Types.TINYINT,
@@ -77,7 +77,7 @@ public class BeamRecordSqlTypeTest {
 
   @Test
   public void testBuildsWithCorrectFields() throws Exception {
-    BeamRecordSqlType.Builder recordTypeBuilder = BeamRecordSqlType.builder();
+    BeamRowSqlType.Builder recordTypeBuilder = BeamRowSqlType.builder();
 
     for (int i = 0; i < TYPES.size(); i++) {
       recordTypeBuilder.withField(NAMES.get(i), TYPES.get(i));
@@ -97,7 +97,7 @@ public class BeamRecordSqlTypeTest {
     recordTypeBuilder.withDateField(MORE_NAMES.get(11));
     recordTypeBuilder.withTimestampField(MORE_NAMES.get(12));
 
-    BeamRecordSqlType recordSqlType = recordTypeBuilder.build();
+    BeamRowSqlType recordSqlType = recordTypeBuilder.build();
 
     List<String> expectedNames = ImmutableList.<String>builder()
         .addAll(NAMES)

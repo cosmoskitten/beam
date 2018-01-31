@@ -21,22 +21,22 @@ import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.BeamRowCoder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * {@link BeamRecordType} describes the fields in {@link BeamRecord}, extra checking can be added
- * by overwriting {@link BeamRecordType#validateValueType(int, Object)}.
+ * {@link BeamRowType} describes the fields in {@link BeamRow}, extra checking can be added
+ * by overwriting {@link BeamRowType#validateValueType(int, Object)}.
  */
 @Experimental
-public class BeamRecordType implements Serializable{
+public class BeamRowType implements Serializable{
   private List<String> fieldNames;
   private List<Coder> fieldCoders;
 
   /**
-   * Create a {@link BeamRecordType} with a name and Coder for each field.
+   * Create a {@link BeamRowType} with a name and Coder for each field.
    */
-  public BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
+  public BeamRowType(List<String> fieldNames, List<Coder> fieldCoders) {
     if (fieldNames.size() != fieldCoders.size()) {
       throw new IllegalStateException(
           "the size of fieldNames and fieldCoders need to be the same.");
@@ -55,10 +55,10 @@ public class BeamRecordType implements Serializable{
   }
 
   /**
-   * Return the coder for {@link BeamRecord}, which wraps {@link #fieldCoders} for each field.
+   * Return the coder for {@link BeamRow}, which wraps {@link #fieldCoders} for each field.
    */
-  public BeamRecordCoder getRecordCoder(){
-    return BeamRecordCoder.of(this, fieldCoders);
+  public BeamRowCoder getRecordCoder(){
+    return BeamRowCoder.of(this, fieldCoders);
   }
 
   /**
@@ -91,6 +91,6 @@ public class BeamRecordType implements Serializable{
 
   @Override
   public String toString() {
-    return "BeamRecordType [fieldsName=" + fieldNames + "]";
+    return "BeamRowType [fieldsName=" + fieldNames + "]";
   }
 }

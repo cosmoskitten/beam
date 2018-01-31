@@ -23,7 +23,7 @@ import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.BeamRowCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
@@ -31,13 +31,13 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.ToBeamRecord;
+import org.apache.beam.sdk.nexmark.model.sql.ToBeamRow;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -49,7 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous
  * with default configuration.
  */
-public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<BeamRecord>> {
+public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<BeamRow>> {
 
   private static final BeamSql.SimpleQueryTransform QUERY =
       BeamSql.query("SELECT * FROM PCOLLECTION");
@@ -59,23 +59,23 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<BeamRe
   }
 
   @Override
-  public PCollection<BeamRecord> expand(PCollection<Event> allEvents) {
+  public PCollection<BeamRow> expand(PCollection<Event> allEvents) {
 
-    BeamRecordCoder bidRecordCoder = getBidRecordCoder();
+    BeamRowCoder bidRecordCoder = getBidRecordCoder();
 
-    PCollection<BeamRecord> bidEventsRecords = allEvents
+    PCollection<BeamRow> bidEventsRecords = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToBeamRecord.parDo())
+        .apply(ToBeamRow.parDo())
         .apply(getName() + ".Serialize", logBytesMetric(bidRecordCoder))
         .setCoder(bidRecordCoder);
 
     return bidEventsRecords.apply(QUERY).setCoder(bidRecordCoder);
   }
 
-  private PTransform<? super PCollection<BeamRecord>, PCollection<BeamRecord>> logBytesMetric(
-      final BeamRecordCoder coder) {
+  private PTransform<? super PCollection<BeamRow>, PCollection<BeamRow>> logBytesMetric(
+      final BeamRowCoder coder) {
 
-    return ParDo.of(new DoFn<BeamRecord, BeamRecord>() {
+    return ParDo.of(new DoFn<BeamRow, BeamRow>() {
       private final Counter bytesMetric = Metrics.counter(name , "bytes");
 
       @ProcessElement
@@ -85,13 +85,13 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<BeamRe
         byte[] byteArray = outStream.toByteArray();
         bytesMetric.inc((long) byteArray.length);
         ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
-        BeamRecord record = coder.decode(inStream, Coder.Context.OUTER);
+        BeamRow record = coder.decode(inStream, Coder.Context.OUTER);
         c.output(record);
       }
     });
   }
 
-  private BeamRecordCoder getBidRecordCoder() {
+  private BeamRowCoder getBidRecordCoder() {
     return ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRecordType().getRecordCoder();
   }
 }

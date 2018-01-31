@@ -20,7 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -39,7 +39,7 @@ import org.junit.Test;
  */
 public class SqlQuery3Test {
 
-  private static final BeamRecordSqlType RESULT_RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRowSqlType RESULT_RECORD_TYPE = BeamRowSqlType.builder()
       .withVarcharField("name")
       .withVarcharField("city")
       .withVarcharField("state")
@@ -83,7 +83,7 @@ public class SqlQuery3Test {
       new Event(AUCTIONS.get(8)),
       new Event(AUCTIONS.get(9)));
 
-  public static final List<BeamRecord> RESULTS = ImmutableList.of(
+  public static final List<BeamRow> RESULTS = ImmutableList.of(
       newResultRecord("name_1", "city_1", "CA", 1L),
       newResultRecord("name_3", "city_3", "ID", 3L),
       newResultRecord("name_1", "city_1", "CA", 6L),
@@ -131,13 +131,13 @@ public class SqlQuery3Test {
       "extra_" + id);
   }
 
-  private static BeamRecord newResultRecord(
+  private static BeamRow newResultRecord(
       String personName,
       String personCity,
       String personState,
       long auctionId) {
 
-    return new BeamRecord(
+    return new BeamRow(
         RESULT_RECORD_TYPE,
         personName,
         personCity,

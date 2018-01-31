@@ -21,9 +21,9 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 
@@ -281,8 +281,8 @@ public class BeamSqlComparisonOperatorsIntegrationTest
     checker.buildRunAndCheck();
   }
 
-  @Override protected PCollection<BeamRecord> getTestPCollection() {
-    BeamRecordSqlType type = BeamRecordSqlType.create(
+  @Override protected PCollection<BeamRow> getTestPCollection() {
+    BeamRowSqlType type = BeamRowSqlType.create(
         Arrays.asList(
             "c_tinyint_0", "c_tinyint_1", "c_tinyint_2",
             "c_smallint_0", "c_smallint_1", "c_smallint_2",

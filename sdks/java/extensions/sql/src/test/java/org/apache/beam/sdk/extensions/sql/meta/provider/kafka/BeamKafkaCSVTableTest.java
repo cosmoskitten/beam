@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -43,18 +43,18 @@ import org.junit.Test;
 public class BeamKafkaCSVTableTest {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
-  public static BeamRecord row1;
-  public static BeamRecord row2;
+  public static BeamRow row1;
+  public static BeamRow row2;
 
   @BeforeClass
   public static void setUp() {
-    row1 = new BeamRecord(genRowType(), 1L, 1, 1.0);
+    row1 = new BeamRow(genRowType(), 1L, 1, 1.0);
 
-    row2 = new BeamRecord(genRowType(), 2L, 2, 2.0);
+    row2 = new BeamRow(genRowType(), 2L, 2, 2.0);
   }
 
   @Test public void testCsvRecorderDecoder() throws Exception {
-    PCollection<BeamRecord> result = pipeline
+    PCollection<BeamRow> result = pipeline
         .apply(
             Create.of("1,\"1\",1.0", "2,2,2.0")
         )
@@ -69,7 +69,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   @Test public void testCsvRecorderEncoder() throws Exception {
-    PCollection<BeamRecord> result = pipeline
+    PCollection<BeamRow> result = pipeline
         .apply(
             Create.of(row1, row2)
         )
@@ -84,7 +84,7 @@ public class BeamKafkaCSVTableTest {
     pipeline.run();
   }
 
-  private static BeamRecordSqlType genRowType() {
+  private static BeamRowSqlType genRowType() {
     return CalciteUtils.toBeamRowType(
         ((RelProtoDataType)
                 a0 ->

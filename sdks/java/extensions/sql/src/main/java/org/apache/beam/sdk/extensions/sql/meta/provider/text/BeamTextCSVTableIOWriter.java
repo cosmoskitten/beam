@@ -18,15 +18,15 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRecord2CsvLine;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
@@ -34,25 +34,25 @@ import org.apache.commons.csv.CSVFormat;
 /**
  * IOWriter for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>, PDone>
+public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRow>, PDone>
     implements Serializable {
   private String filePattern;
-  protected BeamRecordSqlType beamRecordSqlType;
+  protected BeamRowSqlType beamRowSqlType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamRecordSqlType beamRecordSqlType, String filePattern,
+  public BeamTextCSVTableIOWriter(BeamRowSqlType beamRowSqlType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamRecordSqlType = beamRecordSqlType;
+    this.beamRowSqlType = beamRowSqlType;
     this.csvFormat = csvFormat;
   }
 
-  @Override public PDone expand(PCollection<BeamRecord> input) {
-    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamRecord, String>() {
+  @Override public PDone expand(PCollection<BeamRow> input) {
+    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamRow, String>() {
 
       @ProcessElement public void processElement(ProcessContext ctx) {
-        BeamRecord row = ctx.element();
-        ctx.output(beamRecord2CsvLine(row, csvFormat));
+        BeamRow row = ctx.element();
+        ctx.output(beamRow2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.write().to(filePattern));
   }

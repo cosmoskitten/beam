@@ -29,7 +29,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.sql.SqlNode;
@@ -106,9 +106,9 @@ public class BeamSqlCli {
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  private static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline,
+  private static PCollection<BeamRow> compilePipeline(String sqlStatement, Pipeline basePipeline,
       BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<BeamRecord> resultStream =
+    PCollection<BeamRow> resultStream =
         sqlEnv.getPlanner().compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }

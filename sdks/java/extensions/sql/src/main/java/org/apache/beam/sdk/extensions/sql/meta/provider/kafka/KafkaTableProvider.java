@@ -25,7 +25,7 @@ import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  */
 public class KafkaTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRecordSqlType recordType = getBeamSqlRecordTypeFromTable(table);
+    BeamRowSqlType recordType = getBeamSqlRecordTypeFromTable(table);
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");
