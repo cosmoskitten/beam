@@ -22,11 +22,13 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Tests for non ascii char in sql.
  */
+@Ignore
 public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
 
     @Test

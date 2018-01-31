@@ -19,17 +19,19 @@ package org.apache.beam.sdk.values;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collector;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * {@link BeamRecordType} describes the fields in {@link BeamRecord}, extra checking can be added
- * by overwriting {@link BeamRecordType#validateValueType(int, Object)}.
+ * {@link BeamRecordType} describes the fields in {@link BeamRecord}.
  */
 @Experimental
 public class BeamRecordType implements Serializable{
@@ -37,24 +39,70 @@ public class BeamRecordType implements Serializable{
   private List<Coder> fieldCoders;
 
   /**
+   * Field of a row.
+   *
+   * <p>Contains field name and its coder.
+   */
+  @AutoValue
+  public abstract static class Field {
+    abstract String name();
+    abstract Coder coder();
+
+    public static Field of(String name, Coder coder) {
+      return new AutoValue_BeamRecordType_Field(name, coder);
+    }
+  }
+
+  /**
+   * Collects a stream of {@link Field}s into a {@link BeamRecordType}.
+   */
+  public static Collector<Field, List<Field>, BeamRecordType> toRecordType() {
+    return Collector.of(
+        ArrayList::new,
+        List::add,
+        (left, right) -> {
+          left.addAll(right);
+          return left;
+        },
+        BeamRecordType::fromFields);
+  }
+
+  private static BeamRecordType fromFields(List<Field> fields) {
+    ImmutableList.Builder<String> names = ImmutableList.builder();
+    ImmutableList.Builder<Coder> coders = ImmutableList.builder();
+
+    for (Field field : fields) {
+      names.add(field.name());
+      coders.add(field.coder());
+    }
+
+    return new BeamRecordType(names.build(), coders.build());
+  }
+
+  /**
+   * Creates a new {@link Field} with specified name and coder.
+   */
+  public static Field newField(String name, Coder coder) {
+    return Field.of(name, coder);
+  }
+
+  public static BeamRecordType fromNamesAndCoders(
+      List<String> fieldNames,
+      List<Coder> fieldCoders) {
+
+    return new BeamRecordType(fieldNames, fieldCoders);
+  }
+
+  /**
    * Create a {@link BeamRecordType} with a name and Coder for each field.
    */
-  public BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
+  private BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
     if (fieldNames.size() != fieldCoders.size()) {
       throw new IllegalStateException(
           "the size of fieldNames and fieldCoders need to be the same.");
     }
     this.fieldNames = fieldNames;
     this.fieldCoders = fieldCoders;
-  }
-
-  /**
-   * Validate input fieldValue for a field.
-   * @throws IllegalArgumentException throw exception when the validation fails.
-   */
-  public void validateValueType(int index, Object fieldValue)
-     throws IllegalArgumentException{
-    //do nothing by default.
   }
 
   /**
@@ -81,14 +129,14 @@ public class BeamRecordType implements Serializable{
   /**
    * Return the name of field by index.
    */
-  public String getFieldNameByIndex(int index){
+  public String getFieldName(int index){
     return fieldNames.get(index);
   }
 
   /**
    * Find the index of a given field.
    */
-  public int findIndexOfField(String fieldName){
+  public int indexOf(String fieldName){
     return fieldNames.indexOf(fieldName);
   }
 
@@ -126,4 +174,5 @@ public class BeamRecordType implements Serializable{
         .add("fieldCoders", fieldCoders)
         .toString();
   }
+
 }
