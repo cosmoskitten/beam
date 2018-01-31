@@ -270,7 +270,7 @@ message Metrics {
     message User {
 
       // A key for identifying a metric at the most granular level.
-      message MetricKey {
+      message MetricName {
         // (Required): The namespace of this metric.
         string namespace = 2;
 
@@ -292,7 +292,7 @@ message Metrics {
       }
 
       // (Required) The identifier for this metric.
-      MetricKey key = 1;
+      MetricName metric_name = 1;
 
       // (Required) The data for this metric.
       oneof data {

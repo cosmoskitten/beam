@@ -34,7 +34,6 @@ from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
-from apache_beam.metrics.metricbase import MetricName
 from apache_beam.portability.api import beam_fn_api_pb2
 
 
@@ -64,14 +63,6 @@ class MetricKey(object):
 
   def __hash__(self):
     return hash((self.step, self.metric))
-
-  def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.PTransform.User.MetricKey(
-        namespace=self.metric.namespace, name=self.metric.name)
-
-  @staticmethod
-  def from_runner_api(step, proto):
-    return MetricKey(step, MetricName(proto.namespace, proto.name))
 
 
 class MetricResult(object):
@@ -205,13 +196,13 @@ class MetricsContainer(object):
   def to_runner_api(self):
     return (
         [beam_fn_api_pb2.Metrics.PTransform.User(
-            key=beam_fn_api_pb2.Metrics.PTransform.User.MetricKey(
+            metric_name=beam_fn_api_pb2.Metrics.PTransform.User.MetricName(
                 namespace=k.namespace, name=k.name),
             counter_data=beam_fn_api_pb2.Metrics.PTransform.User.CounterData(
                 value=v.get_cumulative()))
          for k, v in self.counters.items()] +
         [beam_fn_api_pb2.Metrics.PTransform.User(
-            key=beam_fn_api_pb2.Metrics.PTransform.User.MetricKey(
+            metric_name=beam_fn_api_pb2.Metrics.PTransform.User.MetricName(
                 namespace=k.namespace, name=k.name),
             distribution_data=v.get_cumulative().to_runner_api())
          for k, v in self.distributions.items()])

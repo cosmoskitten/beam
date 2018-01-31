@@ -1173,13 +1173,12 @@ class FnApiMetrics(metrics.metric.MetricResults):
   def __init__(self, step_metrics):
     self._counters = {}
     self._distributions = {}
-    for step, step_metric in step_metrics.items():
-      print step
-      print step_metric
+    for step_metric in step_metrics.values():
       for ptransform_id, ptransform in step_metric.ptransforms.items():
         for proto in ptransform.user:
-          key = metrics.execution.MetricKey.from_runner_api(
-              ptransform_id, proto.key)
+          key = metrics.execution.MetricKey(
+              ptransform_id,
+              metrics.metricbase.MetricName.from_runner_api(proto.metric_name))
           if proto.HasField('counter_data'):
             self._counters[key] = proto.counter_data.value
           elif proto.HasField('distribution_data'):
