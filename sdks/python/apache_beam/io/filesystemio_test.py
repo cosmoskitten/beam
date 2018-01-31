@@ -36,8 +36,8 @@ class FakeDownloader(filesystemio.Downloader):
     return len(self._data)
 
   def get_range(self, start, end):
-    self.last_read_size = end - start + 1
-    return self._data[start:end + 1]
+    self.last_read_size = end - start
+    return self._data[start:end]
 
 
 class FakeUploader(filesystemio.Uploader):

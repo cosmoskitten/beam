@@ -38,14 +38,14 @@ class Downloader(object):
 
   @abc.abstractmethod
   def get_range(self, start, end):
-    """Retrieve a given byte range from this download, inclusive.
+    """Retrieve a given byte range [start, end) from this download.
 
     Range must be in this form:
-      0 <= start <= end: Fetch the bytes from start to end.
+      0 <= start < end: Fetch the bytes from start to end.
 
     Args:
       start: (int) Initial byte offset.
-      end: (int) Final byte offset, inclusive.
+      end: (int) Final byte offset, exclusive.
 
     Returns:
       (string) A buffer containing the requested data.
@@ -56,10 +56,6 @@ class Uploader(object):
   """Upload interface for a single file."""
 
   __metaclass__ = abc.ABCMeta
-
-  @abc.abstractproperty
-  def last_error(self):
-    """Last error encountered for this instance."""
 
   @abc.abstractmethod
   def put(self, data):
@@ -107,7 +103,7 @@ class DownloaderStream(io.RawIOBase):
       return 0
 
     start = self._position
-    end = min(self._position + len(b) - 1, self._downloader.size - 1)
+    end = min(self._position + len(b), self._downloader.size)
     data = self._downloader.get_range(start, end)
     self._position += len(data)
     b[:len(data)] = data
@@ -184,16 +180,7 @@ class UploaderStream(io.RawIOBase):
       b: (memoryview) Buffer with data to write.
     """
     self._checkClosed()
-    try:
-      self._uploader.put(b)
-    except IOError:
-      # TODO(udim): Call self._uploader.finish() instead (once
-      # GcsUploader.finish() calls join() with timeout), and remove last_error
-      # property. Rely on finish() to raise any internal errors encountered.
-      if self._uploader.last_error:
-        raise self._uploader.last_error  # pylint: disable=raising-bad-type
-      else:
-        raise
+    self._uploader.put(b)
 
     bytes_written = len(b)
     self._position += bytes_written
@@ -263,9 +250,9 @@ class PipeStream(object):
     return self.position
 
   def seek(self, offset, whence=os.SEEK_SET):
-    # The gcsio.Uploader class insists on seeking to the end of a stream to
-    # do a check before completing an upload, so we must have this no-op
-    # method here in that case.
+    # The apitools library used by the gcsio.Uploader class insists on seeking
+    # to the end of a stream to do a check before completing an upload, so we
+    # must have this no-op method here in that case.
     if whence == os.SEEK_END and offset == 0:
       return
     elif whence == os.SEEK_SET and offset == self.position:

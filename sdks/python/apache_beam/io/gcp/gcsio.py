@@ -490,9 +490,9 @@ class GcsDownloader(Downloader):
     self._get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self.download_stream = cStringIO.StringIO()
+    self._download_stream = cStringIO.StringIO()
     self._downloader = transfer.Download(
-        self.download_stream, auto_transfer=False, chunksize=self._buffer_size)
+        self._download_stream, auto_transfer=False, chunksize=self._buffer_size)
     self._client.objects.Get(self._get_request, download=self._downloader)
 
   @retry.with_exponential_backoff(
@@ -505,9 +505,9 @@ class GcsDownloader(Downloader):
     return self._size
 
   def get_range(self, start, end):
-    self.download_stream.truncate(0)
-    self._downloader.GetRange(start, end)
-    return self.download_stream.getvalue()
+    self._download_stream.truncate(0)
+    self._downloader.GetRange(start, end - 1)
+    return self._download_stream.getvalue()
 
 
 class GcsUploader(Uploader):
@@ -538,10 +538,6 @@ class GcsUploader(Uploader):
     self._upload_thread.last_error = None
     self._upload_thread.start()
 
-  @property
-  def last_error(self):
-    return self._upload_thread.last_error
-
   # TODO(silviuc): Refactor so that retry logic can be applied.
   # There is retry logic in the underlying transfer library but we should make
   # it more explicit so we can control the retry parameters.
@@ -563,13 +559,18 @@ class GcsUploader(Uploader):
       self._child_conn.close()
 
   def put(self, data):
-    self._conn.send_bytes(data.tobytes())
+    try:
+      self._conn.send_bytes(data.tobytes())
+    except EOFError:
+      if self._upload_thread.last_error is not None:
+        raise self._upload_thread.last_error # pylint: disable=raising-bad-type
+      raise
 
   def finish(self):
     self._conn.close()
-    # TODO(udim): Add timeout=DEFAULT_HTTP_TIMEOUT_SECONDS * 2 and check
-    # isAlive.
+    # TODO(udim): Add timeout=DEFAULT_HTTP_TIMEOUT_SECONDS * 2 and raise if
+    # isAlive is True.
     self._upload_thread.join()
-    # Check for exception since the last _flush_write_buffer() call.
+    # Check for exception since the last put() call.
     if self._upload_thread.last_error is not None:
       raise self._upload_thread.last_error  # pylint: disable=raising-bad-type
