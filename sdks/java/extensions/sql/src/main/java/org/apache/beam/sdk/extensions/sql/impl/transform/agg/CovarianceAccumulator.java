@@ -23,35 +23,42 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
- * Accumulates current variance of a sample, its sum, and number of elements.
+ * Accumulates current covariance of a sample, means of two elements, and number of elements.
  */
 @AutoValue
 abstract class CovarianceAccumulator implements Serializable {
     static final CovarianceAccumulator EMPTY =
-            newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+            newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ZERO,
+                    BigDecimal.ZERO, BigDecimal.ZERO);
 
-    abstract BigDecimal variance();
+    abstract BigDecimal covariance();
     abstract BigDecimal count();
-    abstract BigDecimal sum();
+    abstract BigDecimal xavg();
+    abstract BigDecimal yavg();
 
     static CovarianceAccumulator newCovarianceAccumulator(
-            BigDecimal variance,
+            BigDecimal covariance,
             BigDecimal count,
-            BigDecimal sum) {
+            BigDecimal xavg,
+            BigDecimal yavg) {
 
-        return new AutoValue_CovarianceAccumulator(variance, count, sum);
+        return new AutoValue_CovarianceAccumulator(covariance, count, xavg, yavg);
     }
 
     static CovarianceAccumulator ofZeroElements() {
         return EMPTY;
     }
 
-    static CovarianceAccumulator ofSingleElement(BigDecimal inputElement) {
-        return newCovarianceAccumulator(BigDecimal.ZERO, BigDecimal.ONE, inputElement);
+    static CovarianceAccumulator ofSingleElement(
+            BigDecimal inputElementX, BigDecimal inputElementY) {
+        return newCovarianceAccumulator(BigDecimal.ZERO,
+                                        BigDecimal.ONE,
+                                        inputElementX,
+                                        inputElementY);
     }
 
     /**
-     * See {@link VarianceFn} doc above for explanation.
+     * See {@link CovarianceFn} doc above for explanation.
      */
     CovarianceAccumulator combineWith(CovarianceAccumulator otherCovariance) {
         if (EMPTY.equals(this)) {
@@ -63,28 +70,30 @@ abstract class CovarianceAccumulator implements Serializable {
         }
 
         BigDecimal increment = calculateIncrement(this, otherCovariance);
-        BigDecimal combinedVariance =
-                this.variance()
-                        .add(otherCovariance.variance())
+        BigDecimal combinedCovariance =
+                this.covariance()
+                        .add(otherCovariance.covariance())
                         .add(increment);
 
         return newCovarianceAccumulator(
-                combinedVariance,
+                combinedCovariance,
                 this.count().add(otherCovariance.count()),
-                this.sum().add(otherCovariance.sum()));
+                this.xavg().add(otherCovariance.xavg()),
+                this.yavg().add(otherCovariance.yavg())
+                );
     }
 
     /**
      * Implements this part: {@code increment = m/(n(m+n)) * (sum(x) * n/m  - sum(y))^2 }.
      */
     private BigDecimal calculateIncrement(
-            CovarianceAccumulator varianceX,
-            CovarianceAccumulator varianceY) {
+            CovarianceAccumulator covarianceX,
+            CovarianceAccumulator covarianceY) {
 
-        BigDecimal m = varianceX.count();
-        BigDecimal n = varianceY.count();
-        BigDecimal sumX = varianceX.sum();
-        BigDecimal sumY = varianceY.sum();
+        BigDecimal m = covarianceX.count();
+        BigDecimal n = covarianceY.count();
+        BigDecimal sumX = covarianceX.xavg();
+        BigDecimal sumY = covarianceY.yavg();
 
         // m/(n(m+n))
         BigDecimal multiplier = m.divide(n.multiply(m.add(n)), VarianceFn.MATH_CTX);
