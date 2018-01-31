@@ -349,7 +349,8 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
 
   @Test
   public void testRespectsCheckpointContract() throws IOException {
-    BoundedReadFromUnboundedSourceTest.TestCountingSource source = new BoundedReadFromUnboundedSourceTest.TestCountingSource(3);
+    BoundedReadFromUnboundedSourceTest.TestCountingSource source =
+        new BoundedReadFromUnboundedSourceTest.TestCountingSource(3);
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedReadFromUnboundedSourceTest.TestCountingSource.CountingSourceReader reader =
         source.createReader(options, null /* no checkpoint */);
@@ -357,7 +358,8 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     assertEquals(0L, (long) reader.getCurrent().getValue());
     assertTrue(reader.advance());
     assertEquals(1L, (long) reader.getCurrent().getValue());
-    BoundedReadFromUnboundedSourceTest.TestCountingSource.CounterMark checkpoint = reader.getCheckpointMark();
+    BoundedReadFromUnboundedSourceTest.TestCountingSource.CounterMark checkpoint =
+        reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     reader = source.createReader(options, checkpoint);
     assertTrue(reader.start());
@@ -367,14 +369,16 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
 
   @Test
   public void testCanResumeWithExpandedCount() throws IOException {
-    BoundedReadFromUnboundedSourceTest.TestCountingSource source = new BoundedReadFromUnboundedSourceTest.TestCountingSource(1);
+    BoundedReadFromUnboundedSourceTest.TestCountingSource source =
+        new BoundedReadFromUnboundedSourceTest.TestCountingSource(1);
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedReadFromUnboundedSourceTest.TestCountingSource.CountingSourceReader reader =
         source.createReader(options, null /* no checkpoint */);
     assertTrue(reader.start());
     assertEquals(0L, (long) reader.getCurrent().getValue());
     assertFalse(reader.advance());
-    BoundedReadFromUnboundedSourceTest.TestCountingSource.CounterMark checkpoint = reader.getCheckpointMark();
+    BoundedReadFromUnboundedSourceTest.TestCountingSource.CounterMark checkpoint =
+        reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
     source = new BoundedReadFromUnboundedSourceTest.TestCountingSource(2);
     reader = source.createReader(options, checkpoint);
