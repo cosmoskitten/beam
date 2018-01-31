@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.runners.core.construction.Environments;
@@ -61,15 +62,50 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link QueryablePipeline}. */
 @RunWith(JUnit4.class)
 public class QueryablePipelineTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+  /**
+   * Constructing a {@link QueryablePipeline} with components that reference absent {@link
+   * RunnerApi.PCollection PCollections} should fail.
+   */
   @Test
-  public void fromComponentsWithMalformedComponents() {}
+  public void fromComponentsWithMalformedComponents() {
+    Components components =
+        Components.newBuilder()
+            .putTransforms(
+                "read",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.READ_TRANSFORM_URN)
+                            .build())
+                    .putOutputs("output", "read.out")
+                    .build())
+            .putPcollections(
+                "read.out", RunnerApi.PCollection.newBuilder().setUniqueName("read.out").build())
+            .putTransforms(
+                "malformed",
+                PTransform.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                            .build())
+                    .putInputs("in", "read.out")
+                    .putOutputs("out", "missing_pc")
+                    .build())
+            .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    QueryablePipeline.fromComponents(components);
+  }
 
   @Test
   public void rootTransforms() {
@@ -305,17 +341,13 @@ public class QueryablePipelineTest {
     assertThat(
         primitiveComponents.getWindowingStrategiesCount(),
         equalTo(originalComponents.getWindowingStrategiesCount()));
-    assertThat(
-        primitiveComponents.getCodersCount(),
-        equalTo(originalComponents.getCodersCount()));
+    assertThat(primitiveComponents.getCodersCount(), equalTo(originalComponents.getCodersCount()));
     assertThat(
         primitiveComponents.getEnvironmentsCount(),
         equalTo(originalComponents.getEnvironmentsCount()));
   }
 
-  /**
-   * This method doesn't do any pruning for reachability, but this may not require a test.
-   */
+  /** This method doesn't do any pruning for reachability, but this may not require a test. */
   @Test
   public void retainOnlyPrimitivesIgnoresUnreachableNodes() {
     Pipeline p = Pipeline.create();
