@@ -68,7 +68,7 @@ class MetricName(object):
     return hash((self.namespace, self.name))
 
   def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.PTransform.User.MetricName(
+    return beam_fn_api_pb2.Metrics.User.MetricName(
         namespace=self.namespace, name=self.name)
 
   @staticmethod

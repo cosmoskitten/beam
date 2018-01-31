@@ -195,14 +195,14 @@ class MetricsContainer(object):
 
   def to_runner_api(self):
     return (
-        [beam_fn_api_pb2.Metrics.PTransform.User(
-            metric_name=beam_fn_api_pb2.Metrics.PTransform.User.MetricName(
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=beam_fn_api_pb2.Metrics.User.MetricName(
                 namespace=k.namespace, name=k.name),
-            counter_data=beam_fn_api_pb2.Metrics.PTransform.User.CounterData(
+            counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
                 value=v.get_cumulative()))
          for k, v in self.counters.items()] +
-        [beam_fn_api_pb2.Metrics.PTransform.User(
-            metric_name=beam_fn_api_pb2.Metrics.PTransform.User.MetricName(
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=beam_fn_api_pb2.Metrics.User.MetricName(
                 namespace=k.namespace, name=k.name),
             distribution_data=v.get_cumulative().to_runner_api())
          for k, v in self.distributions.items()])
