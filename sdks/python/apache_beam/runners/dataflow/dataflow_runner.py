@@ -50,6 +50,7 @@ from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.plugin import BeamPlugin
+from apache_beam.utils import urns
 
 __all__ = ['DataflowRunner']
 
@@ -280,7 +281,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Snapshot the pipeline in a portable proto before mutating it
-    proto_pipeline = pipeline.to_runner_api()
+    proto_pipeline, self.proto_context = pipeline.to_runner_api(
+        return_context=True)
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -575,8 +577,13 @@ class DataflowRunner(PipelineRunner):
             if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
-    fn_data = self._pardo_fn_data(transform_node, lookup_label)
-    step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
+    transform_proto = self.proto_context.transforms.get_proto(transform_node)
+    if transform_proto.spec.urn == urns.PARDO_TRANSFORM:
+      serialized_data = self.proto_context.transforms.get_id(transform_node)
+    else:
+      serialized_data = pickler.dumps(
+          self._pardo_fn_data(transform_node, lookup_label))
+    step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
