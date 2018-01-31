@@ -64,7 +64,7 @@ import org.apache.beam.sdk.values.KV;
  */
 @Internal
 public class CovarianceFn<T extends Number>
-        extends Combine.CombineFn<KV<T, T>, VarianceAccumulator, T> {
+        extends Combine.CombineFn<KV<T, T>, CovarianceAccumulator, T> {
 
     static final MathContext MATH_CTX = new MathContext(10, RoundingMode.HALF_UP);
 
@@ -74,13 +74,13 @@ public class CovarianceFn<T extends Number>
     private boolean isSample; // flag to determine return value should be Variance Pop or Sample
     private SerializableFunction<BigDecimal, T> decimalConverter;
 
-    public static <V extends Number> VarianceFn newPopulation(
+    public static <V extends Number> CovarianceFn newPopulation(
             SerializableFunction<BigDecimal, V> decimalConverter) {
 
         return new CovarianceFn<>(POP, decimalConverter);
     }
 
-    public static <V extends Number> VarianceFn newSample(
+    public static <V extends Number> CovarianceFn newSample(
             SerializableFunction<BigDecimal, V> decimalConverter) {
 
         return new CovarianceFn<>(SAMPLE, decimalConverter);
@@ -92,45 +92,47 @@ public class CovarianceFn<T extends Number>
     }
 
     @Override
-    public VarianceAccumulator createAccumulator() {
-        return VarianceAccumulator.ofZeroElements();
+    public CovarianceAccumulator createAccumulator() {
+        return CovarianceAccumulator.ofZeroElements();
     }
 
     @Override
-    public VarianceAccumulator addInput(VarianceAccumulator currentVariance, KV<T, T> rawInput) {
-
+    public CovarianceAccumulator addInput(
+            CovarianceAccumulator currentVariance, KV<T, T> rawInput) {
         if (rawInput == null) {
             return currentVariance;
         }
 
-        return currentVariance.combineWith(CovarianceAccumulator.ofSingleElement(toBigDecimal(rawInput)));
+        return currentVariance.combineWith(CovarianceAccumulator.ofSingleElement(
+                toBigDecimal(rawInput.getKey()), toBigDecimal(rawInput.getValue())));
     }
 
     @Override
-    public VarianceAccumulator mergeAccumulators(Iterable<VarianceAccumulator> variances) {
+    public CovarianceAccumulator mergeAccumulators(Iterable<CovarianceAccumulator> covariances) {
         return StreamSupport
-                .stream(variances.spliterator(), false)
-                .reduce(VarianceAccumulator.ofZeroElements(), VarianceAccumulator::combineWith);
+                .stream(covariances.spliterator(), false)
+                .reduce(CovarianceAccumulator.ofZeroElements(),
+                        CovarianceAccumulator::combineWith);
     }
 
     @Override
-    public Coder<VarianceAccumulator> getAccumulatorCoder(CoderRegistry registry,
+    public Coder<CovarianceAccumulator> getAccumulatorCoder(CoderRegistry registry,
                                                           Coder<KV<T, T>> inputCoder) {
-        return SerializableCoder.of(VarianceAccumulator.class);
+        return SerializableCoder.of(CovarianceAccumulator.class);
     }
 
     @Override
-    public T extractOutput(VarianceAccumulator accumulator) {
-        return decimalConverter.apply(getVariance(accumulator));
+    public T extractOutput(CovarianceAccumulator accumulator) {
+        return decimalConverter.apply(getCovariance(accumulator));
     }
 
-    private BigDecimal getVariance(VarianceAccumulator variance) {
+    private BigDecimal getCovariance(CovarianceAccumulator covariance) {
 
         BigDecimal adjustedCount = this.isSample
-                ? variance.count().subtract(BigDecimal.ONE)
-                : variance.count();
+                ? covariance.count().subtract(BigDecimal.ONE)
+                : covariance.count();
 
-        return variance.variance().divide(adjustedCount, MATH_CTX);
+        return covariance.covariance().divide(adjustedCount, MATH_CTX);
     }
 
     private BigDecimal toBigDecimal(T rawInput) {
