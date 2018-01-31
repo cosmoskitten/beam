@@ -37,7 +37,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import check_constraint
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -183,7 +182,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
 
 class TypeCheckCombineFn(core.CombineFn):
-  """A wrapper around a DoFn which performs type-checking of input and output.
+  """A wrapper around a CombineFn performing type-checking of input and output.
   """
 
   def __init__(self, combinefn, type_hints, label=None):
@@ -193,14 +192,14 @@ class TypeCheckCombineFn(core.CombineFn):
     self._label = label
 
   def create_accumulator(self, *args, **kwargs):
-    print 'create_accumulator', self._combinefn, args, kwargs
     return self._combinefn.create_accumulator(*args, **kwargs)
 
   def add_input(self, accumulator, element, *args, **kwargs):
     if self._input_type_hint:
       try:
         _check_instance_type(
-            self._input_type_hint[0][0].tuple_types[1], element, 'element', True)
+            self._input_type_hint[0][0].tuple_types[1], element, 'element',
+            True)
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
@@ -234,6 +233,7 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
           applied_transform.transform.fn,
           applied_transform.transform.get_type_hints(),
           applied_transform.full_label)
+
   def leave_composite_transform(self, applied_transform):
     if isinstance(applied_transform.transform, core.CombinePerKey):
       self._in_combine = False
