@@ -146,7 +146,7 @@ public class BeamQueryPlanner {
   private RelNode validateAndConvert(SqlNode sqlNode)
       throws ValidationException, RelConversionException {
     SqlNode validated = validateNode(sqlNode);
-    LOG.error("SQL:\n" + validated);
+    LOG.info("SQL:\n" + validated);
     RelNode relNode = convertToRelNode(validated);
     return convertToBeamRel(relNode);
   }
@@ -154,7 +154,7 @@ public class BeamQueryPlanner {
   private RelNode convertToBeamRel(RelNode relNode) throws RelConversionException {
     RelTraitSet traitSet = relNode.getTraitSet();
 
-    LOG.error("SQLPlan>\n" + RelOptUtil.toString(relNode));
+    LOG.info("SQLPlan>\n" + RelOptUtil.toString(relNode));
 
     // PlannerImpl.transform() optimizes RelNode with ruleset
     return planner.transform(0, traitSet.plus(BeamLogicalConvention.INSTANCE), relNode);

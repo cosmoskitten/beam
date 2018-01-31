@@ -99,9 +99,6 @@ public final class BeamTableUtils {
         case FLOAT:
           return Float.valueOf(raw);
         case DOUBLE:
-          if (raw.length() == 0) {
-            return Double.valueOf(0);
-          }
           return Double.valueOf(raw);
         default:
           throw new UnsupportedOperationException(

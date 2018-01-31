@@ -38,6 +38,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.BigDecimalConverter;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -211,12 +212,12 @@ public class BeamAggregationTransforms implements Serializable{
                 VarianceFn.newSample(BigDecimalConverter.forSqlType(outFieldSqlType)));
             break;
           case "COVAR_POP":
-            aggregators.add(BeamBuiltinAggregations.createCovar(call.type.getSqlTypeName(),
-                    false));
+            aggregators.add(
+                CovarianceFn.newPopulation(BigDecimalConverter.forSqlType(outFieldSqlType)));
             break;
           case "COVAR_SAMP":
-            aggregators.add(BeamBuiltinAggregations.createCovar(call.type.getSqlTypeName(),
-                    true));
+            aggregators.add(
+                CovarianceFn.newSample(BigDecimalConverter.forSqlType(outFieldSqlType)));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
