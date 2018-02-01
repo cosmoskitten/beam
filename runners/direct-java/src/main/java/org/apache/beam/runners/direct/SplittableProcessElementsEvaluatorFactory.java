@@ -33,7 +33,6 @@ import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -72,8 +71,7 @@ class SplittableProcessElementsEvaluatorFactory<
               final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
                 (ProcessElements<InputT, OutputT, RestrictionT, TrackerT>)
                   application.getTransform();
-              final DoFn fn = ProcessElements.class.cast(application.getTransform()).getFn();
-              return DoFnLifecycleManager.of(transform.newProcessFn(fn));
+              return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
             }
           });
   }

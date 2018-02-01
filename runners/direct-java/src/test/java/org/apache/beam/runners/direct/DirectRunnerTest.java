@@ -81,7 +81,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -91,8 +90,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-
-  @Rule public transient TestName testName = new TestName();
 
   private Pipeline getPipeline() {
     PipelineOptions opts = PipelineOptionsFactory.create();
@@ -311,8 +308,6 @@ public class DirectRunnerTest implements Serializable {
     final Pipeline pipeline = getPipeline();
     pipeline.apply(Create.of("a"))
       .apply(ParDo.of(new DoFn<String, String>() {
-        private String name = testName.getMethodName();
-
         @ProcessElement
         public void onElement(final ProcessContext ctx) {
           // no-op
