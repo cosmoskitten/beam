@@ -27,6 +27,8 @@ For an example implementation of :class:`FileBasedSource` see
 """
 import uuid
 
+from six import integer_types
+
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
 from apache_beam.io import iobase
@@ -236,11 +238,11 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, (int, long)):
+    if not isinstance(start_offset, integer_types):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, integer_types):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
