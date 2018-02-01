@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
+package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
 import java.util.Set;
+
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
