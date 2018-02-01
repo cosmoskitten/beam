@@ -25,6 +25,8 @@ import re
 import time
 import uuid
 
+from six.moves import xrange
+
 from apache_beam.internal import util
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import BeamIOError

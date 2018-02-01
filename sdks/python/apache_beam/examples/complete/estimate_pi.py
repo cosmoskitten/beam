@@ -31,6 +31,8 @@ import json
 import logging
 import random
 
+from six.moves import xrange
+
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions

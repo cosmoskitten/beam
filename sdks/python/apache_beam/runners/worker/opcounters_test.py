@@ -20,6 +20,8 @@ import math
 import random
 import unittest
 
+from six.moves import xrange
+
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import statesampler

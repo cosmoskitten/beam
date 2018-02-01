@@ -20,6 +20,7 @@
 import unittest
 
 import hamcrest as hc
+from six.moves import xrange
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine

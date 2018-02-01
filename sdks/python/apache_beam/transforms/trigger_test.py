@@ -21,8 +21,9 @@ import collections
 import os.path
 import pickle
 import unittest
-
 import yaml
+
+from six.moves import xrange
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context

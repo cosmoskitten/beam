@@ -26,6 +26,7 @@ import tempfile
 import unittest
 
 import hamcrest as hc
+from six.moves import xrange
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource

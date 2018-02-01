@@ -24,6 +24,8 @@ from __future__ import absolute_import
 
 import argparse
 
+from six.moves import xrange
+
 import apache_beam as beam
 from apache_beam.io import WriteToText
 

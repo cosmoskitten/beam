@@ -20,6 +20,8 @@
 import collections
 import typing
 
+from six.moves import xrange
+
 from apache_beam.typehints import typehints
 
 # Describes an entry in the type map in convert_to_beam_type.
