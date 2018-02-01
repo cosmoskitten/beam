@@ -42,7 +42,7 @@ func addFixedKeyFn(elm T) (int, T) {
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	pre := ParDo(s, mapFn, col)
+	pre := ParDo(s, addFixedKeyFn, col)
 	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
 	if err != nil {
 		return PCollection{}, err
