@@ -153,12 +153,7 @@ public class DoFnInvokersTest {
 
   private class IdentityChildWithoutOverride extends IdentityParent {}
 
-  private class IdentityChildWithOverride extends IdentityParent {
-    @Override
-    public void process(DoFn<String, String>.ProcessContext c) {
-      super.process(c);
-    }
-  }
+  private class IdentityChildWithOverride extends IdentityParent {}
 
   @Test
   public void testDoFnWithMethodInSuperclass() throws Exception {
