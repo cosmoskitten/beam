@@ -20,8 +20,6 @@ import math
 import random
 import unittest
 
-from six.moves import xrange
-
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import statesampler
@@ -168,17 +166,17 @@ class OperationCountersTest(unittest.TestCase):
     total_runs = 10 * len(buckets)
 
     # Fill the buckets.
-    for _ in xrange(total_runs):
+    for _ in range(total_runs):
       opcounts = OperationCounters(CounterFactory(), 'some-name',
                                    coders.PickleCoder(), 0)
-      for i in xrange(len(buckets)):
+      for i in range(len(buckets)):
         if opcounts.should_sample():
           buckets[i] += 1
 
     # Look at the buckets to see if they are likely.
-    for i in xrange(10):
+    for i in range(10):
       self.assertEqual(total_runs, buckets[i])
-    for i in xrange(10, len(buckets)):
+    for i in range(10, len(buckets)):
       self.assertTrue(buckets[i] > 7 * total_runs / i,
                       'i=%d, buckets[i]=%d, expected=%d, ratio=%f' % (
                           i, buckets[i],

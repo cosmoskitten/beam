@@ -20,7 +20,6 @@
 import unittest
 
 import hamcrest as hc
-from six.moves import xrange
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
@@ -222,7 +221,7 @@ class CombineTest(unittest.TestCase):
 
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      for ix in xrange(9):
+      for ix in range(9):
         assert_that(
             pcoll | 'sample-%d' % ix >> combine.Sample.FixedSizeGlobally(3),
             is_good_sample,
@@ -231,7 +230,7 @@ class CombineTest(unittest.TestCase):
   def test_per_key_sample(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
-        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(9)), []))
+        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in range(9)), []))
     result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():

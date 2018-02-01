@@ -20,8 +20,6 @@
 import collections
 import typing
 
-from six.moves import xrange
-
 from apache_beam.typehints import typehints
 
 # Describes an entry in the type map in convert_to_beam_type.
@@ -140,7 +138,7 @@ def convert_to_beam_type(typ):
     if _len_arg(typ) != arity:
       raise ValueError('expecting type %s to have arity %d, had arity %d '
                        'instead' % (str(typ), arity, _len_arg(typ)))
-  typs = [convert_to_beam_type(_get_arg(typ, i)) for i in xrange(arity)]
+  typs = [convert_to_beam_type(_get_arg(typ, i)) for i in range(arity)]
   if arity == 0:
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.
     return matched_entry.beam_type

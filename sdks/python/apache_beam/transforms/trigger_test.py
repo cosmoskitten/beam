@@ -23,8 +23,6 @@ import pickle
 import unittest
 import yaml
 
-from six.moves import xrange
-
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -471,7 +469,7 @@ class TranscriptTest(unittest.TestCase):
       args = []
       start = 0
       depth = 0
-      for ix in xrange(len(s)):
+      for ix in range(len(s)):
         c = s[ix]
         if c in '({[':
           depth += 1
