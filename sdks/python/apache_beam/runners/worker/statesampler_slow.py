@@ -17,6 +17,10 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+StateSamplerInfo = namedtuple(
+    'StateSamplerInfo',
+    ['state_name', 'transition_count', 'time_since_transition'])
+
 
 class StateSampler(object):
 
