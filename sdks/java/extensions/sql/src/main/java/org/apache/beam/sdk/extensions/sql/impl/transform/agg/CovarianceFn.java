@@ -33,7 +33,13 @@ import org.apache.beam.sdk.values.KV;
 /**
  * {@link Combine.CombineFn} for <em>Covariance</em> on {@link Number} types.
  *
- * <p>Calculates Population Covariance and Sample Covariance using incremental formulas described
+ * <p>Calculates Population Covariance and Sample Covariance using incremental
+ * formulas described in http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance,
+ * presumably by  Pébay, Philippe (2008), in "Formulas for Robust,
+ * One-Pass Parallel Computation of Covariances and Arbitrary-Order
+ * Statistical Moments".
+ * </p>
+ *
  */
 @Internal
 public class CovarianceFn<T extends Number>
@@ -44,7 +50,7 @@ public class CovarianceFn<T extends Number>
     private static final boolean SAMPLE = true;
     private static final boolean POP = false;
 
-    private boolean isSample; // flag to determine return value should be Variance Pop or Sample
+    private boolean isSample; // flag to determine return value should be Covariance Pop or Sample
     private SerializableFunction<BigDecimal, T> decimalConverter;
 
     public static <V extends Number> CovarianceFn newPopulation(

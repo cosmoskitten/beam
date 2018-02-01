@@ -167,6 +167,11 @@ public class BeamAggregationTransforms implements Serializable{
       List<Integer> outFieldsType = new ArrayList<>();
       for (AggregateCall call : aggregationCalls) {
         if (call.getArgList().size() == 2) {
+          /**
+           * handle the case of aggregation function has two parameters and
+           * use KV pair to bundle two corresponding expressions.
+           */
+
           int refIndexKey = call.getArgList().get(0);
           int refIndexValue = call.getArgList().get(1);
 
@@ -174,6 +179,7 @@ public class BeamAggregationTransforms implements Serializable{
                   CalciteUtils.getFieldType(sourceRowType, refIndexKey), refIndexKey);
           BeamSqlInputRefExpression sourceExpValue = new BeamSqlInputRefExpression(
                   CalciteUtils.getFieldType(sourceRowType, refIndexValue), refIndexValue);
+
           sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
         } else {
           int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
@@ -261,14 +267,17 @@ public class BeamAggregationTransforms implements Serializable{
                   )
           );
         } else if (sourceFieldExps.get(idx) instanceof KV){
+          /**
+           * If source expression is type of KV pair, we bundle the value of two expressions into
+           * KV pair and pass it to aggregator's addInput method.
+           */
+
           KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
           (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
           deltaAcc.accumulatorElements.add(
                   aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
                           KV.of(exp.getKey().evaluate(input, null).getValue(),
-                                  exp.getValue().evaluate(input, null).getValue())
-                  )
-          );
+                                exp.getValue().evaluate(input, null).getValue())));
         }
       }
       return deltaAcc;
@@ -307,16 +316,20 @@ public class BeamAggregationTransforms implements Serializable{
         if (sourceFieldExps.get(idx) instanceof BeamSqlInputRefExpression) {
           BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
           int srcFieldIndex = exp.getInputRef();
+
           Coder srcFieldCoder = beamRecordCoder.getCoders().get(srcFieldIndex);
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
+          // extract coder of two expressions separately.
           KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
           (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
+
           int srcFieldIndexKey = exp.getKey().getInputRef();
           int srcFieldIndexValue = exp.getValue().getInputRef();
 
           Coder srcFieldCoderKey = beamRecordCoder.getCoders().get(srcFieldIndexKey);
           Coder srcFieldCoderValue = beamRecordCoder.getCoders().get(srcFieldIndexValue);
+
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, KvCoder.of(
                   srcFieldCoderKey, srcFieldCoderValue))
           );
