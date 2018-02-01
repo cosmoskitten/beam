@@ -21,6 +21,7 @@ import collections
 import os.path
 import pickle
 import unittest
+
 import yaml
 
 import apache_beam as beam
