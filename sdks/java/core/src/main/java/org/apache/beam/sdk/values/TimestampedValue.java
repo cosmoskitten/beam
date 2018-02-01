@@ -97,7 +97,8 @@ public class TimestampedValue<V> {
 
     @Override
     public Object structuralValue(TimestampedValue<T> value) {
-      return valueCoder.structuralValue(value.getValue());
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
     }
 
     @SuppressWarnings("unchecked")
