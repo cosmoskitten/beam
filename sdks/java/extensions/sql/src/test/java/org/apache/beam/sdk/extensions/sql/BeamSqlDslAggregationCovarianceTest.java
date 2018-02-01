@@ -82,7 +82,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
     @Test
     public void testPopulationVarianceInt() {
-        String sql = "SELECT VAR_POP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
+        String sql = "SELECT COVAR_POP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
 
         PAssert
                 .that(boundedInput.apply(BeamSql.query(sql)))
@@ -104,7 +104,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
     @Test
     public void testSampleVarianceInt() {
-        String sql = "SELECT VAR_SAMP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
+        String sql = "SELECT COVAR_SAMP(f_int1, f_int2) FROM PCOLLECTION GROUP BY f_int3";
 
         PAssert
                 .that(boundedInput.apply(BeamSql.query(sql)))

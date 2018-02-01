@@ -78,29 +78,91 @@ abstract class CovarianceAccumulator implements Serializable {
         return newCovarianceAccumulator(
                 combinedCovariance,
                 this.count().add(otherCovariance.count()),
-                this.xavg().add(otherCovariance.xavg()),
-                this.yavg().add(otherCovariance.yavg())
+                calculateIncrementXavg(this, otherCovariance),
+                calculateIncrementYavg(this, otherCovariance)
                 );
     }
 
     /**
-     * Implements this part: {@code increment = m/(n(m+n)) * (sum(x) * n/m  - sum(y))^2 }.
+     * Implements this part: .
      */
     private BigDecimal calculateIncrement(
-            CovarianceAccumulator covarianceX,
-            CovarianceAccumulator covarianceY) {
+            CovarianceAccumulator newCovar,
+            CovarianceAccumulator r) {
 
-        BigDecimal m = covarianceX.count();
-        BigDecimal n = covarianceY.count();
-        BigDecimal sumX = covarianceX.xavg();
-        BigDecimal sumY = covarianceY.yavg();
+        BigDecimal countNew = newCovar.count();
+        BigDecimal countR = r.count();
 
-        // m/(n(m+n))
-        BigDecimal multiplier = m.divide(n.multiply(m.add(n)), VarianceFn.MATH_CTX);
+        BigDecimal totalCount = countNew.add(countR);
 
-        // (n/m * sum(x) - sum(y))^2
-        BigDecimal square = (sumX.multiply(n).divide(m, VarianceFn.MATH_CTX)).subtract(sumY).pow(2);
+        BigDecimal NewAvgX = newCovar.xavg();
+        BigDecimal NewAvgY = newCovar.yavg();
 
-        return multiplier.multiply(square);
+        BigDecimal RavgX = r.xavg();
+        BigDecimal RavgY = r.yavg();
+
+
+        BigDecimal xavg = NewAvgX.multiply(countNew).add(RavgX.multiply(countR))
+                .divide(totalCount, CovarianceFn.MATH_CTX);
+        BigDecimal yavg = NewAvgY.multiply(countNew).add(RavgY.multiply(countR))
+                .divide(totalCount, CovarianceFn.MATH_CTX);
+
+
+        BigDecimal inc =    NewAvgX.subtract(RavgX).multiply(
+                            NewAvgY.subtract(RavgY)
+                        ).multiply(countNew).multiply(countR)
+                .divide(totalCount, CovarianceFn.MATH_CTX);
+
+        return inc;
+    }
+
+    private BigDecimal calculateIncrementXavg(
+            CovarianceAccumulator newCovar,
+            CovarianceAccumulator r) {
+
+        BigDecimal countNew = newCovar.count();
+        BigDecimal countR = r.count();
+
+        BigDecimal totalCount = countNew.add(countR);
+
+        BigDecimal RavgX = r.xavg();
+//        BigDecimal RavgY = r.yavg();
+
+        BigDecimal NewAvgX = newCovar.xavg();
+//        BigDecimal NewAvgY = newCovar.yavg();
+
+
+
+        BigDecimal xavg = NewAvgX.multiply(countNew).add(RavgX.multiply(countR))
+                .divide(totalCount, CovarianceFn.MATH_CTX);
+//        BigDecimal yavg = NewAvgY.multiply(countNew).add(RavgY.multiply(countR))
+//                .divide(totalCount);
+
+        return xavg;
+    }
+
+    private BigDecimal calculateIncrementYavg(
+            CovarianceAccumulator newCovar,
+            CovarianceAccumulator r) {
+
+        BigDecimal countNew = newCovar.count();
+        BigDecimal countR = r.count();
+
+        BigDecimal totalCount = countNew.add(countR);
+
+//        BigDecimal RavgX = r.xavg();
+        BigDecimal RavgY = r.yavg();
+
+//        BigDecimal NewAvgX = newCovar.xavg();
+        BigDecimal NewAvgY = newCovar.yavg();
+
+
+
+//        BigDecimal xavg = NewAvgX.multiply(countNew).add(RavgX.multiply(countR))
+//                .divide(totalCount);
+        BigDecimal yavg = NewAvgY.multiply(countNew).add(RavgY.multiply(countR))
+                .divide(totalCount, CovarianceFn.MATH_CTX);
+
+        return yavg;
     }
 }
