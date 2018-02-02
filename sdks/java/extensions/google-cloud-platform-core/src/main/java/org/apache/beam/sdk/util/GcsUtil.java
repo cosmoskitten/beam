@@ -576,30 +576,6 @@ public class GcsUtil {
     }
   }
 
-  @FunctionalInterface
-  private interface ThrowingRunnable {
-    void run() throws Exception;
-  }
-
-  private static <T> CompletionStage<T> runAsync(
-      ThrowingRunnable runnable, ExecutorService executorService) {
-    CompletableFuture<T> result = new CompletableFuture<>();
-    CompletableFuture.runAsync(
-        () -> {
-          try {
-            runnable.run();
-            result.complete(null);
-          } catch (InterruptedException e) {
-            result.completeExceptionally(e);
-            Thread.currentThread().interrupt();
-          } catch (Throwable t) {
-            result.completeExceptionally(t);
-          }
-        },
-        executorService);
-    return result;
-  }
-
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
     ExecutorService executor =
         MoreExecutors.listeningDecorator(
@@ -613,7 +589,7 @@ public class GcsUtil {
 
     List<CompletableFuture<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {
-      runAsync(
+      MoreFutures.runAsync(
           () -> {
             batch.execute();
           },
