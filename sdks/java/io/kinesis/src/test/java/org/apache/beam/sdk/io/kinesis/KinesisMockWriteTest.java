@@ -30,7 +30,6 @@ import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.collect.Iterables;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -187,8 +186,6 @@ public class KinesisMockWriteTest {
 
   @Test
   public void testWriteFailed() {
-    KinesisServiceMock kinesisService = KinesisServiceMock.getInstance();
-
     Iterable<byte[]> data = Arrays.asList("1".getBytes());
     p.apply(Create.of(data))
         .apply(

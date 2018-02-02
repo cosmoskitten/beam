@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingDeque;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -452,8 +451,10 @@ public final class KinesisIO {
      * Specify the number of retries that will be used to flush the outstanding records in
      * case if they were not flushed from the first time. Default number of retries is
      * {@code DEFAULT_NUM_RETRIES = 10}.
+     *
+     * <p>This is used for testing.
      */
-    public Write withRetries(int retries) {
+    Write withRetries(int retries) {
       return builder().setRetries(retries).build();
     }
 
@@ -633,18 +634,19 @@ public final class KinesisIO {
                 "Some errors occurred writing to Kinesis. First %d errors: %s",
                 i,
                 logEntry.toString());
-        LOG.error(message);
         throw new IOException(message);
       }
 
       private class UserRecordResultFutureCallback implements FutureCallback<UserRecordResult> {
+
         @Override public void onFailure(Throwable cause) {
           failures.offer(new KinesisWriteException(cause));
         }
 
         @Override public void onSuccess(UserRecordResult result) {
           if (!result.isSuccessful()) {
-            failures.add(new KinesisWriteException("Put record was not successful."));
+            failures.offer(new KinesisWriteException("Put record was not successful.",
+                new UserRecordFailedException(result)));
           }
         }
       }
@@ -666,8 +668,8 @@ public final class KinesisIO {
    * An exception that puts information about the failed record.
    */
   static class KinesisWriteException extends IOException {
-    KinesisWriteException(String message) {
-      super(message);
+    KinesisWriteException(String message, Throwable cause) {
+      super(message, cause);
     }
 
     KinesisWriteException(Throwable cause) {
