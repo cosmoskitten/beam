@@ -30,7 +30,7 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 
@@ -76,7 +76,7 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
    * the same way.
    */
   @Override
-  public BeamSqlPrimitive evaluate(BeamRow inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     DateTime timestamp = getTimestampOperand(inputRow, window);
     BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
@@ -94,12 +94,12 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
     return multiplier.intValueExact();
   }
 
-  private BeamSqlPrimitive getIntervalOperand(BeamRow inputRow, BoundedWindow window) {
+  private BeamSqlPrimitive getIntervalOperand(Row inputRow, BoundedWindow window) {
     return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES).get()
         .evaluate(inputRow, window);
   }
 
-  private DateTime getTimestampOperand(BeamRow inputRow, BoundedWindow window) {
+  private DateTime getTimestampOperand(Row inputRow, BoundedWindow window) {
     BeamSqlPrimitive timestampOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.TIMESTAMP).get().evaluate(inputRow, window);
     return new DateTime(timestampOperandPrimitive.getDate());

@@ -19,20 +19,20 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Assert;
 
 /**
  * Utility class to check size of BeamSQLRow iterable.
  */
-public class CheckSize implements SerializableFunction<Iterable<BeamRow>, Void> {
+public class CheckSize implements SerializableFunction<Iterable<Row>, Void> {
   private int size;
   public CheckSize(int size) {
     this.size = size;
   }
-  @Override public Void apply(Iterable<BeamRow> input) {
+  @Override public Void apply(Iterable<Row> input) {
     int count = 0;
-    for (BeamRow row : input) {
+    for (Row row : input) {
       count++;
     }
     Assert.assertEquals(size, count);

@@ -23,19 +23,19 @@ import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * Contain helpers to assert {@link BeamRow}s.
+ * Contain helpers to assert {@link Row}s.
  */
-public class BeamRowAsserts {
+public class RowAsserts {
 
   /**
    * Asserts result contains single record with an int field.
    */
-  public static SerializableFunction<Iterable<BeamRow>, Void> matchesScalar(int expected) {
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(int expected) {
     return records -> {
-      BeamRow record = Iterables.getOnlyElement(records);
+      Row record = Iterables.getOnlyElement(records);
       assertNotNull(record);
       assertEquals(expected, (int) record.getInteger(0));
       return null;
@@ -45,11 +45,11 @@ public class BeamRowAsserts {
   /**
    * Asserts result contains single record with a double field.
    */
-  public static SerializableFunction<Iterable<BeamRow>, Void> matchesScalar(
+  public static SerializableFunction<Iterable<Row>, Void> matchesScalar(
       double expected, double delta) {
 
     return input -> {
-      BeamRow record = Iterables.getOnlyElement(input);
+      Row record = Iterables.getOnlyElement(input);
       assertNotNull(record);
       assertEquals(expected, record.getDouble(0), delta);
       return null;

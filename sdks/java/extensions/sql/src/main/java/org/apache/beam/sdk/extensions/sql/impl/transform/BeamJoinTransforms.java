@@ -21,14 +21,14 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -47,7 +47,7 @@ public class BeamJoinTransforms {
    * A {@code SimpleFunction} to extract join fields from the specified row.
    */
   public static class ExtractJoinFields
-      extends SimpleFunction<BeamRow, KV<BeamRow, BeamRow>> {
+      extends SimpleFunction<Row, KV<Row, Row>> {
     private final boolean isLeft;
     private final List<Pair<Integer, Integer>> joinColumns;
 
@@ -56,7 +56,7 @@ public class BeamJoinTransforms {
       this.joinColumns = joinColumns;
     }
 
-    @Override public KV<BeamRow, BeamRow> apply(BeamRow input) {
+    @Override public KV<Row, Row> apply(Row input) {
       // build the type
       // the name of the join field is not important
       List<String> names = new ArrayList<>(joinColumns.size());
@@ -69,7 +69,7 @@ public class BeamJoinTransforms {
             : BeamSqlRecordHelper.getSqlRecordType(input).getFieldTypeByIndex(
                 joinColumns.get(i).getValue()));
       }
-      BeamRowSqlType type = BeamRowSqlType.create(names, types);
+      RowSqlType type = RowSqlType.create(names, types);
 
       // build the row
       List<Object> fieldValues = new ArrayList<>(joinColumns.size());
@@ -77,7 +77,7 @@ public class BeamJoinTransforms {
         fieldValues.add(input
                 .getFieldValue(isLeft ? joinColumn.getKey() : joinColumn.getValue()));
       }
-      return KV.of(new BeamRow(type, fieldValues), input);
+      return KV.of(new Row(type, fieldValues), input);
     }
   }
 
@@ -85,14 +85,14 @@ public class BeamJoinTransforms {
   /**
    * A {@code DoFn} which implement the sideInput-JOIN.
    */
-  public static class SideInputJoinDoFn extends DoFn<KV<BeamRow, BeamRow>, BeamRow> {
-    private final PCollectionView<Map<BeamRow, Iterable<BeamRow>>> sideInputView;
+  public static class SideInputJoinDoFn extends DoFn<KV<Row, Row>, Row> {
+    private final PCollectionView<Map<Row, Iterable<Row>>> sideInputView;
     private final JoinRelType joinType;
-    private final BeamRow rightNullRow;
+    private final Row rightNullRow;
     private final boolean swap;
 
-    public SideInputJoinDoFn(JoinRelType joinType, BeamRow rightNullRow,
-        PCollectionView<Map<BeamRow, Iterable<BeamRow>>> sideInputView,
+    public SideInputJoinDoFn(JoinRelType joinType, Row rightNullRow,
+        PCollectionView<Map<Row, Iterable<Row>>> sideInputView,
         boolean swap) {
       this.joinType = joinType;
       this.rightNullRow = rightNullRow;
@@ -101,13 +101,13 @@ public class BeamJoinTransforms {
     }
 
     @ProcessElement public void processElement(ProcessContext context) {
-      BeamRow key = context.element().getKey();
-      BeamRow leftRow = context.element().getValue();
-      Map<BeamRow, Iterable<BeamRow>> key2Rows = context.sideInput(sideInputView);
-      Iterable<BeamRow> rightRowsIterable = key2Rows.get(key);
+      Row key = context.element().getKey();
+      Row leftRow = context.element().getValue();
+      Map<Row, Iterable<Row>> key2Rows = context.sideInput(sideInputView);
+      Iterable<Row> rightRowsIterable = key2Rows.get(key);
 
       if (rightRowsIterable != null && rightRowsIterable.iterator().hasNext()) {
-        for (BeamRow aRightRowsIterable : rightRowsIterable) {
+        for (Row aRightRowsIterable : rightRowsIterable) {
           context.output(combineTwoRowsIntoOne(leftRow, aRightRowsIterable, swap));
         }
       } else {
@@ -123,11 +123,11 @@ public class BeamJoinTransforms {
    * A {@code SimpleFunction} to combine two rows into one.
    */
   public static class JoinParts2WholeRow
-      extends SimpleFunction<KV<BeamRow, KV<BeamRow, BeamRow>>, BeamRow> {
-    @Override public BeamRow apply(KV<BeamRow, KV<BeamRow, BeamRow>> input) {
-      KV<BeamRow, BeamRow> parts = input.getValue();
-      BeamRow leftRow = parts.getKey();
-      BeamRow rightRow = parts.getValue();
+      extends SimpleFunction<KV<Row, KV<Row, Row>>, Row> {
+    @Override public Row apply(KV<Row, KV<Row, Row>> input) {
+      KV<Row, Row> parts = input.getValue();
+      Row leftRow = parts.getKey();
+      Row rightRow = parts.getValue();
       return combineTwoRowsIntoOne(leftRow, rightRow, false);
     }
   }
@@ -135,8 +135,8 @@ public class BeamJoinTransforms {
   /**
    * As the method name suggests: combine two rows into one wide row.
    */
-  private static BeamRow combineTwoRowsIntoOne(BeamRow leftRow,
-      BeamRow rightRow, boolean swap) {
+  private static Row combineTwoRowsIntoOne(Row leftRow,
+      Row rightRow, boolean swap) {
     if (swap) {
       return combineTwoRowsIntoOneHelper(rightRow, leftRow);
     } else {
@@ -147,8 +147,8 @@ public class BeamJoinTransforms {
   /**
    * As the method name suggests: combine two rows into one wide row.
    */
-  private static BeamRow combineTwoRowsIntoOneHelper(BeamRow leftRow,
-      BeamRow rightRow) {
+  private static Row combineTwoRowsIntoOneHelper(Row leftRow,
+      Row rightRow) {
     // build the type
     List<String> names = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     names.addAll(leftRow.getDataType().getFieldNames());
@@ -157,27 +157,27 @@ public class BeamJoinTransforms {
     List<Integer> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     types.addAll(BeamSqlRecordHelper.getSqlRecordType(leftRow).getFieldTypes());
     types.addAll(BeamSqlRecordHelper.getSqlRecordType(rightRow).getFieldTypes());
-    BeamRowSqlType type = BeamRowSqlType.create(names, types);
+    RowSqlType type = RowSqlType.create(names, types);
 
     List<Object> fieldValues = new ArrayList<>(leftRow.getDataValues());
     fieldValues.addAll(rightRow.getDataValues());
-    return new BeamRow(type, fieldValues);
+    return new Row(type, fieldValues);
   }
 
   /**
    * Transform to execute Join as Lookup.
    */
   public static class JoinAsLookup
-      extends PTransform<PCollection<BeamRow>, PCollection<BeamRow>> {
+      extends PTransform<PCollection<Row>, PCollection<Row>> {
 //    private RexNode joinCondition;
     BeamSqlSeekableTable seekableTable;
-    BeamRowSqlType lkpRowType;
+    RowSqlType lkpRowType;
 //    int factTableColSize = 0; // TODO
-    BeamRowSqlType joinSubsetType;
+    RowSqlType joinSubsetType;
     List<Integer> factJoinIdx;
 
     public JoinAsLookup(RexNode joinCondition, BeamSqlSeekableTable seekableTable,
-        BeamRowSqlType lkpRowType, int factTableColSize) {
+        RowSqlType lkpRowType, int factTableColSize) {
       this.seekableTable = seekableTable;
       this.lkpRowType = lkpRowType;
       joinFieldsMapping(joinCondition, factTableColSize);
@@ -209,28 +209,28 @@ public class BeamJoinTransforms {
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = BeamRowSqlType.create(lkpJoinFieldsName, lkpJoinFieldsType);
+      joinSubsetType = RowSqlType.create(lkpJoinFieldsName, lkpJoinFieldsType);
     }
 
     @Override
-    public PCollection<BeamRow> expand(PCollection<BeamRow> input) {
-      return input.apply("join_as_lookup", ParDo.of(new DoFn<BeamRow, BeamRow>(){
+    public PCollection<Row> expand(PCollection<Row> input) {
+      return input.apply("join_as_lookup", ParDo.of(new DoFn<Row, Row>(){
         @ProcessElement
         public void processElement(ProcessContext context) {
-          BeamRow factRow = context.element();
-          BeamRow joinSubRow = extractJoinSubRow(factRow);
-          List<BeamRow> lookupRows = seekableTable.seekRecord(joinSubRow);
-          for (BeamRow lr : lookupRows) {
+          Row factRow = context.element();
+          Row joinSubRow = extractJoinSubRow(factRow);
+          List<Row> lookupRows = seekableTable.seekRecord(joinSubRow);
+          for (Row lr : lookupRows) {
             context.output(combineTwoRowsIntoOneHelper(factRow, lr));
           }
         }
 
-        private BeamRow extractJoinSubRow(BeamRow factRow) {
+        private Row extractJoinSubRow(Row factRow) {
           List<Object> joinSubsetValues = new ArrayList<>();
           for (int i : factJoinIdx) {
             joinSubsetValues.add(factRow.getFieldValue(i));
           }
-          return new BeamRow(joinSubsetType, joinSubsetValues);
+          return new Row(joinSubsetType, joinSubsetValues);
         }
 
       }));

@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -57,8 +57,8 @@ public class BeamSqlFnExecutorTestBase {
       RelDataTypeSystem.DEFAULT);
   public static RelDataType relDataType;
 
-  public static BeamRowSqlType beamRowType;
-  public static BeamRow record;
+  public static RowSqlType rowType;
+  public static Row record;
 
   public static RelBuilder relBuilder;
 
@@ -70,8 +70,8 @@ public class BeamSqlFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    beamRowType = CalciteUtils.toBeamRowType(relDataType);
-    record = new BeamRow(beamRowType
+    rowType = CalciteUtils.toRowType(relDataType);
+    record = new Row(rowType
         , 1234567L, 0, 8.9, 1234567L);
 
     SchemaPlus schema = Frameworks.createRootSchema(true);

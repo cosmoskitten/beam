@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -97,8 +97,8 @@ public class BeamSqlEnv implements Serializable{
   }
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private BeamRowSqlType beamSqlRowType;
-    public BeamCalciteTable(BeamRowSqlType beamSqlRowType) {
+    private RowSqlType beamSqlRowType;
+    public BeamCalciteTable(RowSqlType beamSqlRowType) {
       this.beamSqlRowType = beamSqlRowType;
     }
     @Override

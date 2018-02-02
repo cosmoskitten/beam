@@ -23,10 +23,10 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBo
 
 import java.sql.Types;
 import java.util.Arrays;
-import org.apache.beam.sdk.coders.BeamRowCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -40,8 +40,8 @@ public class BeamSqlDslJoinTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final BeamRowSqlType SOURCE_RECORD_TYPE =
-      BeamRowSqlType.create(
+  private static final RowSqlType SOURCE_RECORD_TYPE =
+      RowSqlType.create(
           Arrays.asList(
               "order_id", "site_id", "price"
           ),
@@ -50,10 +50,10 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamRowCoder SOURCE_CODER = SOURCE_RECORD_TYPE.getRecordCoder();
+  private static final RowCoder SOURCE_CODER = SOURCE_RECORD_TYPE.getRecordCoder();
 
-  private static final BeamRowSqlType RESULT_RECORD_TYPE =
-      BeamRowSqlType.create(
+  private static final RowSqlType RESULT_RECORD_TYPE =
+      RowSqlType.create(
           Arrays.asList(
           "order_id", "site_id", "price", "order_id0", "site_id0", "price0"
           ),
@@ -63,7 +63,7 @@ public class BeamSqlDslJoinTest {
           )
       );
 
-  private static final BeamRowCoder RESULT_CODER = RESULT_RECORD_TYPE.getRecordCoder();
+  private static final RowCoder RESULT_CODER = RESULT_RECORD_TYPE.getRecordCoder();
 
   @Test
   public void testInnerJoin() throws Exception {
@@ -175,7 +175,7 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  private PCollection<BeamRow> queryFromOrderTables(String sql) {
+  private PCollection<Row> queryFromOrderTables(String sql) {
     return PCollectionTuple.of(
             new TupleTag<>("ORDER_DETAILS1"),
             ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER))

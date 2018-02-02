@@ -23,7 +23,7 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getBeam
 import com.alibaba.fastjson.JSONObject;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -51,7 +51,7 @@ public class TextTableProvider implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRowSqlType recordType = getBeamSqlRecordTypeFromTable(table);
+    RowSqlType recordType = getBeamSqlRecordTypeFromTable(table);
 
     String filePattern = table.getLocationAsString();
     CSVFormat format = CSVFormat.DEFAULT;

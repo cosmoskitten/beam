@@ -31,16 +31,16 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * A {@link Coder} encodes {@link BeamRow}.
+ * A {@link Coder} encodes {@link Row}.
  */
 @Experimental
 public class BeamSqlRecordHelper {
 
-  public static BeamRowSqlType getSqlRecordType(BeamRow record) {
-    return (BeamRowSqlType) record.getDataType();
+  public static RowSqlType getSqlRecordType(Row record) {
+    return (RowSqlType) record.getDataType();
   }
 
   /**

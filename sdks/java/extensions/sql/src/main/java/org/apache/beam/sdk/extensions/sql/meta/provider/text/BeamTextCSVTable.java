@@ -19,10 +19,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -47,27 +47,27 @@ public class BeamTextCSVTable extends BeamTextTable {
   /**
    * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
    */
-  public BeamTextCSVTable(BeamRowSqlType beamSqlRowType, String filePattern)  {
+  public BeamTextCSVTable(RowSqlType beamSqlRowType, String filePattern)  {
     this(beamSqlRowType, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(BeamRowSqlType beamRowSqlType, String filePattern,
+  public BeamTextCSVTable(RowSqlType rowSqlType, String filePattern,
       CSVFormat csvFormat) {
-    super(beamRowSqlType, filePattern);
+    super(rowSqlType, filePattern);
     this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
 
   @Override
-  public PCollection<BeamRow> buildIOReader(Pipeline pipeline) {
+  public PCollection<Row> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(beamRowSqlType, filePattern, csvFormat));
+            new BeamTextCSVTableIOReader(rowSqlType, filePattern, csvFormat));
   }
 
   @Override
-  public PTransform<? super PCollection<BeamRow>, PDone> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(beamRowSqlType, filePattern, csvFormat);
+  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+    return new BeamTextCSVTableIOWriter(rowSqlType, filePattern, csvFormat);
   }
 
   public CSVFormat getCsvFormat() {

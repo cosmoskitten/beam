@@ -21,22 +21,22 @@ import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRowCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * {@link BeamRowType} describes the fields in {@link BeamRow}, extra checking can be added
- * by overwriting {@link BeamRowType#validateValueType(int, Object)}.
+ * {@link RowType} describes the fields in {@link Row}, extra checking can be added
+ * by overwriting {@link RowType#validateValueType(int, Object)}.
  */
 @Experimental
-public class BeamRowType implements Serializable{
+public class RowType implements Serializable{
   private List<String> fieldNames;
   private List<Coder> fieldCoders;
 
   /**
-   * Create a {@link BeamRowType} with a name and Coder for each field.
+   * Create a {@link RowType} with a name and Coder for each field.
    */
-  public BeamRowType(List<String> fieldNames, List<Coder> fieldCoders) {
+  public RowType(List<String> fieldNames, List<Coder> fieldCoders) {
     if (fieldNames.size() != fieldCoders.size()) {
       throw new IllegalStateException(
           "the size of fieldNames and fieldCoders need to be the same.");
@@ -55,10 +55,10 @@ public class BeamRowType implements Serializable{
   }
 
   /**
-   * Return the coder for {@link BeamRow}, which wraps {@link #fieldCoders} for each field.
+   * Return the coder for {@link Row}, which wraps {@link #fieldCoders} for each field.
    */
-  public BeamRowCoder getRecordCoder(){
-    return BeamRowCoder.of(this, fieldCoders);
+  public RowCoder getRecordCoder(){
+    return RowCoder.of(this, fieldCoders);
   }
 
   /**
@@ -91,6 +91,6 @@ public class BeamRowType implements Serializable{
 
   @Override
   public String toString() {
-    return "BeamRowType [fieldsName=" + fieldNames + "]";
+    return "RowType [fieldsName=" + fieldNames + "]";
   }
 }

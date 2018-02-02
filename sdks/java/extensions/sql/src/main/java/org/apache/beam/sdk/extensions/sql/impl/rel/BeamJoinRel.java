@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -96,20 +96,20 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         joinType);
   }
 
-  @Override public PCollection<BeamRow> buildBeamPipeline(PCollectionTuple inputPCollections,
+  @Override public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections,
       BeamSqlEnv sqlEnv)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamRowSqlType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
+    RowSqlType leftRowType = CalciteUtils.toRowType(left.getRowType());
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
     if (!seekable(leftRelNode, sqlEnv) && seekable(rightRelNode, sqlEnv)) {
       return joinAsLookup(leftRelNode, rightRelNode, inputPCollections, sqlEnv)
-              .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
+              .setCoder(CalciteUtils.toRowType(getRowType()).getRecordCoder());
     }
 
-    PCollection<BeamRow> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
-    PCollection<BeamRow> rightRows = rightRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
+    PCollection<Row> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
+    PCollection<Row> rightRows = rightRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
     String stageName = BeamSqlRelUtils.getStageName(this);
     WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
@@ -127,24 +127,24 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       names.add("c" + i);
       types.add(leftRowType.getFieldTypeByIndex(pairs.get(i).getKey()));
     }
-    BeamRowSqlType extractKeyRowType = BeamRowSqlType.create(names, types);
+    RowSqlType extractKeyRowType = RowSqlType.create(names, types);
 
     Coder extractKeyRowCoder = extractKeyRowType.getRecordCoder();
 
     // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
-    PCollection<KV<BeamRow, BeamRow>> extractedLeftRows = leftRows
+    PCollection<KV<Row, Row>> extractedLeftRows = leftRows
         .apply(stageName + "_left_ExtractJoinFields",
             MapElements.via(new BeamJoinTransforms.ExtractJoinFields(true, pairs)))
         .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
 
-    PCollection<KV<BeamRow, BeamRow>> extractedRightRows = rightRows
+    PCollection<KV<Row, Row>> extractedRightRows = rightRows
         .apply(stageName + "_right_ExtractJoinFields",
             MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
         .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
     // prepare the NullRows
-    BeamRow leftNullRow = buildNullRow(leftRelNode);
-    BeamRow rightNullRow = buildNullRow(rightRelNode);
+    Row leftNullRow = buildNullRow(leftRelNode);
+    Row rightNullRow = buildNullRow(rightRelNode);
 
     // a regular join
     if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
@@ -192,11 +192,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     }
   }
 
-  private PCollection<BeamRow> standardJoin(
-      PCollection<KV<BeamRow, BeamRow>> extractedLeftRows,
-      PCollection<KV<BeamRow, BeamRow>> extractedRightRows,
-      BeamRow leftNullRow, BeamRow rightNullRow, String stageName) {
-    PCollection<KV<BeamRow, KV<BeamRow, BeamRow>>> joinedRows = null;
+  private PCollection<Row> standardJoin(
+      PCollection<KV<Row, Row>> extractedLeftRows,
+      PCollection<KV<Row, Row>> extractedRightRows,
+      Row leftNullRow, Row rightNullRow, String stageName) {
+    PCollection<KV<Row, KV<Row, Row>>> joinedRows = null;
     switch (joinType) {
       case LEFT:
         joinedRows = org.apache.beam.sdk.extensions.joinlibrary.Join
@@ -218,53 +218,53 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         break;
     }
 
-    PCollection<BeamRow> ret = joinedRows
+    PCollection<Row> ret = joinedRows
         .apply(stageName + "_JoinParts2WholeRow",
             MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-        .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
+        .setCoder(CalciteUtils.toRowType(getRowType()).getRecordCoder());
     return ret;
   }
 
-  public PCollection<BeamRow> sideInputJoin(
-      PCollection<KV<BeamRow, BeamRow>> extractedLeftRows,
-      PCollection<KV<BeamRow, BeamRow>> extractedRightRows,
-      BeamRow leftNullRow, BeamRow rightNullRow) {
+  public PCollection<Row> sideInputJoin(
+      PCollection<KV<Row, Row>> extractedLeftRows,
+      PCollection<KV<Row, Row>> extractedRightRows,
+      Row leftNullRow, Row rightNullRow) {
     // we always make the Unbounded table on the left to do the sideInput join
     // (will convert the result accordingly before return)
     boolean swapped = (extractedLeftRows.isBounded() == PCollection.IsBounded.BOUNDED);
     JoinRelType realJoinType =
         (swapped && joinType != JoinRelType.INNER) ? JoinRelType.LEFT : joinType;
 
-    PCollection<KV<BeamRow, BeamRow>> realLeftRows =
+    PCollection<KV<Row, Row>> realLeftRows =
         swapped ? extractedRightRows : extractedLeftRows;
-    PCollection<KV<BeamRow, BeamRow>> realRightRows =
+    PCollection<KV<Row, Row>> realRightRows =
         swapped ? extractedLeftRows : extractedRightRows;
-    BeamRow realRightNullRow = swapped ? leftNullRow : rightNullRow;
+    Row realRightNullRow = swapped ? leftNullRow : rightNullRow;
 
     // swapped still need to pass down because, we need to swap the result back.
     return sideInputJoinHelper(realJoinType, realLeftRows, realRightRows,
         realRightNullRow, swapped);
   }
 
-  private PCollection<BeamRow> sideInputJoinHelper(
+  private PCollection<Row> sideInputJoinHelper(
       JoinRelType joinType,
-      PCollection<KV<BeamRow, BeamRow>> leftRows,
-      PCollection<KV<BeamRow, BeamRow>> rightRows,
-      BeamRow rightNullRow, boolean swapped) {
-    final PCollectionView<Map<BeamRow, Iterable<BeamRow>>> rowsView =
+      PCollection<KV<Row, Row>> leftRows,
+      PCollection<KV<Row, Row>> rightRows,
+      Row rightNullRow, boolean swapped) {
+    final PCollectionView<Map<Row, Iterable<Row>>> rowsView =
         rightRows.apply(View.asMultimap());
 
-    PCollection<BeamRow> ret = leftRows
+    PCollection<Row> ret = leftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(
             joinType, rightNullRow, rowsView, swapped)).withSideInputs(rowsView))
-        .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
+        .setCoder(CalciteUtils.toRowType(getRowType()).getRecordCoder());
 
     return ret;
   }
 
-  private BeamRow buildNullRow(BeamRelNode relNode) {
-    BeamRowSqlType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
-    return new BeamRow(leftType, Collections.nCopies(leftType.getFieldCount(), null));
+  private Row buildNullRow(BeamRelNode relNode) {
+    RowSqlType leftType = CalciteUtils.toRowType(relNode.getRowType());
+    return new Row(leftType, Collections.nCopies(leftType.getFieldCount(), null));
   }
 
   private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {
@@ -304,15 +304,15 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return new Pair<>(leftIndex, rightIndex);
   }
 
-  private PCollection<BeamRow> joinAsLookup(BeamRelNode leftRelNode, BeamRelNode rightRelNode,
+  private PCollection<Row> joinAsLookup(BeamRelNode leftRelNode, BeamRelNode rightRelNode,
       PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<BeamRow> factStream = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
+    PCollection<Row> factStream = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
     BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
 
     return factStream.apply("join_as_lookup",
         new BeamJoinTransforms.JoinAsLookup(condition, seekableTable,
-            CalciteUtils.toBeamRowType(rightRelNode.getRowType()),
-            CalciteUtils.toBeamRowType(leftRelNode.getRowType()).getFieldCount()));
+            CalciteUtils.toRowType(rightRelNode.getRowType()),
+            CalciteUtils.toRowType(leftRelNode.getRowType()).getFieldCount()));
   }
 
   private BeamSqlSeekableTable getSeekableTableFromRelNode(BeamRelNode relNode, BeamSqlEnv sqlEnv) {

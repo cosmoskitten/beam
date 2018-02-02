@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -78,27 +78,27 @@ public class CalciteUtils {
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
-  public static SqlTypeName getFieldType(BeamRowSqlType schema, int index) {
+  public static SqlTypeName getFieldType(RowSqlType schema, int index) {
     return toCalciteType(schema.getFieldTypeByIndex(index));
   }
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
    */
-  public static BeamRowSqlType toBeamRowType(RelDataType tableInfo) {
+  public static RowSqlType toRowType(RelDataType tableInfo) {
     List<String> fieldNames = new ArrayList<>();
     List<Integer> fieldTypes = new ArrayList<>();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
       fieldNames.add(f.getName());
       fieldTypes.add(toJavaType(f.getType().getSqlTypeName()));
     }
-    return BeamRowSqlType.create(fieldNames, fieldTypes);
+    return RowSqlType.create(fieldNames, fieldTypes);
   }
 
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRowType(final BeamRowSqlType that) {
+  public static RelProtoDataType toCalciteRowType(final RowSqlType that) {
     return a -> {
       RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
       for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {

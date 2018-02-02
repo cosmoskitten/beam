@@ -19,10 +19,10 @@
 package org.apache.beam.sdk.extensions.sql.mock;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -31,12 +31,12 @@ import org.apache.beam.sdk.values.PDone;
  */
 public abstract class MockedTable extends BaseBeamTable {
   public static final AtomicInteger COUNTER = new AtomicInteger();
-  public MockedTable(BeamRowSqlType beamSqlRowType) {
+  public MockedTable(RowSqlType beamSqlRowType) {
     super(beamSqlRowType);
   }
 
   @Override
-  public PTransform<? super PCollection<BeamRow>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
     throw new UnsupportedOperationException("buildIOWriter unsupported!");
   }
 }

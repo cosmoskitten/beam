@@ -25,37 +25,37 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.values.BeamRow;
-import org.apache.beam.sdk.values.BeamRowType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 
 /**
- *  A {@link Coder} for {@link BeamRow}. It wraps the {@link Coder} for each element directly.
+ *  A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly.
  */
 @Experimental
-public class BeamRowCoder extends CustomCoder<BeamRow> {
+public class RowCoder extends CustomCoder<Row> {
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
-  private BeamRowType recordType;
+  private RowType recordType;
   private List<Coder> coders;
 
-  private BeamRowCoder(BeamRowType recordType, List<Coder> coders) {
+  private RowCoder(RowType recordType, List<Coder> coders) {
     this.recordType = recordType;
     this.coders = coders;
   }
 
-  public static BeamRowCoder of(BeamRowType recordType, List<Coder> coderArray){
+  public static RowCoder of(RowType recordType, List<Coder> coderArray){
     if (recordType.getFieldCount() != coderArray.size()) {
       throw new IllegalArgumentException("Coder size doesn't match with field size");
     }
-    return new BeamRowCoder(recordType, coderArray);
+    return new RowCoder(recordType, coderArray);
   }
 
-  public BeamRowType getRecordType() {
+  public RowType getRecordType() {
     return recordType;
   }
 
   @Override
-  public void encode(BeamRow value, OutputStream outStream)
+  public void encode(Row value, OutputStream outStream)
       throws CoderException, IOException {
     nullListCoder.encode(scanNullFields(value), outStream);
     for (int idx = 0; idx < value.getFieldCount(); ++idx) {
@@ -68,7 +68,7 @@ public class BeamRowCoder extends CustomCoder<BeamRow> {
   }
 
   @Override
-  public BeamRow decode(InputStream inStream) throws CoderException, IOException {
+  public Row decode(InputStream inStream) throws CoderException, IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
     List<Object> fieldValues = new ArrayList<>(recordType.getFieldCount());
@@ -79,15 +79,15 @@ public class BeamRowCoder extends CustomCoder<BeamRow> {
         fieldValues.add(coders.get(idx).decode(inStream));
       }
     }
-    BeamRow record = new BeamRow(recordType, fieldValues);
+    Row record = new Row(recordType, fieldValues);
 
     return record;
   }
 
   /**
-   * Scan {@link BeamRow} to find fields with a NULL value.
+   * Scan {@link Row} to find fields with a NULL value.
    */
-  private BitSet scanNullFields(BeamRow record){
+  private BitSet scanNullFields(Row record){
     BitSet nullFields = new BitSet(record.getFieldCount());
     for (int idx = 0; idx < record.getFieldCount(); ++idx) {
       if (record.getFieldValue(idx) == null) {

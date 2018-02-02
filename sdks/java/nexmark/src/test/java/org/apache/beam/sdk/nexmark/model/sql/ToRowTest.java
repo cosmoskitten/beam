@@ -26,16 +26,16 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link ToBeamRow}.
+ * Unit tests for {@link ToRow}.
  */
-public class ToBeamRowTest {
+public class ToRowTest {
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
@@ -57,13 +57,13 @@ public class ToBeamRowTest {
             .addElements(new Event(BID))
             .advanceWatermarkToInfinity());
 
-    BeamRow expectedBidRecord =
-        new BeamRow(
+    Row expectedBidRecord =
+        new Row(
             ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRecordType(),
             ModelAdaptersMapping.ADAPTERS.get(Bid.class).getFieldsValues(BID));
 
     PAssert
-        .that(bids.apply(ToBeamRow.parDo()))
+        .that(bids.apply(ToRow.parDo()))
         .containsInAnyOrder(expectedBidRecord);
 
     testPipeline.run();
@@ -76,13 +76,13 @@ public class ToBeamRowTest {
             .addElements(new Event(PERSON))
             .advanceWatermarkToInfinity());
 
-    BeamRow expectedPersonRecord =
-        new BeamRow(
+    Row expectedPersonRecord =
+        new Row(
             ModelAdaptersMapping.ADAPTERS.get(Person.class).getRecordType(),
             ModelAdaptersMapping.ADAPTERS.get(Person.class).getFieldsValues(PERSON));
 
     PAssert
-        .that(people.apply(ToBeamRow.parDo()))
+        .that(people.apply(ToRow.parDo()))
         .containsInAnyOrder(expectedPersonRecord);
 
     testPipeline.run();
@@ -95,13 +95,13 @@ public class ToBeamRowTest {
             .addElements(new Event(AUCTION))
             .advanceWatermarkToInfinity());
 
-    BeamRow expectedAuctionRecord =
-        new BeamRow(
+    Row expectedAuctionRecord =
+        new Row(
             ModelAdaptersMapping.ADAPTERS.get(Auction.class).getRecordType(),
             ModelAdaptersMapping.ADAPTERS.get(Auction.class).getFieldsValues(AUCTION));
 
     PAssert
-        .that(auctions.apply(ToBeamRow.parDo()))
+        .that(auctions.apply(ToRow.parDo()))
         .containsInAnyOrder(expectedAuctionRecord);
 
     testPipeline.run();

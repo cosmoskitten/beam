@@ -18,14 +18,14 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRow;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2Row;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.csv.CSVFormat;
 
@@ -33,26 +33,26 @@ import org.apache.commons.csv.CSVFormat;
  * IOReader for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableIOReader
-    extends PTransform<PCollection<String>, PCollection<BeamRow>>
+    extends PTransform<PCollection<String>, PCollection<Row>>
     implements Serializable {
   private String filePattern;
-  protected BeamRowSqlType beamRowSqlType;
+  protected RowSqlType rowSqlType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamRowSqlType beamRowSqlType, String filePattern,
+  public BeamTextCSVTableIOReader(RowSqlType rowSqlType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamRowSqlType = beamRowSqlType;
+    this.rowSqlType = rowSqlType;
     this.csvFormat = csvFormat;
   }
 
   @Override
-  public PCollection<BeamRow> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new DoFn<String, BeamRow>() {
+  public PCollection<Row> expand(PCollection<String> input) {
+    return input.apply(ParDo.of(new DoFn<String, Row>() {
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
-            ctx.output(csvLine2BeamRow(csvFormat, str, beamRowSqlType));
+            ctx.output(csvLine2Row(csvFormat, str, rowSqlType));
           }
         }));
   }

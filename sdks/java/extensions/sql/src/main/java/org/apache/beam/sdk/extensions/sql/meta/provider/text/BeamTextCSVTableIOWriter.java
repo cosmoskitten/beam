@@ -18,15 +18,15 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.row2CsvLine;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
@@ -34,25 +34,25 @@ import org.apache.commons.csv.CSVFormat;
 /**
  * IOWriter for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRow>, PDone>
+public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, PDone>
     implements Serializable {
   private String filePattern;
-  protected BeamRowSqlType beamRowSqlType;
+  protected RowSqlType rowSqlType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamRowSqlType beamRowSqlType, String filePattern,
+  public BeamTextCSVTableIOWriter(RowSqlType rowSqlType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamRowSqlType = beamRowSqlType;
+    this.rowSqlType = rowSqlType;
     this.csvFormat = csvFormat;
   }
 
-  @Override public PDone expand(PCollection<BeamRow> input) {
-    return input.apply("encodeRecord", ParDo.of(new DoFn<BeamRow, String>() {
+  @Override public PDone expand(PCollection<Row> input) {
+    return input.apply("encodeRecord", ParDo.of(new DoFn<Row, String>() {
 
       @ProcessElement public void processElement(ProcessContext ctx) {
-        BeamRow row = ctx.element();
-        ctx.output(beamRow2CsvLine(row, csvFormat));
+        Row row = ctx.element();
+        ctx.output(row2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.write().to(filePattern));
   }

@@ -27,35 +27,35 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRowCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 
 /**
- * {@link BeamRow} is an immutable tuple-like type to represent one element in a
- * {@link PCollection}. The fields are described with a {@link BeamRowType}.
+ * {@link Row} is an immutable tuple-like type to represent one element in a
+ * {@link PCollection}. The fields are described with a {@link RowType}.
  *
- * <p>By default, {@link BeamRowType} only contains the name for each field. It
+ * <p>By default, {@link RowType} only contains the name for each field. It
  * can be extended to support more sophisticated validation by overwriting
- * {@link BeamRowType#validateValueType(int, Object)}.
+ * {@link RowType#validateValueType(int, Object)}.
  *
- * <p>A Coder {@link BeamRowCoder} is provided, which wraps the Coder for each data field.
+ * <p>A Coder {@link RowCoder} is provided, which wraps the Coder for each data field.
  */
 @Experimental
-public class BeamRow implements Serializable {
+public class Row implements Serializable {
   //immutable list of field values.
   private List<Object> dataValues;
-  private BeamRowType dataType;
+  private RowType dataType;
 
   /**
-   * Creates a BeamRow.
+   * Creates a Row.
    * @param dataType type of the record
    * @param rawDataValues values of the record, record's size must match size of
-   *                      the {@code BeamRowType}, or can be null, if it is null
+   *                      the {@code RowType}, or can be null, if it is null
    *                      then every field is null.
    */
-  public BeamRow(BeamRowType dataType, List<Object> rawDataValues) {
+  public Row(RowType dataType, List<Object> rawDataValues) {
     if (dataType.getFieldNames().size() != rawDataValues.size()) {
       throw new IllegalArgumentException(
-          "Field count in BeamRowType(" + dataType.getFieldNames().size()
+          "Field count in RowType(" + dataType.getFieldNames().size()
               + ") and rawDataValues(" + rawDataValues.size() + ") must match!");
     }
 
@@ -72,9 +72,9 @@ public class BeamRow implements Serializable {
   }
 
   /**
-   * see {@link #BeamRow(BeamRowType, List)}.
+   * see {@link #Row(RowType, List)}.
    */
-  public BeamRow(BeamRowType dataType, Object... rawdataValues) {
+  public Row(RowType dataType, Object... rawdataValues) {
     this(dataType, Arrays.asList(rawdataValues));
   }
 
@@ -287,15 +287,15 @@ public class BeamRow implements Serializable {
   }
 
   /**
-   * Return {@link BeamRowType} which describes the fields.
+   * Return {@link RowType} which describes the fields.
    */
-  public BeamRowType getDataType() {
+  public RowType getDataType() {
     return dataType;
   }
 
   @Override
   public String toString() {
-    return "BeamRow [dataValues=" + dataValues + ", dataType=" + dataType + "]";
+    return "Row [dataValues=" + dataValues + ", dataType=" + dataType + "]";
   }
 
   @Override
@@ -309,7 +309,7 @@ public class BeamRow implements Serializable {
     if (getClass() != obj.getClass()) {
       return false;
     }
-    BeamRow other = (BeamRow) obj;
+    Row other = (Row) obj;
     return toString().equals(other.toString());
   }
 

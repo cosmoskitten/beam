@@ -20,15 +20,15 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
-import org.apache.beam.sdk.coders.BeamRowCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.ToBeamRow;
+import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -43,7 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily
  * slowed down.
  */
-public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<BeamRow>> {
+public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> {
 
   private static final BeamSql.SimpleQueryTransform QUERY = BeamSql
       .query("SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
@@ -64,18 +64,18 @@ public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<BeamRo
   }
 
   @Override
-  public PCollection<BeamRow> expand(PCollection<Event> allEvents) {
-    BeamRowCoder bidRecordCoder = getBidRecordCoder();
+  public PCollection<Row> expand(PCollection<Event> allEvents) {
+    RowCoder bidRecordCoder = getBidRecordCoder();
 
-    PCollection<BeamRow> bidEventsRecords = allEvents
+    PCollection<Row> bidEventsRecords = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToBeamRow.parDo())
+        .apply(ToRow.parDo())
         .setCoder(bidRecordCoder);
 
     return bidEventsRecords.apply(QUERY);
   }
 
-  private BeamRowCoder getBidRecordCoder() {
+  private RowCoder getBidRecordCoder() {
     return ADAPTERS.get(Bid.class).getRecordType().getRecordCoder();
   }
 }

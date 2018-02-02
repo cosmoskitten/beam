@@ -25,22 +25,22 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRow;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * Convert Java model object to BeamRow.
+ * Convert Java model object to Row.
  */
-public class ToBeamRow {
+public class ToRow {
 
-  static final ToBeamRow INSTANCE = new ToBeamRow(ModelAdaptersMapping.ADAPTERS);
+  static final ToRow INSTANCE = new ToRow(ModelAdaptersMapping.ADAPTERS);
 
   private Map<Class, ModelFieldsAdapter> modelTypeAdapters;
 
-  private ToBeamRow(Map<Class, ModelFieldsAdapter> modelTypeAdapters) {
+  private ToRow(Map<Class, ModelFieldsAdapter> modelTypeAdapters) {
     this.modelTypeAdapters = modelTypeAdapters;
   }
 
-  private BeamRow toRecord(Event event) {
+  private Row toRecord(Event event) {
     if (event == null) {
       return null;
     }
@@ -55,7 +55,7 @@ public class ToBeamRow {
 
     ModelFieldsAdapter adapter = modelTypeAdapters.get(modelClass);
 
-    return new BeamRow(adapter.getRecordType(), adapter.getFieldsValues(model));
+    return new Row(adapter.getRecordType(), adapter.getFieldsValues(model));
   }
 
   private KnownSize getModel(Event event) {
@@ -70,12 +70,12 @@ public class ToBeamRow {
     throw new IllegalStateException("Unsupported event type " + event);
   }
 
-  public static ParDo.SingleOutput<Event, BeamRow> parDo() {
-    return ParDo.of(new DoFn<Event, BeamRow>() {
+  public static ParDo.SingleOutput<Event, Row> parDo() {
+    return ParDo.of(new DoFn<Event, Row>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
-        BeamRow beamRow = INSTANCE.toRecord(c.element());
-        c.output(beamRow);
+        Row row = INSTANCE.toRecord(c.element());
+        c.output(row);
       }
     });
   }
