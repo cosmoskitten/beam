@@ -109,6 +109,10 @@ public class MetricsPusher implements Serializable {
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
     }
+    /*
+    it is the end of the pipeline, so set the instance to null so that it can be initialized
+    for the next pipeline runnin gin that JVM
+    */
     instance = null;
   }
 
@@ -129,10 +133,6 @@ public class MetricsPusher implements Serializable {
         PipelineResult.State pipelineState = pipelineResult.getState();
         if (pipelineState.isTerminal()) {
           tearDown();
-/*
-          it is the end of the pipeline, so set the instance to null so that it can be initialized
-          for the next pipeline runnin gin that JVM
-*/
         }
       }
 
