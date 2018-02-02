@@ -26,7 +26,10 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Coder} for Java classes that implement {@link Serializable}.
@@ -46,6 +49,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * @param <T> the type of elements handled by this coder
  */
 public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SerializableCoder.class);
 
   /**
    * Returns a {@link SerializableCoder} instance for the provided element type.
@@ -76,7 +81,21 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
+    checkEqualsMethodDefined(clazz);
     return new SerializableCoder<>(clazz, TypeDescriptor.of(clazz));
+  }
+
+  private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
+    try {
+      if (clazz.isInterface() || !clazz.equals(clazz.getMethod("equals", Object.class))) {
+        LOG.warn(
+            "Can't verify serialized elements of type {} have well defined equals method. This may produce incorrect results on some {}",
+            clazz.getSimpleName(), PipelineRunner.class.getSimpleName());
+      }
+    } catch (NoSuchMethodException e) {
+      // All concrete classes have an equals method declared in their class hierarchy.
+      throw new AssertionError(String.format("Concrete class %s has no equals method", clazz));
+    }
   }
 
   /**
