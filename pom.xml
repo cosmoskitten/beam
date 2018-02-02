@@ -185,8 +185,6 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
-    <apache-httpclient.version>4.5.2</apache-httpclient.version>
-    <apache-httpcore.version>4.4.5</apache-httpcore.version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -1500,19 +1498,6 @@
         <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>${apache-httpclient.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpcore</artifactId>
-        <version>${apache-httpcore.version}</version>
-      </dependency>
-
     </dependencies>
   </dependencyManagement>
 
