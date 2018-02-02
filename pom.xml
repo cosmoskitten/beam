@@ -177,7 +177,7 @@
     <maven-assembly-plugin.version>3.1.0</maven-assembly-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
-    <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
+    <compiler.default.pkginfo.flag>-Xpkginfo:always -parameters</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
 
@@ -1476,7 +1476,6 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
-	      <arg>-parameters</arg>
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
