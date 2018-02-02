@@ -25,7 +25,6 @@ import pickle
 import random
 import re
 import unittest
-from unittest import TestCase
 
 import crcmod
 
@@ -151,7 +150,7 @@ class TestTFRecordUtil(unittest.TestCase):
       self.assertEqual(record, actual)
 
 
-class TestTFRecordSink(TestCase):
+class TestTFRecordSink(unittest.TestCase):
 
   def _write_lines(self, sink, path, lines):
     f = sink.open(path)
@@ -228,7 +227,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
       self.assertEqual(actual, input_data)
 
 
-class TestReadFromTFRecord(TestCase):
+class TestReadFromTFRecord(unittest.TestCase):
 
   def test_process_single(self):
     with TempDir() as temp_dir:
@@ -303,15 +302,12 @@ class TestReadFromTFRecord(TestCase):
         assert_that(result, equal_to(['foo', 'bar']))
 
 
-class TestReadAllFromTFRecord(TestCase):
+class TestReadAllFromTFRecord(unittest.TestCase):
 
-  def _write_glob(self, temp_dir, prefix):
-    path1 = temp_dir.create_temp_file(prefix)
-    path2 = temp_dir.create_temp_file(prefix)
-    path3 = temp_dir.create_temp_file(prefix)
-    _write_file(path1, FOO_BAR_RECORD_BASE64)
-    _write_file(path2, FOO_BAR_RECORD_BASE64)
-    _write_file(path3, FOO_BAR_RECORD_BASE64)
+  def _write_glob(self, temp_dir, suffix):
+    for i in range(3):
+      path = temp_dir.create_temp_file(suffix)
+      _write_file(path, FOO_BAR_RECORD_BASE64)
 
   def test_process_single(self):
     with TempDir() as temp_dir:
@@ -351,15 +347,15 @@ class TestReadAllFromTFRecord(TestCase):
 
   def test_process_multiple_globs(self):
     with TempDir() as temp_dir:
-      self._write_glob(temp_dir, 'result1')
-      glob1 = temp_dir.get_path() + os.path.sep + '*result1'
-      self._write_glob(temp_dir, 'result2')
-      glob2 = temp_dir.get_path() + os.path.sep + '*result2'
-      self._write_glob(temp_dir, 'result3')
-      glob3 = temp_dir.get_path() + os.path.sep + '*result3'
+      globs = []
+      for i in range(3):
+        suffix = 'result' + str(i)
+        self._write_glob(temp_dir, suffix)
+        globs.append(temp_dir.get_path() + os.path.sep + '*' + suffix)
+
       with TestPipeline() as p:
         result = (p
-                  | Create([glob1, glob2, glob3])
+                  | Create(globs)
                   | ReadAllFromTFRecord(
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.AUTO))
@@ -390,7 +386,7 @@ class TestReadAllFromTFRecord(TestCase):
         assert_that(result, equal_to(['foo', 'bar']))
 
 
-class TestEnd2EndWriteAndRead(TestCase):
+class TestEnd2EndWriteAndRead(unittest.TestCase):
 
   def create_inputs(self):
     input_array = [[random.random() - 0.5 for _ in xrange(15)]

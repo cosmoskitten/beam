@@ -181,9 +181,11 @@ class _TFRecordSource(FileBasedSource):
 
 
 def _create_tfrcordio_source(
-    file_pattern=None, coder=None, compression_type=None,
-    validate=False):
-  return _TFRecordSource(file_pattern, coder, compression_type, validate)
+    file_pattern=None, coder=None, compression_type=None):
+  # We intentionally disable validation for ReadAll pattern so that reading does
+  # not fail for globs (elements) that are empty.
+  return _TFRecordSource(file_pattern, coder, compression_type,
+                         validate=False)
 
 
 class ReadAllFromTFRecord(PTransform):
@@ -194,7 +196,7 @@ class ReadAllFromTFRecord(PTransform):
       coder=coders.BytesCoder(),
       compression_type=CompressionTypes.AUTO,
       **kwargs):
-    """Initialize the ``ReadAllFromText`` transform.
+    """Initialize the ``ReadAllFromTFRecord`` transform.
 
     Args:
       coder: Coder used to decode each record.
@@ -208,11 +210,12 @@ class ReadAllFromTFRecord(PTransform):
     source_from_file = partial(
         _create_tfrcordio_source, compression_type=compression_type,
         coder=coder)
-    self._compression_type = compression_type
     # Desired and min bundle sizes do not matter since TFRecord files are
     # unsplittable.
     self._read_all_files = ReadAllFiles(
-        False, compression_type, 0, 0, source_from_file)
+        splittable=False, compression_type=compression_type,
+        desired_bundle_size=0, min_bundle_size=0,
+        source_from_file=source_from_file)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
