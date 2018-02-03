@@ -121,9 +121,14 @@ class PipelineRunner(object):
     """
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import PTransform
+    from apache_beam.pvalue import PBegin
     from apache_beam.pipeline import Pipeline
     p = Pipeline(runner=self, options=options)
-    p | transform
+    if isinstance(transform, PTransform):
+      p | transform
+    else:
+      transform(PBegin(p))
     return p.run()
 
   def run_pipeline(self, pipeline):
