@@ -117,7 +117,7 @@ class PipelineRunner(object):
   """
 
   def run(self, transform, options=None):
-    """Run the given transform with this runner.
+    """Run the given transform or callable with this runner.
     """
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
