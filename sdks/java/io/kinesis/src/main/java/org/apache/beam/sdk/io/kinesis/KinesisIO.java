@@ -179,7 +179,8 @@ public final class KinesisIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisIO.class);
 
-  public static final int DEFAULT_NUM_RETRIES = 10;
+  private static final int DEFAULT_NUM_RETRIES = 30;
+  private static final int RETRY_TIMEOUT = 2 * 1000; // msecs
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */
   public static Read read() {
@@ -576,16 +577,15 @@ public final class KinesisIO {
         while (numOutstandingRecords > numMax && retries-- > 0) {
           producer.flush();
           // wait until outstanding records will be flushed
-          Thread.sleep(1000);
+          Thread.sleep(RETRY_TIMEOUT);
           numOutstandingRecords = producer.getOutstandingRecordsCount();
         }
 
         if (numOutstandingRecords > numMax) {
-          String message =
-              String.format(
-                  "Number of outstanding records [%d] are greater than required [%d].",
-                  numOutstandingRecords,
-                  numMax);
+          String message = String.format(
+              "After [%d] retries, number of outstanding records [%d] is still greater than "
+                  + "required [%d].",
+              DEFAULT_NUM_RETRIES, numOutstandingRecords, numMax);
           LOG.error(message);
           throw new IOException(message);
         }
