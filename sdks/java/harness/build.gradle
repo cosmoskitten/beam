@@ -63,4 +63,5 @@ dependencies {
 // dependencies without repackaging.
 shadowJar {
   mergeServiceFiles()
+  baseName = "beam-sdks-java-harness"
 }
