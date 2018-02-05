@@ -72,6 +72,14 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
     }
 
+  def get_file_checksum(self):
+    """Returns a WebHDFS FileChecksum object."""
+    return {
+        hdfs._FILE_CHECKSUM_ALGORITHM: 'fake_algo',
+        hdfs._FILE_CHECKSUM_BYTES: 'checksum_byte_sequence',
+        hdfs._FILE_CHECKSUM_LENGTH: 5,
+    }
+
 
 class FakeHdfsError(Exception):
   """Generic error for FakeHdfs methods."""
@@ -175,6 +183,12 @@ class FakeHdfs(object):
         f.stat['path'] = newpath
         self.files[newpath] = f
 
+  def checksum(self, path):
+    f = self.files.get(path, None)
+    if f is None:
+      raise FakeHdfsError('Path not found: %s' % path)
+    return f.get_file_checksum()
+
 
 class HadoopFileSystemTest(unittest.TestCase):
 
@@ -226,7 +240,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertEqual(1, len(match_results))
     self.assertEqual(1, len(match_results[0].metadata_list))
     metadata = match_results[0].metadata_list[0]
-    self.assertEqual(metadata.path, self.fs._parse_url(url))
+    self.assertEqual(metadata.path, url)
     self.assertTrue(self.fs.exists(url))
 
   def test_mkdirs_failed(self):
@@ -237,30 +251,25 @@ class HadoopFileSystemTest(unittest.TestCase):
       self.fs.mkdirs(url)
 
   def test_match_file(self):
-    files = [self.fs.join(self.tmpdir, filename)
-             for filename in ['old_file1', 'old_file2']]
-    expected_files = [self.fs._parse_url(file) for file in files]
-    result = self.fs.match(files)
+    expected_files = [self.fs.join(self.tmpdir, filename)
+                      for filename in ['old_file1', 'old_file2']]
+    result = self.fs.match(expected_files)
     returned_files = [f.path
                       for match_result in result
                       for f in match_result.metadata_list]
     self.assertItemsEqual(expected_files, returned_files)
 
   def test_match_file_with_limits(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
+    expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
-    result = self.fs.match([self.tmpdir], [1])[0]
+    result = self.fs.match([self.tmpdir + '/'], [1])[0]
     files = [f.path for f in result.metadata_list]
     self.assertEquals(len(files), 1)
     self.assertIn(files[0], expected_files)
 
   def test_match_file_with_zero_limit(self):
-    result = self.fs.match([self.tmpdir], [0])[0]
+    result = self.fs.match([self.tmpdir + '/'], [0])[0]
     self.assertEquals(len(result.metadata_list), 0)
-
-  def test_match_file_with_bad_limit(self):
-    with self.assertRaisesRegexp(BeamIOError, r'TypeError'):
-      _ = self.fs.match([self.tmpdir], ['a'])[0]
 
   def test_match_file_empty(self):
     url = self.fs.join(self.tmpdir, 'nonexistent_file')
@@ -278,15 +287,7 @@ class HadoopFileSystemTest(unittest.TestCase):
       self.assertEqual(files, [self.fs._parse_url(url)])
 
   def test_match_directory(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
-                      for filename in ['old_file1', 'old_file2']]
-
-    result = self.fs.match([self.tmpdir])[0]
-    files = [f.path for f in result.metadata_list]
-    self.assertItemsEqual(files, expected_files)
-
-  def test_match_directory_trailing_slash(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
+    expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
 
     result = self.fs.match([self.tmpdir + '/'])[0]
@@ -457,6 +458,19 @@ class HadoopFileSystemTest(unittest.TestCase):
     url2 = self.fs.join(self.tmpdir, 'nonexistent')
     self.assertTrue(self.fs.exists(url1))
     self.assertFalse(self.fs.exists(url2))
+
+  def test_size(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write('Hello')
+    self.assertEqual(5, self.fs.size(url))
+
+  def test_checksum(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write('Hello')
+    self.assertEqual('fake_algo-5-checksum_byte_sequence',
+                     self.fs.checksum(url))
 
   def test_delete_file(self):
     url = self.fs.join(self.tmpdir, 'old_file1')
