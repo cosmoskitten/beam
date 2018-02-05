@@ -35,7 +35,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -441,10 +440,8 @@ public class CoGroupByKeyTest implements Serializable {
 
     PCollection<KV<String, Integer>> results =
         p.apply(
-                TestStream.create(coder)
-                    .addElements(
-                        KV.of(1, result1), KV.of(2, result2), KV.of(3, result3), KV.of(4, result4))
-                    .advanceWatermarkToInfinity())
+                Create.of(
+                    KV.of(1, result1), KV.of(2, result2), KV.of(3, result3), KV.of(4, result4)))
             .apply(
                 ParDo.of(
                     new CorrelatePurchaseCountForAddressesWithoutNamesFn(
