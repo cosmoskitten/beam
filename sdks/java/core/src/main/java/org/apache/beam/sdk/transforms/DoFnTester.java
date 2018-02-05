@@ -34,6 +34,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -55,7 +57,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @deprecated Use {@link TestStream} with the {@code DirectRunner}.
+ * @deprecated Instead of this, write a {@link TestPipeline} that verifies expectations using {@link
+ *     PAssert} and run it with the {@code DirectRunner} (or other runners, as applicable). For
+ *     simple cases, use {@link Create} to provide input. For complex cases involving triggers, use
+ *     {@link TestStream} for input data and behavior.
  */
 @Deprecated
 public class DoFnTester<InputT, OutputT> implements AutoCloseable {
