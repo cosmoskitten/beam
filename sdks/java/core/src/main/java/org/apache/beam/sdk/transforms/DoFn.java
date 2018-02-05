@@ -33,6 +33,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -49,21 +50,21 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * The argument to {@link ParDo} providing the code to use to process
- * elements of the input
- * {@link org.apache.beam.sdk.values.PCollection}.
+ * The argument to {@link ParDo} providing the code to use to process elements of the input {@link
+ * org.apache.beam.sdk.values.PCollection}.
  *
- * <p>See {@link ParDo} for more explanation, examples of use, and
- * discussion of constraints on {@code DoFn}s, including their
- * serializability, lack of access to global shared mutable state,
+ * <p>See {@link ParDo} for more explanation, examples of use, and discussion of constraints on
+ * {@code DoFn}s, including their serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@link DoFn DoFns} can be tested by using {@link TestStream}
- * with the {@code DirectRunner}.
+ * <p>{@link DoFn DoFns} can be tested by using {@link TestPipeline}. You can verify their
+ * functional correctness in a local test using the {@code DirectRunner} as well as running
+ * integration tests with your production runner of choice. To create a bundle boundary between
+ * input elements, for testing {@StartBundle} and {@link FinishBundle}, you can use {@link
+ * TestStream} to force quiescence at selected points of your input.
  *
- * <p>Implementations must define a method annotated with {@link ProcessElement}
- * that satisfies the requirements described there. See the {@link ProcessElement}
- * for details.
+ * <p>Implementations must define a method annotated with {@link ProcessElement} that satisfies the
+ * requirements described there. See the {@link ProcessElement} for details.
  *
  * <p>Example usage:
  *
