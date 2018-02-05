@@ -494,6 +494,11 @@ class FileSystem(BeamPlugin):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def match(self, patterns, limits=None):
     """Find all matching paths to the patterns provided.
 
@@ -573,6 +578,28 @@ class FileSystem(BeamPlugin):
     Returns: boolean flag indicating if path exists
     """
     raise NotImplementedError
+
+  @abc.abstractmethod
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the FileSystem.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    Checksum type and format are FileSystem dependent and are not compatible
+    between FileSystems.
+    FileSystem implementations may return file size if a checksum isn't
+    available.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    raise NotImplementedError
+
 
   @abc.abstractmethod
   def delete(self, paths):

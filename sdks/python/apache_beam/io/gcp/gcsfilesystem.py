@@ -98,6 +98,10 @@ class GCSFileSystem(FileSystem):
     """
     pass
 
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    return False
+
   def match(self, patterns, limits=None):
     """Find all matching paths to the pattern provided.
 
@@ -264,6 +268,22 @@ class GCSFileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     return gcsio.GcsIO().exists(path)
+
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the FileSystem.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    try:
+      return gcsio.GcsIO().checksum(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Checksum operation failed", {path: e})
 
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
