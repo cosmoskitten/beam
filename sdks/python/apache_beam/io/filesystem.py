@@ -21,8 +21,11 @@ from __future__ import absolute_import
 import abc
 import bz2
 import cStringIO
+import fnmatch
 import logging
 import os
+import posixpath
+import re
 import time
 import zlib
 
@@ -497,8 +500,33 @@ class FileSystem(BeamPlugin):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def has_dirs(self):
+    """Whether this FileSystem supports directories."""
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def list(self, dir_or_prefix):
+    """List files in a location.
+
+    Listing is non-recursive (for filesystems that support directories).
+
+    Args:
+      dir_or_prefix: (string) A directory or location prefix (for filesystems
+        that don't have directories).
+
+    Returns:
+      Generator of ``FileMetadata`` objects.
+
+    Raises:
+      ``BeamIOError`` if listing fails, but not if no files were found.
+    """
+    raise NotImplementedError
+
   def match(self, patterns, limits=None):
     """Find all matching paths to the patterns provided.
+
+    Pattern matching is done using fnmatch.fnmatch.
+    Patterns ending with '/' will be appended with '*'.
 
     Args:
       patterns: list of string for the file path pattern to match against
@@ -509,7 +537,48 @@ class FileSystem(BeamPlugin):
     Raises:
       ``BeamIOError`` if any of the pattern match operations fail
     """
-    raise NotImplementedError
+    if limits is None:
+      limits = [None] * len(patterns)
+    else:
+      err_msg = "Patterns and limits should be equal in length"
+      assert len(patterns) == len(limits), err_msg
+
+    def _match(pattern, limit):
+      """Find all matching paths to the pattern provided."""
+      if pattern.endswith('/'):
+        pattern += '*'
+      prefix_or_dir = re.match('^[^[*?]*', pattern).group(0)
+
+      file_metadatas = []
+      if prefix_or_dir == pattern:
+        # Short-circuit calling self.list() if there's no glob pattern to match.
+        if self.exists(pattern):
+          file_metadatas = [FileMetadata(pattern, self.size(pattern))]
+      else:
+        if self.has_dirs():
+          prefix_or_dir = posixpath.dirname(prefix_or_dir)
+        file_metadatas = self.list(prefix_or_dir)
+
+      metadata_list = []
+      for file_metadata in file_metadatas:
+        if limit is not None and len(metadata_list) >= limit:
+          break
+        if fnmatch.fnmatch(file_metadata.path, pattern):
+          metadata_list.append(file_metadata)
+
+      return MatchResult(pattern, metadata_list)
+
+    exceptions = {}
+    result = []
+    for pattern, limit in zip(patterns, limits):
+      try:
+        result.append(_match(pattern, limit))
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[pattern] = e
+
+    if exceptions:
+      raise BeamIOError("Match operation failed", exceptions)
+    return result
 
   @abc.abstractmethod
   def create(self, path, mime_type='application/octet-stream',
@@ -578,6 +647,19 @@ class FileSystem(BeamPlugin):
     raise NotImplementedError
 
   @abc.abstractmethod
+  def size(self, path):
+    """Get size of path on the FileSystem.
+
+    Args:
+      path: string path in question.
+
+    Returns: int size of path according to the FileSystem.
+
+    Raises:
+      ``BeamIOError`` if path doesn't exist.
+    """
+    raise NotImplementedError
+
   def checksum(self, path):
     """Fetch checksum metadata of a file on the
     :class:`~apache_beam.io.filesystem.FileSystem`.

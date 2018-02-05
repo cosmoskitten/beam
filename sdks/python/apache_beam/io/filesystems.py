@@ -141,6 +141,9 @@ class FileSystems(object):
   def match(patterns, limits=None):
     """Find all matching paths to the patterns provided.
 
+    Pattern matching is done using fnmatch.fnmatch.
+    Patterns ending with '/' will be appended with '*'.
+
     Args:
       patterns: list of string for the file path pattern to match against
       limits: list of maximum number of responses that need to be fetched
