@@ -34,7 +34,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
-from apache_beam.options.pipeline_options import HdfsOptions
+from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 
 __all__ = ['HadoopFileSystem']
 
@@ -43,13 +43,21 @@ _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
 _COPY_BUFFER_SIZE = 2 ** 16
 _DEFAULT_BUFFER_SIZE = 20 * 1024 * 1024
 
+# WebHDFS FileStatus property constants.
+_FILE_STATUS_NAME = 'name'
+_FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
+_FILE_STATUS_TYPE = 'type'
+_FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
+_FILE_STATUS_TYPE_FILE = 'FILE'
+_FILE_STATUS_SIZE = 'size'
+
 
 class HdfsDownloader(filesystemio.Downloader):
 
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     self._path = path
-    self._size = self._hdfs_client.status(path)['size']
+    self._size = self._hdfs_client.status(path)[_FILE_STATUS_SIZE]
 
   @property
   def size(self):
@@ -90,13 +98,13 @@ class HadoopFileSystem(FileSystem):
     """Initializes a connection to HDFS.
 
     Connection configuration is done by passing pipeline options.
-    See :class:`~apache_beam.options.pipeline_options.HdfsOptions`.
+    See :class:`~apache_beam.options.pipeline_options.HadoopFileSystemOptions`.
     """
     super(HadoopFileSystem, self).__init__(pipeline_options)
 
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')
-    hdfs_options = pipeline_options.view_as(HdfsOptions)
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
     if hdfs_options.hdfs_host is None:
       raise ValueError('hdfs_host is not set')
     if hdfs_options.hdfs_port is None:
@@ -174,12 +182,14 @@ class HadoopFileSystem(FileSystem):
     def _match(path_pattern, limit):
       """Find all matching paths to the pattern provided."""
       fs = self._hdfs_client.status(path_pattern, strict=False)
-      if fs and fs['type'] == 'FILE':
-        file_infos = [(fs['pathSuffix'], fs)][:limit]
+      if fs and fs[_FILE_STATUS_TYPE] == _FILE_STATUS_TYPE_FILE:
+        file_statuses = [(fs[_FILE_STATUS_PATH_SUFFIX], fs)][:limit]
       else:
-        file_infos = self._hdfs_client.list(path_pattern, status=True)[:limit]
-      metadata_list = [FileMetadata(file_info[1]['name'], file_info[1]['size'])
-                       for file_info in file_infos]
+        file_statuses = self._hdfs_client.list(path_pattern,
+                                               status=True)[:limit]
+      metadata_list = [FileMetadata(file_status[1][_FILE_STATUS_NAME],
+                                    file_status[1][_FILE_STATUS_SIZE])
+                       for file_status in file_statuses]
       return MatchResult(path_pattern, metadata_list)
 
     exceptions = {}
@@ -268,7 +278,8 @@ class HadoopFileSystem(FileSystem):
 
     def _copy_path(source, destination):
       """Recursively copy the file tree from the source to the destination."""
-      if self._hdfs_client.status(source)['type'] != 'DIRECTORY':
+      if self._hdfs_client.status(
+          source)[_FILE_STATUS_TYPE] != _FILE_STATUS_TYPE_DIRECTORY:
         _copy_file(source, destination)
         return
 

@@ -30,7 +30,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
-    'HdfsOptions',
+    'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
     'ProfilingOptions',
@@ -393,7 +393,7 @@ class GoogleCloudOptions(PipelineOptions):
     return errors
 
 
-class HdfsOptions(PipelineOptions):
+class HadoopFileSystemOptions(PipelineOptions):
   """``HadoopFileSystem`` connection options."""
 
   @classmethod
