@@ -99,5 +99,5 @@ cdef class DistributionAccumulator(object):
   cdef public int64_t sum_of_squares
   cdef public int64_t first_bucket_offset
   cdef public list buckets
-  cdef public bint buckets_per_10
+  cdef public int64_t buckets_per_10
   cpdef add_input(self, int64_t element)
