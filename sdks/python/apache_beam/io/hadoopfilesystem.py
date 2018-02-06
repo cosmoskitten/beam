@@ -92,6 +92,9 @@ class HadoopFileSystem(FileSystem):
   """``FileSystem`` implementation that supports HDFS.
 
   URL arguments to methods expect strings starting with ``hdfs://``.
+
+  Experimental; TODO(BEAM-3600): Writes are experimental until file rename
+    retries are better handled.
   """
 
   def __init__(self, pipeline_options):
