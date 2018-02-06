@@ -23,9 +23,9 @@ import io
 import posixpath
 import unittest
 
-from apache_beam.io import hadoopfilesystem
+from apache_beam.io import hadoopfilesystem as hdfs
 from apache_beam.io.filesystem import BeamIOError
-from apache_beam.options.pipeline_options import HdfsOptions
+from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
@@ -66,10 +66,10 @@ class FakeFile(io.BytesIO):
   def get_file_status(self):
     """Returns a partial WebHDFS FileStatus object."""
     return {
-        'name': self.stat['path'],
-        'pathSuffix': posixpath.basename(self.stat['path']),
-        'size': self.size,
-        'type': self.stat['type'],
+        hdfs._FILE_STATUS_NAME: self.stat['path'],
+        hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
+        hdfs._FILE_STATUS_SIZE: self.size,
+        hdfs._FILE_STATUS_TYPE: self.stat['type'],
     }
 
 
@@ -111,14 +111,15 @@ class FakeHdfs(object):
     if not status:
       raise ValueError('status must be True')
     fs = self.status(path, strict=False)
-    if fs is not None and fs['type'] == 'FILE':
+    if (fs is not None and
+        fs[hdfs._FILE_STATUS_TYPE] == hdfs._FILE_STATUS_TYPE_FILE):
       raise ValueError('list must be called on a directory, got file: %s', path)
 
     result = []
     for file in self.files.itervalues():
       if file.stat['path'].startswith(path):
         fs = file.get_file_status()
-        result.append((fs['pathSuffix'], fs))
+        result.append((fs[hdfs._FILE_STATUS_PATH_SUFFIX], fs))
     return result
 
   def makedirs(self, path):
@@ -154,7 +155,7 @@ class FakeHdfs(object):
           continue
         short_path = posixpath.relpath(full_path, path)
         if '/' not in short_path:
-          if self.status(full_path)['type'] == 'DIRECTORY':
+          if self.status(full_path)[hdfs._FILE_STATUS_TYPE] == 'DIRECTORY':
             if short_path != '.':
               dirs.append(short_path)
           else:
@@ -179,15 +180,15 @@ class HadoopFileSystemTest(unittest.TestCase):
 
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
-    hadoopfilesystem.hdfs.InsecureClient = (
+    hdfs.hdfs.InsecureClient = (
         lambda *args, **kwargs: self._fake_hdfs)
     pipeline_options = PipelineOptions()
-    hdfs_options = pipeline_options.view_as(HdfsOptions)
+    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
     hdfs_options.hdfs_host = ''
     hdfs_options.hdfs_port = 0
     hdfs_options.hdfs_user = ''
 
-    self.fs = hadoopfilesystem.HadoopFileSystem(pipeline_options)
+    self.fs = hdfs.HadoopFileSystem(pipeline_options)
     self.tmpdir = 'hdfs://test_dir'
 
     for filename in ['old_file1', 'old_file2']:
@@ -196,7 +197,7 @@ class HadoopFileSystemTest(unittest.TestCase):
 
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'hdfs')
-    self.assertEqual(hadoopfilesystem.HadoopFileSystem.scheme(), 'hdfs')
+    self.assertEqual(hdfs.HadoopFileSystem.scheme(), 'hdfs')
 
   def test_url_join(self):
     self.assertEqual('hdfs://tmp/path/to/file',
