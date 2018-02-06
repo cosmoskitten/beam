@@ -34,6 +34,7 @@ from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
@@ -903,6 +904,11 @@ def create_trigger_driver(windowing,
   # sorted order.
   if windowing.is_default() and is_batch:
     driver = DefaultGlobalBatchTriggerDriver()
+  elif (windowing.windowfn == GlobalWindows()
+        and windowing.triggerfn == AfterCount(1)
+        and windowing.accumulation_mode == AccumulationMode.DISCARDING):
+    # Here we also just pass through all the values every time.
+    driver = DefaultGlobalBatchTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing, clock)
 
@@ -976,14 +982,12 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
   """
   GLOBAL_WINDOW_TUPLE = (GlobalWindow(),)
 
-  def __init__(self):
-    pass
-
   def process_elements(self, state, windowed_values, unused_output_watermark):
-    yield WindowedValue(
-        _UnwindowedValues(windowed_values),
-        MIN_TIMESTAMP,
-        self.GLOBAL_WINDOW_TUPLE)
+    return [
+        WindowedValue(
+            _UnwindowedValues(windowed_values),
+            MIN_TIMESTAMP,
+            self.GLOBAL_WINDOW_TUPLE)]
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     raise TypeError('Triggers never set or called for batch default windowing.')
