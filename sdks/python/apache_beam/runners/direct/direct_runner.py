@@ -28,6 +28,7 @@ import logging
 from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
@@ -41,7 +42,9 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import _GroupAlsoByWindow
+from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
 
@@ -138,23 +141,19 @@ def _get_transform_overrides(pipeline_options):
 
     def get_replacement_transform(self, transform):
       # Use specialized streaming implementation.
-      type_hints = transform.get_type_hints()
-      transform = (_StreamingGroupByKeyOnly()
-                   .with_input_types(*type_hints.input_types[0])
-                   .with_output_types(*type_hints.output_types[0]))
+      transform = _StreamingGroupByKeyOnly()
       return transform
 
   class StreamingGroupAlsoByWindowOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       # Note: we match the exact class, since we replace it with a subclass.
-      return applied_ptransform.transform.__class__ == _GroupAlsoByWindow
+      return (applied_ptransform.transform.__class__ == ParDo and
+              isinstance(applied_ptransform.transform.dofn,
+                         _GroupAlsoByWindowDoFn))
 
     def get_replacement_transform(self, transform):
       # Use specialized streaming implementation.
-      type_hints = transform.get_type_hints()
-      transform = (_StreamingGroupAlsoByWindow(transform.windowing)
-                   .with_input_types(*type_hints.input_types[0])
-                   .with_output_types(*type_hints.output_types[0]))
+      transform = _StreamingGroupAlsoByWindow(transform.dofn.windowing)
       return transform
 
   overrides = [SplittableParDoOverride(),
