@@ -70,6 +70,12 @@ repositories {
 // Apply a plugin which enables configuring projects imported into Intellij.
 apply plugin: "idea"
 
+idea {
+  module {
+    inheritOutputDirs = true;
+  }
+}
+
 // Provide code coverage
 // TODO: Should this only apply to Java projects?
 apply plugin: "jacoco"
