@@ -1,3 +1,18 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Hooks allow runners to tailor execution of the worker to allow for customization
 // of features used by the harness.
 //
@@ -15,169 +30,110 @@ package harness
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
-
-	"google.golang.org/grpc"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
-const hooksNamespaceKey = "__hooks:"
-const sessionCaptureHookKey = hooksNamespaceKey + "session_capture"
-const traceCaptureHookKey = hooksNamespaceKey + "trace_capture"
-const grpcHookKey = hooksNamespaceKey + "grpc"
+var enabledHooks = make(map[string][]string)
 
-func runInitHooks(ctx context.Context) error {
-	for _, h := range initHookRegistry {
-		if err := h(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func bindHooks() {
-	if sessionCapture := runtime.GlobalOptions.Get(sessionCaptureHookKey); sessionCapture != "" {
-		capture = sessionCaptureHook(sessionCapture)
-	}
-
-	if traceCapture := runtime.GlobalOptions.Get(traceCaptureHookKey); traceCapture != "" {
-		profileWriter = traceCaptureHook(traceCapture)
-	}
+// A Hook is a collection of registered functions that...
+// TODO(wcn): steal content from client.HttpTrace
+type Hook struct {
+	Init        InitHook
+	Req         RequestHook
+	Resp        ResponseHook
+	Serialize   func() []string
+	Deserialize func(...string)
 }
 
 // InitHook is a hook that is called when the harness
 // initializes.
 type InitHook func(context.Context) error
 
-var initHookRegistry = make(map[string]InitHook)
+var hookRegistry = make(map[string]Hook)
 
-// RegisterInitHook registers a InitHook for the
+// RegisterHook registers a InitHook for the
 // supplied identifier.
-func RegisterInitHook(name string, c InitHook) {
-	initHookRegistry[name] = c
-}
-
-func initHook(name string) InitHook {
-	c, exists := initHookRegistry[name]
-	if !exists {
-		panic(fmt.Sprintf("initHook: %s not registered", name))
+func RegisterHook(name string, h Hook) {
+	if h.Serialize == nil {
+		panic(fmt.Sprintf("Hook %s is missing Serialize method", name))
 	}
-	return c
-}
-
-// SessionCaptureHook writes the messaging content consumed and
-// produced by the worker, allowing the data to be used as
-// an input for the session runner. Since workers can exist
-// in a variety of environments, this allows the runner
-// to tailor the behavior best for its particular needs.
-type SessionCaptureHook io.WriteCloser
-
-var sessionCaptureHookRegistry = make(map[string]SessionCaptureHook)
-
-// RegisterSessionCaptureHook registers a SessionCaptureHook for the
-// supplied identifier. It panics if the same identifier is
-// registered twice.
-func RegisterSessionCaptureHook(name string, c SessionCaptureHook) {
-	if _, exists := sessionCaptureHookRegistry[name]; exists {
-		panic(fmt.Sprintf("RegisterSessionCaptureHook: %s registered twice", name))
+	if h.Deserialize == nil {
+		panic(fmt.Sprintf("Hook %s is missing Deserialize method", name))
 	}
-	sessionCaptureHookRegistry[name] = c
+
+	hookRegistry[name] = h
 }
 
-// RequestSessionCaptureHook is called to request the use of a hook in a pipeline.
-// It updates the supplied pipelines to capture this request.
-func RequestSessionCaptureHook(name string, o *runtime.RawOptions) {
-	o.Options[sessionCaptureHookKey] = name
-}
-
-func sessionCaptureHook(name string) SessionCaptureHook {
-	c, exists := sessionCaptureHookRegistry[name]
-	if !exists {
-		panic(fmt.Sprintf("sessionCaptureHook: %s not registered", name))
-	}
-	return c
-}
-
-// TraceCaptureHook is used by the harness to have the runner
-// persist a trace record with the supplied name and comment.
-// The type of trace can be determined by the prfix of the string
-// cpu: A profile compatible with traces produced by runtime/pprof
-// trace: A trace compatible with traces produced by runtime/trace
-// TODO(wcn): define and document future formats here.
-type TraceCaptureHook func(string, io.Reader) error
-
-var traceCaptureHookRegistry = make(map[string]TraceCaptureHook)
-
-// RegisterTraceCaptureHook registers a TraceCaptureHook for the
-// supplied identifier. It panics if the same identifier is
-// registered twice.
-func RegisterTraceCaptureHook(name string, c TraceCaptureHook) {
-	if _, exists := traceCaptureHookRegistry[name]; exists {
-		panic(fmt.Sprintf("RegisterTraceCaptureHook: %s registered twice", name))
-	}
-	traceCaptureHookRegistry[name] = c
-}
-
-func traceCaptureHook(name string) TraceCaptureHook {
-	c, exists := traceCaptureHookRegistry[name]
-	if !exists {
-		panic(fmt.Sprintf("traceCaptureHook: %s not registered", name))
-	}
-	return c
-}
-
-// RequestTraceCaptureHook is called to request the use of the trace capture
-// hook in a pipeline.
-func RequestTraceCaptureHook(name string, o *runtime.RawOptions) {
-	o.Options[traceCaptureHookKey] = name
-}
-
-// GrpcHook allow a runner to tailor various aspects of gRPC
-// communication with the FnAPI harness. Each member of the struct
-// is optional; the default behavior will be used if a value is not
-// supplied.
-type GrpcHook struct {
-	// Dialer allows the runner to customize the gRPC dialing behavior.
-	Dialer func(context.Context, string, time.Duration) (*grpc.ClientConn, error)
-	// TODO(wcn): expose other hooks here.
-}
-
-var grpcHookRegistry = make(map[string]GrpcHook)
-
-// RegisterGrpcHook registers a GrpcHook for the
-// supplied identifier. It panics if the same identifier is
-// registered twice.
-func RegisterGrpcHook(name string, c GrpcHook) {
-	if _, exists := grpcHookRegistry[name]; exists {
-		panic(fmt.Sprintf("RegisterGrpcHook: %s registered twice", name))
-	}
-	grpcHookRegistry[name] = c
-
-	RegisterInitHook("grpc", func(_ context.Context) error {
-		if grpc := runtime.GlobalOptions.Get(grpcHookKey); grpc != "" {
-			grpcHooks := grpcHook(grpc)
-			if grpcHooks.Dialer != nil {
-				grpcx.Dial = grpcHooks.Dialer
+func runInitHooks(ctx context.Context) error {
+	// If an init hook fails to complete, the invariants of the
+	// system are compromised and we can't run a workflow.
+	// The hooks can run in any order. They should not be
+	// interdependent or interfere with each other.
+	for _, h := range hookRegistry {
+		if h.Init != nil {
+			if err := h.Init(ctx); err != nil {
+				return err
 			}
 		}
-		return nil
-	})
-}
-
-func grpcHook(name string) GrpcHook {
-	c, exists := grpcHookRegistry[name]
-	if !exists {
-		panic(fmt.Sprintf("grpcHook: %s not registered", name))
 	}
-	return c
+	return nil
 }
 
-// RequestGrpcHook is called to request the use of the gRPC
-// hook in a pipeline.
-func RequestGrpcHook(name string, o *runtime.RawOptions) {
-	o.Options[grpcHookKey] = name
+// RequestHook is called when handling a Fn API instruction.
+type RequestHook func(context.Context, *fnpb.InstructionRequest) error
+
+func runRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
+	// The request hooks should not modify the request.
+	// TODO(wcn): pass the request by value to enforce? That's a perf hit.
+	// I'd rather trust users to do the right thing.
+	for n, h := range hookRegistry {
+		if h.Req != nil {
+			if err := h.Req(ctx, req); err != nil {
+				log.Infof(ctx, "request hook %s failed: %v", n, err)
+			}
+		}
+	}
+}
+
+// ResponseHook is called when sending a Fn API instruction response.
+type ResponseHook func(context.Context, *fnpb.InstructionRequest, *fnpb.InstructionResponse) error
+
+func runResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
+	for n, h := range hookRegistry {
+		if h.Resp != nil {
+			if err := h.Resp(ctx, req, resp); err != nil {
+				log.Infof(ctx, "response hook %s failed: %v", n, err)
+			}
+		}
+	}
+}
+
+// SerializeHooks serializes the activated hooks and their configuration into a JSON string
+// that can be deserialized later by the runner.
+func SerializeHooks() string {
+	data, err := json.Marshal(enabledHooks)
+	if err != nil {
+		// Shouldn't happen, since all the data is strings.
+		panic(fmt.Sprintf("Couldn't serialize hooks: %v", err))
+	}
+	return string(data)
+}
+
+// deserializeHooks extracts the hook configuration information from the options and calls the hook deserialize
+// method with the supplied options.
+func deserializeHooks() {
+	cfg := runtime.GlobalOptions.Get("hooks")
+	if err := json.Unmarshal([]byte(cfg), enabledHooks); err != nil {
+		// Shouldn't happen
+		panic(fmt.Sprintf("DeserializeHooks failed: %v", err))
+	}
+
+	for h, opts := range enabledHooks {
+		hookRegistry[h].Deserialize(opts...)
+	}
 }
