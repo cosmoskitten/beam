@@ -21,13 +21,11 @@ import com.clearspring.analytics.stream.frequency.CountMinSketch;
 import com.clearspring.analytics.stream.frequency.FrequencyMergeException;
 import com.google.auto.value.AutoValue;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -363,7 +361,7 @@ public final class SketchFrequencies {
       if (confidence <= 0D || confidence >= 1D) {
         throw new IllegalArgumentException("The confidence must be between 0 and 1");
       }
-      return new CountMinSketchFn<InputT>(inputCoder, epsilon, confidence);
+      return new CountMinSketchFn<>(inputCoder, epsilon, confidence);
     }
 
     @Override public Sketch<InputT> createAccumulator() {
@@ -400,7 +398,7 @@ public final class SketchFrequencies {
 
     @Override public Coder<Sketch<InputT>> getAccumulatorCoder(CoderRegistry registry,
                                                                Coder inputCoder) {
-      return new CountMinSketchCoder<InputT>();
+      return new CountMinSketchCoder<>();
     }
 
     @Override
@@ -431,7 +429,7 @@ public final class SketchFrequencies {
     static <T> Sketch<T> create(double eps, double conf) {
       int width = (int) Math.ceil(2 / eps);
       int depth = (int) Math.ceil(-Math.log(1 - conf) / Math.log(2));
-      return new AutoValue_SketchFrequencies_Sketch<T>(
+      return new AutoValue_SketchFrequencies_Sketch<>(
               depth,
               width,
               new CountMinSketch(depth, width, SEED));
@@ -440,7 +438,7 @@ public final class SketchFrequencies {
     static <T> Sketch<T> create(CountMinSketch sketch) {
       int width = (int) Math.ceil(2 / sketch.getRelativeError());
       int depth = (int) Math.ceil(-Math.log(1 - sketch.getConfidence()) / Math.log(2));
-      return new AutoValue_SketchFrequencies_Sketch<T>(
+      return new AutoValue_SketchFrequencies_Sketch<>(
               depth,
               width,
               sketch);

@@ -27,7 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -88,7 +88,8 @@ public class WindowFnTestUtils {
       for (W window : assignedWindowsWithValue(windowFn, element)) {
         windowSet.put(window, timestampValue(element.getTimestamp().getMillis()));
       }
-      windowFn.mergeWindows(new TestMergeContext<>(windowSet, windowFn));
+      TestMergeContext<T, W> mergeContext = new TestMergeContext<>(windowSet, windowFn);
+      windowFn.mergeWindows(mergeContext);
     }
     Map<W, Set<String>> actual = new HashMap<>();
     for (W window : windowSet.windows()) {
@@ -112,8 +113,8 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindowsWithValue(
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
-    return windowFn.assignWindows(
-        new TestAssignContext<>(timestampedValue, windowFn));
+    TestAssignContext<T, W> assignContext = new TestAssignContext<>(timestampedValue, windowFn);
+    return windowFn.assignWindows(assignContext);
   }
 
   private static String timestampValue(long timestamp) {
@@ -181,11 +182,7 @@ public class WindowFnTestUtils {
     private Map<W, Set<V>> elements = new HashMap<>();
 
     public void put(W window, V value) {
-      Set<V> all = elements.get(window);
-      if (all == null) {
-        all = new HashSet<>();
-        elements.put(window, all);
-      }
+      Set<V> all = elements.computeIfAbsent(window, k -> new HashSet<>());
       all.add(value);
     }
 
@@ -279,7 +276,7 @@ public class WindowFnTestUtils {
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
     Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
     List<W> sortedWindows = new ArrayList<>(windows);
-    Collections.sort(sortedWindows, (o1, o2) -> o1.maxTimestamp().compareTo(o2.maxTimestamp()));
+    sortedWindows.sort(Comparator.comparing(BoundedWindow::maxTimestamp));
 
     Instant instant = timestampedValue.getTimestamp();
     Instant endOfPrevious = null;

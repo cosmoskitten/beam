@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -36,6 +37,7 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -644,7 +646,11 @@ public class KafkaIOTest {
     String readStep = "readFromKafka";
 
     p.apply(readStep,
-        mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+          .updateConsumerProperties(ImmutableMap.<String, Object>of(ConsumerConfig.GROUP_ID_CONFIG,
+                                                                    "test.group"))
+          .commitOffsetsInFinalize()
+          .withoutMetadata());
 
     PipelineResult result = p.run();
 
@@ -709,6 +715,19 @@ public class KafkaIOTest {
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+
+    // Check checkpointMarkCommitsEnqueued metric.
+    MetricQueryResults commitsEnqueuedMetrics =
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        KafkaUnboundedReader.METRIC_NAMESPACE,
+                        KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
+                .build());
+
+    assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(commitsEnqueuedMetrics.counters().iterator().next().attempted(), greaterThan(0L));
   }
 
   @Test
@@ -775,16 +794,17 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testEOSink() {
+  public void testExactlyOnceSink() {
     // testSink() with EOS enabled.
     // This does not actually inject retries in a stage to test exactly-once-semantics.
     // It mainly exercises the code in normal flow without retries.
     // Ideally we should test EOS Sink by triggering replays of a messages between stages.
     // It is not feasible to test such retries with direct runner. When DoFnTester supports
-    // state, we can test KafkaEOWriter DoFn directly to ensure it handles retries correctly.
+    // state, we can test ExactlyOnceWriter DoFn directly to ensure it handles retries correctly.
 
     if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
+      LOG.warn(
+        "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
       return;
     }
 
@@ -1085,7 +1105,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, (o1, o2) -> Long.compare(o1.value(), o2.value()));
+    sent.sort(Comparator.comparingLong(ProducerRecord::value));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);
