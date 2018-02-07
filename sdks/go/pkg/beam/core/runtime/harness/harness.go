@@ -42,7 +42,7 @@ var profileWriter = func(string, io.Reader) error { return nil }
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// Bind the hooks from the options provided.
-	bindHooks()
+	runInitHooks(ctx)
 
 	setupRemoteLogging(ctx, loggingEndpoint)
 	setupDiagnosticRecording()
