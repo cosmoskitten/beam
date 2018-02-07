@@ -30,6 +30,15 @@ const sessionCaptureHookKey = hooksNamespaceKey + "session_capture"
 const traceCaptureHookKey = hooksNamespaceKey + "trace_capture"
 const grpcHookKey = hooksNamespaceKey + "grpc"
 
+func runInitHooks(ctx context.Context) error {
+	for _, h := range initHookRegistry {
+		if err := h(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func bindHooks() {
 	if sessionCapture := runtime.GlobalOptions.Get(sessionCaptureHookKey); sessionCapture != "" {
 		capture = sessionCaptureHook(sessionCapture)
@@ -38,13 +47,26 @@ func bindHooks() {
 	if traceCapture := runtime.GlobalOptions.Get(traceCaptureHookKey); traceCapture != "" {
 		profileWriter = traceCaptureHook(traceCapture)
 	}
+}
 
-	if grpc := runtime.GlobalOptions.Get(grpcHookKey); grpc != "" {
-		grpcHooks := grpcHook(grpc)
-		if grpcHooks.Dialer != nil {
-			grpcx.Dial = grpcHooks.Dialer
-		}
+// InitHook is a hook that is called when the harness
+// initializes.
+type InitHook func(context.Context) error
+
+var initHookRegistry = make(map[string]InitHook)
+
+// RegisterInitHook registers a InitHook for the
+// supplied identifier.
+func RegisterInitHook(name string, c InitHook) {
+	initHookRegistry[name] = c
+}
+
+func initHook(name string) InitHook {
+	c, exists := initHookRegistry[name]
+	if !exists {
+		panic(fmt.Sprintf("initHook: %s not registered", name))
 	}
+	return c
 }
 
 // SessionCaptureHook writes the messaging content consumed and
@@ -134,6 +156,16 @@ func RegisterGrpcHook(name string, c GrpcHook) {
 		panic(fmt.Sprintf("RegisterGrpcHook: %s registered twice", name))
 	}
 	grpcHookRegistry[name] = c
+
+	RegisterInitHook("grpc", func(_ context.Context) error {
+		if grpc := runtime.GlobalOptions.Get(grpcHookKey); grpc != "" {
+			grpcHooks := grpcHook(grpc)
+			if grpcHooks.Dialer != nil {
+				grpcx.Dial = grpcHooks.Dialer
+			}
+		}
+		return nil
+	})
 }
 
 func grpcHook(name string) GrpcHook {
