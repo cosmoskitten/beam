@@ -30,6 +30,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -454,6 +455,7 @@ public final class KinesisIO {
      *
      * <p>This is used for testing.
      */
+    @VisibleForTesting
     Write withRetries(int retries) {
       return builder().setRetries(retries).build();
     }
@@ -551,10 +553,10 @@ public final class KinesisIO {
 
       @FinishBundle
       public void finishBundle() throws Exception {
-        checkForFailures();
-
         // Flush all outstanding records, blocking call
         flushAll();
+
+        checkForFailures();
       }
 
       @Teardown
