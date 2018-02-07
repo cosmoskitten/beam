@@ -1611,6 +1611,7 @@
 
               <!-- ignore files we track but do not distribute -->
               <exclude>.github/**/*</exclude>
+              <exclude>**/gogradle.lock</exclude>
 
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
