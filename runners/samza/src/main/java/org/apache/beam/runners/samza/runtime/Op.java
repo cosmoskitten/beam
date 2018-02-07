@@ -22,7 +22,7 @@ import java.io.Serializable;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
-import org.apache.samza.task.TaskContext;
+import org.apache.samza.operators.OpContext;
 import org.joda.time.Instant;
 
 /**
@@ -42,7 +42,7 @@ public interface Op<InT, OutT> extends Serializable {
    * {@link #processSideInput(String, WindowedValue, OpEmitter)}.
    */
   default void open(Config config,
-                    TaskContext taskContext,
+                    OpContext opContext,
                     SamzaExecutionContext executionContext,
                     OpEmitter<OutT> emitter) {}
 
@@ -59,6 +59,8 @@ public interface Op<InT, OutT> extends Serializable {
   }
 
   default void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {}
+
+  default void processTimer(KeyedTimerData<?> keyedTimerData) {};
 
   default void close() {}
 }

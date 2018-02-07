@@ -50,8 +50,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
+import org.apache.samza.operators.OpContext;
+import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.storage.kv.KeyValueStore;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,18 +109,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
 
   @Override
   public void open(Config config,
-                   TaskContext taskContext,
+                   OpContext opContext,
                    SamzaExecutionContext executionContext,
                    OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
-    this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(null);
+    final TimerRegistry<KeyedTimerData<Void>> timerRegistry = opContext.getTimerRegistry();
+    this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(null, timerRegistry);
 
     @SuppressWarnings("unchecked")
     final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) taskContext.getStore("beamStore");
+        (KeyValueStore<byte[], byte[]>) opContext.getTaskContext().getStore("beamStore");
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
@@ -175,10 +177,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
 
   @Override
   public void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
-    // TODO: currently when we merge main and side inputs, we also use the min for
-    // the watermarks coming from either side. This might cause delay/stop in main
-    // input watermark as side input might not emit watermarks regularly (e.g. BoundedSource).
-    // Need to figure out a way to distinguish these two so the main input watermark can continue.
     this.inputWatermark = watermark;
 
     if (sideInputWatermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
@@ -238,6 +236,13 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
       // this means we will never see any more side input
       processWatermark(this.inputWatermark, emitter);
     }
+  }
+
+  @Override
+  public void processTimer(KeyedTimerData<?> keyedTimerData) {
+    pushbackFnRunner.startBundle();
+    fireTimer(keyedTimerData.getTimerData());
+    pushbackFnRunner.finishBundle();
   }
 
   private void fireTimer(TimerInternals.TimerData timer) {

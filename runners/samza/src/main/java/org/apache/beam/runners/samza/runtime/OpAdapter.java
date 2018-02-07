@@ -22,13 +22,15 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
+import org.apache.samza.operators.OpContext;
 import org.apache.samza.operators.functions.FlatMapFunction;
+import org.apache.samza.operators.functions.TimerFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
-import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +40,9 @@ import org.slf4j.LoggerFactory;
  */
 public class OpAdapter<InT, OutT>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
-      WatermarkFunction<OpMessage<OutT>>, Serializable {
+               WatermarkFunction<OpMessage<OutT>>,
+               TimerFunction<KeyedTimerData<?>, OpMessage<OutT>>,
+               Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
   private final Op<InT, OutT> op;
@@ -56,14 +60,14 @@ public class OpAdapter<InT, OutT>
   }
 
   @Override
-  public final void init(Config config, TaskContext taskContext) {
+  public final void init(Config config, OpContext opContext) {
     outputList = new ArrayList<>();
     emitter = new OpEmitterImpl();
 
     final SamzaExecutionContext executionContext =
-        (SamzaExecutionContext) taskContext.getUserContext();
+        (SamzaExecutionContext) opContext.getTaskContext().getUserContext();
 
-    op.open(config, taskContext, executionContext, emitter);
+    op.open(config, opContext, executionContext, emitter);
   }
 
   @Override
@@ -121,6 +125,24 @@ public class OpAdapter<InT, OutT>
     return outputWatermark != null
       ? outputWatermark.getMillis()
       : null;
+  }
+
+  @Override
+  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData<?> keyedTimerData, long time) {
+    assert outputList.isEmpty();
+
+    try {
+      op.processTimer(keyedTimerData);
+    } catch (Exception e) {
+      LOG.error("Op {} threw an exception during processing timer",
+          this.getClass().getName(),
+          e);
+      throw UserCodeException.wrap(e);
+    }
+
+    final List<OpMessage<OutT>> results = new ArrayList<>(outputList);
+    outputList.clear();
+    return results;
   }
 
   @Override
