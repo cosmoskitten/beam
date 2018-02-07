@@ -77,13 +77,14 @@ import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
+import com.amazonaws.services.kinesis.producer.IKinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
-import com.google.common.base.Function;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -128,6 +129,11 @@ class AmazonKinesisMock implements AmazonKinesis {
     public int hashCode() {
       return reflectionHashCode(this);
     }
+
+    @Override public String toString() {
+      return "TestData{" + "data='" + data + '\'' + ", arrivalTimestamp=" + arrivalTimestamp
+          + ", sequenceNumber='" + sequenceNumber + '\'' + '}';
+    }
   }
 
   static class Provider implements AWSClientsProvider {
@@ -142,26 +148,21 @@ class AmazonKinesisMock implements AmazonKinesis {
 
     @Override
     public AmazonKinesis getKinesisClient() {
-      return new AmazonKinesisMock(transform(shardedData,
-          new Function<List<TestData>, List<Record>>() {
-
-            @Override
-            public List<Record> apply(@Nullable List<TestData> testDatas) {
-              return transform(testDatas, new Function<TestData, Record>() {
-
-                @Override
-                public Record apply(@Nullable TestData testData) {
-                  return testData.convertToRecord();
-                }
-              });
-            }
-          }), numberOfRecordsPerGet);
-
+      return new AmazonKinesisMock(
+          shardedData
+              .stream()
+              .map(testDatas -> transform(testDatas, TestData::convertToRecord))
+              .collect(Collectors.toList()),
+          numberOfRecordsPerGet);
     }
 
     @Override
     public AmazonCloudWatch getCloudWatchClient() {
       return Mockito.mock(AmazonCloudWatch.class);
+    }
+
+    @Override public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
+      throw new RuntimeException("Not implemented");
     }
   }
 

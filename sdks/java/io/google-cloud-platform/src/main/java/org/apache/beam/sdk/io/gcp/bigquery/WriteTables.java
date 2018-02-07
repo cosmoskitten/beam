@@ -61,8 +61,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writes partitions to BigQuery tables.
@@ -79,7 +77,6 @@ import org.slf4j.LoggerFactory;
 class WriteTables<DestinationT>
   extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
     PCollection<KV<TableDestination, String>>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
@@ -216,13 +213,14 @@ class WriteTables<DestinationT>
     writeTablesOutputs
         .get(temporaryFilesTag)
         .setCoder(StringUtf8Coder.of())
-        .apply(WithKeys.<Void, String>of((Void) null))
+        .apply(WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
-        .apply(Window.<KV<Void, String>>into(new GlobalWindows())
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-            .discardingFiredPanes())
-        .apply(GroupByKey.<Void, String>create())
-        .apply(Values.<Iterable<String>>create())
+        .apply(
+            Window.<KV<Void, String>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .discardingFiredPanes())
+        .apply(GroupByKey.create())
+        .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
 
     return writeTablesOutputs.get(mainOutputTag);

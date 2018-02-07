@@ -166,7 +166,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
+  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
     context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -246,6 +246,7 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      temp_dir: '$WORKSPACE',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
@@ -264,6 +265,9 @@ class common_job_properties {
 
         // create new VirtualEnv, inherit already existing packages
         shell('virtualenv .env --system-site-packages')
+
+        // update setuptools and pip
+        shell('.env/bin/pip install --upgrade setuptools pip')
 
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')

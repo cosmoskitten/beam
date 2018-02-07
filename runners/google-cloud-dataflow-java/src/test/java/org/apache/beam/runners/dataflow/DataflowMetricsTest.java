@@ -62,8 +62,6 @@ import org.mockito.MockitoAnnotations;
 public class DataflowMetricsTest {
   private static final String PROJECT_ID = "some-project";
   private static final String JOB_ID = "1234";
-  private static final String REGION_ID = "some-region";
-  private static final String REPLACEMENT_JOB_ID = "4321";
 
   @Mock
   private Dataflow mockWorkflowClient;
@@ -129,7 +127,7 @@ public class DataflowMetricsTest {
     job.jobId = JOB_ID;
 
     JobMetrics jobMetrics = new JobMetrics();
-    jobMetrics.setMetrics(ImmutableList.<MetricUpdate>of());
+    jobMetrics.setMetrics(ImmutableList.of());
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 

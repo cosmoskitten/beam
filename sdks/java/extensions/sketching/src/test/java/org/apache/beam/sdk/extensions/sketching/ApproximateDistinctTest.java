@@ -21,12 +21,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -48,14 +46,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ApproximateDistinct}. */
 @RunWith(JUnit4.class)
 public class ApproximateDistinctTest implements Serializable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ApproximateDistinctTest.class);
 
   @Rule public final transient TestPipeline tp = TestPipeline.create();
 
@@ -71,7 +65,7 @@ public class ApproximateDistinctTest implements Serializable {
     }
 
     PCollection<Long> cardinality =
-        tp.apply("small stream", Create.<Integer>of(small))
+        tp.apply("small stream", Create.of(small))
             .apply("small cardinality", ApproximateDistinct.<Integer>globally().withPrecision(p));
 
     PAssert.that("Not Accurate Enough", cardinality)
@@ -94,7 +88,7 @@ public class ApproximateDistinctTest implements Serializable {
     Collections.shuffle(stream);
 
     PCollection<Long> res =
-        tp.apply("big stream", Create.<Integer>of(stream))
+        tp.apply("big stream", Create.of(stream))
             .apply(
                 "big cardinality",
                 ApproximateDistinct.<Integer>globally().withPrecision(p).withSparsePrecision(sp));
@@ -119,11 +113,11 @@ public class ApproximateDistinctTest implements Serializable {
 
     PCollection<Long> results =
         tp.apply("per key stream", Create.of(stream))
-            .apply("create keys", WithKeys.<Integer, Integer>of(1))
+            .apply("create keys", WithKeys.of(1))
             .apply(
                 "per key cardinality",
                 ApproximateDistinct.<Integer, Integer>perKey().withPrecision(p))
-            .apply("extract values", Values.<Long>create());
+            .apply("extract values", Values.create());
 
     PAssert.that("Verify Accuracy for cardinality per key", results)
         .satisfies(new VerifyAccuracy(cardinality, expectedErr));
@@ -168,8 +162,7 @@ public class ApproximateDistinctTest implements Serializable {
     for (int i = 0; i < 10; i++) {
       hllp.offer(i);
     }
-    CoderProperties.<HyperLogLogPlus>coderDecodeEncodeEqual(
-        ApproximateDistinct.HyperLogLogPlusCoder.of(), hllp);
+    CoderProperties.coderDecodeEncodeEqual(ApproximateDistinct.HyperLogLogPlusCoder.of(), hllp);
   }
 
   @Test

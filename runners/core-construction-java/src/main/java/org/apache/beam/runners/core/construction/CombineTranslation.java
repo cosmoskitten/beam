@@ -178,7 +178,8 @@ public class CombineTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
               sideInputs.put(
-                  sideInput.getTagInternal().getId(), ParDoTranslation.translateView(sideInput));
+                  sideInput.getTagInternal().getId(),
+                  ParDoTranslation.translateView(sideInput, components));
             }
             return sideInputs;
           }
@@ -384,8 +385,7 @@ public class CombineTranslation {
   private static CombinePayload getCombinePayload(
       AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
     return CombinePayload.parseFrom(
-        PTransformTranslation.toProto(
-                transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components)
+        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }

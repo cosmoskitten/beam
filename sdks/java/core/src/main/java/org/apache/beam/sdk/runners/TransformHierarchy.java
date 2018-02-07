@@ -242,7 +242,7 @@ public class TransformHierarchy {
   public Set<PValue> visit(PipelineVisitor visitor) {
     finishSpecifying();
     Set<PValue> visitedValues = new HashSet<>();
-    root.visit(visitor, visitedValues, new HashSet<Node>(), new HashSet<Node>());
+    root.visit(visitor, visitedValues, new HashSet<>(), new HashSet<>());
     return visitedValues;
   }
 
@@ -388,8 +388,8 @@ public class TransformHierarchy {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
-      this.inputs = inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
-      this.outputs = outputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : outputs;
+      this.inputs = inputs == null ? Collections.emptyMap() : inputs;
+      this.outputs = outputs == null ? Collections.emptyMap() : outputs;
     }
 
     /**
@@ -495,27 +495,25 @@ public class TransformHierarchy {
       for (PValue outputValue : output.expand().values()) {
         outputProducers.add(getProducer(outputValue));
       }
-      if (outputProducers.contains(this)) {
-        if (!parts.isEmpty() || outputProducers.size() > 1) {
-          Set<String> otherProducerNames = new HashSet<>();
-          for (Node outputProducer : outputProducers) {
-            if (outputProducer != this) {
-              otherProducerNames.add(outputProducer.getFullName());
-            }
+      if (outputProducers.contains(this) && (!parts.isEmpty() || outputProducers.size() > 1)) {
+        Set<String> otherProducerNames = new HashSet<>();
+        for (Node outputProducer : outputProducers) {
+          if (outputProducer != this) {
+            otherProducerNames.add(outputProducer.getFullName());
           }
-          throw new IllegalArgumentException(
-              String.format(
-                  "Output of composite transform [%s] contains a primitive %s produced by it. "
-                      + "Only primitive transforms are permitted to produce primitive outputs."
-                      + "%n    Outputs: %s"
-                      + "%n    Other Producers: %s"
-                      + "%n    Components: %s",
-                  getFullName(),
-                  POutput.class.getSimpleName(),
-                  output.expand(),
-                  otherProducerNames,
-                  parts));
         }
+        throw new IllegalArgumentException(
+            String.format(
+                "Output of composite transform [%s] contains a primitive %s produced by it. "
+                    + "Only primitive transforms are permitted to produce primitive outputs."
+                    + "%n    Outputs: %s"
+                    + "%n    Other Producers: %s"
+                    + "%n    Components: %s",
+                getFullName(),
+                POutput.class.getSimpleName(),
+                output.expand(),
+                otherProducerNames,
+                parts));
       }
     }
 
@@ -567,7 +565,7 @@ public class TransformHierarchy {
 
     /** Returns the transform output, in expanded form. */
     public Map<TupleTag<?>, PValue> getOutputs() {
-      return outputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : outputs;
+      return outputs == null ? Collections.emptyMap() : outputs;
     }
 
     /**

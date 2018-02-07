@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
@@ -42,7 +42,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Person> personAdapter() {
     return new ModelFieldsAdapter<Person>(
-        BeamRecordSqlType.builder()
+        RowSqlType.builder()
             .withBigIntField("id")
             .withVarcharField("name")
             .withVarcharField("emailAddress")
@@ -54,23 +54,16 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
-        return Collections.<Object> unmodifiableList(Arrays.asList(
-            p.id,
-            p.name,
-            p.emailAddress,
-            p.creditCard,
-            p.city,
-            p.state,
-            p.dateTime,
-            p.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(
+                p.id, p.name, p.emailAddress, p.creditCard, p.city, p.state, p.dateTime, p.extra));
       }
     };
   }
 
   private static ModelFieldsAdapter<Bid> bidAdapter() {
     return new ModelFieldsAdapter<Bid>(
-        BeamRecordSqlType.builder()
+        RowSqlType.builder()
             .withBigIntField("auction")
             .withBigIntField("bidder")
             .withBigIntField("price")
@@ -79,20 +72,15 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
-        return Collections.<Object> unmodifiableList(Arrays.asList(
-            b.auction,
-            b.bidder,
-            b.price,
-            b.dateTime,
-            b.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(b.auction, b.bidder, b.price, b.dateTime, b.extra));
       }
     };
   }
 
   private static ModelFieldsAdapter<Auction> auctionAdapter() {
     return new ModelFieldsAdapter<Auction>(
-        BeamRecordSqlType.builder()
+        RowSqlType.builder()
             .withBigIntField("id")
             .withVarcharField("itemName")
             .withVarcharField("description")
@@ -106,18 +94,18 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Auction a) {
-        return Collections.<Object>unmodifiableList(Arrays.asList(
-            a.id,
-            a.itemName,
-            a.description,
-            a.initialBid,
-            a.reserve,
-            a.dateTime,
-            a.expires,
-            a.seller,
-            a.category,
-            a.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(
+                a.id,
+                a.itemName,
+                a.description,
+                a.initialBid,
+                a.reserve,
+                a.dateTime,
+                a.expires,
+                a.seller,
+                a.category,
+                a.extra));
       }
     };
   }

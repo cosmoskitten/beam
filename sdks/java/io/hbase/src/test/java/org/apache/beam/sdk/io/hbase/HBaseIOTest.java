@@ -168,7 +168,7 @@ public class HBaseIOTest {
     // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   /** Tests that when reading from an empty table, the read succeeds. */
@@ -176,7 +176,7 @@ public class HBaseIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = "TEST-EMPTY-TABLE";
     createTable(table);
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   @Test
@@ -248,8 +248,8 @@ public class HBaseIOTest {
    * [] and that some properties hold across them.
    */
   @Test
-  public void testReadingWithKeyRange() throws Exception {
-    final String table = "TEST-KEY-RANGE-TABLE";
+  public void testReadingKeyRangePrefix() throws Exception {
+    final String table = "TEST-KEY-RANGE-PREFIX-TABLE";
     final int numRows = 1001;
     final byte[] startRow = "2".getBytes();
     final byte[] stopRow = "9".getBytes();
@@ -262,11 +262,43 @@ public class HBaseIOTest {
     final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(prefixRange), 126);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeSuffix() throws Exception {
+    final String table = "TEST-KEY-RANGE-SUFFIX-TABLE";
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test suffix: [startKey, end).
     final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(suffixRange), 875);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeMiddle() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test restricted range: [startKey, endKey).
     // This one tests the second signature of .withKeyRange
@@ -373,7 +405,7 @@ public class HBaseIOTest {
         .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
-    thrown.expectCause(Matchers.<Throwable>instanceOf(IllegalArgumentException.class));
+    thrown.expectCause(Matchers.instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("No columns to insert");
     p.run().waitUntilFinish();
   }
@@ -473,7 +505,7 @@ public class HBaseIOTest {
   private void runReadTestLength(HBaseIO.Read read, long numElements) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     PCollection<Result> rows = p.apply("Read" + transformId, read);
-    PAssert.thatSingleton(rows.apply("Count" + transformId, Count.<Result>globally()))
+    PAssert.thatSingleton(rows.apply("Count" + transformId, Count.globally()))
         .isEqualTo(numElements);
     p.run().waitUntilFinish();
   }

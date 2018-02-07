@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -41,19 +39,14 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 public class CassandraIOTest implements Serializable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -86,8 +79,7 @@ public class CassandraIOTest implements Serializable {
         .withEntity(Scientist.class)
     );
 
-    PAssert.thatSingleton(output.apply("Count", Count.<Scientist>globally()))
-        .isEqualTo(10000L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10000L);
 
     PCollection<KV<String, Integer>> mapped =
         output.apply(
@@ -97,16 +89,13 @@ public class CassandraIOTest implements Serializable {
                     return KV.of(scientist.name, scientist.id);
                   }
                 }));
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertEquals(element.getKey(), 1000, element.getValue().longValue());
-                }
-                return null;
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(element.getKey(), 1000, element.getValue().longValue());
               }
+              return null;
             });
 
     pipeline.run();

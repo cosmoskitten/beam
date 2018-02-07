@@ -191,7 +191,7 @@ class DataflowMetrics extends MetricResults {
     private DistributionResult getDistributionValue(
         com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
       if (metricUpdate.getDistribution() == null) {
-        return DistributionResult.ZERO;
+        return DistributionResult.IDENTITY_ELEMENT;
       }
       ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
       Long count = ((Number) distributionMap.get("count")).longValue();
@@ -356,7 +356,7 @@ class DataflowMetrics extends MetricResults {
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<T>(
+      return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
           name, scope, committed, attempted);
     }
   }
