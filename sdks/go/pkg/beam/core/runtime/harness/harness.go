@@ -17,11 +17,9 @@
 package harness
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -45,7 +43,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	runInitHooks(ctx)
 
 	setupRemoteLogging(ctx, loggingEndpoint)
-	setupDiagnosticRecording()
 
 	recordHeader()
 
@@ -91,8 +88,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		data:   &DataManager{},
 	}
 
-	var cpuProfBuf bytes.Buffer
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -116,19 +111,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
-			if isEnabled("cpu_profiling") {
-				cpuProfBuf.Reset()
-				pprof.StartCPUProfile(&cpuProfBuf)
-			}
+			runRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
-			if isEnabled("cpu_profiling") {
-				pprof.StopCPUProfile()
-
-				if err := profileWriter(fmt.Sprintf("cpu_prof%s", req.InstructionId), &cpuProfBuf); err != nil {
-					log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
-				}
-			}
+			runResponseHooks(ctx, req, resp)
 
 			recordInstructionResponse(resp)
 			if resp != nil {
