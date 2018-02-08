@@ -35,6 +35,8 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterName
 
 
 class LoggingContext(object):
@@ -455,8 +457,11 @@ class DoFnRunner(Receiver):
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
+    per_element_output_counter_name = CounterName('per-element-output-count',
+                                                  step_name=step_name)
+    per_element_output_counter_name
     output_processor = _OutputProcessor(
-        windowing.windowfn, main_receivers, tagged_receivers)
+        windowing.windowfn, main_receivers, tagged_receivers, state._counter_factory, per_element_output_counter_name)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
@@ -524,7 +529,7 @@ class OutputProcessor(object):
 class _OutputProcessor(OutputProcessor):
   """Processes output produced by DoFn method invocations."""
 
-  def __init__(self, window_fn, main_receivers, tagged_receivers):
+  def __init__(self, window_fn, main_receivers, tagged_receivers, counter_factory = None, per_element_output_counter_name = None):
     """Initializes ``_OutputProcessor``.
 
     Args:
@@ -535,6 +540,7 @@ class _OutputProcessor(OutputProcessor):
     self.window_fn = window_fn
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
+    self.per_element_output_counter = counter_factory.get_counter(per_element_output_counter_name, Counter.DISTRIBUTION)
 
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
@@ -543,9 +549,12 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
+      self.per_element_output_counter.update(0)
       return
 
+    output_element_output = 0
     for result in results:
+      output_element_output += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
@@ -570,6 +579,7 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
+    self.per_element_output_counter.update(output_element_output)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""

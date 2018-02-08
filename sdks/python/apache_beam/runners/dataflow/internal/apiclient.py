@@ -721,7 +721,6 @@ class MetricUpdateTranslators(object):
   def translate_scalar_counter_float(accumulator, metric_update_proto):
     metric_update_proto.floatingPoint = accumulator.value
 
-
 def to_split_int(n):
   res = dataflow.SplitInt64()
   res.lowBits = n & 0xffffffff
@@ -736,6 +735,13 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
+  if hasattr(distribution_update, 'sum_of_squares'):
+    dist_update_proto.sumOfSquares = distribution_update.sum_of_squares
+  if hasattr(distribution_update, 'buckets') and hasattr(distribution_update, 'first_bucket_offset'):
+    histogram = dataflow.Histogram()
+    histogram.bucketCounts = distribution_update.buckets
+    histogram.firstBucketOffset = distribution_update.first_bucket_offset
+    dist_update_proto.histogram = histogram
   metric_update_proto.distribution = dist_update_proto
 
 
@@ -796,6 +802,9 @@ structured_counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DistributionCounterFn: (
+      dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+      translate_distribution),
 }
 
 
@@ -833,4 +842,7 @@ counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DistributionCounterFn: (
+        dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution),
 }
