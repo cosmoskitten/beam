@@ -28,7 +28,6 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
-from apache_beam.transforms.cy_combiners import DistributionAccumulator
 
 
 class _ExecutionContext(object):
@@ -226,8 +225,6 @@ class EvaluationContext(object):
 
       if result.counters:
         for counter in result.counters:
-          if isinstance(counter.accumulator, DistributionAccumulator):
-            continue
           merged_counter = self._counter_factory.get_counter(
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
