@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.jdbc;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
@@ -29,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -178,8 +178,20 @@ public class JdbcIO {
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
             .setBatchSize(DEFAULT_BATCH_SIZE)
-            .setLockSqlState("40001")
+            .setDeadlockPredicate(new DefaultDeadlockPredicate())
             .build();
+  }
+
+  /**
+   * This is the default {@link Predicate} we use to detect DeadLock.
+   * It basically test if the {@link SQLException#getSQLState()} equals 40001.
+   * 40001 is the SQL State used by most of database to identify deadlock.
+   */
+  public static class DefaultDeadlockPredicate implements DeadlockPredicate {
+    @Override
+    public boolean test(SQLException e) {
+      return (e.getSQLState().equals("40001"));
+    }
   }
 
   private JdbcIO() {}
@@ -521,6 +533,16 @@ public class JdbcIO {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
 
+  /**
+   * An interface used to detect deadlock when a {@link SQLException} occurs.
+   * If {@link DeadlockPredicate#test(SQLException)} returns true, {@link Write} tries
+   * to replay the statements.
+   */
+  @FunctionalInterface
+  public interface DeadlockPredicate extends Serializable {
+    boolean test(SQLException sqlException);
+  }
+
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
@@ -528,7 +550,7 @@ public class JdbcIO {
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
-    @Nullable abstract String getLockSqlState();
+    @Nullable abstract DeadlockPredicate getDeadlockPredicate();
 
     abstract Builder<T> toBuilder();
 
@@ -538,7 +560,7 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
-      abstract Builder<T> setLockSqlState(String lockSqlState);
+      abstract Builder<T> setDeadlockPredicate(DeadlockPredicate deadlockPredicate);
 
       abstract Write<T> build();
     }
@@ -557,7 +579,6 @@ public class JdbcIO {
      * Provide a maximum size in number of SQL statenebt for the batch. Default is 1000.
      *
      * @param batchSize maximum batch size in number of statements
-     * @return the {@link Write} with connection batch size set
      */
     public Write<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
@@ -565,16 +586,13 @@ public class JdbcIO {
     }
 
     /**
-     * If a SQL exception occurs, {@link Write} is able to detect it's a deadlock
-     * based on the exception SQL state (see {@link SQLException#getSQLState()}).
-     * In that case, {@link Write} will use a backoff policy to retry.
-     *
-     * @param lockSqlState the {@link SQLException#getSQLState()} identifying a deadlock.
-     * @return the corresponding {@link Write}.
+     * When a SQL exception occurs, {@link Write} can test {@link SQLException}
+     * based on this predicate to detect a deadlock for instance.
+     * If this predicate returns {@code true}, then {@link Write} tries to replay the statements.
      */
-    public Write<T> withLockSqlState(String lockSqlState) {
-      checkArgument(lockSqlState != null, "lockSqlState can not be null");
-      return toBuilder().setLockSqlState(lockSqlState).build();
+    public Write<T> withDeadlockPredicate(DeadlockPredicate deadlockPredicate) {
+      checkArgument(deadlockPredicate != null, "deadlockPredicate can not be null");
+      return toBuilder().setDeadlockPredicate(deadlockPredicate).build();
     }
 
     @Override
@@ -646,31 +664,31 @@ public class JdbcIO {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
         while (true) {
-          PreparedStatement preparedStatement = connection.prepareStatement(spec.getStatement());
-          try {
-            // add each record in the statement batch
-            for (T record : records) {
-              processRecord(record, preparedStatement);
+          try (PreparedStatement preparedStatement =
+                       connection.prepareStatement(spec.getStatement())) {
+            try {
+              // add each record in the statement batch
+              for (T record : records) {
+                processRecord(record, preparedStatement);
+              }
+              // execute the batch
+              preparedStatement.executeBatch();
+              // commit the changes
+              connection.commit();
+              break;
+            } catch (SQLException exception) {
+              if (!spec.getDeadlockPredicate().test(exception)) {
+                throw exception;
+              }
+              LOG.warn("Deadlock detected, retrying", exception);
+              // clean up the statement batch and the connection state
+              preparedStatement.clearBatch();
+              connection.rollback();
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                // we tried the max number of times
+                throw exception;
+              }
             }
-            // execute the batch
-            preparedStatement.executeBatch();
-            // commit the changes
-            connection.commit();
-            break;
-          } catch (SQLException exception) {
-            if (!exception.getSQLState().equals(spec.getLockSqlState())) {
-              throw exception;
-            }
-            LOG.warn("Lock detected, retrying", exception);
-            // clean up the statement batch and the connection state
-            preparedStatement.clearBatch();
-            connection.rollback();
-            if (!BackOffUtils.next(sleeper, backoff)) {
-              // we tried the max number of times
-              throw exception;
-            }
-          } finally {
-            preparedStatement.close();
           }
         }
         records.clear();

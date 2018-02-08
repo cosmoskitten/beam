@@ -76,7 +76,7 @@ public class JdbcIOTest implements Serializable {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule
-  public final ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
+  public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
 
   @BeforeClass
   public static void startDatabase() throws Exception {
@@ -327,7 +327,12 @@ public class JdbcIOTest implements Serializable {
                         "org.apache.derby.jdbc.ClientDriver",
                         "jdbc:derby://localhost:" + port + "/target/beam"))
                 .withStatement(String.format("insert into %s values(?, ?)", tableName))
-                .withLockSqlState("XJ208") // we fake a deadlock with a lock here
+                .withDeadlockPredicate(new JdbcIO.DeadlockPredicate() {
+                  @Override
+                  public boolean test(SQLException e) {
+                    return e.getSQLState().equals("XJ208"); // we fake a deadlock with a lock here
+                  }
+                })
                 .withPreparedStatementSetter(
                     (element, statement) -> {
                       statement.setInt(1, element.getKey());
@@ -348,7 +353,7 @@ public class JdbcIOTest implements Serializable {
     commitThread.join();
 
     // we verify the the backoff has been called thanks to the log message
-    expectedLogs.verifyWarn("Lock detected, retrying");
+    expectedLogs.verifyWarn("Deadlock detected, retrying");
 
     try (Connection readConnection = dataSource.getConnection()) {
       try (Statement statement = readConnection.createStatement()) {
