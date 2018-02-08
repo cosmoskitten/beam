@@ -48,7 +48,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<Row> result =
-        input.apply("testSingleFilter", BeamSql.query(sql));
+        input.apply("testSingleFilter", BeamSql.query(sql).toPTransform());
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -77,7 +77,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+            .apply("testCompositeFilter", BeamSql.query(sql).toPTransform());
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
@@ -105,7 +105,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testNoReturnFilter", BeamSql.queryMulti(sql));
+            .apply("testNoReturnFilter", BeamSql.query(sql).toPTransform());
 
     PAssert.that(result).empty();
 
@@ -122,7 +122,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
+            .apply("testFromInvalidTableName1", BeamSql.query(sql).toPTransform());
 
     pipeline.run().waitUntilFinish();
   }
@@ -130,12 +130,15 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
   @Test
   public void testFromInvalidTableName2() throws Exception {
     exceptions.expect(IllegalStateException.class);
-    exceptions.expectMessage("Use fixed table name PCOLLECTION");
+    exceptions.expectMessage("Use PCOLLECTION as table name"
+                                 + " when selecting from single PCollection."
+                                 + " Use PCollectionTuple to explicitly "
+                                 + "name the input PCollections");
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql).toPTransform());
 
     pipeline.run().waitUntilFinish();
   }
@@ -148,7 +151,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql).toPTransform());
 
     pipeline.run().waitUntilFinish();
   }

@@ -162,7 +162,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
-        PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()));
+        PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()).toPTransform());
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
                 .of(rowType)

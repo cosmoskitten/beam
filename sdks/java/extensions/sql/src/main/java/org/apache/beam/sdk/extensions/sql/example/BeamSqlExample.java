@@ -66,7 +66,7 @@ class BeamSqlExample {
 
     //Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream = inputTable.apply(
-        BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
+        BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1").toPTransform());
 
     // print the output record of case 1;
     outputStream.apply(
@@ -86,7 +86,10 @@ class BeamSqlExample {
     // Case 2. run the query with BeamSql.query over result PCollection of case 1.
     PCollection<Row> outputStream2 =
         PCollectionTuple.of(new TupleTag<>("CASE1_RESULT"), outputStream)
-            .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
+            .apply(
+                BeamSql
+                    .query("select c2, sum(c3) from CASE1_RESULT group by c2")
+                    .toPTransform());
 
     // print the output record of case 2;
     outputStream2.apply(
