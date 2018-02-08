@@ -38,7 +38,7 @@ public class Event implements KnownSize, Serializable {
 
     private int value = -1;
 
-    Tag(int value){
+    Tag(int value) {
       this.value = value;
     }
   }

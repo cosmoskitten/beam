@@ -127,7 +127,7 @@ public class BeamSql {
      *
      * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
      */
-     public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
+     public QueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
        beamSqlEnv.registerUdf(functionName, clazz);
        return this;
      }
@@ -135,7 +135,7 @@ public class BeamSql {
       * register {@link SerializableFunction} as a UDF function used in this query.
       * Note, {@link SerializableFunction} must have a constructor without arguments.
       */
-      public QueryTransform withUdf(String functionName, SerializableFunction sfn){
+      public QueryTransform withUdf(String functionName, SerializableFunction sfn) {
         beamSqlEnv.registerUdf(functionName, sfn);
         return this;
       }
@@ -143,7 +143,7 @@ public class BeamSql {
      /**
       * register a {@link CombineFn} as UDAF function used in this query.
       */
-     public QueryTransform withUdaf(String functionName, CombineFn combineFn){
+     public QueryTransform withUdaf(String functionName, CombineFn combineFn) {
        beamSqlEnv.registerUdaf(functionName, combineFn);
        return this;
      }
@@ -167,7 +167,7 @@ public class BeamSql {
     }
 
     //register tables, related with input PCollections.
-    private void registerTables(PCollectionTuple input){
+    private void registerTables(PCollectionTuple input) {
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
         PCollection<Row> sourceStream = (PCollection<Row>) input.get(sourceTag);
         RowCoder sourceCoder = (RowCoder) sourceStream.getCoder();
@@ -196,7 +196,7 @@ public class BeamSql {
      *
      * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDAF in BeamSql.
      */
-    public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz){
+    public SimpleQueryTransform withUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
       delegate.withUdf(functionName, clazz);
       return this;
     }
@@ -205,7 +205,7 @@ public class BeamSql {
      * register {@link SerializableFunction} as a UDF function used in this query.
      * Note, {@link SerializableFunction} must have a constructor without arguments.
      */
-    public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn){
+    public SimpleQueryTransform withUdf(String functionName, SerializableFunction sfn) {
       delegate.withUdf(functionName, sfn);
       return this;
     }
@@ -213,7 +213,7 @@ public class BeamSql {
     /**
      * register a {@link CombineFn} as UDAF function used in this query.
      */
-    public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn){
+    public SimpleQueryTransform withUdaf(String functionName, CombineFn combineFn) {
       delegate.withUdaf(functionName, combineFn);
       return this;
     }

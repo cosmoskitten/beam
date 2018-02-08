@@ -92,7 +92,7 @@ public class BeamSqlEnv implements Serializable{
   /**
    * Find {@link BaseBeamTable} by table name.
    */
-  public BeamSqlTable findTable(String tableName){
+  public BeamSqlTable findTable(String tableName) {
     return planner.getSourceTables().get(tableName);
   }
 
