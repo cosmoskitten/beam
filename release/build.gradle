@@ -50,11 +50,15 @@ def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
 for (String release : ["Release", "Nightly"]) {
   for (String runner : ["Direct", "Dataflow", "Apex", "FlinkLocal"]) {
     def taskName = "runQuickstartJava${runner}${release}"
+    def argsNeeded =  release == "Nightly" ?  argsNightly : argsRelease
+    if (runner == "Dataflow") {
+      argsNeeded += argsProject
+    } 
     println "Generating :${taskName}"
     task "${taskName}" (dependsOn: 'classes', type: JavaExec) {
       main = "quickstart-java-${runner}".toLowerCase()
       classpath = sourceSets.main.runtimeClasspath
-      args release=="Nightly" ?  argsNightly : argsRelease
+      args argsNeeded
     }
   }
 }
