@@ -170,7 +170,7 @@ public class BeamSqlDateFunctionsIntegrationTest
         + " FROM PCOLLECTION"
         ;
     PCollection<Row> rows = getTestPCollection().apply(
-        BeamSql.query(sql));
+        BeamSql.query(sql).toPTransform());
     PAssert.that(rows).satisfies(new Checker());
     pipeline.run();
   }

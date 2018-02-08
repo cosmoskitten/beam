@@ -28,6 +28,7 @@ import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -50,13 +51,13 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> 
       "SELECT auction, bidder, price, dateTime, extra  FROM PCOLLECTION "
           + " WHERE MOD(auction, %d) = 0";
 
-  private final BeamSql.SimpleQueryTransform query;
+  private final PTransform<PInput, PCollection<Row>> query;
 
   public SqlQuery2(long skipFactor) {
     super("SqlQuery2");
 
     String queryString = String.format(QUERY_TEMPLATE, skipFactor);
-    query = BeamSql.query(queryString);
+    query = BeamSql.query(queryString).toPTransform();
   }
 
   @Override

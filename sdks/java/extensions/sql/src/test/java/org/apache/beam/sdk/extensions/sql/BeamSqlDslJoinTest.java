@@ -174,7 +174,7 @@ public class BeamSqlDslJoinTest {
         .and(
             new TupleTag<>("ORDER_DETAILS2"),
             ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", BeamSql.queryMulti(sql))
+        .apply("join", BeamSql.query(sql).toPTransform())
         .setCoder(RESULT_CODER);
   }
 }
