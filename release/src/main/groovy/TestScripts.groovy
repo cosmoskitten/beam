@@ -136,11 +136,6 @@ class TestScripts {
      if (!var.curDir.exists()) {
        _error("Directory ${var.curDir} not found")
      }
-     _execute("pwd")
-     if (var.lastText != var.curDir.absolutePath) {
-       _error("Directory mismatch, ${var.lastText} != ${var.curDir.absolutePath}")
-
-     }
    }
 
    // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
@@ -164,7 +159,7 @@ class TestScripts {
              </profiles>
         </settings>
         """
-       def cmd = "mvn ${args} -s${settings.absolutePath} -Ptestrel -B"
+       def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
        String path = System.getenv("PATH");
        // Set the path on jenkins executors to use 3.5.2.
        def mvnPath = "/home/jenkins/tools/maven/apache-maven-3.5.2/bin"
