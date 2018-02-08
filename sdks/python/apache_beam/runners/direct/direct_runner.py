@@ -80,32 +80,32 @@ class SwitchingDirectRunner(PipelineRunner):
     from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
     from apache_beam.testing.test_stream import TestStream
 
-    class _FnApiRunnerRunnabilityVisitor(PipelineVisitor):
+    class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """For internal use only; no backwards-compatibility guarantees.
 
       Visitor for determining whether a Pipeline can be run on the FnApiRunner.
       """
 
       def __init__(self):
-        self.runnable = True
+        self.supported_by_fnapi_runner = True
 
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
         # The FnApiRunner does not support streaming execution.
         if isinstance(transform, TestStream):
-          self.runnable = False
+          self.supported_by_fnapi_runner = False
         # The FnApiRunner does not support reads from NativeSources.
         if (isinstance(transform, beam.io.Read) and
             isinstance(transform.source, NativeSource)):
-          self.runnable = False
+          self.supported_by_fnapi_runner = False
         # The FnApiRunner does not support the use of _NativeWrites.
         if isinstance(transform, _NativeWrite):
-          self.runnable = False
+          self.supported_by_fnapi_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
           # The FnApiRunner does not support execution of SplittableDoFns.
           if DoFnSignature(dofn).is_splittable_dofn():
-            self.runnable = False
+            self.supported_by_fnapi_runner = False
           # The FnApiRunner does not support execution of CombineFns with side
           # inputs.
           if isinstance(dofn, CombineValuesDoFn):
@@ -114,12 +114,13 @@ class SwitchingDirectRunner(PipelineRunner):
                                             kwargs.values())
             if any(isinstance(arg, ArgumentPlaceholder)
                    for arg in args_to_check):
-              self.runnable = False
+              self.supported_by_fnapi_runner = False
 
-    # Check that no blacklisted transforms are used in the pipeline.
-    visitor = _FnApiRunnerRunnabilityVisitor()
+    # Check whether all transforms used in the pipeline are supported by the
+    # FnApiRunner.
+    visitor = _FnApiRunnerSupportVisitor()
     pipeline.visit(visitor)
-    if not visitor.runnable:
+    if not visitor.supported_by_fnapi_runner:
       use_fnapi_runner = False
 
     if use_fnapi_runner:
