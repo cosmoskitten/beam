@@ -17,29 +17,26 @@
  * limitations under the License.
  */
 
-t = new TestScripts(args)
+class QuickstartArchetype {
+  def static generate(TestScripts t) {
+    // Generate a maven project from the snapshot repository
+    t.run """mvn archetype:generate \
+      -DarchetypeGroupId=org.apache.beam \
+      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+      -DarchetypeVersion=${t.ver()} \
+      -DgroupId=org.example \
+      -DartifactId=word-count-beam \
+      -Dversion="0.1" \
+      -Dpackage=org.apache.beam.examples \
+      -DinteractiveMode=false"""
 
-/*
- * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
- */
-
-t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
-
-  t.intent 'Gets the WordCount Example Code'
-    QuickstartArchetype.generate(t)
-
-  t.intent 'Runs the WordCount Code with Direct runner'
-    // Run the workcount example with the direct runner
-    t.run "curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt"
-
-    t.run """mvn compile exec:java \
-      -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=/tmp/kinglear.txt --output=counts" \
-      -Pdirect-runner"""
-
-    // Verify text from the kinglear.txt input file
-    t.run "grep Cordelia counts*"
-    t.see "Cordelia: 31"
-
-    // Clean up
-    t.done()
+    // Check if it was generated
+    t.see "[INFO] BUILD SUCCESS"
+    t.run "cd word-count-beam"
+    t.run "ls"
+    t.see "pom.xml"
+    t.see "src"
+    t.run "ls src/main/java/org/apache/beam/examples/"
+    t.see "WordCount.java"
+  }
+}

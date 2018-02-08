@@ -23,21 +23,23 @@ t = new TestScripts(args)
  * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
-t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
+t.describe 'Run Apache Beam Java SDK Quickstart - Apex'
 
   t.intent 'Gets the WordCount Example Code'
     QuickstartArchetype.generate(t)
 
-  t.intent 'Runs the WordCount Code with Direct runner'
-    // Run the workcount example with the direct runner
+  t.intent 'Runs the WordCount Code with Apex runner'
+    // Run the workcount example with the apex runner
     t.run "curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt"
 
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=/tmp/kinglear.txt --output=counts" \
-      -Pdirect-runner"""
+      -Dexec.args="--inputFile=/tmp/kinglear.txt \
+                   --output=counts \
+                   --runner=ApexRunner" \
+      -Papex-runner"""
 
-    // Verify text from the kinglear.txt input file
+    // Verify text from the pom.xml input file
     t.run "grep Cordelia counts*"
     t.see "Cordelia: 31"
 

@@ -26,25 +26,7 @@ t = new TestScripts(args)
 t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
   t.intent 'Gets the WordCount Example Code'
-    // Generate a maven project from the snapshot repository
-    t.run """mvn archetype:generate \
-      -DarchetypeGroupId=org.apache.beam \
-      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=${t.ver()} \
-      -DgroupId=org.example \
-      -DartifactId=word-count-beam \
-      -Dversion="0.1" \
-      -Dpackage=org.apache.beam.examples \
-      -DinteractiveMode=false"""
-
-    // Check if it was generated
-    t.see "[INFO] BUILD SUCCESS"
-    t.run "cd word-count-beam"
-    t.run "ls"
-    t.see "pom.xml"
-    t.see "src"
-    t.run "ls src/main/java/org/apache/beam/examples/"
-    t.see "WordCount.java"
+    QuickstartArchetype.generate(t)
 
   t.intent 'Runs the WordCount Code with Dataflow runner'
 

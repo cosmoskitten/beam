@@ -42,26 +42,19 @@ def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
 def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
 def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
 
-task runQuickstartJavaDirectNightly (dependsOn: 'classes', type: JavaExec) {
-    main = 'quickstart-java-direct'
-    classpath = sourceSets.main.runtimeClasspath
-    args argsNightly
-}
-
-task runQuickstartJavaDirectRelease (dependsOn: 'classes', type: JavaExec) {
-    main = 'quickstart-java-direct'
-    classpath = sourceSets.main.runtimeClasspath
-    args argsRelease
-}
-
-task runQuickstartJavaDataflowNightly (dependsOn: 'classes', type: JavaExec) {
-    main = 'quickstart-java-dataflow'
-    classpath = sourceSets.main.runtimeClasspath
-    args argsNightly + argsProject
-}
-
-task runQuickstartJavaDataflowRelease (dependsOn: 'classes', type: JavaExec) {
-    main = 'quickstart-java-dataflow'
-    classpath = sourceSets.main.runtimeClasspath
-    args argsRelease + argsProject
+// Generates tasks for running each quickstart in each configuration, like
+// :runQuickstartJavaDirectNightly
+// :runQuickstartJavaDirectRelease
+// :runQuickstartJavaDataflowNightly
+// :runQuickstartJavaDataflowRelease
+for (String release : ["Release", "Nightly"]) {
+  for (String runner : ["Direct", "Dataflow", "Apex", "FlinkLocal"]) {
+    def taskName = "runQuickstartJava${runner}${release}"
+    println "Generating :${taskName}"
+    task "${taskName}" (dependsOn: 'classes', type: JavaExec) {
+      main = "quickstart-java-${runner}".toLowerCase()
+      classpath = sourceSets.main.runtimeClasspath
+      args release=="Nightly" ?  argsNightly : argsRelease
+    }
+  }
 }

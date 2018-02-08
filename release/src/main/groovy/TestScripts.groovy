@@ -116,14 +116,16 @@ class TestScripts {
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
      pb.directory(var.curDir)
+     pb.redirectErrorStream(true)
      def proc = pb.start()
      var.lastText = ""
+     def text = StringBuilder.newInstance()
      proc.inputStream.eachLine {
        println it
-       var.lastText += it + "\n";
+       text.append(it + "\n")
      }
-     var.lastText = var.lastText.trim()
      proc.waitFor()
+     var.lastText = text.toString().trim()
      if (proc.exitValue() != 0) {
        println var.lastText
        _error("Failed command")
