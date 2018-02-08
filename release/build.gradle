@@ -48,7 +48,7 @@ def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
 // :runQuickstartJavaDataflowNightly
 // :runQuickstartJavaDataflowRelease
 for (String release : ["Release", "Nightly"]) {
-  for (String runner : ["Direct", "Dataflow", "Apex", "FlinkLocal"]) {
+  for (String runner : ["Direct", "Dataflow", "Apex", "Spark", "FlinkLocal"]) {
     def taskName = "runQuickstartJava${runner}${release}"
     def argsNeeded =  release == "Nightly" ?  argsNightly : argsRelease
     if (runner == "Dataflow") {
