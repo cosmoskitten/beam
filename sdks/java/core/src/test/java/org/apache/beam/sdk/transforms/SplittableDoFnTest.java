@@ -98,25 +98,8 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
-  private static PipelineOptions streamingTestPipelineOptions() {
-    // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo
-    // tests in Dataflow runner, because as of writing, it can run Splittable DoFn only in
-    // streaming mode.
-    // This is a no-op for other runners currently (Direct runner doesn't care, and other
-    // runners don't implement SDF at all yet).
-    //
-    // This is a workaround until https://issues.apache.org/jira/browse/BEAM-1620
-    // is properly implemented and supports marking tests as streaming-only.
-    //
-    // https://issues.apache.org/jira/browse/BEAM-2483 specifically tracks the removal of the
-    // current workaround.
-    PipelineOptions options = testingPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
-    return options;
-  }
-
   @Rule
-  public final transient TestPipeline p = TestPipeline.fromOptions(streamingTestPipelineOptions());
+  public final transient TestPipeline p = TestPipeline.fromOptions(testingPipelineOptions());
 
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
