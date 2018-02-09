@@ -27,9 +27,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -80,7 +84,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     Map<TupleTag<?>, PValue> taggedInputs = inputs.expand();
 
     return inputs instanceof PCollection
-        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), (PCollection<Row>) inputs)
+        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), toRows(inputs))
         : tupleOfAllInputs(inputs.getPipeline(), taggedInputs);
   }
 
@@ -93,10 +97,41 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     for (Map.Entry<TupleTag<?>, PValue> input : taggedInputs.entrySet()) {
       tuple = tuple.and(
           new TupleTag<>(input.getKey().getId()),
-          (PCollection<Row>) input.getValue());
+          toRows(input.getValue()));
     }
 
     return tuple;
+  }
+
+  private PCollection<Row> toRows(PInput input) {
+    PCollection<?> pCollection = (PCollection<?>) input;
+    Coder coder = pCollection.getCoder();
+
+    if (coder instanceof RowCoder) {
+      return (PCollection<Row>) pCollection;
+    }
+
+    if (coder instanceof InferredSqlRowCoder) {
+      InferredSqlRowCoder reflectiveCoder = (InferredSqlRowCoder) coder;
+      return pCollection
+          .apply(transformToRows(reflectiveCoder))
+          .setCoder(reflectiveCoder.getRowCoder());
+    }
+
+    throw new UnsupportedOperationException("Input PCollections for Beam SQL should either "
+                                                + "have RowCoder set and contain Rows or "
+                                                + "have InferredSqlRowCoder for its elements");
+  }
+
+  private PTransform<PCollection<?>, PCollection<Row>> transformToRows(
+      InferredSqlRowCoder coder) {
+
+    return ParDo.of(new DoFn<Object, Row>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(coder.createRow(c.element()));
+      }
+    });
   }
 
   private void registerFunctions(BeamSqlEnv sqlEnv) {

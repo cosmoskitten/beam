@@ -23,6 +23,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 
 /**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
  * Helper class to hold {@link RowType} and {@link FieldValueGetter}s which were used to
  * create it.
  *
