@@ -39,6 +39,8 @@ import org.apache.beam.sdk.values.reflect.RowTypeFactory;
 @Internal
 public class SqlRowTypeFactory implements RowTypeFactory {
 
+  private static final SqlRowTypeFactory INSTANCE = new SqlRowTypeFactory();
+
   static final ImmutableMap<Class, Coder> SQL_CODERS = ImmutableMap
       .<Class, Coder>builder()
       .put(Byte.class, SqlTypeCoders.TINYINT)
@@ -53,6 +55,10 @@ public class SqlRowTypeFactory implements RowTypeFactory {
       .put(GregorianCalendar.class, SqlTypeCoders.TIME)
       .put(Date.class, SqlTypeCoders.TIMESTAMP)
       .build();
+
+  public static SqlRowTypeFactory instance() {
+    return INSTANCE;
+  }
 
   @Override
   public RowType createRowType(Iterable<FieldValueGetter> getters) {
