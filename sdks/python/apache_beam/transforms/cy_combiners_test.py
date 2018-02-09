@@ -12,9 +12,11 @@
 '''
 Unit tests for the Distribution Counter
 '''
-import unittest
 import math
+import unittest
+
 from apache_beam.transforms.cy_combiners import DistributionAccumulator
+
 
 class DistributionAccumulatorTest(unittest.TestCase):
 
@@ -54,6 +56,7 @@ class DistributionAccumulatorTest(unittest.TestCase):
     self.assertEquals(counter.count, expected_count)
     self.assertEquals(counter.min, expected_min)
     self.assertEquals(counter.max, expected_max)
+
 
 if __name__ == '__main__':
   unittest.main()

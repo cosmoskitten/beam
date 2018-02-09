@@ -21,7 +21,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 from __future__ import absolute_import
+
 import math
+
 from apache_beam.transforms import core
 
 
