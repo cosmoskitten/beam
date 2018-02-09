@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.values.reflect;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -40,27 +41,34 @@ import org.apache.beam.sdk.values.RowType;
  * See {@link DefaultRowTypeFactory} for default implementation.
  */
 @Internal
-public class RowFactory {
+public class RowFactory implements Serializable {
 
   private RowTypeFactory rowTypeFactory;
-  private final Map<Class, RowTypeGetters> rowTypesCache = new HashMap<>();
   private final List<GetterFactory> getterFactories;
+  private transient Map<Class, RowTypeGetters> rowTypesCache;
 
   /**
    * Creates an instance of {@link RowFactory} using {@link DefaultRowTypeFactory}
    * and {@link GeneratedGetterFactory}.
    */
   public static RowFactory createDefault() {
-    return new RowFactory();
+    return withRowTypeFactory(new DefaultRowTypeFactory());
   }
 
   /**
-   * Create new instance based on default record type factory.
-   *
-   * <p>Use this to create instances of {@link RowType}.
+   * Creates an instance of {@link RowFactory} using provided {@link RowTypeFactory}
+   * and {@link GeneratedGetterFactory}.
    */
-  private RowFactory() {
-    this(new DefaultRowTypeFactory(), new GeneratedGetterFactory());
+  public static RowFactory withRowTypeFactory(RowTypeFactory rowTypeFactory) {
+    return of(rowTypeFactory, new GeneratedGetterFactory());
+  }
+
+  /**
+   * Creates an instance of {@link RowFactory} using provided {@link RowTypeFactory}
+   * and {@link GetterFactory}.
+   */
+  public static RowFactory of(RowTypeFactory rowTypeFactory, GetterFactory getterFactory) {
+    return new RowFactory(rowTypeFactory, getterFactory);
   }
 
   /**
@@ -71,6 +79,10 @@ public class RowFactory {
   RowFactory(RowTypeFactory rowTypeFactory, GetterFactory ... getterFactories) {
     this.rowTypeFactory = rowTypeFactory;
     this.getterFactories = Arrays.asList(getterFactories);
+  }
+
+  public <T> RowType getRowType(Class<T> elementType) {
+    return getRecordType(elementType).rowType();
   }
 
   /**
@@ -84,13 +96,17 @@ public class RowFactory {
    * <p>Field names for getters are stripped of the 'get' prefix.
    * For example record field 'name' will be generated for 'getName()' pojo method.
    */
-  public Row create(Object pojo) {
+  public <T> Row create(T pojo) {
     RowTypeGetters getters = getRecordType(pojo.getClass());
     List<Object> fieldValues = getFieldValues(getters.valueGetters(), pojo);
     return Row.withRowType(getters.rowType()).addValues(fieldValues).build();
   }
 
   private synchronized RowTypeGetters getRecordType(Class pojoClass) {
+    if (rowTypesCache == null) {
+      rowTypesCache = new HashMap<>();
+    }
+
     if (rowTypesCache.containsKey(pojoClass)) {
       return rowTypesCache.get(pojoClass);
     }
