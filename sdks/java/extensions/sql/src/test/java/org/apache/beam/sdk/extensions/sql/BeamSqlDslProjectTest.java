@@ -53,7 +53,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION";
 
     PCollection<Row> result =
-        input.apply("testSelectAll", BeamSql.query(sql).toPTransform());
+        input.apply("testSelectAll", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -81,7 +81,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFields", BeamSql.query(sql).toPTransform());
+            .apply("testPartialFields", BeamSql.query(sql));
 
     RowType resultType = RowSqlType.builder()
         .withIntegerField("f_int")
@@ -116,7 +116,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql).toPTransform());
+            .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -168,7 +168,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInRows", BeamSql.query(sql).toPTransform());
+            .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -211,7 +211,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testLiteralField", BeamSql.query(sql).toPTransform());
+            .apply("testLiteralField", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType.builder().withIntegerField("literal_field").build();
@@ -233,7 +233,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", BeamSql.query(sql).toPTransform());
+            .apply("testProjectUnknownField", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

@@ -19,18 +19,22 @@
 package org.apache.beam.sdk.extensions.sql;
 
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.extensions.sql.QueryValidationHelper.validateQuery;
 
-import org.apache.beam.sdk.coders.RowCoder;
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -40,119 +44,139 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>The table names in the input {@code PCollectionTuple} are only valid during the current
  * query.
  */
-public class QueryTransform<T extends PInput> extends PTransform<T, PCollection<Row>> {
+@AutoValue
+public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>> {
   static final String PCOLLECTION_NAME = "PCOLLECTION";
 
-  private BeamSqlEnv sqlEnv;
-  private String queryString;
-
-  private QueryTransform(BeamSqlEnv sqlEnv, String queryString) {
-    this.sqlEnv = sqlEnv;
-    this.queryString = queryString;
-  }
+  abstract String queryString();
+  abstract List<UdfDefinition> udfDefinitions();
+  abstract List<UdafDefinition> udafDefinitions();
 
   @Override
-  public PCollection<Row> expand(T input) {
-    checkArgument(input instanceof PCollection || input instanceof PCollectionTuple);
+  public PCollection<Row> expand(PInput input) {
     PCollectionTuple inputTuple = toPCollectionTuple(input);
-    registerPCollectionTuple(sqlEnv, inputTuple);
+
+    BeamSqlEnv sqlEnv = new BeamSqlEnv();
+
+    if (input instanceof PCollection) {
+      validateQuery(sqlEnv, queryString());
+    }
+
+    sqlEnv.registerPCollectionTuple(inputTuple);
+    registerFunctions(sqlEnv);
 
     try {
       return
           sqlEnv
               .getPlanner()
-              .convertToBeamRel(queryString)
+              .convertToBeamRel(queryString())
               .buildBeamPipeline(inputTuple, sqlEnv);
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
   }
 
-  private PCollectionTuple toPCollectionTuple(PInput input) {
-    if (input instanceof PCollectionTuple) {
-      return (PCollectionTuple) input;
+  private PCollectionTuple toPCollectionTuple(PInput inputs) {
+    Map<TupleTag<?>, PValue> taggedInputs = inputs.expand();
+
+    return inputs instanceof PCollection
+        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), (PCollection<Row>) inputs)
+        : tupleOfAllInputs(inputs.getPipeline(), taggedInputs);
+  }
+
+  private PCollectionTuple tupleOfAllInputs(
+      Pipeline pipeline,
+      Map<TupleTag<?>, PValue> taggedInputs) {
+
+    PCollectionTuple tuple = PCollectionTuple.empty(pipeline);
+
+    for (Map.Entry<TupleTag<?>, PValue> input : taggedInputs.entrySet()) {
+      tuple = tuple.and(
+          new TupleTag<>(input.getKey().getId()),
+          (PCollection<Row>) input.getValue());
     }
 
-    validateQuery(sqlEnv, queryString);
-    return PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), (PCollection<Row>) input);
+    return tuple;
   }
 
-  private void registerPCollectionTuple(
-      BeamSqlEnv sqlEnv,
-      PCollectionTuple pCollectionTuple) {
+  private void registerFunctions(BeamSqlEnv sqlEnv) {
+    udfDefinitions()
+        .forEach(udf -> sqlEnv.registerUdf(udf.udfName(), udf.clazz(), udf.methodName()));
 
-    for (TupleTag<?> tag : pCollectionTuple.getAll().keySet()) {
-      registerPCollection(
-          sqlEnv,
-          tag.getId(),
-          (PCollection<Row>) pCollectionTuple.get(tag));
-    }
-  }
-
-  private void registerPCollection(
-      BeamSqlEnv sqlEnv,
-      String name,
-      PCollection<Row> pCollection) {
-
-    sqlEnv.registerTable(
-        name,
-        new BeamPCollectionTable(pCollection, ((RowCoder) pCollection.getCoder()).getRowType()));
-  }
-
-  /**
-   * Creates a {@link Builder} with SQL {@code queryString}.
-   */
-  public static Builder withQueryString(String queryString) {
-    return new Builder().withQueryString(queryString);
+    udafDefinitions()
+        .forEach(udaf -> sqlEnv.registerUdaf(udaf.udafName(), udaf.combineFn()));
   }
 
   /**
-   * Constructs the {@link QueryTransform}.
+   * Creates a {@link QueryTransform} with SQL {@code queryString}.
    */
-  public static class Builder {
-    private BeamSqlEnv sqlEnv = new BeamSqlEnv();
-    private String queryString;
+  public static QueryTransform withQueryString(String queryString) {
+    return new AutoValue_QueryTransform(
+        queryString,
+        Collections.emptyList(),
+        Collections.emptyList());
+  }
 
-    private Builder() {
+  /**
+   * register a UDF function used in this query.
+   *
+   * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
+   */
+  public QueryTransform registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
+    return registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
+  }
+
+  /**
+   * Register {@link SerializableFunction} as a UDF function used in this query.
+   * Note, {@link SerializableFunction} must have a constructor without arguments.
+   */
+  public QueryTransform registerUdf(String functionName, SerializableFunction sfn) {
+    return registerUdf(functionName, sfn.getClass(), "apply");
+  }
+
+  private QueryTransform registerUdf(String functionName, Class<?> clazz, String method) {
+    ImmutableList<UdfDefinition> newUdfDefinitions =
+        ImmutableList
+            .<UdfDefinition>builder()
+            .addAll(udfDefinitions())
+            .add(UdfDefinition.of(functionName, clazz, method))
+            .build();
+
+    return new AutoValue_QueryTransform(queryString(), newUdfDefinitions, udafDefinitions());
+  }
+
+  /**
+   * register a {@link Combine.CombineFn} as UDAF function used in this query.
+   */
+  public QueryTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
+    ImmutableList<UdafDefinition> newUdafs =
+        ImmutableList
+            .<UdafDefinition>builder()
+            .addAll(udafDefinitions())
+            .add(UdafDefinition.of(functionName, combineFn))
+            .build();
+
+    return new AutoValue_QueryTransform(queryString(), udfDefinitions(), newUdafs);
+  }
+
+  @AutoValue
+  abstract static class UdfDefinition {
+    abstract String udfName();
+    abstract Class<?> clazz();
+    abstract String methodName();
+
+    static UdfDefinition of(String udfName, Class<?> clazz, String methodName) {
+      return new AutoValue_QueryTransform_UdfDefinition(udfName, clazz, methodName);
     }
+  }
 
-    Builder withQueryString(String queryString) {
-      this.queryString = queryString;
-      return this;
-    }
+  @AutoValue
+  abstract static class UdafDefinition {
+    abstract String udafName();
+    abstract Combine.CombineFn combineFn();
 
-    /**
-     * register a UDF function used in this query.
-     *
-     * <p>Refer to {@link BeamSqlUdf} for more about how to implement a UDF in BeamSql.
-     */
-    public Builder registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
-      sqlEnv.registerUdf(functionName, clazz);
-      return this;
-    }
-
-    /**
-     * Register {@link SerializableFunction} as a UDF function used in this query.
-     * Note, {@link SerializableFunction} must have a constructor without arguments.
-     */
-    public Builder registerUdf(String functionName, SerializableFunction sfn) {
-      sqlEnv.registerUdf(functionName, sfn);
-      return this;
-    }
-
-    /**
-     * register a {@link Combine.CombineFn} as UDAF function used in this query.
-     */
-    public Builder registerUdaf(String functionName, Combine.CombineFn combineFn) {
-      sqlEnv.registerUdaf(functionName, combineFn);
-      return this;
-    }
-
-    /**
-     * Create the {@link PTransform} representing current SQL query.
-     */
-    public <T extends PInput> PTransform<T, PCollection<Row>> toPTransform() {
-      return new QueryTransform<>(sqlEnv, this.queryString);
+    static UdafDefinition of(String udafName, Combine.CombineFn combineFn) {
+      return new AutoValue_QueryTransform_UdafDefinition(udafName, combineFn);
     }
   }
 }

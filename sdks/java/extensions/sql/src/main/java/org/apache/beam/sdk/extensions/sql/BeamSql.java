@@ -44,15 +44,14 @@ String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
 PCollection<Row> outputTableA = inputTableA.apply(
     BeamSql
         .query(sql1)
-        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC")
-        .toPTransform());
+        .registerUdf("MY_FUNC", MY_FUNC.class, "FUNC");
 
 //run a JOIN with one table from TextIO, and one table from another query
 PCollection<Row> outputTableB =
     PCollectionTuple
         .of(new TupleTag<>("TABLE_O_A"), outputTableA)
         .and(new TupleTag<>("TABLE_B"), inputTableB)
-        .apply(BeamSql.query("select * from TABLE_O_A JOIN TABLE_B where ...").toPTransform());
+        .apply(BeamSql.query("select * from TABLE_O_A JOIN TABLE_B where ..."));
 
 //output the final result with TextIO
 outputTableB.apply(...).apply(TextIO.write().to("/my/output/path"));
@@ -66,11 +65,9 @@ p.run().waitUntilFinish();
 public class BeamSql {
 
   /**
-   * Returns a {@link QueryTransform.Builder} which is used
-   * to construct a {@link PTransform} representing an equivalent execution plan.
-   * See {@link QueryTransform.Builder#toPTransform()}.
+   * Returns a {@link QueryTransform} representing an equivalent execution plan.
    *
-   * <p>The {@link PTransform} can be applied to a {@link PCollection}
+   * <p>The {@link QueryTransform} can be applied to a {@link PCollection}
    * or {@link PCollectionTuple} representing all the input tables.
    *
    * <p>The {@link PTransform} outputs a {@link PCollection} of {@link Row}.
@@ -90,7 +87,7 @@ public class BeamSql {
    *     of the current query call.</li>
    * </ul>
    */
-  public static QueryTransform.Builder query(String sqlQuery) {
+  public static QueryTransform query(String sqlQuery) {
     return QueryTransform.withQueryString(sqlQuery);
   }
 }

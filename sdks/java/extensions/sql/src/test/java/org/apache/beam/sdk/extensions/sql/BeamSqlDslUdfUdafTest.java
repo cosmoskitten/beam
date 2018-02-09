@@ -48,7 +48,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<Row> result1 =
         boundedInput1.apply(
             "testUdaf1",
-            BeamSql.query(sql1).registerUdaf("squaresum1", new SquareSum()).toPTransform());
+            BeamSql.query(sql1).registerUdaf("squaresum1", new SquareSum()));
     PAssert.that(result1).containsInAnyOrder(row);
 
     String sql2 = "SELECT f_int2, squaresum2(f_int) AS `squaresum`"
@@ -57,7 +57,9 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         PCollectionTuple
             .of(new TupleTag<>("PCOLLECTION"), boundedInput1)
             .apply("testUdaf2",
-                   BeamSql.query(sql2).registerUdaf("squaresum2", new SquareSum()).toPTransform());
+                   BeamSql
+                       .query(sql2)
+                       .registerUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
@@ -78,14 +80,14 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result1 =
         boundedInput1.apply("testUdf1",
-            BeamSql.query(sql1).registerUdf("cubic1", CubicInteger.class).toPTransform());
+            BeamSql.query(sql1).registerUdf("cubic1", CubicInteger.class));
     PAssert.that(result1).containsInAnyOrder(row);
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
             .apply("testUdf2",
-                   BeamSql.query(sql2).registerUdf("cubic2", new CubicIntegerFn()).toPTransform());
+                   BeamSql.query(sql2).registerUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();

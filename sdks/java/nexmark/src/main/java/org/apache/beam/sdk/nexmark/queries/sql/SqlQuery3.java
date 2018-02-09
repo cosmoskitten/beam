@@ -101,7 +101,7 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<Row>> 
 
     return
         inputStreams
-            .apply(BeamSql.query(QUERY_STRING).toPTransform())
+            .apply(BeamSql.query(QUERY_STRING))
             .setCoder(OUTPUT_RECORD_CODER);
   }
 

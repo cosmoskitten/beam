@@ -48,7 +48,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<Row> result =
-        input.apply("testSingleFilter", BeamSql.query(sql).toPTransform());
+        input.apply("testSingleFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
@@ -77,7 +77,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testCompositeFilter", BeamSql.query(sql).toPTransform());
+            .apply("testCompositeFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
@@ -105,7 +105,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testNoReturnFilter", BeamSql.query(sql).toPTransform());
+            .apply("testNoReturnFilter", BeamSql.query(sql));
 
     PAssert.that(result).empty();
 
@@ -122,7 +122,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testFromInvalidTableName1", BeamSql.query(sql).toPTransform());
+            .apply("testFromInvalidTableName1", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -138,7 +138,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql).toPTransform());
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -151,7 +151,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql).toPTransform());
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

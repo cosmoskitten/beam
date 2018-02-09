@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -25,10 +26,15 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;
@@ -60,8 +66,15 @@ public class BeamSqlEnv implements Serializable{
   /**
    * Register a UDF function which can be used in SQL expression.
    */
+  public void registerUdf(String functionName, Class<?> clazz, String method) {
+    schema.add(functionName, ScalarFunctionImpl.create(clazz, method));
+  }
+
+  /**
+   * Register a UDF function which can be used in SQL expression.
+   */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
-    schema.add(functionName, ScalarFunctionImpl.create(clazz, BeamSqlUdf.UDF_METHOD));
+    registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
 
   /**
@@ -69,7 +82,7 @@ public class BeamSqlEnv implements Serializable{
    * Note, {@link SerializableFunction} must have a constructor without arguments.
    */
   public void registerUdf(String functionName, SerializableFunction sfn) {
-    schema.add(functionName, ScalarFunctionImpl.create(sfn.getClass(), "apply"));
+    registerUdf(functionName, sfn.getClass(), "apply");
   }
 
   /**
@@ -81,8 +94,37 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
-   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
+   * Registers {@link PCollection}s in {@link PCollectionTuple} as a tables.
    *
+   * <p>Assumes that {@link PCollection} elements are {@link Row}s.
+   *
+   * <p>{@link TupleTag#getId()}s are used as table names.
+   */
+  public void registerPCollectionTuple(PCollectionTuple pCollectionTuple) {
+    pCollectionTuple
+        .getAll()
+        .forEach((tag, pCollection) ->
+                registerPCollection(tag.getId(), (PCollection<Row>) pCollection));
+  }
+
+  /**
+   * Registers {@link PCollection} of {@link Row}s as a table.
+   *
+   * <p>Assumes that {@link PCollection#getCoder()} returns an instance of {@link RowCoder}.
+   */
+  public void registerPCollection(String name, PCollection<Row> pCollection) {
+    registerTable(name, pCollection, ((RowCoder) pCollection.getCoder()).getRowType());
+  }
+
+  /**
+   * Registers {@link PCollection} as a table.
+   */
+  public void registerTable(String tableName, PCollection<Row> pCollection, RowType rowType) {
+    registerTable(tableName, new BeamPCollectionTable(pCollection, rowType));
+  }
+
+  /**
+   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
    */
   public void registerTable(String tableName, BeamSqlTable table) {
     schema.add(tableName, new BeamCalciteTable(table.getRowType()));
