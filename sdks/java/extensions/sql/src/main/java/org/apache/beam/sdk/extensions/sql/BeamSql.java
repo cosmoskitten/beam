@@ -66,11 +66,9 @@ p.run().waitUntilFinish();
 public class BeamSql {
 
   /**
-   * Returns a {@link QueryTransform.Builder} which is used
-   * to construct a {@link PTransform} representing an equivalent execution plan.
-   * See {@link QueryTransform.Builder#toPTransform()}.
+   * Returns a {@link QueryTransform} representing an equivalent execution plan.
    *
-   * <p>The {@link PTransform} can be applied to a {@link PCollection}
+   * <p>The {@link QueryTransform} can be applied to a {@link PCollection}
    * or {@link PCollectionTuple} representing all the input tables.
    *
    * <p>The {@link PTransform} outputs a {@link PCollection} of {@link Row}.
@@ -90,7 +88,7 @@ public class BeamSql {
    *     of the current query call.</li>
    * </ul>
    */
-  public static QueryTransform.Builder query(String sqlQuery) {
+  public static QueryTransform query(String sqlQuery) {
     return QueryTransform.withQueryString(sqlQuery);
   }
 }

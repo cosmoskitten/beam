@@ -57,7 +57,7 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> 
     super("SqlQuery2");
 
     String queryString = String.format(QUERY_TEMPLATE, skipFactor);
-    query = BeamSql.query(queryString).toPTransform();
+    query = BeamSql.query(queryString);
   }
 
   @Override

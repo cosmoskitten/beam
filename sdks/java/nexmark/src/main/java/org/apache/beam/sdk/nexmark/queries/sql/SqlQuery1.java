@@ -50,8 +50,7 @@ public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> 
       BeamSql
           .query(
               "SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
-          .registerUdf("DolToEur", new DolToEur())
-          .toPTransform();
+          .registerUdf("DolToEur", new DolToEur());
 
   /**
    * Dollar to Euro conversion.

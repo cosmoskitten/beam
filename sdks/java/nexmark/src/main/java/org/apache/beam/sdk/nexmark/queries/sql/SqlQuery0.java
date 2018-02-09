@@ -53,7 +53,7 @@ import org.apache.beam.sdk.values.Row;
 public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
-      BeamSql.query("SELECT * FROM PCOLLECTION").toPTransform();
+      BeamSql.query("SELECT * FROM PCOLLECTION");
 
   public SqlQuery0() {
     super("SqlQuery0");
