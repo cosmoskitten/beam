@@ -309,6 +309,7 @@ class AnyCombineFn(AccumulatorCombineFn):
 class AllCombineFn(AccumulatorCombineFn):
   _accumulator_type = AllAccumulator
 
+
 MAX_LONG_10_FOR_LEADING_ZEROS = [19, 18, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15,
                                  15, 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12,
                                  12, 11, 11, 11, 10, 10, 10, 9, 9, 9, 9, 8, 8,
@@ -317,23 +318,27 @@ MAX_LONG_10_FOR_LEADING_ZEROS = [19, 18, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15,
 
 LONG_SIZE = 64
 
+
 def compare_to(x, y):
   """return the sign bit of x-y"""
   if x < y:
     return 1
   return 0
 
+
 def get_log10_round_to_floor(element):
   number_of_leading_zeros = LONG_SIZE - element.bit_length()
   y = MAX_LONG_10_FOR_LEADING_ZEROS[number_of_leading_zeros]
   return y - compare_to(element, math.pow(10, y))
+
 
 class DistributionAccumulator(object):
   """Distribution Counter:
   contains value distribution statistics and methods for incrementing
   """
   def __init__(self):
-    self.min = 0
+    global INT64_MAX
+    self.min = INT64_MAX
     self.max = 0
     self.count = 0
     self.sum = 0
@@ -352,7 +357,7 @@ class DistributionAccumulator(object):
     self.max = max(self.max, element)
     self.count += 1
     self.sum += element
-    self.sum_of_squares += math.pow(element, 2)
+    self.sum_of_squares += (element * element)
     bucket_index = self.calculate_bucket_index(element)
     size_of_bucket = len(self.buckets)
     self.increment_bucket(bucket_index)
@@ -376,7 +381,7 @@ class DistributionAccumulator(object):
     return 1 + (log10_floor * self.buckets_per_10) + bucket_offset
 
   def increment_bucket(self, bucket_index):
-    """Incerment the bucket for the given index
+    """Increment the bucket for the given index
     If the bucket at the given index is already in the list,
     this will increment the existing value.
     If the specified index is outside of the current bucket range,
@@ -388,7 +393,7 @@ class DistributionAccumulator(object):
       new_buckets = []
       new_buckets.append(1)
       new_buckets.extend(
-          [0] * (self.first_bucket_offset -bucket_index))
+          [0] * (self.first_bucket_offset -bucket_index - 1))
       self.buckets = new_buckets + self.buckets
     elif bucket_index >= self.first_bucket_offset + len(self.buckets):
       self.buckets.extend(
@@ -396,6 +401,7 @@ class DistributionAccumulator(object):
       self.buckets.append(1)
     else:
       self.buckets[bucket_index - self.first_bucket_offset] += 1
+
 
 class DistributionCounterFn(AccumulatorCombineFn):
   _accumulator_type = DistributionAccumulator
