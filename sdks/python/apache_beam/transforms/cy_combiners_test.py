@@ -39,9 +39,21 @@ class DistributionAccumulatorTest(unittest.TestCase):
   def test_add_input(self):
     counter = DistributionAccumulator()
     expected_buckets = [1, 3, 0, 0, 0, 0, 0, 0, 1, 1]
+    expected_sum_of_squares = 1250030
+    expected_sum = 1510
+    expected_first_bucket_index = 1
+    expected_count = 6
+    expected_min = 1
+    expected_max = 1000
     for value in [1, 500, 2, 3, 1000, 4]:
       counter.add_input(value)
     self.assertEquals(counter.buckets, expected_buckets)
+    self.assertEquals(counter.sum_of_squares, expected_sum_of_squares)
+    self.assertEquals(counter.sum, expected_sum)
+    self.assertEquals(counter.first_bucket_offset, expected_first_bucket_index)
+    self.assertEquals(counter.count, expected_count)
+    self.assertEquals(counter.min, expected_min)
+    self.assertEquals(counter.max, expected_max)
 
 if __name__ == '__main__':
   unittest.main()

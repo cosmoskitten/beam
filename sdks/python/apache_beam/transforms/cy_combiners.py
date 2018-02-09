@@ -337,7 +337,7 @@ class DistributionAccumulator(object):
   contains value distribution statistics and methods for incrementing
   """
   def __init__(self):
-    global INT64_MAX
+    global INT64_MAX # pylint: disable=global-variable-not-assigned
     self.min = INT64_MAX
     self.max = 0
     self.count = 0
