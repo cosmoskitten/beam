@@ -73,10 +73,6 @@
 
     <profile>
       <id>spark-runner</id>
-      <properties>
-        <!-- Spark uses a different netty version than Beam's. -->
-        <netty.version>4.0.43.Final</netty.version>
-      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
@@ -86,12 +82,6 @@
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-streaming_2.11</artifactId>
-          <version>${spark.version}</version>
-          <scope>runtime</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.spark</groupId>
-          <artifactId>spark-core_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>

@@ -241,11 +241,6 @@
 
     <profile>
       <id>spark-runner</id>
-      <!-- Makes the SparkRunner available when running a pipeline. Additionally,
-           overrides some Spark dependencies to Beam-compatible versions. -->
-      <properties>
-        <netty.version>4.0.43.Final</netty.version>
-      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
