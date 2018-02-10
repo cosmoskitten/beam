@@ -147,7 +147,7 @@ class TfIdf(beam.PTransform):
     #
     # This calculation uses a side input, a Dataflow-computed auxiliary value
     # presented to each invocation of our MapFn lambda. The second argument to
-    # the function (called total---note that we are unpacking the first argument)
+    # the function (called total---note that the first argument is a tuple)
     # receives the value we listed after the lambda in Map(). Additional side
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.

@@ -1047,7 +1047,7 @@ class DecoratorHelpers(TypeHintTestCase):
 
   def test_getcallargs_forhints(self):
     def func(a, b_c, *d):
-      b, c = b_c
+      b, c = b_c # pylint: disable=unused-variable
       return None
     self.assertEquals(
         {'a': Any, 'b_c': Any, 'd': Tuple[Any, ...]},
