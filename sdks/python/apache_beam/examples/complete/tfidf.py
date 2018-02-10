@@ -147,12 +147,12 @@ class TfIdf(beam.PTransform):
     #
     # This calculation uses a side input, a Dataflow-computed auxiliary value
     # presented to each invocation of our MapFn lambda. The second argument to
-    # the lambda (called total---note that we are unpacking the first argument)
+    # the function (called total---note that we are unpacking the first argument)
     # receives the value we listed after the lambda in Map(). Additional side
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.
-    def div_word_count_by_total(word_counts, total):
-      (word, count) = word_counts
+    def div_word_count_by_total(word_count, total):
+      (word, count) = word_count
       return (word, float(count) / total)
 
     word_to_df = (
