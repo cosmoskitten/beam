@@ -48,4 +48,5 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
 }
