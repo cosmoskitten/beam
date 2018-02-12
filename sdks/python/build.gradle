@@ -64,7 +64,7 @@ build.dependsOn buildPython
 task lint (dependsOn: 'setupTest') {
   doLast {
     exec {
-      commandLine 'tox', '-e', 'lint', '-c', 'tox.ini'
+      commandLine 'tox', '-e', 'lint_py2', '-c', 'tox.ini'
     }
   }
 }

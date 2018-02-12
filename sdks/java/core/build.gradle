@@ -66,7 +66,9 @@ dependencies {
   shadow library.java.hamcrest_library
   shadow library.java.junit
   shadow "org.tukaani:xz:1.5"
+  shadowTest project(":model:fn-execution").sourceSets.test.output
   shadowTest library.java.jackson_dataformat_yaml
+  shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
