@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -193,7 +192,7 @@ public class SdkHarnessClientTest {
     final GrpcFnServer<FnApiControlClientPoolService> controlServer =
         GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
-    Future<Void> harness = executor.submit(() -> {
+    executor.submit(() -> {
       FnHarness.main(PipelineOptionsFactory.create(),
           loggingServer.getApiServiceDescriptor(),
           controlServer.getApiServiceDescriptor(),
