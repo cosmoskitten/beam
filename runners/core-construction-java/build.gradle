@@ -45,9 +45,11 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
+  shadowTest project(path: ":model:fn-execution", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
 }
 
 // Create a shaded test jar.
