@@ -196,6 +196,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -302,17 +307,6 @@
       <artifactId>beam-model-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
-      <exclusions>
-        <!-- We only rely on the standard_coders.yaml -->
-        <exclusion>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-model-pipeline</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-model-construction</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
