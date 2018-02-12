@@ -31,6 +31,7 @@ evaluationDependsOn(":beam-sdks-java-fn-execution")
 
 dependencies {
   compile library.java.guava
+  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
