@@ -273,7 +273,9 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test
   public void evaluatorReusesReader() throws Exception {
-    ContiguousSet<Long> elems = ContiguousSet.create(Range.closed(0L, 20L), DiscreteDomain.longs());
+    int numInputBundles = 100;
+    ContiguousSet<Long> elems = ContiguousSet.create(Range.closed(0L, numInputBundles * 10L),
+                                                     DiscreteDomain.longs());
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
@@ -297,22 +299,21 @@ public class UnboundedReadEvaluatorFactoryTest {
     UnboundedReadEvaluatorFactory factory =
         new UnboundedReadEvaluatorFactory(context, 1.0 /* Always reuse */);
     new UnboundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(sourceTransform, 1);
-    TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
-        factory.forApplication(sourceTransform, inputBundle);
-    evaluator.processElement(shard);
-    TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
-        evaluator.finishBundle();
 
-    CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> residual =
-        inputBundle.withElements(
-        (Iterable<WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>>)
-            result.getUnprocessedElements());
+    CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> residual = inputBundle;
 
-    TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> secondEvaluator =
+    for (int i = 0; i < numInputBundles; i++) {
+      TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, residual);
-    secondEvaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
-    secondEvaluator.finishBundle();
+      evaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
+      TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
+        evaluator.finishBundle();
+      residual = inputBundle.withElements(
+        (Iterable<WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>>)
+          result.getUnprocessedElements());
+    }
 
+    assertThat(TestUnboundedSource.readerCreatedCount, equalTo(1));
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(0));
   }
 
@@ -412,6 +413,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   private static class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
     private static int getWatermarkCalls = 0;
 
+    static int readerCreatedCount;
     static int readerClosedCount;
     static int readerAdvancedCount;
     private final Coder<T> coder;
@@ -423,9 +425,10 @@ public class UnboundedReadEvaluatorFactoryTest {
       this(coder, false, Arrays.asList(elems));
     }
 
-   private TestUnboundedSource(Coder<T> coder, boolean throwOnClose, List<T> elems) {
-      readerAdvancedCount = 0;
+    private TestUnboundedSource(Coder<T> coder, boolean throwOnClose, List<T> elems) {
+      readerCreatedCount = 0;
       readerClosedCount = 0;
+      readerAdvancedCount = 0;
       this.coder = coder;
       this.elems = elems;
       this.throwOnClose = throwOnClose;
@@ -443,6 +446,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       checkState(
           checkpointMark == null || checkpointMark.decoded,
           "Cannot resume from a checkpoint that has not been decoded");
+      readerCreatedCount++;
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 

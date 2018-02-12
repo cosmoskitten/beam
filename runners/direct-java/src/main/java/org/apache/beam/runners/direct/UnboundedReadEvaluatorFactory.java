@@ -138,7 +138,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           Instant watermark = reader.getWatermark();
 
           CheckpointMarkT finishedCheckpoint = finishRead(reader, shard);
-          UnboundedSourceShard<OutputT, CheckpointMarkT> residual;
           // Sometimes resume from a checkpoint even if it's not required
           if (ThreadLocalRandom.current().nextDouble(1.0) >= readerReuseChance) {
             UnboundedReader<OutputT> toClose = reader;
@@ -147,12 +146,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             // if the call to close throws an IOException.
             reader = null;
             toClose.close();
-            residual =
-                UnboundedSourceShard.of(
-                    shard.getSource(), shard.getDeduplicator(), null, finishedCheckpoint);
-          } else {
-            residual = shard.withCheckpoint(finishedCheckpoint);
           }
+          UnboundedSourceShard<OutputT, CheckpointMarkT> residual = UnboundedSourceShard.of(
+                shard.getSource(), shard.getDeduplicator(), reader, finishedCheckpoint);
 
           resultBuilder
               .addOutput(output)
