@@ -137,7 +137,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
 
-          CheckpointMarkT finishedCheckpoint = finishRead(reader, shard);
+          CheckpointMarkT finishedCheckpoint = finishRead(reader, watermark, shard);
           // Sometimes resume from a checkpoint even if it's not required
           if (ThreadLocalRandom.current().nextDouble(1.0) >= readerReuseChance) {
             UnboundedReader<OutputT> toClose = reader;
@@ -155,17 +155,26 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               .addUnprocessedElements(
                   Collections.singleton(
                       WindowedValue.timestampedValueInGlobalWindow(residual, watermark)));
-        } else if (reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          // If the reader had no elements available, but the shard is not done, reuse it later
-          resultBuilder.addUnprocessedElements(
-              Collections.<WindowedValue<?>>singleton(
-                  WindowedValue.timestampedValueInGlobalWindow(
-                      UnboundedSourceShard.of(
-                          shard.getSource(),
-                          shard.getDeduplicator(),
-                          reader,
-                          shard.getCheckpoint()),
-                      reader.getWatermark())));
+        } else {
+          Instant watermark = reader.getWatermark();
+          if (watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+            // If the reader had no elements available, but the shard is not done, reuse it later
+            resultBuilder.addUnprocessedElements(
+                Collections.<WindowedValue<?>>singleton(
+                    WindowedValue.timestampedValueInGlobalWindow(
+                        UnboundedSourceShard.of(
+                            shard.getSource(),
+                            shard.getDeduplicator(),
+                            reader,
+                            shard.getCheckpoint()),
+                        watermark)));
+          } else {
+            // End of input. Close the reader after finalizing old checkpoint.
+            shard.getCheckpoint().finalizeCheckpoint();
+            UnboundedReader<?> toClose = reader;
+            reader = null; // Avoid double close below in case of an exception.
+            toClose.close();
+          }
         }
       } catch (IOException e) {
         if (reader != null) {
@@ -202,11 +211,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     /**
-     * Checkpoint the current reader, finalize the previous checkpoint, and return the residual
-     * {@link UnboundedSourceShard}.
+     * Checkpoint the current reader, finalize the previous checkpoint, and return the current
+     * checkpoint.
      */
     private CheckpointMarkT finishRead(
-        UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
+        UnboundedReader<OutputT> reader,
+        Instant watermark,
+        UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
       final CheckpointMark oldMark = shard.getCheckpoint();
       @SuppressWarnings("unchecked")
@@ -217,7 +228,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
-      if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      if (!watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         PCollection<OutputT> outputPc =
             (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
         evaluationContext.scheduleAfterOutputWouldBeProduced(
