@@ -38,6 +38,6 @@ public class SimpleFunctionTest {
     thrown.expectMessage("must override");
     thrown.expectMessage("apply");
 
-    SimpleFunction<Integer, Integer> broken = new SimpleFunction<Integer, Integer>() {};
+    new SimpleFunction<Integer, Integer>() {};
   }
 }

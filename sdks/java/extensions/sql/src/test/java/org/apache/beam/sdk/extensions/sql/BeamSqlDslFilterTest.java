@@ -120,9 +120,8 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
-    PCollection<Row> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -135,7 +134,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
+    boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -148,7 +147,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
+    boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

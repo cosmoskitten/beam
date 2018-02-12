@@ -1677,8 +1677,7 @@ public class PipelineOptionsFactoryTest {
        + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
        + "$InvalidPipelineOptions2");
 
-    PipelineOptionsInheritedInvalid options = PipelineOptionsFactory.as(
-            PipelineOptionsInheritedInvalid.class);
+    PipelineOptionsFactory.as(PipelineOptionsInheritedInvalid.class);
   }
 
   private String emptyStringErrorMessage() {
