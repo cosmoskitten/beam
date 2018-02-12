@@ -508,18 +508,26 @@ ext.applyAvroNature = {
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
 
+// A class defining the set of configurable properties for createJavaQuickstartValidationTask
+class JavaQuickstartConfiguration {
+  String name
+  String gcpProject = ''
+  String gcsBucket = ''
+}
+
 // Creates a task to run the quickstart for a runner.
 // Releases version and URL, can be overriden for a RC release with
 // ./gradlew :release:runQuickstartJava -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
-ext.createJavaQuickstartValidationTask = { String name, extra_args=[] ->
-  def taskName = "runQuickstartJava${name}"
+ext.createJavaQuickstartValidationTask = {
+  JavaQuickstartConfiguration config = it as JavaQuickstartConfiguration
+  def taskName = "runQuickstartJava${config.name}"
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
   def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
-  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"] + extra_args
+  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}", "--gcpProject=${config.gcpProject}", "--gcsBucket=${config.gcsBucket}"]
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
-    main = "quickstart-java-${name}".toLowerCase()
+    main = "quickstart-java-${config.name}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
   }
