@@ -17,8 +17,6 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
-
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -26,7 +24,9 @@ import java.util.Map;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransformUrns;
 import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
+import org.apache.beam.runners.core.construction.StandardUrns;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.KV;
  * as the input and the value being the mapped window.
  */
 public class WindowMappingFnRunner {
-  static final String URN = validateCommonUrn("beam:transform:map_windows:v1");
+  static final String URN = StandardUrns.getStandardUrn(StandardPTransformUrns.Enum.MAP_WINDOWS);
 
   /**
    * A registrar which provides a factory to handle mapping main input windows onto side input

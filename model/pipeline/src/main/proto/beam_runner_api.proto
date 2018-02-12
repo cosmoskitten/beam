@@ -30,6 +30,7 @@ option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/descriptor.proto";
 
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
@@ -173,6 +174,72 @@ message PTransform {
   // there is none, or it is not relevant (such as use by the Fn API)
   // then it may be omitted.
   DisplayData display_data = 6;
+}
+
+message StandardPTransformUrns {
+  enum Enum {
+    // Represents Beam's parallel do operation.
+    // Payload: ParDoPayload.
+    // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
+    PAR_DO = 0 [(standard_urn) = "urn:beam:transform:pardo:v1"];
+
+    // Represents Beam's flatten operation.
+    // Payload: None.
+    FLATTEN = 1 [(standard_urn) = "beam:transform:flatten:v1"];
+
+    // Represents Beam's group-by-key operation.
+    // Payload: None
+    GROUP_BY_KEY = 2 [(standard_urn) = "beam:transform:group_by_key:v1"];
+
+    // Represents the operation generating a single empty element.
+    IMPULSE = 3 [(standard_urn) = "beam:transform:impulse:v1"];
+
+    // Represents the operation to read a Bounded or Unbounded source.
+    // Payload: ReadPayload.
+    READ = 4 [(standard_urn) = "beam:transform:read:v1"];
+
+    // Represents the Window.into() operation.
+    // Payload: WindowIntoPayload.
+    ASSIGN_WINDOWS = 5 [(standard_urn) = "beam:transform:window_into:v1"];
+
+    // Represents the TestStream.
+    // Payload: TestStreamPayload
+    TEST_STREAM = 6 [(standard_urn) = "urn:beam:transform:teststream:v1"];
+
+    // Represents the Combine.perKey() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands pgbkcv,
+    // merge_accumulators and extract_outputs.
+    // Payload: CombinePayload
+    COMBINE_PER_KEY = 7 [(standard_urn) = "beam:transform:combine_per_key:v1"];
+
+    // Represents the Combine.globally() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands pgbkcv,
+    // merge_accumulators and extract_outputs.
+    // Payload: CombinePayload
+    COMBINE_GLOBALLY = 8 [(standard_urn) = "beam:transform:combine_globally:v1"];
+
+    // Represents the Combine.groupedValues() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands pgbkcv,
+    // merge_accumulators and extract_outputs.
+    // Payload: CombinePayload
+    COMBINE_GROUPED_VALUES = 9 [(standard_urn) = "beam:transform:combine_grouped_values:v1"];
+
+    COMBINE_PGBKCV = 10 [(standard_urn) = "beam:transform:combine_pgbkcv:v1"];
+    COMBINE_MERGE_ACCUMULATORS = 11 [(standard_urn) = "beam:transform:combine_merge_accumulators:v1"];
+    COMBINE_EXTRACT_OUTPUTS = 12 [(standard_urn) = "beam:transform:combine_extract_outputs:v1"];
+
+    // Represents the Reshuffle operation.
+    RESHUFFLE = 13 [(standard_urn) = "beam:transform:reshuffle:v1"];
+
+    // Less well-known. Payload: WriteFilesPayload.
+    WRITE_FILES = 14 [(standard_urn) = "beam:transform:write_files:0.1"];
+
+    // Deprecated: runners should move away from translating `CreatePCollectionView` and treat this as
+    // part of the translation for a `ParDo` side input.
+    CREATE_VIEW = 15 [(standard_urn) = "beam:transform:create_view:v1"];
+
+    MAP_WINDOWS = 16 [(standard_urn) = "beam:transform:map_windows:v1"];
+  }
 }
 
 // A PCollection!
@@ -401,6 +468,33 @@ message Coder {
   // this is a list of the components. In order for encodings to be identical,
   // the SdkFunctionSpec and all components must be identical, recursively.
   repeated string component_coder_ids = 2;
+}
+
+message StandardCoderUrns {
+  enum Enum {
+    // Components: None
+    BYTES = 0 [(standard_urn) = "beam:coder:bytes:v1"];
+
+    // Components: The key and value coder, in that order.
+    KV = 1 [(standard_urn) = "beam:coder:kv:v1"];
+
+    // Components: None
+    VARINT = 2 [(standard_urn) = "beam:coder:varint:v1"];
+
+    // Encodes an iterable of elements.
+    // Components: Coder for a single element.
+    ITERABLE = 3 [(standard_urn) = "beam:coder:iterable:v1"];
+
+    /*
+     * The following coders are typically not specified by manually by the user,
+     * but are used at runtime and must be supported by every SDK.
+     */
+
+    INTERVAL_WINDOW = 4 [(standard_urn) = "beam:coder:interval_window:v1"];
+    LENGTH_PREFIX = 5 [(standard_urn) = "beam:coder:length_prefix:v1"];
+    GLOBAL_WINDOW = 6 [(standard_urn) = "beam:coder:global_window:v1"];
+    WINDOWED_VALUE = 7 [(standard_urn) = "beam:coder:windowed_value:v1"];
+  }
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -746,6 +840,22 @@ message SdkFunctionSpec {
   // (Required) Reference to an execution environment capable of
   // invoking this function.
   string environment_id = 2;
+}
+
+extend google.protobuf.EnumValueOptions {
+  // An extension to be used for specifying the standard URN of various
+  // pipeline entities, e.g. transforms, functions, coders etc.
+  // Code should refer to the URNs of those entities by extracting
+  // it from the (standard_urn) extension, rather than by hard-coding
+  // the URN.
+  //
+  // The recommended pattern for declaring it is (exemplified by coders):
+  //
+  // enum StandardCoderUrns {
+  //   BYTES = 0 [(standard_urn) = "beam:coder:bytes:v1"];
+  //   ...
+  // }
+  string standard_urn = 185324356;
 }
 
 // A URN along with a parameter object whose schema is determined by the
