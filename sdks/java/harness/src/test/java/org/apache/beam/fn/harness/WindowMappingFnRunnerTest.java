@@ -17,30 +17,18 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
-import com.google.common.base.Suppliers;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.fn.harness.WindowMappingFnRunner.Factory;
-import org.apache.beam.fn.harness.fn.ThrowingRunnable;
+import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -65,39 +53,16 @@ public class WindowMappingFnRunnerTest {
             .build();
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
-        .putInputs("input", "inputPC")
-        .putOutputs("output", "outputPC")
         .build();
 
-    List<WindowedValue<?>> outputConsumer = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("outputPC", outputConsumer::add);
 
-    List<ThrowingRunnable> startFunctions = new ArrayList<>();
-    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+    ThrowingFunction<BoundedWindow, KV<BoundedWindow, BoundedWindow>> mapFunction =
+        new Factory<>().createMapFunctionForPTransform(pTransformId, pTransform);
 
-    new Factory<>().createRunnerForPTransform(
-        PipelineOptionsFactory.create(),
-        null /* beamFnDataClient */,
-        null /* beamFnStateClient */,
-        pTransformId,
-        pTransform,
-        Suppliers.ofInstance("57L")::get,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        consumers,
-        startFunctions::add,
-        finishFunctions::add);
+    BoundedWindow input = new IntervalWindow(Instant.now(), Duration.standardMinutes(1));
 
-    assertThat(startFunctions, empty());
-    assertThat(finishFunctions, empty());
-
-    assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
-
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(
-        valueInGlobalWindow(new IntervalWindow(Instant.now(), Duration.standardMinutes(1))));
-
-    assertThat(outputConsumer, contains(valueInGlobalWindow(GlobalWindow.INSTANCE)));
+    assertEquals(
+        KV.of(input, GlobalWindow.INSTANCE),
+        mapFunction.apply(input));
   }
 }
