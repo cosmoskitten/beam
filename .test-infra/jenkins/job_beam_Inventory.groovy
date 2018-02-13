@@ -52,6 +52,7 @@
     }
     steps {
       shell('mvn -v || echo "mvn not found"')
+      shell('echo "Maven home $MAVEN_HOME"')
       shell('gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
       shell('kubectl version || echo "kubectl not found"')
