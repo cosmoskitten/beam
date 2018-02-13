@@ -115,6 +115,6 @@ python setup.py nosetests \
 
 # Delete the container locally and remotely
 docker rmi $CONTAINER:$TAG
-gcloud container images delete $CONTAINER:$TAG --quiet
+gcloud container images delete $CONTAINER:$TAG --quiet || echo "Failed to delete container"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
