@@ -203,7 +203,7 @@ class GaugeCell(Gauge, MetricCell):
 
   Tracks the current value and delta for a gauge metric.
 
-  Each cell tracks the state of a metric independently per cntext per bundle.
+  Each cell tracks the state of a metric independently per context per bundle.
   Therefore, each metric has a different cell in each bundle, that is later
   aggregated.
 
@@ -233,13 +233,15 @@ class GaugeCell(Gauge, MetricCell):
 
 
 class DistributionResult(object):
-  """The result of a Distribution metric.
-  """
+  """The result of a Distribution metric."""
   def __init__(self, data):
     self.data = data
 
   def __eq__(self, other):
-    return self.data == other.data
+    if isinstance(other, DistributionResult):
+      return self.data == other.data
+    else:
+      return False
 
   def __ne__(self, other):
     return not self.__eq__(other)
@@ -283,7 +285,10 @@ class GaugeResult(object):
     self.data = data
 
   def __eq__(self, other):
-    return self.data == other.data
+    if isinstance(other, GaugeResult):
+      return self.data == other.data
+    else:
+      return False
 
   def __ne__(self, other):
     return not self.__eq__(other)
@@ -314,7 +319,7 @@ class GaugeData(object):
   """
   def __init__(self, value, timestamp=None):
     self.value = value
-    self.timestamp = timestamp if timestamp is not None else time.time()
+    self.timestamp = timestamp if timestamp is not None else 0
 
   def __eq__(self, other):
     return self.value == other.value and self.timestamp == other.timestamp
@@ -328,7 +333,7 @@ class GaugeData(object):
         self.timestamp)
 
   def get_cumulative(self):
-    return GaugeData(self.value, self.timestamp)
+    return GaugeData(self.value, timestamp=self.timestamp)
 
   def combine(self, other):
     if other is None:
@@ -340,8 +345,8 @@ class GaugeData(object):
       return self
 
   @staticmethod
-  def singleton(value):
-    return GaugeData(value)
+  def singleton(value, timestamp=None):
+    return GaugeData(value, timestamp=timestamp)
 
   #TODO(pabloem) - Add to_runner_api, and from_runner_api
 
