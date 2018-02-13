@@ -23,7 +23,7 @@
   job("beam_Inventory_${machine}") {
     parameters {
       nodeParam('TEST_HOST') {
-        defaultNode([machine])
+        defaultNodes([machine])
         allowedNodes([machine])
       }
     }
