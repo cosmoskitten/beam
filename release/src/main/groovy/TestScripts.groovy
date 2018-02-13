@@ -47,11 +47,11 @@ class TestScripts {
      var.ver = options.ver
      println "Repository URL: ${var.repoUrl}"
      println "Version: ${var.ver}"
-     if (options.gcpProject != '') {
+     if (options.gcpProject) {
        var.gcpProject = options.gcpProject
        println "GCS Project: ${var.gcpProject}"
      }
-     if (options.gcsBucket != '') {
+     if (options.gcsBucket) {
        var.gcsBucket = options.gcsBucket
        println "GCS Storage bucket: ${var.gcsBucket}"
      }

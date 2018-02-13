@@ -510,8 +510,15 @@ ext.applyAvroNature = {
 
 // A class defining the set of configurable properties for createJavaQuickstartValidationTask
 class JavaQuickstartConfiguration {
+  // Name for the quickstart is required.
+  // Used both for the test name runQuickstartJava${name}
+  // and also for the script name, quickstart-java-${name}.toLowerCase().
   String name
+
+  //gcpProject is the  Google Cloud Project for the Dataflow runner.
   String gcpProject = ''
+
+  // gcsBucket is the Google Cloud Storage Bucket for the Dataflow runner..
   String gcsBucket = ''
 }
 
@@ -524,7 +531,13 @@ ext.createJavaQuickstartValidationTask = {
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
   def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
-  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}", "--gcpProject=${config.gcpProject}", "--gcsBucket=${config.gcsBucket}"]
+  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"]
+  if (config.gcpProject != '') {
+    argsNeeded.add("--gcpProject=${config.gcpProject}")
+  }
+  if (config.gcsBucket != '') {
+    argsNeeded.add("--gcsBucket=${config.gcsBucket}")
+  }
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
     main = "quickstart-java-${config.name}".toLowerCase()
