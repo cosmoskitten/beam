@@ -19,7 +19,6 @@
 // These jobs list details about each beam runner
 [5].each {
   def machine = "beam${it}"
-  println machine
   job("beam_Inventory_${machine}") {
     parameters {
       nodeParam('TEST_HOST') {
@@ -30,9 +29,25 @@
     label('beam')
     triggers {
       githubPullRequest {
-        triggerPhrase("Run Inventory $machine")
+        admins(['asfbot'])
+        useGitHubHooks()
+        orgWhitelist(['apache'])
+        allowMembersOfWhitelistedOrgsAsAdmin()
+        triggerPhrase("Run Inventory ${machine}")
         onlyTriggerPhrase()
         permitAll()
+        extensions {
+          commitStatus {
+            context("Jenkins: inventory ${machine}")
+          }
+
+          // Comment messages after build completes.
+          buildStatus {
+            completedStatus('SUCCESS', '--none--')
+            completedStatus('FAILURE', '--none--')
+            completedStatus('ERROR', '--none--')
+          }
+        }
       }
     }
     steps {
