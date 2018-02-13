@@ -201,8 +201,8 @@ public interface TimerInternals {
     /**
      * {@inheritDoc}.
      *
-     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
-     * arbitrary.
+     * <p>Used for sorting {@link TimerData} by timestamp. Furthermore, we compare timers by domain,
+     * timer ID, and namespace to keep the sort result consistent across different runs.
      */
     @Override
     public int compareTo(TimerData that) {
@@ -212,7 +212,8 @@ public interface TimerInternals {
       ComparisonChain chain =
           ComparisonChain.start()
               .compare(this.getTimestamp(), that.getTimestamp())
-              .compare(this.getDomain(), that.getDomain());
+              .compare(this.getDomain(), that.getDomain())
+              .compare(this.getTimerId(), that.getTimerId());
       if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
         chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
