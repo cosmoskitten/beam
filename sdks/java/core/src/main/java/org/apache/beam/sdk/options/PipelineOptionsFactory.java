@@ -620,7 +620,7 @@ public class PipelineOptionsFactory {
     if (!COMBINED_CACHE.containsKey(combinedPipelineOptionsInterfaces)) {
       @SuppressWarnings("unchecked")
       Class<T> allProxyClass =
-          (Class<T>) Proxy.getProxyClass(PipelineOptionsFactory.class.getClassLoader(),
+          (Class<T>) Proxy.getProxyClass(ReflectHelpers.findClassLoader(),
               combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
       try {
         List<PropertyDescriptor> propertyDescriptors =
@@ -636,7 +636,7 @@ public class PipelineOptionsFactory {
     if (!INTERFACE_CACHE.containsKey(iface)) {
       @SuppressWarnings({"rawtypes", "unchecked"})
       Class<T> proxyClass = (Class<T>) Proxy.getProxyClass(
-          PipelineOptionsFactory.class.getClassLoader(), new Class[] {iface});
+          ReflectHelpers.findClassLoader(), new Class[] {iface});
       try {
         List<PropertyDescriptor> propertyDescriptors =
             validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
