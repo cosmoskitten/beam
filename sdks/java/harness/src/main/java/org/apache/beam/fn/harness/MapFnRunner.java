@@ -40,19 +40,41 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * Add an abstraction which makes it easy to create runners which can wrap simple map functions
- * which are typical in a lot of transforms.
+ * A {@code PTransformRunner} which executes simple map functions.
+ *
+ * <p>Simple map functions are used in a large number of transforms, especially runner-managed
+ * transforms, such as map_windows.
  *
  * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead
  * of using the {@link FnApiDoFnRunner} instance.
  */
 public class MapFnRunner<InputT, OutputT> {
+
+  public static <InputT, OutputT> PTransformRunnerFactory<?>
+      createMapFnRunnerFactoryWith(
+          CreateMapFunctionForPTransform<InputT, OutputT> fnFactory) {
+    return new Factory<>(fnFactory);
+  }
+
+  /** A function factory which given a PTransform returns a map function. */
+  public interface CreateMapFunctionForPTransform<InputT, OutputT> {
+    ThrowingFunction<InputT, OutputT> createMapFunctionForPTransform(
+        String ptransformId,
+        PTransform pTransform) throws IOException;
+  }
+
   /** A factory for {@link MapFnRunner}s. */
-  public abstract static class Factory<InputT, OutputT>
+  static class Factory<InputT, OutputT>
       implements PTransformRunnerFactory<MapFnRunner<InputT, OutputT>> {
 
+    private final CreateMapFunctionForPTransform<InputT, OutputT> fnFactory;
+
+    Factory(CreateMapFunctionForPTransform<InputT, OutputT> fnFactory) {
+      this.fnFactory = fnFactory;
+    }
+
     @Override
-    public final MapFnRunner<InputT, OutputT> createRunnerForPTransform(
+    public MapFnRunner<InputT, OutputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
@@ -71,7 +93,7 @@ public class MapFnRunner<InputT, OutputT> {
               getOnlyElement(pTransform.getOutputsMap().values()));
 
       MapFnRunner<InputT, OutputT> runner = new MapFnRunner<>(
-          createMapFunctionForPTransform(pTransformId, pTransform),
+          fnFactory.createMapFunctionForPTransform(pTransformId, pTransform),
           MultiplexingFnDataReceiver.forConsumers(consumers));
 
       pCollectionIdsToConsumers.put(
@@ -79,16 +101,12 @@ public class MapFnRunner<InputT, OutputT> {
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::map);
       return runner;
     }
-
-    protected abstract ThrowingFunction<InputT, OutputT> createMapFunctionForPTransform(
-        String ptransformId,
-        PTransform pTransform) throws IOException;
   }
 
   private final ThrowingFunction<InputT, OutputT> mapFunction;
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
 
-  public MapFnRunner(
+  MapFnRunner(
       ThrowingFunction<InputT, OutputT> mapFunction,
       FnDataReceiver<WindowedValue<OutputT>> consumer) {
     this.mapFunction = mapFunction;

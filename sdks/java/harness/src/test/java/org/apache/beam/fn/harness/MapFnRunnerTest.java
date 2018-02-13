@@ -62,19 +62,20 @@ public class MapFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new Factory().createRunnerForPTransform(
-        PipelineOptionsFactory.create(),
-        null /* beamFnDataClient */,
-        null /* beamFnStateClient */,
-        EXPECTED_ID,
-        EXPECTED_PTRANSFORM,
-        Suppliers.ofInstance("57L")::get,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        consumers,
-        startFunctions::add,
-        finishFunctions::add);
+    new MapFnRunner.Factory<>(this::createMapFunctionForPTransform)
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            EXPECTED_ID,
+            EXPECTED_PTRANSFORM,
+            Suppliers.ofInstance("57L")::get,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            consumers,
+            startFunctions::add,
+            finishFunctions::add);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
@@ -87,14 +88,10 @@ public class MapFnRunnerTest {
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
 
-  private static class Factory extends MapFnRunner.Factory<String, String> {
-
-    @Override
-    public ThrowingFunction<String, String> createMapFunctionForPTransform(String ptransformId,
-        PTransform pTransform) throws IOException {
-      assertEquals(EXPECTED_ID, ptransformId);
-      assertEquals(EXPECTED_PTRANSFORM, pTransform);
-      return (String str) -> str.toUpperCase();
-    }
+  public ThrowingFunction<String, String> createMapFunctionForPTransform(String ptransformId,
+      PTransform pTransform) throws IOException {
+    assertEquals(EXPECTED_ID, ptransformId);
+    assertEquals(EXPECTED_PTRANSFORM, pTransform);
+    return (String str) -> str.toUpperCase();
   }
 }

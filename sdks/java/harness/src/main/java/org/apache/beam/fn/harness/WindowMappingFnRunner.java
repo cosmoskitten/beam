@@ -48,23 +48,20 @@ public class WindowMappingFnRunner {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(URN, new Factory());
+      return ImmutableMap.of(URN, MapFnRunner.createMapFnRunnerFactoryWith(
+          WindowMappingFnRunner::createMapFunctionForPTransform));
     }
   }
 
-  static class Factory<T, W1 extends BoundedWindow, W2 extends BoundedWindow>
-      extends MapFnRunner.Factory<KV<T, W1>, KV<T, W2>> {
-
-    @Override
-    public ThrowingFunction<KV<T, W1>, KV<T, W2>> createMapFunctionForPTransform(
-        String ptransformId, PTransform pTransform) throws IOException {
-      SdkFunctionSpec windowMappingFnPayload =
-          SdkFunctionSpec.parseFrom(pTransform.getSpec().getPayload());
-      WindowMappingFn<W2> windowMappingFn =
-          (WindowMappingFn<W2>) PCollectionViewTranslation.windowMappingFnFromProto(
-              windowMappingFnPayload);
-      return (KV<T, W1> input) ->
-          KV.of(input.getKey(), windowMappingFn.getSideInputWindow(input.getValue()));
-    }
+  static <T, W1 extends BoundedWindow, W2 extends BoundedWindow>
+  ThrowingFunction<KV<T, W1>, KV<T, W2>> createMapFunctionForPTransform(
+      String ptransformId, PTransform pTransform) throws IOException {
+    SdkFunctionSpec windowMappingFnPayload =
+        SdkFunctionSpec.parseFrom(pTransform.getSpec().getPayload());
+    WindowMappingFn<W2> windowMappingFn =
+        (WindowMappingFn<W2>) PCollectionViewTranslation.windowMappingFnFromProto(
+            windowMappingFnPayload);
+    return (KV<T, W1> input) ->
+        KV.of(input.getKey(), windowMappingFn.getSideInputWindow(input.getValue()));
   }
 }

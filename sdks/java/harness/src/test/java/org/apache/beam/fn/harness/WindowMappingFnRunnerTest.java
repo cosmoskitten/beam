@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.fn.harness.WindowMappingFnRunner.Factory;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -57,7 +56,7 @@ public class WindowMappingFnRunnerTest {
 
 
     ThrowingFunction<KV<Object, BoundedWindow>, KV<Object, BoundedWindow>> mapFunction =
-        new Factory<>().createMapFunctionForPTransform(pTransformId, pTransform);
+        WindowMappingFnRunner.createMapFunctionForPTransform(pTransformId, pTransform);
 
     KV<Object, BoundedWindow> input =
         KV.of("abc", new IntervalWindow(Instant.now(), Duration.standardMinutes(1)));
