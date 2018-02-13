@@ -75,7 +75,7 @@ fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/python:$TAG
+CONTAINER=us.gcr.io/$PROJECT/$USER/python
 echo "Using container $CONTAINER"
 $MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
 
@@ -108,7 +108,7 @@ python setup.py nosetests \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
-    --worker_harness_container_image=$CONTAINER \
+    --worker_harness_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --output=$GCS_LOCATION/output \

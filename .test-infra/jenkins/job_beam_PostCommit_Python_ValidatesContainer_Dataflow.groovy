@@ -27,7 +27,11 @@ job('beam_PostCommit_Python_ValidatesContainer_Dataflow') {
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a PostCommit job.
+<<<<<<< HEAD
   common_job_properties.setPostCommit(delegate, '30 3 * * *', false)
+=======
+  common_job_properties.setPostCommit(delegate, '30 3 * * *')
+>>>>>>> c2ad68946274fc1dc06dbb13d8e3ddcc19d010cf
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
