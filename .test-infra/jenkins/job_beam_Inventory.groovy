@@ -35,7 +35,6 @@
         permitAll()
       }
     }
-    mavenInstallation('Maven 3.5.2')
     steps {
       shell('mvn -v || echo "mvn not found"')
       shell('gradle -v || echo "gradle not found"')
