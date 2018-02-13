@@ -40,7 +40,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * Maps windows using a window mapping fn.
+ * Add an abstraction which makes it easy to create runners which can wrap simple map functions
+ * which are typical in a lot of transforms.
+ *
+ * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead
+ * of using the FnApiDoFnRunner instance.
  */
 public class MapRunner<InputT, OutputT> {
   /** A factory for {@link BeamFnDataReadRunner}s. */
@@ -66,7 +70,7 @@ public class MapRunner<InputT, OutputT> {
           (Collection) pCollectionIdsToConsumers.get(
               getOnlyElement(pTransform.getOutputsMap().values()));
 
-      MapRunner<InputT, OutputT> runner = new MapRunner<InputT, OutputT>(
+      MapRunner<InputT, OutputT> runner = new MapRunner<>(
           createMapFunctionForPTransform(pTransformId, pTransform),
           MultiplexingFnDataReceiver.forConsumers(consumers));
 
@@ -80,8 +84,6 @@ public class MapRunner<InputT, OutputT> {
         String ptransformId,
         PTransform pTransform) throws IOException;
   }
-
-
 
   private final ThrowingFunction<InputT, OutputT> mapFunction;
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
