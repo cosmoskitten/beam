@@ -30,7 +30,7 @@
     label('beam')
     triggers {
       githubPullRequest {
-        triggerPhrase("run Inventory $machine")
+        triggerPhrase("Run Inventory $machine")
         onlyTriggerPhrase()
         permitAll()
       }
