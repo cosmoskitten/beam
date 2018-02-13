@@ -40,6 +40,8 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 0.10.
  * It auto detects the input type List/Collection/Varargs,
  * to eliminate the method definition differences.
+ * TODO: Deprecate and remove support for Kafka versions before 0.10.1.0. This class would not be
+ * necessary
  */
 class ConsumerSpEL {
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);
@@ -80,10 +82,10 @@ class ConsumerSpEL {
     }
   }
 
-  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
+  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartition) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
-    mapContext.setVariable("tp", topicPartitions);
+    mapContext.setVariable("tp", topicPartition);
     seek2endExpression.getValue(mapContext);
   }
 
@@ -97,11 +99,19 @@ class ConsumerSpEL {
   public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
     long timestamp;
     if (!hasRecordTimestamp || (timestamp = rawRecord.timestamp()) <= 0L) {
-      timestamp = System.currentTimeMillis();
+      timestamp = System.currentTimeMillis(); // Better to return -1.
     }
     return timestamp;
   }
 
+  public KafkaTimestampType getRecordTimestamptType(
+    ConsumerRecord<byte[], byte[]> rawRecord) {
+    if (hasRecordTimestamp) {
+      return KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal());
+    } else {
+      return KafkaTimestampType.NO_TIMESTAMP_TYPE;
+    }
+   }
   public boolean hasOffsetsForTimes() {
     return hasOffsetsForTimes;
   }

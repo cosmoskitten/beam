@@ -25,6 +25,7 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id,
@@ -71,16 +72,20 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
    * for a single partition.
    */
   public static class PartitionMark implements Serializable {
+    private static final long MIN_WATERMARK_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+
     private String topic;
     private int partition;
     private long nextOffset;
+    private long watermarkMillis = MIN_WATERMARK_MILLIS;
 
     private PartitionMark() {} // for Avro
 
-    public PartitionMark(String topic, int partition, long offset) {
+    public PartitionMark(String topic, int partition, long offset, long watermarkMillis) {
       this.topic = topic;
       this.partition = partition;
       this.nextOffset = offset;
+      this.watermarkMillis = watermarkMillis;
     }
 
     public String getTopic() {
@@ -95,12 +100,17 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
       return nextOffset;
     }
 
+    public long getWatermarkMillis() {
+      return watermarkMillis;
+    }
+
     @Override
     public String toString() {
       return "PartitionMark{"
           + "topic='" + topic + '\''
           + ", partition=" + partition
           + ", nextOffset=" + nextOffset
+          + ", watermarkMillis=" + watermarkMillis
           + '}';
     }
   }

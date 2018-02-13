@@ -246,6 +246,7 @@ public class KafkaIO {
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
+        .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
   }
 
@@ -281,7 +282,6 @@ public class KafkaIO {
     @Nullable abstract Class<? extends Deserializer<V>> getValueDeserializer();
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
-    @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getTimestampFn();
     @Nullable abstract SerializableFunction<KafkaRecord<K, V>, Instant> getWatermarkFn();
 
     abstract long getMaxNumRecords();
@@ -289,6 +289,8 @@ public class KafkaIO {
 
     @Nullable abstract Instant getStartReadTime();
     abstract boolean isCommitOffsetsInFinalizeEnabled();
+
+    abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract Builder<K, V> toBuilder();
 
@@ -304,12 +306,13 @@ public class KafkaIO {
           Class<? extends Deserializer<V>> valueDeserializer);
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
-      abstract Builder<K, V> setTimestampFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
       abstract Builder<K, V> setWatermarkFn(SerializableFunction<KafkaRecord<K, V>, Instant> fn);
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
       abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
+      abstract Builder<K, V> setTimestampPolicyFactory(
+        TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
       abstract Read<K, V> build();
     }
@@ -461,18 +464,40 @@ public class KafkaIO {
     }
 
     /**
-     * A function to assign a timestamp to a record. Default is processing timestamp.
+     * TODO.
      */
-    public Read<K, V> withTimestampFn2(
-        SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
-      checkArgument(timestampFn != null, "timestampFn can not be null");
-      return toBuilder().setTimestampFn(timestampFn).build();
+    public Read<K, V> withLogAppendTime(){
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
-     * @see #withTimestampFn(SerializableFunction)
+     * TODO.
      */
+    public Read<K, V> withTimestampPolicyFactory(
+      TimestampPolicyFactory<K, V> timestampPolicyFactory) {
+      return toBuilder().setTimestampPolicyFactory(timestampPolicyFactory).build();
+    }
+
+    /**
+     * A function to assign a timestamp to a record. Default is processing timestamp.
+     * @deprecated as of version 2.4.
+     * Use {@link #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
+     */
+    @Deprecated
+    public Read<K, V> withTimestampFn2(
+        SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
+      checkArgument(timestampFn != null, "timestampFn can not be null");
+      return toBuilder().setTimestampPolicyFactory(
+        TimestampPolicyFactory.withTimestampFn(timestampFn)).build();
+    }
+
+    /**
+     * A function to calculate watermark after a record. Default is last record timestamp.
+     * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4.
+     * Use {@link #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
+     */
+    @Deprecated
     public Read<K, V> withWatermarkFn2(
         SerializableFunction<KafkaRecord<K, V>, Instant> watermarkFn) {
       checkArgument(watermarkFn != null, "watermarkFn can not be null");
@@ -481,16 +506,22 @@ public class KafkaIO {
 
     /**
      * A function to assign a timestamp to a record. Default is processing timestamp.
+     * @deprecated as of version 2.4.
+     * Use {@link #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withTimestampFn(SerializableFunction<KV<K, V>, Instant> timestampFn) {
       checkArgument(timestampFn != null, "timestampFn can not be null");
       return withTimestampFn2(unwrapKafkaAndThen(timestampFn));
     }
 
     /**
-     * A function to calculate watermark after a record. Default is last record timestamp
+     * A function to calculate watermark after a record. Default is last record timestamp.
      * @see #withTimestampFn(SerializableFunction)
+     * @deprecated as of version 2.4.
+     * Use {@link #withTimestampPolicyFactory(TimestampPolicyFactory)} instead.
      */
+    @Deprecated
     public Read<K, V> withWatermarkFn(SerializableFunction<KV<K, V>, Instant> watermarkFn) {
       checkArgument(watermarkFn != null, "watermarkFn can not be null");
       return withWatermarkFn2(unwrapKafkaAndThen(watermarkFn));
