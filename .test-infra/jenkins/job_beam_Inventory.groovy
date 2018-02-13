@@ -21,9 +21,11 @@
   def machine = "beam${it}"
   println machine
   job("beam_Inventory_${machine}") {
-    nodeParam('TEST_HOST') {
-      defaultNode([machine])
-      allowedNodes([machine])
+    parameters {
+      nodeParam('TEST_HOST') {
+        defaultNode([machine])
+        allowedNodes([machine])
+      }
     }
     label('beam')
     triggers {
