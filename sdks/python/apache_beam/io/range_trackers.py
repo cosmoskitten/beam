@@ -22,9 +22,9 @@ import logging
 import math
 import threading
 
-from apache_beam.io import iobase
-
 from past.builtins import long
+
+from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
