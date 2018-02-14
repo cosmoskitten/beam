@@ -221,7 +221,6 @@ class _BatchSizeEstimator(object):
     self._data = []
     self._ignore_next_timing = False
 
-    # TODO(pabloem) - This should rely on internal counters. Not user metrics.
     from apache_beam.metrics import Metrics
 
     self._size_distribution = Metrics.distribution(
