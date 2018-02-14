@@ -302,8 +302,7 @@ public class ApproximateUniqueTest implements Serializable {
   }
 
   /**
-   * Tests merging partial results and extracting output at the end of the test.
-   * The TestPipeline tests do not exercise merging.
+   * Test ApproximateUniqueCombinerFn. TestPipeline does not use combiners.
    */
   @RunWith(Parameterized.class)
   public static class ApproximateUniqueCombinerFnTest {
