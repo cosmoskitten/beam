@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -55,6 +56,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -1797,6 +1799,44 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
+  @Test
+  public void testPipelineOptionsFactoryFromProperties() {
+    assertEquals("testAppName", PipelineOptionsFactory.fromProperties(new Properties() {{
+      put("appName", "testAppName");
+    }}).as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryFromPropertiesWithPrefix() {
+    assertEquals(
+      "testAppName",
+      PipelineOptionsFactory.fromProperties("prefix.", new Properties() {{
+        put("prefix.appName", "testAppName");
+      }}).as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryFromPropertiesWithLongPrefix() {
+    assertEquals(
+      "testAppName",
+      PipelineOptionsFactory.fromProperties("org.apache.beam.", new Properties() {{
+        put("org.apache.beam.appName", "testAppName");
+      }}).as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPipelineOptionsFactoryFromNullProperties() {
+    assertNotNull(PipelineOptionsFactory.fromProperties(null));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPipelineOptionsFactoryFromPropertiesAndNullPrefix() {
+    assertEquals(
+      "testAppName",
+      PipelineOptionsFactory.fromProperties(null, new Properties() {{
+        put("appName", "testAppName");
+      }}).as(ApplicationNameOptions.class).getAppName());
+  }
   /** Used to test that the thread context class loader is used when creating proxies. */
   public interface ClassLoaderTestOptions extends PipelineOptions {
     @Default.Boolean(true)
