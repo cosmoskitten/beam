@@ -335,19 +335,17 @@ public class ApproximateUnique {
        * Adds a value to the heap, returning whether the value is (large enough
        * to be) in the heap.
        */
-      public boolean add(Long value) {
-        if (heap.contains(value)) {
-          return true;
-        } else if (heap.size() < sampleSize) {
-          heap.add(value);
-          return true;
-        } else if (value > heap.element()) {
-          heap.remove();
-          heap.add(value);
-          return true;
-        } else {
-          return false;
+      public boolean add(long value) {
+        if (heap.size() >= sampleSize && value < heap.element()) {
+          return false; // Common case as input size increases.
         }
+        if (!heap.contains(value)) {
+          if (heap.size() >= sampleSize) {
+            heap.remove();
+          }
+          heap.add(value);
+        }
+        return true;
       }
 
       long getEstimate() {
