@@ -33,6 +33,7 @@ import six
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.transforms import sideinputs
 from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
 
 class _ExecutorService(object):
@@ -83,7 +84,8 @@ class _ExecutorService(object):
         return None
 
     def run(self):
-      state_sampler = statesampler.StateSampler.simple_tracker()
+      state_sampler = statesampler.StateSampler('', counters.CounterFactory())
+      statesampler.set_current_tracker(state_sampler)
       while not self.shutdown_requested:
         task = self._get_task_or_none()
         if task:
