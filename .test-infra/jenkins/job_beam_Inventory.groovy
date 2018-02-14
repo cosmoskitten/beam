@@ -58,14 +58,6 @@
       shell('kubectl version || echo "kubectl not found"')
       shell('virtualenv -p python2.7 test2 && . ./test2/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
       shell('virtualenv -p python3 test3 && . ./test3/bin/activate && python --version && deactivate || echo "python 3 not found"')
-      python {
-        pythonName('System-CPython-2.7')
-        command('python --version')
-      }
-      python {
-        pythonName('System-CPython-3.3')
-        command('python --version')
-      }
     }
   }
 }
