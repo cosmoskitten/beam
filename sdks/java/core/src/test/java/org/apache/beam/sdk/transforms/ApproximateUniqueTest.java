@@ -31,11 +31,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.TestUtils;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn;
+import org.apache.beam.sdk.transforms.ApproximateUnique.ApproximateUniqueCombineFn.LargestUnique;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,6 +61,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
     ApproximateUniqueTest.ApproximateUniqueWithDuplicatesTest.class,
     ApproximateUniqueTest.ApproximateUniqueVariationsTest.class,
+    ApproximateUniqueTest.ApproximateUniqueMergeAndExtractTest.class,
     ApproximateUniqueTest.ApproximateUniqueMiscTest.class
 })
 public class ApproximateUniqueTest implements Serializable {
@@ -273,6 +280,71 @@ public class ApproximateUniqueTest implements Serializable {
                      e.getMessage().startsWith("ApproximateUnique needs a sampleSize >= 16"));
         }
       }
+    }
+  }
+
+  /**
+   * Tests merging partial results and extracting output at the end of the test.
+   * The TestPipeline tests do not exercise merging.
+   */
+  @RunWith(Parameterized.class)
+  public static class ApproximateUniqueMergeAndExtractTest {
+
+    @Parameterized.Parameter
+    public int numMerges;
+    @Parameterized.Parameter(1)
+    public int elementCountToMerge;
+    @Parameterized.Parameter(2)
+    public int uniqueCountToMerge;
+    @Parameterized.Parameter(3)
+    public int sampleSize;
+
+    @Test
+    public void testMergeAndExtract() {
+      Coder<Double> coder = DoubleCoder.of();
+
+      ApproximateUniqueCombineFn<Double> combinerFn =
+        new ApproximateUniqueCombineFn<>(sampleSize, coder);
+
+      LargestUnique acc = combinerFn.createAccumulator();
+
+      for (int i = 0; i < numMerges; i++) {
+        LargestUnique toMerge = new LargestUnique(sampleSize);
+        double startValue = 1.0 * i * uniqueCountToMerge;
+
+        List<Double> uniques = IntStream
+          .range(0, uniqueCountToMerge)
+          .mapToObj(idx -> 1.0 / (startValue + idx + 1))
+          .collect(Collectors.toList());
+
+        Collections.shuffle(uniques);
+
+        IntStream
+          .range(0, elementCountToMerge)
+          .forEach(idx -> combinerFn.addInput(toMerge, uniques.get(idx % uniqueCountToMerge)));
+
+        acc = combinerFn.mergeAccumulators(ImmutableList.of(acc, toMerge));
+
+        ApproximateUniqueTest.verifyEstimate((i + 1) * uniqueCountToMerge,
+                                             sampleSize,
+                                             acc.getEstimate());
+      }
+    }
+
+    @Parameterized.Parameters(name = "merges_{0}_count_{1}_unique_{2}_sample_{3}")
+    public static Iterable<Object[]> data() {
+      return ImmutableList.<Object[]>builder()
+        .add(
+          new Object[] {
+            10, 1000, 100, 16
+          },
+          new Object[] {
+            10, 1000, 800, 100
+          },
+          new Object[] {
+            20, 200, 100, 100
+          })
+        .build();
     }
   }
 
