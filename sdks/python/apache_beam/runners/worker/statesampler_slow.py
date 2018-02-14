@@ -50,7 +50,7 @@ class StateSampler(object):
 
   def start(self):
     # Sampling not yet supported. Only state tracking at the moment.
-    self.started = True
+    pass
 
   def stop(self):
     self.finished = True

@@ -220,7 +220,6 @@ class BundleProcessor(object):
     self.state_sampler = statesampler.StateSampler(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
-    self.state_sampler.register()
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
 
   def create_execution_tree(self, descriptor):

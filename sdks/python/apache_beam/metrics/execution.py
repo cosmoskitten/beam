@@ -141,29 +141,11 @@ class _MetricsEnvironment(object):
 
   def current_container(self):
     """Returns the current MetricsContainer."""
-    sampler = statesampler.EXECUTION_STATE_SAMPLERS.current_sampler()
+    sampler = statesampler.get_current_tracker()
     if sampler is None:
       return self._old_style_container()
 
-    current_state = sampler.current_state()
-    if current_state is None or  current_state.metrics_container is None:
-      return self._old_style_container()
-
-    return current_state.metrics_container
-
-  def set_current_container(self, container):
-    """Sets the Metricscontainer based in the container stack.
-
-    The container stack is the old style, and will be deprecated."""
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    """Resets the Metricscontainer based in the container stack.
-
-    The container stack is the old style, and will be deprecated."""
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
+    return sampler.current_state().metrics_container
 
 
 MetricsEnvironment = _MetricsEnvironment()
