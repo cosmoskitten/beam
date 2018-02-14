@@ -65,7 +65,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
     ApproximateUniqueTest.ApproximateUniqueWithDuplicatesTest.class,
     ApproximateUniqueTest.ApproximateUniqueVariationsTest.class,
-    ApproximateUniqueTest.ApproximateUniqueCombinerFnTest.class,
+    ApproximateUniqueTest.ApproximateUniqueCombineFnTest.class,
     ApproximateUniqueTest.ApproximateUniqueMiscTest.class
 })
 public class ApproximateUniqueTest implements Serializable {
@@ -302,10 +302,10 @@ public class ApproximateUniqueTest implements Serializable {
   }
 
   /**
-   * Test ApproximateUniqueCombinerFn. TestPipeline does not use combiners.
+   * Test ApproximateUniqueCombineFn. TestPipeline does not use combiners.
    */
   @RunWith(Parameterized.class)
-  public static class ApproximateUniqueCombinerFnTest {
+  public static class ApproximateUniqueCombineFnTest {
 
     @Parameterized.Parameter
     public long elementCount;
@@ -315,7 +315,7 @@ public class ApproximateUniqueTest implements Serializable {
     public int sampleSize;
 
     @Test
-    public void testCombinerFn() {
+    public void testCombineFn() {
       List<Double> input = LongStream
         .range(0, elementCount)
         .mapToObj(i -> 1.0 / (i % uniqueCount  + 1))
