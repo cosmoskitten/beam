@@ -26,6 +26,7 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
 
 
 class NameTest(unittest.TestCase):
@@ -116,7 +117,8 @@ class MetricsTest(unittest.TestCase):
       Metrics.distribution("", "names")
 
   def test_create_counter_distribution(self):
-    sampler = statesampler.StateSampler.simple_tracker()
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
     state1 = sampler.scoped_state('mystep', 'myState',
                                   metrics_container=MetricsContainer('mystep'))
     with state1:
