@@ -315,7 +315,7 @@ public class ApproximateUniqueTest implements Serializable {
     public int sampleSize;
 
     @Test
-    public void testMergeAndExtract() {
+    public void testCombinerFn() {
       List<Double> input = LongStream
         .range(0, elementCount)
         .mapToObj(i -> 1.0 / (i % uniqueCount  + 1))
