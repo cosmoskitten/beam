@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
+import static java.util.Locale.ROOT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
@@ -1790,4 +1793,35 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
+  /** An options class to for the following test, it will be loaded in its own classloader. */
+  public interface ClassLoaderTestOptions extends PipelineOptions {
+    @Default.Boolean(true)
+    @Description("A test option.")
+    boolean isOption();
+    void setOption(boolean b);
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryUsesTccl() throws Exception {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader testClassLoader = thread.getContextClassLoader();
+    final ClassLoader caseLoader = new InterceptingUrlClassLoader(
+      testClassLoader,
+      name -> name.toLowerCase(ROOT).contains("test"));
+    thread.setContextClassLoader(caseLoader);
+    PipelineOptionsFactory.resetCache();
+    try {
+      final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+      final Class optionType = caseLoader.loadClass(
+              "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ClassLoaderTestOptions");
+      final Object options = pipelineOptions.as(optionType);
+      assertSame(caseLoader, options.getClass().getClassLoader());
+      assertSame(optionType.getClassLoader(), options.getClass().getClassLoader());
+      assertSame(testClassLoader, optionType.getInterfaces()[0].getClassLoader());
+      assertTrue(Boolean.class.cast(optionType.getMethod("isOption").invoke(options)));
+    } finally {
+      thread.setContextClassLoader(testClassLoader);
+      PipelineOptionsFactory.resetCache();
+    }
+  }
 }
