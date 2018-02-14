@@ -62,11 +62,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.SortedMap;
@@ -1760,5 +1762,68 @@ public class PipelineOptionsFactory {
       supportedRunners.add(runner.getSimpleName());
     }
     return supportedRunners.build();
+  }
+
+  /**
+   * @param properties the properties to use to create the pipeline options instance.
+   * @return a pipeline options instance based on the specified properties.
+   */
+  public static PipelineOptions fromProperties(final Properties properties) {
+    if (properties == null) {
+      return create();
+    }
+    final String[] args = properties.stringPropertyNames()
+      .stream()
+      .map(k -> String.format("--%s=%s", k, properties.getProperty(k)))
+      .toArray(String[]::new);
+    return fromArgs(args).create();
+  }
+
+  /**
+   * @param prefix the prefix filter applied on system properties keys.
+   * @param properties the properties to use to create the pipeline options instance.
+   * @return a pipeline options instance based on the specified properties
+   * filtered with the specified prefix.
+   */
+  public static PipelineOptions fromProperties(final String prefix, final Properties properties) {
+    if (prefix == null) {
+      return fromProperties(properties);
+    }
+    if (properties == null) {
+      return create();
+    }
+    final Properties instantiationProperties = properties.stringPropertyNames()
+      .stream()
+      .filter(k -> k.startsWith(prefix))
+      .collect(
+        Properties::new,
+        (p, k) -> p.setProperty(k.substring(prefix.length()), properties.getProperty(k)),
+        Hashtable::putAll);
+    return fromProperties(instantiationProperties);
+  }
+
+  /**
+   * @param prefix the prefix filter applied on system properties keys.
+   * @return a pipeline options instance based on current environment and overriden with
+   * system properties key/values and filtered with a custom prefix.
+   */
+  public static PipelineOptions fromJvm(final String prefix) {
+    final Properties properties = System.getenv()
+      .entrySet()
+      .stream()
+      .collect(
+              Properties::new,
+              (p, e) -> p.setProperty(e.getKey(), e.getKey()),
+              Properties::putAll);
+    properties.putAll(System.getProperties());
+    return fromProperties(prefix, properties);
+  }
+
+  /**
+   * @return a pipeline options instance based on current environemnt and system properties
+   * filtered based on <code>beam.</code> prefix.
+   */
+  public static PipelineOptions fromJvm() {
+    return fromJvm("beam.");
   }
 }
