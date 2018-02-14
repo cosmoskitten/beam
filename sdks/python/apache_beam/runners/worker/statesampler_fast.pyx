@@ -114,10 +114,6 @@ cdef class StateSampler(object):
   def __dealloc__(self):
     pythread.PyThread_free_lock(self.lock)
 
-  @staticmethod
-  def simple_tracker():
-    return StateSampler('', None)
-
   def run(self):
     cdef int64_t last_nsecs = get_nsec_time()
     cdef int64_t elapsed_nsecs
@@ -145,7 +141,6 @@ cdef class StateSampler(object):
 
   def start(self):
     assert not self.started
-    self.started = True
     self.sampling_thread = threading.Thread(target=self.run)
     self.sampling_thread.start()
 
