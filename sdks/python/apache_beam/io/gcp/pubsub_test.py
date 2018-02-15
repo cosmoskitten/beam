@@ -21,6 +21,7 @@ import logging
 import unittest
 
 import hamcrest as hc
+import six
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
@@ -52,7 +53,7 @@ class TestReadStringsFromPubSubOverride(unittest.TestCase):
                                      None, 'a_label')
              | beam.Map(lambda x: x))
     # Ensure that the output type is str.
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(six.text_type, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(p.options)
@@ -76,7 +77,7 @@ class TestReadStringsFromPubSubOverride(unittest.TestCase):
                  'a_label')
              | beam.Map(lambda x: x))
     # Ensure that the output type is str
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(six.text_type, pcoll.element_type)
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(p.options)
