@@ -339,11 +339,17 @@
       <scope>test</scope>
     </dependency>
 
-<!--     <dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
-    </dependency> -->
+         <exclusions>  
+            <exclusion>  
+                <artifactId>org.objenesis</artifactId>  
+                <groupId>objenesis</groupId>  
+            </exclusion>  
+        </exclusions>  
+    </dependency>
 
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
