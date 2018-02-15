@@ -32,6 +32,11 @@ except ImportError:
   JsonValue = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 
 @unittest.skipIf(JsonValue is None, 'GCP dependencies are not installed')
 class JsonValueTest(unittest.TestCase):
