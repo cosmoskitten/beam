@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -1814,20 +1813,6 @@ public class PipelineOptionsFactoryTest {
       "testAppName",
       PipelineOptionsFactory.fromProperties("org.apache.beam.", new Properties() {{
         put("org.apache.beam.appName", "testAppName");
-      }}).as(ApplicationNameOptions.class).getAppName());
-  }
-
-  @Test
-  public void testPipelineOptionsFactoryFromNullProperties() {
-    assertNotNull(PipelineOptionsFactory.fromProperties(null));
-  }
-
-  @Test
-  public void testPipelineOptionsFactoryFromPropertiesAndNullPrefix() {
-    assertEquals(
-      "testAppName",
-      PipelineOptionsFactory.fromProperties(null, new Properties() {{
-        put("appName", "testAppName");
       }}).as(ApplicationNameOptions.class).getAppName());
   }
 }

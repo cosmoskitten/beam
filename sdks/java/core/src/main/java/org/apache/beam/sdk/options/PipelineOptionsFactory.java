@@ -19,6 +19,8 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
@@ -37,6 +39,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -187,19 +190,21 @@ public class PipelineOptionsFactory {
   public static class Builder {
     private final String defaultAppName;
     private final String[] args;
+    private final Map<String, String> options;
     private final boolean validation;
     private final boolean strictParsing;
     private final boolean isCli;
 
     // Do not allow direct instantiation
     private Builder() {
-      this(null, false, true, false);
+      this(null, null, false, true, false);
     }
 
-    private Builder(String[] args, boolean validation,
+    private Builder(String[] args, Map<String, String> options, boolean validation,
         boolean strictParsing, boolean isCli) {
       this.defaultAppName = findCallersClassName();
       this.args = args;
+      this.options = options;
       this.validation = validation;
       this.strictParsing = strictParsing;
       this.isCli = isCli;
@@ -244,7 +249,17 @@ public class PipelineOptionsFactory {
      */
     public Builder fromArgs(String... args) {
       checkNotNull(args, "Arguments should not be null.");
-      return new Builder(args, validation, strictParsing, true);
+      return new Builder(args, options, validation, strictParsing, true);
+    }
+
+    /**
+     * A key/value set of options.
+     * @param configuration the options to convert to PipelineOptions.
+     * @return a new builder for pipeline options.
+     */
+    public Builder fromMap(Map<String, String> configuration) {
+      checkNotNull(configuration, "Arguments should not be null.");
+      return new Builder(args, configuration, validation, strictParsing, true);
     }
 
     /**
@@ -254,7 +269,7 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(args, true, strictParsing, isCli);
+      return new Builder(args, options, true, strictParsing, isCli);
     }
 
     /**
@@ -262,7 +277,7 @@ public class PipelineOptionsFactory {
      * arguments.
      */
     public Builder withoutStrictParsing() {
-      return new Builder(args, validation, false, isCli);
+      return new Builder(args, options, validation, false, isCli);
     }
 
     /**
@@ -289,8 +304,14 @@ public class PipelineOptionsFactory {
       Map<String, Object> initialOptions = Maps.newHashMap();
 
       // Attempt to parse the arguments into the set of initial options to use
+      ListMultimap<String, String> options = LinkedListMultimap.create();
+      if (this.options != null) {
+        this.options.forEach(options::put);
+      }
       if (args != null) {
-        ListMultimap<String, String> options = parseCommandLine(args, strictParsing);
+        options.putAll(parseCommandLine(args, strictParsing));
+      }
+      if (!options.isEmpty()) {
         LOG.debug("Provided Arguments: {}", options);
         printHelpUsageAndExitIfNeeded(options, System.out, true /* exit */);
         initialOptions = parseObjects(klass, options, strictParsing);
@@ -1765,18 +1786,35 @@ public class PipelineOptionsFactory {
   }
 
   /**
+   * @param prefix a prefix filter on the map keys.
+   * @param options the options to convert to a pipeline options.
+   * @return a pipeline options instance based on the specified configuration.
+   */
+  public static PipelineOptions fromMap(final String prefix, final Map<String, String> options) {
+    final Map<String, String> filtered = options.entrySet()
+                                         .stream()
+                                         .filter(e -> e.getKey()
+                                                       .startsWith(prefix))
+                                         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+    return fromMap(filtered);
+  }
+
+  /**
+   * @param options the options to convert to a pipeline options.
+   * @return a pipeline options instance based on the specified configuration.
+   */
+  public static PipelineOptions fromMap(final Map<String, String> options) {
+    return new Builder().fromMap(options).create();
+  }
+
+  /**
    * @param properties the properties to use to create the pipeline options instance.
    * @return a pipeline options instance based on the specified properties.
    */
   public static PipelineOptions fromProperties(final Properties properties) {
-    if (properties == null) {
-      return create();
-    }
-    final String[] args = properties.stringPropertyNames()
-      .stream()
-      .map(k -> String.format("--%s=%s", k, properties.getProperty(k)))
-      .toArray(String[]::new);
-    return fromArgs(args).create();
+    return fromMap(properties.stringPropertyNames()
+                    .stream()
+                    .collect(toMap(identity(), properties::getProperty)));
   }
 
   /**
@@ -1786,12 +1824,6 @@ public class PipelineOptionsFactory {
    * filtered with the specified prefix.
    */
   public static PipelineOptions fromProperties(final String prefix, final Properties properties) {
-    if (prefix == null) {
-      return fromProperties(properties);
-    }
-    if (properties == null) {
-      return create();
-    }
     final Properties instantiationProperties = properties.stringPropertyNames()
       .stream()
       .filter(k -> k.startsWith(prefix))
@@ -1804,26 +1836,18 @@ public class PipelineOptionsFactory {
 
   /**
    * @param prefix the prefix filter applied on system properties keys.
-   * @return a pipeline options instance based on current environment and overriden with
-   * system properties key/values and filtered with a custom prefix.
+   * @return a pipeline options instance based on system properties key/values
+   * and filtered with a custom prefix.
    */
-  public static PipelineOptions fromJvm(final String prefix) {
-    final Properties properties = System.getenv()
-      .entrySet()
-      .stream()
-      .collect(
-              Properties::new,
-              (p, e) -> p.setProperty(e.getKey(), e.getKey()),
-              Properties::putAll);
-    properties.putAll(System.getProperties());
-    return fromProperties(prefix, properties);
+  public static PipelineOptions fromSystemProperties(final String prefix) {
+    return fromProperties(prefix, System.getProperties());
   }
 
   /**
-   * @return a pipeline options instance based on current environemnt and system properties
+   * @return a pipeline options instance based on system properties
    * filtered based on <code>beam.</code> prefix.
    */
-  public static PipelineOptions fromJvm() {
-    return fromJvm("beam.");
+  public static PipelineOptions fromSystemProperties() {
+    return fromSystemProperties("beam.");
   }
 }
