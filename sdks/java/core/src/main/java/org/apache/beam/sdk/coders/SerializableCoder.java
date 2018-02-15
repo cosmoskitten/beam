@@ -88,9 +88,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
     try {
       if (clazz.isInterface() || !clazz.equals(clazz.getMethod("equals", Object.class))) {
-        LOG.warn(
-            "Can't verify serialized elements of type {} have well defined equals method. This may produce incorrect results on some {}",
-            clazz.getSimpleName(), PipelineRunner.class.getSimpleName());
+        LOG.warn("Can't verify serialized elements of type {} have well defined equals method. "
+                + "This may produce incorrect results on some {}", clazz.getSimpleName(),
+            PipelineRunner.class.getSimpleName());
       }
     } catch (NoSuchMethodException e) {
       // All concrete classes have an equals method declared in their class hierarchy.
