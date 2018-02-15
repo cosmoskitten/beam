@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
@@ -87,7 +88,8 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
     try {
-      if (clazz.isInterface() || !clazz.equals(clazz.getMethod("equals", Object.class))) {
+      Method method = clazz.getMethod("equals", Object.class);
+      if (clazz.isInterface() || !clazz.equals(method.getDeclaringClass())) {
         LOG.warn("Can't verify serialized elements of type {} have well defined equals method. "
                 + "This may produce incorrect results on some {}", clazz.getSimpleName(),
             PipelineRunner.class.getSimpleName());
