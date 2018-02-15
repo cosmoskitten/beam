@@ -258,7 +258,7 @@ public class QueryablePipeline {
   }
 
   public Optional<Environment> getEnvironment(PTransformNode parDo) {
-    return Environments.getEnvironment(parDo.getTransform(), rehydratedComponents);
+    return Environments.getEnvironment(parDo.getId(), components);
   }
 
   private interface PipelineEdge {
