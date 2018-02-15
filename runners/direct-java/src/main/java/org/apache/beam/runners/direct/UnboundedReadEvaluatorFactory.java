@@ -282,10 +282,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Nullable
     abstract CheckpointT getCheckpoint();
-
-    UnboundedSourceShard<T, CheckpointT> withCheckpoint(CheckpointT newCheckpoint) {
-      return of(getSource(), getDeduplicator(), getExistingReader(), newCheckpoint);
-    }
   }
 
   static class InputProvider<T>
