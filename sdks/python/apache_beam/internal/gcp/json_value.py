@@ -27,6 +27,11 @@ except ImportError:
 
 from apache_beam.options.value_provider import ValueProvider
 
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
 

@@ -29,6 +29,11 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
 
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
 # pylint: disable=expression-not-assigned
