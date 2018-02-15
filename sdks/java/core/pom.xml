@@ -343,14 +343,13 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
-         <exclusions>  
-            <exclusion>  
-                <artifactId>org.objenesis</artifactId>  
-                <groupId>objenesis</groupId>  
-            </exclusion>  
-        </exclusions>  
     </dependency>
-
+    <dependency>
+      <artifactId>org.objenesis</artifactId>  
+      <groupId>objenesis</groupId>  
+      <version>1.0</version>
+      <scope>test</scope> 
+    </dependency>
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>
