@@ -31,8 +31,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.slf4j.Logger;
@@ -50,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
  */
-public class GreedilyFusedExecutableStage implements ExecutableStage {
+public class GreedilyFusedExecutableStage extends ExecutableStage {
   // TODO: Provide a way to merge in a compatible subgraph (e.g. one where all of the siblings
   // consume a PCollection materialized by this subgraph and can be fused into it).
   private static final Logger LOG = LoggerFactory.getLogger(GreedilyFusedExecutableStage.class);
@@ -179,40 +177,6 @@ public class GreedilyFusedExecutableStage implements ExecutableStage {
   @Override
   public Collection<PTransformNode> getTransforms() {
     return Collections.unmodifiableSet(fusedTransforms);
-  }
-
-  @Override
-  public PTransform toPTransform() {
-    PTransform.Builder pt = PTransform.newBuilder();
-    pt.putInputs("input", inputPCollection.getId());
-    int i = 0;
-    for (PCollectionNode materializedPCollection : materializedPCollections) {
-      pt.putOutputs(String.format("materialized_%s", i), materializedPCollection.getId());
-      i++;
-    }
-    for (PTransformNode fusedTransform : fusedTransforms) {
-      pt.addSubtransforms(fusedTransform.getId());
-    }
-    pt.setSpec(FunctionSpec.newBuilder().setUrn(ExecutableStage.URN));
-    return pt.build();
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (!(o instanceof ExecutableStage)) {
-      return false;
-    }
-    ExecutableStage that = (ExecutableStage) o;
-    return Objects.equals(this.getEnvironment(), that.getEnvironment())
-        && Objects.equals(this.getInputPCollection(), that.getInputPCollection())
-        && Objects.equals(this.getOutputPCollections(), that.getOutputPCollections())
-        && Objects.equals(this.getTransforms(), that.getTransforms());
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(
-        getEnvironment(), getInputPCollection(), getOutputPCollections(), getTransforms());
   }
 
   @Override
