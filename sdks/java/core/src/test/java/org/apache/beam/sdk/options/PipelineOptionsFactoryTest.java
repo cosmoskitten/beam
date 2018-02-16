@@ -101,7 +101,7 @@ public class PipelineOptionsFactoryTest {
         REGISTERED_RUNNER.getSimpleName()
             .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length()));
     Map<String, Class<? extends PipelineRunner<?>>> registered =
-        PipelineOptionsFactory.getRegisteredRunners();
+        PipelineOptionsFactory.CACHE.get().getSupportedPipelineRunners();
     assertEquals(REGISTERED_RUNNER,
         registered.get(REGISTERED_RUNNER.getSimpleName()
             .toLowerCase()
@@ -1368,7 +1368,9 @@ public class PipelineOptionsFactoryTest {
         "Unknown 'runner' specified 'UnknownRunner', supported " + "pipeline runners");
     Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
     assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
-    expectedException.expectMessage(PipelineOptionsFactory.getSupportedRunners().toString());
+
+    expectedException.expectMessage(PipelineOptionsFactory.CACHE.get()
+      .getSupportedRunners().toString());
 
     PipelineOptionsFactory.fromArgs(args).create();
   }
