@@ -20,7 +20,8 @@ import common_job_properties
 
 // These jobs list details about each beam runner, to clarify what software
 // is on each machine.
-[1..8].each {
+def nums = 1..8
+nums.each {
   def machine = "beam${it}"
   job("beam_Inventory_${machine}") {
     description("Run inventory on ${machine}")
