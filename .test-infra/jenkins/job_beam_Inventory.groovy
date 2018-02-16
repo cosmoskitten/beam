@@ -16,45 +16,44 @@
  * limitations under the License.
  */
 
+import common_job_properties
+
 // These jobs list details about each beam runner
 [5].each {
   def machine = "beam${it}"
   job("beam_Inventory_${machine}") {
+    description("Run inventory on ${machine}")
+
+    // Set common parameters.
+    common_job_properties.setTopLevelMainJobProperties(delegate)
+
+    // Sets that this is a PostCommit job.
+    common_job_properties.setPostCommit(delegate, '45 18 * * *')
+
+    // Allows triggering this build against pull requests.
+    common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Machine Inventory',
+      "Run Inventory ${machine}")
+
     parameters {
       nodeParam('TEST_HOST') {
+        description("Select test host ${machine}")
         defaultNodes([machine])
         allowedNodes([machine])
+        trigger('multiSelectionDisallowed')
+        eligibility('IgnoreOfflineNodeEligibility')
       }
     }
-    label('beam')
-    triggers {
-      githubPullRequest {
-        admins(['asfbot'])
-        useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        triggerPhrase("Run Inventory ${machine}")
-        onlyTriggerPhrase()
-        permitAll()
-        extensions {
-          commitStatus {
-            context("Jenkins: inventory ${machine}")
-          }
 
-          // Comment messages after build completes.
-          buildStatus {
-            completedStatus('SUCCESS', '--none--')
-            completedStatus('FAILURE', '--none--')
-            completedStatus('ERROR', '--none--')
-          }
-        }
-      }
-    }
     steps {
       shell('mvn -v || echo "mvn not found"')
       shell('echo "Maven home $MAVEN_HOME"')
       shell('gradle -v || echo "gradle not found"')
       shell('gcloud -v || echo "gcloud not found"')
+      shell('python --version || echo "python not found"')
+      shell('python --version || echo "python not found"')
+      shell('python3 --version || echo "python3 not found"')
       shell('kubectl version || echo "kubectl not found"')
       shell('virtualenv -p python2.7 test2 && . ./test2/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
       shell('virtualenv -p python3 test3 && . ./test3/bin/activate && python --version && deactivate || echo "python 3 not found"')
