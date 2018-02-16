@@ -20,13 +20,15 @@ package org.apache.beam.sdk.options;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -43,6 +45,8 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.RowSortedTable;
 import com.google.common.collect.Sets;
@@ -65,6 +69,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -78,9 +83,10 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
@@ -177,6 +183,13 @@ public class PipelineOptionsFactory {
   }
 
   /**
+   * @return a builder instance enabling you to build pipeline options.
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
    * After creation we will validate that {@code <T>} conforms to all the
    * validation criteria. See
    * {@link PipelineOptionsValidator#validate(Class, PipelineOptions)} for more details about
@@ -189,21 +202,19 @@ public class PipelineOptionsFactory {
   /** A fluent {@link PipelineOptions} builder. */
   public static class Builder {
     private final String defaultAppName;
-    private final String[] args;
-    private final Map<String, String> options;
+    private final Collection<Function<Builder, Multimap<String, String>>> options;
     private final boolean validation;
     private final boolean strictParsing;
     private final boolean isCli;
 
     // Do not allow direct instantiation
     private Builder() {
-      this(null, null, false, true, false);
+      this(new ArrayList<>(), false, true, false);
     }
 
-    private Builder(String[] args, Map<String, String> options, boolean validation,
-        boolean strictParsing, boolean isCli) {
+    private Builder(Collection<Function<Builder, Multimap<String, String>>> options,
+                    boolean validation, boolean strictParsing, boolean isCli) {
       this.defaultAppName = findCallersClassName();
-      this.args = args;
       this.options = options;
       this.validation = validation;
       this.strictParsing = strictParsing;
@@ -249,7 +260,8 @@ public class PipelineOptionsFactory {
      */
     public Builder fromArgs(String... args) {
       checkNotNull(args, "Arguments should not be null.");
-      return new Builder(args, options, validation, strictParsing, true);
+      options.add(current -> parseCommandLine(args, current.strictParsing));
+      return new Builder(options, validation, strictParsing, true);
     }
 
     /**
@@ -257,9 +269,10 @@ public class PipelineOptionsFactory {
      * @param configuration the options to convert to PipelineOptions.
      * @return a new builder for pipeline options.
      */
-    public Builder fromMap(Map<String, String> configuration) {
+    public Builder fromMap(final Map<String, String> configuration) {
       checkNotNull(configuration, "Arguments should not be null.");
-      return new Builder(args, configuration, validation, strictParsing, true);
+      options.add(builder -> Multimaps.forMap(configuration));
+      return new Builder(options, validation, strictParsing, true);
     }
 
     /**
@@ -269,7 +282,7 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(args, options, true, strictParsing, isCli);
+      return new Builder(options, true, strictParsing, isCli);
     }
 
     /**
@@ -277,7 +290,7 @@ public class PipelineOptionsFactory {
      * arguments.
      */
     public Builder withoutStrictParsing() {
-      return new Builder(args, options, validation, false, isCli);
+      return new Builder(options, validation, false, isCli);
     }
 
     /**
@@ -303,18 +316,13 @@ public class PipelineOptionsFactory {
     public <T extends PipelineOptions> T as(Class<T> klass) {
       Map<String, Object> initialOptions = Maps.newHashMap();
 
-      // Attempt to parse the arguments into the set of initial options to use
-      ListMultimap<String, String> options = LinkedListMultimap.create();
-      if (this.options != null) {
-        this.options.forEach(options::put);
-      }
-      if (args != null) {
-        options.putAll(parseCommandLine(args, strictParsing));
-      }
       if (!options.isEmpty()) {
         LOG.debug("Provided Arguments: {}", options);
-        printHelpUsageAndExitIfNeeded(options, System.out, true /* exit */);
-        initialOptions = parseObjects(klass, options, strictParsing);
+        final Multimap<String, String> optionsInstance = options.stream()
+          .map(fn -> fn.apply(this))
+          .collect(LinkedListMultimap::create, Multimap::putAll, Multimap::putAll);
+        printHelpUsageAndExitIfNeeded(optionsInstance, System.out, true /* exit */);
+        initialOptions = parseObjects(klass, optionsInstance, strictParsing);
       }
 
       // Create our proxy
@@ -353,7 +361,7 @@ public class PipelineOptionsFactory {
    * {@code printStream} and {@code exit} used for testing.
    */
   @SuppressWarnings("unchecked")
-  static boolean printHelpUsageAndExitIfNeeded(ListMultimap<String, String> options,
+  static boolean printHelpUsageAndExitIfNeeded(Multimap<String, String> options,
       PrintStream printStream, boolean exit) {
     if (options.containsKey("help")) {
       final String helpOption = Iterables.getOnlyElement(options.get("help"));
@@ -1045,10 +1053,9 @@ public class PipelineOptionsFactory {
     List<MultipleDefinitions> multipleDefinitions = Lists.newArrayList();
     for (Map.Entry<Method, Collection<Method>> entry
         : methodNameToMethodMap.asMap().entrySet()) {
-      Set<Class<?>> returnTypes = FluentIterable.from(entry.getValue())
-          .transform(ReturnTypeFetchingFunction.INSTANCE).toSet();
-      SortedSet<Method> collidingMethods = FluentIterable.from(entry.getValue())
-          .toSortedSet(MethodComparator.INSTANCE);
+      Set<Class<?>> returnTypes = entry.getValue().stream()
+        .map(ReturnTypeFetchingFunction.INSTANCE::apply).collect(toSet());
+      Set<Method> collidingMethods = new HashSet<>(entry.getValue());
       if (returnTypes.size() > 1) {
         MultipleDefinitions defs = new MultipleDefinitions();
         defs.method = entry.getKey();
@@ -1114,52 +1121,34 @@ public class PipelineOptionsFactory {
       SortedSet<Method> getters = methodNameToAllMethodMap.get(descriptor.getReadMethod());
       SortedSet<Method> gettersWithTheAnnotation =
           Sets.filter(getters, annotationPredicates.forMethod);
-      Set<Annotation> distinctAnnotations = Sets.newLinkedHashSet(FluentIterable
-          .from(gettersWithTheAnnotation)
-          .transformAndConcat(new Function<Method, Iterable<? extends Annotation>>() {
-            @Nonnull
-            @Override
-            public Iterable<? extends Annotation> apply(@Nonnull Method method) {
-              return FluentIterable.from(method.getAnnotations());
-            }
-          })
-          .filter(annotationPredicates.forAnnotation));
+      Set<Annotation> distinctAnnotations = gettersWithTheAnnotation.stream()
+        .flatMap(m -> Stream.of(m.getAnnotations()))
+        .filter(annotationPredicates.forAnnotation::apply)
+        .collect(toSet());
 
 
       if (distinctAnnotations.size() > 1) {
         throw new IllegalArgumentException(String.format(
             "Property [%s] is marked with contradictory annotations. Found [%s].",
             descriptor.getName(),
-            FluentIterable.from(gettersWithTheAnnotation)
-                .transformAndConcat(new Function<Method, Iterable<String>>() {
-                  @Nonnull
-                  @Override
-                  public Iterable<String> apply(final @Nonnull Method method) {
-                    return FluentIterable.from(method.getAnnotations())
-                        .filter(annotationPredicates.forAnnotation)
-                        .transform(new Function<Annotation, String>() {
-                          @Nonnull
-                          @Override
-                          public String apply(@Nonnull Annotation annotation) {
-                            return String.format(
-                                "[%s on %s]",
-                                ReflectHelpers.ANNOTATION_FORMATTER.apply(annotation),
-                                ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method));
-                          }
-                        });
-
-                  }
-                })
-                .join(Joiner.on(", "))));
+            gettersWithTheAnnotation.stream()
+              .flatMap(method -> Stream.of(method.getAnnotations())
+              .filter(annotationPredicates.forAnnotation::apply)
+              .map(annotation -> String.format(
+                      "[%s on %s]",
+                      ReflectHelpers.ANNOTATION_FORMATTER.apply(annotation),
+                      ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method))))
+              .collect(joining(", "))));
       }
 
-      Iterable<String> getterClassNames = FluentIterable.from(getters)
-          .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ReflectHelpers.CLASS_NAME);
-      Iterable<String> gettersWithTheAnnotationClassNames =
-          FluentIterable.from(gettersWithTheAnnotation)
-          .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ReflectHelpers.CLASS_NAME);
+      Iterable<String> getterClassNames = getters.stream()
+        .map(MethodToDeclaringClassFunction.INSTANCE::apply)
+        .map(ReflectHelpers.CLASS_NAME::apply)
+        .collect(toList());
+      Iterable<String> gettersWithTheAnnotationClassNames = gettersWithTheAnnotation.stream()
+        .map(MethodToDeclaringClassFunction.INSTANCE::apply)
+        .map(ReflectHelpers.CLASS_NAME::apply)
+        .collect(toList());
 
       if (!(gettersWithTheAnnotation.isEmpty()
             || getters.size() == gettersWithTheAnnotation.size())) {
@@ -1191,10 +1180,10 @@ public class PipelineOptionsFactory {
           methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
           annotationPredicates.forMethod);
 
-      Iterable<String> settersWithTheAnnotationClassNames =
-          FluentIterable.from(settersWithTheAnnotation)
-          .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ReflectHelpers.CLASS_NAME);
+      Iterable<String> settersWithTheAnnotationClassNames = settersWithTheAnnotation.stream()
+          .map(MethodToDeclaringClassFunction.INSTANCE::apply)
+          .map(ReflectHelpers.CLASS_NAME::apply)
+          .collect(toList());
 
       if (!settersWithTheAnnotation.isEmpty()) {
         AnnotatedSetter annotated = new AnnotatedSetter();
@@ -1327,7 +1316,7 @@ public class PipelineOptionsFactory {
 
   private static class MultipleDefinitions {
     private Method method;
-    private SortedSet<Method> collidingMethods;
+    private Set<Method> collidingMethods;
   }
 
   private static void throwForMultipleDefinitions(
@@ -1600,7 +1589,7 @@ public class PipelineOptionsFactory {
    * the expected java type using an {@link ObjectMapper} will be ignored.
    */
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(
-      Class<T> klass, ListMultimap<String, String> options, boolean strictParsing) {
+      Class<T> klass, Multimap<String, String> options, boolean strictParsing) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
     PipelineOptionsFactory.validateWellFormed(klass, REGISTERED_OPTIONS);
     @SuppressWarnings("unchecked")
