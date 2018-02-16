@@ -263,9 +263,8 @@ ext.applyJavaNature = {
   apply plugin: "com.diffplug.gradle.spotless"
   spotless {
     java {
-      target rootProject.fileTree(rootProject.rootDir) {
-        include 'sdks/java/**/*.java'
-      }
+      target "src/**/*.java"
+
       // Code formatting disabled because style rules are out of date.
       // eclipse().configFile(rootProject.file('sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml'))
     }
