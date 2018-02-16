@@ -35,12 +35,6 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
 
-try:
-  long        # Python 2
-except NameError:
-  long = int  # Python 3
-
-
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
            'MalformedVcfRecord']
 
