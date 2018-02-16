@@ -19,7 +19,7 @@
 import common_job_properties
 
 // These jobs list details about each beam runner
-[5].each {
+[1..8].each {
   def machine = "beam${it}"
   job("beam_Inventory_${machine}") {
     description("Run inventory on ${machine}")
@@ -47,16 +47,18 @@ import common_job_properties
     }
 
     steps {
-      shell('mvn -v || echo "mvn not found"')
-      shell('echo "Maven home $MAVEN_HOME"')
-      shell('gradle -v || echo "gradle not found"')
-      shell('gcloud -v || echo "gcloud not found"')
-      shell('python --version || echo "python not found"')
+      shell('ls /home/jenkins/tools')
+      shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
       shell('python3 --version || echo "python3 not found"')
-      shell('kubectl version || echo "kubectl not found"')
+      shell('/home/jenkins/tools/maven/latest/mvn -v || echo "mvn not found"')
+      shell('/home/jenkins/tools/gradle4.3/gradle -v || echo "gradle not found"')
+      shell('gcloud -v || echo "gcloud not found"')
+      shell('kubectl version -c || echo "kubectl not found"')
       shell('virtualenv -p python2.7 test2 && . ./test2/bin/activate && python --version && deactivate || echo "python 2.7 not found"')
       shell('virtualenv -p python3 test3 && . ./test3/bin/activate && python --version && deactivate || echo "python 3 not found"')
+      shell('echo "Maven home $MAVEN_HOME"')
+      shell('env')
     }
   }
 }
