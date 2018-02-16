@@ -985,7 +985,8 @@ def model_datastoreio():
   def to_entity(content):
     entity = entity_pb2.Entity()
     googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': six.text_type(content)})
+    googledatastore.helper.add_properties(entity,
+                                          {'content': six.text_type(content)})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
