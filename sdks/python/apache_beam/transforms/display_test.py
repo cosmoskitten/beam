@@ -23,8 +23,8 @@ import unittest
 from datetime import datetime
 
 import hamcrest as hc
-from hamcrest.core.base_matcher import BaseMatcher
 import six
+from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions

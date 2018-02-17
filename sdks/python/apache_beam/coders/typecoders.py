@@ -64,10 +64,10 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
+import six
+
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
-
-import six
 
 __all__ = ['registry']
 
