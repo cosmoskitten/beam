@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous
  * with default configuration.
  */
-public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery0 extends NexmarkSqlTransform {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       BeamSql.query("SELECT * FROM PCOLLECTION");

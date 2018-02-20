@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and
  * we'll also preserve the bid counts.</p>
  */
-public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery5 extends NexmarkSqlTransform {
 
   private static final String QUERY_TEMPLATE = ""
       + " SELECT auction "
