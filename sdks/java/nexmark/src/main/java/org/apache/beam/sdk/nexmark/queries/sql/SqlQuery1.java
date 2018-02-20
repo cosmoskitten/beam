@@ -24,9 +24,12 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -78,5 +81,22 @@ public class SqlQuery1 extends NexmarkSqlTransform {
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  public PCollection<? extends KnownSize> applyModel(PCollection<Row> rows) {
+    return rows
+        .apply(
+            ParDo.of(new DoFn<Row, Bid>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    Row row = c.element();
+                    c.output(new Bid(
+                        row.getLong("auction"),
+                        row.getLong("bidder"),
+                        row.getLong("price"),
+                        row.getDate("dateTime").getTime(),
+                        row.getString("extra")));
+                  }
+                }));
   }
 }
