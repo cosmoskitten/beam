@@ -21,6 +21,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
+import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -85,6 +87,14 @@ public class QueryTest {
   @Category(NeedsRunner.class)
   public void query1MatchesModelStreaming() {
     queryMatchesModel("Query1TestStreaming", new Query1(CONFIG), new Query1Model(CONFIG), true);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void sqlQuery1MatchesModelStreaming() {
+    queryMatchesModel("SqlQuery1TestStreaming",
+        new NexmarkSqlQuery(CONFIG, new SqlQuery1()),
+        new Query1Model(CONFIG), true);
   }
 
   @Test

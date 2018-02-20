@@ -61,7 +61,7 @@ public class SqlQuery1 extends NexmarkSqlTransform {
   }
 
   public SqlQuery1() {
-    super("SqlQuery1");
+    super("SqlQuery1", Bid.class);
   }
 
   @Override
