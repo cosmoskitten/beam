@@ -23,11 +23,15 @@ import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -54,7 +58,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public class SqlQuery5 extends NexmarkSqlTransform {
 
   private static final String QUERY_TEMPLATE = ""
-      + " SELECT auction "
+      + " SELECT auction, num "
       + "    FROM (SELECT B1.auction, count(*) AS num, "
       + "       HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, "
       + "          INTERVAL '%2$d' SECOND) AS starttime "
@@ -99,5 +103,19 @@ public class SqlQuery5 extends NexmarkSqlTransform {
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  public PCollection<? extends KnownSize> applyModel(PCollection<Row> rows) {
+    return rows
+        .apply(
+            ParDo.of(new DoFn<Row, AuctionCount>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    Row row = c.element();
+                    c.output(new AuctionCount(
+                        row.getLong("auction"),
+                        row.getLong("num")));
+                  }
+                }));
   }
 }

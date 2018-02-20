@@ -63,15 +63,16 @@ public class SqlQuery5Test {
       RowSqlType
           .builder()
           .withBigIntField("auction")
+          .withBigIntField("num")
           .build();
 
   public static final List<Row> RESULTS = ImmutableList.of(
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(2L));
+      newResultRow(1L, 1L),
+      newResultRow(1L, 1L),
+      newResultRow(1L, 1L),
+      newResultRow(1L, 2L),
+      newResultRow(1L, 1L),
+      newResultRow(2L, 1L));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
@@ -109,13 +110,13 @@ public class SqlQuery5Test {
   }
 
   private static Row newResultRow(
-      long auctionId) {
+      long auctionId, long count) {
 
     return
         Row
             .withRowType(RESULT_ROW_TYPE)
             .addValues(
-                auctionId)
+                auctionId, count)
             .build();
   }
 }
