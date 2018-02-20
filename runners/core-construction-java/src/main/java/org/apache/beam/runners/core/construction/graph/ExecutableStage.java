@@ -23,7 +23,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.base.MoreObjects;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -109,26 +108,8 @@ public abstract class ExecutableStage {
   }
 
   @Override
-  public final boolean equals(Object o) {
-    if (!(o instanceof ExecutableStage)) {
-      return false;
-    }
-    ExecutableStage that = (ExecutableStage) o;
-    return Objects.equals(this.getEnvironment(), that.getEnvironment())
-        && Objects.equals(this.getInputPCollection(), that.getInputPCollection())
-        && Objects.equals(this.getOutputPCollections(), that.getOutputPCollections())
-        && Objects.equals(this.getTransforms(), that.getTransforms());
-  }
-
-  @Override
-  public final int hashCode() {
-    return Objects.hash(
-        getEnvironment(), getInputPCollection(), getOutputPCollections(), getTransforms());
-  }
-
-  @Override
   public String toString() {
-    return MoreObjects.toStringHelper(GreedilyFusedExecutableStage.class)
+    return MoreObjects.toStringHelper(GreedyStageFuser.class)
         .add("inputPCollection", getInputPCollection().getId())
         .add(
             "outputPCollections",
