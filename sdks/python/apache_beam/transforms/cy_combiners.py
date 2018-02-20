@@ -352,8 +352,8 @@ class DistributionAccumulator(object):
     self.buckets_per_10 = 3
 
   def add_input(self, element):
-    if element < 0:
-      return
+    assert element >= 0, \
+      'Distribution counters support only non-negative numbers.'
     self.min = min(self.min, element)
     self.max = max(self.max, element)
     self.count += 1

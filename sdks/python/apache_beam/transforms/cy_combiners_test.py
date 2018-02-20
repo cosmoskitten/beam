@@ -55,6 +55,11 @@ class DistributionAccumulatorTest(unittest.TestCase):
     self.assertEquals(counter.min, expected_min)
     self.assertEquals(counter.max, expected_max)
 
+  def test_add_input_with_invalid_input(self):
+    counter = DistributionAccumulator()
+    with self.assertRaises(AssertionError):
+      counter.add_input(-1)
+
 
 if __name__ == '__main__':
   unittest.main()
