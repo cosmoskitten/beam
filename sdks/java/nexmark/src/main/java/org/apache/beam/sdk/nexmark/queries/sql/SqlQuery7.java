@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.TupleTag;
  *
  * <p>We will use a shorter window to help make testing easier.</p>
  */
-public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery7 extends NexmarkSqlTransform {
 
   private static final String QUERY_TEMPLATE = ""
       + " SELECT B.auction, B.price, B.bidder "

@@ -45,7 +45,7 @@ import org.apache.beam.sdk.values.Row;
  * arbitrary size. To make it more interesting we instead choose bids for every
  * {@code skipFactor}'th auction.
  */
-public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery2 extends NexmarkSqlTransform {
 
   private static final String QUERY_TEMPLATE =
       "SELECT auction, bidder, price, dateTime, extra  FROM PCOLLECTION "

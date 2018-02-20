@@ -18,35 +18,39 @@
 
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
-import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
+
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
+import org.apache.beam.sdk.nexmark.model.sql.RowSize;
+import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /**
- * Executor for Nexmark queries. Allows to decouple from NexmarkQuery
- * and test independently.
+ * Executor for Nexmark queries. Allows SQL PTransform to be
+ * decoupled from Nexmark KnownSize model transform.
  */
-public class NexmarkSqlQuery extends NexmarkQuery {
+public abstract class NexmarkSqlTransform extends PTransform<PCollection<Event>, PCollection<Row>> {
+  private ModelFieldsAdapter outModel;
 
-  private NexmarkSqlTransform queryTransform;
-
-  public NexmarkSqlQuery(NexmarkConfiguration configuration,
-                         NexmarkSqlTransform queryTransform) {
-    super(configuration, queryTransform.getName());
-    this.queryTransform = queryTransform;
+  protected NexmarkSqlTransform(String name) {
+    super(name);
+    outModel = null;
   }
 
-  @Override
-  protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    PCollection<Row> queryResults = events.apply(queryTransform);
+  protected NexmarkSqlTransform(String name, Class outClass) {
+    super(name);
+    outModel = ADAPTERS.get(outClass);
+  }
 
-    PCollection<? extends KnownSize> resultRecordsSizes =
-        queryTransform.applyModel(queryResults);
-
-    return NexmarkUtils.castToKnownSize(name, resultRecordsSizes);
+  public PCollection<? extends KnownSize> applyModel(PCollection<Row> rows) {
+    if (outModel == null) {
+      return rows
+          .apply(RowSize.parDo())
+          .setCoder(RowSize.CODER);
+    }
+    return outModel.applyModel(rows);
   }
 }

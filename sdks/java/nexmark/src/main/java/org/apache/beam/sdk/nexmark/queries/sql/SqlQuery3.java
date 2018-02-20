@@ -29,7 +29,6 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.nexmark.queries.Query3;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -69,7 +68,7 @@ import org.joda.time.Duration;
  *
  * <p>Correct join semantics implementation is tracked in BEAM-3190, BEAM-3191
  */
-public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery3 extends NexmarkSqlTransform {
 
   private static final String QUERY_NAME = SqlQuery3.class.getSimpleName();
 

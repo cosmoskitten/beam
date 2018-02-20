@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily
  * slowed down.
  */
-public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery1 extends NexmarkSqlTransform {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY = BeamSql
       .query("SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
