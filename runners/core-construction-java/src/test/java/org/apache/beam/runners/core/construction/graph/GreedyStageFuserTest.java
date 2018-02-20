@@ -49,9 +49,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link GreedilyFusedExecutableStage}. */
+/** Tests for {@link GreedyStageFuser}. */
 @RunWith(JUnit4.class)
-public class GreedilyFusedExecutableStageTest {
+public class GreedyStageFuserTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private final PCollection impulseDotOut =
@@ -84,7 +84,7 @@ public class GreedilyFusedExecutableStageTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("at least one PTransform");
-    GreedilyFusedExecutableStage.forGrpcPortRead(p, impulseOutputNode, Collections.emptySet());
+    GreedyStageFuser.forGrpcPortRead(p, impulseOutputNode, Collections.emptySet());
   }
 
   @Test
@@ -149,7 +149,7 @@ public class GreedilyFusedExecutableStageTest {
     thrown.expectMessage("go");
     thrown.expectMessage("py");
     thrown.expectMessage("same");
-    GreedilyFusedExecutableStage.forGrpcPortRead(
+    GreedyStageFuser.forGrpcPortRead(
         p,
         PipelineNode.pCollection(
             "read.out", PCollection.newBuilder().setUniqueName("read.out").build()),
@@ -178,7 +178,7 @@ public class GreedilyFusedExecutableStageTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Environment must be populated");
-    GreedilyFusedExecutableStage.forGrpcPortRead(
+    GreedyStageFuser.forGrpcPortRead(
         p,
         impulseOutputNode,
         ImmutableSet.of(PipelineNode.pTransform("runnerTransform", gbkTransform)));
@@ -229,7 +229,7 @@ public class GreedilyFusedExecutableStageTest {
                 .build());
 
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p,
             impulseOutputNode,
             ImmutableSet.of(
@@ -315,7 +315,7 @@ public class GreedilyFusedExecutableStageTest {
                 .build());
 
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
     assertThat(
@@ -399,7 +399,7 @@ public class GreedilyFusedExecutableStageTest {
     QueryablePipeline p = QueryablePipeline.fromComponents(components);
 
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(PipelineNode.pTransform("read", readTransform)));
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
     assertThat(
@@ -409,7 +409,7 @@ public class GreedilyFusedExecutableStageTest {
     // Flatten shows up in both of these subgraphs, but elements only go through a path to the
     // flatten once.
     ExecutableStage readFromOtherEnv =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p,
             impulseOutputNode,
             ImmutableSet.of(PipelineNode.pTransform("envRead", otherEnvRead)));
@@ -525,10 +525,10 @@ public class GreedilyFusedExecutableStageTest {
     QueryablePipeline p = QueryablePipeline.fromComponents(components);
 
     ExecutableStage readFromPy =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(PipelineNode.pTransform("pyRead", pyRead)));
     ExecutableStage readFromGo =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(PipelineNode.pTransform("goRead", goRead)));
 
     assertThat(
@@ -594,7 +594,7 @@ public class GreedilyFusedExecutableStageTest {
                 .build());
 
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
     assertThat(subgraph.getInputPCollection(), equalTo(impulseOutputNode));
@@ -677,7 +677,7 @@ public class GreedilyFusedExecutableStageTest {
     PTransformNode readNode = PipelineNode.pTransform("read", readTransform);
     PCollectionNode readOutput = getOnlyElement(p.getOutputPCollections(readNode));
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(PipelineNode.pTransform("read", readTransform)));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
     assertThat(subgraph.getTransforms(), contains(readNode));
@@ -767,7 +767,7 @@ public class GreedilyFusedExecutableStageTest {
     PTransformNode readNode = PipelineNode.pTransform("read", readTransform);
     PCollectionNode readOutput = getOnlyElement(p.getOutputPCollections(readNode));
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
     assertThat(subgraph.toPTransform().getSubtransformsList(), contains(readNode.getId()));
@@ -818,7 +818,7 @@ public class GreedilyFusedExecutableStageTest {
     PTransformNode readNode = PipelineNode.pTransform("read", readTransform);
     PCollectionNode readOutput = getOnlyElement(p.getOutputPCollections(readNode));
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, ImmutableSet.of(readNode));
     assertThat(subgraph.getOutputPCollections(), contains(readOutput));
     assertThat(subgraph.toPTransform().getSubtransformsList(), contains(readNode.getId()));
