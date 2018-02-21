@@ -28,23 +28,22 @@ import org.apache.calcite.rel.logical.LogicalProject;
 /**
  * A {@code ConverterRule} to replace {@link Project} with
  * {@link BeamProjectRel}.
- *
  */
 public class BeamProjectRule extends ConverterRule {
-  public static final BeamProjectRule INSTANCE = new BeamProjectRule();
+    public static final BeamProjectRule INSTANCE = new BeamProjectRule();
 
-  private BeamProjectRule() {
-    super(LogicalProject.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamProjectRule");
-  }
+    private BeamProjectRule() {
+        super(LogicalProject.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamProjectRule");
+    }
 
-  @Override
-  public RelNode convert(RelNode rel) {
-    final Project project = (Project) rel;
-    final RelNode input = project.getInput();
+    @Override
+    public RelNode convert(RelNode rel) {
+        final Project project = (Project) rel;
+        final RelNode input = project.getInput();
 
-    return new BeamProjectRel(project.getCluster(),
-        project.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        project.getProjects(), project.getRowType());
-  }
+        return new BeamProjectRel(project.getCluster(),
+                project.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+                convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+                project.getProjects(), project.getRowType());
+    }
 }

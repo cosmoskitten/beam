@@ -17,32 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.sdk.values.RowType.toRowType;
-
-import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.*;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -54,6 +38,12 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 import org.joda.time.Duration;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+import static org.apache.beam.sdk.values.RowType.toRowType;
 
 /**
  * {@link BeamRelNode} to replace a {@link Aggregate} node.
@@ -78,16 +68,11 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
 
@@ -95,7 +80,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
 
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
     if (windowField.isPresent()) {
       upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
