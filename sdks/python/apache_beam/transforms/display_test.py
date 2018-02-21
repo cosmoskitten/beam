@@ -22,15 +22,15 @@ from __future__ import absolute_import
 import unittest
 from datetime import datetime
 
-import hamcrest as hc
 import six
+
+import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.display import (DisplayData, DisplayDataItem,
+                                            HasDisplayData)
 
 
 class DisplayDataItemMatcher(BaseMatcher):
