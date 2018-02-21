@@ -18,13 +18,19 @@
 
 package org.apache.beam.sdk.nexmark.model.sql.adapter;
 
+import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 
 /**
  * Helper class to help map Java model fields to {@link RowType} fields.
  */
-public abstract class ModelFieldsAdapter<T> {
+public abstract class ModelFieldsAdapter<T> implements Serializable {
 
   private RowType rowType;
 
@@ -37,4 +43,19 @@ public abstract class ModelFieldsAdapter<T> {
   }
 
   public abstract List<Object> getFieldsValues(T model);
+
+  public abstract T getRowModel(Row row);
+  public abstract Coder getCoder();
+
+  public PCollection<T> applyModel(PCollection<Row> rows) {
+    return rows
+      .apply(
+          ParDo.of(new DoFn<Row, T>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(getRowModel(c.element()));
+            }
+          }))
+      .setCoder(getCoder());
+  }
 }
