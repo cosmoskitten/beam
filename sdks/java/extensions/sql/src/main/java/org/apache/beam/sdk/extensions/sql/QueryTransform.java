@@ -19,24 +19,20 @@
 package org.apache.beam.sdk.extensions.sql;
 
 
-import static org.apache.beam.sdk.extensions.sql.QueryValidationHelper.validateQuery;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.beam.sdk.extensions.sql.QueryValidationHelper.validateQuery;
 
 /**
  * A {@link PTransform} representing an execution plan for a SQL query.
@@ -71,7 +67,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
           sqlEnv
               .getPlanner()
               .convertToBeamRel(queryString())
-              .toPTransform(sqlEnv));
+              .toPTransform());
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }

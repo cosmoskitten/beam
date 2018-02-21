@@ -18,15 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
-import static org.apache.beam.sdk.values.RowType.toRowType;
-import static org.joda.time.Duration.ZERO;
-
 import com.google.common.base.Joiner;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
@@ -38,18 +30,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.values.*;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -61,6 +43,15 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Pair;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
+import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.joda.time.Duration.ZERO;
 
 /**
  * {@code BeamRelNode} to replace a {@code Join} node.
@@ -93,7 +84,10 @@ import org.apache.calcite.util.Pair;
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
+  private final BeamSqlEnv sqlEnv;
+
   public BeamJoinRel(
+      BeamSqlEnv sqlEnv,
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode left,
@@ -102,6 +96,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Set<CorrelationId> variablesSet,
       JoinRelType joinType) {
     super(cluster, traits, left, right, condition, variablesSet, joinType);
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -112,22 +107,16 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       RelNode right,
       JoinRelType joinType,
       boolean semiJoinDone) {
-    return new BeamJoinRel(getCluster(), traitSet, left, right, conditionExpr, variablesSet,
+    return new BeamJoinRel(sqlEnv, getCluster(), traitSet, left, right, conditionExpr, variablesSet,
         joinType);
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
@@ -140,9 +129,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
       }
 
-      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform(sqlEnv));
+      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform());
       PCollection<Row> rightRows =
-          inputPCollections.apply("right", rightRelNode.toPTransform(sqlEnv));
+          inputPCollections.apply("right", rightRelNode.toPTransform());
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
@@ -382,7 +371,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamRelNode rightRelNode,
       PCollectionTuple inputPCollections,
       BeamSqlEnv sqlEnv) {
-    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform(sqlEnv));
+    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
     BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
 
     return factStream.apply(

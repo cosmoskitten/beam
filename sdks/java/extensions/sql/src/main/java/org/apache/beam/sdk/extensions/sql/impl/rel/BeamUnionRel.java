@@ -78,21 +78,14 @@ public class BeamUnionRel extends Union implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
-
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
+      return delegate.buildBeamPipeline(inputPCollections);
     }
   }
 }
