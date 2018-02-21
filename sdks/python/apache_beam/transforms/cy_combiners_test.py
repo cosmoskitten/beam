@@ -57,7 +57,7 @@ class DistributionAccumulatorTest(unittest.TestCase):
 
   def test_add_input_with_invalid_input(self):
     counter = DistributionAccumulator()
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       counter.add_input(-1)
 
 
