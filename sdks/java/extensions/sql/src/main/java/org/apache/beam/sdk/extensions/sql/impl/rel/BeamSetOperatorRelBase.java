@@ -18,9 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.io.Serializable;
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -28,12 +25,11 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 import org.apache.calcite.rel.RelNode;
+
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel}
@@ -62,13 +58,13 @@ public class BeamSetOperatorRelBase {
     this.all = all;
   }
 
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv) {
+  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections) {
     PCollection<Row> leftRows =
         inputPCollections.apply(
-            "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform(sqlEnv));
+            "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform());
     PCollection<Row> rightRows =
         inputPCollections.apply(
-            "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform(sqlEnv));
+            "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform());
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
