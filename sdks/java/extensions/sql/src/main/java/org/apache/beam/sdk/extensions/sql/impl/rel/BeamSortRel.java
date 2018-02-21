@@ -18,20 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.io.Serializable;
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -47,6 +36,13 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
+
+import java.io.Serializable;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
@@ -121,23 +117,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
       RelNode input = getInput();
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
       Type windowType =
           upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
       if (!windowType.equals(GlobalWindow.class)) {

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlProjectFn;
@@ -37,6 +35,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+
+import java.util.List;
 
 /**
  * BeamRelNode to replace a {@code Project} node.
@@ -60,17 +60,11 @@ public class BeamProjectRel extends Project implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
@@ -78,7 +72,7 @@ public class BeamProjectRel extends Project implements BeamRelNode {
       String stageName = BeamSqlRelUtils.getStageName(BeamProjectRel.this);
 
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamProjectRel.this);
 

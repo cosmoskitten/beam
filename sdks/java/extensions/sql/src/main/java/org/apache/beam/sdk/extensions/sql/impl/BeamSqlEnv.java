@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
@@ -34,32 +29,29 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.ScannableTable;
-import org.apache.calcite.schema.Schema;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
+import org.apache.calcite.schema.*;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.Frameworks;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and
- * {@link BeamSqlCli}.
+ * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
  *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
- * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
+ * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
 public class BeamSqlEnv implements Serializable {
   transient SchemaPlus schema;
@@ -69,7 +61,7 @@ public class BeamSqlEnv implements Serializable {
   public BeamSqlEnv() {
     tables = new HashMap<>(16);
     schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 
   /**
@@ -151,7 +143,7 @@ public class BeamSqlEnv implements Serializable {
         schema.add(tableName, new BeamCalciteTable(table.getRowType()));
       }
     }
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 
   /**
@@ -216,6 +208,6 @@ public class BeamSqlEnv implements Serializable {
 
     tables = new HashMap<String, BeamSqlTable>(16);
     schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 }
