@@ -137,14 +137,14 @@ public class KinesisReaderTest {
       Instant recordsStartTimestamp = now.minus(Duration.standardHours(1));
       final long timestampMs = recordsStartTimestamp.getMillis();
       Duration safetyPeriod = Duration.standardMinutes(1);
-      Instant kinesisWatermarkMinValue = now.minus(KinesisReader.MAX_KINESIS_STREAM_RETENTION_PERIOD);
+      Instant minKinesisWatermark = now.minus(KinesisReader.MAX_KINESIS_STREAM_RETENTION_PERIOD);
 
       prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES / 2);
 
       for (boolean more = reader.start(); more; more = reader.advance()) {
         assertThat(reader.getWatermark()).isBetween(
-            kinesisWatermarkMinValue.minus(safetyPeriod),
-            kinesisWatermarkMinValue.plus(safetyPeriod));
+            minKinesisWatermark.minus(safetyPeriod),
+            minKinesisWatermark.plus(safetyPeriod));
       }
     } finally {
       DateTimeUtils.setCurrentMillisSystem();
@@ -160,7 +160,7 @@ public class KinesisReaderTest {
       Instant recordsStartTimestamp = now.minus(Duration.standardHours(1));
       long timestampMs = recordsStartTimestamp.getMillis();
       Duration safetyPeriod = Duration.standardMinutes(1);
-      Instant kinesisWatermarkMinValue = now.minus(KinesisReader.MAX_KINESIS_STREAM_RETENTION_PERIOD);
+      Instant minKinesisWatermark = now.minus(KinesisReader.MAX_KINESIS_STREAM_RETENTION_PERIOD);
 
       prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES);
 
@@ -168,8 +168,8 @@ public class KinesisReaderTest {
       for (boolean more = reader.start(); more; more = reader.advance()) {
         if (--recordsNeededForWatermarkAdvancing > 0) {
           assertThat(reader.getWatermark()).isBetween(
-              kinesisWatermarkMinValue.minus(safetyPeriod),
-              kinesisWatermarkMinValue.plus(safetyPeriod));
+              minKinesisWatermark.minus(safetyPeriod),
+              minKinesisWatermark.plus(safetyPeriod));
         } else {
           assertThat(reader.getWatermark()).isEqualTo(new Instant(timestampMs));
         }
