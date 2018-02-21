@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * Maps Java model classes to Beam SQL record types.
@@ -66,6 +67,18 @@ public class ModelAdaptersMapping {
                 new Date(p.dateTime),
                 p.extra));
       }
+      @Override
+      public Person getRowModel(Row row) {
+        return new Person(
+           row.getLong("id"),
+           row.getString("name"),
+           row.getString("emailAddress"),
+           row.getString("creditCard"),
+           row.getString("city"),
+           row.getString("state"),
+           row.getDate("dateTime").getTime(),
+           row.getString("extra"));
+      }
     };
   }
 
@@ -87,6 +100,15 @@ public class ModelAdaptersMapping {
                 b.price,
                 new Date(b.dateTime),
                 b.extra));
+      }
+      @Override
+      public Bid getRowModel(Row row) {
+        return new Bid(
+            row.getLong("auction"),
+            row.getLong("bidder"),
+            row.getLong("price"),
+            row.getDate("dateTime").getTime(),
+            row.getString("extra"));
       }
     };
   }
@@ -119,6 +141,20 @@ public class ModelAdaptersMapping {
                 a.seller,
                 a.category,
                 a.extra));
+      }
+      @Override
+      public Auction getRowModel(Row row) {
+        return new Auction(
+            row.getLong("id"),
+            row.getString("itemName"),
+            row.getString("description"),
+            row.getLong("initialBid"),
+            row.getLong("reserve"),
+            row.getDate("dateTime").getTime(),
+            row.getDate("expires").getTime(),
+            row.getLong("seller"),
+            row.getLong("category"),
+            row.getString("extra"));
       }
     };
   }
