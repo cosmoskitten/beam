@@ -88,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -202,7 +203,7 @@ public class PipelineOptionsFactory {
   /** A fluent {@link PipelineOptions} builder. */
   public static class Builder {
     private final String defaultAppName;
-    private final Collection<Function<Builder, Multimap<String, String>>> options;
+    private final Collection<Function<Builder, ListMultimap<String, String>>> options;
     private final boolean validation;
     private final boolean strictParsing;
     private final boolean isCli;
@@ -212,7 +213,7 @@ public class PipelineOptionsFactory {
       this(new ArrayList<>(), false, true, false);
     }
 
-    private Builder(Collection<Function<Builder, Multimap<String, String>>> options,
+    private Builder(Collection<Function<Builder, ListMultimap<String, String>>> options,
                     boolean validation, boolean strictParsing, boolean isCli) {
       this.defaultAppName = findCallersClassName();
       this.options = options;
@@ -271,7 +272,7 @@ public class PipelineOptionsFactory {
      */
     public Builder fromMap(final Map<String, String> configuration) {
       checkNotNull(configuration, "Arguments should not be null.");
-      options.add(builder -> Multimaps.forMap(configuration));
+      options.add(builder -> LinkedListMultimap.create(Multimaps.forMap(configuration)));
       return new Builder(options, validation, strictParsing, true);
     }
 
@@ -1779,6 +1780,7 @@ public class PipelineOptionsFactory {
    * @param options the options to convert to a pipeline options.
    * @return a pipeline options instance based on the specified configuration.
    */
+  @Experimental
   public static PipelineOptions fromMap(final String prefix, final Map<String, String> options) {
     final Map<String, String> filtered = options.entrySet()
                                          .stream()
@@ -1792,6 +1794,7 @@ public class PipelineOptionsFactory {
    * @param options the options to convert to a pipeline options.
    * @return a pipeline options instance based on the specified configuration.
    */
+  @Experimental
   public static PipelineOptions fromMap(final Map<String, String> options) {
     return new Builder().fromMap(options).create();
   }
@@ -1800,6 +1803,7 @@ public class PipelineOptionsFactory {
    * @param properties the properties to use to create the pipeline options instance.
    * @return a pipeline options instance based on the specified properties.
    */
+  @Experimental
   public static PipelineOptions fromProperties(final Properties properties) {
     return fromMap(properties.stringPropertyNames()
                     .stream()
@@ -1812,6 +1816,7 @@ public class PipelineOptionsFactory {
    * @return a pipeline options instance based on the specified properties
    * filtered with the specified prefix.
    */
+  @Experimental
   public static PipelineOptions fromProperties(final String prefix, final Properties properties) {
     final Properties instantiationProperties = properties.stringPropertyNames()
       .stream()
@@ -1828,6 +1833,7 @@ public class PipelineOptionsFactory {
    * @return a pipeline options instance based on system properties key/values
    * and filtered with a custom prefix.
    */
+  @Experimental
   public static PipelineOptions fromSystemProperties(final String prefix) {
     return fromProperties(prefix, System.getProperties());
   }
@@ -1836,6 +1842,7 @@ public class PipelineOptionsFactory {
    * @return a pipeline options instance based on system properties
    * filtered based on <code>beam.</code> prefix.
    */
+  @Experimental
   public static PipelineOptions fromSystemProperties() {
     return fromSystemProperties("beam.");
   }
