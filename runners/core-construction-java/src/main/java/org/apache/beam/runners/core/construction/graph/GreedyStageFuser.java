@@ -25,6 +25,7 @@ import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -130,19 +131,20 @@ public class GreedyStageFuser {
 
   private static Environment getStageEnvironment(
       QueryablePipeline pipeline, Set<PTransformNode> initialNodes) {
-    IllegalArgumentException missingEnv =
-        new IllegalArgumentException(
-            String.format(
-                "%s must be populated on all %s in a %s",
-                Environment.class.getSimpleName(),
-                PTransformNode.class.getSimpleName(),
-                GreedyStageFuser.class.getSimpleName()));
+    Supplier<IllegalArgumentException> missingEnv =
+        () ->
+            new IllegalArgumentException(
+                String.format(
+                    "%s must be populated on all %s in a %s",
+                    Environment.class.getSimpleName(),
+                    PTransformNode.class.getSimpleName(),
+                    GreedyStageFuser.class.getSimpleName()));
     Environment env =
-        pipeline.getEnvironment(initialNodes.iterator().next()).orElseThrow(() -> missingEnv);
+        pipeline.getEnvironment(initialNodes.iterator().next()).orElseThrow(missingEnv);
     initialNodes.forEach(
         transformNode ->
             checkArgument(
-                env.equals(pipeline.getEnvironment(transformNode).orElseThrow(() -> missingEnv)),
+                env.equals(pipeline.getEnvironment(transformNode).orElseThrow(missingEnv)),
                 "All %s in a %s must be the same. Got %s and %s",
                 Environment.class.getSimpleName(),
                 ExecutableStage.class.getSimpleName(),
