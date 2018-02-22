@@ -180,6 +180,7 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-core</artifactId>
+      <version>1.9.1</version>
     </dependency>
 
     <dependency>
@@ -230,11 +231,13 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-auth</artifactId>
+      <version>1.9.1</version>
     </dependency>
 
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
+      <version>1.9.1</version>
     </dependency>
 
     <dependency>
@@ -245,6 +248,7 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
+      <version>1.9.1</version>
     </dependency>
 
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
@@ -253,6 +257,7 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
       <scope>runtime</scope>
+      <version>1.9.1</version>
     </dependency>
 
     <dependency>
@@ -318,6 +323,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+      <version>3.5.1</version>
     </dependency>
 
     <dependency>
@@ -389,6 +395,12 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
 
