@@ -111,7 +111,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
     <bigtable.version>1.0.0</bigtable.version>
-    <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
+    <bigtable.proto.version>1.0.0</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -1374,6 +1374,13 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-all</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
         <version>${mockito.version}</version>
         <scope>test</scope>
       </dependency>
