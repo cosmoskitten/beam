@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
-import com.google.common.base.MoreObjects;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -45,11 +44,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
  * PCollections} are permitted to appear in multiple executable stages. However, paths from a root
  * {@link PTransform} to any other {@link PTransform} within that set of stages must be unique.
  */
-public abstract class ExecutableStage {
+public interface ExecutableStage {
   /**
    * The URN identifying an {@link ExecutableStage} that has been converted to a {@link PTransform}.
    */
-  public static final String URN = "beam:runner:executable_stage:v1";
+  String URN = "beam:runner:executable_stage:v1";
 
   /**
    * Returns the {@link Environment} this stage executes in.
@@ -60,13 +59,13 @@ public abstract class ExecutableStage {
    * topology, which will be handled by runners by performing already-required element routing and
    * runner-side processing.
    */
-  public abstract Environment getEnvironment();
+  Environment getEnvironment();
 
   /**
-   * Returns the root {@link PCollectionNode} of this {@link ExecutableStage}. This
-   * {@link ExecutableStage} executes by reading elements from a Remote gRPC Read Node.
+   * Returns the root {@link PCollectionNode} of this {@link ExecutableStage}. This {@link
+   * ExecutableStage} executes by reading elements from a Remote gRPC Read Node.
    */
-  public abstract PCollectionNode getInputPCollection();
+  PCollectionNode getInputPCollection();
 
   /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
@@ -75,24 +74,26 @@ public abstract class ExecutableStage {
    * PTransform} which is not contained within this executable stage, and must be materialized at
    * execution time by a Remote gRPC Write Transform.
    */
-  public abstract Collection<PCollectionNode> getOutputPCollections();
+  Collection<PCollectionNode> getOutputPCollections();
+
+  /** Get the transforms that perform processing within this {@link ExecutableStage}. */
+  Collection<PTransformNode> getTransforms();
 
   /**
-   * Get the transforms that perform processing within this {@link ExecutableStage}.
-   */
-  public abstract Collection<PTransformNode> getTransforms();
-
-  /**
-   * Returns a composite {@link PTransform} which contains all of the {@link PTransform PTransforms}
-   * fused into this {@link ExecutableStage} as {@link PTransform#getSubtransformsList()
-   * subtransforms} .
+   * Returns a composite {@link PTransform} which is equivalent to this {@link ExecutableStage} as
+   * follows:
    *
-   *
-   * {@link PCollectionNode} returned by {@link #getInputPCollection()} and the output {@link
-   * PCollection PCollections} will be the {@link PCollectionNode PCollections} returned by {@link
-   * #getOutputPCollections()}.
+   * <ul>
+   *   <li>The {@link PTransform#getSubtransformsList()} contains the result of {@link
+   *       #getTransforms()}.
+   *   <li>The only {@link PCollection} in the {@link PTransform#getInputsMap()} is the result of
+   *       {@link #getInputPCollection()}.
+   *   <li>The output {@link PCollection PCollections} in the values of {@link
+   *       PTransform#getOutputsMap()} are the {@link PCollectionNode PCollections} returned by
+   *       {@link #getOutputPCollections()}.
+   * </ul>
    */
-  public final PTransform toPTransform() {
+  default PTransform toPTransform() {
     PTransform.Builder pt = PTransform.newBuilder();
     pt.putInputs("input", getInputPCollection().getId());
     int i = 0;
@@ -107,32 +108,19 @@ public abstract class ExecutableStage {
     return pt.build();
   }
 
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(GreedyStageFuser.class)
-        .add("inputPCollection", getInputPCollection().getId())
-        .add(
-            "outputPCollections",
-            getOutputPCollections()
-                .stream()
-                .map(PCollectionNode::getId)
-                .collect(Collectors.toList()))
-        .add(
-            "transforms",
-            getTransforms().stream().map(PTransformNode::getId).collect(Collectors.toList()))
-        .toString();
-  }
-
   /**
    * Return an {@link ExecutableStage} constructed from the provided {@link PTransform}
    * representation.
+   *
+   * <p>See {@link #toPTransform()} for information about the required format of the {@link
+   * PTransform}. The environment will be determined by an arbitrary {@link PTransform} contained
+   * within the {@link PTransform#getSubtransformsList()}.
    */
-  public static ExecutableStage fromPTransform(PTransform ptransform, Components components) {
+  static ExecutableStage fromPTransform(PTransform ptransform, Components components) {
     checkArgument(ptransform.getSpec().getUrn().equals(URN));
     // It may be better to put this in an explicit Payload if other metadata becomes required
     Optional<Environment> environment =
-        Environments.getEnvironment(
-            ptransform.getSubtransforms(0), components);
+        Environments.getEnvironment(ptransform.getSubtransforms(0), components);
     checkArgument(
         environment.isPresent(),
         "%s with no %s",
