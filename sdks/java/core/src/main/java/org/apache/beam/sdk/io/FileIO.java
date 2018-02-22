@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.Contextful.fn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
@@ -427,26 +428,21 @@ public class FileIO {
       return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
     }
 
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-
       ReadableFile that = (ReadableFile) o;
-
-      if (metadata != null ? !metadata.equals(that.metadata) : that.metadata != null) {
-        return false;
-      }
-      return compression == that.compression;
+      return Objects.equal(metadata, that.metadata) && compression == that.compression;
     }
 
-    @Override public int hashCode() {
-      int result = metadata != null ? metadata.hashCode() : 0;
-      result = 31 * result + (compression != null ? compression.hashCode() : 0);
-      return result;
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(metadata, compression);
     }
   }
 
