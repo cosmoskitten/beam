@@ -38,8 +38,6 @@ print_separator() {
 
 function get_version {
     # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
-    pwd
-    ls
     version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
     echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
 }
@@ -86,7 +84,6 @@ cleanup_pubsub(){
 
 
 # Python Release Candidate Configuration
-get_version
 VERSION="2.3.0"
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
@@ -142,6 +139,7 @@ echo "SUCCEED: Hashes verification completed."
 #
 
 print_separator "Creating new virtualenv and installing the SDK"
+virtualenv temp_virtualenv
 . temp_virtualenv/bin/activate && pip install $BEAM_PYTHON_SDK
 gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]
