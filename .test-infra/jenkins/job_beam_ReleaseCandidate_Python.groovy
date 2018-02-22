@@ -40,7 +40,7 @@ job('beam_PostRelease_Python_Candidate') {
     // Allows triggering this build against pull requests.
     common_job_properties.enablePhraseTriggeringFromPullRequest(
             delegate,
-            'Google Cloud Python SDK Release Candidates Validation',
+            'Python SDK Release Candidates Validation',
             'Run Python ReleaseCandidate')
 
     // Execute shell command to test Python SDK.

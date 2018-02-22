@@ -36,6 +36,12 @@ print_separator() {
     echo "############################################################################"
 }
 
+function get_version {
+    # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
+    version=$(awk '/__version__/{print $3}' ../../../../sdks/python/apache_beam/version.py)
+    echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
+}
+
 update_gcloud() {
     curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz \
     --output gcloud.tar.gz
@@ -61,37 +67,34 @@ run_pubsub_publish(){
 }
 
 run_pubsub_pull(){
-    gcloud pubsub subscriptions pull --project=$STREAMING_PROJECT_ID $PUBSUB_SUBSCRIPTION --limit=100 --auto-ack
+    gcloud pubsub subscriptions pull --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --limit=100 --auto-ack
 }
 
 create_pubsub(){
-    gcloud pubsub topics create --project=$STREAMING_PROJECT_ID $PUBSUB_TOPIC1
-    gcloud pubsub topics create --project=$STREAMING_PROJECT_ID $PUBSUB_TOPIC2
-    gcloud pubsub subscriptions create --project=$STREAMING_PROJECT_ID $PUBSUB_SUBSCRIPTION --topic $PUBSUB_TOPIC2
+    gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC1
+    gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC2
+    gcloud pubsub subscriptions create --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --topic $PUBSUB_TOPIC2
 }
 
 cleanup_pubsub(){
-    gcloud pubsub topics delete --project=$STREAMING_PROJECT_ID $PUBSUB_TOPIC1
-    gcloud pubsub topics delete --project=$STREAMING_PROJECT_ID $PUBSUB_TOPIC2
-    gcloud pubsub subscriptions delete --project=$STREAMING_PROJECT_ID $PUBSUB_SUBSCRIPTION
+    gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
+    gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
+    gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
 }
 
 
 # Python Release Candidate Configuration
+get_version
 VERSION="2.3.0"
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
 MD5_FILE_NAME="apache-beam-$VERSION-python.zip.md5"
 BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
-BEAM_PYTHON_RELEASE="apache-beam-$VERSION-source-release.zip"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'
 BUCKET_NAME='temp-storage-for-release-validation-tests'
 TEMP_DIR='/quickstart'
-STREAMING_PROJECT_ID='apache-beam-testing'
-STREAMING_BUCKET_NAME='temp-storage-for-release-validation-tests'
-STREAMING_TEMP_DIR='/quickstart'
 NUM_WORKERS=1
 WORDCOUNT_OUTPUT='wordcount_direct.txt'
 PUBSUB_TOPIC1='wordstream-python-topic-1'
@@ -108,7 +111,6 @@ pushd $TMPDIR
 wget $CANDIDATE_URL$SHA1_FILE_NAME
 wget $CANDIDATE_URL$MD5_FILE_NAME
 wget $CANDIDATE_URL$BEAM_PYTHON_SDK
-wget $CANDIDATE_URL$BEAM_PYTHON_RELEASE
 
 
 #
@@ -132,16 +134,13 @@ then
 fi
 echo "SUCCEED: Hashes verification completed."
 
+
 #
 # 3. create a new virtualenv and install the SDK
 #
 
 print_separator "Creating new virtualenv and installing the SDK"
-
-unzip $BEAM_PYTHON_RELEASE
-cd apache-beam-$VERSION/sdks/python/
-virtualenv temp_virtualenv
-. temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-$VERSION.tar.gz[gcp]
+. temp_virtualenv/bin/activate && pip install $BEAM_PYTHON_SDK
 gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]
 then
@@ -155,12 +154,12 @@ fi
 
 print_separator "Running wordcount example with DirectRunner"
 python -m apache_beam.examples.wordcount --output wordcount_direct.txt
-file="wordcount_direct.txt-00000-of-00001"
-if [ -f "$file" ]
+if ls wordcount_direct.txt* 1> /dev/null 2>&1;
 then
-	echo "$file found."
+	echo "Found output file(s):"
+	ls wordcount_direct.txt*
 else
-	echo "ERROR: $file not found."
+	echo "ERROR: output file not found."
 	complete "failed when running wordcount example with DirectRunner."
 	exit 1
 fi
@@ -180,19 +179,18 @@ python -m apache_beam.examples.wordcount \
     --job_name wordcount \
     --project $PROJECT_ID \
     --num_workers $NUM_WORKERS \
-    --sdk_location dist/apache-beam-$VERSION.tar.gz
+    --sdk_location $BEAM_PYTHON_SDK
 
 # verify results.
+wordcount_output_in_gcs="gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT"
 gcs_pull_result=$(gsutil ls gs://$BUCKET_NAME)
-for index in {0..3}
-do
-    if [[ $gcs_pull_result != *"gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT-0000$index-of-00004"* ]]
-    then
-        echo "ERROR: The wordcount example failed on DataflowRunner".
-        complete "failed when running wordcount example with DataflowRunner."
-        exit 1
-    fi
-done
+if [[ $gcs_pull_result != *$wordcount_output_in_gcs* ]]
+then
+    echo "ERROR: The wordcount example failed on DataflowRunner".
+    complete "failed when running wordcount example with DataflowRunner."
+    exit 1
+fi
+
 # clean output files from GCS
 gsutil rm gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT-*
 echo "SUCCEED: wordcount successfully run on DataflowRunner."
@@ -205,8 +203,8 @@ echo "SUCCEED: wordcount successfully run on DataflowRunner."
 create_pubsub
 print_separator "Running Streaming wordcount example with DirectRunner"
 python -m apache_beam.examples.streaming_wordcount \
---input_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC1 \
---output_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC2 \
+--input_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC1 \
+--output_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC2 \
 --streaming &
 pid=$!
 sleep 15
@@ -225,6 +223,8 @@ else
     complete "failed when running streaming wordcount example with DirectRunner."
     exit 1
 fi
+# Delete the pubsub topics and subscription before running the second job. Will recreate them in the second job.
+cleanup_pubsub
 kill -9 $pid
 sleep 10
 
@@ -233,21 +233,22 @@ sleep 10
 # 7. Run Streaming Wordcount with DataflowRunner
 #
 
+create_pubsub
 print_separator "Running Streaming wordcount example with DirectRunner "
 python -m apache_beam.examples.streaming_wordcount \
     --streaming \
     --job_name pyflow-wordstream-candidate \
-    --project $STREAMING_PROJECT_ID \
+    --project $PROJECT_ID \
     --runner DataflowRunner \
-    --input_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC1 \
-    --output_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC2 \
-    --staging_location gs://$STREAMING_BUCKET_NAME$STREAMING_TEMP_DIR \
-    --temp_location gs://$STREAMING_BUCKET_NAME$STREAMING_TEMP_DIR \
+    --input_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC1 \
+    --output_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC2 \
+    --staging_location gs://$BUCKET_NAME$TEMP_DIR \
+    --temp_location gs://$BUCKET_NAME$TEMP_DIR \
     --num_workers $NUM_WORKERS \
-    --sdk_location dist/apache-beam-$VERSION.tar.gz &
+    --sdk_location $BEAM_PYTHON_SDK &
 
 pid=$!
-sleep 60
+sleep 90
 running_job=$(gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1)
 
 # verify result
