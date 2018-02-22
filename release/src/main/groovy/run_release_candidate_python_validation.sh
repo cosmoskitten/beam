@@ -38,7 +38,9 @@ print_separator() {
 
 function get_version {
     # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
-    version=$(awk '/__version__/{print $3}' ../../../../sdks/python/apache_beam/version.py)
+    pwd
+    ls
+    version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
     echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
 }
 
