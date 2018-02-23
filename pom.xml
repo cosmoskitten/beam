@@ -735,6 +735,7 @@
         <version>${project.version}</version>
       </dependency>
 
+      <!-- For runners to inherit from abstract StateInternalsTest -->
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-java</artifactId>
