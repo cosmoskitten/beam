@@ -84,6 +84,7 @@ cleanup_pubsub(){
 
 
 # Python Release Candidate Configuration
+echo "SDK version: $(get_version)"
 VERSION="2.3.0"
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
@@ -209,19 +210,32 @@ pid=$!
 sleep 15
 
 # verify result
+retry=3
 run_pubsub_publish
 pull_result=$(run_pubsub_pull)
 should_see="Python: "
-if [[ $pull_result = *"$should_see"* ]]
-then
-    echo "SUCCEED: The streaming wordcount example running successfully on DirectRunner."
-else
-    echo "ERROR: The streaming wordcount example failed on DirectRunner."
-    cleanup_pubsub
-    kill -9 $pid
-    complete "failed when running streaming wordcount example with DirectRunner."
-    exit 1
-fi
+while(( $retry > 0 ))
+do
+    if [[ $pull_result = *"$should_see"* ]]
+    then
+        echo "SUCCEED: The streaming wordcount example running successfully on DirectRunner."
+        break
+    else
+        if [[ $retry > 0 ]]
+        then
+            let "$retry -= 1"
+            echo "retry left: $retry"
+            sleep 15
+        else
+            echo "ERROR: The streaming wordcount example failed on DirectRunner."
+            cleanup_pubsub
+            kill -9 $pid
+            complete "failed when running streaming wordcount example with DirectRunner."
+            exit 1
+        fi
+    fi
+done
+
 # Delete the pubsub topics and subscription before running the second job. Will recreate them in the second job.
 cleanup_pubsub
 kill -9 $pid
@@ -251,20 +265,32 @@ sleep 90
 running_job=$(gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1)
 
 # verify result
+retry=3
 run_pubsub_publish
 sleep 420
 pull_result=$(run_pubsub_pull)
-if [[ $pull_result = *"$should_see"* ]]
-then
-    echo "SUCCEED: The streaming wordcount example running successfully on DataflowRunner."
-else
-    echo "ERROR: The streaming wordcount example failed on DataflowRunner."
-    cleanup_pubsub
-    kill -9 $pid
-    gcloud dataflow jobs cancel $running_job
-    complete "failed when running streaming wordcount example with DataflowRunner."
-    exit 1
-fi
+while(( $retry > 0 ))
+do
+    if [[ $pull_result = *"$should_see"* ]]
+    then
+        echo "SUCCEED: The streaming wordcount example running successfully on DataflowRunner."
+        break
+    else
+        if [[ $retry > 0 ]]
+        then
+            let "$retry -= 1"
+            echo "retry left: $retry"
+            sleep 15
+        else
+            echo "ERROR: The streaming wordcount example failed on DataflowRunner."
+            cleanup_pubsub
+            kill -9 $pid
+            gcloud dataflow jobs cancel $running_job
+            complete "failed when running streaming wordcount example with DataflowRunner."
+            exit 1
+        fi
+    fi
+done
 kill -9 $pid
 gcloud dataflow jobs cancel $running_job
 cleanup_pubsub
