@@ -300,7 +300,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-model-fn-execution</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
         <!-- We only rely on the standard_coders.yaml -->
