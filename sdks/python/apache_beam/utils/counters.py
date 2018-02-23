@@ -135,6 +135,9 @@ class Counter(object):
   # TODO(BEAM-4045): Generalize distribution counter if necessary.
   DATAFLOW_DISTRIBUTION = cy_combiners.DataflowDistributionCounterFn()
 
+  # Distribution Metadata: a list of int(output_count)
+  DISTRIBUTION_METADATA = cy_combiners.DistributionMetadataCounterFn()
+
   def __init__(self, name, combine_fn):
     """Creates a Counter object.
 
