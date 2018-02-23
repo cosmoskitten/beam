@@ -98,7 +98,7 @@ verify_steaming_result() {
         else
             if [[ $retry > 0 ]]
             then
-                let "$retry -= 1"
+                ((retry-=1))
                 echo "retry left: $retry"
                 sleep 15
             else
