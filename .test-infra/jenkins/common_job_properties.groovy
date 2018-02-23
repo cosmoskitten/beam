@@ -255,6 +255,28 @@ class common_job_properties {
     return mapToArgString(joinedArgs)
   }
 
+  // Setups the test in a way that is isolated from other concurrent runs
+  // (separate kubernetes config and namespace)
+  static def buildIsolatedPerformanceTest(def context, def argMap, def testName) {
+    String namespace = "${testName}-${new Date().toString()}"
+    String kubeconfigLocation = "${WORKSPACE}/config-${namespace}"
+
+    context.steps {
+      // create .kube/config file for perfkit (if not exists) in workspace
+      shell("export KUBECONFIG=${kubeconfigLocation}")
+      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
+
+      shell("kubectl create namespace ${namespace}")
+      shell("kubectl config set-context \$(kubectl config current-context) --namespace=${namespace}")
+
+      buildPerformanceTest(context, argMap)
+
+      // cleanup
+      shell("kubectl delete namespace ${namespace}")
+      shell("rm ${kubeconfigLocation}")
+    }
+  }
+
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)

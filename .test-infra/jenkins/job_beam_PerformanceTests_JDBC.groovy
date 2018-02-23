@@ -54,17 +54,11 @@ job('beam_PerformanceTests_JDBC') {
             beam_it_module          : 'sdks/java/io/jdbc',
             beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
             beam_it_options         : common_job_properties.joinPipelineOptions(pipelineOptions),
-            beam_kubernetes_scripts : common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres.yml')
-                    + ',' + common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
+            beam_kubernetes_scripts : common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
             beam_options_config_file: common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
             bigquery_table          : 'beam_performance.jdbcioit_pkb_results'
     ]
 
-    steps {
-        // create .kube/config file for perfkit (if not exists)
-        shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-    }
-
-    common_job_properties.buildPerformanceTest(delegate, testArgs)
+    common_job_properties.buildIsolatedPerformanceTest(delegate, testArgs, 'jdbcioit')
 }
 
