@@ -118,7 +118,7 @@ verify_steaming_result() {
 
 # Python Release Candidate Configuration
 echo "SDK version: $(get_version)"
-VERSION="2.3.0"
+VERSION=$(get_version)
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
 MD5_FILE_NAME="apache-beam-$VERSION-python.zip.md5"
