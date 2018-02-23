@@ -36,7 +36,7 @@ print_separator() {
     echo "############################################################################"
 }
 
-function get_version {
+get_version() {
     # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
     version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
     echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
@@ -66,22 +66,55 @@ run_pubsub_publish(){
     sleep 10
 }
 
-run_pubsub_pull(){
+run_pubsub_pull() {
     gcloud pubsub subscriptions pull --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --limit=100 --auto-ack
 }
 
-create_pubsub(){
+create_pubsub() {
     gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC1
     gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC2
     gcloud pubsub subscriptions create --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --topic $PUBSUB_TOPIC2
 }
 
-cleanup_pubsub(){
+cleanup_pubsub() {
     gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
     gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
     gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
 }
 
+verify_steaming_result() {
+    #  $1 - runner type: DirectRunner, DataflowRunner
+    #  $2 - pid: the pid of running pipeline
+    #  $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
+    retry=3
+    should_see="Python: "
+    while(( $retry > 0 ))
+    do
+        pull_result=$(run_pubsub_pull)
+        if [[ $pull_result = *"$should_see"* ]]
+        then
+            echo "SUCCEED: The streaming wordcount example running successfully on $1."
+            break
+        else
+            if [[ $retry > 0 ]]
+            then
+                let "$retry -= 1"
+                echo "retry left: $retry"
+                sleep 15
+            else
+                echo "ERROR: The streaming wordcount example failed on $1."
+                cleanup_pubsub
+                kill -9 $2
+                if [[ $1 = "DataflowRunner" ]]
+                then
+                    gcloud dataflow jobs cancel $3
+                fi
+                complete "failed when running streaming wordcount example with $1."
+                exit 1
+            fi
+        fi
+    done
+}
 
 # Python Release Candidate Configuration
 echo "SDK version: $(get_version)"
@@ -89,6 +122,7 @@ VERSION="2.3.0"
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
 MD5_FILE_NAME="apache-beam-$VERSION-python.zip.md5"
+ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
 BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
 
 # Cloud Configurations
@@ -110,6 +144,7 @@ pushd $TMPDIR
 #
 wget $CANDIDATE_URL$SHA1_FILE_NAME
 wget $CANDIDATE_URL$MD5_FILE_NAME
+wget $CANDIDATE_URL$ASC_FILE_NAME
 wget $CANDIDATE_URL$BEAM_PYTHON_SDK
 
 #
@@ -132,6 +167,8 @@ then
   exit 1
 fi
 echo "SUCCEED: Hashes verification completed."
+
+gpg --verify $ASC_FILE_NAME
 
 
 #
@@ -210,31 +247,8 @@ pid=$!
 sleep 15
 
 # verify result
-retry=3
 run_pubsub_publish
-pull_result=$(run_pubsub_pull)
-should_see="Python: "
-while(( $retry > 0 ))
-do
-    if [[ $pull_result = *"$should_see"* ]]
-    then
-        echo "SUCCEED: The streaming wordcount example running successfully on DirectRunner."
-        break
-    else
-        if [[ $retry > 0 ]]
-        then
-            let "$retry -= 1"
-            echo "retry left: $retry"
-            sleep 15
-        else
-            echo "ERROR: The streaming wordcount example failed on DirectRunner."
-            cleanup_pubsub
-            kill -9 $pid
-            complete "failed when running streaming wordcount example with DirectRunner."
-            exit 1
-        fi
-    fi
-done
+verify_steaming_result "DirectRunner" $pid
 
 # Delete the pubsub topics and subscription before running the second job. Will recreate them in the second job.
 cleanup_pubsub
@@ -247,7 +261,7 @@ sleep 10
 #
 
 create_pubsub
-print_separator "Running Streaming wordcount example with DirectRunner "
+print_separator "Running Streaming wordcount example with DataflowRunner "
 python -m apache_beam.examples.streaming_wordcount \
     --streaming \
     --job_name pyflow-wordstream-candidate \
@@ -261,36 +275,14 @@ python -m apache_beam.examples.streaming_wordcount \
     --sdk_location $BEAM_PYTHON_SDK &
 
 pid=$!
-sleep 90
+sleep 60
 running_job=$(gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1)
 
 # verify result
-retry=3
 run_pubsub_publish
 sleep 420
-pull_result=$(run_pubsub_pull)
-while(( $retry > 0 ))
-do
-    if [[ $pull_result = *"$should_see"* ]]
-    then
-        echo "SUCCEED: The streaming wordcount example running successfully on DataflowRunner."
-        break
-    else
-        if [[ $retry > 0 ]]
-        then
-            let "$retry -= 1"
-            echo "retry left: $retry"
-            sleep 15
-        else
-            echo "ERROR: The streaming wordcount example failed on DataflowRunner."
-            cleanup_pubsub
-            kill -9 $pid
-            gcloud dataflow jobs cancel $running_job
-            complete "failed when running streaming wordcount example with DataflowRunner."
-            exit 1
-        fi
-    fi
-done
+verify_steaming_result "DataflowRunner" $pid $running_job
+
 kill -9 $pid
 gcloud dataflow jobs cancel $running_job
 cleanup_pubsub
