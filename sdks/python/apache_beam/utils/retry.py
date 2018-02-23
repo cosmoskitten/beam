@@ -32,7 +32,7 @@ import sys
 import time
 import traceback
 
-from future.utils import raise_with_traceback
+import six
 
 from apache_beam.io.filesystem import BeamIOError
 
@@ -188,7 +188,7 @@ def with_exponential_backoff(
               sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              raise_with_traceback(exn, exn_traceback)
+              six.raise_from(exn, exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

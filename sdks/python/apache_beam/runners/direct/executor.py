@@ -28,7 +28,7 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
-from future.utils import raise_
+import six
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -400,7 +400,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise_(t, v, tb)
+        six.reraise(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

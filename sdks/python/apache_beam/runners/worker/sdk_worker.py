@@ -28,7 +28,7 @@ import traceback
 from concurrent import futures
 
 import grpc
-from future.utils import raise_
+import six
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -290,7 +290,7 @@ class GrpcStateHandler(object):
     while not future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        raise_(t, v, tb)
+        six.raise_from(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
