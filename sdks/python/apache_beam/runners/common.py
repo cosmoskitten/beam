@@ -29,6 +29,7 @@ import six
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
@@ -36,6 +37,8 @@ from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterName
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -449,7 +452,8 @@ class DoFnRunner(Receiver):
                step_name=None,
                logging_context=None,
                state=None,
-               scoped_metrics_container=None):
+               scoped_metrics_container=None,
+               operation_name=None):
     """Initializes a DoFnRunner.
 
     Args:
@@ -478,7 +482,8 @@ class DoFnRunner(Receiver):
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
     output_processor = _OutputProcessor(
-        windowing.windowfn, main_receivers, tagged_receivers)
+        windowing.windowfn, main_receivers, tagged_receivers,
+        state._counter_factory, operation_name)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
@@ -546,7 +551,12 @@ class OutputProcessor(object):
 class _OutputProcessor(OutputProcessor):
   """Processes output produced by DoFn method invocations."""
 
-  def __init__(self, window_fn, main_receivers, tagged_receivers):
+  def __init__(self,
+               window_fn,
+               main_receivers,
+               tagged_receivers,
+               counter_factory=None,
+               operation_name=None):
     """Initializes ``_OutputProcessor``.
 
     Args:
@@ -558,6 +568,18 @@ class _OutputProcessor(OutputProcessor):
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
 
+    # TODO: remove if block after per-element-output-counter released
+    # TODO: [BEAM-3937]
+    experiments = RuntimeValueProvider.get_value('experiments', str, [])
+    if 'outputs_per_element_counter' in experiments:
+      self.has_per_element_output_count = True
+      per_element_output_counter_name = \
+        CounterName('per-element-output-count-meta', step_name=operation_name)
+      self.per_element_output_counter = counter_factory.get_counter(
+          per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
+    else:
+      self.has_per_element_output_count = False
+
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
 
@@ -565,9 +587,14 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
+      # TODO: remove if block after per-element-output-counter released
+      if self.has_per_element_output_count:
+        self.per_element_output_counter.update(0)
       return
 
+    output_element_output = 0
     for result in results:
+      output_element_output += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
@@ -592,6 +619,9 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
+    # TODO: remove if block after per-element-output-counter released
+    if self.has_per_element_output_count:
+      self.per_element_output_counter.update(output_element_output)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""
