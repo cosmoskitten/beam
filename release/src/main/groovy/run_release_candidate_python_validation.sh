@@ -111,7 +111,6 @@ wget $CANDIDATE_URL$SHA1_FILE_NAME
 wget $CANDIDATE_URL$MD5_FILE_NAME
 wget $CANDIDATE_URL$BEAM_PYTHON_SDK
 
-
 #
 # 2. Verify sha1 and md5 hashes
 #
@@ -140,7 +139,7 @@ echo "SUCCEED: Hashes verification completed."
 
 print_separator "Creating new virtualenv and installing the SDK"
 virtualenv temp_virtualenv
-. temp_virtualenv/bin/activate && pip install $BEAM_PYTHON_SDK
+. temp_virtualenv/bin/activate && pip install $BEAM_PYTHON_SDK[gcp]
 gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]
 then
