@@ -148,6 +148,7 @@ ext.library = [
     spark_network_common: "org.apache.spark:spark-network-common_2.11:$spark_version",
     spark_streaming: "org.apache.spark:spark-streaming_2.11:$spark_version",
     stax2_api: "org.codehaus.woodstox:stax2-api:3.1.4",
+    truth: "com.google.truth:truth:0.39",
     woodstox_core_asl: "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
   ],
 ]
