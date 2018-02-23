@@ -366,6 +366,9 @@ class DistributionAccumulator(object):
     else:
       self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
 
+  def merge(self, accumulators):
+    raise NotImplementedError
+
   def calculate_bucket_index(self, element):
     """Calculate the bucket index for the given element"""
     if element == 0:
@@ -405,3 +408,22 @@ class DistributionAccumulator(object):
 
 class DistributionCounterFn(AccumulatorCombineFn):
   _accumulator_type = DistributionAccumulator
+
+
+class DistributionMetadataAccumulator(object):
+  def __init__(self):
+    self.distribution_metadata = []
+
+  def add_input(self, element):
+    self.distribution_metadata.append(element)
+
+  def extract_output(self):
+    return self.distribution_metadata
+
+  def merge(self, accumulators):
+    for accumulator in accumulators:
+      self.distribution_metadata.extend(accumulator.distribution_metadata)
+
+
+class DistributionMetadataCounterFn(AccumulatorCombineFn):
+  _accumulator_type = DistributionMetadataAccumulator
