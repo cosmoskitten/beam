@@ -26,6 +26,7 @@ from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.transforms import sideinputs
+from apache_beam.transforms.cy_combiners import DistributionAccumulator
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 
@@ -249,7 +250,10 @@ class EvaluationContext(object):
       self._pending_unblocked_tasks.extend(tasks)
 
       if result.counters:
+        # there is no merge fn in a distribution counter
         for counter in result.counters:
+          if isinstance(counter.accumulator, DistributionAccumulator):
+            continue
           merged_counter = self._counter_factory.get_counter(
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])

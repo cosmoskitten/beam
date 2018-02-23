@@ -95,6 +95,7 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
+  cdef object per_element_output_counter
 
 
 cdef class DoFnContext(object):
