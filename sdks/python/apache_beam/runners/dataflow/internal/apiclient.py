@@ -738,12 +738,23 @@ def to_split_int(n):
 
 
 def translate_distribution(distribution_update, metric_update_proto):
-  """Translate metrics DistributionUpdate to dataflow distribution update."""
+  """Translate metrics DistributionUpdate to dataflow distribution update.
+  Args:
+    distribution_update: Instance of DistributionUpdate or
+    DistributionAccumulator.
+    metric_update_proto: Used for report metrics.
+  """
   dist_update_proto = dataflow.DistributionUpdate()
   dist_update_proto.min = to_split_int(distribution_update.min)
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
+  # Only DistributionAccumulator has buckets and first_bucket_offset.
+  if isinstance(distribution_update, cy_combiners.DistributionAccumulator):
+    histogram = dataflow.Histogram()
+    histogram.bucketCounts = distribution_update.buckets
+    histogram.firstBucketOffset = distribution_update.first_bucket_offset
+    dist_update_proto.histogram = histogram
   metric_update_proto.distribution = dist_update_proto
 
 
@@ -804,6 +815,9 @@ structured_counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DistributionCounterFn: (
+        dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution)
 }
 
 
@@ -841,4 +855,7 @@ counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
+    cy_combiners.DistributionCounterFn: (
+        dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
+        translate_distribution)
 }

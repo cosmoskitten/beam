@@ -110,3 +110,9 @@ cdef class DistributionAccumulator(object):
                  bucket_offset=int64_t)
   cpdef int64_t calculate_bucket_index(self, int64_t element)
   cdef void increment_bucket(self, int64_t bucket_index)
+
+cdef class DistributionMetadataAccumulator(object):
+  cdef public list distribution_metadata
+  cpdef add_input(self, int64_t element)
+  @cython.locals(accumulator=DistributionMetadataAccumulator)
+  cpdef merge(self, accumulators)
