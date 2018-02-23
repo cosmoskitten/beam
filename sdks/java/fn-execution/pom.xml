@@ -105,6 +105,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- We ship test utilities but the user needs to provide JUnit -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Test dependencies -->
     <dependency>
       <groupId>junit</groupId>
