@@ -32,6 +32,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+
 # pylint: enable=ungrouped-imports
 
 
