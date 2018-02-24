@@ -22,9 +22,11 @@ from __future__ import absolute_import
 import unittest
 from datetime import datetime
 
+# pylint: disable=ungrouped-imports
 import hamcrest as hc
 import six
 from hamcrest.core.base_matcher import BaseMatcher
+# pylint: enable=ungrouped-imports
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
