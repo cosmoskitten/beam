@@ -363,8 +363,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isWindowedValue(equalTo(value1)));
-    assertThat(output.get(1), WindowMatchers.isWindowedValue(equalTo(value1 + value2)));
+    assertThat(output.get(0), isWindowedValue(equalTo(value1)));
+    assertThat(output.get(1), isWindowedValue(equalTo(value1 + value2)));
 
     assertThat(
         output.get(0),
@@ -669,7 +669,7 @@ public class ReduceFnRunnerTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     options.setValue(expectedValue);
 
-    when(mockSideInputReader.contains(org.mockito.Matchers.any(PCollectionView.class)))
+    when(mockSideInputReader.contains(any(PCollectionView.class)))
         .thenReturn(true);
     when(mockSideInputReader.get(any(PCollectionView.class), any(BoundedWindow.class)))
         .then(
@@ -989,7 +989,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
@@ -1003,7 +1003,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
+            isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
@@ -1015,7 +1015,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
+            isSingleWindowedValue(emptyIterable(), 9, 0, 10)));
   }
 
   @Test
@@ -1040,9 +1040,9 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, contains(
         // Trigger with 2 elements
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
         // Trigger for the empty on time pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   @Test
@@ -1067,11 +1067,11 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, contains(
         // Trigger with 2 elements
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
         // Trigger for the empty on time pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10),
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10),
         // Trigger for the final pane
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+        isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   /**
@@ -1146,7 +1146,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
@@ -1160,7 +1160,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
@@ -1172,7 +1172,7 @@ public class ReduceFnRunnerTest {
     assertThat(
         output,
         contains(
-            WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+            isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   @Test
@@ -1682,8 +1682,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(4, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -1740,8 +1740,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(4, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -1842,8 +1842,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(5, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(5, 9, 0, 10));
 
     assertThat(
         output.get(0),
@@ -1920,10 +1920,10 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(4, output.size());
 
-    assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
-    assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(6, 4, 0, 10));
-    assertThat(output.get(2), WindowMatchers.isSingleWindowedValue(11, 9, 0, 10));
-    assertThat(output.get(3), WindowMatchers.isSingleWindowedValue(12, 9, 0, 10));
+    assertThat(output.get(0), isSingleWindowedValue(4, 1, 0, 10));
+    assertThat(output.get(1), isSingleWindowedValue(6, 4, 0, 10));
+    assertThat(output.get(2), isSingleWindowedValue(11, 9, 0, 10));
+    assertThat(output.get(3), isSingleWindowedValue(12, 9, 0, 10));
 
     assertThat(
         output.get(0),
