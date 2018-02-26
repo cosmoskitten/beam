@@ -82,14 +82,14 @@ class DataflowMetrics extends MetricResults {
    * @return a populated MetricQueryResults object.
    */
   private MetricQueryResults populateMetricQueryResults(
-      List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
+      List<MetricUpdate> metricUpdates,
       MetricsFilter filter) {
     return DataflowMetricQueryResultsFactory.create(dataflowPipelineJob, metricUpdates, filter)
         .build();
   }
 
   private MetricQueryResults queryServiceForMetrics(MetricsFilter filter) {
-    List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
+    List<MetricUpdate> metricUpdates;
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
     ImmutableList<MetricResult<GaugeResult>> gauges = ImmutableList.of();
@@ -102,7 +102,7 @@ class DataflowMetrics extends MetricResults {
     }
     metricUpdates = firstNonNull(
         jobMetrics.getMetrics(),
-        Collections.<com.google.api.services.dataflow.model.MetricUpdate>emptyList());
+        Collections.<MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
   }
 
@@ -139,8 +139,8 @@ class DataflowMetrics extends MetricResults {
 
     public void addMetricResult(
         MetricKey metricKey,
-        @Nullable com.google.api.services.dataflow.model.MetricUpdate committed,
-        @Nullable com.google.api.services.dataflow.model.MetricUpdate attempted) {
+        @Nullable MetricUpdate committed,
+        @Nullable MetricUpdate attempted) {
       if (committed == null || attempted == null) {
         LOG.warn(
             "Metric {} did not have both a committed ({}) and tentative value ({}).",
@@ -181,7 +181,7 @@ class DataflowMetrics extends MetricResults {
       }
     }
 
-    private Long getCounterValue(com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+    private Long getCounterValue(MetricUpdate metricUpdate) {
       if (metricUpdate.getScalar() == null) {
         return 0L;
       }
@@ -189,7 +189,7 @@ class DataflowMetrics extends MetricResults {
     }
 
     private DistributionResult getDistributionValue(
-        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+        MetricUpdate metricUpdate) {
       if (metricUpdate.getDistribution() == null) {
         return DistributionResult.IDENTITY_ELEMENT;
       }
@@ -215,23 +215,23 @@ class DataflowMetrics extends MetricResults {
   }
 
   private static class DataflowMetricQueryResultsFactory {
-    private final Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
+    private final Iterable<MetricUpdate> metricUpdates;
     private final MetricsFilter filter;
-    private final HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
+    private final HashMap<MetricKey, MetricUpdate>
         tentativeByName;
-    private final HashMap<MetricKey, com.google.api.services.dataflow.model.MetricUpdate>
+    private final HashMap<MetricKey, MetricUpdate>
         committedByName;
     private final HashSet<MetricKey> metricHashKeys;
     private final DataflowPipelineJob dataflowPipelineJob;
 
     public static DataflowMetricQueryResultsFactory create(DataflowPipelineJob dataflowPipelineJob,
-        Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
+        Iterable<MetricUpdate> metricUpdates,
         MetricsFilter filter) {
       return new DataflowMetricQueryResultsFactory(dataflowPipelineJob, metricUpdates, filter);
     }
 
     private DataflowMetricQueryResultsFactory(DataflowPipelineJob dataflowPipelineJob,
-        Iterable<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates,
+        Iterable<MetricUpdate> metricUpdates,
         MetricsFilter filter) {
       this.dataflowPipelineJob = dataflowPipelineJob;
       this.metricUpdates = metricUpdates;
@@ -243,12 +243,12 @@ class DataflowMetrics extends MetricResults {
     }
 
     /**
-     * Check whether a {@link com.google.api.services.dataflow.model.MetricUpdate} is a tentative
+     * Check whether a {@link MetricUpdate} is a tentative
      * update or not.
      * @return true if update is tentative, false otherwise
      */
     private boolean isMetricTentative(
-        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+        MetricUpdate metricUpdate) {
       return (metricUpdate.getName().getContext().containsKey("tentative")
           && Objects.equal(metricUpdate.getName().getContext().get("tentative"), "true"));
     }
@@ -258,7 +258,7 @@ class DataflowMetrics extends MetricResults {
      * @return a {@link MetricKey} that can be hashed and used to identify a metric.
      */
     private MetricKey getMetricHashKey(
-        com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
+        MetricUpdate metricUpdate) {
       String fullStepName = metricUpdate.getName().getContext().get("step");
       if (dataflowPipelineJob.transformStepNames == null
           || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
@@ -278,7 +278,7 @@ class DataflowMetrics extends MetricResults {
     private void buildMetricsIndex() {
       // If the Context of the metric update does not have a namespace, then these are not
       // actual metrics counters.
-      for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
+      for (MetricUpdate update : metricUpdates) {
         if (update.getName().getOrigin() != null
             && (!update.getName().getOrigin().toLowerCase().equals("user")
             || !update.getName().getContext().containsKey("namespace"))) {
