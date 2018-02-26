@@ -144,7 +144,7 @@ public class CoderTranslationTest {
       Coder<?> decodedCoder =
           CoderTranslation.fromProto(
               coderProto, RehydratedComponents.forComponents(encodedComponents));
-      assertThat(decodedCoder, Matchers.equalTo(coder));
+      assertThat(decodedCoder, equalTo(coder));
 
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {

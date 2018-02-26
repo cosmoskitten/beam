@@ -126,7 +126,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -222,7 +222,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -282,7 +282,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
     assertThat(
         outputElems,
-        Matchers.containsInAnyOrder(
+        containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 

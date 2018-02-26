@@ -1218,7 +1218,7 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
-      return SplittableParDo.SPLITTABLE_PROCESS_URN;
+      return SPLITTABLE_PROCESS_URN;
     }
   }
 

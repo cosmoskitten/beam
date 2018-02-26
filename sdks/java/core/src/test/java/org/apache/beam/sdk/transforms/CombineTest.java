@@ -1113,7 +1113,7 @@ public class CombineTest implements Serializable {
         assertThat(
             "Not expecting view contents to change",
             accumulator.seed,
-            Matchers.equalTo(Integer.toString(c.sideInput(view))));
+            equalTo(Integer.toString(c.sideInput(view))));
         return new TestCombineFn.Accumulator(
             accumulator.seed, accumulator.value + String.valueOf(value));
       } finally {
@@ -1130,7 +1130,7 @@ public class CombineTest implements Serializable {
         assertThat(
             "Accumulators should all have the same Side Input Value",
             accumulator.seed,
-            Matchers.equalTo(sideInputValue));
+            equalTo(sideInputValue));
         all.append(accumulator.value);
         accumulator.value = "cleared in mergeAccumulators";
       }

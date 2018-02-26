@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpre
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -61,26 +60,26 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.LEADING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
-    Assert.assertEquals("__hehe",
+    assertEquals("__hehe",
         new BeamSqlTrimExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.TRAILING));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
-    Assert.assertEquals("hehe__",
+    assertEquals("hehe__",
         new BeamSqlTrimExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "he"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "__"));
-    Assert.assertEquals("__",
+    assertEquals("__",
         new BeamSqlTrimExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " hello "));
-    Assert.assertEquals("hello",
+    assertEquals("hello",
         new BeamSqlTrimExpression(operands).evaluate(row, null).getValue());
   }
 

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -258,7 +257,7 @@ public class CoderPropertiesTest {
       BadCoderThatConsumesMoreBytes coder = new BadCoderThatConsumesMoreBytes();
       byte[] bytes = CoderProperties.encode(coder, Context.NESTED, "TestData");
       CoderProperties.decode(coder, Context.NESTED, bytes);
-      Assert.fail("Expected Assertion Error");
+      fail("Expected Assertion Error");
     } catch (AssertionError error) {
       assertThat(error.getMessage(),
           CoreMatchers.containsString("consumed bytes equal to encoded bytes"));
