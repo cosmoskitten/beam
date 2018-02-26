@@ -156,7 +156,7 @@ public class WatchTest implements Serializable {
                             standardSeconds(3) /* timeToDeclareOutputFinal */,
                             standardSeconds(30) /* timeToFail */))
                     .withTerminationPerInput(
-                        Watch.Growth.afterTotalOf(
+                        afterTotalOf(
                             standardSeconds(
                                 // At 2 seconds, all output has been yielded, but not yet
                                 // declared final - so polling should terminate per termination
@@ -211,7 +211,7 @@ public class WatchTest implements Serializable {
                                 standardSeconds(30) /* timeToFail */),
                             Requirements.empty()),
                         KV::getKey)
-                    .withTerminationPerInput(Watch.Growth.afterTotalOf(standardSeconds(5)))
+                    .withTerminationPerInput(afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
                     .withOutputKeyCoder(VarIntCoder.of()))
@@ -241,7 +241,7 @@ public class WatchTest implements Serializable {
                             standardSeconds(30) /* timeToFail */))
                     // Should terminate after 4 seconds - earlier than timeToFail
                     .withTerminationPerInput(
-                        Watch.Growth.afterTimeSinceNewOutput(standardSeconds(3)))
+                        afterTimeSinceNewOutput(standardSeconds(3)))
                     .withPollInterval(Duration.millis(300))
                     .withOutputCoder(VarIntCoder.of()))
             .apply("Drop input", Values.create());
@@ -272,7 +272,7 @@ public class WatchTest implements Serializable {
                             return PollResult.complete(Instant.now(), output);
                           }
                         })
-                    .withTerminationPerInput(Watch.Growth.afterTotalOf(standardSeconds(1)))
+                    .withTerminationPerInput(afterTotalOf(standardSeconds(1)))
                     .withPollInterval(Duration.millis(1))
                     .withOutputCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
             .apply("Drop input", Values.create());

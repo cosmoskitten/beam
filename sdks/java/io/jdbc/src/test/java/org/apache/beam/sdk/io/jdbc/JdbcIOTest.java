@@ -212,7 +212,7 @@ public class JdbcIOTest implements Serializable {
         for (int i = 0; i < EXPECTED_ROW_COUNT; i++) {
           preparedStatement.clearParameters();
           preparedStatement.setInt(1, i);
-          preparedStatement.setString(2, TestRow.getNameForSeed(i));
+          preparedStatement.setString(2, getNameForSeed(i));
           preparedStatement.executeUpdate();
         }
       }
