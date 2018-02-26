@@ -28,7 +28,6 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -58,8 +57,8 @@ public class StructuralKeyTest {
   public void emptyKeysNotEqual() {
     StructuralKey<?> empty = StructuralKey.empty();
 
-    assertThat(empty, not(Matchers.equalTo(StructuralKey.empty())));
-    assertThat(empty, Matchers.equalTo(empty));
+    assertThat(empty, not(equalTo(StructuralKey.empty())));
+    assertThat(empty, equalTo(empty));
   }
 
   @Test
