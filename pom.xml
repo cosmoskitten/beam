@@ -1395,6 +1395,13 @@
         <version>${commons.csv.version}</version>
       </dependency>
 
+      <!-- We ship testlibs that depend on Guava testlib -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava-testlib</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
+
       <!-- Testing -->
 
       <dependency>
@@ -1442,8 +1449,6 @@
       </dependency>
 
       <dependency>
-        <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-             excluding com.google.common.**.testing.* -->
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>
@@ -1938,10 +1943,6 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.common
