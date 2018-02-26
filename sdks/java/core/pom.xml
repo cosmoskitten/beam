@@ -83,10 +83,6 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.beam.sdk.repackaged.com.google.common
@@ -201,11 +197,8 @@
     </dependency>
 
     <dependency>
-      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-           excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
