@@ -478,7 +478,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply("CreateSideInput", Create.of(of("a", 1), of("a", 2), of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -495,7 +495,7 @@ public class ViewTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("apple", 2), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -506,7 +506,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
+            .apply("CreateSideInput", Create.of(of("a", 1), of("a", 2), of("b", 3)))
             .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
@@ -520,14 +520,14 @@ public class ViewTest implements Serializable {
                     assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
                     for (Entry<String, Iterable<Integer>> entry : c.sideInput(view).entrySet()) {
                       for (Integer value : entry.getValue()) {
-                        c.output(KV.of(entry.getKey(), value));
+                        c.output(of(entry.getKey(), value));
                       }
                     }
                   }
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+        of("a", 1), of("a", 2), of("b", 3));
 
     pipeline.run();
   }
@@ -571,7 +571,7 @@ public class ViewTest implements Serializable {
         pipeline
             .apply(
                 "CreateSideInput",
-                Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
+                Create.of(of("a", 1), of("a", 2), of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.asMultimap());
 
@@ -589,7 +589,7 @@ public class ViewTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("apple", 2), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -603,9 +603,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(14))))
+                    TimestampedValue.of(of("a", 1), new Instant(1)),
+                    TimestampedValue.of(of("a", 2), new Instant(7)),
+                    TimestampedValue.of(of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
 
@@ -632,7 +632,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("apple", 2), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -646,9 +646,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(14))))
+                    TimestampedValue.of(of("a", 1), new Instant(1)),
+                    TimestampedValue.of(of("a", 2), new Instant(7)),
+                    TimestampedValue.of(of("b", 3), new Instant(14))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
 
@@ -671,7 +671,7 @@ public class ViewTest implements Serializable {
                             for (Entry<String, Iterable<Integer>> entry :
                                 c.sideInput(view).entrySet()) {
                               for (Integer value : entry.getValue()) {
-                                c.output(KV.of(entry.getKey(), value));
+                                c.output(of(entry.getKey(), value));
                               }
                             }
                           }
@@ -679,7 +679,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 1), KV.of("a", 2), KV.of("b", 3));
+        of("a", 1), of("a", 2), of("b", 3));
 
     pipeline.run();
   }
@@ -693,9 +693,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                        TimestampedValue.of(KV.of("a", 2), new Instant(7)),
-                        TimestampedValue.of(KV.of("b", 3), new Instant(14)))
+                        TimestampedValue.of(of("a", 1), new Instant(1)),
+                        TimestampedValue.of(of("a", 2), new Instant(7)),
+                        TimestampedValue.of(of("b", 3), new Instant(14)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMultimap());
@@ -723,7 +723,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("apple", 2), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("apple", 2), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -792,7 +792,7 @@ public class ViewTest implements Serializable {
   public void testMultimapSideInputIsImmutable() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
-        pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1))).apply(View.asMultimap());
+        pipeline.apply("CreateSideInput", Create.of(of("a", 1))).apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline
@@ -824,14 +824,14 @@ public class ViewTest implements Serializable {
                             } catch (UnsupportedOperationException expected) {
                             }
                             for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                              c.output(KV.of(c.element(), v));
+                              c.output(of(c.element(), v));
                             }
                           }
                         })
                     .withSideInputs(view));
 
     // Pass at least one value through to guarantee that DoFn executes.
-    PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
+    PAssert.that(output).containsInAnyOrder(of("apple", 1));
 
     pipeline.run();
   }
@@ -842,7 +842,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
+            .apply("CreateSideInput", Create.of(of("a", 1), of("b", 3)))
             .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
@@ -858,7 +858,7 @@ public class ViewTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -869,7 +869,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
+            .apply("CreateSideInput", Create.of(of("a", 1), of("b", 3)))
             .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
@@ -882,13 +882,13 @@ public class ViewTest implements Serializable {
                     assertEquals((int) c.element(), c.sideInput(view).size());
                     assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
                     for (Entry<String, Integer> entry : c.sideInput(view).entrySet()) {
-                      c.output(KV.of(entry.getKey(), entry.getValue()));
+                      c.output(of(entry.getKey(), entry.getValue()));
                     }
                   }
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 1), KV.of("b", 3));
+        of("a", 1), of("b", 3));
 
     pipeline.run();
   }
@@ -901,7 +901,7 @@ public class ViewTest implements Serializable {
         pipeline
             .apply(
                 "CreateSideInput",
-                Create.of(KV.of("a", 1), KV.of("b", 3))
+                Create.of(of("a", 1), of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.asMap());
 
@@ -918,7 +918,7 @@ public class ViewTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -932,9 +932,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(18))))
+                    TimestampedValue.of(of("a", 1), new Instant(1)),
+                    TimestampedValue.of(of("b", 2), new Instant(4)),
+                    TimestampedValue.of(of("b", 3), new Instant(18))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
 
@@ -954,7 +954,7 @@ public class ViewTest implements Serializable {
                           @ProcessElement
                           public void processElement(ProcessContext c) {
                             c.output(
-                                KV.of(
+                                of(
                                     c.element(),
                                     c.sideInput(view).get(c.element().substring(0, 1))));
                           }
@@ -962,7 +962,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("banana", 2), KV.of("blackberry", 3));
+        of("apple", 1), of("banana", 2), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -976,9 +976,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                    TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                    TimestampedValue.of(KV.of("b", 3), new Instant(18))))
+                    TimestampedValue.of(of("a", 1), new Instant(1)),
+                    TimestampedValue.of(of("b", 2), new Instant(4)),
+                    TimestampedValue.of(of("b", 3), new Instant(18))))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
 
@@ -999,14 +999,14 @@ public class ViewTest implements Serializable {
                             assertEquals((int) c.element(), c.sideInput(view).size());
                             assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
                             for (Entry<String, Integer> entry : c.sideInput(view).entrySet()) {
-                              c.output(KV.of(entry.getKey(), entry.getValue()));
+                              c.output(of(entry.getKey(), entry.getValue()));
                             }
                           }
                         })
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 1), KV.of("b", 2), KV.of("b", 3));
+        of("a", 1), of("b", 2), of("b", 3));
 
     pipeline.run();
   }
@@ -1021,9 +1021,9 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateSideInput",
                 Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1)),
-                        TimestampedValue.of(KV.of("b", 2), new Instant(4)),
-                        TimestampedValue.of(KV.of("b", 3), new Instant(18)))
+                        TimestampedValue.of(of("a", 1), new Instant(1)),
+                        TimestampedValue.of(of("b", 2), new Instant(4)),
+                        TimestampedValue.of(of("b", 3), new Instant(18)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(View.asMap());
@@ -1052,7 +1052,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("banana", 2), KV.of("blackberry", 3));
+        of("apple", 1), of("banana", 2), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -1124,7 +1124,7 @@ public class ViewTest implements Serializable {
         pipeline
             .apply(
                 "CreateSideInput",
-                Create.of(KV.of("a", (Integer) null), KV.of("a", (Integer) null))
+                Create.of(of("a", (Integer) null), of("a", (Integer) null))
                     .withCoder(
                         KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(VarIntCoder.of()))))
             .apply(View.asMap());
@@ -1137,12 +1137,12 @@ public class ViewTest implements Serializable {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 1), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 1), of("banana", 3), of("blackberry", 3));
 
     // PipelineExecutionException is thrown with cause having a message stating that a
     // duplicate is not allowed.
@@ -1156,7 +1156,7 @@ public class ViewTest implements Serializable {
   public void testMapSideInputIsImmutable() {
 
     final PCollectionView<Map<String, Integer>> view =
-        pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1))).apply(View.asMap());
+        pipeline.apply("CreateSideInput", Create.of(of("a", 1))).apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline
@@ -1188,7 +1188,7 @@ public class ViewTest implements Serializable {
                             } catch (UnsupportedOperationException expected) {
                             }
                             c.output(
-                                KV.of(
+                                of(
                                     c.element(),
                                     c.sideInput(view).get(c.element().substring(0, 1))));
                           }
@@ -1196,7 +1196,7 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     // Pass at least one value through to guarantee that DoFn executes.
-    PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
+    PAssert.that(output).containsInAnyOrder(of("apple", 1));
 
     pipeline.run();
   }
@@ -1207,7 +1207,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline
-            .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
+            .apply("CreateSideInput", Create.of(of("a", 1), of("a", 20), of("b", 3)))
             .apply("SumIntegers", Combine.perKey(Sum.ofIntegers()))
             .apply(View.asMap());
 
@@ -1223,7 +1223,7 @@ public class ViewTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(
-        KV.of("apple", 21), KV.of("banana", 3), KV.of("blackberry", 3));
+        of("apple", 21), of("banana", 3), of("blackberry", 3));
 
     pipeline.run();
   }
@@ -1463,7 +1463,7 @@ public class ViewTest implements Serializable {
     thrown.expectCause(
         ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
     pipeline
-        .apply(Create.of(KV.of("hello", 5)))
+        .apply(Create.of(of("hello", 5)))
         .apply(
             Window.into(
                 new InvalidWindows<>(

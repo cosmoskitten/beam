@@ -815,7 +815,7 @@ public class DatastoreV1Test {
   public void testWriteBatcherWithoutData() {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
-    assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START, writeBatcher.nextBatchSize(0));
+    assertEquals(DATASTORE_BATCH_UPDATE_ENTITIES_START, writeBatcher.nextBatchSize(0));
   }
 
   @Test

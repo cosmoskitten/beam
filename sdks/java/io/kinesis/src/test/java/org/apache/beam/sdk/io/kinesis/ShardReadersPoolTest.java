@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.base.Stopwatch;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -76,7 +75,7 @@ public class ShardReadersPoolTest {
     when(thirdIterator.getShardId()).thenReturn("shard3");
     when(fourthIterator.getShardId()).thenReturn("shard4");
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
-        Arrays.asList(firstCheckpoint, secondCheckpoint));
+        asList(firstCheckpoint, secondCheckpoint));
     shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
@@ -169,7 +168,7 @@ public class ShardReadersPoolTest {
       throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch()).thenReturn(asList(a, b, c));
     KinesisReaderCheckpoint checkpoint = new KinesisReaderCheckpoint(
-        Arrays.asList(firstCheckpoint, secondCheckpoint));
+        asList(firstCheckpoint, secondCheckpoint));
     ShardReadersPool shardReadersPool = new ShardReadersPool(kinesis, checkpoint, 2);
     shardReadersPool.start();
 
@@ -265,7 +264,7 @@ public class ShardReadersPoolTest {
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    verify(shardReadersPool).startReadingShards(Arrays.asList(firstIterator, secondIterator));
+    verify(shardReadersPool).startReadingShards(asList(firstIterator, secondIterator));
     verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
