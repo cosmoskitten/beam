@@ -68,7 +68,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -1245,7 +1244,7 @@ public class WatermarkManagerTest implements Serializable {
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(firstFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
 
@@ -1259,7 +1258,7 @@ public class WatermarkManagerTest implements Serializable {
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
-    assertThat(secondFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(secondFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> secondFired =
         Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
@@ -1308,7 +1307,7 @@ public class WatermarkManagerTest implements Serializable {
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(firstFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
 
@@ -1323,7 +1322,7 @@ public class WatermarkManagerTest implements Serializable {
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
-    assertThat(secondFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(secondFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> secondFired =
         Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
@@ -1372,7 +1371,7 @@ public class WatermarkManagerTest implements Serializable {
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(firstFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(earliestTimer));
 
@@ -1387,7 +1386,7 @@ public class WatermarkManagerTest implements Serializable {
     manager.refreshAll();
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> secondFiredTimers =
         manager.extractFiredTimers();
-    assertThat(secondFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(secondFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> secondFired =
         Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
@@ -1438,7 +1437,7 @@ public class WatermarkManagerTest implements Serializable {
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> firedTimers =
         manager.extractFiredTimers();
-    assertThat(firedTimers, not(Matchers.emptyIterable()));
+    assertThat(firedTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> timers = Iterables.getOnlyElement(firedTimers);
     assertThat(timers.getTimers(), contains(overridingTimer));
   }
@@ -1492,7 +1491,7 @@ public class WatermarkManagerTest implements Serializable {
 
     Collection<FiredTimers<AppliedPTransform<?, ?, ?>>> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(firstFiredTimers, not(Matchers.emptyIterable()));
+    assertThat(firstFiredTimers, not(emptyIterable()));
     FiredTimers<AppliedPTransform<?, ?, ?>> firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(overridingTimer));
   }
