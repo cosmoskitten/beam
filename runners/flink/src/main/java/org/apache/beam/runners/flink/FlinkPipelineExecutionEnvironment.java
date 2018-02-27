@@ -100,7 +100,7 @@ class FlinkPipelineExecutionEnvironment {
     TranslationMode translationMode = optimizer.getTranslationMode();
 
     pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(
-        translationMode == TranslationMode.STREAMING));
+        translationMode == TranslationMode.STREAMING, options));
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {

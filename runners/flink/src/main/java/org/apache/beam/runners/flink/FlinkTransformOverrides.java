@@ -30,9 +30,14 @@ import org.apache.beam.sdk.transforms.PTransform;
  * {@link PTransform} overrides for Flink runner.
  */
 public class FlinkTransformOverrides {
-  public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
+  public static List<PTransformOverride> getDefaultOverrides(boolean streaming,
+          FlinkPipelineOptions options) {
     if (streaming) {
       return ImmutableList.<PTransformOverride>builder()
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.writeWithRunnerDeterminedSharding(),
+                  new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.splittableParDo(),
