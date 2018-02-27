@@ -28,11 +28,13 @@ import com.google.common.graph.NetworkBuilder;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -61,7 +63,19 @@ public class QueryablePipeline {
    * within the provided components.
    */
   public static QueryablePipeline forPrimitivesIn(Components components) {
-    return new QueryablePipeline(retainOnlyPrimitives(components));
+    return forComponents(retainOnlyPrimitives(components));
+  }
+
+  /**
+   * Create a new {@link QueryablePipeline} based on the provided components.
+   *
+   * <p>Relationships between composite transforms and their subtransforms, and producer
+   * relationships between {@link PTransformNode transforms} and {@link PCollectionNode
+   * PCollections} are not yet modelled by {@link QueryablePipeline}, so the input {@link
+   * Components} should be treatable as though each node is a primitive.
+   */
+  static QueryablePipeline forComponents(Components components) {
+    return new QueryablePipeline(components);
   }
 
   private final Components components;
@@ -161,6 +175,16 @@ public class QueryablePipeline {
     return network;
   }
 
+  public Iterable<PTransformNode> getTopologicallyOrderedTransforms() {
+    return StreamSupport.stream(
+            Networks.topologicalOrder(pipelineNetwork, Comparator.comparing(PipelineNode::getId))
+                .spliterator(),
+            false)
+        .filter(PTransformNode.class::isInstance)
+        .map(PTransformNode.class::cast)
+        .collect(Collectors.toList());
+  }
+
   /**
    * Get the transforms that are roots of this {@link QueryablePipeline}. These are all nodes which
    * have no input {@link PCollection}.
@@ -171,6 +195,19 @@ public class QueryablePipeline {
         .stream()
         .filter(pipelineNode -> pipelineNetwork.inEdges(pipelineNode).isEmpty())
         .map(pipelineNode -> (PTransformNode) pipelineNode)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Get the PCollections which are not consumed by any {@link PTransformNode} in this {@link
+   * QueryablePipeline}.
+   */
+  private Set<PCollectionNode> getLeafPCollections() {
+    return pipelineNetwork
+        .nodes()
+        .stream()
+        .filter(pipelineNode -> pipelineNetwork.outEdges(pipelineNode).isEmpty())
+        .map(pipelineNode -> (PCollectionNode) pipelineNode)
         .collect(Collectors.toSet());
   }
 
