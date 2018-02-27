@@ -20,16 +20,16 @@ package org.apache.beam.runners.fnexecution.environment;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DockerWrapper}. */
+@Category(NeedsDocker.class)
 @RunWith(JUnit4.class)
 public class DockerWrapperTest {
-
-  // TODO: How should we run integration tests that depend on docker? We should probably filter by
-  // annotation so that unit tests don't automatically invoke docker on developers' machines.
 
   @Test
   public void helloWorld() throws Exception {
