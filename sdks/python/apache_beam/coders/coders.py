@@ -878,6 +878,27 @@ Coder.register_structured_urn(
     common_urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
+class PaneInfoCoder(FastCoder):
+  """Coder for an PaneInfo descriptor."""
+
+  def _create_impl(self):
+    return coder_impl.PaneInfoCoderImpl()
+
+  def is_deterministic(self):
+    return True
+
+  def as_cloud_object(self):
+    raise NotImplementedError(
+        'The PaneInfoCoder should not be explicitly constructed in a pipeline '
+        'graph.')
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
 
@@ -887,12 +908,14 @@ class WindowedValueCoder(FastCoder):
     self.wrapped_value_coder = wrapped_value_coder
     self.timestamp_coder = TimestampCoder()
     self.window_coder = window_coder
+    self.pane_info_coder = PaneInfoCoder()
 
   def _create_impl(self):
     return coder_impl.WindowedValueCoderImpl(
         self.wrapped_value_coder.get_impl(),
         self.timestamp_coder.get_impl(),
-        self.window_coder.get_impl())
+        self.window_coder.get_impl(),
+        self.pane_info_coder.get_impl())
 
   def is_deterministic(self):
     return all(c.is_deterministic() for c in [self.wrapped_value_coder,
