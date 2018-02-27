@@ -48,6 +48,8 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -156,9 +158,12 @@ public class SpannerWriteIT {
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
+    PCollection<MutationGroup> windowedSignal = stepOne.getFailedMutations()
+        .apply(Window.<MutationGroup>into(new GlobalWindows()).discardingFiredPanes());
+
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))
-        .apply(Wait.on(stepOne.getFailedMutations()))
+        .apply(Wait.on(windowedSignal))
         .apply("write to table2",
             SpannerIO.write()
                 .withProjectId(project)
