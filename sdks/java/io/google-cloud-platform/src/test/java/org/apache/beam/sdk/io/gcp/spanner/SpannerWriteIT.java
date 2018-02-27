@@ -156,11 +156,9 @@ public class SpannerWriteIT {
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
-    PCollection<MutationGroup> seq = stepOne.getFailedMutations();
-
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))
-        .apply(Wait.on(seq))
+        .apply(Wait.on(stepOne.getFailedMutations()))
         .apply("write to table2",
             SpannerIO.write()
                 .withProjectId(project)
@@ -250,13 +248,6 @@ public class SpannerWriteIT {
     long result = resultSet.getLong(0);
     assertThat(resultSet.next(), is(false));
     return result;
-  }
-
-  private static class IdentityFn<K> extends DoFn<K, K> {
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      c.output(c.element());
-    }
   }
 
   private static class DivBy2 implements Predicate<Long>, Serializable {
