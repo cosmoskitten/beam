@@ -30,7 +30,6 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClientControlService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+/** Tests for {@link SingletonDockerEnvironmentManager}. */
 @RunWith(JUnit4.class)
 public class SingletonDockerEnvironmentManagerTest {
 
@@ -46,8 +46,11 @@ public class SingletonDockerEnvironmentManagerTest {
       .setUrl("service-url")
       .build();
   private static final String IMAGE_NAME = "my-image";
-  private static final Environment ENVIRONMENT = Environment.newBuilder().setUrl(IMAGE_NAME).build();
-  private static final String CONTAINER_ID = "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
+  private static final Environment ENVIRONMENT = Environment.newBuilder()
+      .setUrl(IMAGE_NAME)
+      .build();
+  private static final String CONTAINER_ID =
+      "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
 
   @Mock private DockerWrapper docker;
 
