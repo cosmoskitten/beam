@@ -47,8 +47,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -156,11 +156,11 @@ public class SpannerWriteIT {
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
-    PCollectionView<Long> seq = stepOne.getFailedMutationsCount().apply(View.<Long>asSingleton());
+    PCollection<MutationGroup> seq = stepOne.getFailedMutations();
 
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))
-        .apply("Unique", ParDo.of(new IdentityFn<Mutation>()).withSideInputs(seq))
+        .apply(Wait.on(seq))
         .apply("write to table2",
             SpannerIO.write()
                 .withProjectId(project)

@@ -21,7 +21,6 @@ import com.google.cloud.spanner.Mutation;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.values.TupleTag;
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
   private final PCollection<MutationGroup> failedMutations;
-  private PCollection<Long> failedMutationsCount;
 
   public SpannerWriteResult(Pipeline pipeline, PCollection<MutationGroup> failedMutations) {
     this.pipeline = pipeline;
@@ -50,19 +48,11 @@ public class SpannerWriteResult implements POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>of(new TupleTag<Mutation>("failedMutation"),
-        failedMutations);
+    return ImmutableMap.of(new TupleTag<Mutation>("failedMutation"), failedMutations);
   }
 
   public PCollection<MutationGroup> getFailedMutations() {
     return failedMutations;
-  }
-
-  public PCollection<Long> getFailedMutationsCount() {
-    if (failedMutationsCount == null) {
-      failedMutationsCount = failedMutations.apply(Count.<MutationGroup>globally());
-    }
-    return failedMutationsCount;
   }
 
   @Override
