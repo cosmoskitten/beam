@@ -2160,7 +2160,7 @@
             <configuration>
               <!-- Ignore runtime-only dependencies in analysis -->
               <ignoreNonCompile>true</ignoreNonCompile>
-              <failOnWarning>false</failOnWarning>
+              <failOnWarning>true</failOnWarning>
 
               <!-- ignore jsr305 for both "used but undeclared" and "declared but unused" -->
               <ignoredDependencies>
