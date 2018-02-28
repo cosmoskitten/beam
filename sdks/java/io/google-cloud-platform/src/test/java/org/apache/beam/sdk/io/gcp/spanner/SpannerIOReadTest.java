@@ -91,60 +91,6 @@ import org.mockito.Mockito;
   }
 
   @Test
-  public void emptyTransform() throws Exception {
-    SpannerIO.Read read = SpannerIO.read();
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("requires instance id to be set with");
-    read.validate(null);
-  }
-
-  @Test
-  public void emptyInstanceId() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withDatabaseId("123");
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("requires instance id to be set with");
-    read.validate(null);
-  }
-
-  @Test public void emptyDatabaseId() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withInstanceId("123");
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("requires database id to be set with");
-    read.validate(null);
-  }
-
-  @Test
-  public void emptyQuery() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
-        .withTimestamp(Timestamp.now());
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("requires configuring query or read operation");
-    read.validate(null);
-  }
-
-  @Test
-  public void emptyColumns() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
-        .withTimestamp(Timestamp.now()).withTable("users");
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("requires a list of columns");
-    read.validate(null);
-  }
-
-  @Test public void validRead() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
-        .withTimestamp(Timestamp.now()).withTable("users").withColumns("id", "name", "email");
-    read.validate(null);
-  }
-
-  @Test
-  public void validQuery() throws Exception {
-    SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
-        .withTimestamp(Timestamp.now()).withQuery("SELECT * FROM users");
-    read.validate(null);
-  }
-
-  @Test
   public void runQuery() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withProjectId("test").withInstanceId("123")
         .withDatabaseId("aaa").withQuery("SELECT * FROM users").withServiceFactory(serviceFactory);
@@ -239,7 +185,6 @@ import org.mockito.Mockito;
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void readPipeline() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
@@ -275,7 +220,6 @@ import org.mockito.Mockito;
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void readAllPipeline() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);

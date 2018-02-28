@@ -474,8 +474,7 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      super.validate(options);
+    public PCollection<Struct> expand(PBegin input) {
       getSpannerConfig().validate();
       checkArgument(
           getTimestampBound() != null,
@@ -499,10 +498,7 @@ public class SpannerIO {
             "SpannerIO.read() requires configuring query or read operation.");
       }
 
-    }
 
-    @Override
-    public PCollection<Struct> expand(PBegin input) {
       ReadAll readAll = readAll()
           .withSpannerConfig(getSpannerConfig())
           .withTimestampBound(getTimestampBound())
