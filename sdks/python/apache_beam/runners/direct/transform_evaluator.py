@@ -482,8 +482,7 @@ class _TaggedReceivers(dict):
 
   @property
   def undeclared_in_memory_tag_values(self):
-    assert (not self._undeclared_in_memory_tag_values
-            or self._evaluation_context.has_cache)
+    assert not self._undeclared_in_memory_tag_values
     return self._undeclared_in_memory_tag_values
 
   class NullReceiver(common.Receiver):
@@ -503,16 +502,9 @@ class _TaggedReceivers(dict):
       self._target[self._tag].append(element)
 
   def __missing__(self, key):
-    if self._evaluation_context.has_cache:
-      if not self._undeclared_in_memory_tag_values:
-        self._undeclared_in_memory_tag_values = collections.defaultdict(list)
-      receiver = _TaggedReceivers._InMemoryReceiver(
-          self._undeclared_in_memory_tag_values, key)
-    else:
-      if not self._null_receiver:
-        self._null_receiver = _TaggedReceivers.NullReceiver()
-      receiver = self._null_receiver
-    return receiver
+    if not self._null_receiver:
+      self._null_receiver = _TaggedReceivers.NullReceiver()
+    return self._null_receiver
 
 
 class _ParDoEvaluator(_TransformEvaluator):
