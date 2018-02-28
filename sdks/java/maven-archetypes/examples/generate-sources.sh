@@ -35,12 +35,12 @@ mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 #
 # Copy the Java subset of the examples project verbatim. 
 #
-rsync -a --exclude cookbook --exclude complete                  \
+rsync -a --exclude cookbook                  \
     "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/  \
     "${ARCHETYPE_ROOT}/src/main/java"				            \
     --delete
 
-rsync -a --exclude cookbook --exclude complete --exclude '*IT.java'  \
+rsync -a --exclude cookbook --exclude '*IT.java'  \
     "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/       \
     "${ARCHETYPE_ROOT}/src/test/java"				                 \
     --delete
