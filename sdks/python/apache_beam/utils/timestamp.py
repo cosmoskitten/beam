@@ -24,8 +24,10 @@ from __future__ import absolute_import
 from __future__ import division
 
 import datetime
+from functools import total_ordering
 
 
+@total_ordering
 class Timestamp(object):
   """Represents a Unix second timestamp with microsecond granularity.
 
@@ -93,11 +95,23 @@ class Timestamp(object):
     # Note that the returned value may have lost precision.
     return self.micros // 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
-    if not isinstance(other, Duration):
+    if not isinstance(other, (Timestamp, Duration)):
       other = Timestamp.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __ne__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, (Timestamp, Duration)):
+      other = Timestamp.of(other)
+    return self.micros != other.micros
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, (Timestamp, Duration)):
+      other = Timestamp.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)
@@ -122,6 +136,7 @@ MIN_TIMESTAMP = Timestamp(micros=-0x7fffffffffffffff - 1)
 MAX_TIMESTAMP = Timestamp(micros=0x7fffffffffffffff)
 
 
+@total_ordering
 class Duration(object):
   """Represents a second duration with microsecond granularity.
 
@@ -171,11 +186,23 @@ class Duration(object):
     # Note that the returned value may have lost precision.
     return self.micros / 1000000
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
     # Allow comparisons between Duration and Timestamp values.
-    if not isinstance(other, Timestamp):
+    if not isinstance(other, (Timestamp, Duration)):
       other = Duration.of(other)
-    return cmp(self.micros, other.micros)
+    return self.micros == other.micros
+
+  def __ne__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, (Timestamp, Duration)):
+      other = Duration.of(other)
+    return self.micros != other.micros
+
+  def __lt__(self, other):
+    # Allow comparisons between Duration and Timestamp values.
+    if not isinstance(other, (Timestamp, Duration)):
+      other = Duration.of(other)
+    return self.micros < other.micros
 
   def __hash__(self):
     return hash(self.micros)
