@@ -24,7 +24,7 @@ import com.google.protobuf.ByteString;
 /**
  * A fake {@link BatchTransactionId} object.
  *
- * TODO: We cannot use mockito in tests because its serialization does not preserve the equals
+ * <p>TODO: We cannot use mockito in tests because its serialization does not preserve the equals
  * semantics. Move this fake object to the Cloud Spanner library.
  */
 public class FakeBatchTransactionId extends BatchTransactionId {
@@ -37,10 +37,12 @@ public class FakeBatchTransactionId extends BatchTransactionId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o)
+    if (this == o) {
       return true;
-    if (o == null || getClass() != o.getClass())
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
+    }
     FakeBatchTransactionId that = (FakeBatchTransactionId) o;
     return Objects.equal(id, that.id);
   }

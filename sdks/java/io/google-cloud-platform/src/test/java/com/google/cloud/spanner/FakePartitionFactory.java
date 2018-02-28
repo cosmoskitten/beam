@@ -23,7 +23,7 @@ import java.util.Arrays;
 /**
  * Creates fake {@link Partition} objects.
  *
- * TODO: We cannot use mockito in tests because its serialization does not preserve the equals
+ * <p>TODO: We cannot use mockito in tests because its serialization does not preserve the equals
  * semantics. Move this fake object to the Cloud Spanner library.
  */
 public class FakePartitionFactory {
