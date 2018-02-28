@@ -28,16 +28,18 @@ import static org.mockito.Mockito.withSettings;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.BatchTransactionId;
+import com.google.cloud.spanner.FakeBatchTransactionId;
+import com.google.cloud.spanner.FakePartitionFactory;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
-import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
@@ -68,7 +70,6 @@ import org.mockito.Mockito;
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
-  private ReadOnlyTransaction mockTx;
   private BatchReadOnlyTransaction mockBatchTx;
 
   private static final Type FAKE_TYPE = Type
@@ -82,20 +83,23 @@ import org.mockito.Mockito;
       Struct.newBuilder().add("id", Value.int64(5)).add("name", Value.string("Evan")).build(),
       Struct.newBuilder().add("id", Value.int64(6)).add("name", Value.string("Floyd")).build());
 
-  @Before @SuppressWarnings("unchecked") public void setUp() throws Exception {
+  @Before
+  @SuppressWarnings("unchecked"
+  ) public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
-    mockTx = Mockito.mock(ReadOnlyTransaction.class);
     mockBatchTx = Mockito.mock(BatchReadOnlyTransaction.class);
   }
 
-  @Test public void emptyTransform() throws Exception {
+  @Test
+  public void emptyTransform() throws Exception {
     SpannerIO.Read read = SpannerIO.read();
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires instance id to be set with");
     read.validate(null);
   }
 
-  @Test public void emptyInstanceId() throws Exception {
+  @Test
+  public void emptyInstanceId() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withDatabaseId("123");
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires instance id to be set with");
@@ -109,7 +113,8 @@ import org.mockito.Mockito;
     read.validate(null);
   }
 
-  @Test public void emptyQuery() throws Exception {
+  @Test
+  public void emptyQuery() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
         .withTimestamp(Timestamp.now());
     thrown.expect(IllegalArgumentException.class);
@@ -117,7 +122,8 @@ import org.mockito.Mockito;
     read.validate(null);
   }
 
-  @Test public void emptyColumns() throws Exception {
+  @Test
+  public void emptyColumns() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
         .withTimestamp(Timestamp.now()).withTable("users");
     thrown.expect(NullPointerException.class);
@@ -131,13 +137,15 @@ import org.mockito.Mockito;
     read.validate(null);
   }
 
-  @Test public void validQuery() throws Exception {
+  @Test
+  public void validQuery() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withInstanceId("123").withDatabaseId("aaa")
         .withTimestamp(Timestamp.now()).withQuery("SELECT * FROM users");
     read.validate(null);
   }
 
-  @Test public void runQuery() throws Exception {
+  @Test
+  public void runQuery() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withProjectId("test").withInstanceId("123")
         .withDatabaseId("aaa").withQuery("SELECT * FROM users").withServiceFactory(serviceFactory);
 
@@ -166,7 +174,8 @@ import org.mockito.Mockito;
         .partitionQuery(any(PartitionOptions.class), eq(Statement.of("SELECT * " + "FROM users")));
   }
 
-  @Test public void runRead() throws Exception {
+  @Test
+  public void runRead() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withProjectId("test").withInstanceId("123")
         .withDatabaseId("aaa").withTable("users").withColumns("id", "name")
         .withServiceFactory(serviceFactory);
@@ -196,7 +205,8 @@ import org.mockito.Mockito;
         eq(Arrays.asList("id", "name")));
   }
 
-  @Test public void runReadUsingIndex() throws Exception {
+  @Test
+  public void runReadUsingIndex() throws Exception {
     SpannerIO.Read read = SpannerIO.read().withProjectId("test").withInstanceId("123")
         .withDatabaseId("aaa").withTimestamp(Timestamp.now()).withTable("users")
         .withColumns("id", "name").withIndex("theindex").withServiceFactory(serviceFactory);
@@ -204,7 +214,7 @@ import org.mockito.Mockito;
     List<Partition> fakePartitions = Arrays
         .asList(mock(Partition.class), mock(Partition.class), mock(Partition.class));
 
-    BatchTransactionId id = mock(BatchTransactionId.class);
+    FakeBatchTransactionId id = new FakeBatchTransactionId("one");
     Transaction tx = Transaction.create(id);
     PCollectionView<Transaction> txView = pipeline.apply(Create.of(tx))
         .apply(View.<Transaction>asSingleton());
@@ -228,7 +238,9 @@ import org.mockito.Mockito;
             eq(KeySet.all()), eq(Arrays.asList("id", "name")));
   }
 
-  @Test @Category(NeedsRunner.class) public void readPipeline() throws Exception {
+  @Test
+  @Category(NeedsRunner.class)
+  public void readPipeline() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
@@ -238,7 +250,7 @@ import org.mockito.Mockito;
     PCollection<Struct> one = pipeline.apply("read q",
         SpannerIO.read().withSpannerConfig(spannerConfig).withQuery("SELECT * FROM users")
             .withTimestampBound(timestampBound));
-    BatchTransactionId txId = mock(BatchTransactionId.class, withSettings().serializable());
+    FakeBatchTransactionId txId = new FakeBatchTransactionId("readPipelineTest");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(txId);
 
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
@@ -247,7 +259,8 @@ import org.mockito.Mockito;
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
         .thenReturn(mockBatchTx);
 
-    Partition fakePartition = mock(Partition.class);
+    Partition fakePartition = FakePartitionFactory.createFakeQueryPartition(ByteString
+        .copyFromUtf8("one"));
     when(mockBatchTx
         .partitionQuery(any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
@@ -261,7 +274,9 @@ import org.mockito.Mockito;
     pipeline.run();
   }
 
-  @Test @Category(NeedsRunner.class) public void readAllPipeline() throws Exception {
+  @Test
+  @Category(NeedsRunner.class)
+  public void readAllPipeline() throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
 
@@ -279,7 +294,7 @@ import org.mockito.Mockito;
     PCollection<Struct> one = reads.apply("read all",
         SpannerIO.readAll().withSpannerConfig(spannerConfig).withTransaction(tx));
 
-    BatchTransactionId txId = mock(BatchTransactionId.class, withSettings().serializable());
+    BatchTransactionId txId = new FakeBatchTransactionId("tx");
     when(mockBatchTx.getBatchTransactionId()).thenReturn(txId);
 
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(timestampBound))
@@ -288,7 +303,8 @@ import org.mockito.Mockito;
     when(serviceFactory.mockBatchClient().batchReadOnlyTransaction(any(BatchTransactionId.class)))
         .thenReturn(mockBatchTx);
 
-    Partition fakePartition = mock(Partition.class);
+    Partition fakePartition = FakePartitionFactory.createFakeReadPartition(ByteString
+        .copyFromUtf8("partition"));
     when(mockBatchTx
         .partitionQuery(any(PartitionOptions.class), eq(Statement.of("SELECT * FROM users"))))
         .thenReturn(Arrays.asList(fakePartition, fakePartition));
@@ -304,5 +320,4 @@ import org.mockito.Mockito;
 
     pipeline.run();
   }
-
 }

@@ -173,7 +173,6 @@ public class SpannerReadIT {
     databaseClient.writeAtLeastOnce(mutations);
 
     SpannerConfig spannerConfig = SpannerConfig.create()
-        .withHost("https://staging-wrenchworks.sandbox.googleapis.com")
         .withProjectId(project)
         .withInstanceId(options.getInstanceId())
         .withDatabaseId(databaseName);
