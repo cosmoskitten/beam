@@ -45,6 +45,20 @@ rsync -a --exclude cookbook --exclude complete --exclude '*IT.java'  \
     "${ARCHETYPE_ROOT}/src/test/java"				                 \
     --delete
 
+mkdir -p "${ARCHETYPE_ROOT}/src/main/java/complete/game"
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java/complete/game"
+
+#
+# Copy the Java mobile gaming examples.
+#
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/complete/game/  \
+    "${ARCHETYPE_ROOT}/src/main/java/complete/game"
+
+rsync -a                                                                      \
+    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/complete/game/  \
+    "${ARCHETYPE_ROOT}/src/test/java/complete/game"
+
 #
 # Replace 'package org.apache.beam.examples' with 'package ${package}' in all Java code
 #
