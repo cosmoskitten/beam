@@ -285,9 +285,11 @@ class DataflowRunnerTest(unittest.TestCase):
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
     for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = typehints.TupleSequenceConstraint
+      pcoll1.element_type = str
       pcoll2.element_type = typehints.Set
-      err_msg = "Input to GroupByKey must be of Tuple or Any type"
+      err_msg = (
+          r"Input to 'label' must be compatible with KV\[Any, Any\]. "
+          "Found .*")
       for pcoll in [pcoll1, pcoll2]:
         with self.assertRaisesRegexp(ValueError, err_msg):
           DataflowRunner.group_by_key_input_visitor().visit_transform(
