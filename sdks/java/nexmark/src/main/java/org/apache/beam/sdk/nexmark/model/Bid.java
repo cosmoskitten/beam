@@ -157,6 +157,23 @@ public class Bid implements KnownSize, Serializable {
   }
 
   @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    Bid other = (Bid) otherObject;
+    return auction == other.auction
+        && bidder == other.bidder
+        && price == other.price
+        && dateTime == other.dateTime
+        && extra.equals(other.extra);
+  }
+
+  @Override
   public long sizeInBytes() {
     return 8 + 8 + 8 + 8 + extra.length() + 1;
   }

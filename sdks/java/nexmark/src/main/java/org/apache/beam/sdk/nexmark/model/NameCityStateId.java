@@ -88,6 +88,22 @@ public class NameCityStateId implements KnownSize, Serializable {
   }
 
   @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    NameCityStateId other = (NameCityStateId) otherObject;
+    return name.equals(other.name)
+        && city.equals(other.city)
+        && state.equals(other.state)
+        && id == other.id;
+  }
+
+  @Override
   public long sizeInBytes() {
     return name.length() + 1 + city.length() + 1 + state.length() + 1 + 8;
   }

@@ -69,6 +69,19 @@ public class AuctionCount implements KnownSize, Serializable {
   }
 
   @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    AuctionCount other = (AuctionCount) otherObject;
+    return auction == other.auction && num == other.num;
+  }
+
+  @Override
   public long sizeInBytes() {
     return 8 + 8;
   }
