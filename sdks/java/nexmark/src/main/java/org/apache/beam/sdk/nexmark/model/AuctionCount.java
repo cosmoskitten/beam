@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -66,6 +67,25 @@ public class AuctionCount implements KnownSize, Serializable {
   public AuctionCount(long auction, long count) {
     this.auction = auction;
     this.count = count;
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    AuctionCount other = (AuctionCount) otherObject;
+    return Objects.equals(auction, other.auction)
+        && Objects.equals(num, other.num);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, num);
   }
 
   @Override
