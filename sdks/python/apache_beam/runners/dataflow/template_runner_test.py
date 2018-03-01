@@ -38,7 +38,7 @@ except ImportError:
 
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-class TemplatingDataflowRunnerTest(unittest.TestCase):
+class TemplatingDataflowRunnerTest(object):
   """TemplatingDataflow tests."""
 
   def test_full_completion(self):
@@ -93,6 +93,25 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     with self.assertRaises(IOError):
       pipeline.run().wait_until_finish()
 
+
+class MyTestCase(unittest.TestCase):
+  def test_multimap_side_input(self):
+    """A test pipeline that reads from a custom source and executes a DoFn."""
+    with Pipeline(runner='DataflowRunner',
+                  options=PipelineOptions(project='abcdef',
+                                          temp_location='gs://dev/null',
+                                          staging_location='gs://foo/bar')) as p:
+      main = p | 'main' >> beam.Create(['a', 'b'])
+      if False:
+        side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)]) | 'id' >> beam.Map(lambda x: x) #.with_output_types(beam.typehints.KV[str, int])
+        main | 'do_it' >> beam.Map(lambda k, d: (k, len(d[k])),
+                                   beam.pvalue.AsMultiMap(side)).with_output_types(beam.typehints.KV[str, int])
+
+      else:
+        def single_side_check(elem, side):
+          assert side == 'x', side
+        single_side = p | 'single_side' >> beam.Create(['x'])
+        main | beam.FlatMap(single_side_check, beam.pvalue.AsSingleton(single_side))
 
 if __name__ == '__main__':
   unittest.main()
