@@ -41,32 +41,32 @@ public class AuctionCount implements KnownSize, Serializable {
     public void encode(AuctionCount value, OutputStream outStream)
         throws CoderException, IOException {
       LONG_CODER.encode(value.auction, outStream);
-      LONG_CODER.encode(value.count, outStream);
+      LONG_CODER.encode(value.num, outStream);
     }
 
     @Override
     public AuctionCount decode(InputStream inStream)
         throws CoderException, IOException {
       long auction = LONG_CODER.decode(inStream);
-      long count = LONG_CODER.decode(inStream);
-      return new AuctionCount(auction, count);
+      long num = LONG_CODER.decode(inStream);
+      return new AuctionCount(auction, num);
     }
   };
 
-  @JsonProperty private final long auction;
+  @JsonProperty public final long auction;
 
-  @JsonProperty private final long count;
+  @JsonProperty public final long num;
 
   // For Avro only.
   @SuppressWarnings("unused")
   private AuctionCount() {
     auction = 0;
-    count = 0;
+    num = 0;
   }
 
-  public AuctionCount(long auction, long count) {
+  public AuctionCount(long auction, long num) {
     this.auction = auction;
-    this.count = count;
+    this.num = num;
   }
 
   @Override
