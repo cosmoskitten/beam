@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -70,6 +71,24 @@ public class AuctionPrice implements KnownSize, Serializable {
   public AuctionPrice(long auction, long price) {
     this.auction = auction;
     this.price = price;
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    AuctionPrice other = (AuctionPrice) otherObject;
+    return auction == other.auction && price == other.price;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, price);
   }
 
   @Override
