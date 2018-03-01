@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.truth.Truth.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,8 +84,8 @@ public class SingletonDockerEnvironmentManagerTest {
     SingletonDockerEnvironmentManager manager = getManager();
 
     RemoteEnvironment handle = manager.getEnvironment(ENVIRONMENT);
-    assertThat(handle.getClient()).isSameAs(sdkHarnessClient);
-    assertThat(handle.getEnvironment()).isEqualTo(ENVIRONMENT);
+    assertThat(handle.getClient(), is(sdkHarnessClient));
+    assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
   }
 
   @Test
@@ -106,7 +109,7 @@ public class SingletonDockerEnvironmentManagerTest {
       manager.getEnvironment(ENVIRONMENT.toBuilder().setUrl("other-environment").build());
       fail("Expected exception");
     } catch (Exception expected) {
-      assertThat(expected).isInstanceOf(IllegalArgumentException.class);
+      assertThat(expected, instanceOf(IllegalArgumentException.class));
     }
   }
 

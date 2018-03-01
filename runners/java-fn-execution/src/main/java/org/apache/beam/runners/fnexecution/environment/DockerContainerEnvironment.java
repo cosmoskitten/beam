@@ -20,7 +20,9 @@ package org.apache.beam.runners.fnexecution.environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 
-/** A {@link RemoteEnvironment} that talks to a Docker container. */
+/**
+ * A {@link RemoteEnvironment} that talks to a Docker container. Accessors are thread-compatible.
+ */
 class DockerContainerEnvironment implements RemoteEnvironment {
 
   static DockerContainerEnvironment create(DockerWrapper docker,
@@ -51,6 +53,10 @@ class DockerContainerEnvironment implements RemoteEnvironment {
     return client;
   }
 
+  /**
+   * Closes this remote docker environment. The associated {@link SdkHarnessClient} must not be
+   * used after calling this.
+   */
   @Override
   public void close() throws Exception {
     getClient().close();

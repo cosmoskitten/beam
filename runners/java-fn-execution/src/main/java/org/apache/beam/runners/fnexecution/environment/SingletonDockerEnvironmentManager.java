@@ -33,7 +33,7 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClientControlServic
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 
-/** An {@link EnvironmentManager} that manages a single docker container. */
+/** An {@link EnvironmentManager} that manages a single docker container. Not thread-safe. */
 public class SingletonDockerEnvironmentManager implements EnvironmentManager {
 
   public static SingletonDockerEnvironmentManager forServices(
@@ -46,14 +46,12 @@ public class SingletonDockerEnvironmentManager implements EnvironmentManager {
         retrievalServiceServer, provisioningServiceServer);
   }
 
-  private final Object lock = new Object();
   private final DockerWrapper docker;
   private final GrpcFnServer<SdkHarnessClientControlService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
-  @GuardedBy("lock")
   private RemoteEnvironment dockerEnvironment = null;
 
   private SingletonDockerEnvironmentManager(
@@ -76,20 +74,18 @@ public class SingletonDockerEnvironmentManager implements EnvironmentManager {
    */
   @Override
   public RemoteEnvironment getEnvironment(Environment environment) throws Exception {
-    synchronized (lock) {
-      if (dockerEnvironment == null) {
-        dockerEnvironment = createDockerEnv(environment);
-      } else {
-        checkArgument(
-            environment.getUrl().equals(dockerEnvironment.getEnvironment().getUrl()),
-            "A %s must only be queried for a single %s. Existing %s, Argument %s",
-            SingletonDockerEnvironmentManager.class.getSimpleName(),
-            Environment.class.getSimpleName(),
-            dockerEnvironment.getEnvironment().getUrl(),
-            environment.getUrl());
-      }
-      return dockerEnvironment;
+    if (dockerEnvironment == null) {
+      dockerEnvironment = createDockerEnv(environment);
+    } else {
+      checkArgument(
+          environment.getUrl().equals(dockerEnvironment.getEnvironment().getUrl()),
+          "A %s must only be queried for a single %s. Existing %s, Argument %s",
+          SingletonDockerEnvironmentManager.class.getSimpleName(),
+          Environment.class.getSimpleName(),
+          dockerEnvironment.getEnvironment().getUrl(),
+          environment.getUrl());
     }
+    return dockerEnvironment;
   }
 
   private DockerContainerEnvironment createDockerEnv(Environment environment)

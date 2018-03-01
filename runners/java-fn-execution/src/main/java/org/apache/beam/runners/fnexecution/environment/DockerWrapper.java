@@ -18,7 +18,6 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import java.io.BufferedReader;
@@ -78,7 +77,7 @@ class DockerWrapper {
    */
   public void killContainer(String containerId) throws IOException, TimeoutException,
       InterruptedException {
-    checkNotNull(containerId);
+    checkArgument(containerId != null);
     checkArgument(CONTAINER_ID_PATTERN.matcher(containerId).matches(),
         "Container ID must be a 64-character hexadecimal string");
     runShortCommand(Arrays.asList(dockerExecutable, "kill", containerId));
@@ -115,11 +114,7 @@ class DockerWrapper {
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       // Recast any exceptions in reading output as IOExceptions.
-      if (cause instanceof IOException) {
-        throw (IOException) cause;
-      } else {
-        throw new IOException(cause);
-      }
+      throw new IOException(cause);
     }
   }
 }
