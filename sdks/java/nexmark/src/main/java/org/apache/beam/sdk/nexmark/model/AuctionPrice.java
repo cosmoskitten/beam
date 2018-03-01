@@ -54,11 +54,11 @@ public class AuctionPrice implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  private final long auction;
+  public final long auction;
 
   /** Price in cents. */
   @JsonProperty
-  private final long price;
+  public final long price;
 
   // For Avro only.
   @SuppressWarnings("unused")
