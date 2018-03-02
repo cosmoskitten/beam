@@ -29,8 +29,8 @@ nums.each {
     // Set common parameters.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
-    // Sets that this is a PostCommit job.
-    common_job_properties.setPostCommit(delegate, '45 18 * * *')
+    // Sets that this is a cron job.
+    common_job_properties.setCronJob(delegate, '45 18 * * *')
 
     // Allows triggering this build against pull requests.
     common_job_properties.enablePhraseTriggeringFromPullRequest(
