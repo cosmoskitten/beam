@@ -273,7 +273,6 @@ class DataflowRunner(PipelineRunner):
 
     return SideInputVisitor()
 
-
   @staticmethod
   def flatten_input_visitor():
     # Imported here to avoid circular dependencies.
