@@ -90,5 +90,13 @@ test {
 
 // Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
-def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
-createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
+def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
+def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)
+createJavaQuickstartValidationTask(type: 'MobileGaming',
+        runner: 'Dataflow',
+        gcpProject: gcpProject,
+        gcsBucket: gcsBucket,
+        bqDataset: bqDataset,
+        pubsubTopic: pubsubTopic)
