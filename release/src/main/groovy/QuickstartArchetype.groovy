@@ -38,5 +38,8 @@ class QuickstartArchetype {
     t.see "src"
     t.run "ls src/main/java/org/apache/beam/examples/"
     t.see "WordCount.java"
+    t.run "ls src/main/java/org/apache/beam/examples/complete/"
+    t.run "ls src/main/java/org/apache/beam/examples/complete/game/"
+    t.see "UserScore.java"
   }
 }

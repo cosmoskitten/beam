@@ -30,8 +30,8 @@ job('beam_PostRelease_Python_Candidate') {
     parameters {
         nodeParam('TEST_HOST') {
             description('select test host as either beam1, 2 or 3')
-            defaultNodes(['beam1', 'beam2', 'beam3'])
-            allowedNodes(['beam1', 'beam2', 'beam3'])
+            defaultNodes(['beam4', 'beam5', 'beam6'])
+            allowedNodes(['beam4', 'beam5', 'beam6'])
             trigger('multiSelectionDisallowed')
             eligibility('IgnoreOfflineNodeEligibility')
         }
