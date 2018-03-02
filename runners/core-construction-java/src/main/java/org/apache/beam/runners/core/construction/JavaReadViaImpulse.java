@@ -143,9 +143,10 @@ public class JavaReadViaImpulse {
    * A {@link Coder} for {@link BoundedSource}s that wraps a {@link SerializableCoder}. We cannot
    * safely use an unwrapped SerializableCoder because
    * {@link SerializableCoder#structuralValue(Serializable)} assumes that coded elements support
-   * object equality. By default, Coders compare equality by serialized bytes, which we want in
-   * this case. It is usually safe to depend on coded representation here because we only compare
-   * objects on bundle commit, which compares serializations of the same object instance.
+   * object equality. Sources in general do not support object equality. By default, Coders compare
+   * equality by serialized bytes, which we want in this case. It is safe to depend on coded
+   * representation here because we only compare objects on bundle commit, which compares
+   * serializations of the same object instance.
    *
    * <p>
    * BoundedSources are generally not used as PCollection elements, so we do not expose this coder
