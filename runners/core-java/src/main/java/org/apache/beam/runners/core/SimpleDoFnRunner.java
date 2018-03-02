@@ -120,6 +120,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.allowedLateness = windowingStrategy.getAllowedLateness();
   }
 
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     return fn;
   }

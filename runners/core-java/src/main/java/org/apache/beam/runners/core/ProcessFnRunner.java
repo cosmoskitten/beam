@@ -40,13 +40,13 @@ import org.joda.time.Instant;
 public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     implements PushbackSideInputDoFnRunner<
         KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
-  private final SimpleDoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
+  private final DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
     underlying;
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
   public ProcessFnRunner(
-      SimpleDoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> underlying,
+      DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
     this.underlying = underlying;
@@ -54,6 +54,7 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     this.sideInputReader = sideInputReader;
   }
 
+  @Override
   public DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> getFn() {
     return underlying.getFn();
   }
