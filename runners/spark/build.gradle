@@ -91,4 +91,4 @@ configurations.testRuntimeClasspath {
 }
 
 // Generates :runners:spark:runQuickstartJavaSpark
-createJavaQuickstartValidationTask(name: 'Spark')
+createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'Spark')
