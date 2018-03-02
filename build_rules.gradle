@@ -544,8 +544,13 @@ ext.createJavaQuickstartValidationTask = {
     argsNeeded.add("--gcsBucket=${config.gcsBucket}")
   }
   project.evaluationDependsOn(':release')
-  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
-    main = "quickstart-java-${config.name}".toLowerCase()
+//  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+//    main = "quickstart-java-${config.name}".toLowerCase()
+//    classpath = project(':release').sourceSets.main.runtimeClasspath
+//    args argsNeeded
+//  }
+  task "runMobileGamingJavaDirect" (dependsOn: ':release:classes', type: JavaExec) {
+    main = "mobile_gaming-java-${config.name}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
   }
