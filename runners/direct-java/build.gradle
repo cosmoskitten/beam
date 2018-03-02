@@ -71,4 +71,5 @@ shadowJar {
 }
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
-createJavaQuickstartValidationTask(name: 'Direct')
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
+createJavaQuickstartValidationTask(name: 'Direct', gcsBucket: gcsBucket)
