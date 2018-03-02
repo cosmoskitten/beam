@@ -28,7 +28,8 @@ import org.apache.flink.core.io.InputSplitAssigner;
 /** Flink input format that implements impulses. */
 public class ImpulseInputFormat extends RichInputFormat<WindowedValue<byte[]>, GenericInputSplit> {
 
-  private boolean hasOutput = false;
+  // Whether the input format has remaining output that has not yet been read.
+  private boolean availableOutput = false;
 
   public ImpulseInputFormat() {}
 
@@ -70,17 +71,17 @@ public class ImpulseInputFormat extends RichInputFormat<WindowedValue<byte[]>, G
 
   @Override
   public void open(GenericInputSplit genericInputSplit) {
-    hasOutput = true;
+    availableOutput = true;
   }
 
   @Override
   public boolean reachedEnd() {
-    return !hasOutput;
+    return !availableOutput;
   }
 
   @Override
   public WindowedValue<byte[]> nextRecord(WindowedValue<byte[]> windowedValue) {
-    hasOutput = false;
+    availableOutput = false;
     if (windowedValue != null) {
       return windowedValue;
     }
