@@ -520,11 +520,20 @@ class JavaQuickstartConfiguration {
   // and also for the script name, quickstart-java-${name}.toLowerCase().
   String name
 
-  // gcpProject sets the gcpProject argument when executing the quickstart.
+  // gcpProject sets the gcpProject argument when executing examples.
   String gcpProject
 
-  // gcsBucket sets the gcsProject argument when executing the quickstart.
+  // gcsBucket sets the gcsProject argument when executing examples.
   String gcsBucket
+
+  // gcsBucketSubDirectory sets the sub-directory in the gcpBucket when executing examples.
+  String gcsBucketSubDirectory
+
+  // bqDataset sets the BigQuery Dataset when executing mobile-gaming examples
+  String bqDataset
+
+  // pubsubTopic sets topics when executing streaming pipelines
+  String pubsubTopic
 }
 
 // Creates a task to run the quickstart for a runner.
@@ -543,9 +552,23 @@ ext.createJavaQuickstartValidationTask = {
   if (config.gcsBucket) {
     argsNeeded.add("--gcsBucket=${config.gcsBucket}")
   }
+  if (config.gcsBucketSubDirectory) {
+    argsNeeded.add("--gcsBucketSubDirectory=${config.gcsBucketSubDirectory}")
+  }
+  if (config.bqDataset) {
+      argsNeeded.add("--bqDataset=${config.bqDataset}")
+  }
+  if (config.pubsubTopic) {
+      argsNeeded.add("--pubsubTopic=${config.pubsubTopic}")
+  }
   project.evaluationDependsOn(':release')
-  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
-    main = "quickstart-java-${config.name}".toLowerCase()
+//  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+//    main = "quickstart-java-${config.name}".toLowerCase()
+//    classpath = project(':release').sourceSets.main.runtimeClasspath
+//    args argsNeeded
+//  }
+  task "runMobileGamingJavaDirect" (dependsOn: ':release:classes', type: JavaExec) {
+    main = "mobile_gaming-java-${config.name}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
   }
