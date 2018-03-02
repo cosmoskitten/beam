@@ -305,10 +305,13 @@ final class ExecutorServiceParallelExecutor
     }
     pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     if (!errors.isEmpty()) {
-      throw new IllegalStateException(
-        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
-        + errors.stream().map(Exception::getMessage)
-          .collect(Collectors.joining("\n- ", "- ", "")));
+      final IllegalStateException thrownError =
+        new IllegalStateException(
+          "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
+            + errors.stream().map(Exception::getMessage)
+            .collect(Collectors.joining("\n- ", "- ", "")));
+      visibleUpdates.failed(thrownError);
+      throw thrownError;
     }
   }
 

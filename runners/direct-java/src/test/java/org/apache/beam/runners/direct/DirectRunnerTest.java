@@ -311,16 +311,16 @@ public class DirectRunnerTest implements Serializable {
       .apply(ParDo.of(new DoFn<String, String>() {
         @ProcessElement
         public void onElement(final ProcessContext ctx) {
-          // no-op
+            // no-op
         }
 
         @Teardown
         public void teardown() {
           // just to not have a fast execution hiding an issue until we have a shutdown callback
           try {
-              Thread.sleep(1000);
+            Thread.sleep(1000);
           } catch (final InterruptedException e) {
-              fail();
+            fail();
           }
           TEARDOWN_CALL.set(System.nanoTime());
         }

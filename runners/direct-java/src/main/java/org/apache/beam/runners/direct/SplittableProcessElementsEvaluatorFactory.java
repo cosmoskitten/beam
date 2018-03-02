@@ -54,13 +54,11 @@ class SplittableProcessElementsEvaluatorFactory<
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
-  private final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                    .setThreadFactory(MoreExecutors.platformThreadFactory())
-                    .setNameFormat("direct-splittable-process-element-checkpoint-executor")
-                    .build());
+  private final ScheduledExecutorService ses;
+  private final EvaluationContext evaluationContext;
 
   SplittableProcessElementsEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
     this.delegateFactory =
       new ParDoEvaluatorFactory<>(
         evaluationContext,
@@ -78,6 +76,11 @@ class SplittableProcessElementsEvaluatorFactory<
               return DoFnLifecycleManager.of(transform.newProcessFn(transform.getFn()));
             }
           });
+    this.ses = Executors.newSingleThreadScheduledExecutor(
+      new ThreadFactoryBuilder()
+        .setThreadFactory(MoreExecutors.platformThreadFactory())
+        .setNameFormat("direct-splittable-process-element-checkpoint-executor_" + hashCode())
+        .build());
   }
 
   @Override
@@ -86,8 +89,7 @@ class SplittableProcessElementsEvaluatorFactory<
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         (TransformEvaluator<T>)
-            createEvaluator((AppliedPTransform) application,
-                    (CommittedBundle) inputBundle);
+            createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
     return evaluator;
   }
 
@@ -106,7 +108,8 @@ class SplittableProcessElementsEvaluatorFactory<
       CommittedBundle<InputT> inputBundle)
       throws Exception {
     final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
-      application.getTransform();
+        application.getTransform();
+
     final DoFnLifecycleManagerRemovingTransformEvaluator
       <KeyedWorkItem<String, KV<InputT, RestrictionT>>> evaluator =
       delegateFactory.createEvaluator(
@@ -116,12 +119,12 @@ class SplittableProcessElementsEvaluatorFactory<
         application.getTransform().getSideInputs(),
         application.getTransform().getMainOutputTag(),
         application.getTransform().getAdditionalOutputTags().getAll());
-
     final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> pde =
       evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
       (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
         ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
+
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());
     processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
@@ -150,17 +153,18 @@ class SplittableProcessElementsEvaluatorFactory<
             outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
           }
         };
-      processFn.setProcessElementInvoker(
+    processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
-            delegateFactory.evaluationContext.getPipelineOptions(),
+            evaluationContext.getPipelineOptions(),
             outputWindowedValue,
-            delegateFactory.evaluationContext.createSideInputReader(transform.getSideInputs()),
+            evaluationContext.createSideInputReader(transform.getSideInputs()),
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise
             // splittable DoFn's in that respect.
             100,
             Duration.standardSeconds(1)));
+
     return evaluator;
   }
 
