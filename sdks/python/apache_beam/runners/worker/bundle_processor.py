@@ -160,7 +160,7 @@ class StateBackedSideInputMap(object):
 
       elif (access_pattern == common_urns.MULTIMAP_SIDE_INPUT or
             access_pattern ==
-                dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
+            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()

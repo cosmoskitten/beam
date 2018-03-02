@@ -316,9 +316,6 @@ class DataflowRunner(PipelineRunner):
     # TODO(BEAM-2717): Remove once Coders are already in proto.
     for pcoll in proto_pipeline.components.pcollections.values():
       if pcoll.coder_id not in self.proto_context.coders:
-        window_coder = self.proto_context.coders[
-            proto_pipeline.components.windowing_strategies[
-                pcoll.windowing_strategy_id].window_coder_id]
         coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
         pcoll.coder_id = self.proto_context.coders.get_id(coder)
     self.proto_context.coders.populate_map(proto_pipeline.components.coders)
