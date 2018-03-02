@@ -34,6 +34,8 @@ class TestScripts {
      static String ver
      static String gcpProject
      static String gcsBucket
+     static String bqDataset
+     static String pubsubTopic
    }
 
    def TestScripts(String[] args) {
@@ -42,6 +44,9 @@ class TestScripts {
      cli.repourl(args:1, 'Repository URL')
      cli.gcpProject(args:1, 'Google Cloud Project')
      cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
+     cli.bqDataset(args:1, "BigQuery Dataset")
+     cli.pubsubTopic(args:1, "PubSub Topic")
+
      def options = cli.parse(args)
      var.repoUrl = options.repourl
      var.ver = options.ver
@@ -55,6 +60,14 @@ class TestScripts {
        var.gcsBucket = options.gcsBucket
        println "GCS Storage bucket: ${var.gcsBucket}"
      }
+     if (options.bqDataset) {
+         var.bqDataset = options.bqDataset
+         println "BigQuery Dataset: ${var.bqDataset}"
+     }
+     if (options.pubsubTopic) {
+         var.pubsubTopic = options.pubsubTopic
+         println "PubSub Topic: ${var.pubsubTopic}"
+     }
    }
 
    def ver() {
@@ -67,6 +80,14 @@ class TestScripts {
 
    def gcsBucket() {
      return var.gcsBucket
+   }
+
+   def bqDataset() {
+     return var.bqDataset
+   }
+
+   def pubsubTopic() {
+     return var.pubsubTopic
    }
 
    // Both documents the overal scenario and creates a clean temp directory
@@ -103,6 +124,23 @@ class TestScripts {
        _error("Cannot find expected text")
      }
      println "Verified $expected"
+   }
+
+   public void seeOneOf(List<String> expected) {
+     boolean saw = false;
+     String lastText = var.lastText;
+     for (String expect: expected) {
+       if(lastText.contains(expect)) {
+         saw = true
+         println "Verified $expect"
+         break
+       }
+     }
+     if (!saw) {
+       var.startDir.deleteDir()
+       println "Cannot find ${expected} in ${var.lastText}"
+       _error("Cannot find expected text")
+     }
    }
 
    // Cleanup and print success
