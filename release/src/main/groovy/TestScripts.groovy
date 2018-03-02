@@ -105,6 +105,23 @@ class TestScripts {
      println "Verified $expected"
    }
 
+//   public void seeOneOf(String[] expected) {
+//     boolean saw = false;
+//     String lastText = var.lastText;
+//     for (String expect: expected) {
+//       if(lastText.contains(expect)) {
+//         saw = true;
+//         println "Verified $expect"
+//         break;
+//       }
+//     }
+//     if (!saw) {
+//       var.startDir.deleteDir()
+//       println "Cannot find ${expected} in ${var.lastText}"
+//       _error("Cannot find expected text")
+//     }
+//   }
+
    // Cleanup and print success
    public void done() {
      var.startDir.deleteDir()
