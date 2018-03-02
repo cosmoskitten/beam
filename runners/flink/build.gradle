@@ -130,4 +130,4 @@ task validatesRunner {
 }
 
 // Generates :runners:flink:runQuickstartJavaFlinkLocal
-createJavaQuickstartValidationTask(name: 'FlinkLocal')
+createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

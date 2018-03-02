@@ -1,0 +1,85 @@
+#!groovy
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import MobileGamingJavaUtils
+
+t = new TestScripts(args)
+
+/*
+ * Run the mobile game examples on Dataflow.
+ * https://beam.apache.org/get-started/mobile-gaming-example/
+ */
+
+t.describe 'Run Apache Beam Java SDK Mobile Gaming Examples - Dataflow'
+
+QuickstartArchetype.generate(t)
+
+t.intent 'Running the Mobile-Gaming Code with DataflowRunner'
+
+def runner = "DataflowRunner"
+
+/**
+ *  Run the UserScore example on DataflowRunner
+ * */
+
+t.intent("Running: UserScore example on DataflowRunner")
+
+t.run(MobileGamingJavaUtils.generateCommand("UserScore", runner, t))
+t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
+t.see "total_score: 231, user: user19_BananaWallaby"
+t.intent("SUCCEED: UserScore successfully run on DataflowRunner.")
+t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}*"
+
+
+/**
+ * Run the HourlyTeamScore example on DataflowRunner
+ * */
+
+t.intent("Running: HourlyTeamScore example on DataflowRunner")
+t.run(MobileGamingJavaUtils.generateCommand("HourlyTeamScore", runner, t))
+t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* | grep AzureBilby "
+t.see "total_score: 2788, team: AzureBilby"
+t.intent("SUCCEED: HourlyTeamScore successfully run on DataflowRunner.")
+t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}*"
+
+
+/**
+ * Run the LeaderBoard example on DataflowRunner
+ * */
+
+t.intent("Running: LeaderBoard example on DataflowRunner")
+t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_user")
+t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_team")
+
+def InjectorThread = Thread.start() {
+    t.run(MobileGamingJavaUtils.generateCommand("Injector", "", t))
+}
+
+def LeaderBoardThread = Thread.start() {
+    t.run(MobileGamingJavaUtils.generateCommand("LeaderBoard", runner, t))
+}
+
+def isSuccess = MobileGamingJavaUtils.verifyLeaderBoardResult(runner, t)
+InjectorThread.stop()
+LeaderBoardThread.stop()
+if(!isSucceess){
+    t._error("FAILED: Failed running LeaderBoard on DataflowRunner")
+}
+
+t.done()
