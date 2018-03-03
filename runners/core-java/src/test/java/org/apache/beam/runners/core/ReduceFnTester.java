@@ -22,9 +22,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Equivalence;
+import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +37,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
@@ -533,28 +534,33 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    injectElements(Arrays.asList(values));
+  }
+
+  public final void injectElements(Iterable<TimestampedValue<InputT>> values) throws Exception {
     for (TimestampedValue<InputT> value : values) {
       WindowTracing.trace("TriggerTester.injectElements: {}", value);
     }
 
     Iterable<WindowedValue<InputT>> inputs =
-        Arrays.asList(values)
-            .stream()
-            .map(
-                input -> {
-                  try {
-                    InputT value = input.getValue();
-                    Instant timestamp = input.getTimestamp();
-                    Collection<W> windows =
-                        windowFn.assignWindows(
-                            new TestAssignContext<W>(
-                                windowFn, value, timestamp, GlobalWindow.INSTANCE));
-                    return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .collect(Collectors.toList());
+        Iterables.transform(
+            values,
+            new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
+              @Override
+              public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
+                try {
+                  InputT value = input.getValue();
+                  Instant timestamp = input.getTimestamp();
+                  Collection<W> windows =
+                      windowFn.assignWindows(
+                          new TestAssignContext<W>(
+                              windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                  return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }
+            });
 
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.processElements(
