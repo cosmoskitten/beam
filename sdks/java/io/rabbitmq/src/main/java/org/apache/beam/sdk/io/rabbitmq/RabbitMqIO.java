@@ -20,11 +20,11 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -33,11 +33,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -92,13 +89,14 @@ public class RabbitMqIO {
 
   public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder()
-        .setConnectionConfig(ConnectionConfig.create())
+        .setConnectionConfig(ConnectionConfig.create()).setQueueDeclare(false)
         .setMaxReadTime(null).setMaxNumRecords(Long.MAX_VALUE).setUseCorrelationId(false).build();
   }
 
   public static Write write() {
     return new AutoValue_RabbitMqIO_Write.Builder()
-        .setConnectionConfig(ConnectionConfig.create()).build();
+        .setConnectionConfig(ConnectionConfig.create())
+        .setExchangeDeclare(false).build();
   }
 
   private RabbitMqIO() {
@@ -111,9 +109,6 @@ public class RabbitMqIO {
   public abstract static class ConnectionConfig implements Serializable {
 
     @Nullable abstract String uri();
-    @Nullable abstract String queue();
-    @Nullable abstract String exchange();
-    @Nullable abstract String exchangeType();
 
     abstract int networkRecoveryInterval();
     abstract boolean automaticRecovery();
@@ -129,9 +124,6 @@ public class RabbitMqIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setUri(String uri);
-      abstract Builder setQueue(String queue);
-      abstract Builder setExchange(String exchange);
-      abstract Builder setExchangeType(String exchangeType);
       abstract Builder setNetworkRecoveryInterval(int networkRecoveryInterval);
       abstract Builder setAutomaticRecovery(boolean automaticRecovery);
       abstract Builder setTopologyRecovery(boolean topologyRecovery);
@@ -145,9 +137,6 @@ public class RabbitMqIO {
     public static ConnectionConfig create() {
       return new AutoValue_RabbitMqIO_ConnectionConfig.Builder()
           .setUri("amqp://localhost:5672")
-          .setQueue(null)
-          .setExchange("DEFAULT")
-          .setExchangeType("fanout")
           .setAutomaticRecovery(true)
           .setTopologyRecovery(true)
           .setConnectionTimeout(60000)
@@ -162,46 +151,12 @@ public class RabbitMqIO {
      * Create a RabbitMQ connection configuration with broker URI and a queue name.
      *
      * @param uri The RabbitMQ server URI.
-     * @param queue The RabbitMQ queue destination.
      * @return The corresponding {@link ConnectionConfig}.
      */
-    public static ConnectionConfig create(String uri, String queue) {
+    public static ConnectionConfig create(String uri) {
       checkArgument(uri != null, "uri can not be null");
-      checkArgument(queue != null, "queue can not be null");
-      return new AutoValue_RabbitMqIO_ConnectionConfig.Builder().setUri(uri)
-          .setQueue(queue)
-          .setExchange(null)
-          .setExchangeType(null)
-          .setAutomaticRecovery(true)
-          .setTopologyRecovery(true)
-          .setConnectionTimeout(60000)
-          .setRequestedChannelMax(0)
-          .setRequestedFrameMax(0)
-          .setRequestedHeartbeat(60)
-          .setNetworkRecoveryInterval(5000)
-          .build();
-    }
-
-    /**
-     * Create a RabbitMQ connection configuration with broker URI and an exchange.
-     *
-     * @param uri The RabbitMQ server URI.
-     * @param exchange The RabbitMQ exchange name.
-     * @param exchangeType The RabbitMQ exchange type (direct, topic, headers, fanout).
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public static ConnectionConfig create(String uri, String exchange, String exchangeType) {
-      checkArgument(uri != null, "uri can not be null");
-      checkArgument(exchange != null, "exchange can not be null");
-      checkArgument(exchangeType != null, "exchangeType can not be null");
-      checkArgument(exchangeType.equals("direct")
-          || exchangeType.equals("topic")
-          || exchangeType.equals("headers")
-          || exchangeType.equals("fanout"),
-          "exchangeType should be direct, topic, headers, fanout");
-      return new AutoValue_RabbitMqIO_ConnectionConfig.Builder().setUri(uri)
-          .setExchange(exchange)
-          .setExchangeType(exchangeType)
+      return new AutoValue_RabbitMqIO_ConnectionConfig.Builder()
+          .setUri(uri)
           .setAutomaticRecovery(true)
           .setTopologyRecovery(true)
           .setConnectionTimeout(60000)
@@ -221,35 +176,6 @@ public class RabbitMqIO {
     public ConnectionConfig withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
       return builder().setUri(uri).build();
-    }
-
-    /**
-     * Define the queue destination.
-     *
-     * @param queue The queue name.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withQueue(String queue) {
-      checkArgument(queue != null, "queue can not be null");
-      return builder().setQueue(queue).build();
-    }
-
-    /**
-     * Define the exchange.
-     *
-     * @param name The exchange name.
-     * @param type The exchange type.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withExchange(String name, String type) {
-      checkArgument(name != null, "name can not be null");
-      checkArgument(type != null, "type can not be null");
-      checkArgument(type.equals("direct")
-              || type.equals("topic")
-              || type.equals("headers")
-              || type.equals("fanout"),
-          "type should be direct, topic, headers, fanout");
-      return builder().setExchange(name).setExchangeType(type).build();
     }
 
     /**
@@ -356,9 +282,14 @@ public class RabbitMqIO {
    * A {@link PTransform} to consume messages from RabbitMQ server.
    */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<RabbitMqMessage>> {
 
     @Nullable abstract ConnectionConfig connectionConfig();
+    @Nullable abstract String queue();
+    abstract boolean queueDeclare();
+    @Nullable abstract String exchange();
+    @Nullable abstract String exchangeType();
+    @Nullable abstract String routingKey();
     @Nullable abstract Boolean useCorrelationId();
     abstract long maxNumRecords();
     @Nullable abstract Duration maxReadTime();
@@ -368,6 +299,11 @@ public class RabbitMqIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfig(ConnectionConfig connectionConfig);
+      abstract Builder setQueue(String queue);
+      abstract Builder setQueueDeclare(boolean queueDeclare);
+      abstract Builder setExchange(String exchange);
+      abstract Builder setExchangeType(String exchangeType);
+      abstract Builder setRoutingKey(String routingKey);
       abstract Builder setUseCorrelationId(Boolean useCorrelationId);
       abstract Builder setMaxNumRecords(long maxNumRecords);
       abstract Builder setMaxReadTime(Duration maxReadTime);
@@ -386,18 +322,23 @@ public class RabbitMqIO {
 
     public Read withQueue(String queue) {
       checkArgument(queue != null, "queue can not be null");
-      return builder().setConnectionConfig(connectionConfig().withQueue(queue)).build();
+      return builder().setQueue(queue).build();
     }
 
-    public Read withExchange(String name, String type) {
+    public Read withQueueDeclare(boolean queueDeclare) {
+      return builder().setQueueDeclare(queueDeclare).build();
+    }
+
+    public Read withExchange(String name, String type, String routingKey) {
       checkArgument(name != null, "name can not be null");
       checkArgument(type != null, "type can not be null");
+      checkArgument(routingKey != null, "routingKey can not be null");
       checkArgument(type.equals("direct")
               || type.equals("topic")
               || type.equals("headers")
               || type.equals("fanout"),
           "exchangeType should be direct, topic, headers, fanout");
-      return builder().setConnectionConfig(connectionConfig().withExchange(name, type)).build();
+      return builder().setExchange(name).setExchangeType(type).setRoutingKey(routingKey).build();
     }
 
     /**
@@ -423,11 +364,11 @@ public class RabbitMqIO {
     }
 
     @Override
-    public PCollection<byte[]> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
+    public PCollection<RabbitMqMessage> expand(PBegin input) {
+      org.apache.beam.sdk.io.Read.Unbounded<RabbitMqMessage> unbounded =
           org.apache.beam.sdk.io.Read.from(new RabbitMQSource(this));
 
-      PTransform<PBegin, PCollection<byte[]>> transform = unbounded;
+      PTransform<PBegin, PCollection<RabbitMqMessage>> transform = unbounded;
 
       if (maxNumRecords() != Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords());
@@ -440,7 +381,7 @@ public class RabbitMqIO {
 
   }
 
-  static class RabbitMQSource extends UnboundedSource<byte[], RabbitMQCheckpointMark> {
+  static class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpointMark> {
 
     final Read spec;
 
@@ -449,8 +390,8 @@ public class RabbitMqIO {
     }
 
     @Override
-    public Coder<byte[]> getOutputCoder() {
-      return ByteArrayCoder.of();
+    public Coder<RabbitMqMessage> getOutputCoder() {
+      return SerializableCoder.of(RabbitMqMessage.class);
     }
 
     @Override
@@ -465,7 +406,7 @@ public class RabbitMqIO {
     }
 
     @Override
-    public UnboundedReader<byte[]> createReader(PipelineOptions options,
+    public UnboundedReader<RabbitMqMessage> createReader(PipelineOptions options,
                                                 RabbitMQCheckpointMark checkpointMark) {
       return new UnboundedRabbitMqReader(this, checkpointMark);
     }
@@ -501,11 +442,12 @@ public class RabbitMqIO {
 
   }
 
-  private static class UnboundedRabbitMqReader extends UnboundedSource.UnboundedReader<byte[]> {
+  private static class UnboundedRabbitMqReader
+      extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
 
     private final RabbitMQSource source;
 
-    private byte[] current;
+    private RabbitMqMessage current;
     private byte[] currentRecordId;
     private Connection connection;
     private Channel channel;
@@ -560,7 +502,7 @@ public class RabbitMqIO {
     }
 
     @Override
-    public byte[] getCurrent() {
+    public RabbitMqMessage getCurrent() {
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -582,15 +524,14 @@ public class RabbitMqIO {
         if (channel == null) {
           throw new IOException("No RabbitMQ channel available");
         }
-        String queueName = null;
-        if (source.spec.connectionConfig().queue() != null) {
-          channel.queueDeclare(source.spec.connectionConfig().queue(), false, false, false, null);
-          queueName = source.spec.connectionConfig().queue();
-        } else if (source.spec.connectionConfig().exchange() != null) {
-          channel.exchangeDeclare(source.spec.connectionConfig().exchange(),
-              source.spec.connectionConfig().exchangeType());
+        String queueName = source.spec.queue();
+        if (source.spec.queueDeclare()) {
+          channel.queueDeclare(queueName, false, false, false, null);
+        }
+        if (source.spec.exchange() != null) {
+          channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
           queueName = channel.queueDeclare().getQueue();
-          channel.queueBind(queueName, source.spec.connectionConfig().exchange(), "");
+          channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
         consumer = new QueueingConsumer(channel);
@@ -616,7 +557,26 @@ public class RabbitMqIO {
         }
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         checkpointMark.sessionIds.add(deliveryTag);
-        current = delivery.getBody();
+        RabbitMqMessage message = new RabbitMqMessage(
+            source.spec.routingKey(),
+            delivery.getBody(),
+            delivery.getProperties().getContentType(),
+            delivery.getProperties().getContentEncoding(),
+            delivery.getProperties().getHeaders(),
+            delivery.getProperties().getDeliveryMode(),
+            delivery.getProperties().getPriority(),
+            delivery.getProperties().getCorrelationId(),
+            delivery.getProperties().getReplyTo(),
+            delivery.getProperties().getExpiration(),
+            delivery.getProperties().getMessageId(),
+            delivery.getProperties().getTimestamp(),
+            delivery.getProperties().getType(),
+            delivery.getProperties().getUserId(),
+            delivery.getProperties().getAppId(),
+            delivery.getProperties().getClusterId()
+        );
+
+        current = message;
         currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
@@ -647,15 +607,21 @@ public class RabbitMqIO {
    * A {@link PTransform} to publish messages to a RabbitMQ server.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
+  public abstract static class Write extends PTransform<PCollection<RabbitMqMessage>, PDone> {
 
     @Nullable abstract ConnectionConfig connectionConfig();
+    @Nullable abstract String exchange();
+    @Nullable abstract String exchangeType();
+    abstract boolean exchangeDeclare();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfig(ConnectionConfig connectionConfig);
+      abstract Builder setExchange(String exchange);
+      abstract Builder setExchangeType(String exchangeType);
+      abstract Builder setExchangeDeclare(boolean exchangeDeclare);
       abstract Write build();
     }
 
@@ -672,11 +638,6 @@ public class RabbitMqIO {
       return builder().setConnectionConfig(connectionConfig().withUri(uri)).build();
     }
 
-    public Write withQueue(String queue) {
-      checkArgument(queue != null, "queue can not be null");
-      return builder().setConnectionConfig(connectionConfig().withQueue(queue)).build();
-    }
-
     public Write withExchange(String exchange, String exchangeType) {
       checkArgument(exchange != null, "exchange can not be null");
       checkArgument(exchangeType.equals("direct")
@@ -684,17 +645,20 @@ public class RabbitMqIO {
               || exchangeType.equals("headers")
               || exchangeType.equals("fanout"),
           "exchangeType should be direct, topic, headers, fanout");
-      return builder()
-          .setConnectionConfig(connectionConfig().withExchange(exchange, exchangeType)).build();
+      return builder().setExchange(exchange).setExchangeType(exchangeType).build();
+    }
+
+    public Write withExchangeDeclare(boolean exchangeDeclare) {
+      return builder().setExchangeDeclare(exchangeDeclare).build();
     }
 
     @Override
-    public PDone expand(PCollection<byte[]> input) {
+    public PDone expand(PCollection<RabbitMqMessage> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
-    private static class WriteFn extends DoFn<byte[], Void> {
+    private static class WriteFn extends DoFn<RabbitMqMessage, Void> {
 
       private final Write spec;
 
@@ -713,22 +677,21 @@ public class RabbitMqIO {
         if (channel == null) {
           throw new IOException("No RabbitMQ channel available");
         }
-        if (spec.connectionConfig().queue() != null) {
-          channel.queueDeclare(spec.connectionConfig().queue(), false, false, false, null);
-        } else if (spec.connectionConfig().exchange() != null) {
-          channel.exchangeDeclare(spec.connectionConfig().exchange(),
-              spec.connectionConfig().exchangeType());
+
+        if (spec.exchangeDeclare()) {
+          channel.exchangeDeclare(spec.exchange(), spec.exchangeType());
         }
       }
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws IOException {
-        byte[] element = processContext.element();
-        if (spec.connectionConfig().queue() != null) {
-          channel.basicPublish("", spec.connectionConfig().queue(), null, element);
-        } else if (spec.connectionConfig().exchange() != null) {
-          channel.basicPublish(spec.connectionConfig().exchange(), "", null, element);
-        }
+        RabbitMqMessage element = processContext.element();
+        AMQP.BasicProperties properties = element.createProperties();
+        channel.basicPublish(
+            spec.exchange(),
+            element.getRoutingKey(),
+            properties,
+            element.getBody());
       }
 
       @Teardown
