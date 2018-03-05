@@ -58,14 +58,23 @@ public final class UdafImpl<InputT, AccumT, OutputT>
           }
 
           public RelDataType getType(RelDataTypeFactory typeFactory) {
+            ParameterizedType parameterizedType = findCombineFnSuperClass();
+            return typeFactory.createJavaType(
+              (Class) parameterizedType.getActualTypeArguments()[0]);
+          }
+
+          private ParameterizedType findCombineFnSuperClass() {
             Class clazz = combineFn.getClass();
-            while (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+            while (!clazz.getSuperclass().equals(CombineFn.class)) {
               clazz = clazz.getSuperclass();
             }
 
-            ParameterizedType parameterizedType = (ParameterizedType) clazz.getGenericSuperclass();
-            return typeFactory.createJavaType(
-                (Class) parameterizedType.getActualTypeArguments()[0]);
+            if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+              throw new IllegalStateException(
+                  "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
+            } else {
+              return (ParameterizedType) clazz.getGenericSuperclass();
+            }
           }
 
           public boolean isOptional() {

@@ -32,6 +32,10 @@ import org.junit.Test;
  * Tests for UDF/UDAF.
  */
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
+
+//  @Rule
+//  public ExpectedException thrown = ExpectedException.none();
+
   /**
    * GROUP-BY with UDAF.
    */
@@ -88,6 +92,30 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PAssert.that(result1).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Test that correct exception is thrown when subclass of {@link CombineFn} is not parameterized.
+   * BEAM-3777
+   */
+  @Test
+  public void testRawCombineFnSubclass() {
+    exceptions.expect(IllegalStateException.class);
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    RowType resultType = RowSqlType.builder()
+        .withIntegerField("f_int2")
+        .withIntegerField("squaresum")
+        .build();
+
+    Row row = Row.withRowType(resultType).addValues(0, 354).build();
+
+    String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
+        + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testUdaf",
+            BeamSql.query(sql1).registerUdaf("squaresum", new SquareSumRaw()));
   }
 
   /**
@@ -158,6 +186,32 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
       return accumulator;
     }
 
+  }
+
+  /**
+   * UDAF(CombineFn) for test, which returns the sum of square.
+   */
+  public static class SquareSumRaw extends CombineFn {
+
+    @Override
+    public Object createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public Object addInput(Object accumulator, Object input) {
+      return null;
+    }
+
+    @Override
+    public Object mergeAccumulators(Iterable accumulators) {
+      return null;
+    }
+
+    @Override
+    public Object extractOutput(Object accumulator) {
+      return null;
+    }
   }
 
   /**
