@@ -33,9 +33,6 @@ import org.junit.Test;
  */
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
-//  @Rule
-//  public ExpectedException thrown = ExpectedException.none();
-
   /**
    * GROUP-BY with UDAF.
    */
