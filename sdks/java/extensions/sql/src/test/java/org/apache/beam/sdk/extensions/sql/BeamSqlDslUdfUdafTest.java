@@ -115,7 +115,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PCollection<Row> result1 =
         boundedInput1.apply(
             "testUdaf",
-            BeamSql.query(sql1).registerUdaf("squaresum", new SquareSumRaw()));
+            BeamSql.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
   }
 
   /**
@@ -189,9 +189,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * UDAF(CombineFn) for test, which returns the sum of square.
+   * Non-parameterized CombineFn. Intended to test that non-parameterized CombineFns
+   * are correctly rejected. The methods just return null, as they should never be called.
    */
-  public static class SquareSumRaw extends CombineFn {
+  public static class RawCombineFn extends CombineFn {
 
     @Override
     public Object createAccumulator() {
