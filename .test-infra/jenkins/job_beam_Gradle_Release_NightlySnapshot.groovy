@@ -16,16 +16,25 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-reference-java")
+import common_job_properties
 
-description = "Apache Beam :: Runners :: Reference :: Java"
+// This is a test to see if the gradle publish works and has permissions to write to the snapshot repository.
+job('beam_Gradle_Release_NightlySnapshot') {
+  description('Runs gradle publish.')
 
-dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow library.java.slf4j_api
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
+  // Set common parameters.
+  common_job_properties.setTopLevelMainJobProperties(
+    delegate,
+    'master',
+    240)
+
+
+  // Set up as a precommit only for testing.
+  common_job_properties.setPreCommit(delegate, './gradlew publish', 'Run Gradle Publish')
+  steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks('publish')
+    }
+  }
 }
