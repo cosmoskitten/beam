@@ -17,9 +17,52 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
+
+// Extract the version from a library:version dependency.
+def ver = { return it.substring(1+it.lastIndexOf(':')) }
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'project.version':  version,
+    'bigquery.version': ver(project.library.java.google_api_services_bigquery),
+    'google-clients.version': ver(project.library.java.google_api_client),
+    'guava.version': ver(project.library.java.guava),
+    'hamcrest.version': ver(project.library.java.hamcrest_library),
+    'jackson.version': ver(project.library.java.jackson_core),
+    'joda.version': ver(project.library.java.joda_time),
+    'junit.version': ver(project.library.java.junit),
+    'pubsub.version': ver(project.library.java.google_api_services_pubsub),
+    'slf4j.version': ver(project.library.java.slf4j_api),
+    'spark.version': ver(project.library.java.spark_core),
+    'hadoop.version': ver(project.library.java.hadoop_client),
+    'mockito.version': ver(project.library.java.mockito_core),
+    'maven-compiler-plugin.version': '3.7.0',
+    'maven-exec-plugin.version': '1.6.0',
+    'maven-jar-plugin.version': '3.0.2',
+    'maven-shade-plugin.version': '3.1.0',
+    'maven-surefire-plugin.version': '2.20.1'
+  ]
+}
+
+// The :examples:java main/test sourceSets are used in generation.
+evaluationDependsOn(':examples:java')
+
+task generateSources(type: Exec) {
+  println "Generating sources for archetype"
+  inputs.file './generate-sources.sh'
+  inputs.dir project(':examples:java').sourceSets.main.allSource
+  inputs.dir project(':examples:java').sourceSets.test.allSource
+  commandLine './generate-sources.sh'
+}
+
+sourceSets {
+ main {
+  output.dir('src', builtBy: 'generateSources')
+ }
+}
 
 dependencies {
   shadow project(path: ":examples:java", configuration: "shadow")
