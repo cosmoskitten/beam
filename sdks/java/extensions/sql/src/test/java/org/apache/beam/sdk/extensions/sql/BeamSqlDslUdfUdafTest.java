@@ -77,14 +77,14 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("squaresum")
         .build();
 
-    Row row = Row.withRowType(resultType).addValues(0, 30).build();
+    Row row = Row.withRowType(resultType).addValues(0, 354).build();
 
-    String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
+    String sql1 = "SELECT f_int2, double_square_sum(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result1 =
         boundedInput1.apply(
             "testUdaf",
-            BeamSql.query(sql1).registerUdaf("squaresum", new SquareSumSub()));
+            BeamSql.query(sql1).registerUdaf("double_square_sum", new SquareSquareSum()));
     PAssert.that(result1).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
@@ -163,7 +163,12 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /**
    * An example UDAF with two levels of descendancy from CombineFn.
    */
-  public static class SquareSumSub extends SquareSum {}
+  public static class SquareSquareSum extends SquareSum {
+    @Override
+    public Integer addInput(Integer accumulator, Integer input) {
+      return super.addInput(accumulator, input * input);
+    }
+  }
 
   /**
    * An example UDF for test.
