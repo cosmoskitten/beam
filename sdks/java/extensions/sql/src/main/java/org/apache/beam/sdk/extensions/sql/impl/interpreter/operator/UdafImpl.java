@@ -58,9 +58,12 @@ public final class UdafImpl<InputT, AccumT, OutputT>
           }
 
           public RelDataType getType(RelDataTypeFactory typeFactory) {
-            //the first generic type of CombineFn is the input type.
-            ParameterizedType parameterizedType = (ParameterizedType) combineFn.getClass()
-                .getGenericSuperclass();
+            Class clazz = combineFn.getClass();
+            while (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+              clazz = clazz.getSuperclass();
+            }
+
+            ParameterizedType parameterizedType = (ParameterizedType) clazz.getGenericSuperclass();
             return typeFactory.createJavaType(
                 (Class) parameterizedType.getActualTypeArguments()[0]);
           }

@@ -67,6 +67,30 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
+   * Test that an indirect subclass of a {@link CombineFn} works as a UDAF.
+   * BEAM-3777
+   */
+  @Test
+  public void testUdafMultiLevelDescendent() {
+    RowType resultType = RowSqlType.builder()
+        .withIntegerField("f_int2")
+        .withIntegerField("squaresum")
+        .build();
+
+    Row row = Row.withRowType(resultType).addValues(0, 30).build();
+
+    String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
+        + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testUdaf",
+            BeamSql.query(sql1).registerUdaf("squaresum", new SquareSumSub()));
+    PAssert.that(result1).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
    * test UDF.
    */
   @Test
@@ -137,7 +161,12 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * A example UDF for test.
+   * An example UDAF with two levels of descendancy from CombineFn.
+   */
+  public static class SquareSumSub extends SquareSum {}
+
+  /**
+   * An example UDF for test.
    */
   public static class CubicInteger implements BeamSqlUdf {
     public static Integer eval(Integer input) {
@@ -146,7 +175,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * A example UDF with {@link SerializableFunction}.
+   * An example UDF with {@link SerializableFunction}.
    */
   public static class CubicIntegerFn implements SerializableFunction<Integer, Integer> {
     @Override
