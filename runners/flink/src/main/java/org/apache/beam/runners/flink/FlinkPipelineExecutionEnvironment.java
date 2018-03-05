@@ -99,9 +99,6 @@ class FlinkPipelineExecutionEnvironment {
     optimizer.translate(pipeline);
     TranslationMode translationMode = optimizer.getTranslationMode();
 
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(
-        translationMode == TranslationMode.STREAMING, options));
-
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv = createStreamExecutionEnvironment();
@@ -110,6 +107,9 @@ class FlinkPipelineExecutionEnvironment {
       this.flinkBatchEnv = createBatchExecutionEnvironment();
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
+
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(
+            translationMode == TranslationMode.STREAMING, options));
 
     translator.translate(pipeline);
   }
