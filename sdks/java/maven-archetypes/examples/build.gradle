@@ -17,9 +17,58 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
+
+// Extract the version from a library:version dependency.
+def ver = { moduleName ->
+  def version = ""
+  dependencies {
+    version = create(moduleName).getVersion()
+  }
+  return version
+}
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'project.version':  version,
+    'bigquery.version': ver(project.library.java.google_api_services_bigquery),
+    'google-clients.version': ver(project.library.java.google_api_client),
+    'guava.version': ver(project.library.java.guava),
+    'hamcrest.version': ver(project.library.java.hamcrest_library),
+    'jackson.version': ver(project.library.java.jackson_core),
+    'joda.version': ver(project.library.java.joda_time),
+    'junit.version': ver(project.library.java.junit),
+    'pubsub.version': ver(project.library.java.google_api_services_pubsub),
+    'slf4j.version': ver(project.library.java.slf4j_api),
+    'spark.version': ver(project.library.java.spark_core),
+    'hadoop.version': ver(project.library.java.hadoop_client),
+    'mockito.version': ver(project.library.java.mockito_core),
+    'maven-compiler-plugin.version': ver(project.library.maven.maven_compiler_plugin),
+    'maven-exec-plugin.version': ver(project.library.maven.maven_exec_plugin),
+    'maven-jar-plugin.version': ver(project.library.maven.maven_jar_plugin),
+    'maven-shade-plugin.version': ver(project.library.maven.maven_shade_plugin),
+    'maven-surefire-plugin.version': ver(project.library.maven.maven_surefire_plugin),
+  ]
+}
+
+// The :examples:java main/test sourceSets are used in generation.
+evaluationDependsOn(':examples:java')
+
+task generateSources(type: Exec) {
+  println "Generating sources for archetype"
+  inputs.file './generate-sources.sh'
+  inputs.dir project(':examples:java').sourceSets.main.allSource
+  inputs.dir project(':examples:java').sourceSets.test.allSource
+  commandLine './generate-sources.sh'
+}
+
+sourceSets {
+ main {
+  output.dir('src', builtBy: 'generateSources')
+ }
+}
 
 dependencies {
   shadow project(path: ":examples:java", configuration: "shadow")
