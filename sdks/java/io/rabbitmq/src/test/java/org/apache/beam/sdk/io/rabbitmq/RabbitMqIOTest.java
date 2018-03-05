@@ -27,16 +27,16 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
-
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.qpid.server.Broker;
 import org.apache.qpid.server.BrokerOptions;
@@ -49,14 +49,14 @@ import org.junit.rules.TemporaryFolder;
 /**
  * Test of {@link RabbitMqIO}.
  */
-public class RabbitMqIOTest {
+public class RabbitMqIOTest implements Serializable {
 
   public int port;
 
-  @Rule public TestPipeline pipeline = TestPipeline.create();
-  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private Broker broker;
+  private transient Broker broker;
 
   @Before
   public void startBroker() throws Exception {
@@ -79,9 +79,11 @@ public class RabbitMqIOTest {
 
   @Test
   public void testReadQueue() throws Exception {
-    PCollection<byte[]> output = pipeline.apply(
-        RabbitMqIO.read().withUri("amqp://guest:guest@localhost:" + port).withQueue("READ")
-            .withMaxNumRecords(10));
+    PCollection<RabbitMqMessage> raw = pipeline.apply(
+        RabbitMqIO.read().withUri("amqp://gues:guess@localhost:" + port).withQueue("READ")
+          .withMaxNumRecords(10));
+    PCollection<byte[]> output = raw.apply(ParDo.of(new ConverterFn()));
+
     PAssert.that(output)
         .containsInAnyOrder("Test 0".getBytes(), "Test 1".getBytes(), "Test 2".getBytes(),
             "Test 3".getBytes(), "Test 4".getBytes(), "Test 5".getBytes(), "Test 6".getBytes(),
@@ -104,10 +106,11 @@ public class RabbitMqIOTest {
 
   @Test(timeout = 60 * 1000)
   public void testReadExchange() throws Exception {
-    PCollection<byte[]> output = pipeline.apply(
+    PCollection<RabbitMqMessage> raw = pipeline.apply(
         RabbitMqIO.read().withUri("amqp://guest:guest@localhost:" + port)
-            .withExchange("READ", "fanout")
+            .withExchange("READ", "fanout", "test")
             .withMaxNumRecords(10));
+    PCollection<byte[]> output = raw.apply(ParDo.of(new ConverterFn()));
     PAssert.that(output).containsInAnyOrder(
         "Test 0".getBytes(),
         "Test 1".getBytes(),
@@ -135,7 +138,7 @@ public class RabbitMqIOTest {
         }
         for (int i = 0; i < 10; i++) {
           try {
-            channel.basicPublish("READ", "", null, ("Test " + i).getBytes());
+            channel.basicPublish("READ", "test", null, ("Test " + i).getBytes());
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -151,45 +154,16 @@ public class RabbitMqIOTest {
   }
 
   @Test
-  public void testWriteQueue() throws Exception {
-    List<byte[]> data = new ArrayList<>();
-    for (int i = 0; i < 1000; i++) {
-      data.add(("Test " + i).getBytes());
-    }
-    pipeline.apply(Create.of(data)).apply(RabbitMqIO.write()
-        .withUri("amqp://guest:guest@localhost:" + port).withQueue("WRITE"));
-    pipeline.run();
-
-    List<String> received = new ArrayList<>();
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = connectionFactory.newConnection();
-    Channel channel = connection.createChannel();
-    // channel.queueDeclare("WRITE", false, false, false, null);
-    QueueingConsumer consumer = new QueueingConsumer(channel);
-    channel.basicConsume("WRITE", true, consumer);
-    for (int i = 0; i < 1000; i++) {
-      QueueingConsumer.Delivery delivery = consumer.nextDelivery();
-      received.add(new String(delivery.getBody()));
-    }
-
-    assertEquals(1000, received.size());
-    for (int i = 0; i < 1000; i++) {
-      assertTrue(received.contains("Test " + i));
-    }
-
-    channel.close();
-    connection.close();
-  }
-
-  @Test
   public void testWriteExchange() throws Exception {
-    List<byte[]> data = new ArrayList<>();
+    List<RabbitMqMessage> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      data.add(("Test " + i).getBytes());
+      RabbitMqMessage message = new RabbitMqMessage(("Test " + i).getBytes());
+      data.add(message);
     }
-    pipeline.apply(Create.of(data)).apply(RabbitMqIO.write()
-        .withUri("amqp://guest:guest@localhost:" + port).withExchange("WRITE", "fanout"));
+    pipeline.apply(Create.of(data))
+        .apply(RabbitMqIO.write()
+            .withUri("amqp://guest:guest@localhost:" + port)
+            .withExchange("WRITE", "fanout"));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -224,6 +198,18 @@ public class RabbitMqIOTest {
 
     channel.close();
     connection.close();
+  }
+
+  private class ConverterFn extends DoFn<RabbitMqMessage, byte[]> {
+
+    public ConverterFn() {}
+
+    @ProcessElement
+    public void processElement(ProcessContext processContext) {
+      RabbitMqMessage message = processContext.element();
+      processContext.output(message.getBody());
+    }
+
   }
 
 }
