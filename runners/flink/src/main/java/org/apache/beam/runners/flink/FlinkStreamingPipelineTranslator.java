@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
+
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -42,9 +42,12 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate
@@ -229,7 +232,10 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In
       // streaming, there are large numbers of small bundles, resulting in many tiny files.
       // Instead we pick parallelism * 2 to ensure full parallelism, but prevent too-many files.
-      int numShards = options.getParallelism() * 2;
+      final Integer jobParallelism = options.getParallelism();
+      Preconditions.checkArgument(jobParallelism > 0,
+              "Parallelism of a job should be greater than 0. Currently set: {}", jobParallelism);
+      int numShards = jobParallelism * 2;
 
       try {
         List<PCollectionView<?>> sideInputs =
