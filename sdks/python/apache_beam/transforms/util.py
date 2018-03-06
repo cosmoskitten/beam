@@ -25,6 +25,8 @@ import contextlib
 import random
 import time
 
+from six.moves import xrange
+
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
