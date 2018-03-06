@@ -25,6 +25,8 @@ import tempfile
 import unittest
 import uuid
 
+from six.moves import reduce
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
