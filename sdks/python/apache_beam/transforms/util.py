@@ -44,6 +44,7 @@ from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
+from six.moves import xrange
 
 __all__ = [
     'BatchElements',
