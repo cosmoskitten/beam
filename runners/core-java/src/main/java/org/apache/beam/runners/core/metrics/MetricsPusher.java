@@ -40,7 +40,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 /**
  * Component that regularly merges metrics and pushes them to a metrics sink. It needs to be a
  * singleton because spark runner might call initAccumulators several times and this method calls
- * {@link MetricsPusher#init} and needs to be idempotent
+ * {@link MetricsPusher#init} and needs to be idempotent.
  */
 public class MetricsPusher implements Serializable {
 
