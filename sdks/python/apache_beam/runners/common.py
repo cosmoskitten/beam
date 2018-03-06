@@ -567,17 +567,17 @@ class _OutputProcessor(OutputProcessor):
     self.window_fn = window_fn
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
+
     # TODO: remove if block after per-element-output-counter released
     experiments = RuntimeValueProvider.get_value('experiments', str, '')
     if 'outputs_per_element_counter' in experiments:
-      per_element_output_counter_name = CounterName('per-element-output-count',
-                                                    step_name=operation_name)
+      self.has_per_element_output_count = True
+      per_element_output_counter_name = \
+        CounterName('per-element-output-count-meta', step_name=operation_name)
       self.per_element_output_counter = counter_factory.get_counter(
-          per_element_output_counter_name, Counter.DISTRIBUTION)
+          per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
     else:
-      self.per_element_output_counter = counter_factory.get_counter(
-          CounterName('fake-counter',
-                      step_name=operation_name), Counter.DISTRIBUTION)
+      self.has_per_element_output_count = False
 
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
@@ -586,7 +586,9 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      self.per_element_output_counter.update(0)
+      # TODO: remove if block after per-element-output-counter released
+      if self.has_per_element_output_count:
+        self.per_element_output_counter.update(0)
       return
 
     output_element_output = 0
@@ -616,7 +618,9 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
-    self.per_element_output_counter.update(output_element_output)
+    # TODO: remove if block after per-element-output-counter released
+    if self.has_per_element_output_count:
+      self.per_element_output_counter.update(output_element_output)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""

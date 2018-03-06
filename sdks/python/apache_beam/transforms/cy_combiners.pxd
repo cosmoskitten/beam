@@ -100,3 +100,7 @@ cdef class DistributionAccumulator(object):
   cdef public list buckets
   cdef public int64_t buckets_per_10
   cpdef add_input(self, int64_t element)
+
+cdef class DistributionMetadataAccumulator(object):
+  cdef public list distribution_metadata
+  cpdef add_input(self, int64_t element)

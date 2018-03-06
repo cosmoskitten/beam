@@ -134,6 +134,8 @@ class Counter(object):
   # Distribution Accumulator Fn
   DISTRIBUTION = cy_combiners.DistributionCounterFn()
 
+  DISTRIBUTION_METADATA = cy_combiners.DistributionMetadataCounterFn()
+
   def __init__(self, name, combine_fn):
     """Creates a Counter object.
 

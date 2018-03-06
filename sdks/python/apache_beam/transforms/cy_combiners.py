@@ -405,3 +405,18 @@ class DistributionAccumulator(object):
 
 class DistributionCounterFn(AccumulatorCombineFn):
   _accumulator_type = DistributionAccumulator
+
+
+class DistributionMetadataAccumulator(object):
+  def __init__(self):
+    self.distribution_metadata = []
+
+  def add_input(self, element):
+    self.distribution_metadata.append(element)
+
+  def extract_output(self):
+    return self.distribution_metadata
+
+
+class DistributionMetadataCounterFn(AccumulatorCombineFn):
+  _accumulator_type = DistributionMetadataAccumulator
