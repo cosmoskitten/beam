@@ -95,7 +95,7 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef Receiver main_receivers
   cdef object tagged_receivers
   cdef object per_element_output_counter
-
+  cdef bint has_per_element_output_count
 
 cdef class DoFnContext(object):
   cdef object label
