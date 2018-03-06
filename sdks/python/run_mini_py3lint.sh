@@ -37,4 +37,4 @@ if test $# -gt 0; then
 fi
 
 echo "Running flake8 for module $MODULE:"
-flake8 $MODULE --count --select=E999 --show-source --statistics
+flake8 $MODULE --count --select=E901,E999,F822,F823 --show-source --statistics
