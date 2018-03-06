@@ -19,10 +19,11 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
-import org.apache.beam.runners.samza.SamzaExecutionContext;
+
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.OpContext;
+import org.apache.samza.operators.TimerRegistry;
+import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 
 /**
@@ -31,7 +32,7 @@ import org.joda.time.Instant;
  * can be overridden so we can hold watermarks for side inputs. The output values and watermark
  * will be collected via {@link OpEmitter}.
  */
-public interface Op<InT, OutT> extends Serializable {
+public interface Op<InT, OutT, TimerKeyT> extends Serializable {
   /**
    * A hook that allows initialization for any non-serializable operator state, such as getting
    * stores.
@@ -42,8 +43,8 @@ public interface Op<InT, OutT> extends Serializable {
    * {@link #processSideInput(String, WindowedValue, OpEmitter)}.
    */
   default void open(Config config,
-                    OpContext opContext,
-                    SamzaExecutionContext executionContext,
+                    TaskContext taskContext,
+                    TimerRegistry<KeyedTimerData<TimerKeyT>> timerRegistry,
                     OpEmitter<OutT> emitter) {}
 
   void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);

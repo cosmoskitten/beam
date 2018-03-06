@@ -319,6 +319,12 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kafka</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- Other transitive test dependencies -->
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>

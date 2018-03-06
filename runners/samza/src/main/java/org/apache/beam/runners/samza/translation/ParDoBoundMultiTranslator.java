@@ -190,7 +190,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
   }
 
-  private class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT> {
+  private class RawUnionValueToValue<OutT> implements Op<RawUnionValue, OutT, Void> {
 
     @Override
     public void processElement(WindowedValue<RawUnionValue> inputElement,

@@ -41,9 +41,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.OpContext;
 import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.storage.kv.KeyValueStore;
+import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}.
  */
-public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> {
+public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterable<V>>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
 
   private final TupleTag<KV<K, Iterable<V>>> mainOutputTag;
@@ -87,14 +87,14 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
 
   @Override
   public void open(Config config,
-                   OpContext opContext,
-                   SamzaExecutionContext executionContext,
+                   TaskContext context,
+                   TimerRegistry<KeyedTimerData<K>> timerRegistry,
                    OpEmitter<KV<K, Iterable<V>>> emitter) {
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     @SuppressWarnings("unchecked")
     final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) opContext.getTaskContext().getStore("beamStore");
+        (KeyValueStore<byte[], byte[]>) context.getStore("beamStore");
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
@@ -102,7 +102,6 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
             store,
             VoidCoder.of());
 
-    final TimerRegistry<KeyedTimerData<K>> timerRegistry = opContext.getTimerRegistry();
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(
         inputCoder.getKeyCoder(), timerRegistry);
 
@@ -132,6 +131,8 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
         DoFnOp.createStepContext(stateInternalsFactory, timerInternalsFactory),
         windowingStrategy);
 
+    final SamzaExecutionContext executionContext =
+        (SamzaExecutionContext) context.getUserContext();
     this.fnRunner = DoFnRunnerWithMetrics.wrap(
         doFnRunner, executionContext.getMetricsContainer(), stepName);
   }

@@ -50,9 +50,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.OpContext;
 import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.storage.kv.KeyValueStore;
+import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Samza operator for {@link DoFn}.
  */
-public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
+public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOp.class);
 
   private final TupleTag<FnOutT> mainOutputTag;
@@ -109,19 +109,18 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
 
   @Override
   public void open(Config config,
-                   OpContext opContext,
-                   SamzaExecutionContext executionContext,
+                   TaskContext context,
+                   TimerRegistry<KeyedTimerData<Void>> timerRegistry,
                    OpEmitter<OutT> emitter) {
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
-    final TimerRegistry<KeyedTimerData<Void>> timerRegistry = opContext.getTimerRegistry();
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(null, timerRegistry);
 
     @SuppressWarnings("unchecked")
     final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) opContext.getTaskContext().getStore("beamStore");
+        (KeyValueStore<byte[], byte[]>) context.getStore("beamStore");
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
@@ -145,6 +144,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT> {
         createStepContext(stateInternalsFactory, timerInternalsFactory),
         windowingStrategy);
 
+    final SamzaExecutionContext executionContext =
+        (SamzaExecutionContext) context.getUserContext();
     this.fnRunner = DoFnRunnerWithMetrics.wrap(
         doFnRunner, executionContext.getMetricsContainer(), stepName);
 

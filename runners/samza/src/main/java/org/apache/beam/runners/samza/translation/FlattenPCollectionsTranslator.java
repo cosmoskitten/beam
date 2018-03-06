@@ -64,7 +64,7 @@ class FlattenPCollectionsTranslator<T>
     if (inputStreams.size() == 0) {
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream().flatMap(
-              OpAdapter.adapt((Op<String, T>) (inputElement, emitter) -> {}));
+              OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
       ctx.registerMessageStream(output, noOpStream);
       return;
     }

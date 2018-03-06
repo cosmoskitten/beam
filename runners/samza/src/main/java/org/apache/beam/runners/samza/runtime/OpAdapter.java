@@ -23,14 +23,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.config.Config;
-import org.apache.samza.operators.OpContext;
+import org.apache.samza.operators.TimerRegistry;
 import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.TimerFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
+import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,36 +38,45 @@ import org.slf4j.LoggerFactory;
 /**
  * Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link FlatMapFunction}.
  */
-public class OpAdapter<InT, OutT>
+public class OpAdapter<InT, OutT, TimerKeyT>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
                WatermarkFunction<OpMessage<OutT>>,
-               TimerFunction<KeyedTimerData<?>, OpMessage<OutT>>,
+               TimerFunction<KeyedTimerData<TimerKeyT>, OpMessage<OutT>>,
                Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
-  private final Op<InT, OutT> op;
+  private final Op<InT, OutT, TimerKeyT> op;
   private transient List<OpMessage<OutT>> outputList;
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
+  private transient Config config;
+  private transient TaskContext taskContext;
 
-  public static <InT, OutT> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>
-  adapt(Op<InT, OutT> op) {
+
+  public static <InT, OutT, KeyT> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>
+  adapt(Op<InT, OutT, KeyT> op) {
     return new OpAdapter<>(op);
   }
 
-  private OpAdapter(Op<InT, OutT> op) {
+  private OpAdapter(Op<InT, OutT, TimerKeyT> op) {
     this.op = op;
   }
 
   @Override
-  public final void init(Config config, OpContext opContext) {
-    outputList = new ArrayList<>();
-    emitter = new OpEmitterImpl();
+  public final void init(Config config, TaskContext context) {
+    this.outputList = new ArrayList<>();
+    this.emitter = new OpEmitterImpl();
+    this.config = config;
+    this.taskContext = context;
 
-    final SamzaExecutionContext executionContext =
-        (SamzaExecutionContext) opContext.getTaskContext().getUserContext();
+    op.open(config, taskContext, null, emitter);
+  }
 
-    op.open(config, opContext, executionContext, emitter);
+  @Override
+  public final void registerTimer(TimerRegistry<KeyedTimerData<TimerKeyT>> timerRegistry) {
+    assert taskContext != null;
+
+
   }
 
   @Override
@@ -128,7 +137,7 @@ public class OpAdapter<InT, OutT>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData<?> keyedTimerData, long time) {
+  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData keyedTimerData, long time) {
     assert outputList.isEmpty();
 
     try {
