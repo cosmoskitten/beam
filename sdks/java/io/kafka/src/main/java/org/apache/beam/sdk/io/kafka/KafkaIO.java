@@ -80,9 +80,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and 0.10 are supported. If you need a specific version of Kafka
- * client(e.g. 0.9 for 0.9 servers, or 0.10 for security features), specify explicit
- * kafka-client dependency.
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -106,20 +103,17 @@ import org.slf4j.LoggerFactory;
  *       .withKeyDeserializer(LongDeserializer.class)
  *       .withValueDeserializer(StringDeserializer.class)
  *
- *       // above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
+ *       // Above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
  *
- *       // rest of the settings are optional :
+ *       // Rest of the settings are optional :
  *
  *       // you can further customize KafkaConsumer used to read the records by adding more
  *       // settings for ConsumerConfig. e.g :
- *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
+ *       .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
  *       // set event times and watermark based on LogAppendTime. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
  *       .withLogAppendTime()
- *
- *       // custom function for watermark (default is record timestamp)
- *       .withWatermarkFn(new MyWatermarkFunction())
  *
  *       // restrict reader to committed messages on Kafka (see method documentation).
  *       .withReadCommitted()
@@ -208,33 +202,32 @@ import org.slf4j.LoggerFactory;
  * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
- * <h3>Event Timestamp and Watermark</h3>
- * By default record timestamp and watermark are based on processing time in KafkaIO reader.
- * This can be overridden by providing {@code WatermarkFn} with
- * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
- * {@link Read#withTimestampFn(SerializableFunction)}.<br>
- * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
- * otherwise it is set to processing time.
+ * <h3>Event Timestamps and Watermark</h3>
+ * By default, record timestamp (event time) is set to processing time in KafkaIO reader and
+ * source watermark is current wall time. If a topic has Kafka server-side ingestion timestamp
+ * enabled ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}.
+ * A custom timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See
+ * {@link Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
+ *
+ * <h3>Supported Kafka Client Versions</h3>
+ * KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. The older versions
+ * 0.9.x - 0.10.0.0 are also supported, but are deprecated and likely be removed in near future.
+ * Please ensure that the version included with the application is compatible with the version of
+ * your Kafka cluster. Kafka client usually fails to initialize with a clear error message in
+ * case of incompatibility.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * A specific instance of uninitialized {@link #read()} where key and values are bytes.
+   * See #read().
    */
   public static Read<byte[], byte[]> readBytes() {
-    return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<>())
-        .setTopicPartitions(new ArrayList<>())
-        .setKeyDeserializer(ByteArrayDeserializer.class)
-        .setValueDeserializer(ByteArrayDeserializer.class)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
-        .setMaxNumRecords(Long.MAX_VALUE)
-        .build();
+    return KafkaIO.<byte[], byte[]>read()
+      .withKeyDeserializer(ByteArrayDeserializer.class)
+      .withValueDeserializer(ByteArrayDeserializer.class);
   }
 
   /**
