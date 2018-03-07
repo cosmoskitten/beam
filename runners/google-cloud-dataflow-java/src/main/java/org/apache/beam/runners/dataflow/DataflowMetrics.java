@@ -60,12 +60,6 @@ class DataflowMetrics extends MetricResults {
   private DataflowPipelineJob dataflowPipelineJob;
 
   /**
-   * After the job has finished running, Metrics no longer will change, so their results are
-   * cached here.
-   */
-  private MetricQueryResults cachedMetricResults = null;
-
-  /**
    * Constructor for the DataflowMetrics class.
    * @param dataflowPipelineJob is used to get Job state and Job ID information.
    * @param dataflowClient is used to query user metrics from the Dataflow service.
@@ -88,7 +82,8 @@ class DataflowMetrics extends MetricResults {
         .build();
   }
 
-  private MetricQueryResults queryServiceForMetrics(MetricsFilter filter) {
+  @Override
+  public MetricQueryResults queryMetrics(MetricsFilter filter) {
     List<com.google.api.services.dataflow.model.MetricUpdate> metricUpdates;
     ImmutableList<MetricResult<Long>> counters = ImmutableList.of();
     ImmutableList<MetricResult<DistributionResult>> distributions = ImmutableList.of();
@@ -104,24 +99,6 @@ class DataflowMetrics extends MetricResults {
         jobMetrics.getMetrics(),
         Collections.<com.google.api.services.dataflow.model.MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
-  }
-
-  public MetricQueryResults queryMetrics() {
-    return queryMetrics(null);
-  }
-
-  @Override
-  public MetricQueryResults queryMetrics(MetricsFilter filter) {
-    if (cachedMetricResults != null) {
-      // Metric results have been cached after the job ran.
-      return cachedMetricResults;
-    }
-    MetricQueryResults result = queryServiceForMetrics(filter);
-    if (dataflowPipelineJob.getState().isTerminal()) {
-      // Add current query result to the cache.
-      cachedMetricResults = result;
-    }
-    return result;
   }
 
   private static class DataflowMetricResultExtractor {

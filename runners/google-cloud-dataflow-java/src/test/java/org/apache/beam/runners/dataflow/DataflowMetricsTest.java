@@ -25,8 +25,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.ArrayMap;
@@ -109,34 +107,9 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics();
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(ImmutableList.copyOf(result.counters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.distributions()), is(empty()));
-  }
-
-  @Test
-  public void testCachingMetricUpdates() throws IOException {
-    Job modelJob = new Job();
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
-    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
-    when(options.isStreaming()).thenReturn(false);
-    when(job.getDataflowOptions()).thenReturn(options);
-    when(job.getState()).thenReturn(State.DONE);
-    job.jobId = JOB_ID;
-
-    JobMetrics jobMetrics = new JobMetrics();
-    jobMetrics.setMetrics(ImmutableList.of());
-    DataflowClient dataflowClient = mock(DataflowClient.class);
-    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
-
-    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    verify(dataflowClient, times(0)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
-    verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
-    dataflowMetrics.queryMetrics(null);
-    verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
   private MetricUpdate setStructuredName(MetricUpdate update, String name, String namespace,
