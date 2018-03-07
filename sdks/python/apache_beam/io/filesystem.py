@@ -26,7 +26,8 @@ import os
 import time
 import zlib
 
-from six import integer_types, string_types
+from six import integer_types
+from six import string_types
 
 from apache_beam.utils.plugin import BeamPlugin
 

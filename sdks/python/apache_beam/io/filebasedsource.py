@@ -26,7 +26,8 @@ For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
 
-from six import integer_types, string_types
+from six import integer_types
+from six import string_types
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source

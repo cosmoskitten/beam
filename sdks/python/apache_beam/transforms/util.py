@@ -25,8 +25,6 @@ import contextlib
 import random
 import time
 
-from six.moves import xrange
-
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
@@ -46,6 +44,7 @@ from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
+from six.moves import xrange
 
 __all__ = [
     'BatchElements',
