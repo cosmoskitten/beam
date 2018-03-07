@@ -48,6 +48,7 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProces
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.RemoteOutputReceiver;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
