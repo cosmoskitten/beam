@@ -32,7 +32,7 @@ import org.joda.time.Instant;
  * can be overridden so we can hold watermarks for side inputs. The output values and watermark
  * will be collected via {@link OpEmitter}.
  */
-public interface Op<InT, OutT, TimerKeyT> extends Serializable {
+public interface Op<InT, OutT, K> extends Serializable {
   /**
    * A hook that allows initialization for any non-serializable operator state, such as getting
    * stores.
@@ -44,7 +44,7 @@ public interface Op<InT, OutT, TimerKeyT> extends Serializable {
    */
   default void open(Config config,
                     TaskContext taskContext,
-                    TimerRegistry<KeyedTimerData<TimerKeyT>> timerRegistry,
+                    TimerRegistry<KeyedTimerData<K>> timerRegistry,
                     OpEmitter<OutT> emitter) {}
 
   void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter);
@@ -61,7 +61,7 @@ public interface Op<InT, OutT, TimerKeyT> extends Serializable {
 
   default void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {}
 
-  default void processTimer(KeyedTimerData<?> keyedTimerData) {};
+  default void processTimer(KeyedTimerData<K> keyedTimerData) {};
 
   default void close() {}
 }

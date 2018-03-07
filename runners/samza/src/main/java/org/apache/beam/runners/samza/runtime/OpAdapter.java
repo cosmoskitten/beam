@@ -38,14 +38,14 @@ import org.slf4j.LoggerFactory;
 /**
  * Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link FlatMapFunction}.
  */
-public class OpAdapter<InT, OutT, TimerKeyT>
+public class OpAdapter<InT, OutT, K>
     implements FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
                WatermarkFunction<OpMessage<OutT>>,
-               TimerFunction<KeyedTimerData<TimerKeyT>, OpMessage<OutT>>,
+               TimerFunction<KeyedTimerData<K>, OpMessage<OutT>>,
                Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(OpAdapter.class);
 
-  private final Op<InT, OutT, TimerKeyT> op;
+  private final Op<InT, OutT, K> op;
   private transient List<OpMessage<OutT>> outputList;
   private transient Instant outputWatermark;
   private transient OpEmitter<OutT> emitter;
@@ -53,12 +53,12 @@ public class OpAdapter<InT, OutT, TimerKeyT>
   private transient TaskContext taskContext;
 
 
-  public static <InT, OutT, KeyT> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>
-  adapt(Op<InT, OutT, KeyT> op) {
+  public static <InT, OutT, K> FlatMapFunction<OpMessage<InT>, OpMessage<OutT>>
+  adapt(Op<InT, OutT, K> op) {
     return new OpAdapter<>(op);
   }
 
-  private OpAdapter(Op<InT, OutT, TimerKeyT> op) {
+  private OpAdapter(Op<InT, OutT, K> op) {
     this.op = op;
   }
 
@@ -68,15 +68,13 @@ public class OpAdapter<InT, OutT, TimerKeyT>
     this.emitter = new OpEmitterImpl();
     this.config = config;
     this.taskContext = context;
-
-    op.open(config, taskContext, null, emitter);
   }
 
   @Override
-  public final void registerTimer(TimerRegistry<KeyedTimerData<TimerKeyT>> timerRegistry) {
+  public final void registerTimer(TimerRegistry<KeyedTimerData<K>> timerRegistry) {
     assert taskContext != null;
 
-
+    op.open(config, taskContext, timerRegistry, emitter);
   }
 
   @Override
@@ -137,7 +135,7 @@ public class OpAdapter<InT, OutT, TimerKeyT>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData keyedTimerData, long time) {
+  public Collection<OpMessage<OutT>> onTimer(KeyedTimerData<K> keyedTimerData, long time) {
     assert outputList.isEmpty();
 
     try {

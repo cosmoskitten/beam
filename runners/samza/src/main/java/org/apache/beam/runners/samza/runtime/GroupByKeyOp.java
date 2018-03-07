@@ -163,9 +163,9 @@ public class GroupByKeyOp<K, V> implements Op<KeyedWorkItem<K, V>, KV<K, Iterabl
   }
 
   @Override
-  public void processTimer(KeyedTimerData<?> keyedTimerData) {
+  public void processTimer(KeyedTimerData<K> keyedTimerData) {
     fnRunner.startBundle();
-    fireTimer((K) keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
     fnRunner.finishBundle();
   }
 

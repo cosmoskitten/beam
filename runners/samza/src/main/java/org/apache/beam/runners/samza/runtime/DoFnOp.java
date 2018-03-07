@@ -240,7 +240,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   @Override
-  public void processTimer(KeyedTimerData<?> keyedTimerData) {
+  public void processTimer(KeyedTimerData<Void> keyedTimerData) {
     pushbackFnRunner.startBundle();
     fireTimer(keyedTimerData.getTimerData());
     pushbackFnRunner.finishBundle();
