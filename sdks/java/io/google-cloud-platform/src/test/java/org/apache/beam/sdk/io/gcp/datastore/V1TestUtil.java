@@ -291,7 +291,7 @@ class V1TestUtil {
 
     void close() throws Exception {
       // flush any remaining entities
-      if (entities.size() > 0) {
+      if (!entities.isEmpty()) {
         flushBatch();
       }
     }

@@ -98,7 +98,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   }
 
   private RDD<WindowedValue<T>> generateRdd() {
-    return rdds.size() > 0
+    return !rdds.isEmpty()
         ? rdds.poll().rdd()
         : ssc().sparkContext().emptyRDD(JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
   }

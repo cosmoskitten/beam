@@ -55,7 +55,7 @@ public abstract class WindowedValue<T> {
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
-    checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
+    checkArgument(!windows.isEmpty(), "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);

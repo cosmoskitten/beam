@@ -95,7 +95,7 @@ public class ElasticsearchIOIT {
     assertEquals(expectedNumSplits, splits.size());
     int nonEmptySplits = 0;
     for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
+      if (!readFromSource(subSource, options).isEmpty()) {
         nonEmptySplits += 1;
       }
     }

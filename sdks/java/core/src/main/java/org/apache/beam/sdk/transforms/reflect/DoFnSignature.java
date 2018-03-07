@@ -106,17 +106,17 @@ public abstract class DoFnSignature {
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
   public boolean isStateful() {
-    return stateDeclarations().size() > 0;
+    return !stateDeclarations().isEmpty();
   }
 
   /** Whether the {@link DoFn} described by this signature uses state. */
   public boolean usesState() {
-    return stateDeclarations().size() > 0;
+    return !stateDeclarations().isEmpty();
   }
 
   /** Whether the {@link DoFn} described by this signature uses timers. */
   public boolean usesTimers() {
-    return timerDeclarations().size() > 0;
+    return !timerDeclarations().isEmpty();
   }
 
   static Builder builder() {

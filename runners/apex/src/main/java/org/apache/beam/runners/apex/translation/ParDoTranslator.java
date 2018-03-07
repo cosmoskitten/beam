@@ -62,7 +62,7 @@ class ParDoTranslator<InputT, OutputT>
               "%s does not support splittable DoFn: %s", ApexRunner.class.getSimpleName(), doFn));
     }
 
-    if (signature.timerDeclarations().size() > 0) {
+    if (!signature.timerDeclarations().isEmpty()) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",

@@ -234,11 +234,11 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         ListState<Map<String, T>> state = flinkStateBackend.getUnionListState(
             flinkStateDescriptor);
         state.clear();
-        if (map.size() > 0) {
+        if (!map.isEmpty()) {
           state.add(map);
         }
       } else {
-        if (map.size() == 0) {
+        if (map.isEmpty()) {
           stateForNonZeroOperator.remove(name);
           // updateMap is always behind getMap,
           // getMap will clear map in BroadcastOperatorState,

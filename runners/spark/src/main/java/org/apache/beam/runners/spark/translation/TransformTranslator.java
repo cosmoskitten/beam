@@ -86,7 +86,7 @@ public final class TransformTranslator {
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
         Collection<PValue> pcs = context.getInputs(transform).values();
         JavaRDD<WindowedValue<T>> unionRDD;
-        if (pcs.size() == 0) {
+        if (pcs.isEmpty()) {
           unionRDD = context.getSparkContext().emptyRDD();
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
@@ -349,8 +349,8 @@ public final class TransformTranslator {
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
         DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-        boolean stateful = signature.stateDeclarations().size() > 0
-            || signature.timerDeclarations().size() > 0;
+        boolean stateful = !signature.stateDeclarations().isEmpty()
+            || !signature.timerDeclarations().isEmpty();
 
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction = new MultiDoFnFunction<>(
             metricsAccum,

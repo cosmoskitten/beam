@@ -68,7 +68,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     if (flinkOptions.getAppName() == null) {
       missing.add("appName");
     }
-    if (missing.size() > 0) {
+    if (!missing.isEmpty()) {
       throw new IllegalArgumentException(
           "Missing required values: " + Joiner.on(',').join(missing));
     }

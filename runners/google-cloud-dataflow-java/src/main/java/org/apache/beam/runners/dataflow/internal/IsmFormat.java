@@ -188,7 +188,7 @@ public class IsmFormat {
         List<Coder<?>> keyComponentCoders,
         Coder<V> valueCoder) {
       checkNotNull(keyComponentCoders);
-      checkArgument(keyComponentCoders.size() > 0);
+      checkArgument(!keyComponentCoders.isEmpty());
       checkArgument(numberOfShardKeyCoders > 0);
       checkArgument(numberOfShardKeyCoders <= keyComponentCoders.size());
       checkArgument(numberOfMetadataShardKeyCoders <= keyComponentCoders.size());

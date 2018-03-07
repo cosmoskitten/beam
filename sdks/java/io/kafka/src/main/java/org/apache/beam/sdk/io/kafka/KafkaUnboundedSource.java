@@ -78,7 +78,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         .thenComparing(Comparator.comparingInt(TopicPartition::partition)));
 
     checkArgument(desiredNumSplits > 0);
-    checkState(partitions.size() > 0,
+    checkState(!partitions.isEmpty(),
         "Could not find any partitions. Please check Kafka configuration and topic names");
 
     int numSplits = Math.min(desiredNumSplits, partitions.size());

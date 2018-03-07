@@ -356,7 +356,7 @@ public abstract class Coder<T> implements Serializable {
         List<String> reasons,
         @Nullable NonDeterministicException cause) {
       super(cause);
-      checkArgument(reasons.size() > 0, "Reasons must not be empty.");
+      checkArgument(!reasons.isEmpty(), "Reasons must not be empty.");
       this.reasons = reasons;
       this.coder = coder;
     }

@@ -68,7 +68,7 @@ public class Main<OptionT extends NexmarkOptions> {
       for (NexmarkConfiguration configuration : configurations) {
         NexmarkPerf perf = nexmarkLauncher.run(configuration);
         if (perf != null) {
-          if (perf.errors == null || perf.errors.size() > 0) {
+          if (perf.errors == null || !perf.errors.isEmpty()) {
             successful = false;
           }
           appendPerf(options.getPerfFilename(), configuration, perf);

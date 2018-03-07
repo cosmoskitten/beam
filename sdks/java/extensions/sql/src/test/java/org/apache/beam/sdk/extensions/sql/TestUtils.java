@@ -208,7 +208,7 @@ public class TestUtils {
      */
     public PCollection<Row> buildUnbounded() {
       checkArgument(pipeline != null);
-      checkArgument(rows.size() > 0);
+      checkArgument(!rows.isEmpty());
 
       if (type == null) {
         type = rows.get(0).getRowType();

@@ -244,7 +244,7 @@ public final class TranslationUtils {
   public static void rejectStateAndTimers(DoFn<?, ?> doFn) {
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-    if (signature.stateDeclarations().size() > 0) {
+    if (!signature.stateDeclarations().isEmpty()) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
@@ -254,7 +254,7 @@ public final class TranslationUtils {
               SparkRunner.class.getSimpleName()));
     }
 
-    if (signature.timerDeclarations().size() > 0) {
+    if (!signature.timerDeclarations().isEmpty()) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",

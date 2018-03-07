@@ -226,7 +226,7 @@ class TranslationContext {
         PTransform transform = sink.transform.getTransform();
         if (transform instanceof ParDo.MultiOutput) {
           ParDo.MultiOutput t = (ParDo.MultiOutput) transform;
-          if (t.getSideInputs().size() > 0) {
+          if (!t.getSideInputs().isEmpty()) {
             loc = DAG.Locality.CONTAINER_LOCAL;
             break;
           } else {

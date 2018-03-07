@@ -96,8 +96,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     if (signature.processElement().isSplittable()) {
       return SplittableParDo.forAppliedParDo((AppliedPTransform) application);
-    } else if (signature.stateDeclarations().size() > 0
-        || signature.timerDeclarations().size() > 0) {
+    } else if (!signature.stateDeclarations().isEmpty()
+        || !signature.timerDeclarations().isEmpty()) {
       return new GbkThenStatefulParDo(
           fn,
           ParDoTranslation.getMainOutputTag(application),

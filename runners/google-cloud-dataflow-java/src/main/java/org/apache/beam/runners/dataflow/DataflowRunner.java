@@ -230,7 +230,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (dataflowOptions.getAppName() == null) {
       missing.add("appName");
     }
-    if (missing.size() > 0) {
+    if (!missing.isEmpty()) {
       throw new IllegalArgumentException(
           "Missing required values: " + Joiner.on(',').join(missing));
     }

@@ -184,7 +184,7 @@ public class BeamAggregationTransforms implements Serializable{
 
           sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
         } else {
-          int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
+          int refIndex = !call.getArgList().isEmpty() ? call.getArgList().get(0) : 0;
           BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
                   CalciteUtils.getFieldCalciteType(sourceRowType, refIndex), refIndex);
           sourceFieldExps.add(sourceExp);

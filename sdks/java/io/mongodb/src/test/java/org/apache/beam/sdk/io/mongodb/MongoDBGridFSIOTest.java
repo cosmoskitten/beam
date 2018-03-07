@@ -263,7 +263,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     int count = 0;
     for (BoundedSource<ObjectId> subSource : splits) {
       List<ObjectId> result = SourceTestUtils.readFromSource(subSource, options);
-      if (result.size() > 0) {
+      if (!result.isEmpty()) {
         nonEmptySplits += 1;
       }
       count += result.size();
@@ -317,7 +317,7 @@ public class MongoDBGridFSIOTest implements Serializable {
       DB database = client.getDB(DATABASE);
       GridFS gridfs = new GridFS(database, "WriteTest");
       List<GridFSDBFile> files = gridfs.find("WriteTestData");
-      assertTrue(files.size() > 0);
+      assertTrue(!files.isEmpty());
       for (GridFSDBFile file : files) {
         assertEquals(100,  file.getChunkSize());
         int l = (int) file.getLength();

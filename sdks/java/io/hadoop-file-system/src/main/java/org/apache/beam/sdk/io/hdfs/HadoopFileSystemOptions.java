@@ -60,7 +60,7 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
     public List<Configuration> create(PipelineOptions options) {
       // Find default configuration when HADOOP_CONF_DIR or YARN_CONF_DIR is set.
       List<Configuration> configurationList = readConfigurationFromHadoopYarnConfigDirs();
-      return configurationList.size() > 0 ? configurationList : null;
+      return !configurationList.isEmpty() ? configurationList : null;
     }
 
     private List<Configuration> readConfigurationFromHadoopYarnConfigDirs() {

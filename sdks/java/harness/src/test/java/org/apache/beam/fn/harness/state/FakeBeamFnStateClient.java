@@ -71,7 +71,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         // Chunk gets into 5 byte return blocks
         ByteString byteString = data.getOrDefault(request.getStateKey(), ByteString.EMPTY);
         int block = 0;
-        if (request.getGet().getContinuationToken().size() > 0) {
+        if (!request.getGet().getContinuationToken().isEmpty()) {
           block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
         }
         ByteString returnBlock = byteString.substring(

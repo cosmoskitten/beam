@@ -1274,7 +1274,7 @@ public class DatastoreV1 {
     public void processElement(ProcessContext c) throws Exception {
       Mutation write = c.element();
       int size = write.getSerializedSize();
-      if (mutations.size() > 0
+      if (!mutations.isEmpty()
           && mutationsSize + size >= DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT) {
         flushBatch();
       }

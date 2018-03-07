@@ -590,7 +590,7 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
+      checkArgument(!getTopics().isEmpty() || !getTopicPartitions().isEmpty(),
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
@@ -718,9 +718,9 @@ public class KafkaIO {
       super.populateDisplayData(builder);
       List<String> topics = getTopics();
       List<TopicPartition> topicPartitions = getTopicPartitions();
-      if (topics.size() > 0) {
+      if (!topics.isEmpty()) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
-      } else if (topicPartitions.size() > 0) {
+      } else if (!topicPartitions.isEmpty()) {
         builder.add(DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
             .withLabel("Topic Partition/s"));
       }

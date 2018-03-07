@@ -125,7 +125,7 @@ class FakeJobService implements JobService, Serializable {
 
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
-      if (loadConfig.getSourceUris().size() > 0) {
+      if (!loadConfig.getSourceUris().isEmpty()) {
         ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
         ImmutableList.Builder<ResourceId> loadFiles = ImmutableList.builder();
         for (String filename : loadConfig.getSourceUris()) {
