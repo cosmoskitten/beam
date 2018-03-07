@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * Base class for coders for supported SQL types.
@@ -151,6 +153,42 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     @Override
     protected Coder delegateCoder() {
       return RowHelper.DateCoder.of();
+    }
+  }
+
+  /**
+   * Coder for SQL type ROW.
+   */
+  public static class SqlRowCoder extends SqlTypeCoder {
+
+    private final RowType rowType;
+
+    private SqlRowCoder(RowType rowType) {
+      this.rowType = rowType;
+    }
+
+    public static SqlTypeCoder of(RowType rowType) {
+      return new SqlRowCoder(rowType);
+    }
+
+    public RowType getRowType() {
+      return rowType;
+    }
+
+    @Override
+    protected Coder delegateCoder() {
+      return rowType.getRowCoder();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof SqlRowCoder
+             && Objects.equals(this.rowType, ((SqlRowCoder) other).rowType);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(this.rowType);
     }
   }
 }

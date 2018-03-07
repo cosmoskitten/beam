@@ -102,6 +102,10 @@ public class RowSqlType {
       return withField(fieldName, SqlTypeCoders.TIMESTAMP);
     }
 
+    public Builder withRowField(String fieldName, RowType rowType) {
+      return withField(fieldName, SqlTypeCoders.rowOf(rowType));
+    }
+
     private Builder() {
       this.fields = ImmutableList.builder();
     }
