@@ -1,6 +1,7 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesImpulse;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -30,6 +32,16 @@ public class ImpulseTest {
   @Category({ValidatesRunner.class, UsesImpulse.class})
   public void testImpulseRead() {
     PCollection<Integer> result = p.apply(JavaReadViaImpulse.bounded(Source.of(1, 2, 3)));
+    PAssert.that(result).containsInAnyOrder(1, 2, 3);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImpulse.class})
+  public void testImpulse() {
+    PCollection<Integer> result = p.apply(Impulse.create())
+        .apply(FlatMapElements.into(TypeDescriptors.integers())
+            .via(impulse -> Arrays.asList(1, 2, 3)));
     PAssert.that(result).containsInAnyOrder(1, 2, 3);
     p.run().waitUntilFinish();
   }
