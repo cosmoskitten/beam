@@ -278,7 +278,10 @@ rat {
 
     // Proto/grpc generated wrappers
     "**/apache_beam/portability/api/*_pb2*.py",
-    "**/go/pkg/beam/model/**/*.pb.go",
+    "**/go/pkg/beam/**/*.pb.go",
+
+    // Ignore Go test data files
+    "**/go/data/**",
 
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
