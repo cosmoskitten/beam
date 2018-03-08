@@ -64,7 +64,7 @@ class SplittableProcessElementsEvaluatorFactory<
         evaluationContext,
         SplittableProcessElementsEvaluatorFactory.
           <InputT, OutputT, RestrictionT>processFnRunnerFactory(),
-          new CacheLoader<AppliedPTransform<?,?,?>, DoFnLifecycleManager>() {
+          new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
             @Override
             public DoFnLifecycleManager load(final AppliedPTransform<?, ?, ?> application) {
               checkArgument(
