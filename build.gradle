@@ -301,10 +301,8 @@ def javaPreCommitRoots = [
 ]
 task javaPreCommit() {
   dependsOn ":rat"
-  for (String javaPreCommitRoot : javaPreCommitRoots) {
-    dependsOn javaPreCommitRoot + ":buildNeeded"
-    dependsOn javaPreCommitRoot + ":buildDependents"
-  }
+  dependsOn ":sdks:java:core:buildNeeded"
+  dependsOn ":sdks:java:core:buildDependents"
   dependsOn ":examples:java:preCommit"
 }
 
