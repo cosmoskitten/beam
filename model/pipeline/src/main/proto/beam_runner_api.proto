@@ -722,6 +722,7 @@ message SideInput {
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
   SdkFunctionSpec window_mapping_fn = 3;
+
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but

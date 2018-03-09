@@ -360,7 +360,7 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=False):
+  def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
     # TODO(mariagh): make test_runner_api=True before submitting
 
