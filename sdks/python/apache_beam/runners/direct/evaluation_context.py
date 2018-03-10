@@ -81,7 +81,7 @@ class _SideInputsContainer(object):
   def __repr__(self):
     views = ', '.join([
         str(elm) for elm in self._views.values()
-      ] if self._views.values() else [])
+        ] if self._views.values() else [])
     return '_SideInputsContainer(_views=%s)' % views
 
   def get_value_or_schedule_after_output(self, side_input, task):
