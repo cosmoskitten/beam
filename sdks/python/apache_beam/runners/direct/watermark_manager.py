@@ -143,9 +143,11 @@ class WatermarkManager(object):
           if v in self._value_to_consumers:  # If there are downstream consumers
             consumers = self._value_to_consumers[v]
             for consumer in consumers:
-              unblocked_tasks.extend(self._refresh_watermarks(consumer, side_inputs_container))
-      unblocked_tasks.extend(self._side_inputs_container.update_watermarks_for_transform(
-          applied_ptransform, tw))
+              unblocked_tasks.extend(
+                  self._refresh_watermarks(consumer, side_inputs_container))
+      unblocked_tasks.extend(
+          self._side_inputs_container.update_watermarks_for_transform(
+              applied_ptransform, tw))
     return unblocked_tasks
 
   def extract_all_timers(self):
