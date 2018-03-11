@@ -362,7 +362,6 @@ class Pipeline(object):
 
   def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
-    # TODO(mariagh): make test_runner_api=True before submitting
 
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
