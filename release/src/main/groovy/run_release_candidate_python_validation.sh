@@ -30,17 +30,7 @@
 set -e
 set -v
 
-print_separator() {
-    echo "############################################################################"
-    echo $1
-    echo "############################################################################"
-}
-
-get_version() {
-    # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
-    version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
-    echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
-}
+source release/src/main/groovy/python_release_automation_utils.sh
 
 update_gcloud() {
     curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz \
@@ -116,24 +106,7 @@ verify_steaming_result() {
     done
 }
 
-# Python Release Candidate Configuration
-echo "SDK version: $(get_version)"
-VERSION=$(get_version)
-CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
-SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
-MD5_FILE_NAME="apache-beam-$VERSION-python.zip.md5"
-ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
-BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
-
-# Cloud Configurations
-PROJECT_ID='apache-beam-testing'
-BUCKET_NAME='temp-storage-for-release-validation-tests'
-TEMP_DIR='/quickstart'
-NUM_WORKERS=1
-WORDCOUNT_OUTPUT='wordcount_direct.txt'
-PUBSUB_TOPIC1='wordstream-python-topic-1'
-PUBSUB_TOPIC2='wordstream-python-topic-2'
-PUBSUB_SUBSCRIPTION='wordstream-python-sub2'
+echo "SDK version: $VERSION"
 
 TMPDIR=$(mktemp -d)
 echo $TMPDIR
