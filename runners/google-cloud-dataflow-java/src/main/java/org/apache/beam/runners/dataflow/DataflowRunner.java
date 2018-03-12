@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -828,13 +829,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     return dataflowPipelineJob;
-  }
-
-  /** Returns true if the specified experiment is enabled, handling null experiments. */
-  public static boolean hasExperiment(DataflowPipelineDebugOptions options, String experiment) {
-    List<String> experiments =
-        firstNonNull(options.getExperiments(), Collections.<String>emptyList());
-    return experiments.contains(experiment);
   }
 
   /** Helper to configure the Dataflow Job Environment based on the user's job options. */
