@@ -30,56 +30,11 @@
 set -e
 set -v
 
-print_separator() {
-    echo "############################################################################"
-    echo $1
-    echo "############################################################################"
-}
-
-get_version() {
-    # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
-    version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
-    echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
-}
-
-update_gcloud() {
-    curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz \
-    --output gcloud.tar.gz
-    tar xf gcloud.tar.gz
-    ./google-cloud-sdk/install.sh --quiet
-    . ./google-cloud-sdk/path.bash.inc
-    gcloud components update --quiet || echo 'gcloud components update failed'
-    gcloud -v
-}
+source release/src/main/groovy/python_release_automation_utils.sh
 
 complete() {
     print_separator "Validation $1"
     rm -rf $TMPDIR
-}
-
-run_pubsub_publish(){
-    words=("hello world!", "I like cats!", "Python", "hello Python", "hello Python")
-    for word in ${words[@]}
-    do
-        gcloud pubsub topics publish $PUBSUB_TOPIC1 --message "$word"
-    done
-    sleep 10
-}
-
-run_pubsub_pull() {
-    gcloud pubsub subscriptions pull --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --limit=100 --auto-ack
-}
-
-create_pubsub() {
-    gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC1
-    gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC2
-    gcloud pubsub subscriptions create --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --topic $PUBSUB_TOPIC2
-}
-
-cleanup_pubsub() {
-    gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
-    gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
-    gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
 }
 
 verify_steaming_result() {
@@ -98,7 +53,7 @@ verify_steaming_result() {
         else
             if [[ $retry > 0 ]]
             then
-                ((retry-=1))
+                retry=$(($retry-1))
                 echo "retry left: $retry"
                 sleep 15
             else
@@ -116,24 +71,8 @@ verify_steaming_result() {
     done
 }
 
-# Python Release Candidate Configuration
-echo "SDK version: $(get_version)"
-VERSION=$(get_version)
-CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
-SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
-MD5_FILE_NAME="apache-beam-$VERSION-python.zip.md5"
-ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
-BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
-
-# Cloud Configurations
-PROJECT_ID='apache-beam-testing'
-BUCKET_NAME='temp-storage-for-release-validation-tests'
-TEMP_DIR='/quickstart'
-NUM_WORKERS=1
-WORDCOUNT_OUTPUT='wordcount_direct.txt'
-PUBSUB_TOPIC1='wordstream-python-topic-1'
-PUBSUB_TOPIC2='wordstream-python-topic-2'
-PUBSUB_SUBSCRIPTION='wordstream-python-sub2'
+print_separator "Start Quickstarts Examples"
+echo "SDK version: $VERSION"
 
 TMPDIR=$(mktemp -d)
 echo $TMPDIR
@@ -142,6 +81,7 @@ pushd $TMPDIR
 #
 # 1. Download files from RC staging location
 #
+
 wget $CANDIDATE_URL$SHA1_FILE_NAME
 wget $CANDIDATE_URL$MD5_FILE_NAME
 wget $CANDIDATE_URL$ASC_FILE_NAME
@@ -289,4 +229,4 @@ kill -9 $pid
 gcloud dataflow jobs cancel $running_job
 cleanup_pubsub
 
-complete "Succeed"
+complete "SUCCEED: Quickstart Verification Complete"
