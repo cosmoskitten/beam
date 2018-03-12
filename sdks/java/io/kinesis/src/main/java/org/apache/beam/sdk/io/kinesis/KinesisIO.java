@@ -215,6 +215,9 @@ public final class KinesisIO {
 
     abstract Duration getUpToDateThreshold();
 
+    @Nullable
+    abstract Integer getLimit();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -231,6 +234,8 @@ public final class KinesisIO {
       abstract Builder setMaxReadTime(Duration maxReadTime);
 
       abstract Builder setUpToDateThreshold(Duration upToDateThreshold);
+
+      abstract Builder setLimit(Integer limit);
 
       abstract Read build();
     }
@@ -319,6 +324,13 @@ public final class KinesisIO {
       return toBuilder().setUpToDateThreshold(upToDateThreshold).build();
     }
 
+    /** Specifies the maximum number of records in GetRecordsResult. */
+    public Read withLimit(int limit) {
+      checkArgument(limit > 0, "limit must be positive, but was: %s", limit);
+      checkArgument(limit <= 10_000, "limit must be up to 10,000, but was: %s", limit);
+      return toBuilder().setLimit(limit).build();
+    }
+
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
       Unbounded<KinesisRecord> unbounded =
@@ -327,7 +339,8 @@ public final class KinesisIO {
                   getAWSClientsProvider(),
                   getStreamName(),
                   getInitialPosition(),
-                  getUpToDateThreshold()));
+                  getUpToDateThreshold(),
+                  getLimit()));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 
