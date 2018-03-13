@@ -60,7 +60,7 @@ public class BeamSqlAbsExpression extends BeamSqlMathUnaryExpression {
         break;
       case DECIMAL:
         result = BeamSqlPrimitive
-            .of(SqlTypeName.DECIMAL, SqlFunctions.abs(new BigDecimal(op.getValue().toString())));
+            .of(SqlTypeName.DECIMAL, SqlFunctions.abs(op.getDecimal()));
         break;
       case DOUBLE:
         result = BeamSqlPrimitive
