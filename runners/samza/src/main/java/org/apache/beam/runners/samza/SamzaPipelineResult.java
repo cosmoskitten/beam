@@ -21,12 +21,14 @@ package org.apache.beam.runners.samza;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.samza.application.StreamApplication;
+import org.apache.samza.job.ApplicationStatus;
+import org.apache.samza.runtime.ApplicationRunner;
+import org.apache.samza.runtime.LocalApplicationRunner;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,13 +39,18 @@ import org.slf4j.LoggerFactory;
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
 
-  private final CountDownLatch doneLatch = new CountDownLatch(1);
   private final AtomicReference<StateInfo> stateRef =
       new AtomicReference<>(new StateInfo(State.STOPPED));
   private final SamzaExecutionContext executionContext;
+  private final ApplicationRunner runner;
+  private final StreamApplication app;
 
-  public SamzaPipelineResult(SamzaExecutionContext executionContext) {
+  public SamzaPipelineResult(StreamApplication app,
+                             ApplicationRunner runner,
+                             SamzaExecutionContext executionContext) {
     this.executionContext = executionContext;
+    this.runner = runner;
+    this.app = app;
   }
 
   @Override
@@ -53,33 +60,44 @@ public class SamzaPipelineResult implements PipelineResult {
 
   @Override
   public State cancel() throws IOException {
-    throw new UnsupportedOperationException("Cancellation is not supported by the SamzaRunner");
+    runner.kill(app);
+
+    return markState();
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    try {
-      if (!doneLatch.await(duration.getMillis(), TimeUnit.MILLISECONDS)) {
-        return null;
-      }
-    } catch (InterruptedException e) {
-      // Ignore
+    if (runner instanceof LocalApplicationRunner) {
+      ((LocalApplicationRunner) runner).waitForFinish();
+    } else {
+      throw new UnsupportedOperationException(
+          "waitUntilFinish is not supported by the SamzaRunner when running remotely");
     }
 
-    final StateInfo stateInfo = stateRef.get();
-    if (stateInfo.error != null) {
-      throw stateInfo.error;
-    }
-
-    return stateInfo.state;
+    return markState();
   }
 
   @Override
   public State waitUntilFinish() {
-    try {
-      doneLatch.await();
-    } catch (InterruptedException e) {
-      // Ignore
+    if (runner instanceof LocalApplicationRunner) {
+      ((LocalApplicationRunner) runner).waitForFinish();
+    } else {
+      throw new UnsupportedOperationException(
+          "waitUntilFinish is not supported by the SamzaRunner when running remotely");
+    }
+
+    return markState();
+  }
+
+  private State markState() {
+    final ApplicationStatus status = runner.status(app);
+    switch (status.getStatusCode()) {
+      case UnsuccessfulFinish:
+        markFailure(runner.status(app).getThrowable());
+        break;
+      case SuccessfulFinish:
+        markSuccess();
+        break;
     }
 
     final StateInfo stateInfo = stateRef.get();
@@ -119,8 +137,6 @@ public class SamzaPipelineResult implements PipelineResult {
             currentState.state);
       }
     } while (!stateRef.compareAndSet(currentState, new StateInfo(State.DONE)));
-
-    doneLatch.countDown();
   }
 
   public void markFailure(Throwable error) {
@@ -138,8 +154,6 @@ public class SamzaPipelineResult implements PipelineResult {
             currentState.state);
       }
     } while (!stateRef.compareAndSet(currentState, new StateInfo(State.FAILED, wrappedException)));
-
-    doneLatch.countDown();
   }
 
   private static class StateInfo {
