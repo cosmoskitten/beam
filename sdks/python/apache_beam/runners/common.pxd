@@ -87,7 +87,7 @@ cdef class DoFnRunner(Receiver):
 
 
 cdef class OutputProcessor(object):
-  @cython.locals(windowed_value=WindowedValue)
+  @cython.locals(windowed_value=WindowedValue, output_element_output=cython.int)
   cpdef process_outputs(self, WindowedValue element, results)
 
 
