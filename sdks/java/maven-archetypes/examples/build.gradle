@@ -21,31 +21,40 @@ applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 
+// Extract the version from a library:version dependency.
+def ver = { return it.substring(1+it.lastIndexOf(':')) }
+
 processResources {
-   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-      'project.version':  version,
-      'bigquery.version': 'v2-rev374-1.22.0',
-      'google-clients.version': '1.22.0',
-      'guava.version': '20.0',
-      'hamcrest.version': '1.3',
-      'jackson.version': '2.8.9',
-      'joda.version': '2.4',
-      'junit.version': '4.12',
-      'maven-compiler-plugin.version': '3.7.0',
-      'maven-exec-plugin.version': '1.6.0',
-      'maven-jar-plugin.version': '3.0.2',
-      'maven-shade-plugin.version': '3.1.0',
-      'pubsub.version': 'v1-rev10-1.22.0',
-      'slf4j.version': '1.7.25',
-      'spark.version': '2.2.1',
-      'hadoop.version': '2.7.3',
-      'maven-surefire-plugin.version': '2.20.1',
-      'mockito.version': '1.9.5'
-   ]
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'project.version':  version,
+    'bigquery.version': ver(project.library.java.google_api_services_bigquery),
+    'google-clients.version': ver(project.library.java.google_api_client),
+    'guava.version': ver(project.library.java.guava),
+    'hamcrest.version': ver(project.library.java.hamcrest_library),
+    'jackson.version': ver(project.library.java.jackson_core),
+    'joda.version': ver(project.library.java.joda_time),
+    'junit.version': ver(project.library.java.junit),
+    'pubsub.version': ver(project.library.java.google_api_services_pubsub),
+    'slf4j.version': ver(project.library.java.slf4j_api),
+    'spark.version': ver(project.library.java.spark_core),
+    'hadoop.version': ver(project.library.java.hadoop_client),
+    'mockito.version': ver(project.library.java.mockito_core),
+    'maven-compiler-plugin.version': '3.7.0',
+    'maven-exec-plugin.version': '1.6.0',
+    'maven-jar-plugin.version': '3.0.2',
+    'maven-shade-plugin.version': '3.1.0',
+    'maven-surefire-plugin.version': '2.20.1'
+  ]
 }
+
+// The :examples:java main/test sourceSets are used in generation.
+evaluationDependsOn(':examples:java')
 
 task generateSources(type: Exec) {
   println "Generating sources for archetype"
+  inputs.file './generate-sources.sh'
+  inputs.dir project(':examples:java').sourceSets.main.allSource
+  //inputs.dir projects.sourceSets.examples.test.allSource
   commandLine './generate-sources.sh'
 }
 

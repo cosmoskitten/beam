@@ -335,11 +335,11 @@ ext.applyJavaNature = {
 
     if (configuration.artifactId) {
       task sourcesJar(type: Jar) {
-        from 'src/main'
+        from sourceSets.main.allSource
         classifier = 'sources'
       }
       task testSourcesJar(type: Jar) {
-        from 'src/test'
+        from sourceSets.test.allSource
         classifier = 'test-sources'
       }
       task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -361,6 +361,7 @@ ext.applyJavaNature = {
                 asNode().appendNode('name', description)
               }
             }
+            // TODO: Use the shadow test jar here instead of the test jar.
             artifact packageTests {
               classifier "tests"
             }
