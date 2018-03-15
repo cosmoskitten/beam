@@ -36,20 +36,25 @@ from apache_beam.options.pipeline_options import StandardOptions
 
 def split_fn(lines):
   import re
-  return re.findall(r'[A-Za-z\']+', lines)
+  return re.findall(r'[A-Za-z0-9\']+', lines)
 
 
 def run(argv=None):
   """Build and run the pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input_topic', required=True,
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
-  parser.add_argument(
       '--output_topic', required=True,
       help=('Output PubSub topic of the form '
             '"projects/<PROJECT>/topic/<TOPIC>".'))
+  group = parser.add_mutually_exclusive_group(required=True)
+  group.add_argument(
+      '--input_topic',
+      help=('Input PubSub topic of the form '
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
+  group.add_argument(
+      '--input_sub',
+      help=('Input PubSub subscription of the form '
+            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
   options = PipelineOptions(pipeline_args)
   options.view_as(StandardOptions).streaming = True
@@ -57,7 +62,10 @@ def run(argv=None):
   with beam.Pipeline(options=options) as p:
 
     # Read from PubSub into a PCollection.
-    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
+    if known_args.input_sub:
+      lines = p | beam.io.ReadStringsFromPubSub(subscription=known_args.input_sub)
+    else:
+      lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
 
     # Capitalize the characters in each line.
     def count_ones(word_ones):
