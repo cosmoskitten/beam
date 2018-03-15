@@ -220,6 +220,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       this.options = options.as(FlinkPipelineOptions.class);
     }
 
+    private static final int DEFAULT_PARALLELISM = 10;
+
     @Override
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
     getReplacementTransform(
@@ -230,7 +232,14 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In
       // streaming, there are large numbers of small bundles, resulting in many tiny files.
       // Instead we pick parallelism * 2 to ensure full parallelism, but prevent too-many files.
-      final Integer jobParallelism = options.getParallelism();
+      Integer jobParallelism = options.getParallelism();
+
+      if (jobParallelism == -1) {
+        LOG.warn("No parallelism specified. Working with cluster default. Number of shards was "
+                 + "set to default value: {}", DEFAULT_PARALLELISM * 2);
+        jobParallelism = DEFAULT_PARALLELISM;
+      }
+
       Preconditions.checkArgument(jobParallelism > 0,
               "Parallelism of a job should be greater than 0. Currently set: {}", jobParallelism);
       int numShards = jobParallelism * 2;

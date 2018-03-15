@@ -64,6 +64,16 @@ public class FlinkTransformOverridesTest {
     }
 
     @Test
+    public void testParallelismSetToClusterDefault() {
+        FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+        options.setRunner(TestFlinkRunner.class);
+        options.setFlinkMaster("[auto]");
+        options.setParallelism(-1);
+
+        testStreamingWriteOverride(options, 20);
+    }
+
+    @Test
     public void testCustomParallelism() {
         FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
         options.setRunner(TestFlinkRunner.class);
