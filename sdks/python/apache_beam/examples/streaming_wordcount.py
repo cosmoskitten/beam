@@ -63,7 +63,8 @@ def run(argv=None):
 
     # Read from PubSub into a PCollection.
     if known_args.input_sub:
-      lines = p | beam.io.ReadStringsFromPubSub(subscription=known_args.input_sub)
+      lines = p | beam.io.ReadStringsFromPubSub(
+          subscription=known_args.input_sub)
     else:
       lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
 
