@@ -69,6 +69,9 @@ class TriggerTest(unittest.TestCase):
     assert not kwargs
 
     def bundle_data(data, size):
+      if size < 0:
+        data = list(data)[::-1]
+        size = -size
       bundle = []
       for timestamp, elem in data:
         windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
@@ -81,16 +84,8 @@ class TriggerTest(unittest.TestCase):
 
     if not groupings:
       groupings = [1]
+    grouping = list(groupings) + [-group_by for group_by in groupings]
     for group_by in groupings:
-      bundles = []
-      bundle = []
-      for timestamp, elem in timestamped_data:
-        windows = window_fn.assign(WindowFn.AssignContext(timestamp, elem))
-        bundle.append(WindowedValue(elem, timestamp, windows))
-        if len(bundle) == group_by:
-          bundles.append(bundle)
-          bundle = []
-      bundles.append(bundle)
       self.run_trigger(window_fn, trigger_fn, accumulation_mode,
                        bundle_data(timestamped_data, group_by),
                        bundle_data(late_data, group_by),
@@ -107,6 +102,7 @@ class TriggerTest(unittest.TestCase):
     for bundle in bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
@@ -115,11 +111,13 @@ class TriggerTest(unittest.TestCase):
         for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
           window, = wvalue.windows
+          self.assertEqual(window.end, wvalue.timestamp)
           actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
       for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
         window, = wvalue.windows
+        self.assertEqual(window.end, wvalue.timestamp)
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
@@ -128,6 +126,7 @@ class TriggerTest(unittest.TestCase):
           for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
             window, = wvalue.windows
+            self.assertEqual(window.end, wvalue.timestamp)
             actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
