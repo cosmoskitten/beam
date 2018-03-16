@@ -178,10 +178,11 @@ class Environment(object):
       for experiment in self.debug_options.experiments:
         self.proto.experiments.append(experiment)
     # Add use_multiple_sdk_containers flag if its not already present. Do not
-    # add the flag if 'NO_use_multiple_sdk_containers' is present.
+    # add the flag if 'no_use_multiple_sdk_containers' is present.
     # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
     # till version 2.4.
-    if ('use_multiple_sdk_containers' not in self.proto.experiments and
+    if (job_type.startswith('FNAPI_') and
+        'use_multiple_sdk_containers' not in self.proto.experiments and
         'no_use_multiple_sdk_containers' not in self.proto.experiments):
       self.proto.experiments.append('use_multiple_sdk_containers')
     # Worker pool(s) information.
