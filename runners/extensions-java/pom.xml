@@ -64,5 +64,11 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.stephenc.findbugs</groupId>
+      <artifactId>findbugs-annotations</artifactId>
+    </dependency>
+
+
   </dependencies>
 </project>
