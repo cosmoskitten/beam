@@ -313,7 +313,7 @@ class DataflowMetrics extends MetricResults {
       DataflowMetricResultExtractor extractor = new DataflowMetricResultExtractor(
           dataflowPipelineJob.getDataflowOptions().isStreaming());
       for (MetricKey metricKey : metricHashKeys) {
-        String metricName = metricKey.metricName().name();
+        String metricName = metricKey.metricName().getName();
         if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
             || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
           // Skip distribution metrics, as these are not yet properly supported.
@@ -347,12 +347,12 @@ class DataflowMetrics extends MetricResults {
   abstract static class DataflowMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
-    public abstract MetricName name();
-    public abstract String step();
+    public abstract MetricName getName();
+    public abstract String getStep();
     @Nullable
-    public abstract T committed();
+    public abstract T getCommitted();
     @Nullable
-    public abstract T attempted();
+    public abstract T getAttempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
