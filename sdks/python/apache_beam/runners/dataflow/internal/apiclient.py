@@ -177,6 +177,13 @@ class Environment(object):
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
         self.proto.experiments.append(experiment)
+    # Add MULTIPLE_SDK_CONTAINERS flag if its not already present. Do not add
+    # the flag if 'NO_MULTIPLE_SDK_CONTAINERS' is present.
+    # TODO: Cleanup MULTIPLE_SDK_CONTAINERS once we depricate Python SDK till
+    # version 2.4.
+    if ('MULTIPLE_SDK_CONTAINERS' not in self.proto.experiments and
+        'NO_MULTIPLE_SDK_CONTAINERS' not in self.proto.experiments):
+      self.proto.experiments.append('MULTIPLE_SDK_CONTAINERS')
     # Worker pool(s) information.
     package_descriptors = []
     for package in packages:
