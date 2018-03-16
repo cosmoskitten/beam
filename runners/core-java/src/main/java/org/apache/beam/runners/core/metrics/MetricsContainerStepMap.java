@@ -115,9 +115,9 @@ public class MetricsContainerStepMap implements Serializable {
    * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
    * metrics.
    *
-   * <p>This constructor is intended for runners which only support `attempted` metrics.
-   * Accessing {@link MetricResult#getCommitted()} in the resulting {@link MetricResults} will result
-   * in an {@link UnsupportedOperationException}.</p>
+   * <p>This constructor is intended for runners which only support `attempted` metrics. Accessing
+   * {@link MetricResult#getCommitted()} in the resulting {@link MetricResults} will result in an
+   * {@link UnsupportedOperationException}.
    */
   public static MetricResults asAttemptedOnlyMetricResults(
       MetricsContainerStepMap attemptedMetricsContainers) {
