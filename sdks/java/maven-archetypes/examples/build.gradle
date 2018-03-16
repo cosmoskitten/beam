@@ -22,7 +22,13 @@ applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 
 // Extract the version from a library:version dependency.
-def ver = { return it.substring(1+it.lastIndexOf(':')) }
+def ver = { moduleName ->
+  def version = ""
+  dependencies {
+    version = create(moduleName).getVersion()
+  }
+  return version
+}
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -39,11 +45,11 @@ processResources {
     'spark.version': ver(project.library.java.spark_core),
     'hadoop.version': ver(project.library.java.hadoop_client),
     'mockito.version': ver(project.library.java.mockito_core),
-    'maven-compiler-plugin.version': '3.7.0',
-    'maven-exec-plugin.version': '1.6.0',
-    'maven-jar-plugin.version': '3.0.2',
-    'maven-shade-plugin.version': '3.1.0',
-    'maven-surefire-plugin.version': '2.20.1'
+    'maven-compiler-plugin.version': ver(project.library.maven.maven_compiler_plugin),
+    'maven-exec-plugin.version': ver(project.library.maven.maven_exec_plugin),
+    'maven-jar-plugin.version': ver(project.library.maven.maven_jar_plugin),
+    'maven-shade-plugin.version': ver(project.library.maven.maven_shade_plugin),
+    'maven-surefire-plugin.version': ver(project.library.maven.maven_surefire_plugin),
   ]
 }
 
