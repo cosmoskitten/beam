@@ -69,7 +69,7 @@ public class MetricsPusher implements Serializable {
       ScheduledExecutorService scheduler =
           Executors.newSingleThreadScheduledExecutor(
               new ThreadFactoryBuilder()
-                  .setDaemon(false)
+                  .setDaemon(true)
                   .setNameFormat("MetricsPusher-thread")
                   .build());
       scheduledFuture =
