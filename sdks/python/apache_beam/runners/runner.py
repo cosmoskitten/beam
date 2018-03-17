@@ -130,7 +130,7 @@ class PipelineRunner(object):
     """Run the given transform or callable with this runner.
 
     May return immediately, executing the pipeline in the background.
-    The returned resuld object can be querried for progress, and
+    The returned result object can be queried for progress, and
     `wait_until_finish` may be called to block until completion.
     """
     # Imported here to avoid circular dependencies.
