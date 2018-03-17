@@ -21,35 +21,26 @@ applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 
-// Extract the version from a library:version dependency.
-def ver = { moduleName ->
-  def version = ""
-  dependencies {
-    version = create(moduleName).getVersion()
-  }
-  return version
-}
-
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'project.version':  version,
-    'bigquery.version': ver(project.library.java.google_api_services_bigquery),
-    'google-clients.version': ver(project.library.java.google_api_client),
-    'guava.version': ver(project.library.java.guava),
-    'hamcrest.version': ver(project.library.java.hamcrest_library),
-    'jackson.version': ver(project.library.java.jackson_core),
-    'joda.version': ver(project.library.java.joda_time),
-    'junit.version': ver(project.library.java.junit),
-    'pubsub.version': ver(project.library.java.google_api_services_pubsub),
-    'slf4j.version': ver(project.library.java.slf4j_api),
-    'spark.version': ver(project.library.java.spark_core),
-    'hadoop.version': ver(project.library.java.hadoop_client),
-    'mockito.version': ver(project.library.java.mockito_core),
-    'maven-compiler-plugin.version': ver(project.library.maven.maven_compiler_plugin),
-    'maven-exec-plugin.version': ver(project.library.maven.maven_exec_plugin),
-    'maven-jar-plugin.version': ver(project.library.maven.maven_jar_plugin),
-    'maven-shade-plugin.version': ver(project.library.maven.maven_shade_plugin),
-    'maven-surefire-plugin.version': ver(project.library.maven.maven_surefire_plugin),
+    'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
+    'google-clients.version': dependencies.create(project.library.java.google_api_client).getVersion(),
+    'guava.version': dependencies.create(project.library.java.guava).getVersion(),
+    'hamcrest.version': dependencies.create(project.library.java.hamcrest_library).getVersion(),
+    'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
+    'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
+    'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+    'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
+    'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
+    'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+    'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
+    'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
+    'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
+    'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
+    'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
+    'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
+    'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
   ]
 }
 
