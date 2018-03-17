@@ -228,9 +228,9 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.transforms.core import ParDo
 
     class SideInputVisitor(PipelineVisitor):
-      """Ensures input `PCollection` used as a side inputs have a `KV` type.
+      """Ensures input `PCollection` used as a side inputs has a `KV` type.
 
-      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
+      TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
       """
       def visit_transform(self, transform_node):
