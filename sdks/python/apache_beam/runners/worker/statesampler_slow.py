@@ -17,9 +17,7 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-StateSamplerInfo = namedtuple(
-    'StateSamplerInfo',
-    ['state_name', 'transition_count', 'time_since_transition'])
+from apache_beam.runners.worker.statesampler import StateSamplerInfo
 
 
 class StateSampler(object):
