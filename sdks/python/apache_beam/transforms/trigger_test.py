@@ -65,6 +65,14 @@ class TriggerTest(unittest.TestCase):
   def run_trigger_simple(self, window_fn, trigger_fn, accumulation_mode,
                          timestamped_data, expected_panes, *groupings,
                          **kwargs):
+    # Groupings is a list of integers indicating the (uniform) size of bundles
+    # to try. For example, if timestamped_data is has elements [a, b, c, d, e]
+    # then groupings=(5, 2) would first run the test with everything in the same
+    # bundle, and then re-run the test with bundling [a, b], [c, d], [e].
+    # A negative value will reverse the order, e.g. -2 would result in bundles
+    # [e, d], [c, b], [a].  This is useful for deterministic triggers in testing
+    # that the output is not a function of ordering or bundling.
+    # If empty, defaults to bundles of size 1 in the given order.
     late_data = kwargs.pop('late_data', [])
     assert not kwargs
 
