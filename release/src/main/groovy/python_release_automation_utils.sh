@@ -20,13 +20,25 @@
 set -e
 set -v
 
-print_separator() {
+#######################################
+# Print Separators.
+# Arguments:
+#   Info to be printed.
+# Outputs:
+#   Writes info to stdout.
+#######################################
+function print_separator() {
     echo "############################################################################"
     echo $1
     echo "############################################################################"
 }
 
-update_gcloud() {
+#######################################
+# Update gcloud version.
+# Arguments:
+#   None
+#######################################
+function update_gcloud() {
     curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz \
     --output gcloud.tar.gz
     tar xf gcloud.tar.gz
@@ -36,38 +48,61 @@ update_gcloud() {
     gcloud -v
 }
 
-get_version() {
-    # this function will pull python sdk version from sdk/python/apache_beam/version.py and eliminate postfix '.dev'
+#######################################
+# Get Python SDK version from sdk/python/apache_beam/version.py.
+# Arguments:
+#   None
+# Outputs:
+#   Writes version to stdout.
+#######################################
+function get_version() {
     version=$(awk '/__version__/{print $3}' sdks/python/apache_beam/version.py)
-    if [[ $version = *".dev"* ]]
-    then
+    if [[ $version = *".dev"* ]]; then
         echo $version | cut -c 2- | rev | cut -d'.' -f2- | rev
     else
         echo $version
     fi
 }
 
-# Quickstart Pubsub Utils
-run_pubsub_publish(){
+#######################################
+# Publish data to Pubsub topic for streaming wordcount examples.
+# Arguments:
+#   None
+#######################################
+function run_pubsub_publish(){
     words=("hello world!", "I like cats!", "Python", "hello Python", "hello Python")
-    for word in ${words[@]}
-    do
+    for word in ${words[@]}; do
         gcloud pubsub topics publish $PUBSUB_TOPIC1 --message "$word"
     done
     sleep 10
 }
 
-run_pubsub_pull() {
+#######################################
+# Pull data from Pubsub.
+# Arguments:
+#   None
+#######################################
+function run_pubsub_pull() {
     gcloud pubsub subscriptions pull --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --limit=100 --auto-ack
 }
 
-create_pubsub() {
+#######################################
+# Create Pubsub topics and subscription.
+# Arguments:
+#   None
+#######################################
+function create_pubsub() {
     gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC1
     gcloud pubsub topics create --project=$PROJECT_ID $PUBSUB_TOPIC2
     gcloud pubsub subscriptions create --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION --topic $PUBSUB_TOPIC2
 }
 
-cleanup_pubsub() {
+#######################################
+# Remove Pubsub topics and subscription.
+# Arguments:
+#   None
+#######################################
+function cleanup_pubsub() {
     gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC1
     gcloud pubsub topics delete --project=$PROJECT_ID $PUBSUB_TOPIC2
     gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
