@@ -32,27 +32,37 @@ set -v
 
 source release/src/main/groovy/python_release_automation_utils.sh
 
-complete() {
+#######################################
+# Remove temp directory when complete.
+# Globals:
+#   TMPDIR
+# Arguments:
+#   None
+#######################################
+function complete() {
     print_separator "Validation $1"
     rm -rf $TMPDIR
 }
 
-verify_steaming_result() {
-    #  $1 - runner type: DirectRunner, DataflowRunner
-    #  $2 - pid: the pid of running pipeline
-    #  $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
+#######################################
+# Verify results of hourly_team_score.
+# Globals:
+#   DATASET
+# Arguments:
+#   $1 - runner type: DirectRunner, DataflowRunner
+#   $2 - pid: the pid of running pipeline
+#   $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
+#######################################
+function verify_steaming_result() {
     retry=3
     should_see="Python: "
-    while(( $retry > 0 ))
-    do
+    while(( $retry > 0 )); do
         pull_result=$(run_pubsub_pull)
-        if [[ $pull_result = *"$should_see"* ]]
-        then
+        if [[ $pull_result = *"$should_see"* ]]; then
             echo "SUCCEED: The streaming wordcount example running successfully on $1."
             break
         else
-            if [[ $retry > 0 ]]
-            then
+            if [[ $retry > 0 ]]; then
                 retry=$(($retry-1))
                 echo "retry left: $retry"
                 sleep 15
@@ -60,8 +70,7 @@ verify_steaming_result() {
                 echo "ERROR: The streaming wordcount example failed on $1."
                 cleanup_pubsub
                 kill -9 $2
-                if [[ $1 = "DataflowRunner" ]]
-                then
+                if [[ $1 = "DataflowRunner" ]]; then
                     gcloud dataflow jobs cancel $3
                 fi
                 complete "failed when running streaming wordcount example with $1."
@@ -113,8 +122,7 @@ print_separator "Creating new virtualenv and installing the SDK"
 virtualenv temp_virtualenv
 . temp_virtualenv/bin/activate
 gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-if [[ "$gcloud_version" < "189" ]]
-then
+if [[ "$gcloud_version" < "189" ]]; then
   update_gcloud
 fi
 pip install $BEAM_PYTHON_SDK[gcp]
@@ -126,8 +134,7 @@ pip install $BEAM_PYTHON_SDK[gcp]
 
 print_separator "Running wordcount example with DirectRunner"
 python -m apache_beam.examples.wordcount --output wordcount_direct.txt
-if ls wordcount_direct.txt* 1> /dev/null 2>&1;
-then
+if ls wordcount_direct.txt* 1> /dev/null 2>&1; then
 	echo "Found output file(s):"
 	ls wordcount_direct.txt*
 else
@@ -156,8 +163,7 @@ python -m apache_beam.examples.wordcount \
 # verify results.
 wordcount_output_in_gcs="gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT"
 gcs_pull_result=$(gsutil ls gs://$BUCKET_NAME)
-if [[ $gcs_pull_result != *$wordcount_output_in_gcs* ]]
-then
+if [[ $gcs_pull_result != *$wordcount_output_in_gcs* ]]; then
     echo "ERROR: The wordcount example failed on DataflowRunner".
     complete "failed when running wordcount example with DataflowRunner."
     exit 1
