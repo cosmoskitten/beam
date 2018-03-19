@@ -27,9 +27,10 @@ import (
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string
-	roots []Root
-	units []Unit
+	id       string
+	roots    []Root
+	units    []Unit
+	ParDoIds []string
 
 	status Status
 
@@ -41,6 +42,7 @@ type Plan struct {
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var source *DataSource
+	var pardoIDs []string
 
 	for _, u := range units {
 		if u == nil {
@@ -52,17 +54,21 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if s, ok := u.(*DataSource); ok {
 			source = s
 		}
+		if p, ok := u.(*ParDo); ok {
+			pardoIDs = append(pardoIDs, p.PID)
+		}
 	}
 	if len(roots) == 0 {
 		return nil, fmt.Errorf("no root units")
 	}
 
 	return &Plan{
-		id:     id,
-		status: Initializing,
-		roots:  roots,
-		units:  units,
-		source: source,
+		id:       id,
+		status:   Initializing,
+		roots:    roots,
+		units:    units,
+		ParDoIds: pardoIDs,
+		source:   source,
 	}, nil
 }
 
