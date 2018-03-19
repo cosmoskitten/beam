@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
@@ -235,22 +237,30 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		snapshot := plan.ProgressReport()
 
+		transforms := map[string]*fnpb.Metrics_PTransform{
+			snapshot.ID: &fnpb.Metrics_PTransform{
+				ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
+					Measured: &fnpb.Metrics_PTransform_Measured{
+						OutputElementCounts: map[string]int64{
+							snapshot.Name: snapshot.Count,
+						},
+					},
+				},
+			},
+		}
+
+		for _, pt := range plan.ParDoIds {
+			transforms[pt] = &fnpb.Metrics_PTransform{
+				User: beam.MetricsToProto(pt),
+			}
+		}
+
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
 					Metrics: &fnpb.Metrics{
-						Ptransforms: map[string]*fnpb.Metrics_PTransform{
-							snapshot.ID: &fnpb.Metrics_PTransform{
-								ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-									Measured: &fnpb.Metrics_PTransform_Measured{
-										OutputElementCounts: map[string]int64{
-											snapshot.Name: snapshot.Count,
-										},
-									},
-								},
-							},
-						},
+						Ptransforms: transforms,
 					},
 				},
 			},
