@@ -75,7 +75,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
 
     @Override
     public void onNext(StateRequest request) {
-      CompletionStage<StateResponse.Builder> responseStage = new CompletableFuture<>();
+      CompletableFuture<StateResponse.Builder> responseStage = new CompletableFuture<>();
       responseStage.whenCompleteAsync(
           (StateResponse.Builder responseBuilder, Throwable t) ->
               // note that this is threadsafe if and only if outboundObserver is threadsafe.
@@ -89,7 +89,16 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
       StateRequestHandler handler =
           requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
-        handler.accept(request, responseStage);
+        CompletionStage<StateResponse.Builder> result = handler.accept(request);
+        result.whenCompleteAsync(
+            (StateResponse.Builder responseBuilder, Throwable t) -> {
+              if (t == null) {
+                responseStage.complete(responseBuilder);
+              } else {
+                responseStage.completeExceptionally(t);
+              }
+            }
+        );
       } catch (Exception e) {
         responseStage.toCompletableFuture().completeExceptionally(e);
       }
@@ -105,14 +114,15 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
       outboundObserver.onCompleted();
     }
 
-    private void handlerNotFound(
-        StateRequest request, CompletionStage<StateResponse.Builder> responseFuture) {
-      responseFuture.toCompletableFuture().complete(
+    private CompletionStage<StateResponse.Builder> handlerNotFound(StateRequest request) {
+      CompletableFuture<StateResponse.Builder> result = new CompletableFuture<>();
+      result.complete(
           StateResponse.newBuilder()
               .setError(
                   String.format(
                       "Unknown process bundle instruction id '%s'",
                       request.getInstructionReference())));
+      return result;
     }
   }
 }

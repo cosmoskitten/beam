@@ -34,7 +34,6 @@ public interface StateRequestHandler {
    * <p>Throwing an error during handling will complete the handler result {@link CompletionStage}
    * exceptionally.
    */
-  void accept(
-      BeamFnApi.StateRequest request, CompletionStage<BeamFnApi.StateResponse.Builder> result)
+  CompletionStage<BeamFnApi.StateResponse.Builder> accept(BeamFnApi.StateRequest request)
       throws Exception;
 }
