@@ -30,23 +30,61 @@ set -v
 
 source release/src/main/groovy/python_release_automation_utils.sh
 
-complete() {
+#######################################
+# Remove temp directory when complete.
+# Globals:
+#   TMPDIR
+# Arguments:
+#   None
+#######################################
+function complete() {
     print_separator "Validation $1"
     rm -rf $TMPDIR
 }
 
-verify_houly_team_score() {
-    # $1 runner type
+#######################################
+# Verify results of user_score.
+# Globals:
+#   BUCKET_NAME
+# Arguments:
+#   $1: Runner - direct, dataflow
+#######################################
+function verify_user_score() {
+    expected_output_file_name="$USERSCORE_OUTPUT_PREFIX-$1-runner.txt"
+    actual_output_files=$(ls)
+    if [ $2 == "dataflow" ]; then
+        actual_output_files=$(gsutil ls gs://$BUCKET_NAME)
+        expected_output_file_name="gs://$BUCKET_NAME/$expected_output_file_name"
+    fi
+
+    if [[ $actual_output_files != *$expected_output_file_name* ]]
+    then
+        echo "ERROR: The userscore example failed on $1-runner".
+        complete "failed when running userscore example with $1-runner."
+        exit 1
+    fi
+
+    if [ $2 == "dataflow" ]; then
+        gsutil rm $expected_output_file_name*
+    fi
+    echo "SUCCEED: user_score successfully run on $1-runner."
+}
+
+#######################################
+# Verify results of hourly_team_score.
+# Globals:
+#   DATASET
+# Arguments:
+#   Runner - direct, dataflow
+#######################################
+function verify_hourly_team_score() {
     retry=3
     should_see='AntiqueBrassPlatypus'
-    while(( $retry >= 0 ))
-    do
-        if [[ $retry > 0 ]]
-        then
+    while(( $retry >= 0 )); do
+        if [[ $retry > 0 ]]; then
             bq_pull_result=$(bq head -n 100 $DATASET.hourly_team_score_python_$1)
-            if [[ $bq_pull_result = *"$should_see"* ]]
-            then
-                echo "SUCCEED: HourlyTeamScore example successful run on $1-runner"
+            if [[ $bq_pull_result = *"$should_see"* ]]; then
+                echo "SUCCEED: hourly_team_score example successful run on $1-runner"
                 break
             else
                 retry=$(($retry-1))
@@ -54,7 +92,8 @@ verify_houly_team_score() {
                 sleep 15
             fi
         else
-            echo "FAILED: HourlyTeamScore example failed running on $1-runner. Did not found scores of team $should_see in $DATASET.leader_board"
+            echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
+                Did not found scores of team $should_see in $DATASET.leader_board"
             complete "FAILED"
             exit 1
         fi
@@ -78,8 +117,7 @@ print_separator "Creating new virtualenv and installing the SDK"
 virtualenv temp_virtualenv
 . temp_virtualenv/bin/activate
 gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-if [[ "$gcloud_version" < "189" ]]
-then
+if [[ "$gcloud_version" < "189" ]]; then
   update_gcloud
 fi
 pip install $BEAM_PYTHON_SDK[gcp]
@@ -96,16 +134,8 @@ python -m apache_beam.examples.complete.game.user_score \
 --project=$PROJECT_ID \
 --dataset=$DATASET \
 --input=gs://$BUCKET_NAME/5000_gaming_data.csv
-if ls $output_file_name* 1> /dev/null 2>&1;
-then
-	echo "Found output file(s):"
-	ls $output_file_name*
-else
-	echo "ERROR: output file not found."
-	complete "failed when running userscore example with DirectRunner."
-	exit 1
-fi
-echo "SUCCEED: UserScore successfully run on DirectRunner."
+
+verify_user_score "direct"
 
 
 #
@@ -121,17 +151,8 @@ python -m apache_beam.examples.complete.game.user_score \
 --sdk_location=$BEAM_PYTHON_SDK \
 --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
 --output=gs://$BUCKET_NAME/$output_file_name
-# verify results.
-userscore_output_in_gcs="gs://$BUCKET_NAME/$output_file_name"
-gcs_pull_result=$(gsutil ls gs://$BUCKET_NAME)
-if [[ $gcs_pull_result != *$userscore_output_in_gcs* ]]
-then
-    echo "ERROR: The userscore example failed on DataflowRunner".
-    complete "failed when running userscore example with DataflowRunner."
-    exit 1
-fi
-gsutil rm gs://$BUCKET_NAME/$output_file_name*
-echo "SUCCEED: UserScore successfully run on DataflowRunner."
+
+verify_user_score "dataflow"
 
 
 #
@@ -145,7 +166,7 @@ python -m apache_beam.examples.complete.game.hourly_team_score \
 --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
 --table="hourly_team_score_python_direct"
 
-verify_houly_team_score "direct"
+verify_hourly_team_score "direct"
 
 
 #
@@ -162,6 +183,6 @@ python -m apache_beam.examples.complete.game.hourly_team_score \
 --input=gs://$BUCKET_NAME/5000_gaming_data.csv \
 --table="hourly_team_score_python_dataflow"
 
-verify_houly_team_score "dataflow"
+verify_hourly_team_score "dataflow"
 
 complete "SUCCEED: Mobile Gaming Verification Complete"
