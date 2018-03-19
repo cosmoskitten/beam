@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
@@ -154,7 +155,7 @@ type control struct {
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	id := req.GetInstructionId()
-	ctx = context.WithValue(ctx, instKey, id)
+	ctx = setInstID(ctx, id)
 
 	switch {
 	case req.GetRegister() != nil:
@@ -203,11 +204,31 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		err := plan.Execute(ctx, id, c.data)
 
+		snapshot := plan.ProgressReport()
+		planID := plan.ID()
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		c.plans[plan.ID()] = plan
 		delete(c.active, id)
 		c.mu.Unlock()
+
+		transforms := map[string]*fnpb.Metrics_PTransform{
+			snapshot.ID: &fnpb.Metrics_PTransform{
+				ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
+					Measured: &fnpb.Metrics_PTransform_Measured{
+						OutputElementCounts: map[string]int64{
+							snapshot.Name: snapshot.Count,
+						},
+					},
+				},
+			},
+		}
+
+		for _, pt := range plan.ParDoIds {
+			transforms[pt] = &fnpb.Metrics_PTransform{
+				User: metrics.ToProto(planID, pt),
+			}
+		}
 
 		if err != nil {
 			return fail(id, "execute failed: %v", err)
@@ -216,7 +237,11 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundle{
-				ProcessBundle: &fnpb.ProcessBundleResponse{},
+				ProcessBundle: &fnpb.ProcessBundleResponse{
+					Metrics: &fnpb.Metrics{
+						Ptransforms: transforms,
+					},
+				},
 			},
 		}
 
@@ -234,23 +259,32 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		snapshot := plan.ProgressReport()
+		planID := plan.ID()
+
+		transforms := map[string]*fnpb.Metrics_PTransform{
+			snapshot.ID: &fnpb.Metrics_PTransform{
+				ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
+					Measured: &fnpb.Metrics_PTransform_Measured{
+						OutputElementCounts: map[string]int64{
+							snapshot.Name: snapshot.Count,
+						},
+					},
+				},
+			},
+		}
+
+		for _, pt := range plan.ParDoIds {
+			transforms[pt] = &fnpb.Metrics_PTransform{
+				User: metrics.ToProto(planID, pt),
+			}
+		}
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
 					Metrics: &fnpb.Metrics{
-						Ptransforms: map[string]*fnpb.Metrics_PTransform{
-							snapshot.ID: &fnpb.Metrics_PTransform{
-								ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-									Measured: &fnpb.Metrics_PTransform_Measured{
-										OutputElementCounts: map[string]int64{
-											snapshot.Name: snapshot.Count,
-										},
-									},
-								},
-							},
-						},
+						Ptransforms: transforms,
 					},
 				},
 			},
