@@ -104,9 +104,11 @@ var (
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 // extractFn is a DoFn that emits the words in a given line.
-func extractFn(line string, emit func(string)) {
+func extractFn(ctx context.Context, line string, emit func(string)) {
+	c := beam.GetCounter("extract", "count")
 	for _, word := range wordRE.FindAllString(line, -1) {
 		emit(word)
+		c.Inc(ctx, 1)
 	}
 }
 
