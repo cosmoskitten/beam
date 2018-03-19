@@ -84,7 +84,6 @@ class TriggerTest(unittest.TestCase):
 
     if not groupings:
       groupings = [1]
-    grouping = list(groupings) + [-group_by for group_by in groupings]
     for group_by in groupings:
       self.run_trigger(window_fn, trigger_fn, accumulation_mode,
                        bundle_data(timestamped_data, group_by),
@@ -141,7 +140,10 @@ class TriggerTest(unittest.TestCase):
          IntervalWindow(10, 20): [set('c')]},
         1,
         2,
-        3)
+        3,
+        -3,
+        -2,
+        -1)
 
   def test_fixed_watermark_with_early(self):
     self.run_trigger_simple(
@@ -277,7 +279,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
+        2,
+        -2,
+        -1)
 
     self.run_trigger_simple(
         Sessions(10),  # pyformat break
@@ -292,7 +296,10 @@ class TriggerTest(unittest.TestCase):
         3,
         4,
         5,
-        6)
+        6,
+        -4,
+        -2,
+        -1)
 
   def test_sessions_watermark(self):
     self.run_trigger_simple(
@@ -302,22 +309,9 @@ class TriggerTest(unittest.TestCase):
         [(1, 'a'), (2, 'b')],
         {IntervalWindow(1, 12): [set('ab')]},
         1,
-        2)
-
-    self.run_trigger_simple(
-        Sessions(10),  # pyformat break
-        AfterWatermark(),
-        AccumulationMode.ACCUMULATING,
-        [(1, 'a'), (2, 'b'), (15, 'c'), (16, 'd'), (30, 'z'), (9, 'e'),
-         (10, 'f'), (30, 'y')],
-        {IntervalWindow(1, 26): [set('abcdef')],
-         IntervalWindow(30, 40): [set('yz')]},
-        1,
         2,
-        3,
-        4,
-        5,
-        6)
+        -2,
+        -1)
 
   def test_sessions_after_count(self):
     self.run_trigger_simple(
