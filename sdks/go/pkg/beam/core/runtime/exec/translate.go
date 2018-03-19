@@ -295,7 +295,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
+				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
 				n.Fn, err = graph.AsDoFn(fn)
 				if err != nil {
 					return nil, err
