@@ -21,15 +21,18 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id    string
-	roots []Root
-	units []Unit
+	id       string
+	roots    []Root
+	units    []Unit
+	ParDoIds []string
 
 	status Status
 
@@ -41,6 +44,7 @@ type Plan struct {
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
 	var source *DataSource
+	var pardoIDs []string
 
 	for _, u := range units {
 		if u == nil {
@@ -52,17 +56,21 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if s, ok := u.(*DataSource); ok {
 			source = s
 		}
+		if p, ok := u.(*ParDo); ok {
+			pardoIDs = append(pardoIDs, p.PID)
+		}
 	}
 	if len(roots) == 0 {
 		return nil, fmt.Errorf("no root units")
 	}
 
 	return &Plan{
-		id:     id,
-		status: Initializing,
-		roots:  roots,
-		units:  units,
-		source: source,
+		id:       id,
+		status:   Initializing,
+		roots:    roots,
+		units:    units,
+		ParDoIds: pardoIDs,
+		source:   source,
 	}, nil
 }
 
@@ -75,6 +83,7 @@ func (p *Plan) ID() string {
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataManager) error {
+	ctx = metrics.SetBundleID(ctx, p.id)
 	if p.status == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
