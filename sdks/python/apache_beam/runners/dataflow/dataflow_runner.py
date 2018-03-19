@@ -104,7 +104,7 @@ class DataflowRunner(PipelineRunner):
         is finished.
     """
     last_message_time = None
-    last_message_hash = None
+    current_seen_messages = set()
 
     last_error_rank = float('-inf')
     last_error_msg = None
@@ -159,15 +159,18 @@ class DataflowRunner(PipelineRunner):
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
           message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
-          m_hash = hash(message)
 
-          if last_message_hash is not None and m_hash == last_message_hash:
+          if m.time > last_message_time:
+            last_message_time = m.time
+            current_seen_messages = set()
+
+          if message in current_seen_messages:
             # Skip the first message if it is the last message we got in the
             # previous round. This can happen because we use the
             # last_message_time as a parameter of the query for new messages.
             continue
-          last_message_time = m.time
-          last_message_hash = m_hash
+          else:
+            current_seen_messages.add(message)
           # Skip empty messages.
           if m.messageImportance is None:
             continue
