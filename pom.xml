@@ -1446,6 +1446,7 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>${junit.version}</version>
+        <type>test-jar</type>
         <scope>test</scope>
       </dependency>
 
@@ -1460,6 +1461,7 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>
+        <type>test-jar</type>
         <scope>test</scope>
       </dependency>
 
