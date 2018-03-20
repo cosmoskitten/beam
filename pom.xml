@@ -185,6 +185,7 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
+    <jackson-datatype-joda-version>2.4.0</jackson-datatype-joda-version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -1497,6 +1498,11 @@
         <version>${hadoop.version}</version>
         <classifier>tests</classifier>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-joda</artifactId>
+        <version>${jackson-datatype-joda-version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
