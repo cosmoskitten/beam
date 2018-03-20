@@ -64,6 +64,11 @@ public interface FlinkPipelineOptions
   Integer getParallelism();
   void setParallelism(Integer value);
 
+  @Description("The maximal degree of parallelism to be used when distributing operations onto workers.")
+  @Default.Integer(-1)
+  Integer getMaxParallelism();
+  void setMaxParallelism(Integer value);
+
   @Description("The interval between consecutive checkpoints (i.e. snapshots of the current"
       + "pipeline state used for fault tolerance).")
   @Default.Long(-1L)

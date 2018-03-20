@@ -70,7 +70,18 @@ public class FlinkTransformOverridesTest {
         options.setFlinkMaster("[auto]");
         options.setParallelism(-1);
 
-        testStreamingWriteOverride(options, 20);
+        testStreamingWriteOverride(options, 256);
+    }
+
+    @Test
+    public void testParallelismSetToClusterDefaultWithSetMaxParallelism() {
+        FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+        options.setRunner(TestFlinkRunner.class);
+        options.setFlinkMaster("[auto]");
+        options.setParallelism(-1);
+        options.setMaxParallelism(64);
+
+        testStreamingWriteOverride(options, 128);
     }
 
     @Test
