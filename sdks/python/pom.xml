@@ -232,6 +232,9 @@
                     <argument>envlist</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
+                    <argument>-v</argument>
+                    <!-- Always recreate virtual environments, in case they get corrupted. -->
+                    <argument>--recreate</argument>
                   </arguments>
                   <environmentVariables>
                     <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
