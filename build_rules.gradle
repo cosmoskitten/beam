@@ -551,8 +551,8 @@ ext.applyAvroNature = {
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
 
-// A class defining the set of configurable properties for createJavaQuickstartValidationTask
-class JavaQuickstartConfiguration {
+// A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
+class JavaExamplesArchetypeValidationConfiguration {
   // Type [Quickstart, MobileGaming] for the postrelease validation is required.
   // Used both for the test name run${type}Java${runner}
   // and also for the script name, ${type}-java-${runner}.toLowerCase().
@@ -577,8 +577,8 @@ class JavaQuickstartConfiguration {
 // Creates a task to run the quickstart for a runner.
 // Releases version and URL, can be overriden for a RC release with
 // ./gradlew :release:runQuickstartJava -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
-ext.createJavaQuickstartValidationTask = {
-  JavaQuickstartConfiguration config = it as JavaQuickstartConfiguration
+ext.createJavaExamplesArchetypeValidationTask = {
+  JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
   def taskName = "run${config.type}Java${config.runner}"
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
