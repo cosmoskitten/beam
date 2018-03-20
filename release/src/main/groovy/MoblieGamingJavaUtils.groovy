@@ -22,161 +22,127 @@ import java.text.SimpleDateFormat
 
 class MobileGamingJavaUtils {
 
-    public static final RUNNERS = [DirectRunner: "direct-runner",
-                                   DataflowRunner: "dataflow-runner",
-                                   SparkRunner: "spark-runner",
-                                   ApexRunner: "apex-runner",
-                                   FlinkRunner: "flink-runner"]
+  public static final RUNNERS = [DirectRunner: "direct-runner",
+    DataflowRunner: "dataflow-runner",
+    SparkRunner: "spark-runner",
+    ApexRunner: "apex-runner",
+    FlinkRunner: "flink-runner"]
 
-    public static final EXECUTION_TIMEOUT = 15
+  public static final EXECUTION_TIMEOUT = 20
 
-    // Lists used to verify team names generated in the LeaderBoard example
-    public static final COLORS = new ArrayList<>(Arrays.asList(
-            "Magenta",
-            "AliceBlue",
-            "Almond",
-            "Amaranth",
-            "Amber",
-            "Amethyst",
-            "AndroidGreen",
-            "AntiqueBrass",
-            "Fuchsia",
-            "Ruby",
-            "AppleGreen",
-            "Apricot",
-            "Aqua",
-            "ArmyGreen",
-            "Asparagus",
-            "Auburn",
-            "Azure",
-            "Banana",
-            "Beige",
-            "Bisque",
-            "BarnRed",
-            "BattleshipGrey"))
+  // Lists used to verify team names generated in the LeaderBoard example.
+  // This list should be kept sync with COLORS in org.apache.beam.examples.complete.game.injector.Injector.
+  public static final COLORS = new ArrayList<>(Arrays.asList(
+    "Magenta",
+    "AliceBlue",
+    "Almond",
+    "Amaranth",
+    "Amber",
+    "Amethyst",
+    "AndroidGreen",
+    "AntiqueBrass",
+    "Fuchsia",
+    "Ruby",
+    "AppleGreen",
+    "Apricot",
+    "Aqua",
+    "ArmyGreen",
+    "Asparagus",
+    "Auburn",
+    "Azure",
+    "Banana",
+    "Beige",
+    "Bisque",
+    "BarnRed",
+    "BattleshipGrey"))
 
-    private static final USERSCORE_OUTPUT_PREFIX = "java-userscore-result-"
+  private static final USERSCORE_OUTPUT_PREFIX = "java-userscore-result-"
 
-    private static final HOURLYTEAMSCORE_OUTPUT_PREFIX = "java-hourlyteamscore-result-"
+  private static final HOURLYTEAMSCORE_OUTPUT_PREFIX = "java-hourlyteamscore-result-"
 
-    public static String generateCommand(String exampleName, String runner, TestScripts t){
-        String commonArgs = "--tempLocation=gs://${t.gcsBucket()}/tmp --runner=${runner} "
+  public static String getUserScoreOutputName(String runner){
+    return "${USERSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+  }
 
-        if(exampleName.equals("UserScore")){
-            return generateUserScoreCommand(runner, t, commonArgs)
-        }
-        if(exampleName.equals("HourlyTeamScore")){
-            return generateHourlyTeamScoreCommand(runner, t, commonArgs)
-        }
-        if(exampleName.equals("LeaderBoard")){
-            return generateLeaderBoardCommand(runner, t, commonArgs)
-        }
-        if(exampleName.equals("GameStats")){
-            return generateGameStatsCommand(runner, t, commonArgs)
-        }
-        if(exampleName.equals("Injector")){
-            return generateInjectorCommand(t)
-        }
-        return "ERROR: Not found the example ${exampleName}."
+  public static String getHourlyTeamScoreOutputName(String runner){
+    return "${HOURLYTEAMSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+  }
+
+  public static String createExampleExecutionCommand(String exampleName, String runner, TestScripts t){
+    return """mvn compile exec:java -q \
+            -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
+            -Dexec.args=\"${getArgs(exampleName, runner, t)}\" \
+            -P${RUNNERS[runner]}"""
+  }
+
+  public static String createInjectorCommand(TestScripts t){
+    return """mvn compile exec:java \
+            -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+            -Dexec.args=\"${t.gcpProject()} ${t.pubsubTopic()} none\""""
+  }
+
+
+  private static String getArgs(String exampleName, String runner, TestScripts t){
+    def args
+    switch (exampleName) {
+      case "UserScore":
+        args = getUserScoreArgs(runner, t)
+        break
+      case "HourlyTeamScore":
+        args = getHourlyTeamScoreArgs(runner, t)
+        break
+      case "LeaderBoard":
+        args = getLeaderBoardArgs(runner, t)
+        break
+      case "GameStats":
+        args = getGameStatsArgs(runner, t)
+        break
+      default:
+        t.error("Cannot find example ${exampleName} in archetypes.")
     }
 
-    public static String getUserScoreOutputName(String runner){
-        return "${USERSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+    StringBuilder exampleArgs = new StringBuilder("--tempLocation=gs://${t.gcsBucket()}/tmp --runner=${runner} ")
+    args.each{argName, argValue -> exampleArgs.append("--${argName}=${argValue} ")}
+    return exampleArgs
+  }
+
+  private static Map getUserScoreArgs(String runner, TestScripts t){
+    if(runner == "DataflowRunner"){
+      return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+        project: t.gcpProject(),
+        output: "gs://${t.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
+    return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+      output: "${getUserScoreOutputName(runner)}"]
+  }
 
-    public static String getHourlyTeamScoreOutputName(String runner){
-        return "${HOURLYTEAMSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+  private static Map getHourlyTeamScoreArgs(String runner, TestScripts t){
+    if(runner == "DataflowRunner"){
+      return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+        project: t.gcpProject(),
+        output: "gs://${t.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
+    return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+      output: "${getHourlyTeamScoreOutputName(runner)}"]
+  }
 
+  private static Map getLeaderBoardArgs(String runner, TestScripts t){
+    return [project: t.gcpProject(),
+      dataset: t.bqDataset(),
+      topic: "projects/${t.gcpProject()}/topics/${t.pubsubTopic()}",
+      output: "gs://${t.gcsBucket()}/java-leaderboard-result.txt",
+      leaderBoardTableName: "leaderboard_${runner}",
+      teamWindowDuration: 5]
+  }
 
-    private static String generateUserScoreCommand(String runner, TestScripts t, String commonArgs){
-        StringBuilder cmd = new StringBuilder()
-        StringBuilder exeArgs = new StringBuilder(commonArgs)
-
-        exeArgs.append("--input=gs://${t.gcsBucket()}/5000_gaming_data.csv ")
-        if(runner == "DataflowRunner"){
-            exeArgs.append("--project=${t.gcpProject()} ")
-                    .append("--output=gs://${t.gcsBucket()}/${getUserScoreOutputName(runner)} ")
-        }
-        else{
-            exeArgs.append("--output=${getUserScoreOutputName(runner)} ")
-        }
-
-        cmd.append("mvn compile exec:java -q ")
-                .append("-Dexec.mainClass=org.apache.beam.examples.complete.game.UserScore ")
-                .append("-Dexec.args=\"${exeArgs.toString()}\" ")
-                .append("-P${RUNNERS[runner]}")
-        return cmd.toString()
-    }
-
-
-    private static String generateHourlyTeamScoreCommand(String runner, TestScripts t, String commonArgs){
-        StringBuilder cmd = new StringBuilder()
-        StringBuilder exeArgs = new StringBuilder(commonArgs)
-
-        exeArgs.append("--input=gs://${t.gcsBucket()}/5000_gaming_data.csv ")
-        if(runner == "DataflowRunner"){
-            exeArgs.append("--project=${t.gcpProject()} ")
-                    .append("--output=gs://${t.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)} ")
-
-        }
-        else{
-            exeArgs.append("--output=${getHourlyTeamScoreOutputName(runner)} ")
-        }
-
-        cmd.append("mvn compile exec:java -q ")
-                .append("-Dexec.mainClass=org.apache.beam.examples.complete.game.HourlyTeamScore ")
-                .append("-Dexec.args=\"${exeArgs.toString()}\" ")
-                .append("-P${RUNNERS[runner]}")
-        return cmd.toString()
-    }
-
-
-    private static String generateLeaderBoardCommand(String runner, TestScripts t, String commonArgs){
-        StringBuilder cmd = new StringBuilder()
-        StringBuilder exeArgs = new StringBuilder(commonArgs)
-
-        exeArgs.append("--project=${t.gcpProject()} ")
-                .append("--dataset=${t.bqDataset()} ")
-                .append("--topic=projects/${t.gcpProject()}/topics/${t.pubsubTopic()} ")
-                .append("--output=gs://${t.gcsBucket()}/java-leaderboard-result.txt ")
-                .append("--leaderBoardTableName=leaderboard_${runner} ")
-                .append("--teamWindowDuration=5")
-
-        cmd.append("mvn compile exec:java -q ")
-                .append("-Dexec.mainClass=org.apache.beam.examples.complete.game.LeaderBoard ")
-                .append("-Dexec.args=\"${exeArgs.toString()}\" ")
-                .append("-P${RUNNERS[runner]}")
-        return cmd.toString()
-    }
-
-
-    private static String generateGameStatsCommand(String runner, TestScripts t, String commonArgs){
-        StringBuilder cmd = new StringBuilder()
-        StringBuilder exeArgs = new StringBuilder(commonArgs)
-
-        exeArgs.append("--project=${t.gcpProject()} ")
-                .append("--dataset=${t.bqDataset()} ")
-                .append("--topic=projects/${t.gcpProject()}/topics/${t.pubsubTopic()} ")
-                .append("--output=gs://${t.gcsBucket()}/java-leaderboard-result.txt ")
-                .append("--fixedWindowDuration=5 ")
-                .append("--userActivityWindowDuration=5 ")
-                .append("--sessionGap=1 ")
-                .append("--gameStatsTablePrefix=gamestats_${runner}")
-
-        cmd.append("mvn compile exec:java -q ")
-                .append("-Dexec.mainClass=org.apache.beam.examples.complete.game.GameStats ")
-                .append("-Dexec.args=\"${exeArgs.toString()}\" ")
-                .append("-P${RUNNERS[runner]}")
-        return cmd.toString()
-    }
-
-
-    private static String generateInjectorCommand(TestScripts t){
-        StringBuilder injectorCmd = new StringBuilder()
-        injectorCmd.append("mvn compile exec:java ")
-                .append("-Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector ")
-                .append("-Dexec.args=\"${t.gcpProject()} ${t.pubsubTopic()} none\"")
-        return injectorCmd.toString()
-    }
+  private static Map getGameStatsArgs(String runner, TestScripts t){
+    return [project: t.gcpProject(),
+      dataset: t.bqDataset(),
+      topic: "projects/${t.gcpProject()}/topics/${t.pubsubTopic()}",
+      output: "gs://${t.gcsBucket()}/java-leaderboard-result.txt",
+      fixedWindowDuration: 5,
+      userActivityWindowDuration: 5,
+      sessionGap: 1,
+      gameStatsTablePrefix: "gamestats_${runner}"]
+  }
 }

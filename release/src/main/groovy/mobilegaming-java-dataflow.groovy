@@ -39,8 +39,7 @@ def runner = "DataflowRunner"
  * */
 
 t.intent("Running: UserScore example on DataflowRunner")
-
-t.run(MobileGamingJavaUtils.generateCommand("UserScore", runner, t))
+t.run(MobileGamingJavaUtils.createExampleExecutionCommand("UserScore", runner, t))
 t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
 t.see "total_score: 231, user: user19_BananaWallaby"
 t.intent("SUCCEED: UserScore successfully run on DataflowRunner.")
@@ -52,7 +51,7 @@ t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutpu
  * */
 
 t.intent("Running: HourlyTeamScore example on DataflowRunner")
-t.run(MobileGamingJavaUtils.generateCommand("HourlyTeamScore", runner, t))
+t.run(MobileGamingJavaUtils.createExampleExecutionCommand("HourlyTeamScore", runner, t))
 t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* | grep AzureBilby "
 t.see "total_score: 2788, team: AzureBilby"
 t.intent("SUCCEED: HourlyTeamScore successfully run on DataflowRunner.")
@@ -68,40 +67,39 @@ t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_user")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_team")
 // it will take couple seconds to clean up tables. This loop makes sure tables are completely deleted before running the pipeline
 while({
-    sleep(3000)
-    t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-    t.seeKeyWord("leaderboard_${runner}_user") || t.seeKeyWord("leaderboard_${runner}_team")
+  sleep(3000)
+  t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
+  t.seeExact("leaderboard_${runner}_user") || t.seeExact("leaderboard_${runner}_team")
 }());
 
 def InjectorThread = Thread.start() {
-    t.run(MobileGamingJavaUtils.generateCommand("Injector", "", t))
+  t.run(MobileGamingJavaUtils.createInjectorCommand(t))
 }
 
 def LeaderBoardThread = Thread.start() {
-    t.run(MobileGamingJavaUtils.generateCommand("LeaderBoard", runner, t))
+  t.run(MobileGamingJavaUtils.createExampleExecutionCommand("LeaderBoard", runner, t))
 }
 
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
 def isSuccess = false
 while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT) {
-    t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
-    if(t.seeKeyWord("leaderboard_${runner}_user") && t.seeKeyWord("leaderboard_${runner}_team")){
-        t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-        if(t.seeOneOf(MobileGamingJavaUtils.COLORS)){
-            isSuccess = true
-            break
-        }
+  t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
+  if(t.seeExact("leaderboard_${runner}_user") && t.seeExact("leaderboard_${runner}_team")){
+    t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
+    if(t.seeOneOf(MobileGamingJavaUtils.COLORS)){
+      isSuccess = true
+      break
     }
-    println "Waiting for verifying results..."
-    sleep(60000) // wait for 1 min
+  }
+  println "Waiting for verifying results..."
+  sleep(60000) // wait for 1 min
 }
 InjectorThread.stop()
 LeaderBoardThread.stop()
 
-
 if(!isSuccess){
-    t._error("FAILED: Failed running LeaderBoard on DataflowRunner")
+  t.error("FAILED: Failed running LeaderBoard on DataflowRunner")
 }
 t.intent("SUCCEED: LeaderBoard successfully run on DataflowRunner.")
 
