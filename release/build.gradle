@@ -27,12 +27,12 @@ dependencies {
   compile 'commons-cli:commons-cli:1.2'
 }
 
-task runQuickstartsJava {
-  dependsOn ":runners:direct-java:runQuickstartJavaDirect"
-  dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
-  dependsOn ":runners:apex:runQuickstartJavaApex"
-  dependsOn ":runners:spark:runQuickstartJavaSpark"
-  dependsOn ":runners:flink:runQuickstartJavaFlinkLocal"
-  dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
+task runJavaExamplesValidationTask {
+//  dependsOn ":runners:direct-java:runQuickstartJavaDirect"
+//  dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
+//  dependsOn ":runners:apex:runQuickstartJavaApex"
+//  dependsOn ":runners:spark:runQuickstartJavaSpark"
+//  dependsOn ":runners:flink:runQuickstartJavaFlinkLocal"
+//  dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
   dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
 }

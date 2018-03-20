@@ -34,7 +34,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
     t.run """gsutil rm gs://${t.gcsBucket()}/count* || echo 'No files'"""
 
     // Run the wordcount example with the Dataflow runner
-    t.run """mvn compile exec:java \
+    t.run """mvn compile exec:java -q \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.gcpProject()} \

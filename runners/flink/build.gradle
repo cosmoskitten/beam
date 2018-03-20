@@ -130,4 +130,4 @@ task validatesRunner {
 }
 
 // Generates :runners:flink:runQuickstartJavaFlinkLocal
-createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
