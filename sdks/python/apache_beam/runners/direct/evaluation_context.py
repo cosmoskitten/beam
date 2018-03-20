@@ -55,6 +55,7 @@ class _SideInputView(object):
     self.elements = []
     self.value = None
     self.has_result = False
+    self.watermark = None
 
   def __repr__(self):
     elements_string = (', '.join(str(elm) for elm in self.elements)
@@ -74,7 +75,6 @@ class _SideInputsContainer(object):
     self._views = {}
     self._transform_to_side_inputs = collections.defaultdict(list)
     self._side_input_to_blocked_tasks = collections.defaultdict(list)
-    self._side_input_to_watermark = collections.defaultdict(list)
 
     for side in side_inputs:
       self._views[side] = _SideInputView(side)
@@ -85,19 +85,26 @@ class _SideInputsContainer(object):
                     if self._views.values() else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
-  def get_value_or_schedule_after_output(self, side_input, task, block_until=WatermarkManager.WATERMARK_POS_INF):
+  def get_value_or_schedule_after_output(self, side_input, task):
     with self._lock:
+      # TODO(mariagh): move window projection logic to the calling fnc
+      latest_main_input_window = task._input_bundle._elements[0].windows[0]
+      for elem in task._input_bundle.get_elements_iterable():
+        if elem.windows[0].end > latest_main_input_window.end:
+          latest_main_input_window = elem.windows[0]
+      # window projected from main onto side input
+      window_mapping_fn = side_input._view_options().get(
+          'window_mapping_fn', sideinputs._global_window_mapping_fn)
+      main_onto_side_window = window_mapping_fn(latest_main_input_window)
+
       view = self._views[side_input]
-      # Don't do the check for has_result, as things are not binary now
-      # just have an attribute for view called watermark and compare that
-      # to block_until (.block is not needed)
-      # use: if view.watermark < block_until:
-      if not view.has_result:
-        view.callable_queue.append(task)
+      block_until = main_onto_side_window.end
+      if view.watermark and view.watermark.input_watermark < block_until:
+        view.callable_queue.append((task, block_until))
         task.blocked = True
-        # TODO(mariagh): Determine a good name for _UnpickledSideInput vars
-        # and _SideInputView vars to be kept consistently
-        self._side_input_to_blocked_tasks[side_input].append((task, block_until))
+      else:
+        view.value = self._pvalue_to_value(side_input, view.elements)
+        return True, view.value
       return (view.has_result, view.value)
 
   def add_values(self, side_input, values):
@@ -106,50 +113,37 @@ class _SideInputsContainer(object):
       assert not view.has_result
       view.elements.extend(values)
 
-  def finalize_value_and_get_tasks(self, side_input):
-    with self._lock:
-      view = self._views[side_input]
-      assert not view.has_result
-      assert view.value is None
-      assert view.callable_queue is not None
-      view.value = self._pvalue_to_value(side_input, view.elements)
-      view.elements = None
-      result = tuple(view.callable_queue)
-      for task in result:
-        task.blocked = False
-      view.callable_queue = None
-      view.has_result = True
-      return result
-
   def update_watermarks_for_transform(self, ptransform, watermark):
     # Collect tasks that get unblocked as the workflow progresses.
     unblocked_tasks = []
     for side in self._transform_to_side_inputs[ptransform]:
-      unblocked_tasks.extend(self._update_watermarks_for_view(side, watermark))
+      unblocked_tasks.extend(
+          self._update_watermarks_for_side_input(side, watermark))
     return unblocked_tasks
 
-  def _update_watermarks_for_view(self, side_input, watermark):
-    unblocked_tasks = []
-    # TODO: update _side_input_to_watermark
-    self._side_input_to_watermark[side_input] = watermark   # ccy: make watermark an attribute of the side_input
+  def _update_watermarks_for_side_input(self, side_input, watermark):
+    with self._lock:
+      unblocked_tasks = []
+      view = self._views[side_input]
+      view.watermark = watermark
 
-    if watermark.input_watermark == WatermarkManager.WATERMARK_POS_INF:
-      unblocked_tasks = self.finalize_value_and_get_tasks(side_input)
+      # Unblock and finalize tasks
+      view = self._views[side_input]
+      tasks_to_remove = []
+      for task, block_until in view.callable_queue:
+        if watermark.input_watermark >= block_until and view.elements:
+          view.value = self._pvalue_to_value(side_input, view.elements)
+          unblocked_tasks.append(task) # mgh: uncommented this
+          tasks_to_remove.append((task, block_until))
+      for elm in tasks_to_remove:       # pylint: disable=unused-variable
+        view.callable_queue.remove((task, block_until))  # pylint: disable=undefined-loop-variable
       return unblocked_tasks
 
-    # Unblock and finalize tasks
-    for task, block_until in self._side_input_to_blocked_tasks[side_input]:
-      if watermark.input_watermark >= block_until:
-        unblocked_tasks += self.finalize_value_and_get_tasks(side_input)
-        del self._side_input_to_blocked_tasks[side_input]
-
-    return unblocked_tasks
-
-  def _pvalue_to_value(self, view, values):
-    """Given a side input view, returns the associated value in requested form.
+  def _pvalue_to_value(self, side_input, values):
+    """Given a side input, returns the associated value in its requested form.
 
     Args:
-      view: SideInput for the requested side input.
+      side_input: _UnpickledSideInput object.
       values: Iterable values associated with the side input.
 
     Returns:
@@ -158,7 +152,9 @@ class _SideInputsContainer(object):
     Raises:
       ValueError: If values cannot be converted into the requested form.
     """
-    return sideinputs.SideInputMap(type(view), view._view_options(), values)
+    return sideinputs.SideInputMap(type(side_input),
+                                   side_input._view_options(),
+                                   values)
 
 
 class EvaluationContext(object):
