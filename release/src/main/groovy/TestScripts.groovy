@@ -129,7 +129,7 @@ class TestScripts {
      if (!seeKeyWord(expected)) {
        var.startDir.deleteDir()
        println "Cannot find ${expected} in ${var.lastText}"
-       _error("Cannot find expected text")
+       error("Cannot find expected text")
      }
      println "Verified $expected"
    }
@@ -170,7 +170,7 @@ class TestScripts {
      var.lastText = text.toString().trim()
      if (proc.exitValue() != 0) {
        println var.lastText
-       _error("Failed command")
+       error("Failed command")
      }
    }
 
@@ -178,7 +178,7 @@ class TestScripts {
    private void _chdir(String subdir) {
      var.curDir = new File(var.curDir.absolutePath, subdir)
      if (!var.curDir.exists()) {
-       _error("Directory ${var.curDir} not found")
+       error("Directory ${var.curDir} not found")
      }
    }
 
@@ -215,7 +215,7 @@ class TestScripts {
    }
 
    // Clean up and report error
-   public void _error(String text) {
+   public void error(String text) {
      var.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)
