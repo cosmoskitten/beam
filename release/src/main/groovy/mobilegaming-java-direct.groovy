@@ -26,11 +26,9 @@ t = new TestScripts(args)
  * https://beam.apache.org/get-started/mobile-gaming-example/
  */
 
-t.describe 'Run Apache Beam Java SDK Mobile Gaming Examples - Direct'
+t.describe ('Run Apache Beam Java SDK Mobile Gaming Examples - Direct')
 
 QuickstartArchetype.generate(t)
-
-t.intent 'Running the Mobile-Gaming Code with DirectRunner'
 
 def runner = "DirectRunner"
 
@@ -39,10 +37,10 @@ def runner = "DirectRunner"
  * */
 
 t.intent("Running: UserScore example on DirectRunner")
-t.run(MobileGamingJavaUtils.generateCommand("UserScore", runner, t))
+t.run(MobileGamingJavaUtils.createExampleExecutionCommand("UserScore", runner, t))
 t.run "grep user19_BananaWallaby ${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* "
 t.see "total_score: 231, user: user19_BananaWallaby"
-t.intent("SUCCEED: UserScore successfully run on DirectRunners.")
+t.success("UserScore successfully run on DirectRunners.")
 
 
 /**
@@ -50,10 +48,10 @@ t.intent("SUCCEED: UserScore successfully run on DirectRunners.")
  * */
 
 t.intent("Running: HourlyTeamScore example on DirectRunner")
-t.run(MobileGamingJavaUtils.generateCommand("HourlyTeamScore", runner, t))
+t.run(MobileGamingJavaUtils.createExampleExecutionCommand("HourlyTeamScore", runner, t))
 t.run "grep AzureBilby ${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* "
 t.see "total_score: 2788, team: AzureBilby"
-t.intent("SUCCEED: HourlyTeamScore successfully run on DirectRunners.")
+t.success("HourlyTeamScore successfully run on DirectRunners.")
 
 
 /**
@@ -65,41 +63,40 @@ t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_user")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_team")
 // it will take couple seconds to clean up tables. This loop makes sure tables are completely deleted before running the pipeline
 while({
-    sleep(3000)
-    t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-    t.seeKeyWord("leaderboard_${runner}_user") || t.seeKeyWord("leaderboard_${runner}_team")
+  sleep(3000)
+  t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
+  t.seeSubstring("leaderboard_${runner}_user") || t.seeSubstring("leaderboard_${runner}_team")
 }());
 
 def InjectorThread = Thread.start() {
-    t.run(MobileGamingJavaUtils.generateCommand("Injector", "",t))
+  t.run(MobileGamingJavaUtils.createInjectorCommand(t))
 }
 
 def LeaderBoardThread = Thread.start() {
-    t.run(MobileGamingJavaUtils.generateCommand("LeaderBoard", runner, t))
+  t.run(MobileGamingJavaUtils.createExampleExecutionCommand("LeaderBoard", runner, t))
 }
 
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
 def isSuccess = false
-while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT) {
-    t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
-    if(t.seeKeyWord("leaderboard_${runner}_user") && t.seeKeyWord("leaderboard_${runner}_team")){
-        t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-        if(t.seeOneOf(MobileGamingJavaUtils.COLORS)){
-            isSuccess = true
-            break
-        }
+while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT_IN_MINUTES) {
+  t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
+  if(t.seeSubstring("leaderboard_${runner}_user") && t.seeSubstring("leaderboard_${runner}_team")){
+    t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
+    if(t.seeAnyOf(MobileGamingJavaUtils.COLORS)){
+      isSuccess = true
+      break
     }
-    println "Waiting for verifying results..."
-    sleep(60000) // wait for 1 min
+  }
+  println "Waiting for verifying results..."
+  sleep(60000) // wait for 1 min
 }
 InjectorThread.stop()
 LeaderBoardThread.stop()
 
-
 if(!isSuccess){
-    t._error("FAILED: Failed running LeaderBoard on DirectRunner")
+  t.error("FAILED: Failed running LeaderBoard on DirectRunner")
 }
-t.intent("SUCCEED: LeaderBoard successfully run on DirectRunner.")
+t.success("LeaderBoard successfully run on DirectRunner.")
 
 t.done()
