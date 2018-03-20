@@ -151,7 +151,7 @@ public class Networks {
    *
    * <p>The order that unordered nodes appear in the result iterable is arbitrary.
    */
-  public static <NodeT, EdgeT> Iterable<NodeT> topologicalOrder(Network<NodeT, EdgeT> network) {
+  public static <NodeT> Iterable<NodeT> topologicalOrder(Network<NodeT, ?> network) {
     return computeTopologicalOrder(network);
   }
 
