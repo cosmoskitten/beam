@@ -164,8 +164,14 @@ class FlinkPipelineExecutionEnvironment {
       flinkBatchEnv.setParallelism(options.getParallelism());
     }
 
+    // set the correct max parallelism.
+    if (options.getMaxParallelism() != -1) {
+      flinkBatchEnv.getConfig().setMaxParallelism(options.getMaxParallelism());
+    }
+
     // set parallelism in the options (required by some execution code)
     options.setParallelism(flinkBatchEnv.getParallelism());
+    options.setMaxParallelism(flinkBatchEnv.getConfig().getMaxParallelism());
 
     if (options.getObjectReuse()) {
       flinkBatchEnv.getConfig().enableObjectReuse();
@@ -208,8 +214,14 @@ class FlinkPipelineExecutionEnvironment {
       flinkStreamEnv.setParallelism(options.getParallelism());
     }
 
+    // set the correct max parallelism.
+    if (options.getMaxParallelism() != -1) {
+      flinkBatchEnv.getConfig().setMaxParallelism(options.getMaxParallelism());
+    }
+
     // set parallelism in the options (required by some execution code)
     options.setParallelism(flinkStreamEnv.getParallelism());
+    options.setMaxParallelism(flinkStreamEnv.getMaxParallelism());
 
     if (options.getObjectReuse()) {
       flinkStreamEnv.getConfig().enableObjectReuse();

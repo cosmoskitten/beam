@@ -220,7 +220,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       this.options = options.as(FlinkPipelineOptions.class);
     }
 
-    private static final int DEFAULT_PARALLELISM = 10;
+    private static final Integer DEFAULT_MAX_PARALLELISM = 128;
 
     @Override
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
@@ -235,9 +235,13 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       Integer jobParallelism = options.getParallelism();
 
       if (jobParallelism == -1) {
+        if (options.getMaxParallelism() != -1) {
+          jobParallelism = options.getMaxParallelism();
+        } else {
+          jobParallelism = DEFAULT_MAX_PARALLELISM;
+        }
         LOG.warn("No parallelism specified. Working with cluster default. Number of shards was "
-                 + "set to default value: {}", DEFAULT_PARALLELISM * 2);
-        jobParallelism = DEFAULT_PARALLELISM;
+             + "set to value corresponding to maximal parallelism which is: {}", jobParallelism);
       }
 
       Preconditions.checkArgument(jobParallelism > 0,
