@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import logging
 import unittest
 
 import grpc
@@ -53,3 +54,8 @@ class WorkerIdInterceptorTest(unittest.TestCase):
                                                   [])
     self.assertEqual(headers_holder[worker_id_key], 'my_worker_id',
                      'worker_id_key not set')
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

@@ -43,9 +43,8 @@ class SdkHarness(object):
   def __init__(self, control_address, worker_count):
     self._worker_count = worker_count
     self._worker_index = 0
-    self._control_channel = grpc.insecure_channel(control_address)
-    self._control_channel = grpc.intercept_channel(self._control_channel,
-                                                   WorkerIdInterceptor())
+    self._control_channel = grpc.intercept_channel(
+        grpc.insecure_channel(control_address), WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.

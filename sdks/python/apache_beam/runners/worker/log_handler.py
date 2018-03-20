@@ -49,9 +49,9 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
-    self._log_channel = grpc.insecure_channel(log_service_descriptor.url)
-    self._log_channel = grpc.intercept_channel(self._log_channel,
-                                               WorkerIdInterceptor())
+    self._log_channel = grpc.intercept_channel(
+        grpc.insecure_channel(log_service_descriptor.url),
+        WorkerIdInterceptor())
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
     self._log_entry_queue = queue.Queue()
