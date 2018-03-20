@@ -16,14 +16,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+//${t.ver()}
 class QuickstartArchetype {
   def static generate(TestScripts t) {
     // Generate a maven project from the snapshot repository
     t.run """mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=${t.ver()} \
+      -DarchetypeVersion= 2.5.0-SNAPSHOT\
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion="0.1" \
