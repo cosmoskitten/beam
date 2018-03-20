@@ -116,33 +116,29 @@ class TestScripts {
      }
    }
 
-   // Check for expected results in stdout of the last command, return boolean
-   public boolean seeKeyWord(String expected){
-     if (!var.lastText.contains(expected)){
-       return false
-     }
-     return true
-   }
-
-    // Check for expected results in stdout of the last command, if fails, log errors then exit.
+   // Check for expected results in stdout of the last command, if fails, log errors then exit.
    public void see(String expected) {
-     if (!seeKeyWord(expected)) {
+     if (!var.lastText.contains(expected)) {
        var.startDir.deleteDir()
        println "Cannot find ${expected} in ${var.lastText}"
-       _error("Cannot find expected text")
+       error("Cannot find expected text")
      }
      println "Verified $expected"
    }
 
    public boolean seeOneOf(List<String> expected) {
      for (String expect: expected) {
-       if(seeKeyWord(expect)) {
+       if(var.lastText.contains(expect)) {
          println "Verified $expect"
          return true
        }
      }
      println "Cannot find ${expected} in text"
      return false
+   }
+
+   public boolean seeExact(String expected) {
+     return var.lastText.contains(expected)
    }
 
    // Cleanup and print success
@@ -170,7 +166,7 @@ class TestScripts {
      var.lastText = text.toString().trim()
      if (proc.exitValue() != 0) {
        println var.lastText
-       _error("Failed command")
+       error("Failed command")
      }
    }
 
@@ -178,7 +174,7 @@ class TestScripts {
    private void _chdir(String subdir) {
      var.curDir = new File(var.curDir.absolutePath, subdir)
      if (!var.curDir.exists()) {
-       _error("Directory ${var.curDir} not found")
+       error("Directory ${var.curDir} not found")
      }
    }
 
@@ -215,7 +211,7 @@ class TestScripts {
    }
 
    // Clean up and report error
-   public void _error(String text) {
+   public void error(String text) {
      var.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)
