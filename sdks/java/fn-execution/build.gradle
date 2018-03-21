@@ -33,6 +33,7 @@ dependencies {
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.netty_transport_native_epoll
+  shadow library.java.netty_transport_native_unix_common
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
