@@ -846,12 +846,7 @@ class FlinkStreamingTransformTranslators {
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>) input.getWindowingStrategy();
 
-      boolean hasNoSideInputs;
-      try {
-        hasNoSideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform()).isEmpty();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      boolean hasNoSideInputs = true;
 
       return windowingStrategy.getWindowFn().isNonMerging() || hasNoSideInputs;
     }
@@ -912,12 +907,7 @@ class FlinkStreamingTransformTranslators {
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
-      List<PCollectionView<?>> sideInputs;
-      try {
-        sideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      List<PCollectionView<?>> sideInputs = new ArrayList<>();
 
       String fullName = getCurrentTransformName(context);
       if (sideInputs.isEmpty()) {
