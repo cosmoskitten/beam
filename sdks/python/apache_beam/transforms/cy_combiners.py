@@ -367,7 +367,7 @@ class DistributionAccumulator(object):
       self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
 
   def merge(self, accumulators):
-    pass
+    raise NotImplementedError
 
   def calculate_bucket_index(self, element):
     """Calculate the bucket index for the given element"""

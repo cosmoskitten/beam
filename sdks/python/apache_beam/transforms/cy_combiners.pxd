@@ -100,8 +100,6 @@ cdef class DistributionAccumulator(object):
   cdef public list buckets
   cdef public int64_t buckets_per_10
   cpdef add_input(self, int64_t element)
-  @cython.locals(accumulator=DistributionAccumulator)
-  cpdef merge(self, accumulators)
 
 cdef class DistributionMetadataAccumulator(object):
   cdef public list distribution_metadata
