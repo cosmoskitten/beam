@@ -380,6 +380,9 @@ class DistributionAccumulator(object):
       bucket_offset = 2  # [5, 10)
     return 1 + (log10_floor * self.buckets_per_10) + bucket_offset
 
+  def extract_output(self):
+    return self
+
   def increment_bucket(self, bucket_index):
     """Increment the bucket for the given index
     If the bucket at the given index is already in the list,
