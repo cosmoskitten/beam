@@ -191,7 +191,7 @@ public class QueryablePipeline {
    * Get all of the {@link PTransformNode PTransforms} which consume the provided {@link
    * PCollectionNode} on a per-element basis.
    *
-   * <p>If a {@link PTransformNode} consumes a {@link PCollectionNode} on a per-element basis one or
+   * <p>If a {@link PTransformNode} consumes a {@link PCollectionNode} on a per-element basis one ort
    * more times, it will appear a single time in the result.
    *
    * <p>In theory, a transform may consume a single {@link PCollectionNode} in both a per-element
