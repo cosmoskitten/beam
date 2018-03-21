@@ -249,7 +249,6 @@ class EvaluationContext(object):
       self._pending_unblocked_tasks.extend(tasks)
 
       if result.counters:
-        # there is no merge fn in a distribution counter
         for counter in result.counters:
           merged_counter = self._counter_factory.get_counter(
               counter.name, counter.combine_fn)
