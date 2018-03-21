@@ -104,6 +104,7 @@ public final class ResourceIdTester {
     //   May need options to be filesystem-independent, e.g., if filesystems ban certain chars.
   }
 
+  @SuppressWarnings("TryFailThrowable")
   private static void validateFailureResolvingIds(ResourceId baseDirectory) {
     try {
       ResourceId badFile = baseDirectory.resolve("file/", RESOLVE_FILE);
