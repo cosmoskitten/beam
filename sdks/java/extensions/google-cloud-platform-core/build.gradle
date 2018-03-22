@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-extensions-google-cloud-platform-core")
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
 
@@ -53,10 +53,3 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

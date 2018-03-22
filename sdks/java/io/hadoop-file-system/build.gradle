@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-io-hadoop-file-system")
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 
@@ -40,10 +40,3 @@ dependencies {
   testCompile library.java.hadoop_minicluster
   testCompile library.java.hadoop_hdfs_tests
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

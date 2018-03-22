@@ -90,6 +90,7 @@ public class PAssertTest implements Serializable {
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
     private NotSerializableObjectCoder() { }
+
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
     @JsonCreator
@@ -509,8 +510,8 @@ public class PAssertTest implements Serializable {
     // This check should return a failure.
     SuccessOrFailure res = PAssert.doChecks(
         PAssert.PAssertionSite.capture("Captured assertion message."),
-        new Integer(10),
-        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+            10,
+        new MatcherCheckerFn(SerializableMatchers.contains(11)));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
     assertEquals(res.isSuccess(), false);

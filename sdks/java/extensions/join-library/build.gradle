@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-extensions-join-library")
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
@@ -28,10 +28,3 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

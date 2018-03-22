@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-io-common")
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 
@@ -27,10 +27,3 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.postgres
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

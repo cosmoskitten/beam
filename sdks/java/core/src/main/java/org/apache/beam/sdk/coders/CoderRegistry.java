@@ -564,8 +564,9 @@ public class CoderRegistry {
       }
       for (int i = 0; i < typeArgumentCoders.size(); i++) {
         try {
+          Coder<?> typeArgumentCoder = typeArgumentCoders.get(i);
           verifyCompatible(
-              typeArgumentCoders.get(i),
+              typeArgumentCoder,
               candidateDescriptor.resolveType(typeArguments[i]).getType());
         } catch (IncompatibleCoderException exn) {
           throw new IncompatibleCoderException(
@@ -579,7 +580,7 @@ public class CoderRegistry {
   }
 
   private static boolean isNullOrEmpty(Collection<?> c) {
-    return c == null || c.size() == 0;
+    return c == null || c.isEmpty();
   }
 
   /**

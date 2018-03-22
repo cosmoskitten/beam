@@ -20,11 +20,15 @@ package org.apache.beam.sdk.io.jdbc;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -39,11 +43,18 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.BasicDataSource;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write data on JDBC.
@@ -134,6 +145,9 @@ import org.apache.commons.dbcp2.BasicDataSource;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class JdbcIO {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIO.class);
+
   /**
    * Read data from a JDBC datasource.
    *
@@ -164,7 +178,20 @@ public class JdbcIO {
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
             .setBatchSize(DEFAULT_BATCH_SIZE)
+            .setRetryStrategy(new DefaultRetryStrategy())
             .build();
+  }
+
+  /**
+   * This is the default {@link Predicate} we use to detect DeadLock.
+   * It basically test if the {@link SQLException#getSQLState()} equals 40001.
+   * 40001 is the SQL State used by most of database to identify deadlock.
+   */
+  public static class DefaultRetryStrategy implements RetryStrategy {
+    @Override
+    public boolean apply(SQLException e) {
+      return (e.getSQLState().equals("40001"));
+    }
   }
 
   private JdbcIO() {}
@@ -184,22 +211,22 @@ public class JdbcIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
-    @Nullable abstract String getDriverClassName();
-    @Nullable abstract String getUrl();
-    @Nullable abstract String getUsername();
-    @Nullable abstract String getPassword();
-    @Nullable abstract String getConnectionProperties();
+    @Nullable abstract ValueProvider<String> getDriverClassName();
+    @Nullable abstract ValueProvider<String> getUrl();
+    @Nullable abstract ValueProvider<String> getUsername();
+    @Nullable abstract ValueProvider<String> getPassword();
+    @Nullable abstract ValueProvider<String> getConnectionProperties();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setDriverClassName(String driverClassName);
-      abstract Builder setUrl(String url);
-      abstract Builder setUsername(String username);
-      abstract Builder setPassword(String password);
-      abstract Builder setConnectionProperties(String connectionProperties);
+      abstract Builder setDriverClassName(ValueProvider<String> driverClassName);
+      abstract Builder setUrl(ValueProvider<String> url);
+      abstract Builder setUsername(ValueProvider<String> username);
+      abstract Builder setPassword(ValueProvider<String> password);
+      abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -216,16 +243,34 @@ public class JdbcIO {
       checkArgument(driverClassName != null, "driverClassName can not be null");
       checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
-          .setDriverClassName(driverClassName)
-          .setUrl(url)
+          .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
+          .setUrl(ValueProvider.StaticValueProvider.of(url))
           .build();
     }
 
+    public static DataSourceConfiguration create(ValueProvider<String> driverClassName,
+                                                 ValueProvider<String> url) {
+      checkArgument(driverClassName != null, "driverClassName can not be null");
+      checkArgument(url != null, "url can not be null");
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+              .setDriverClassName(driverClassName)
+              .setUrl(url)
+              .build();
+    }
+
     public DataSourceConfiguration withUsername(String username) {
+      return builder().setUsername(ValueProvider.StaticValueProvider.of(username)).build();
+    }
+
+    public DataSourceConfiguration withUsername(ValueProvider<String> username) {
       return builder().setUsername(username).build();
     }
 
     public DataSourceConfiguration withPassword(String password) {
+      return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
+    }
+
+    public DataSourceConfiguration withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
     }
 
@@ -237,6 +282,17 @@ public class JdbcIO {
      * {@link #withPassword(String)}, so they do not need to be included here.
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
+      checkArgument(connectionProperties != null, "connectionProperties can not be null");
+      return builder()
+              .setConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties))
+              .build();
+    }
+
+    /**
+     * Same as {@link #withConnectionProperties(String)} but accepting a ValueProvider.
+     */
+    public DataSourceConfiguration withConnectionProperties(
+            ValueProvider<String> connectionProperties) {
       checkArgument(connectionProperties != null, "connectionProperties can not be null");
       return builder().setConnectionProperties(connectionProperties).build();
     }
@@ -256,12 +312,20 @@ public class JdbcIO {
         return getDataSource();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setDriverClassName(getDriverClassName());
-        basicDataSource.setUrl(getUrl());
-        basicDataSource.setUsername(getUsername());
-        basicDataSource.setPassword(getPassword());
-        if (getConnectionProperties() != null) {
-          basicDataSource.setConnectionProperties(getConnectionProperties());
+        if (getDriverClassName() != null) {
+          basicDataSource.setDriverClassName(getDriverClassName().get());
+        }
+        if (getUrl() != null) {
+          basicDataSource.setUrl(getUrl().get());
+        }
+        if (getUsername() != null) {
+          basicDataSource.setUsername(getUsername().get());
+        }
+        if (getPassword() != null) {
+          basicDataSource.setPassword(getPassword().get());
+        }
+        if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
+          basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
         return basicDataSource;
       }
@@ -506,6 +570,16 @@ public class JdbcIO {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
 
+  /**
+   * An interface used to control if we retry the statements when a {@link SQLException} occurs.
+   * If {@link RetryStrategy#apply(SQLException)} returns true, {@link Write} tries
+   * to replay the statements.
+   */
+  @FunctionalInterface
+  public interface RetryStrategy extends Serializable {
+    boolean apply(SQLException sqlException);
+  }
+
   /** A {@link PTransform} to write to a JDBC datasource. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
@@ -513,6 +587,7 @@ public class JdbcIO {
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    @Nullable abstract RetryStrategy getRetryStrategy();
 
     abstract Builder<T> toBuilder();
 
@@ -522,6 +597,7 @@ public class JdbcIO {
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+      abstract Builder<T> setRetryStrategy(RetryStrategy deadlockPredicate);
 
       abstract Write<T> build();
     }
@@ -540,11 +616,21 @@ public class JdbcIO {
      * Provide a maximum size in number of SQL statenebt for the batch. Default is 1000.
      *
      * @param batchSize maximum batch size in number of statements
-     * @return the {@link Write} with connection batch size set
      */
     public Write<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryStrategy} to determine
+     * if it will retry the statements.
+     * If {@link RetryStrategy#apply(SQLException)} returns {@code true},
+     * then {@link Write} retries the statements.
+     */
+    public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
+      checkArgument(retryStrategy != null, "retryStrategy can not be null");
+      return toBuilder().setRetryStrategy(retryStrategy).build();
     }
 
     @Override
@@ -563,10 +649,14 @@ public class JdbcIO {
 
       private final Write<T> spec;
 
+      private static final int MAX_RETRIES = 5;
+      private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
+              FluentBackoff.DEFAULT
+                      .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+
       private DataSource dataSource;
       private Connection connection;
-      private PreparedStatement preparedStatement;
-      private int batchCount;
+      private List<T> records = new ArrayList<>();
 
       public WriteFn(Write<T> spec) {
         this.spec = spec;
@@ -577,26 +667,26 @@ public class JdbcIO {
         dataSource = spec.getDataSourceConfiguration().buildDatasource();
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement());
-      }
-
-      @StartBundle
-      public void startBundle() {
-        batchCount = 0;
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
 
-        preparedStatement.clearParameters();
-        spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
-        preparedStatement.addBatch();
+        records.add(record);
 
-        batchCount++;
-
-        if (batchCount >= spec.getBatchSize()) {
+        if (records.size() >= spec.getBatchSize()) {
           executeBatch();
+        }
+      }
+
+      private void processRecord(T record, PreparedStatement preparedStatement) {
+        try {
+          preparedStatement.clearParameters();
+          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+          preparedStatement.addBatch();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
       }
 
@@ -605,27 +695,50 @@ public class JdbcIO {
         executeBatch();
       }
 
-      private void executeBatch() throws SQLException {
-        if (batchCount > 0) {
-          preparedStatement.executeBatch();
-          connection.commit();
-          batchCount = 0;
+      private void executeBatch() throws SQLException, IOException, InterruptedException {
+        if (records.isEmpty()) {
+          return;
         }
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+        while (true) {
+          try (PreparedStatement preparedStatement =
+                       connection.prepareStatement(spec.getStatement())) {
+            try {
+              // add each record in the statement batch
+              for (T record : records) {
+                processRecord(record, preparedStatement);
+              }
+              // execute the batch
+              preparedStatement.executeBatch();
+              // commit the changes
+              connection.commit();
+              break;
+            } catch (SQLException exception) {
+              if (!spec.getRetryStrategy().apply(exception)) {
+                throw exception;
+              }
+              LOG.warn("Deadlock detected, retrying", exception);
+              // clean up the statement batch and the connection state
+              preparedStatement.clearBatch();
+              connection.rollback();
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                // we tried the max number of times
+                throw exception;
+              }
+            }
+          }
+        }
+        records.clear();
       }
 
       @Teardown
       public void teardown() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            preparedStatement.close();
-          }
-        } finally {
-          if (connection != null) {
-            connection.close();
-          }
-          if (dataSource instanceof AutoCloseable) {
-            ((AutoCloseable) dataSource).close();
-          }
+        if (connection != null) {
+          connection.close();
+        }
+        if (dataSource instanceof AutoCloseable) {
+          ((AutoCloseable) dataSource).close();
         }
       }
     }

@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+applyJavaNature(artifactId: "beam-sdks-java-io-google-cloud-platform", enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 
@@ -76,13 +76,3 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
-
-println project
-println project.sourceSets

@@ -144,6 +144,7 @@ public class ParDoTest implements Serializable {
           + ":" + window.maxTimestamp().getMillis());
     }
   }
+
   static class TestNoOutputDoFn extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
@@ -512,7 +513,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
-            .of(new DoFn<Integer, Void>(){
+            .of(new DoFn<Integer, Void>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(additionalOutputTag, c.element());
@@ -964,6 +965,7 @@ public class ParDoTest implements Serializable {
 
   private static class TestDummyCoder extends AtomicCoder<TestDummy> {
     private TestDummyCoder() { }
+
     private static final TestDummyCoder INSTANCE = new TestDummyCoder();
 
     @JsonCreator
@@ -1016,6 +1018,7 @@ public class ParDoTest implements Serializable {
     public MainOutputDummyFn(TupleTag<Integer> intOutputTag) {
       this.intOutputTag = intOutputTag;
     }
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());
@@ -2820,6 +2823,51 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  @Ignore(
+      "https://issues.apache.org/jira/browse/BEAM-2791, "
+          + "https://issues.apache.org/jira/browse/BEAM-2535")
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerLoop() {
+    final String stateId = "count";
+    final String timerId = "timer";
+    final int loopCount = 5;
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> countState, @TimerId(timerId) Timer loopTimer) {
+            loopTimer.offset(Duration.millis(1)).setRelative();
+          }
+
+          @OnTimer(timerId)
+          public void onLoopTimer(
+              OnTimerContext ctx,
+              @StateId(stateId) ValueState<Integer> countState,
+              @TimerId(timerId) Timer loopTimer) {
+            int count = MoreObjects.firstNonNull(countState.read(), 0);
+            if (count < loopCount) {
+              ctx.output(count);
+              countState.write(count + 1);
+              loopTimer.offset(Duration.millis(1)).setRelative();
+            }
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
+    pipeline.run();
+  }
+
   /**
    * Tests that event time timers for multiple keys both fire. This particularly exercises
    * implementations that may GC in ways not simply governed by the watermark.
@@ -3304,5 +3352,38 @@ public class ParDoTest implements Serializable {
     PAssert.that(results).containsInAnyOrder("not fake anymore");
 
     pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void duplicateTimerSetting() {
+    TestStream<KV<String, String>> stream = TestStream
+        .create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .addElements(KV.of("key1", "v1"))
+        .advanceWatermarkToInfinity();
+
+    PCollection<String> result = pipeline
+        .apply(stream)
+        .apply(ParDo.of(new TwoTimerDoFn()));
+    PAssert.that(result).containsInAnyOrder("It works");
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static class TwoTimerDoFn extends DoFn<KV<String, String>, String> {
+    @TimerId("timer")
+    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void process(ProcessContext c,
+        @TimerId("timer") Timer timer) {
+      timer.offset(Duration.standardMinutes(10)).setRelative();
+      timer.offset(Duration.standardMinutes(30)).setRelative();
+    }
+
+    @OnTimer("timer")
+    public void onTimer(OnTimerContext c, @TimerId("timer") Timer timer) {
+      c.output("It works");
+    }
   }
 }

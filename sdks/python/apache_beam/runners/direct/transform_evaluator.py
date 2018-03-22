@@ -26,12 +26,13 @@ import time
 import apache_beam.io as io
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.internal import pickler
-from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
+from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
 from apache_beam.runners.direct.sdf_direct_runner import ProcessElements
@@ -51,9 +52,7 @@ from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
-from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -65,12 +64,14 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
+  _test_evaluators_overrides = {}
+
   def __init__(self, evaluation_context):
     assert evaluation_context
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
-        io.ReadStringsFromPubSub: _PubSubReadEvaluator,
+        _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
@@ -80,6 +81,7 @@ class TransformEvaluatorRegistry(object):
         TestStream: _TestStreamEvaluator,
         ProcessElements: _ProcessElementsEvaluator
     }
+    self._evaluators.update(self._test_evaluators_overrides)
     self._root_bundle_providers = {
         core.PTransform: DefaultRootBundleProvider,
         TestStream: _TestStreamRootBundleProvider,
@@ -343,8 +345,8 @@ class _TestStreamEvaluator(_TransformEvaluator):
       assert event.new_watermark >= self.watermark
       self.watermark = event.new_watermark
     elif isinstance(event, ProcessingTimeEvent):
-      # TODO(ccy): advance processing time in the context's mock clock.
-      pass
+      self._evaluation_context._watermark_manager._clock.advance_time(
+          event.advance_by)
     else:
       raise ValueError('Invalid TestStream event: %s.' % event)
 
@@ -387,10 +389,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
 
-    source = self._applied_ptransform.transform._source
+    self.source = self._applied_ptransform.transform._source
     self._subscription = _PubSubReadEvaluator.get_subscription(
-        self._applied_ptransform, source.project, source.topic_name,
-        source.subscription_name)
+        self._applied_ptransform, self.source.project, self.source.topic_name,
+        self.source.subscription_name)
 
   @classmethod
   def get_subscription(cls, transform, project, topic, subscription_name):
@@ -400,12 +402,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       if should_create:
         subscription_name = 'beam_%d_%x' % (
             int(time.time()), random.randrange(1 << 32))
-      cls._subscription_cache[transform] = _PubSubSubscriptionWrapper(
+      wrapper = _PubSubSubscriptionWrapper(
           pubsub.Client(project=project).topic(topic).subscription(
               subscription_name),
           should_create)
       if should_create:
-        cls._subscription_cache[transform].subscription.create()
+        wrapper.subscription.create()
+      cls._subscription_cache[transform] = wrapper
     return cls._subscription_cache[transform].subscription
 
   def start_bundle(self):
@@ -415,6 +418,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(self):
+    from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
     # Because of the AutoAck, we are not able to reread messages if this
     # evaluator fails with an exception before emitting a bundle. However,
@@ -423,7 +427,14 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     with pubsub.subscription.AutoAck(
         self._subscription, return_immediately=True,
         max_messages=10) as results:
-      return [message.data for unused_ack_id, message in results.items()]
+      def _get_element(message):
+        if self.source.with_attributes:
+          return PubsubMessage._from_message(message)
+        else:
+          return message.data
+
+      return [_get_element(message)
+              for unused_ack_id, message in results.items()]
 
   def finish_bundle(self):
     data = self._read_from_pubsub()
@@ -478,14 +489,7 @@ class _TaggedReceivers(dict):
   def __init__(self, evaluation_context):
     self._evaluation_context = evaluation_context
     self._null_receiver = None
-    self._undeclared_in_memory_tag_values = None
     super(_TaggedReceivers, self).__init__()
-
-  @property
-  def undeclared_in_memory_tag_values(self):
-    assert (not self._undeclared_in_memory_tag_values
-            or self._evaluation_context.has_cache)
-    return self._undeclared_in_memory_tag_values
 
   class NullReceiver(common.Receiver):
     """Ignores undeclared outputs, default execution mode."""
@@ -504,16 +508,9 @@ class _TaggedReceivers(dict):
       self._target[self._tag].append(element)
 
   def __missing__(self, key):
-    if self._evaluation_context.has_cache:
-      if not self._undeclared_in_memory_tag_values:
-        self._undeclared_in_memory_tag_values = collections.defaultdict(list)
-      receiver = _TaggedReceivers._InMemoryReceiver(
-          self._undeclared_in_memory_tag_values, key)
-    else:
-      if not self._null_receiver:
-        self._null_receiver = _TaggedReceivers.NullReceiver()
-      receiver = self._null_receiver
-    return receiver
+    if not self._null_receiver:
+      self._null_receiver = _TaggedReceivers.NullReceiver()
+    return self._null_receiver
 
 
 class _ParDoEvaluator(_TransformEvaluator):
@@ -546,12 +543,6 @@ class _ParDoEvaluator(_TransformEvaluator):
     dofn = (pickler.loads(pickler.dumps(transform.dofn))
             if self._perform_dofn_pickle_test else transform.dofn)
 
-    pipeline_options = self._evaluation_context.pipeline_options
-    if (pipeline_options is not None
-        and pipeline_options.view_as(TypeOptions).runtime_type_check):
-      dofn = TypeCheckWrapperDoFn(dofn, transform.get_type_hints())
-
-    dofn = OutputCheckWrapperDoFn(dofn, self._applied_ptransform.full_label)
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
 
@@ -573,8 +564,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self, bundles, [], result_counters, None,
-        self._tagged_receivers.undeclared_in_memory_tag_values)
+        self, bundles, [], result_counters, None)
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
@@ -693,9 +683,10 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
     self.output_pcollection = list(self._outputs)[0]
 
     # The input type of a GroupByKey will be KV[Any, Any] or more specific.
-    kv_type_hint = (
-        self._applied_ptransform.transform.get_type_hints().input_types[0])
-    self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+    kv_type_hint = self._applied_ptransform.inputs[0].element_type
+    key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
+                     else typehints.Any)
+    self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
     if (isinstance(element, WindowedValue)
@@ -742,15 +733,17 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.output_pcollection = list(self._outputs)[0]
     self.step_context = self._execution_context.get_step_context()
     self.driver = create_trigger_driver(
-        self._applied_ptransform.transform.windowing)
+        self._applied_ptransform.transform.windowing,
+        clock=self._evaluation_context._watermark_manager._clock)
     self.gabw_items = []
     self.keyed_holds = {}
 
-    # The input type of a GroupAlsoByWindow will be KV[Any, Iter[Any]] or more
-    # specific.
-    kv_type_hint = (
-        self._applied_ptransform.transform.get_type_hints().input_types[0])
-    self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+    # The input type (which is the same as the output type) of a
+    # GroupAlsoByWindow will be KV[Any, Iter[Any]] or more specific.
+    kv_type_hint = self._applied_ptransform.outputs[None].element_type
+    key_type_hint = (kv_type_hint.tuple_types[0] if kv_type_hint
+                     else typehints.Any)
+    self.key_coder = coders.registry.get_coder(key_type_hint)
 
   def process_element(self, element):
     kwi = element.value

@@ -18,9 +18,11 @@
 """A PipelineRunner using the SDK harness.
 """
 import collections
+import contextlib
 import copy
 import logging
 import Queue as queue
+import re
 import threading
 import time
 from concurrent import futures
@@ -28,6 +30,7 @@ from concurrent import futures
 import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
+from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import registry
@@ -35,6 +38,7 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -46,7 +50,6 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -143,10 +146,20 @@ class _WindowGroupingBuffer(object):
   def __init__(self, side_input_data):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
-    assert side_input_data.access_pattern == urns.ITERABLE_ACCESS
+    if side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+      self._kv_extrator = lambda value: ('', value)
+      self._key_coder = coders.SingletonCoder('')
+      self._value_coder = side_input_data.coder.wrapped_value_coder
+    elif side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+      self._kv_extrator = lambda value: value
+      self._key_coder = side_input_data.coder.wrapped_value_coder.key_coder()
+      self._value_coder = (
+          side_input_data.coder.wrapped_value_coder.value_coder())
+    else:
+      raise ValueError(
+          "Unknown access pattern: '%s'" % side_input_data.access_pattern)
     self._windowed_value_coder = side_input_data.coder
     self._window_coder = side_input_data.coder.window_coder
-    self._value_coder = side_input_data.coder.wrapped_value_coder
     self._values_by_window = collections.defaultdict(list)
 
   def append(self, elements_data):
@@ -154,17 +167,20 @@ class _WindowGroupingBuffer(object):
     while input_stream.size() > 0:
       windowed_value = self._windowed_value_coder.get_impl(
           ).decode_from_stream(input_stream, True)
+      key, value = self._kv_extrator(windowed_value.value)
       for window in windowed_value.windows:
-        self._values_by_window[window].append(windowed_value.value)
+        self._values_by_window[key, window].append(value)
 
-  def items(self):
+  def encoded_items(self):
     value_coder_impl = self._value_coder.get_impl()
-    for window, values in self._values_by_window.items():
+    key_coder_impl = self._key_coder.get_impl()
+    for (key, window), values in self._values_by_window.items():
       encoded_window = self._window_coder.encode(window)
+      encoded_key = key_coder_impl.encode_nested(key)
       output_stream = create_OutputStream()
       for value in values:
         value_coder_impl.encode_to_stream(value, output_stream, True)
-      yield encoded_window, output_stream.get()
+      yield encoded_key, encoded_window, output_stream.get()
 
 
 class FnApiRunner(runner.PipelineRunner):
@@ -192,6 +208,11 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
+    # This is sometimes needed if type checking is disabled
+    # to enforce that the inputs (and outputs) of GroupByKey operations
+    # are known to be KVs.
+    from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+    pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     return self.run_via_runner_api(pipeline.to_runner_api())
 
   def run_via_runner_api(self, pipeline_proto):
@@ -246,12 +267,12 @@ class FnApiRunner(runner.PipelineRunner):
             union(self.must_follow, other.must_follow))
 
       def is_flatten(self):
-        return any(transform.spec.urn == urns.FLATTEN_TRANSFORM
+        return any(transform.spec.urn == common_urns.FLATTEN_TRANSFORM
                    for transform in self.transforms)
 
       def side_inputs(self):
         for transform in self.transforms:
-          if transform.spec.urn == urns.PARDO_TRANSFORM:
+          if transform.spec.urn == common_urns.PARDO_TRANSFORM:
             payload = proto_utils.parse_Bytes(
                 transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             for side_input in payload.side_inputs:
@@ -259,7 +280,7 @@ class FnApiRunner(runner.PipelineRunner):
 
       def has_as_main_input(self, pcoll):
         for transform in self.transforms:
-          if transform.spec.urn == urns.PARDO_TRANSFORM:
+          if transform.spec.urn == common_urns.PARDO_TRANSFORM:
             payload = proto_utils.parse_Bytes(
                 transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             local_side_inputs = payload.side_inputs
@@ -306,14 +327,14 @@ class FnApiRunner(runner.PipelineRunner):
         proto = beam_runner_api_pb2.Coder(
             spec=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=urns.WINDOWED_VALUE_CODER)),
+                    urn=common_urns.WINDOWED_VALUE_CODER)),
             component_coder_ids=[coder_id, window_coder_id])
         return add_or_get_coder_id(proto)
 
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
-        if transform.spec.urn == urns.COMBINE_PER_KEY_TRANSFORM:
+        if transform.spec.urn == common_urns.COMBINE_PER_KEY_TRANSFORM:
           combine_payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.CombinePayload)
 
@@ -333,14 +354,14 @@ class FnApiRunner(runner.PipelineRunner):
           key_accumulator_coder = beam_runner_api_pb2.Coder(
               spec=beam_runner_api_pb2.SdkFunctionSpec(
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.KV_CODER)),
+                      urn=common_urns.KV_CODER)),
               component_coder_ids=[key_coder_id, accumulator_coder_id])
           key_accumulator_coder_id = add_or_get_coder_id(key_accumulator_coder)
 
           accumulator_iter_coder = beam_runner_api_pb2.Coder(
               spec=beam_runner_api_pb2.SdkFunctionSpec(
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.ITERABLE_CODER)),
+                      urn=common_urns.ITERABLE_CODER)),
               component_coder_ids=[accumulator_coder_id])
           accumulator_iter_coder_id = add_or_get_coder_id(
               accumulator_iter_coder)
@@ -348,7 +369,7 @@ class FnApiRunner(runner.PipelineRunner):
           key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
               spec=beam_runner_api_pb2.SdkFunctionSpec(
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.KV_CODER)),
+                      urn=common_urns.KV_CODER)),
               component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
           key_accumulator_iter_coder_id = add_or_get_coder_id(
               key_accumulator_iter_coder)
@@ -392,7 +413,7 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Precombine',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.PRECOMBINE_TRANSFORM,
+                      urn=common_urns.COMBINE_PGBKCV_TRANSFORM,
                       payload=transform.spec.payload),
                   inputs=transform.inputs,
                   outputs={'out': precombined_pcoll_id}))
@@ -402,7 +423,7 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Group',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.GROUP_BY_KEY_TRANSFORM),
+                      urn=common_urns.GROUP_BY_KEY_TRANSFORM),
                   inputs={'in': precombined_pcoll_id},
                   outputs={'out': grouped_pcoll_id}))
 
@@ -411,7 +432,7 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Merge',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.MERGE_ACCUMULATORS_TRANSFORM,
+                      urn=common_urns.COMBINE_MERGE_ACCUMULATORS_TRANSFORM,
                       payload=transform.spec.payload),
                   inputs={'in': grouped_pcoll_id},
                   outputs={'out': merged_pcoll_id}))
@@ -421,7 +442,7 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/ExtractOutputs',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=urns.EXTRACT_OUTPUTS_TRANSFORM,
+                      urn=common_urns.COMBINE_EXTRACT_OUTPUTS_TRANSFORM,
                       payload=transform.spec.payload),
                   inputs={'in': merged_pcoll_id},
                   outputs=transform.outputs))
@@ -432,12 +453,13 @@ class FnApiRunner(runner.PipelineRunner):
     def expand_gbk(stages):
       """Transforms each GBK into a write followed by a read.
       """
-      good_coder_urns = set(beam.coders.Coder._known_urns.keys()) - set([
-          urns.PICKLED_CODER])
+      good_coder_urns = set(
+          value for key, value in common_urns.__dict__.items()
+          if re.match('[A-Z][A-Z_]*$', key))
       coders = pipeline_components.coders
 
       for coder_id, coder_proto in coders.items():
-        if coder_proto.spec.spec.urn == urns.BYTES_CODER:
+        if coder_proto.spec.spec.urn == common_urns.BYTES_CODER:
           bytes_coder_id = coder_id
           break
       else:
@@ -451,7 +473,7 @@ class FnApiRunner(runner.PipelineRunner):
         if (coder_id, with_bytes) not in coder_substitutions:
           wrapped_coder_id = None
           coder_proto = coders[coder_id]
-          if coder_proto.spec.spec.urn == urns.LENGTH_PREFIX_CODER:
+          if coder_proto.spec.spec.urn == common_urns.LENGTH_PREFIX_CODER:
             coder_substitutions[coder_id, with_bytes] = (
                 bytes_coder_id if with_bytes else coder_id)
           elif coder_proto.spec.spec.urn in good_coder_urns:
@@ -478,7 +500,7 @@ class FnApiRunner(runner.PipelineRunner):
               len_prefix_coder_proto = beam_runner_api_pb2.Coder(
                   spec=beam_runner_api_pb2.SdkFunctionSpec(
                       spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=urns.LENGTH_PREFIX_CODER)),
+                          urn=common_urns.LENGTH_PREFIX_CODER)),
                   component_coder_ids=[coder_id])
               coders[wrapped_coder_id].CopyFrom(len_prefix_coder_proto)
               coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
@@ -495,7 +517,7 @@ class FnApiRunner(runner.PipelineRunner):
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
-        if transform.spec.urn == urns.GROUP_BY_KEY_TRANSFORM:
+        if transform.spec.urn == common_urns.GROUP_BY_KEY_TRANSFORM:
           for pcoll_id in transform.inputs.values():
             fix_pcoll_coder(pipeline_components.pcollections[pcoll_id])
           for pcoll_id in transform.outputs.values():
@@ -542,7 +564,7 @@ class FnApiRunner(runner.PipelineRunner):
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
-        if transform.spec.urn == urns.FLATTEN_TRANSFORM:
+        if transform.spec.urn == common_urns.FLATTEN_TRANSFORM:
           # This is used later to correlate the read and writes.
           param = str("materialize:%s" % transform.unique_name)
           output_pcoll_id, = transform.outputs.values()
@@ -768,7 +790,8 @@ class FnApiRunner(runner.PipelineRunner):
     coders.populate_map(pipeline_components.coders)
 
     known_composites = set(
-        [urns.GROUP_BY_KEY_TRANSFORM, urns.COMBINE_PER_KEY_TRANSFORM])
+        [common_urns.GROUP_BY_KEY_TRANSFORM,
+         common_urns.COMBINE_PER_KEY_TRANSFORM])
 
     def leaf_transforms(root_ids):
       for root_id in root_ids:
@@ -846,7 +869,7 @@ class FnApiRunner(runner.PipelineRunner):
             transform.spec.payload = data_operation_spec.SerializeToString()
           else:
             transform.spec.payload = ""
-        elif transform.spec.urn == urns.PARDO_TRANSFORM:
+        elif transform.spec.urn == common_urns.PARDO_TRANSFORM:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
@@ -874,13 +897,14 @@ class FnApiRunner(runner.PipelineRunner):
       elements_by_window = _WindowGroupingBuffer(si)
       for element_data in pcoll_buffers[pcoll_id]:
         elements_by_window.append(element_data)
-      for window, elements_data in elements_by_window.items():
+      for key, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
             multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
                 ptransform_id=transform_id,
                 side_input_id=tag,
-                window=window))
-        controller.state_handler.blocking_append(state_key, elements_data, None)
+                window=window,
+                key=key))
+        controller.state_handler.blocking_append(state_key, elements_data)
 
     def get_buffer(pcoll_id):
       if pcoll_id.startswith('materialize:'):
@@ -922,15 +946,19 @@ class FnApiRunner(runner.PipelineRunner):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
 
-    def blocking_get(self, state_key, instruction_reference=None):
+    @contextlib.contextmanager
+    def process_instruction_id(self, unused_instruction_id):
+      yield
+
+    def blocking_get(self, state_key):
       with self._lock:
         return ''.join(self._state[self._to_key(state_key)])
 
-    def blocking_append(self, state_key, data, instruction_reference=None):
+    def blocking_append(self, state_key, data):
       with self._lock:
         self._state[self._to_key(state_key)].append(data)
 
-    def blocking_clear(self, state_key, instruction_reference=None):
+    def blocking_clear(self, state_key):
       with self._lock:
         del self._state[self._to_key(state_key)]
 
@@ -1139,7 +1167,7 @@ class ProgressRequester(threading.Thread):
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)
-      except Exception, exn:
+      except Exception as exn:
         logging.error("Bad progress: %s", exn)
       time.sleep(self._frequency)
 
@@ -1173,16 +1201,25 @@ class FnApiMetrics(metrics.metric.MetricResults):
   def __init__(self, step_metrics):
     self._counters = {}
     self._distributions = {}
+    self._gauges = {}
     for step_metric in step_metrics.values():
-      for proto in step_metric.user:
-        key = metrics.execution.MetricKey.from_runner_api(proto.key)
-        if proto.HasField('counter_data'):
-          self._counters[key] = proto.counter_data.value
-        elif proto.HasField('distribution_data'):
-          self._distributions[
-              key] = metrics.cells.DistributionResult(
-                  metrics.cells.DistributionData.from_runner_api(
-                      proto.distribution_data))
+      for ptransform_id, ptransform in step_metric.ptransforms.items():
+        for proto in ptransform.user:
+          key = metrics.execution.MetricKey(
+              ptransform_id,
+              metrics.metricbase.MetricName.from_runner_api(proto.metric_name))
+          if proto.HasField('counter_data'):
+            self._counters[key] = proto.counter_data.value
+          elif proto.HasField('distribution_data'):
+            self._distributions[
+                key] = metrics.cells.DistributionResult(
+                    metrics.cells.DistributionData.from_runner_api(
+                        proto.distribution_data))
+          elif proto.HasField('gauge_data'):
+            self._gauges[
+                key] = metrics.cells.GaugeResult(
+                    metrics.cells.GaugeData.from_runner_api(
+                        proto.gauge_data))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
@@ -1191,9 +1228,13 @@ class FnApiMetrics(metrics.metric.MetricResults):
     distributions = [metrics.execution.MetricResult(k, v, v)
                      for k, v in self._distributions.items()
                      if self.matches(filter, k)]
+    gauges = [metrics.execution.MetricResult(k, v, v)
+              for k, v in self._gauges.items()
+              if self.matches(filter, k)]
 
     return {'counters': counters,
-            'distributions': distributions}
+            'distributions': distributions,
+            'gauges': gauges}
 
 
 class RunnerResult(runner.PipelineResult):

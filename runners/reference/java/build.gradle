@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-runners-reference-java")
 
 description = "Apache Beam :: Runners :: Reference :: Java"
 
@@ -29,10 +29,3 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

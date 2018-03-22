@@ -17,13 +17,21 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-extensions-sql")
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 
 test {
   jvmArgs "-da"
+
+  // charset that calcite will use for the tables in the tests
+  // need to setup as system property prior to running any tests
+  // or some of the tests may fail as calcite will init itself
+  // with it's default of ISO-8859-1
+  systemProperty 'saffron.default.charset', 'UTF-16LE'
+  systemProperty 'saffron.default.nationalcharset', 'UTF-16LE'
+  systemProperty 'saffron.default.collation.name', 'UTF-16LE$en_US'
 }
 
 configurations {
@@ -35,8 +43,8 @@ configurations {
 }
 
 
-def calcite_version = "1.13.0"
-def avatica_version = "1.10.0"
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
 
 dependencies {
   fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
@@ -48,6 +56,7 @@ dependencies {
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
   shadow library.java.slf4j_api
@@ -66,7 +75,7 @@ dependencies {
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
-  into "build/templates-fmpp/codegen"
+  into "${project.buildDir}/templates-fmpp/codegen"
 }
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
@@ -79,7 +88,7 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
 }
 
 // Generate the FMPP sources from the FMPP templates.
-def generateFmppOutputDir = "${project.buildDir}/generated-fmpp"
+def generateFmppOutputDir = "${project.buildDir}/generated/fmpp"
 task generateFmppSources {
   dependsOn configurations.fmppTask
   dependsOn copyFmppTemplatesFromSrc
@@ -90,9 +99,14 @@ task generateFmppSources {
   }
 }
 
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generateFmppJavaccRoot = "${generateFmppOutputDir}/javacc"
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir = "${generatedJavaccSourceDir}/org/apache/beam/sdk/extensions/sql/impl/parser/impl"
 compileJavacc {
   dependsOn generateFmppSources
-  inputDirectory = file(generateFmppOutputDir)
+  inputDirectory = file(generateFmppJavaccRoot)
+  outputDirectory = file(generatedJavaccPackageDir)
   arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
 }
 
@@ -116,10 +130,13 @@ shadowJar {
   relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
 }
 
+// Help IntelliJ find the fmpp bits
+idea {
+  module {
+    sourceDirs += file(generateFmppOutputDir)
+    generatedSourceDirs += file(generateFmppOutputDir)
 
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
 }
-
-artifacts.archives packageTests

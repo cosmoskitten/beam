@@ -18,17 +18,24 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import io.grpc.stub.StreamObserver;
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.FnService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a pool. */
-public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase {
+public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
+    implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final BlockingQueue<FnApiControlClient> clientPool;
+  private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
+  private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(BlockingQueue<FnApiControlClient> clientPool) {
     this.clientPool = clientPool;
@@ -37,6 +44,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   /**
    * Creates a new {@link FnApiControlClientPoolService} which will enqueue and vend new SDK harness
    * connections.
+   *
+   * <p>Clients placed into the {@code clientPool} are owned by whichever consumer owns the pool.
+   * That consumer is responsible for closing the clients when they are no longer needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
       BlockingQueue<FnApiControlClient> clientPool) {
@@ -56,11 +66,26 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     LOGGER.info("Beam Fn Control client connected.");
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(requestObserver);
     try {
+      // Add the client to the pool of vended clients before making it available - we should close
+      // the client when we close even if no one has picked it up yet. This can occur after the
+      // service is closed, in which case the client will be discarded when the service is
+      // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
+      // able to handle an unexpectedly terminated connection.
+      vendedClients.add(newClient);
       clientPool.put(newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     }
     return newClient.asResponseObserver();
+  }
+
+  @Override
+  public void close() {
+    if (!closed.getAndSet(true)) {
+      for (FnApiControlClient vended : vendedClients) {
+        vended.close();
+      }
+    }
   }
 }

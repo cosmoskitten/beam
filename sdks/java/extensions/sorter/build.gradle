@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-extensions-sorter")
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
@@ -31,10 +31,3 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.junit
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

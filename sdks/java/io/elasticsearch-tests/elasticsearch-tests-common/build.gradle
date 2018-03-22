@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-io-elasticsearch-tests-common")
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 
@@ -54,10 +54,3 @@ dependencies {
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

@@ -28,6 +28,8 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
+import six
+
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
 
@@ -341,17 +343,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
       result = evaluator.finish_bundle()
       result.logical_metric_updates = metrics_container.get_cumulative()
 
-    if self._evaluation_context.has_cache:
-      for uncommitted_bundle in result.uncommitted_output_bundles:
-        self._evaluation_context.append_to_cache(
-            self._applied_ptransform, uncommitted_bundle.tag,
-            uncommitted_bundle.get_elements_iterable())
-      undeclared_tag_values = result.undeclared_tag_values
-      if undeclared_tag_values:
-        for tag, value in undeclared_tag_values.iteritems():
-          self._evaluation_context.append_to_cache(
-              self._applied_ptransform, tag, value)
-
     self._completion_callback.handle_result(self, self._input_bundle, result)
     return result
 
@@ -367,6 +358,9 @@ class Executor(object):
 
   def await_completion(self):
     self._executor.await_completion()
+
+  def shutdown(self):
+    self._executor.request_shutdown()
 
 
 class _ExecutorServiceParallelExecutor(object):
@@ -409,7 +403,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise t, v, tb
+        six.reraise(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()
@@ -550,7 +544,8 @@ class _ExecutorServiceParallelExecutor(object):
     def _should_shutdown(self):
       """Checks whether the pipeline is completed and should be shut down.
 
-      If there is anything in the queue of tasks to do, do not shut down.
+      If there is anything in the queue of tasks to do or
+      if there are any realtime timers set, do not shut down.
 
       Otherwise, check if all the transforms' watermarks are complete.
       If they are not, the pipeline is not progressing (stall detected).
@@ -565,6 +560,12 @@ class _ExecutorServiceParallelExecutor(object):
       if self._is_executing():
         # There are some bundles still in progress.
         return False
+
+      watermark_manager = self._executor.evaluation_context._watermark_manager
+      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
+      if any_unfired_realtime_timers:
+        return False
+
       else:
         if self._executor.evaluation_context.is_done():
           self._executor.visible_updates.offer(
@@ -605,13 +606,7 @@ class _ExecutorServiceParallelExecutor(object):
       """Checks whether the job is still executing.
 
       Returns:
-        True if there are any timers set or if there is at least
-        one non-blocked TransformExecutor active."""
-
-      watermark_manager = self._executor.evaluation_context._watermark_manager
-      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
-      if any_unfired_realtime_timers:
-        return True
+        True if there is at least one non-blocked TransformExecutor active."""
 
       executors = self._executor.transform_executor_services.executors
       if not executors:
