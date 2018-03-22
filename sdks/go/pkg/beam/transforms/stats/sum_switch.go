@@ -18,35 +18,35 @@
 package stats
 
 import (
-	"fmt"
-	"reflect"
+    "fmt"
+    "reflect"
 )
 
 func findSumFn(t reflect.Type) interface{} {
-	switch t.String() {
-	case "int":
+    switch t.String() {
+    case "int":
 		return sumIntFn
-	case "int8":
+    case "int8":
 		return sumInt8Fn
-	case "int16":
+    case "int16":
 		return sumInt16Fn
-	case "int32":
+    case "int32":
 		return sumInt32Fn
-	case "int64":
+    case "int64":
 		return sumInt64Fn
-	case "uint":
+    case "uint":
 		return sumUintFn
-	case "uint8":
+    case "uint8":
 		return sumUint8Fn
-	case "uint16":
+    case "uint16":
 		return sumUint16Fn
-	case "uint32":
+    case "uint32":
 		return sumUint32Fn
-	case "uint64":
+    case "uint64":
 		return sumUint64Fn
-	case "float32":
+    case "float32":
 		return sumFloat32Fn
-	case "float64":
+    case "float64":
 		return sumFloat64Fn
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))
@@ -100,3 +100,4 @@ func sumFloat32Fn(x, y float32) float32 {
 func sumFloat64Fn(x, y float64) float64 {
 	return x + y
 }
+
