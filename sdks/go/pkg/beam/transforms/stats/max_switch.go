@@ -18,35 +18,35 @@
 package stats
 
 import (
-	"fmt"
-	"reflect"
+    "fmt"
+    "reflect"
 )
 
 func findMaxFn(t reflect.Type) interface{} {
-	switch t.String() {
-	case "int":
+    switch t.String() {
+    case "int":
 		return maxIntFn
-	case "int8":
+    case "int8":
 		return maxInt8Fn
-	case "int16":
+    case "int16":
 		return maxInt16Fn
-	case "int32":
+    case "int32":
 		return maxInt32Fn
-	case "int64":
+    case "int64":
 		return maxInt64Fn
-	case "uint":
+    case "uint":
 		return maxUintFn
-	case "uint8":
+    case "uint8":
 		return maxUint8Fn
-	case "uint16":
+    case "uint16":
 		return maxUint16Fn
-	case "uint32":
+    case "uint32":
 		return maxUint32Fn
-	case "uint64":
+    case "uint64":
 		return maxUint64Fn
-	case "float32":
+    case "float32":
 		return maxFloat32Fn
-	case "float64":
+    case "float64":
 		return maxFloat64Fn
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))
@@ -136,3 +136,4 @@ func maxFloat64Fn(x, y float64) float64 {
 	}
 	return y
 }
+
