@@ -72,13 +72,6 @@ class TestDataflowRunner(DataflowRunner):
         'https://console.cloud.google.com/dataflow/jobsDetail/locations'
         '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
 
-  def _is_in_terminate_state(self, job_state):
-    return job_state in [
-        PipelineState.STOPPED, PipelineState.DONE,
-        PipelineState.FAILED, PipelineState.CANCELLED,
-        PipelineState.UPDATED, PipelineState.DRAINED,
-    ]
-
   def wait_until_in_state(self, state, timeout=WAIT_TIMEOUT):
     """Wait until Dataflow pipeline terminate or enter RUNNING state."""
     if not self.result.has_job:
@@ -87,8 +80,8 @@ class TestDataflowRunner(DataflowRunner):
     start_time = time.time()
     while time.time() - start_time <= timeout:
       job_state = self.result.state
-      if (self._is_in_terminate_state(job_state) or
-          self.result.state == state):
+      if (self.result.is_in_terminal_state() or
+          job_state == PipelineState.RUNNING):
         return job_state
       time.sleep(5)
 
