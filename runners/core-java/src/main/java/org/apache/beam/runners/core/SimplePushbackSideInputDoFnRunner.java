@@ -112,5 +112,10 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     notReadyWindows = null;
     underlying.finishBundle();
   }
+
+  @Override
+  public void resetNonReadyWindows() {
+    notReadyWindows = new HashSet<>();
+  }
 }
 

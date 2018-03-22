@@ -492,6 +492,8 @@ public class DoFnOperator<InputT, OutputT>
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
     sideInputHandler.addSideInputValue(sideInput, value);
 
+    pushbackDoFnRunner.resetNonReadyWindows();
+
     BagState<WindowedValue<InputT>> pushedBack =
         nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
