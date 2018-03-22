@@ -22,7 +22,6 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;

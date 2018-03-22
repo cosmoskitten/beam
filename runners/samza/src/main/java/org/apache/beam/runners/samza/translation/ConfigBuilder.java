@@ -21,11 +21,9 @@ package org.apache.beam.runners.samza.translation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Iterables;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.adapter.BoundedSourceSystem;

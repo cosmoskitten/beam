@@ -19,7 +19,6 @@
 package org.apache.beam.runners.samza;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;

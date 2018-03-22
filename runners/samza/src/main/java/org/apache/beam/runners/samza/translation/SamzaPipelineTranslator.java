@@ -21,7 +21,6 @@ package org.apache.beam.runners.samza.translation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
