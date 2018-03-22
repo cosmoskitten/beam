@@ -79,6 +79,7 @@ public class CombineTranslation {
             .setPayload(payloadForCombine((AppliedPTransform) transform, components).toByteString())
             .build();
       } else {
+        // Combines with side inputs are translated as generic composites by returning a null FunctionSpec.
         return null;
       }
     }
