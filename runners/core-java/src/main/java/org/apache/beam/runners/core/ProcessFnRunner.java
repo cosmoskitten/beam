@@ -122,8 +122,4 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     }
     return true;
   }
-
-  @Override
-  public void resetNonReadyWindows() {
-  }
 }

@@ -48,10 +48,4 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
 
   /** Calls the underlying {@link DoFn.FinishBundle} method. */
   void finishBundle();
-
-  /**
-   * Reset any cached information this {@code PushbackSideInputDoFnRunner} keeps about non-ready
-   * windows.
-   */
-  void resetNonReadyWindows();
 }
