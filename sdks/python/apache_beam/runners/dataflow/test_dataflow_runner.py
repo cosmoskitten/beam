@@ -44,26 +44,33 @@ class TestDataflowRunner(DataflowRunner):
 
     self.result = super(TestDataflowRunner, self).run_pipeline(pipeline)
     if self.result.has_job:
-      project = pipeline._options.view_as(GoogleCloudOptions).project
-      region_id = pipeline._options.view_as(GoogleCloudOptions).region
-      job_id = self.result.job_id()
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
-      print (
-          'Found: https://console.cloud.google.com/dataflow/jobsDetail'
-          '/locations/%s/jobs/%s?project=%s' % (region_id, job_id, project))
+      print('Found: %s.' % self.build_console_url(pipeline.options))
 
     if not options.view_as(StandardOptions).streaming:
       self.result.wait_until_finish()
     else:
-      # TODO: Ideally, we want to wait until workers start successfully.
-      self.wait_until_running()
+      self.wait_until_in_state(PipelineState.RUNNING)
 
     if on_success_matcher:
       from hamcrest import assert_that as hc_assert_that
       hc_assert_that(self.result, pickler.loads(on_success_matcher))
 
+    if options.view_as(StandardOptions).streaming:
+      self.result.cancel()
+      self.wait_until_in_state(PipelineState.CANCELLED, timeout=300)
+
     return self.result
+
+  def build_console_url(self, options):
+    """Build a console url of Dataflow job."""
+    project = options.view_as(GoogleCloudOptions).project
+    region_id = options.view_as(GoogleCloudOptions).region
+    job_id = self.result.job_id()
+    return (
+        'https://console.cloud.google.com/dataflow/jobsDetail/locations'
+        '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
 
   def _is_in_terminate_state(self, job_state):
     return job_state in [
@@ -72,16 +79,16 @@ class TestDataflowRunner(DataflowRunner):
         PipelineState.UPDATED, PipelineState.DRAINED,
     ]
 
-  def wait_until_running(self):
+  def wait_until_in_state(self, state, timeout=WAIT_TIMEOUT):
     """Wait until Dataflow pipeline terminate or enter RUNNING state."""
     if not self.result.has_job:
       raise IOError('Failed to get the Dataflow job id.')
 
     start_time = time.time()
-    while time.time() - start_time <= WAIT_TIMEOUT:
+    while time.time() - start_time <= timeout:
       job_state = self.result.state
       if (self._is_in_terminate_state(job_state) or
-          self.result.state == PipelineState.RUNNING):
+          self.result.state == state):
         return job_state
       time.sleep(5)
 
