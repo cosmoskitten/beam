@@ -16,8 +16,6 @@
 #
 """Test for WorkerIdInterceptor"""
 from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import collections
 import logging
@@ -37,7 +35,7 @@ class _ClientCallDetails(
 
 class WorkerIdInterceptorTest(unittest.TestCase):
 
-  def test_fn_registration(self):
+  def test_worker_id_insertion(self):
     worker_id_key = 'worker_id'
     headers_holder = {}
 
@@ -54,6 +52,22 @@ class WorkerIdInterceptorTest(unittest.TestCase):
                                                   [])
     self.assertEqual(headers_holder[worker_id_key], 'my_worker_id',
                      'worker_id_key not set')
+
+  def test_failure_when_worker_id_exists(self):
+    worker_id_key = 'worker_id'
+    headers_holder = {}
+
+    def continuation(client_details, request_iterator):
+      headers_holder.update({
+          worker_id_key: dict(client_details.metadata).get(worker_id_key)
+      })
+
+    WorkerIdInterceptor._worker_id = 'my_worker_id'
+
+    with self.assertRaises(RuntimeError):
+      WorkerIdInterceptor().intercept_stream_stream(
+          continuation, _ClientCallDetails(None, None, {'worker_id': '1'},
+                                           None), [])
 
 
 if __name__ == '__main__':

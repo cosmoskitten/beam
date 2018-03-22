@@ -35,6 +35,9 @@ class _ClientCallDetails(
 
 class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
 
+  # TODO: (BEAM-3904) Removed defaulting to UUID when worker_id is not present
+  # and throw exception in worker_id_interceptor.py after we have rolled out
+  # the corresponding container changes.
   # Unique worker Id for this worker.
   _worker_id = os.environ['WORKER_ID'] if os.environ.has_key(
       'WORKER_ID') else str(uuid.uuid4())
@@ -47,6 +50,8 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
     metadata = []
     if client_call_details.metadata is not None:
       metadata = list(client_call_details.metadata)
+    if 'worker_id' in metadata:
+      raise RuntimeError('Header metadata alreay have worker_id.')
     metadata.append(('worker_id', self._worker_id))
     new_client_details = _ClientCallDetails(
         client_call_details.method, client_call_details.timeout, metadata,
