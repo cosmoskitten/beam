@@ -72,7 +72,7 @@ public class SpannerWriteIT {
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
     @Description("Instance ID to write to in Spanner")
-    @Default.String("beam-test")
+    @Default.String("mairbek-deleteme")
     String getInstanceId();
     void setInstanceId(String value);
 
@@ -158,8 +158,8 @@ public class SpannerWriteIT {
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
-    PCollection<MutationGroup> windowedSignal = stepOne.getFailedMutations()
-        .apply(Window.<MutationGroup>into(new GlobalWindows()).discardingFiredPanes());
+    PCollection<Void> windowedSignal = stepOne.getOutput()
+        .apply(Window.<Void>into(new GlobalWindows()).discardingFiredPanes());
 
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))

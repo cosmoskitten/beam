@@ -34,10 +34,13 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class SpannerWriteResult implements POutput {
   private final Pipeline pipeline;
+  private final PCollection<Void> output;
   private final PCollection<MutationGroup> failedMutations;
 
-  public SpannerWriteResult(Pipeline pipeline, PCollection<MutationGroup> failedMutations) {
+  public SpannerWriteResult(Pipeline pipeline, PCollection<Void> output,
+      PCollection<MutationGroup> failedMutations) {
     this.pipeline = pipeline;
+    this.output = output;
     this.failedMutations = failedMutations;
   }
 
@@ -53,6 +56,10 @@ public class SpannerWriteResult implements POutput {
 
   public PCollection<MutationGroup> getFailedMutations() {
     return failedMutations;
+  }
+
+  public PCollection<Void> getOutput() {
+    return output;
   }
 
   @Override
