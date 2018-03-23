@@ -44,41 +44,6 @@ function complete() {
     rm -rf $TMPDIR
 }
 
-#######################################
-# Verify results of hourly_team_score.
-# Globals:
-#   DATASET
-# Arguments:
-#   $1 - runner type: DirectRunner, DataflowRunner
-#   $2 - pid: the pid of running pipeline
-#   $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
-#######################################
-function verify_steaming_result() {
-    retry=3
-    should_see="Python: "
-    while(( $retry > 0 )); do
-        pull_result=$(run_pubsub_pull)
-        if [[ $pull_result = *"$should_see"* ]]; then
-            echo "SUCCEED: The streaming wordcount example running successfully on $1."
-            break
-        else
-            if [[ $retry > 0 ]]; then
-                retry=$(($retry-1))
-                echo "retry left: $retry"
-                sleep 15
-            else
-                echo "ERROR: The streaming wordcount example failed on $1."
-                cleanup_pubsub
-                kill -9 $2
-                if [[ $1 = "DataflowRunner" ]]; then
-                    gcloud dataflow jobs cancel $3
-                fi
-                complete "failed when running streaming wordcount example with $1."
-                exit 1
-            fi
-        fi
-    done
-}
 
 print_separator "Start Quickstarts Examples"
 echo "SDK version: $VERSION"
