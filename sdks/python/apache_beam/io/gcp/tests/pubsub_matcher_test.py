@@ -67,9 +67,9 @@ class PubSubMatcherTest(unittest.TestCase):
     with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertEqual(mock_sub.pull.call_count, 1)
-    self.assertTrue(
-        'Expected %d messages. Got %d. Diffs: set([\'%s\'])' % (1, 2, 'a')
-        in str(error.exception.args[0]))
+    self.assertEqual(
+      '\nExpected: Expected %d messages.\n     but: Got %d messages. Diffs: '
+      '%s.\n' % (1, 2, ['a', 'c', 'd']), str(error.exception.args[0]))
 
   @mock.patch('time.sleep', return_value=None)
   @mock.patch('google.cloud.pubsub.Client.subscription')
@@ -77,11 +77,12 @@ class PubSubMatcherTest(unittest.TestCase):
     mock_sub = mock_sub_cls.return_value
     mock_sub.return_value.full_name.return_value = 'mock_sub'
     self.pubsub_matcher.timeout = 0.1
-    with self.assertRaises(RuntimeError) as error:
+    with self.assertRaises(AssertionError) as error:
       hc_assert_that(self.mock_presult, self.pubsub_matcher)
     self.assertTrue(mock_sub.pull.called)
-    self.assertTrue('Timeout after 0 sec. Received 0 messages ' in
-                    error.exception.args[0])
+    self.assertEqual(
+        '\nExpected: Expected %d messages.\n     but: Got %d messages. Diffs: '
+        '%s.\n' % (1, 0, ['mock_expected_msg']), str(error.exception.args[0]))
 
 
 if __name__ == '__main__':

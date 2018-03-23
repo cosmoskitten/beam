@@ -27,6 +27,7 @@ import datetime
 import logging
 import random
 import unittest
+import uuid
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -51,19 +52,15 @@ class StreamingWordCountIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
-    self.identifier = self._generate_identifier()
+    self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
     from google.cloud import pubsub
     self.pubsub_client = pubsub.Client(project=self.project)
-    self.input_topic = self.pubsub_client.topic(
-        INPUT_TOPIC + self.identifier)
-    self.output_topic = self.pubsub_client.topic(
-        OUTPUT_TOPIC + self.identifier)
-    self.input_sub = self.input_topic.subscription(
-        INPUT_SUB + self.identifier)
-    self.output_sub = self.output_topic.subscription(
-        OUTPUT_SUB + self.identifier)
+    self.input_topic = self.pubsub_client.topic(INPUT_TOPIC + self.uuid)
+    self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC + self.uuid)
+    self.input_sub = self.input_topic.subscription(INPUT_SUB + self.uuid)
+    self.output_sub = self.output_topic.subscription(OUTPUT_SUB + self.uuid)
 
     self.input_topic.create()
     self.output_topic.create()
@@ -98,7 +95,7 @@ class StreamingWordCountIT(unittest.TestCase):
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     pubsub_msg_verifier = PubSubMessageMatcher(self.project,
-                                               OUTPUT_SUB + self.identifier,
+                                               OUTPUT_SUB + self.uuid,
                                                expected_msg,
                                                timeout=400)
     extra_opts = {'input_subscription': self.input_sub.full_name,

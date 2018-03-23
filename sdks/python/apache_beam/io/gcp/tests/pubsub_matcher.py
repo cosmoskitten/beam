@@ -62,7 +62,7 @@ class PubSubMessageMatcher(BaseMatcher):
       raise ValueError('Invalid project %s.' % project)
     if not sub_name:
       raise ValueError('Invalid subscription %s.' % sub_name)
-    if not expected_msg or not isinstance(expected_msg, list):
+    if not isinstance(expected_msg, list):
       raise ValueError('Invalid expected messages %s.' % expected_msg)
 
     self.project = project
@@ -95,14 +95,18 @@ class PubSubMessageMatcher(BaseMatcher):
         return total_messages
       time.sleep(1)
 
-    raise RuntimeError('Timeout after %d sec. Received %d messages from %s.' %
-                       (timeout, len(total_messages), subscription.full_name))
+    logging.error('Timeout after %d sec. Received %d messages from %s.',
+                  timeout, len(total_messages), subscription.full_name)
+    return total_messages
 
   def describe_to(self, description):
     description.append_text(
         'Expected %d messages.' % len(self.expected_msg))
 
   def describe_mismatch(self, _, mismatch_description):
-    diff = set(self.expected_msg) - set(self.messages)
+    c_expected = Counter(self.expected_msg)
+    c_actual = Counter(self.messages)
+    diff = (c_expected | c_actual) - (c_expected & c_actual)
     mismatch_description.append_text(
-        "Got %d messages. Diffs: %s." % (len(self.messages), diff))
+        "Got %d messages. Diffs: %s." %
+        (len(self.messages), list(diff.elements())))
