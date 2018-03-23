@@ -26,7 +26,7 @@
 
 set -e
 set -v
-
+gsutil ls gs://temp-storage-for-end-to-end-tests
 # Virtualenv for the rest of the script to run setup & e2e tests
 /usr/bin/virtualenv sdks/python
 . sdks/python/bin/activate
@@ -35,7 +35,7 @@ pip install -e .[gcp,test]
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
-
+gsutil ls gs://temp-storage-for-end-to-end-tests
 PROJECT=apache-beam-testing
 
 # Create a tarball
