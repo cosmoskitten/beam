@@ -108,11 +108,106 @@ function cleanup_pubsub() {
     gcloud pubsub subscriptions delete --project=$PROJECT_ID $PUBSUB_SUBSCRIPTION
 }
 
+#######################################
+# Verify results of streaming_wordcount.
+# Arguments:
+#   $1 - runner type: DirectRunner, DataflowRunner
+#   $2 - pid: the pid of running pipeline
+#   $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
+#######################################
+function verify_steaming_result() {
+    retry=3
+    should_see="Python: "
+    while(( $retry > 0 )); do
+        pull_result=$(run_pubsub_pull)
+        if [[ $pull_result = *"$should_see"* ]]; then
+            echo "SUCCEED: The streaming wordcount example running successfully on $1."
+            break
+        else
+            if [[ $retry > 0 ]]; then
+                retry=$(($retry-1))
+                echo "retry left: $retry"
+                sleep 15
+            else
+                echo "ERROR: The streaming wordcount example failed on $1."
+                cleanup_pubsub
+                kill -9 $2
+                if [[ $1 = "DataflowRunner" ]]; then
+                    gcloud dataflow jobs cancel $3
+                fi
+                complete "failed when running streaming wordcount example with $1."
+                exit 1
+            fi
+        fi
+    done
+}
+
+#######################################
+# Verify results of user_score.
+# Globals:
+#   BUCKET_NAME
+# Arguments:
+#   $1: Runner - direct, dataflow
+#######################################
+function verify_user_score() {
+    expected_output_file_name="$USERSCORE_OUTPUT_PREFIX-$1-runner.txt"
+    actual_output_files=$(ls)
+    if [[ $1 = *"dataflow"* ]]; then
+        actual_output_files=$(gsutil ls gs://$BUCKET_NAME)
+        expected_output_file_name="gs://$BUCKET_NAME/$expected_output_file_name"
+    fi
+    echo $actual_output_files
+    if [[ $actual_output_files != *$expected_output_file_name* ]]
+    then
+        echo "ERROR: The userscore example failed on $1-runner".
+        complete "failed when running userscore example with $1-runner."
+        exit 1
+    fi
+
+    if [[ $1 = *"dataflow"* ]]; then
+        gsutil rm $expected_output_file_name*
+    fi
+    echo "SUCCEED: user_score successfully run on $1-runner."
+}
+
+#######################################
+# Verify results of hourly_team_score.
+# Globals:
+#   DATASET
+# Arguments:
+#   Runner - direct, dataflow
+#######################################
+function verify_hourly_team_score() {
+    retry=3
+    should_see='AntiqueBrassPlatypus'
+    while(( $retry >= 0 )); do
+        if [[ $retry > 0 ]]; then
+            bq_pull_result=$(bq head -n 100 $DATASET.hourly_team_score_python_$1)
+            if [[ $bq_pull_result = *"$should_see"* ]]; then
+                echo "SUCCEED: hourly_team_score example successful run on $1-runner"
+                break
+            else
+                retry=$(($retry-1))
+                echo "Did not find team scores, retry left: $retry"
+                sleep 15
+            fi
+        else
+            echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
+                Did not found scores of team $should_see in $DATASET.leader_board"
+            complete "FAILED"
+            exit 1
+        fi
+    done
+}
+
+
 
 # Python RC configurations
-VERSION=$(get_version)
-CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
-BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
+#VERSION=$(get_version)
+VERSION=2.4.0
+RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
+BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION-python.zip"
+BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION.rc[0-9]-cp27-cp27mu-manylinux1_x86_64.whl"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'
@@ -122,8 +217,10 @@ DATASET='beam_postrelease_mobile_gaming'
 NUM_WORKERS=1
 
 # Quickstart configurations
-SHA1_FILE_NAME="apache-beam-$VERSION-python.zip.sha1"
-ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
+TAR_SHA512_FILE_NAME="apache-beam-$VERSION-python.zip.sha512"
+TAR_ASC_FILE_NAME="apache-beam-$VERSION-python.zip.asc"
+WHL_SHA512_FILE_NAME="apache_beam-$VERSION.rc[0-9]-cp27-cp27mu-manylinux1_x86_64.whl.sha512"
+WHL_ASC_FILE_NAME="apache_beam-$VERSION.rc[0-9]-cp27-cp27mu-manylinux1_x86_64.whl.asc"
 
 WORDCOUNT_OUTPUT='wordcount_direct.txt'
 PUBSUB_TOPIC1='wordstream-python-topic-1'
