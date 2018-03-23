@@ -570,7 +570,7 @@ class _OutputProcessor(OutputProcessor):
 
     # TODO: remove if block after per-element-output-counter released
     # TODO: before feature enable, file JIRA about profiling
-    experiments = RuntimeValueProvider.get_value('experiments', str, '')
+    experiments = RuntimeValueProvider.get_value('experiments', str, [])
     if 'outputs_per_element_counter' in experiments:
       self.has_per_element_output_count = True
       per_element_output_counter_name = \
