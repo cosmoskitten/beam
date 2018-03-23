@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/** A simplest read function implementation. Parallelism support is coming. */
+/** A naive version of Spanner read that doesn't use the Batch API. */
 @VisibleForTesting
 @AutoValue
 abstract class NaiveSpannerRead
