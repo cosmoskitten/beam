@@ -46,6 +46,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles;
@@ -61,7 +62,12 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Experimental {@link PTransform Transforms} for reading from and writing to <a
@@ -171,6 +177,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
+  private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
   // Max number of mutations to batch together.
@@ -747,6 +754,7 @@ public class SpannerIO {
 
     @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
+
       PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
           sampler = spec.getSampler();
       if (sampler == null) {
@@ -776,20 +784,22 @@ public class SpannerIO {
               .apply("Sample keys", sampler)
               .apply("Keys sample as view", View.asMap());
 
+      TupleTag<Void> mainTag = new TupleTag<>("mainOut");
+      TupleTag<MutationGroup> failedTag = new TupleTag<>("failedMutations");
       // Assign partition based on the closest element in the sample and group mutations.
       AssignPartitionFn assignPartitionFn = new AssignPartitionFn(keySample);
-      PCollection<MutationGroup> failedMutations = serialized
+      PCollectionTuple result = serialized
           .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
-          .apply("Group by partition", GroupByKey.create())
-          .apply(
-              "Batch mutations together",
+          .apply("Group by partition", GroupByKey.create()).apply("Batch mutations together",
               ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
-                  .withSideInputs(schemaView))
-          .apply("Write mutations to Spanner",
-              ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig(), spec.getFailureMode())));
-
-      return new SpannerWriteResult(input.getPipeline(), failedMutations);
+                  .withSideInputs(schemaView)).apply("Write mutations to Spanner",
+              ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig(), spec.getFailureMode(),
+                  failedTag))
+                  .withOutputTags(mainTag, TupleTagList.of(failedTag)));
+      PCollection<MutationGroup> failedMutations = result.get(failedTag);
+      failedMutations.setCoder(SerializableCoder.of(MutationGroup.class));
+      return new SpannerWriteResult(input.getPipeline(), result.get(mainTag), failedMutations);
     }
 
     private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
@@ -918,14 +928,14 @@ public class SpannerIO {
     }
 
     @Setup
-    public void setup() throws Exception {
+    public void setup() {
       mutations = new ArrayList<>();
       batchSizeBytes = 0;
       spannerAccessor = spannerConfig.connectToSpanner();
     }
 
     @Teardown
-    public void teardown() throws Exception {
+    public void teardown() {
       spannerAccessor.close();
     }
 
@@ -953,15 +963,19 @@ public class SpannerIO {
   }
 
   private static class WriteToSpannerFn
-      extends DoFn<Iterable<MutationGroup>, MutationGroup> {
+      extends DoFn<Iterable<MutationGroup>, Void> {
 
     private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
 
-    public WriteToSpannerFn(SpannerConfig spannerConfig, FailureMode failureMode) {
+    private final TupleTag<MutationGroup> failedTag;
+
+    WriteToSpannerFn(SpannerConfig spannerConfig, FailureMode failureMode,
+        TupleTag<MutationGroup> failedTag) {
       this.spannerConfig = spannerConfig;
       this.failureMode = failureMode;
+      this.failedTag = failedTag;
     }
 
     @Setup
@@ -997,7 +1011,8 @@ public class SpannerIO {
           try {
             spannerAccessor.getDatabaseClient().writeAtLeastOnce(mg);
           } catch (SpannerException e) {
-            c.output(mg);
+            LOG.warn("Failed to submit the mutation group", e);
+            c.output(failedTag, mg);
           }
         }
       }
