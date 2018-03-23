@@ -63,7 +63,7 @@ abstract class NaiveSpannerRead
         ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), txView)).withSideInputs(txView));
   }
 
-  class NaiveSpannerReadFn extends DoFn<ReadOperation, Struct> {
+  private static class NaiveSpannerReadFn extends DoFn<ReadOperation, Struct> {
 
     private final SpannerConfig config;
     @Nullable private final PCollectionView<Transaction> txView;
