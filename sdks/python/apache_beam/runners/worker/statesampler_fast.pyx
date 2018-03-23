@@ -105,7 +105,7 @@ cdef class StateSampler(object):
     pythread.PyThread_release_lock(self.lock)
     self.element_tracker = DataflowElementExecutionTracker()
     # TODO: remove experimental flag once time_counter release
-    experiments = RuntimeValueProvider.get_value('experiments', str, '')
+    experiments = RuntimeValueProvider.get_value('experiments', str, [])
     if 'time_per_element_counter' in experiments:
       self.has_time_counter_experiment = True
     else:
