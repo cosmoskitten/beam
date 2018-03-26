@@ -400,7 +400,6 @@ class TestStreamTest(unittest.TestCase):
                        window.FixedWindows(3))
                   )
 
-
     class RecordFn(beam.DoFn):
       def process(self,
                   elm=beam.DoFn.ElementParam,

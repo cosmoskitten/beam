@@ -133,10 +133,10 @@ class _SideInputsContainer(object):
       for task, block_until in view.callable_queue:
         if watermark.input_watermark >= block_until and view.elements:
           view.value = self._pvalue_to_value(side_input, view.elements)
-          unblocked_tasks.append(task) # mgh: uncommented this
+          unblocked_tasks.append(task)
           tasks_to_remove.append((task, block_until))
-      for elm in tasks_to_remove:       # pylint: disable=unused-variable
-        view.callable_queue.remove((task, block_until))  # pylint: disable=undefined-loop-variable
+      for task in tasks_to_remove:
+        view.callable_queue.remove(task)
       return unblocked_tasks
 
   def _pvalue_to_value(self, side_input, values):
