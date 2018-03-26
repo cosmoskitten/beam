@@ -158,12 +158,9 @@ public class SpannerWriteIT {
                 .withInstanceId(options.getInstanceId())
                 .withDatabaseId(databaseName));
 
-    PCollection<Void> windowedSignal = stepOne.getOutput()
-        .apply(Window.<Void>into(new GlobalWindows()).discardingFiredPanes());
-
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations", ParDo.of(new GenerateMutations(options.getTable())))
-        .apply(Wait.on(windowedSignal))
+        .apply(Wait.on(stepOne.getOutput()))
         .apply("write to table2",
             SpannerIO.write()
                 .withProjectId(project)
