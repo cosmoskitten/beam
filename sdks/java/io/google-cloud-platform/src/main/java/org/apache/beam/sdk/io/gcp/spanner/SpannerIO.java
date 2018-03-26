@@ -721,7 +721,7 @@ public class SpannerIO {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
 
-    /** Specifies failure mode. */
+    /** Specifies failure mode. {@link FailureMode#FAIL_FAST} mode is selected by default. */
     public Write withFailureMode(FailureMode failureMode) {
       return toBuilder().setFailureMode(failureMode).build();
     }
