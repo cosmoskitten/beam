@@ -72,11 +72,9 @@ public class WindowDoFnOperatorTest {
 
   @Test
   public void testRestore() throws Exception {
-    // windowDoFnOperator
-    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator();
     // test harness
     KeyedOneInputStreamOperatorTestHarness<ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>,
-        WindowedValue<KV<Long, Long>>> testHarness = createTestHarness(windowDoFnOperator);
+        WindowedValue<KV<Long, Long>>> testHarness = createTestHarness(getWindowDoFnOperator());
     testHarness.open();
 
     // process elements
@@ -94,7 +92,7 @@ public class WindowDoFnOperatorTest {
     testHarness.close();
 
     // restore from the snapshot
-    testHarness = createTestHarness(windowDoFnOperator);
+    testHarness = createTestHarness(getWindowDoFnOperator());
     testHarness.initializeState(snapshot);
     testHarness.open();
 
