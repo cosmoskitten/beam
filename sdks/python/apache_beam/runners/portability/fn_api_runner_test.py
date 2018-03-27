@@ -265,7 +265,7 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
-  def test_errors(self):
+  def test_errors_stage(self):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
         def raise_error(x):
@@ -279,6 +279,22 @@ class FnApiRunnerTest(unittest.TestCase):
          | 'StageD' >> beam.Map(lambda x: x))
     self.assertIn('StageC', e_cm.exception.args[0])
     self.assertNotIn('StageB', e_cm.exception.args[0])
+
+  def test_errors_traceback(self):
+    def first(x):
+      return second(x)
+    def second(x):
+      return third(x)
+    def third(x):
+      raise RuntimeError('x')
+
+    with self.assertRaises(BaseException) as e_cm:
+      with self.create_pipeline() as p:
+        res = (p | beam.Create([0]) | beam.Map(first))
+
+    self.assertIn('first', e_cm.exception.args[0])
+    self.assertIn('second', e_cm.exception.args[0])
+    self.assertIn('third', e_cm.exception.args[0])
 
   def test_no_subtransform_composite(self):
 

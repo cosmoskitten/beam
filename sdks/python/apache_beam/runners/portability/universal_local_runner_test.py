@@ -82,7 +82,7 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
-  def test_errors(self):
+  def test_errors_stage(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
     with self.assertRaises(Exception):
