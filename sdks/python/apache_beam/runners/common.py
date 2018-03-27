@@ -467,6 +467,7 @@ class DoFnRunner(Receiver):
       logging_context: a LoggingContext object
       state: handle for accessing DoFn state
       scoped_metrics_container: Context switcher for metrics container
+      operation_name: The system name assigned by the runner for this operation.
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
@@ -481,9 +482,19 @@ class DoFnRunner(Receiver):
 
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
+
+    # TODO[BEAM-3937]:Remove if block after per-element-output-counter released.
+    experiments = RuntimeValueProvider.get_value('experiments', str, [])
+    per_element_output_counter = None
+    if 'outputs_per_element_counter' in experiments:
+      per_element_output_counter_name = (
+        CounterName('per-element-output-count-meta', step_name=operation_name))
+      per_element_output_counter = state._counter_factory.get_counter(
+          per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
+
     output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers,
-        state._counter_factory, operation_name)
+        per_element_output_counter)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
         do_fn_signature, output_processor, self.context, side_inputs, args,
@@ -555,8 +566,7 @@ class _OutputProcessor(OutputProcessor):
                window_fn,
                main_receivers,
                tagged_receivers,
-               counter_factory=None,
-               operation_name=None):
+               per_element_output_counter):
     """Initializes ``_OutputProcessor``.
 
     Args:
@@ -567,18 +577,7 @@ class _OutputProcessor(OutputProcessor):
     self.window_fn = window_fn
     self.main_receivers = main_receivers
     self.tagged_receivers = tagged_receivers
-
-    # TODO: remove if block after per-element-output-counter released
-    # TODO: [BEAM-3937]
-    experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    if 'outputs_per_element_counter' in experiments:
-      self.has_per_element_output_count = True
-      per_element_output_counter_name = \
-        CounterName('per-element-output-count-meta', step_name=operation_name)
-      self.per_element_output_counter = counter_factory.get_counter(
-          per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
-    else:
-      self.has_per_element_output_count = False
+    self.per_element_output_counter = per_element_output_counter
 
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
@@ -587,14 +586,14 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      # TODO: remove if block after per-element-output-counter released
-      if self.has_per_element_output_count:
+      # TODO[BEAM-3937]:Remove if block after output feature released.
+      if self.per_element_output_counter:
         self.per_element_output_counter.update(0)
       return
 
-    output_element_output = 0
+    output_element_count = 0
     for result in results:
-      output_element_output += 1
+      output_element_count += 1
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
@@ -619,9 +618,9 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
-    # TODO: remove if block after per-element-output-counter released
-    if self.has_per_element_output_count:
-      self.per_element_output_counter.update(output_element_output)
+    # TODO[BEAM-3937]:Remove if block after output feature released.
+    if self.per_element_output_counter:
+      self.per_element_output_counter.update(output_element_count)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""
