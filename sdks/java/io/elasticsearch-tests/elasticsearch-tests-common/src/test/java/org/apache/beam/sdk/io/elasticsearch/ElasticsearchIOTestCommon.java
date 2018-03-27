@@ -388,7 +388,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /**
-   * Returns type_0 or type_1 based on the modulus of the document id.
+   * Returns TYPE_0 or TYPE_1 based on the modulus of the document id.
    */
   static class TypeIdFn implements Write.FieldExtractFn {
     @Override
