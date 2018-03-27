@@ -54,7 +54,6 @@ class _SideInputView(object):
     self.callable_queue = collections.deque()
     self.elements = []
     self.value = None
-    self.has_result = False
     self.watermark = None
 
   def __repr__(self):
@@ -104,13 +103,11 @@ class _SideInputsContainer(object):
         task.blocked = True
       else:
         view.value = self._pvalue_to_value(side_input, view.elements)
-        return True, view.value
-      return (view.has_result, view.value)
+        return view.value
 
   def add_values(self, side_input, values):
     with self._lock:
       view = self._views[side_input]
-      assert not view.has_result
       view.elements.extend(values)
 
   def update_watermarks_for_transform(self, ptransform, watermark):

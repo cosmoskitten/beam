@@ -291,10 +291,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
     # an appropriate block_until param
     for side_input in self._applied_ptransform.side_inputs:
       if side_input not in self._side_input_values:
-        has_result, value = (
-            self._evaluation_context.get_value_or_schedule_after_output(
-                side_input, self))
-        if not has_result:
+        value = self._evaluation_context.get_value_or_schedule_after_output(
+            side_input, self)
+        if not value:
           # Monitor task will reschedule this executor once the side input is
           # available.
           return
