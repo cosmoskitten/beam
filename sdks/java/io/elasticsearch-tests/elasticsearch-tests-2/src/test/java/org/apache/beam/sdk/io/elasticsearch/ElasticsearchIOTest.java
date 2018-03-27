@@ -188,4 +188,22 @@ public class ElasticsearchIOTest implements Serializable {
         emptySplits,
         lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
   }
+
+  @Test
+  public void testWriteWithIdFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIdFn();
+  }
+
+  @Test
+  public void testWriteWithIndexFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIndexFn();
+  }
+
+  @Test
+  public void testWriteWithTypeFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithTypeFn();
+  }
 }

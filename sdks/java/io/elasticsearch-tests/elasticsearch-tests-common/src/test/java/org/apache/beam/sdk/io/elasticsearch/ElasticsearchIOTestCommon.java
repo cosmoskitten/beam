@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
+import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.FAMOUS_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
@@ -63,7 +64,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   private static final long AVERAGE_DOC_SIZE = 25L;
 
 
-  private static final int NUM_SCIENTISTS = 10;
+  private static final int NUM_SCIENTISTS = FAMOUS_SCIENTISTS.length;
   private static final long BATCH_SIZE = 200L;
   private static final long BATCH_SIZE_BYTES = 2048L;
 
@@ -300,6 +301,131 @@ class ElasticsearchIOTestCommon implements Serializable {
           }
         }
       }
+    }
+  }
+
+  /** Extracts the scientist name from the JSON document. */
+  static class ExtractScientistFn implements Write.FieldExtractFn {
+    @Override
+    public String apply(JsonNode input) {
+      return input.path("scientist").asText();
+    }
+  }
+
+  /**
+   * Tests that when using the scientist name as the document identifier only as many documents as
+   * scientists are created, since subsequent calls with the same name invoke updates.
+   */
+  void testWriteWithIdFn() throws Exception {
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractScientistFn()));
+    pipeline.run();
+
+    long currentNumDocs =
+        ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs(
+            connectionConfiguration, restClient);
+    assertEquals(NUM_SCIENTISTS, currentNumDocs);
+
+    String requestBody =
+            "{\n"
+                    + "  \"query\" : {\"match\": {\n"
+                    + "    \"scientist\": \"Einstein\"\n"
+                    + "  }}\n"
+                    + "}\n";
+    String endPoint = String.format("/%s/%s/_search", connectionConfiguration.getIndex(),
+            connectionConfiguration.getType());
+    HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+    Response response =
+            restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
+    JsonNode searchResult = parseResponse(response);
+    int count = searchResult.path("hits").path("total").asInt();
+    assertEquals(1, count);
+  }
+
+  /**
+   * Tests that documents are dynamically routed to different indexes. Documents should be routed to
+   * the an index named the same as the scientist in the document. Multiple indexes adds significant
+   * work to the ES server and even passing moderate number of docs can overload the bulk queue and
+   * workers. The post explains more
+   * https://www.elastic.co/blog/why-am-i-seeing-bulk-rejections-in-my-elasticsearch-cluster.
+   * Therefore limit to a small number of docs to test routing behavior only.
+   */
+  void testWriteWithIndexFn() throws Exception {
+    long docsPerScientist = 10; // very conservative
+    long adjustedNumDocs = docsPerScientist * FAMOUS_SCIENTISTS.length;
+
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+            adjustedNumDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline
+            .apply(Create.of(data))
+            .apply(
+                    ElasticsearchIO.write()
+                            .withConnectionConfiguration(connectionConfiguration)
+                            .withIndexFn(new ExtractScientistFn()));
+    pipeline.run();
+
+    // verify counts on each index
+    for (String scientist : FAMOUS_SCIENTISTS) {
+      String index = scientist.toLowerCase();
+
+      // flush writes server side to ensure ready for reading
+      restClient.performRequest("POST", String.format("/%s/_refresh", index));
+
+      String endPoint = String.format("/%s/%s/_search", index, connectionConfiguration.getType());
+      Response response = restClient.performRequest("GET", endPoint);
+      JsonNode searchResult = parseResponse(response);
+      int count = searchResult.path("hits").path("total").asInt();
+      assertEquals(scientist + " index holds incorrect count", docsPerScientist, count);
+    }
+  }
+
+  /**
+   * Returns type_0 or type_1 based on the modulus of the document id.
+   */
+  static class TypeIdFn implements Write.FieldExtractFn {
+    @Override
+    public String apply(JsonNode input) {
+      return "TYPE_" + input.path("id").asInt() % 2;
+    }
+  }
+
+  /**
+   * Tests that documents are dynamically routed to different types. Documents should be routed to
+   * the a type of type_0 or type_1 using modulus approach of the explicit id.
+   */
+  void testWriteWithTypeFn() throws Exception {
+    // defensive coding: this test requires an even number of docs
+    long adjustedNumDocs = (numDocs & 1) == 0 ? numDocs : numDocs + 1;
+
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+            adjustedNumDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withTypeFn(new TypeIdFn()));
+    pipeline.run();
+
+    for (int i = 0; i < 2; i++) {
+      // flush writes server side to ensure ready for reading
+      restClient.performRequest(
+          "POST", String.format("/%s/_refresh", connectionConfiguration.getIndex()));
+
+      String endPoint = String.format("/%s/TYPE_%s/_search", connectionConfiguration.getIndex(), i);
+      Response response = restClient.performRequest("GET", endPoint);
+      JsonNode searchResult = parseResponse(response);
+      int count = searchResult.path("hits").path("total").asInt();
+      assertEquals("TYPE_" + i + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
 }

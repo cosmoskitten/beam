@@ -31,8 +31,21 @@ import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
+
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticSearchIOTestUtils {
+  static final String[] FAMOUS_SCIENTISTS = {
+    "Einstein",
+    "Darwin",
+    "Copernicus",
+    "Pasteur",
+    "Curie",
+    "Faraday",
+    "Newton",
+    "Bohr",
+    "Galilei",
+    "Maxwell"
+  };
 
   /** Enumeration that specifies whether to insert malformed documents. */
   public enum InjectionMode {
@@ -114,26 +127,15 @@ class ElasticSearchIOTestUtils {
    * @return the list of json String representing the documents
    */
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
+
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
-      int index = i % scientists.length;
+      int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
-        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", scientists[index], i));
+        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", scientists[index], i));
+        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       }
     }
     return data;
