@@ -871,7 +871,7 @@ public class ElasticsearchIO {
       // Encapsulates the elements which form a complete Elasticsearch document address
       @JsonPropertyOrder({ "_index", "_type", "_id" })
       @JsonInclude(JsonInclude.Include.NON_NULL)
-      private class DocumentAddress implements Serializable {
+      private static class DocumentAddress implements Serializable {
         @JsonProperty("_index")
         String index;
 
