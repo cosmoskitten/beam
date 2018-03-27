@@ -1,0 +1,19 @@
+FROM teradatalabs/cdh5-hive
+
+# INSTALL HCATALOG
+RUN \
+  yum install -y \
+    hive-hcatalog \
+  && yum -y clean all && rm -rf /tmp/* /var/tmp/*
+
+# HDFS PORTS
+EXPOSE 1004 1006 8020 50010 50020 50070 50075 50470
+
+# YARN PORTS
+EXPOSE 8030 8031 8032 8033 8040 8041 8042 8088 10020 19888
+
+# HIVE PORT
+EXPOSE 9083 10000
+
+# SOCKS PORT
+EXPOSE 1180

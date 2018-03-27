@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hcatalog-for-dev
+  labels:
+    name: hcatalog
+spec:
+  ports:
+    - port: 8088
+      nodePort: 31234
+  selector:
+    name: hcatalog
+  type: NodePort
+
+---
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: hcatalog
+spec:
+  replicas: 1
+  selector:
+    name: hcatalog
+  template:
+    metadata:
+      name: hcatalog
+      labels:
+        name: hcatalog
+    spec:
+      containers:
+        - name: hadoop
+          image: .
+          env:
+            - name: POSTGRES_PASSWORD
+              value: uuinkks
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
