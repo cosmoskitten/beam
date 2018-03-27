@@ -522,17 +522,20 @@ class DoFnRunner(Receiver):
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
     original_traceback = sys.exc_info()[2]
+    stacktrace_text = '\n' + '\n'.join(traceback.format_exception(
+        type(exn), exn, original_traceback))
     try:
       # Attempt to construct the same kind of exception
       # with an augmented message.
-      new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
+      new_exn = type(exn)(exn.args[0] + step_annotation + stacktrace_text,
+                          *exn.args[1:])
       new_exn._tagged_with_step = True  # Could raise attribute error.
     except:  # pylint: disable=bare-except
       # If anything goes wrong, construct a RuntimeError whose message
       # records the original exception's type and message.
       new_exn = RuntimeError(
           traceback.format_exception_only(type(exn), exn)[-1].strip()
-          + step_annotation)
+          + step_annotation + stacktrace_text)
       new_exn._tagged_with_step = True
     six.raise_from(new_exn, original_traceback)
 
