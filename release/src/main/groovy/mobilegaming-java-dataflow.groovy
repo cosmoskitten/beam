@@ -26,11 +26,9 @@ t = new TestScripts(args)
  * https://beam.apache.org/get-started/mobile-gaming-example/
  */
 
-t.describe 'Run Apache Beam Java SDK Mobile Gaming Examples - Dataflow'
+t.describe ('Run Apache Beam Java SDK Mobile Gaming Examples - Dataflow')
 
 QuickstartArchetype.generate(t)
-
-t.intent 'Running the Mobile-Gaming Code with DataflowRunner'
 
 def runner = "DataflowRunner"
 
@@ -42,7 +40,7 @@ t.intent("Running: UserScore example on DataflowRunner")
 t.run(MobileGamingJavaUtils.createExampleExecutionCommand("UserScore", runner, t))
 t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
 t.see "total_score: 231, user: user19_BananaWallaby"
-t.intent("SUCCEED: UserScore successfully run on DataflowRunner.")
+t.success("UserScore successfully run on DataflowRunner.")
 t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}*"
 
 
@@ -54,7 +52,7 @@ t.intent("Running: HourlyTeamScore example on DataflowRunner")
 t.run(MobileGamingJavaUtils.createExampleExecutionCommand("HourlyTeamScore", runner, t))
 t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* | grep AzureBilby "
 t.see "total_score: 2788, team: AzureBilby"
-t.intent("SUCCEED: HourlyTeamScore successfully run on DataflowRunner.")
+t.success("HourlyTeamScore successfully run on DataflowRunner.")
 t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}*"
 
 
@@ -69,7 +67,7 @@ t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_team")
 while({
   sleep(3000)
   t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-  t.seeExact("leaderboard_${runner}_user") || t.seeExact("leaderboard_${runner}_team")
+  t.seeSubstring("leaderboard_${runner}_user") || t.seeSubstring("leaderboard_${runner}_team")
 }());
 
 def InjectorThread = Thread.start() {
@@ -83,11 +81,11 @@ def LeaderBoardThread = Thread.start() {
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
 def isSuccess = false
-while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT) {
+while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT_IN_MINUTES) {
   t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
-  if(t.seeExact("leaderboard_${runner}_user") && t.seeExact("leaderboard_${runner}_team")){
+  if(t.seeSubstring("leaderboard_${runner}_user") && t.seeSubstring("leaderboard_${runner}_team")){
     t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-    if(t.seeOneOf(MobileGamingJavaUtils.COLORS)){
+    if(t.seeAnyOf(MobileGamingJavaUtils.COLORS)){
       isSuccess = true
       break
     }
@@ -101,6 +99,6 @@ LeaderBoardThread.stop()
 if(!isSuccess){
   t.error("FAILED: Failed running LeaderBoard on DataflowRunner")
 }
-t.intent("SUCCEED: LeaderBoard successfully run on DataflowRunner.")
+t.success("LeaderBoard successfully run on DataflowRunner.")
 
 t.done()

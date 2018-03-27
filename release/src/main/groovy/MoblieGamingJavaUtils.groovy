@@ -28,7 +28,7 @@ class MobileGamingJavaUtils {
     ApexRunner: "apex-runner",
     FlinkRunner: "flink-runner"]
 
-  public static final EXECUTION_TIMEOUT = 20
+  public static final EXECUTION_TIMEOUT_IN_MINUTES = 20
 
   // Lists used to verify team names generated in the LeaderBoard example.
   // This list should be kept sync with COLORS in org.apache.beam.examples.complete.game.injector.Injector.
@@ -56,16 +56,12 @@ class MobileGamingJavaUtils {
     "BarnRed",
     "BattleshipGrey"))
 
-  private static final USERSCORE_OUTPUT_PREFIX = "java-userscore-result-"
-
-  private static final HOURLYTEAMSCORE_OUTPUT_PREFIX = "java-hourlyteamscore-result-"
-
   public static String getUserScoreOutputName(String runner){
-    return "${USERSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+    return "java-userscore-result-${RUNNERS[runner]}.txt"
   }
 
   public static String getHourlyTeamScoreOutputName(String runner){
-    return "${HOURLYTEAMSCORE_OUTPUT_PREFIX}${RUNNERS[runner]}.txt"
+    return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
   public static String createExampleExecutionCommand(String exampleName, String runner, TestScripts t){

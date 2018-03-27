@@ -103,6 +103,9 @@ class TestScripts {
      print "\n**************************************\n* Test: ${desc}\n**************************************\n\n"
    }
 
+   def success(String desc) {
+     print "\n**************************************\n* SUCCESS: ${desc}\n**************************************\n\n"
+   }
 
    // Run a command
    public void run(String cmd) {
@@ -126,7 +129,8 @@ class TestScripts {
      println "Verified $expected"
    }
 
-   public boolean seeOneOf(List<String> expected) {
+   // Check if there are one or more matches in stdout of the last command.
+   public boolean seeAnyOf(List<String> expected) {
      for (String expect: expected) {
        if(var.lastText.contains(expect)) {
          println "Verified $expect"
@@ -137,7 +141,7 @@ class TestScripts {
      return false
    }
 
-   public boolean seeExact(String expected) {
+   public boolean seeSubstring(String expected) {
      return var.lastText.contains(expected)
    }
 
