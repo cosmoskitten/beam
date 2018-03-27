@@ -121,13 +121,6 @@ import org.joda.time.Duration;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
-  // The minimum pause when entering retry
-  private static final Duration MIN_BACKOFF_SECONDS = Duration.standardSeconds(1);
-
-  // defaults to a single attempt with a long timeout (years)
-  @VisibleForTesting
-  static final RetryConfiguration DEFAULT_RETRY_CONFIGURATION =
-      RetryConfiguration.create(1, Duration.standardDays(1000));
 
   public static Read read() {
     // 1000 for batch size is good enough in many cases,
@@ -142,7 +135,7 @@ public class SolrIO {
     // if document size is small, around 1KB, the request's size will be around 1MB
     return new AutoValue_SolrIO_Write.Builder()
         .setMaxBatchSize(1000)
-        .setRetryConfiguration(DEFAULT_RETRY_CONFIGURATION)
+        .setRetryConfiguration(AutoValue_SolrIO_Write.DEFAULT_RETRY_CONFIGURATION)
         .build();
   }
 
@@ -626,6 +619,13 @@ public class SolrIO {
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
+    // The minimum pause when entering retry
+    static final Duration MIN_BACKOFF_SECONDS = Duration.standardSeconds(5);
+
+    // defaults to a single attempt with a long timeout (years)
+    @VisibleForTesting
+    static final RetryConfiguration DEFAULT_RETRY_CONFIGURATION =
+            RetryConfiguration.create(1, Duration.standardDays(1000));
 
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
@@ -684,15 +684,16 @@ public class SolrIO {
     }
 
     /**
-     * Provide configuration for enabling the retrying of a failed batch call to Solr. A batch is
-     * considered as failed if the underlying {@link CloudSolrClient} surfaces {@link
+     * Provides configuration to retry a failed batch call to Solr. A batch is considered as failed
+     * if the underlying {@link CloudSolrClient} surfaces {@link
      * org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException}, {@link
      * SolrServerException} or {@link IOException}. Users should consider that retrying might
      * compound the underlying problem which caused the initial failure. Users should also be aware
      * that once retrying is exhausted the error is surfaced to the runner which <em>may</em> then
-     * opt to retry the current partition in entirety. Retrying uses an exponential backoff
-     * algorithm, with minimum backoff of 1 second and then surfacing the error once the maximum
-     * number of retries or maximum configuration duration is exceeded.
+     * opt to retry the current partition in entirety or abort if the max number of retries of the
+     * runner is completed. Retrying uses an exponential backoff algorithm, with minimum backoff of
+     * 5 seconds and then surfacing the error once the maximum number of retries or maximum
+     * configuration duration is exceeded.
      *
      * <p>Example use:
      *

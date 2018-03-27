@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solr;
 
+import static org.apache.beam.sdk.io.solr.SolrIO.Write.DEFAULT_RETRY_CONFIGURATION;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
@@ -303,7 +304,7 @@ public class SolrIOTest extends SolrCloudTestCase {
   @Test
   public void testWriteRetryFail() throws Exception {
     SolrIO.Write write = mock(SolrIO.Write.class);
-    when(write.getRetryConfiguration()).thenReturn(SolrIO.DEFAULT_RETRY_CONFIGURATION);
+    when(write.getRetryConfiguration()).thenReturn(DEFAULT_RETRY_CONFIGURATION);
     SolrIO.Write.WriteFn writeFn = new SolrIO.Write.WriteFn(write);
     AuthorizedSolrClient solrClient = mock(AuthorizedSolrClient.class);
 
@@ -328,7 +329,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     SolrIO.Write write = mock(SolrIO.Write.class);
     when(write.getRetryConfiguration())
         .thenReturn(
-            SolrIO.RetryConfiguration.create(Integer.MAX_VALUE, Duration.standardSeconds(3)));
+            SolrIO.RetryConfiguration.create(10, Duration.standardSeconds(6)));
     SolrIO.Write.WriteFn writeFn = new SolrIO.Write.WriteFn(write);
     AuthorizedSolrClient solrClient = mock(AuthorizedSolrClient.class);
 
@@ -349,8 +350,8 @@ public class SolrIOTest extends SolrCloudTestCase {
       verify(solrClient, Mockito.atLeast(2)).process(any(String.class), any(SolrRequest.class));
       long seconds = stopwatch.elapsed(TimeUnit.SECONDS);
       assertTrue(
-          "Retrying should have executed for at least 3 seconds but was " + seconds,
-          seconds >= 3);
+          "Retrying should have executed for at least 6 seconds but was " + seconds,
+          seconds >= 6);
     }
   }
 
@@ -361,7 +362,7 @@ public class SolrIOTest extends SolrCloudTestCase {
   public void testWriteRetryAttemptBound() throws Exception {
     SolrIO.Write write = mock(SolrIO.Write.class);
     when(write.getRetryConfiguration())
-        .thenReturn(SolrIO.RetryConfiguration.create(3, Duration.standardSeconds(1000)));
+        .thenReturn(SolrIO.RetryConfiguration.create(2, Duration.standardSeconds(60)));
     SolrIO.Write.WriteFn writeFn = new SolrIO.Write.WriteFn(write);
     AuthorizedSolrClient solrClient = mock(AuthorizedSolrClient.class);
 
@@ -378,7 +379,7 @@ public class SolrIOTest extends SolrCloudTestCase {
       fail("Error should have been surfaced when flushing batch");
     } catch (IOException e) {
       // exactly 3 attempts should have been made
-      verify(solrClient, Mockito.times(3)).process(any(String.class), any(SolrRequest.class));
+      verify(solrClient, Mockito.times(2)).process(any(String.class), any(SolrRequest.class));
     }
   }
 }
