@@ -15,7 +15,12 @@
 # limitations under the License.
 #
 
+"""Unit tests for DataflowElementExecutionTracker"""
+from __future__ import absolute_import
+
 import unittest
+
+from nose.plugins.skip import SkipTest
 
 from apache_beam.transforms.cy_combiners import DistributionAccumulator
 from apache_beam.utils.counters import Counter
@@ -38,7 +43,7 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
         import DataflowElementExecutionTracker
       self.tracker = DataflowElementExecutionTracker()
     except ImportError:
-      self.tracker = None
+      raise SkipTest('DataflowElementExecutionTracker not compiled.')
 
   def _create_state(self, operation_name):
     return self._FakeScopedState(None,
@@ -55,8 +60,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
     """Typical usage scenario
     Format info: execution_journal[] | partial timings not yet reported{}
     """
-    if self.tracker is None:
-      return
     state_a = 'A'
     state_b = 'B'
     state_c = 'C'
@@ -103,8 +106,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([20]))
 
   def test_counter_reported_on_close(self):
-    if self.tracker is None:
-      return
     state_a = 'A'
     self.tracker.enter_for_test(state_a)
     self.tracker.take_sample_for_test(10*1000000)
@@ -119,8 +120,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([10]))
 
   def test_distributed_sampled_time(self):
-    if self.tracker is None:
-      return
     state_a = 'A'
     state_b = 'B'
     self.tracker.enter_for_test(state_a)
@@ -135,8 +134,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([10]))
 
   def test_element_tracked_individually_for_state(self):
-    if self.tracker is None:
-      return
     state_a = 'A'
     state_b = 'B'
     self.tracker.enter_for_test(state_a)
@@ -153,8 +150,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([10, 10]))
 
   def test_current_operation_counted_in_next_sample(self):
-    if self.tracker is None:
-      return
     state_a = 'A'
     self.tracker.enter_for_test(state_a)
     self.tracker.take_sample_for_test(20*1000000)
@@ -166,8 +161,6 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([30]))
 
   def test_no_execution_since_last_sample(self):
-    if self.tracker is None:
-      return
     self.tracker.take_sample_for_test(10*1000000)
     state_a = 'A'
     self.tracker.enter_for_test(state_a)

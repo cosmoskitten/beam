@@ -29,19 +29,19 @@ from libcpp.vector cimport vector
 
 ctypedef char* CharPtr
 
+"""Tracking object for the execution of a single input element in a step.
+Each ElementExecution instance represents a distinct element. Instances
+compare using reference(address) equality rather than value equality.
+"""
 cdef struct ElementExecution:
-  """Tracking object for the execution of a single input element in a step.
-  Each ElementExecution instance represents a distinct element. Instances
-  compare using reference(address) equality rather than value equality.
-  """
   char* operation_name
 
 ctypedef ElementExecution* ElementExecutionPtr
 
+"""Journal entry.
+IDLE execution: execution_ptr = NULL.
+"""
 cdef struct SnapshottedExecution:
-  """Journal entry.
-  IDEL execution: execution_ptr = NULL.
-  """
   int64_t snapshot
   ElementExecutionPtr execution_ptr
 
@@ -61,14 +61,12 @@ cdef class ReaderWriterState(object):
 cdef class ExecutionJournalReader(object):
   cdef ReaderWriterState shared_state
   cdef unordered_map[ElementExecutionPtr, int64_t] execution_duration
-  cdef void take_sample\
-          (self, int64_t sample_time,
-           unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil
+  cdef void take_sample(self, int64_t sample_time,
+      unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil
   cdef void attribute_processing_time(self, int64_t sample_time,
                                       int64_t latest_snapshot) nogil
-  cdef void update_counter_cache\
-          (self, int64_t latest_snapshot,
-           unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil
+  cdef void update_counter_cache(self, int64_t latest_snapshot,
+      unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil
 
 cdef class ExecutionJournalWriter(object):
   cdef ReaderWriterState shared_state
@@ -89,5 +87,4 @@ cdef class DataflowElementExecutionTracker(object):
   cpdef void enter_for_test(self, char* operation_name)
   cpdef void exit_for_test(self)
   cpdef void take_sample_for_test(self, int64_t nanos_sampling_duration)
-  # Only report counter when a work_item complete
   cpdef report_counter(self, counter_factory)

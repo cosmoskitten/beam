@@ -288,6 +288,7 @@ cdef class DataflowElementExecutionTracker(object):
                                       self.counter_cache)
 
   cpdef report_counter(self, counter_factory):
+    """Only report counter when a work_item complete"""
     cdef unordered_map[CharPtr, vector[int64_t]].iterator map_it = (
       self.counter_cache.begin())
     cdef int64_t start_index = 0, end_index = 0
