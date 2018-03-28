@@ -96,7 +96,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -874,7 +873,8 @@ class FlinkStreamingTransformTranslators {
       GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
       try {
         combineFn = (GlobalCombineFn<? super InputT, ?, OutputT>)
-            CombineTranslation.getCombineFn(context.getCurrentTransform());
+            CombineTranslation.getCombineFn(context.getCurrentTransform())
+                .orElseThrow(() -> new IOException("CombineFn not found in node."));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
