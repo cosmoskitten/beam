@@ -2015,8 +2015,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # Our special type-checking related TypeError shouldn't have been raised.
     # Instead the above pipeline should have triggered a regular Python runtime
     # TypeError.
-    self.assertEqual("object of type 'int' has no len() [while running 'Len']",
-                     e.exception.args[0])
+    expected_start = "object of type 'int' has no len() [while running 'Len']"
+    self.assertEqual(expected_start, e.exception.args[0][:len(expected_start)])
     self.assertFalse(isinstance(e, typehints.TypeCheckError))
 
   def test_pardo_type_inference(self):
