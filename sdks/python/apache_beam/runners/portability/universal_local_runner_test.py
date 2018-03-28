@@ -107,9 +107,9 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     def third(x):
       raise RuntimeError('x')
 
-    with self.assertRaises(BaseException) as e_cm:
+    with self.assertRaises(BaseException):
       with self.create_pipeline() as p:
-        res = (p | beam.Create([0]) | beam.Map(first))
+        p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 

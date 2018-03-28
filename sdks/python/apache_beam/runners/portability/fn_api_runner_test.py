@@ -290,7 +290,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
-        res = (p | beam.Create([0]) | beam.Map(first))
+        p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
 
     self.assertIn('first', e_cm.exception.args[0])
     self.assertIn('second', e_cm.exception.args[0])
