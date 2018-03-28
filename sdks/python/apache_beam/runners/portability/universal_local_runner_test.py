@@ -97,6 +97,20 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
          | 'StageC' >> beam.Map(raise_error)
          | 'StageD' >> beam.Map(lambda x: x))
 
+  def test_errors_traceback(self):
+    # TODO: figure out a way for runner to parse and raise the
+    # underlying exception.
+    def first(x):
+      return second(x)
+    def second(x):
+      return third(x)
+    def third(x):
+      raise RuntimeError('x')
+
+    with self.assertRaises(BaseException) as e_cm:
+      with self.create_pipeline() as p:
+        res = (p | beam.Create([0]) | beam.Map(first))
+
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
