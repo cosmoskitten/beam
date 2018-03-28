@@ -19,7 +19,6 @@
 # distutils: language=c++
 # distutils: extra_compile_args=['-std=c++11']
 
-
 cimport cython
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from libc.stdint cimport int64_t
@@ -31,13 +30,19 @@ from libcpp.vector cimport vector
 ctypedef char* CharPtr
 
 cdef struct ElementExecution:
+  """Tracking object for the execution of a single input element in a step.
+  Each ElementExecution instance represents a distinct element. Instances
+  compare using reference(address) equality rather than value equality.
+  """
   char* operation_name
 
 ctypedef ElementExecution* ElementExecutionPtr
 
 cdef struct SnapshottedExecution:
+  """Journal entry.
+  IDEL execution: execution_ptr = NULL.
+  """
   int64_t snapshot
-  #  IDLE SnapshottedExecution: execution_ptr = NULL
   ElementExecutionPtr execution_ptr
 
 ctypedef SnapshottedExecution* SnapshottedExecutionPtr
