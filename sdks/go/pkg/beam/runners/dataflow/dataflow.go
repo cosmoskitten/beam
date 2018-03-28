@@ -100,7 +100,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		beam.PipelineOptions.Set("storage_path", "/var/opt/google/traces")
 	}
 
-	beam.PipelineOptions.Set("hooks", harness.SerializeHooks())
+	harness.SerializeHooks()
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary and model to GCS.

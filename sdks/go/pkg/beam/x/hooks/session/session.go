@@ -43,22 +43,18 @@ func RegisterHook(name string, c CaptureHook) {
 	}
 	captureHookRegistry[name] = c
 	if len(captureHookRegistry) == 1 {
-		hook := harness.Hook{
-			Init: func(_ context.Context) error {
-				if enabledCaptureHook != "" {
-					harness.Capture = captureHookRegistry[enabledCaptureHook]
-				}
-				return nil
-			},
-			Serialize: func() []string {
-				return []string{enabledCaptureHook}
-			},
-			Deserialize: func(opts ...string) {
-				enabledCaptureHook = opts[0]
-			},
+		hf := func(opts []string) harness.Hook {
+			return harness.Hook{
+				Init: func(_ context.Context) error {
+					if len(opts) > 0 {
+						harness.Capture = captureHookRegistry[opts[0]]
+					}
+					return nil
+				},
+			}
 		}
 
-		harness.RegisterHook("session", hook)
+		harness.RegisterHook("session", hf)
 	}
 }
 
@@ -73,4 +69,5 @@ func EnableHook(name string) {
 	}
 
 	enabledCaptureHook = name
+	harness.EnableHook("session", enabledCaptureHook)
 }

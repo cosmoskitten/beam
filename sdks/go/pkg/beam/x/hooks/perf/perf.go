@@ -34,11 +34,10 @@ import (
 //
 // * prof: A profile compatible with traces produced by runtime/pprof
 // * trace: A trace compatible with traces produced by runtime/trace
-// TODO(wcn): define and document future formats here.
 type ProfCaptureHook func(string, io.Reader) error
 
 var profCaptureHookRegistry = make(map[string]ProfCaptureHook)
-var enabledProfCaptureHooks = make(map[string]bool)
+var enabledProfCaptureHooks []string
 
 // RegisterProfCaptureHook registers a ProfCaptureHook for the
 // supplied identifier. It panics if the same identifier is
@@ -52,36 +51,32 @@ func RegisterProfCaptureHook(name string, c ProfCaptureHook) {
 	if len(profCaptureHookRegistry) == 1 {
 		var cpuProfBuf bytes.Buffer
 
-		hook := harness.Hook{
-			Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
-				cpuProfBuf.Reset()
-				return pprof.StartCPUProfile(&cpuProfBuf)
-			},
-			Resp: func(_ context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
-				pprof.StopCPUProfile()
-				for n, h := range traceCaptureHookRegistry {
-					if enabledProfCaptureHooks[n] {
-						if err := h(fmt.Sprintf("cpu_prof%s", req.InstructionId), &cpuProfBuf); err != nil {
+		hf := func(opts []string) harness.Hook {
+			enabledProfCaptureHooks = opts
+			enabled := len(enabledProfCaptureHooks) > 0
+			return harness.Hook{
+				Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
+					if !enabled {
+						return nil
+					}
+					cpuProfBuf.Reset()
+					return pprof.StartCPUProfile(&cpuProfBuf)
+				},
+				Resp: func(_ context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
+					if !enabled {
+						return nil
+					}
+					pprof.StopCPUProfile()
+					for _, h := range enabledProfCaptureHooks {
+						if err := profCaptureHookRegistry[h](fmt.Sprintf("cpu_prof%s", req.InstructionId), &cpuProfBuf); err != nil {
 							return err
 						}
 					}
-				}
-				return nil
-			},
-			Serialize: func() []string {
-				var hooks []string
-				for h := range enabledProfCaptureHooks {
-					hooks = append(hooks, h)
-				}
-				return hooks
-			},
-			Deserialize: func(hooks ...string) {
-				for _, h := range hooks {
-					enabledProfCaptureHooks[h] = true
-				}
-			},
+					return nil
+				},
+			}
 		}
-		harness.RegisterHook("prof", hook)
+		harness.RegisterHook("prof", hf)
 	}
 }
 
@@ -91,14 +86,22 @@ func EnableProfCaptureHook(name string) {
 	if !exists {
 		panic(fmt.Sprintf("EnableProfCaptureHook: %s not registered", name))
 	}
-	enabledProfCaptureHooks[name] = true
+
+	for _, h := range enabledProfCaptureHooks {
+		if h == name {
+			// Registering the same hook twice isn't ideal, but allowable.
+			return
+		}
+	}
+	enabledProfCaptureHooks = append(enabledProfCaptureHooks, name)
+	harness.EnableHook("prof", enabledProfCaptureHooks...)
 }
 
 // TraceCaptureHook ...
 type TraceCaptureHook func(string, io.Reader) error
 
 var traceCaptureHookRegistry = make(map[string]TraceCaptureHook)
-var enabledTraceCaptureHooks = make(map[string]bool)
+var enabledTraceCaptureHooks []string
 
 // RegisterTraceCaptureHook registers a TraceCaptureHook for the
 // supplied identifier. It panics if the same identifier is
@@ -110,58 +113,32 @@ func RegisterTraceCaptureHook(name string, c TraceCaptureHook) {
 	traceCaptureHookRegistry[name] = c
 	if len(traceCaptureHookRegistry) == 1 {
 		var traceProfBuf bytes.Buffer
-		hook := harness.Hook{
-			Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
-				traceProfBuf.Reset()
-				return trace.Start(&traceProfBuf)
-			},
-			Resp: func(_ context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
-				trace.Stop()
-				for _, h := range traceCaptureHookRegistry {
-					if err := h(fmt.Sprintf("trace_prof%s", req.InstructionId), &traceProfBuf); err != nil {
-						return err
+		hf := func(opts []string) harness.Hook {
+			enabledTraceCaptureHooks = opts
+			enabled := len(enabledTraceCaptureHooks) > 0
+			return harness.Hook{
+				Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
+					if !enabled {
+						return nil
 					}
-				}
-				return nil
-			},
-			Serialize: func() []string {
-				var hooks []string
-				for h := range enabledTraceCaptureHooks {
-					hooks = append(hooks, h)
-				}
-				return hooks
-			},
-			Deserialize: func(hooks ...string) {
-				for _, h := range hooks {
-					enabledTraceCaptureHooks[h] = true
-				}
-			},
-		}
-		harness.RegisterHook("trace", hook)
-	}
-}
-
-// Deserialize ...
-func Deserialize(opts ...string) {
-
-	if len(traceCaptureHookRegistry) == 1 {
-		var traceProfBuf bytes.Buffer
-		hook := harness.Hook{
-			Req: func(_ context.Context, _ *fnpb.InstructionRequest) error {
-				traceProfBuf.Reset()
-				return trace.Start(&traceProfBuf)
-			},
-			Resp: func(_ context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
-				trace.Stop()
-				for _, h := range traceCaptureHookRegistry {
-					if err := h(fmt.Sprintf("trace_prof%s", req.InstructionId), &traceProfBuf); err != nil {
-						return err
+					traceProfBuf.Reset()
+					return trace.Start(&traceProfBuf)
+				},
+				Resp: func(_ context.Context, req *fnpb.InstructionRequest, _ *fnpb.InstructionResponse) error {
+					if !enabled {
+						return nil
 					}
-				}
-				return nil
-			},
+					trace.Stop()
+					for _, h := range enabledTraceCaptureHooks {
+						if err := traceCaptureHookRegistry[h](fmt.Sprintf("trace_prof%s", req.InstructionId), &traceProfBuf); err != nil {
+							return err
+						}
+					}
+					return nil
+				},
+			}
 		}
-		harness.RegisterHook("trace", hook)
+		harness.RegisterHook("trace", hf)
 	}
 }
 
@@ -170,5 +147,13 @@ func EnableTraceCaptureHook(name string) {
 	if _, exists := traceCaptureHookRegistry[name]; !exists {
 		panic(fmt.Sprintf("EnableTraceCaptureHook: %s not registered", name))
 	}
-	enabledTraceCaptureHooks[name] = true
+
+	for _, h := range enabledTraceCaptureHooks {
+		if h == name {
+			// Registering the same hook twice isn't ideal, but allowable.
+			return
+		}
+	}
+	enabledTraceCaptureHooks = append(enabledTraceCaptureHooks, name)
+	harness.EnableHook("trace", enabledTraceCaptureHooks...)
 }

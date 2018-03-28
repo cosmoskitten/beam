@@ -38,34 +38,33 @@ import (
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
-var enabledHooks = make(map[string][]string)
+var (
+	hookRegistry = make(map[string]HookFactory)
+	enabledHooks = make(map[string][]string)
+	activeHooks  = make(map[string]Hook)
+)
 
-// A Hook is a collection of registered functions that...
-// TODO(wcn): steal content from client.HttpTrace
+// A Hook is a set of hooks to run at various stages of executing a
+// pipelne.
 type Hook struct {
-	Init        InitHook
-	Req         RequestHook
-	Resp        ResponseHook
-	Serialize   func() []string
-	Deserialize func(...string)
+	// Init is called once at the startup of the worker.
+	Init InitHook
+	// Req is called each time the worker handles a FnAPI instruction request.
+	Req RequestHook
+	// Resp is called each time the worker generates a FnAPI instruction response.
+	Resp ResponseHook
 }
 
 // InitHook is a hook that is called when the harness
 // initializes.
 type InitHook func(context.Context) error
 
-var hookRegistry = make(map[string]Hook)
+// HookFactory is a function that produces a Hook from the supplied arguments.
+type HookFactory func([]string) Hook
 
-// RegisterHook registers a InitHook for the
+// RegisterHook registers a Hook for the
 // supplied identifier.
-func RegisterHook(name string, h Hook) {
-	if h.Serialize == nil {
-		panic(fmt.Sprintf("Hook %s is missing Serialize method", name))
-	}
-	if h.Deserialize == nil {
-		panic(fmt.Sprintf("Hook %s is missing Deserialize method", name))
-	}
-
+func RegisterHook(name string, h HookFactory) {
 	hookRegistry[name] = h
 }
 
@@ -74,7 +73,7 @@ func runInitHooks(ctx context.Context) error {
 	// system are compromised and we can't run a workflow.
 	// The hooks can run in any order. They should not be
 	// interdependent or interfere with each other.
-	for _, h := range hookRegistry {
+	for _, h := range activeHooks {
 		if h.Init != nil {
 			if err := h.Init(ctx); err != nil {
 				return err
@@ -91,7 +90,7 @@ func runRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
 	// The request hooks should not modify the request.
 	// TODO(wcn): pass the request by value to enforce? That's a perf hit.
 	// I'd rather trust users to do the right thing.
-	for n, h := range hookRegistry {
+	for n, h := range activeHooks {
 		if h.Req != nil {
 			if err := h.Req(ctx, req); err != nil {
 				log.Infof(ctx, "request hook %s failed: %v", n, err)
@@ -104,7 +103,7 @@ func runRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
 type ResponseHook func(context.Context, *fnpb.InstructionRequest, *fnpb.InstructionResponse) error
 
 func runResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *fnpb.InstructionResponse) {
-	for n, h := range hookRegistry {
+	for n, h := range activeHooks {
 		if h.Resp != nil {
 			if err := h.Resp(ctx, req, resp); err != nil {
 				log.Infof(ctx, "response hook %s failed: %v", n, err)
@@ -115,18 +114,18 @@ func runResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *f
 
 // SerializeHooks serializes the activated hooks and their configuration into a JSON string
 // that can be deserialized later by the runner.
-func SerializeHooks() string {
+func SerializeHooks() {
 	data, err := json.Marshal(enabledHooks)
 	if err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(fmt.Sprintf("Couldn't serialize hooks: %v", err))
 	}
-	return string(data)
+	runtime.GlobalOptions.Set("hooks", string(data))
 }
 
-// deserializeHooks extracts the hook configuration information from the options and calls the hook deserialize
-// method with the supplied options.
-func deserializeHooks() {
+// DeserializeHooks extracts the hook configuration information from the options and configures
+// the hooks with the supplied options.
+func DeserializeHooks() {
 	cfg := runtime.GlobalOptions.Get("hooks")
 	if err := json.Unmarshal([]byte(cfg), enabledHooks); err != nil {
 		// Shouldn't happen
@@ -134,6 +133,18 @@ func deserializeHooks() {
 	}
 
 	for h, opts := range enabledHooks {
-		hookRegistry[h].Deserialize(opts...)
+		activeHooks[h] = hookRegistry[h](opts)
 	}
+}
+
+// EnableHook enables the hook to be run for the pipline. It will be
+// receive the supplied args when the pipeline executes. It is safe
+// to enable the same hook with different options, as this is necessary
+// if a hook wants to compose behavior.
+func EnableHook(name string, args ...string) error {
+	if _, ok := hookRegistry[name]; !ok {
+		return fmt.Errorf("EnableHook: hook %s not found", name)
+	}
+	enabledHooks[name] = args
+	return nil
 }

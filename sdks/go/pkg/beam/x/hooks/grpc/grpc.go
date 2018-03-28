@@ -49,22 +49,21 @@ func RegisterHook(name string, c Hook) {
 	}
 	hookRegistry[name] = c
 
-	hook := harness.Hook{
-		Init: func(_ context.Context) error {
-			grpcHook := hookRegistry[enabledGrpcHook]
-			if grpcHook.Dialer != nil {
-				grpcx.Dial = grpcHook.Dialer
-			}
-			return nil
-		},
-		Serialize: func() []string {
-			return []string{enabledGrpcHook}
-		},
-		Deserialize: func(opts ...string) {
-			enabledGrpcHook = opts[0]
-		},
+	hf := func(opts []string) harness.Hook {
+		return harness.Hook{
+			Init: func(_ context.Context) error {
+				if len(opts) == 0 {
+					return nil
+				}
+				grpcHook := hookRegistry[enabledGrpcHook]
+				if grpcHook.Dialer != nil {
+					grpcx.Dial = grpcHook.Dialer
+				}
+				return nil
+			},
+		}
 	}
-	harness.RegisterHook("grpc", hook)
+	harness.RegisterHook("grpc", hf)
 }
 
 // EnableHook is called to request the use of the gRPC
@@ -80,4 +79,5 @@ func EnableHook(name string) {
 		panic(fmt.Sprintf("EnableHook: can't enable hook %s, hook %s already enabled", name, enabledGrpcHook))
 	}
 	enabledGrpcHook = name
+	harness.EnableHook("grpc", enabledGrpcHook)
 }
