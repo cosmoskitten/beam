@@ -874,7 +874,8 @@ class FlinkStreamingTransformTranslators {
       GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
       try {
         combineFn = (GlobalCombineFn<? super InputT, ?, OutputT>)
-            CombineTranslation.getCombineFn(context.getCurrentTransform());
+            CombineTranslation.getCombineFn(context.getCurrentTransform())
+                .orElseThrow(() -> new IOException("CombineFn not found in node."));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
