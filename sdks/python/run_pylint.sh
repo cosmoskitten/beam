@@ -23,10 +23,11 @@
 #
 # The exit-code of the script indicates success or a failure.
 
+set -u
 set -o errexit
 set -o pipefail
 
-MODULE=apache_beam
+MODULE=$(ls -dC apache_beam *.py)
 
 usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 
@@ -59,12 +60,12 @@ done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
-pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
+pylint -j8 ${MODULE} --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
-pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
+pycodestyle ${MODULE} --exclude="$FILES_TO_IGNORE"
 echo "Running flake8 for module $MODULE:"
 # TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
-flake8 $MODULE --count --select=E9,F822,F823 --show-source --statistics
+flake8 ${MODULE} --count --select=E9,F822,F823 --show-source --statistics
 
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
@@ -86,9 +87,8 @@ done
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
-pushd "$MODULE"
-isort -p apache_beam --line-width 120 --check-only --order-by-type --combine-star --force-single-line-imports --diff ${SKIP_PARAM}
-popd
+isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
+    --combine-star --force-single-line-imports --diff --recursive ${SKIP_PARAM}
 
 FUTURIZE_EXCLUDED=(
   "typehints.py"
