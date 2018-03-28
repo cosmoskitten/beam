@@ -744,8 +744,8 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  if (hasattr(distribution_update, 'buckets') and
-      hasattr(distribution_update, 'first_bucket_offset')):
+  # Only DistributionAccumulator has buckets and first_bucket_offset.
+  if isinstance(distribution_update, cy_combiners.DistributionAccumulator):
     histogram = dataflow.Histogram()
     histogram.bucketCounts = distribution_update.buckets
     histogram.firstBucketOffset = distribution_update.first_bucket_offset

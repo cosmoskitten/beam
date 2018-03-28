@@ -483,10 +483,11 @@ class DoFnRunner(Receiver):
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
 
-    # TODO[BEAM-3937]:Remove if block after per-element-output-counter released.
+    # TODO(BEAM-3937):Remove if block after per-element-output-counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
     per_element_output_counter = None
     if 'outputs_per_element_counter' in experiments:
+      # TODO(BEAM-3955):Make step_name and operation_name less confused.
       per_element_output_counter_name = (
           CounterName('per-element-output-count-meta',
                       step_name=operation_name))
@@ -574,7 +575,8 @@ class _OutputProcessor(OutputProcessor):
       window_fn: a windowing function (WindowFn).
       main_receivers: a dict of tag name to Receiver objects.
       tagged_receivers: main receiver object.
-      per_element_output_counter: per_element_output_counter of one work_item
+      per_element_output_counter: per_element_output_counter of one work_item.
+                                  could be none if experimental flag turn off
     """
     self.window_fn = window_fn
     self.main_receivers = main_receivers
@@ -588,13 +590,14 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      # TODO[BEAM-3937]:Remove if block after output feature released.
+      # TODO(BEAM-3937):Remove if block after output feature released.
       if self.per_element_output_counter:
         self.per_element_output_counter.update(0)
       return
 
     output_element_count = 0
     for result in results:
+      # results here may be a generator, which cannot call len on it.
       output_element_count += 1
       tag = None
       if isinstance(result, TaggedOutput):
@@ -620,7 +623,7 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
-    # TODO[BEAM-3937]:Remove if block after output feature released.
+    # TODO(BEAM-3937):Remove if block after output feature released.
     if self.per_element_output_counter:
       self.per_element_output_counter.update(output_element_count)
 

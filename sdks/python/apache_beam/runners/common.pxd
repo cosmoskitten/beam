@@ -20,6 +20,8 @@ cimport cython
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
+from libc.stdint cimport int64_t
+
 
 cdef type TaggedOutput, TimestampedValue
 
@@ -87,7 +89,8 @@ cdef class DoFnRunner(Receiver):
 
 
 cdef class OutputProcessor(object):
-  @cython.locals(windowed_value=WindowedValue, output_element_count=cython.int)
+  @cython.locals(windowed_value=WindowedValue,
+                 output_element_count=int64_t)
   cpdef process_outputs(self, WindowedValue element, results)
 
 
