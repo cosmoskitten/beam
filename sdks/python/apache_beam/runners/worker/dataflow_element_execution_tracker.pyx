@@ -32,8 +32,13 @@ until the next sampling round in order to calculate the final processing time.
 Eventually the total element processing time is reported to the counter and the
 state is cleaned up.
 
-Implementation itself is not thread-safe. For current application, we deal
-concurrency with StateSampler.lock.
+Implementation itself is not thread-safe.
+
+Concurrency situation: For multiple execution threads and execution threads with
+sampling thread, we use StateSampler.lock to ensure safety. For report_progress
+thread, we only report counters(access to counter_cache) when a work_item
+completed , which means, there is no other executions and sampling at the same
+time.
 
 For internal use only; no backwards-compatibility guarantees.
 
