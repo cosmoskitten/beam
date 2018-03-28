@@ -84,20 +84,9 @@ class _SideInputsContainer(object):
                     if self._views.values() else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
-  def get_value_or_schedule_after_output(self, side_input, task):
+  def get_value_or_schedule_after_output(self, side_input, task, block_until):
     with self._lock:
-      # TODO(mariagh): move window projection logic to the calling fnc
-      latest_main_input_window = task._input_bundle._elements[0].windows[0]
-      for elem in task._input_bundle.get_elements_iterable():
-        if elem.windows[0].end > latest_main_input_window.end:
-          latest_main_input_window = elem.windows[0]
-      # window projected from main onto side input
-      window_mapping_fn = side_input._view_options().get(
-          'window_mapping_fn', sideinputs._global_window_mapping_fn)
-      main_onto_side_window = window_mapping_fn(latest_main_input_window)
-
       view = self._views[side_input]
-      block_until = main_onto_side_window.end
       if view.watermark and view.watermark.input_watermark < block_until:
         view.callable_queue.append((task, block_until))
         task.blocked = True
@@ -334,10 +323,10 @@ class EvaluationContext(object):
     tw = self._watermark_manager.get_watermarks(transform)
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
-  def get_value_or_schedule_after_output(self, side_input, task):
+  def get_value_or_schedule_after_output(self, side_input, task, block_until):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_schedule_after_output(
-        side_input, task)
+        side_input, task, block_until)
 
 
 class DirectUnmergedState(InMemoryUnmergedState):
