@@ -27,7 +27,7 @@ dependencies {
   compile 'commons-cli:commons-cli:1.2'
 }
 
-task runQuickstartsJava {
+task runJavaExamplesValidationTask {
   dependsOn ":beam-runners-direct-java:runQuickstartJavaDirect"
   dependsOn ":beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow"
   dependsOn ":beam-runners-apex:runQuickstartJavaApex"

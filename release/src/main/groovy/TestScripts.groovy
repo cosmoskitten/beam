@@ -29,7 +29,6 @@ class TestScripts {
    class var {
      static File startDir
      static File curDir
-     static String lastText
      static String repoUrl
      static String ver
      static String gcpProject
@@ -108,41 +107,38 @@ class TestScripts {
    }
 
    // Run a command
-   public void run(String cmd) {
+   public String run(String cmd) {
      println cmd
      if (cmd.startsWith("cd ")) {
        _chdir(cmd.substring(3))
+       return ""
      } else if (cmd.startsWith("mvn ")) {
-       _mvn(cmd.substring(4))
+       return _mvn(cmd.substring(4))
      } else {
-       _execute(cmd)
+       return _execute(cmd)
      }
    }
 
-   // Check for expected results in stdout of the last command, if fails, log errors then exit.
-   public void see(String expected) {
-     if (!var.lastText.contains(expected)) {
+   // Check for expected results in actual stdout from previous command, if fails, log errors then exit.
+   public void see(String expected, String actual) {
+     if (!actual.contains(expected)) {
        var.startDir.deleteDir()
-       println "Cannot find ${expected} in ${var.lastText}"
+       println "Cannot find ${expected} in ${actual}"
        error("Cannot find expected text")
      }
      println "Verified $expected"
    }
 
    // Check if there are one or more matches in stdout of the last command.
-   public boolean seeAnyOf(List<String> expected) {
-     for (String expect: expected) {
-       if(var.lastText.contains(expect)) {
-         println "Verified $expect"
+   public boolean seeAnyOf(List<String> expecteds, String actual) {
+     for (String expected: expecteds) {
+       if(actual.contains(expected)) {
+         println "Verified $expected"
          return true
        }
      }
-     println "Cannot find ${expected} in text"
+     println "Cannot find ${expecteds} in text"
      return false
-   }
-
-   public boolean seeSubstring(String expected) {
-     return var.lastText.contains(expected)
    }
 
    // Cleanup and print success
@@ -153,25 +149,26 @@ class TestScripts {
    }
 
    // Run a single command, capture output, verify return code is 0
-   private void _execute(String cmd) {
+   private String _execute(String cmd) {
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
      pb.directory(var.curDir)
      pb.redirectErrorStream(true)
      def proc = pb.start()
-     var.lastText = ""
+     String output_text = ""
      def text = StringBuilder.newInstance()
      proc.inputStream.eachLine {
        println it
        text.append(it + "\n")
      }
      proc.waitFor()
-     var.lastText = text.toString().trim()
+     output_text = text.toString().trim()
      if (proc.exitValue() != 0) {
-       println var.lastText
+       println output_text
        error("Failed command")
      }
+     return output_text
    }
 
    // Change directory
@@ -183,7 +180,7 @@ class TestScripts {
    }
 
    // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
-   private void _mvn(String args) {
+   private String _mvn(String args) {
      def m2 = new File(var.startDir, ".m2/repository")
      m2.mkdirs()
      def settings = new File(var.startDir, "settings.xml")
@@ -211,7 +208,7 @@ class TestScripts {
        println "Using maven ${maven_home}"
        def mvnPath = "${maven_home}/bin"
        def setPath = "export PATH=${mvnPath}:${path} && "
-       _execute(setPath + cmd)
+       return _execute(setPath + cmd)
    }
 
    // Clean up and report error
