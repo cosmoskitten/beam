@@ -44,8 +44,8 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
                     -Pdataflow-runner"""
 
     // Verify wordcount text
-    t.run """gsutil cat gs://${t.gcsBucket()}/count* | grep Montague:"""
-    t.see "Montague: 47"
+    result = t.run """gsutil cat gs://${t.gcsBucket()}/count* | grep Montague:"""
+    t.see "Montague: 47", result
 
     // Remove count files
     t.run """gsutil rm gs://${t.gcsBucket()}/count*"""
