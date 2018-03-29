@@ -130,4 +130,4 @@ task validatesRunner {
 }
 
 // Generates :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal
-createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')

@@ -137,10 +137,10 @@ def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_ga
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
 
 // Generates :beam-runners-direct-java:runQuickstartJavaDirect
-createJavaQuickstartValidationTask(type: 'Quickstart', runner: 'Direct')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
 
 // Generates :beam-runners-direct-java:runMobileGamingJavaDirect
-createJavaQuickstartValidationTask(type: 'MobileGaming',
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   runner: 'Direct',
   gcpProject: gcpProject,
   gcsBucket: gcsBucket,

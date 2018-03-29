@@ -187,13 +187,13 @@ def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_ga
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
 
 // Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
-createJavaQuickstartValidationTask(type: 'Quickstart',
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
   runner: 'Dataflow',
   gcpProject: gcpProject,
   gcsBucket: gcsBucket)
 
 // Generates :beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow
-createJavaQuickstartValidationTask(type: 'MobileGaming',
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   runner: 'Dataflow',
   gcpProject: gcpProject,
   gcsBucket: gcsBucket,
