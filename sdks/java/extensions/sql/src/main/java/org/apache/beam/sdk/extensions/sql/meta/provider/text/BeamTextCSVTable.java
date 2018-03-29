@@ -23,7 +23,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
@@ -62,7 +62,7 @@ public class BeamTextCSVTable extends BeamTextTable {
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     return new BeamTextCSVTableIOWriter(rowType, filePattern, csvFormat);
   }
 

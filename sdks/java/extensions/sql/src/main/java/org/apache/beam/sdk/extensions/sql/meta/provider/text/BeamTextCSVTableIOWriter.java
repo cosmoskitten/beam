@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
@@ -34,7 +34,7 @@ import org.apache.commons.csv.CSVFormat;
 /**
  * IOWriter for {@code BeamTextCSVTable}.
  */
-public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, PDone>
+public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, POutput>
     implements Serializable {
   private String filePattern;
   protected RowType rowType;
@@ -49,7 +49,7 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, PDone
   }
 
   @Override
-  public PDone expand(PCollection<Row> input) {
+  public POutput expand(PCollection<Row> input) {
     return input.apply("encodeRecord", ParDo.of(new DoFn<Row, String>() {
 
       @ProcessElement

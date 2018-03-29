@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 
@@ -36,7 +36,7 @@ public abstract class MockedTable extends BaseBeamTable {
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     throw new UnsupportedOperationException("buildIOWriter unsupported!");
   }
 }
