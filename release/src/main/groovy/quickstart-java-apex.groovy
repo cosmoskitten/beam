@@ -38,8 +38,8 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Apex'
       -Papex-runner"""
 
     // Verify text from the pom.xml input file
-    t.run "grep Foundation counts*"
-    t.see "Foundation: 1"
+    result = t.run "grep Foundation counts*"
+    t.see "Foundation: 1", result
 
     // Clean up
     t.done()

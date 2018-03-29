@@ -38,8 +38,8 @@ def runner = "DataflowRunner"
 
 t.intent("Running: UserScore example on DataflowRunner")
 t.run(MobileGamingJavaUtils.createExampleExecutionCommand("UserScore", runner, t))
-t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
-t.see "total_score: 231, user: user19_BananaWallaby"
+result = t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* | grep user19_BananaWallaby"
+t.see "total_score: 231, user: user19_BananaWallaby", result
 t.success("UserScore successfully run on DataflowRunner.")
 t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutputName(runner)}*"
 
@@ -50,8 +50,8 @@ t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getUserScoreOutpu
 
 t.intent("Running: HourlyTeamScore example on DataflowRunner")
 t.run(MobileGamingJavaUtils.createExampleExecutionCommand("HourlyTeamScore", runner, t))
-t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* | grep AzureBilby "
-t.see "total_score: 2788, team: AzureBilby"
+result = t.run "gsutil cat gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* | grep AzureBilby "
+t.see "total_score: 2788, team: AzureBilby", result
 t.success("HourlyTeamScore successfully run on DataflowRunner.")
 t.run "gsutil rm gs://${t.gcsBucket()}/${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}*"
 
@@ -64,10 +64,11 @@ t.intent("Running: LeaderBoard example on DataflowRunner")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_user")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DataflowRunner_team")
 // it will take couple seconds to clean up tables. This loop makes sure tables are completely deleted before running the pipeline
+String tables = ""
 while({
   sleep(3000)
-  t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-  t.seeSubstring("leaderboard_${runner}_user") || t.seeSubstring("leaderboard_${runner}_team")
+  tables = t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
+  tables.contains("leaderboard_${runner}_user") || tables.contains("leaderboard_${runner}_team")
 }());
 
 def InjectorThread = Thread.start() {
@@ -84,11 +85,12 @@ t.run("gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Runni
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
 def isSuccess = false
+String query_result = ""
 while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT_IN_MINUTES) {
-  t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
-  if(t.seeSubstring("leaderboard_${runner}_user") && t.seeSubstring("leaderboard_${runner}_team")){
-    t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-    if(t.seeAnyOf(MobileGamingJavaUtils.COLORS)){
+  tables = t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
+  if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")){
+    query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
+    if(t.seeAnyOf(MobileGamingJavaUtils.COLORS, query_result)){
       isSuccess = true
       break
     }
