@@ -486,7 +486,10 @@ class DoFnRunner(Receiver):
     # TODO(BEAM-3937):Remove if block after per-element-output-counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
     per_element_output_counter = None
-    if 'outputs_per_element_counter' in experiments:
+    # Experimental flag format: experimental-name_version-number
+    # Specify version number to ensure old SDKs will not be affected by features
+    # rollout
+    if 'outputs_per_element_counter_v0' in experiments:
       # TODO(BEAM-3955):Make step_name and operation_name less confused.
       per_element_output_counter_name = (
           CounterName('per-element-output-count-meta',
