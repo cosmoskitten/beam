@@ -98,28 +98,17 @@ public abstract class FusedPipeline {
   private Map<String, PTransform> getEnvironmentExecutedTransforms() {
     Map<String, PTransform> topLevelTransforms = new HashMap<>();
     for (ExecutableStage stage : getFusedStages()) {
+      String baseName =
+          String.format(
+              "%s/%s",
+              stage.getInputPCollection().getPCollection().getUniqueName(),
+              stage.getEnvironment().getUrl());
+      Set<String> usedNames =
+          Sets.union(getComponents().getTransformsMap().keySet(), topLevelTransforms.keySet());
       topLevelTransforms.put(
-          generateStageId(
-              stage,
-              Sets.union(getComponents().getTransformsMap().keySet(), topLevelTransforms.keySet())),
-          stage.toPTransform());
+          SyntheticNodes.uniqueId(baseName, usedNames::contains),
+          stage.toPTransform(getComponents()));
     }
     return topLevelTransforms;
-  }
-
-  private String generateStageId(ExecutableStage stage, Set<String> existingIds) {
-    int i = 0;
-    String name;
-    do {
-      // Instead this could include the name of the root transforms
-      name =
-          String.format(
-              "%s/%s.%s",
-              stage.getInputPCollection().getPCollection().getUniqueName(),
-              stage.getEnvironment().getUrl(),
-              i);
-      i++;
-    } while (existingIds.contains(name));
-    return name;
   }
 }
