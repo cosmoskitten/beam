@@ -16,24 +16,12 @@
  * limitations under the License.
  */
 
-import common_job_properties
+job('beam_docker_wo_image') {
+  description('Builds something with docker images.')
 
-// This is the Java Jenkins job which runs the Beam code health checks.
-mavenJob('beam_Java_CodeHealth') {
-  description('Runs Java code health checks. Meant to be run as part of a pipeline.')
-
-  // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 30, "Java Code Health")
-  // This job runs downstream of the beam_Java_Build job and gets artifacts from that job.
-  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
-
-  args = [
-    '-B',
-    '-e',
-    "-pl '!sdks/python'",
-    'checkstyle:check',
-    'findbugs:check',
-    'org.apache.rat:apache-rat-plugin:check',
-  ]
-  goals(args.join(' '))
+  // Execute shell command to test Python SDK.
+  steps {
+    shell('echo $USER')
+    shell('usermod -a -G docker $USER')
+  }
 }
