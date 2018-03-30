@@ -519,9 +519,9 @@ class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
     hdfs.hdfs.InsecureClient = (
         lambda *args, **kwargs: self._fake_hdfs)
     pipeline_options = {
-      'hdfs_host': '',
-      'hdfs_port': 0,
-      'hdfs_user': '',
+        'hdfs_host': '',
+        'hdfs_port': 0,
+        'hdfs_user': '',
     }
 
     self.fs = hdfs.HadoopFileSystem(pipeline_options=pipeline_options)
@@ -534,24 +534,24 @@ class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
     with self.assertRaisesRegexp(ValueError, r'hdfs_host'):
       self.fs = hdfs.HadoopFileSystem(
           pipeline_options={
-            'hdfs_port': 0,
-            'hdfs_user': '',
+              'hdfs_port': 0,
+              'hdfs_user': '',
           }
       )
 
     with self.assertRaisesRegexp(ValueError, r'hdfs_port'):
       self.fs = hdfs.HadoopFileSystem(
           pipeline_options={
-            'hdfs_host': '',
-            'hdfs_user': '',
+              'hdfs_host': '',
+              'hdfs_user': '',
           }
       )
 
     with self.assertRaisesRegexp(ValueError, r'hdfs_user'):
       self.fs = hdfs.HadoopFileSystem(
           pipeline_options={
-            'hdfs_host': '',
-            'hdfs_port': 0,
+              'hdfs_host': '',
+              'hdfs_port': 0,
           }
       )
 
