@@ -283,8 +283,10 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_errors_traceback(self):
     def first(x):
       return second(x)
+
     def second(x):
       return third(x)
+
     def third(x):
       raise RuntimeError('x')
 

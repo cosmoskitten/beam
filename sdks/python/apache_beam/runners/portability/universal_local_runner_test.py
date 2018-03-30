@@ -102,8 +102,10 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     # underlying exception.
     def first(x):
       return second(x)
+
     def second(x):
       return third(x)
+
     def third(x):
       raise RuntimeError('x')
 
