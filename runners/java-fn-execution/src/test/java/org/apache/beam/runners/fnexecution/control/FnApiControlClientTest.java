@@ -52,7 +52,7 @@ public class FnApiControlClientTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    client = FnApiControlClient.forRequestObserver(mockObserver);
+    client = FnApiControlClient.forRequestObserver("DUMMY", mockObserver);
   }
 
   @Test
