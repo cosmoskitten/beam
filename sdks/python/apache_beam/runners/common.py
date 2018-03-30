@@ -483,14 +483,14 @@ class DoFnRunner(Receiver):
     # Optimize for the common case.
     main_receivers = tagged_receivers[None]
 
-    # TODO(BEAM-3937):Remove if block after per-element-output-counter released.
+    # TODO(BEAM-3937): Remove if block after output counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
     per_element_output_counter = None
-    # Experimental flag format: experimental-name_version-number
+    # Experimental flag format: experimental-name_version-number.
     # Specify version number to ensure old SDKs will not be affected by features
-    # rollout
+    # rollout.
     if 'outputs_per_element_counter_v0' in experiments:
-      # TODO(BEAM-3955):Make step_name and operation_name less confused.
+      # TODO(BEAM-3955): Make step_name and operation_name less confused.
       per_element_output_counter_name = (
           CounterName('per-element-output-count-meta',
                       step_name=operation_name))
@@ -593,7 +593,7 @@ class _OutputProcessor(OutputProcessor):
     then dispatched to the appropriate indexed output.
     """
     if results is None:
-      # TODO(BEAM-3937):Remove if block after output feature released.
+      # TODO(BEAM-3937): Remove if block after output counter released.
       if self.per_element_output_counter:
         self.per_element_output_counter.update(0)
       return
@@ -626,7 +626,7 @@ class _OutputProcessor(OutputProcessor):
         self.main_receivers.receive(windowed_value)
       else:
         self.tagged_receivers[tag].receive(windowed_value)
-    # TODO(BEAM-3937):Remove if block after output feature released.
+    # TODO(BEAM-3937): Remove if block after output counter released.
     if self.per_element_output_counter:
       self.per_element_output_counter.update(output_element_count)
 

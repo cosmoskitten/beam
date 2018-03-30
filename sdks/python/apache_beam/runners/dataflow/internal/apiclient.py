@@ -738,7 +738,12 @@ def to_split_int(n):
 
 
 def translate_distribution(distribution_update, metric_update_proto):
-  """Translate metrics DistributionUpdate to dataflow distribution update."""
+  """Translate metrics DistributionUpdate to dataflow distribution update.
+  Args:
+    distribution_update: Instance of DistributionUpdate or
+    DistributionAccumulator.
+    metric_update_proto: Used for report metrics.
+  """
   dist_update_proto = dataflow.DistributionUpdate()
   dist_update_proto.min = to_split_int(distribution_update.min)
   dist_update_proto.max = to_split_int(distribution_update.max)

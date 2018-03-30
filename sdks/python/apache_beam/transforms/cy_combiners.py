@@ -411,6 +411,10 @@ class DistributionCounterFn(AccumulatorCombineFn):
 
 
 class DistributionMetadataAccumulator(object):
+  """A list contains output_count per element in one operation.
+  Attributes:
+    distribution_metadata: list[int64_t].
+  """
   def __init__(self):
     self.distribution_metadata = []
 
