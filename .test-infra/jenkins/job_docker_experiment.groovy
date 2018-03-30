@@ -16,30 +16,17 @@
  * limitations under the License.
  */
 
-import common_job_properties
-
-job('beam_PostRelease_Python_Candidate') {
+job('beam_docker_test') {
     description('Builds something with docker images.')
 
     wrappers {
         buildInDocker {
-            image('google/cloud-sdk:latest')
+            dockerfile('.test-infra/jenkins/', 'Dockerfile')
         }
     }
-    // Execute concurrent builds if necessary.
-    concurrentBuild()
-
-    // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
-
-    // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Docker image test',
-            'Run Docker Experiment')
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('gcloud --version')
+        shell('bash release/src/main/groovy/run_release_candidate_python_mobile_gaming.sh')
     }
 }
