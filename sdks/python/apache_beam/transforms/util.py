@@ -489,7 +489,7 @@ class ReshufflePerKey(PTransform):
     if windowing_saved.is_default():
       # In this (common) case we can use a trivial trigger driver
       # and avoid the (expensive) window param.
-      _globally_windowed = window.GlobalWindows.windowed_value(None)
+      globally_windowed = window.GlobalWindows.windowed_value(None)
       window_fn = window.GlobalWindows()
       MIN_TIMESTAMP = window.MIN_TIMESTAMP
 
@@ -502,13 +502,14 @@ class ReshufflePerKey(PTransform):
       def restore_timestamps(element):
         key, values = element
         return [
-            _globally_windowed.with_value((key, value))
+            globally_windowed.with_value((key, value))
             if timestamp is None
             else window.GlobalWindows.windowed_value((key, value), timestamp)
             for (value, timestamp) in values]
 
     else:
       # The linter is confused.
+      # hash(1) is used to force "runtime" selection of _IdentityWindowFn
       # pylint: disable=abstract-class-instantiated
       cls = hash(1) and _IdentityWindowFn
       window_fn = cls(

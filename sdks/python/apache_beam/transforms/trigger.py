@@ -903,12 +903,12 @@ def create_trigger_driver(windowing,
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
-    driver = DefaultGlobalBatchTriggerDriver()
+    driver = DiscardingGlobalTriggerDriver()
   elif (windowing.windowfn == GlobalWindows()
         and windowing.triggerfn == AfterCount(1)
         and windowing.accumulation_mode == AccumulationMode.DISCARDING):
     # Here we also just pass through all the values every time.
-    driver = DefaultGlobalBatchTriggerDriver()
+    driver = DiscardingGlobalTriggerDriver()
   else:
     driver = GeneralTriggerDriver(windowing, clock)
 
@@ -977,17 +977,16 @@ class _UnwindowedValues(observable.ObservableMixin):
     return not self == other
 
 
-class DefaultGlobalBatchTriggerDriver(TriggerDriver):
-  """Breaks a bundles into window (pane)s according to the default triggering.
+class DiscardingGlobalTriggerDriver(TriggerDriver):
+  """Groups all received values togeather.
   """
   GLOBAL_WINDOW_TUPLE = (GlobalWindow(),)
 
   def process_elements(self, state, windowed_values, unused_output_watermark):
-    return [
-        WindowedValue(
-            _UnwindowedValues(windowed_values),
-            MIN_TIMESTAMP,
-            self.GLOBAL_WINDOW_TUPLE)]
+    yield WindowedValue(
+        _UnwindowedValues(windowed_values),
+        MIN_TIMESTAMP,
+        self.GLOBAL_WINDOW_TUPLE)
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     raise TypeError('Triggers never set or called for batch default windowing.')
