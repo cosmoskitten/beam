@@ -36,7 +36,7 @@ public class GrpcContextHeaderAccessorProvider {
   private static final Key<String> WORKER_ID_KEY =
       Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
   private static final Context.Key<String> SDK_WORKER_CONTEXT_KEY = Context.key("worker_id");
-  private static final HeaderAccessorImpl HEADER_ACCESSOR = new HeaderAccessorImpl();
+  private static final GrpcHeaderAccessor HEADER_ACCESSOR = new GrpcHeaderAccessor();
   private static final ServerInterceptor INTERCEPTOR =
       new ServerInterceptor() {
         @Override
@@ -58,7 +58,7 @@ public class GrpcContextHeaderAccessorProvider {
     return HEADER_ACCESSOR;
   }
 
-  private static class HeaderAccessorImpl implements HeaderAccessor {
+  private static class GrpcHeaderAccessor implements HeaderAccessor {
 
     @Override
     /** This method should be called from the request method. */

@@ -21,6 +21,8 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -53,9 +55,9 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
   private final ResponseStreamObserver responseObserver = new ResponseStreamObserver();
   private final ConcurrentMap<String, CompletableFuture<BeamFnApi.InstructionResponse>>
       outstandingRequests;
+  private final Collection<Consumer<FnApiControlClient>> onCloseListeners = new ArrayList<>();
   private final String workerId;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
-  private Consumer<FnApiControlClient> onCloseListener;
 
   private FnApiControlClient(String workerId, StreamObserver<InstructionRequest> requestReceiver) {
     this.workerId = workerId;
@@ -124,14 +126,14 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
         outstandingRequest.completeExceptionally(cause);
       }
     } finally {
-      if (onCloseListener != null) {
+      for (Consumer<FnApiControlClient> onCloseListener : onCloseListeners) {
         onCloseListener.accept(this);
       }
     }
   }
 
   public void onClose(Consumer<FnApiControlClient> onCloseListener) {
-    this.onCloseListener = onCloseListener;
+    onCloseListeners.add(onCloseListener);
   }
 
   /**
