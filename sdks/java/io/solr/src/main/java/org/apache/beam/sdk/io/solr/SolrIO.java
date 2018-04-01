@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
@@ -33,10 +34,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -66,6 +69,7 @@ import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
@@ -77,6 +81,8 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Transforms for reading and writing data from/to Solr.
@@ -122,6 +128,8 @@ import org.joda.time.Duration;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SolrIO.class);
+
   public static Read read() {
     // 1000 for batch size is good enough in many cases,
     // ex: if document size is large, around 10KB, the response's size will be around 10MB
@@ -133,10 +141,7 @@ public class SolrIO {
     // 1000 for batch size is good enough in many cases,
     // ex: if document size is large, around 10KB, the request's size will be around 10MB
     // if document size is small, around 1KB, the request's size will be around 1MB
-    return new AutoValue_SolrIO_Write.Builder()
-        .setMaxBatchSize(1000)
-        .setRetryConfiguration(AutoValue_SolrIO_Write.DEFAULT_RETRY_CONFIGURATION)
-        .build();
+    return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000).build();
   }
 
   private SolrIO() {}
@@ -211,12 +216,33 @@ public class SolrIO {
     }
   }
 
-  /** A POJO encapsulating a configuration for retry behavior when issuing requests to Solr. */
+  /**
+   * A POJO encapsulating a configuration for retry behavior when issuing requests to Solr. A retry
+   * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
+   * any of the following exceptions:
+   *
+   * <ul>
+   *   <li>{@link IOException}
+   *   <li>{@link SolrServerException}
+   *   <li>{@link SolrException} where the {@link SolrException.ErrorCode} is one of:
+   *       <ul>
+   *         <li>{@link SolrException.ErrorCode#CONFLICT}
+   *         <li>{@link SolrException.ErrorCode#SERVER_ERROR}
+   *         <li>{@link SolrException.ErrorCode#SERVICE_UNAVAILABLE}
+   *         <li>{@link SolrException.ErrorCode#INVALID_STATE}
+   *         <li>{@link SolrException.ErrorCode#UNKNOWN}
+   *       </ul>
+   * </ul>
+   */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
+    private static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+
     abstract int getMaxAttempts();
 
     abstract Duration getMaxDuration();
+
+    abstract RetryPredicate getRetryPredicate();
 
     abstract Builder builder();
 
@@ -226,26 +252,54 @@ public class SolrIO {
 
       abstract SolrIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
 
+      abstract SolrIO.RetryConfiguration.Builder setRetryPredicate(RetryPredicate retryPredicate);
+
       abstract SolrIO.RetryConfiguration build();
     }
 
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+              maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+              "maxDuration must be greater than 0");
       return new AutoValue_SolrIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
 
-    public RetryConfiguration withMaxDuration(Duration maxDuration) {
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration must be positive");
-      return builder().setMaxDuration(maxDuration).build();
+    // Exposed only to allow tests to easily simulate server errors
+    @VisibleForTesting
+    RetryConfiguration withRetryPredicate(RetryPredicate predicate) {
+      checkArgument(predicate != null, "predicate must be provided");
+      return builder().setRetryPredicate(predicate).build();
     }
 
-    public RetryConfiguration withMaxAttempts(int maxAttempts) {
-      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
-      return builder().setMaxAttempts(maxAttempts).build();
+    /**
+     * An interface used to control if we retry the Solr call when a {@link Throwable} occurs. If
+     * {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend the
+     * requests to the Solr server if the {@link RetryConfiguration} permits it.
+     */
+    @FunctionalInterface
+    interface RetryPredicate extends Predicate<Throwable>, Serializable {}
+
+    /** This is the default predicate used to test if a failed Solr operation should be retried. */
+    private static class DefaultRetryPredicate implements RetryPredicate {
+      private static final Set<SolrException.ErrorCode> ELIGIBLE_CODES =
+          ImmutableSet.of(
+              SolrException.ErrorCode.CONFLICT,
+              SolrException.ErrorCode.SERVER_ERROR,
+              SolrException.ErrorCode.SERVICE_UNAVAILABLE,
+              SolrException.ErrorCode.INVALID_STATE,
+              SolrException.ErrorCode.UNKNOWN);
+
+      @Override
+      public boolean test(Throwable t) {
+        return (t instanceof IOException
+            || t instanceof SolrServerException
+            || (t instanceof SolrException && ELIGIBLE_CODES.contains(((SolrException) t).code())));
+      }
     }
   }
 
@@ -616,17 +670,10 @@ public class SolrIO {
     }
   }
 
+
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
-    // The minimum pause when entering retry
-    static final Duration MIN_BACKOFF_SECONDS = Duration.standardSeconds(5);
-
-    // defaults to a single attempt with a long timeout (years)
-    @VisibleForTesting
-    static final RetryConfiguration DEFAULT_RETRY_CONFIGURATION =
-            RetryConfiguration.create(1, Duration.standardDays(1000));
-
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
 
@@ -637,6 +684,7 @@ public class SolrIO {
 
     abstract Builder builder();
 
+    @Nullable
     abstract RetryConfiguration getRetryConfiguration();
 
     @AutoValue.Builder
@@ -722,9 +770,14 @@ public class SolrIO {
 
     @VisibleForTesting
     static class WriteFn extends DoFn<SolrInputDocument, Void> {
+      @VisibleForTesting
+      static final String RETRY_ATTEMPT_LOG = "Error writing to Solr. Retry attempt[%d]";
 
+      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
+      private static final Duration RETRY_MAX_BACKOFF = Duration.standardDays(365);
+
+      private transient FluentBackoff retryBackoff; // defaults to no retrying
       private final Write spec;
-
       private transient AuthorizedSolrClient solrClient;
       private Collection<SolrInputDocument> batch;
 
@@ -733,8 +786,23 @@ public class SolrIO {
       }
 
       @Setup
-      public void createClient() throws Exception {
+      public void setup() throws Exception {
         solrClient = spec.getConnectionConfiguration().createClient();
+
+        retryBackoff =
+            FluentBackoff.DEFAULT
+                .withMaxRetries(0) // default to no retrying
+                .withInitialBackoff(RETRY_INITIAL_BACKOFF)
+                .withMaxCumulativeBackoff(RETRY_MAX_BACKOFF);
+
+        if (spec.getRetryConfiguration() != null) {
+          // FluentBackoff counts retries excluding the original while we count attempts
+          // to remove ambiguity (hence the -1)
+          retryBackoff =
+              retryBackoff
+                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+        }
       }
 
       @StartBundle
@@ -747,19 +815,17 @@ public class SolrIO {
         SolrInputDocument document = context.element();
         batch.add(document);
         if (batch.size() >= spec.getMaxBatchSize()) {
-          flushBatch(solrClient, batch);
+          flushBatch();
         }
       }
 
       @FinishBundle
       public void finishBundle(FinishBundleContext context) throws Exception {
-        flushBatch(solrClient, batch);
+        flushBatch();
       }
 
       // Flushes the batch, implementing the retry mechanism as configured in the spec.
-      @VisibleForTesting
-      void flushBatch(AuthorizedSolrClient solrClient, Collection<SolrInputDocument> batch)
-          throws IOException, InterruptedException {
+      private void flushBatch() throws IOException, InterruptedException {
         if (batch.isEmpty()) {
           return;
         }
@@ -768,27 +834,33 @@ public class SolrIO {
           updateRequest.add(batch);
 
           Sleeper sleeper = Sleeper.DEFAULT;
-          // Note: FluentBackoff counts retries excluding the original while we count attempts
-          // to remove any notion of ambiguity (hence the -1)
-          BackOff backoff =
-              FluentBackoff.DEFAULT
-                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
-                  .withInitialBackoff(MIN_BACKOFF_SECONDS)
-                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration())
-                  .backoff();
-
+          BackOff backoff = retryBackoff.backoff();
           int attempt = 0;
           while (true) {
             attempt++;
             try {
               solrClient.process(spec.getCollection(), updateRequest);
               break;
-            } catch (HttpSolrClient.RemoteSolrException
-                | SolrServerException
-                | IOException exception) {
+            } catch (Exception exception) {
+
+              // fail immediately if no retry configuration doesn't handle this
+              if (spec.getRetryConfiguration() == null
+                  || !spec.getRetryConfiguration().getRetryPredicate().test(exception)) {
+                throw new IOException(
+                        "Error writing to Solr (no attempt made to retry)", exception);
+              }
+
+              // see if we can pause and try again
               if (!BackOffUtils.next(sleeper, backoff)) {
                 throw new IOException(
-                    "Error writing to Solr after " + attempt + " attempts", exception);
+                    String.format(
+                        "Error writing to Solr after %d attempt(s). No more attempts allowed",
+                        attempt),
+                    exception);
+
+              } else {
+                // Note: this used in test cases to verify behavior
+                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), exception);
               }
             }
           }
@@ -798,7 +870,7 @@ public class SolrIO {
       }
 
       @Teardown
-      public void closeClient() throws Exception {
+      public void closeClient() throws IOException {
         if (solrClient != null) {
           solrClient.close();
         }
