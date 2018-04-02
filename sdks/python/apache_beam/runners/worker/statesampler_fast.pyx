@@ -160,7 +160,10 @@ cdef class StateSampler(object):
                       metrics_container=None):
     """Returns a context manager managing transitions for a given state.
     Args:
-     TODO(pabloem)
+     counter_name: A CounterName object with information about the execution
+       state.
+     output_counter: A Beam Counter to which msecs are committed for reporting.
+     metrics_container: A MetricsContainer for the current step.
 
     Returns:
       A ScopedState for the set of step-state-io_target.
