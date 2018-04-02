@@ -174,13 +174,13 @@ public class BeamAggregationTransforms implements Serializable{
           FieldTypeDescriptor keyDescriptor =
               sourceSchema.getField(refIndexKey).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExpKey = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(keyDescriptor.getType(), keyDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(keyDescriptor),
               refIndexKey);
 
           FieldTypeDescriptor valueDescriptor =
               sourceSchema.getField(refIndexValue).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExpValue = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(valueDescriptor.getType(), valueDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(valueDescriptor),
                   refIndexValue);
 
           sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
@@ -188,7 +188,7 @@ public class BeamAggregationTransforms implements Serializable{
           int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
           FieldTypeDescriptor typeDescriptor = sourceSchema.getField(refIndex).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(typeDescriptor.getType(), typeDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(typeDescriptor),
               refIndex);
           sourceFieldExps.add(sourceExp);
         }

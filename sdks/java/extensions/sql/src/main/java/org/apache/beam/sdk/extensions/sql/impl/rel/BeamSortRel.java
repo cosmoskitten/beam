@@ -205,8 +205,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
         FieldTypeDescriptor fieldTypeDescriptor =
             row1.getSchema().getField(fieldIndex).getTypeDescriptor();
-        SqlTypeName fieldType = CalciteUtils.toSqlTypeName(
-            fieldTypeDescriptor.getType(), fieldTypeDescriptor.getMetadata());
+        SqlTypeName fieldType = CalciteUtils.toSqlTypeName(fieldTypeDescriptor);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         boolean isValue1Null = (row1.getValue(fieldIndex) == null);
