@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.type.RelDataType;
@@ -60,35 +60,35 @@ public class RowSqlType {
     }
 
     public Builder withTinyIntField(String fieldName) {
-      return withField(fieldName, FieldType.BYTE.typeDescriptor());
+      return withField(fieldName, TypeName.BYTE.typeDescriptor());
     }
 
     public Builder withSmallIntField(String fieldName) {
-      return withField(fieldName, FieldType.INT16.typeDescriptor());
+      return withField(fieldName, TypeName.INT16.typeDescriptor());
     }
 
     public Builder withIntegerField(String fieldName) {
-      return withField(fieldName, FieldType.INT32.typeDescriptor());
+      return withField(fieldName, TypeName.INT32.typeDescriptor());
     }
 
     public Builder withBigIntField(String fieldName) {
-      return withField(fieldName, FieldType.INT64.typeDescriptor());
+      return withField(fieldName, TypeName.INT64.typeDescriptor());
     }
 
     public Builder withFloatField(String fieldName) {
-      return withField(fieldName, FieldType.FLOAT.typeDescriptor());
+      return withField(fieldName, TypeName.FLOAT.typeDescriptor());
     }
 
     public Builder withDoubleField(String fieldName) {
-      return withField(fieldName, FieldType.DOUBLE.typeDescriptor());
+      return withField(fieldName, TypeName.DOUBLE.typeDescriptor());
     }
 
     public Builder withDecimalField(String fieldName) {
-      return withField(fieldName, FieldType.DECIMAL.typeDescriptor());
+      return withField(fieldName, TypeName.DECIMAL.typeDescriptor());
     }
 
     public Builder withBooleanField(String fieldName) {
-      return withField(fieldName, FieldType.BOOLEAN.typeDescriptor());
+      return withField(fieldName, TypeName.BOOLEAN.typeDescriptor());
     }
 
     public Builder withCharField(String fieldName) {
@@ -131,14 +131,14 @@ public class RowSqlType {
     public Builder withArrayField(String fieldName, Schema schema) {
       FieldTypeDescriptor componentType =
           FieldTypeDescriptor
-              .of(FieldType.ROW)
+              .of(TypeName.ROW)
               .withRowSchema(schema);
-      return withField(fieldName, FieldType.ARRAY.typeDescriptor()
+      return withField(fieldName, TypeName.ARRAY.typeDescriptor()
           .withComponentType(componentType));
     }
 
     public Builder withRowField(String fieldName, Schema schema) {
-      return withField(fieldName, FieldType.ROW.typeDescriptor().withRowSchema(schema));
+      return withField(fieldName, TypeName.ROW.typeDescriptor().withRowSchema(schema));
     }
 
     private Builder() {

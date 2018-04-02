@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,76 +39,76 @@ public class SchemaTest {
   @Test
   public void testCreate() {
     Schema schema = Schema.of(
-        Field.of("f_byte", FieldType.BYTE.typeDescriptor()),
-        Field.of("f_int16", FieldType.INT16.typeDescriptor()),
-        Field.of("f_int32", FieldType.INT32.typeDescriptor()),
-        Field.of("f_int64", FieldType.INT64.typeDescriptor()),
-        Field.of("f_decimal", FieldType.DECIMAL.typeDescriptor()),
-        Field.of("f_float", FieldType.FLOAT.typeDescriptor()),
-        Field.of("f_double", FieldType.DOUBLE.typeDescriptor()),
-        Field.of("f_string", FieldType.STRING.typeDescriptor()),
-        Field.of("f_datetime", FieldType.DATETIME.typeDescriptor()),
-        Field.of("f_boolean", FieldType.BOOLEAN.typeDescriptor()));
+        Field.of("f_byte", TypeName.BYTE.typeDescriptor()),
+        Field.of("f_int16", TypeName.INT16.typeDescriptor()),
+        Field.of("f_int32", TypeName.INT32.typeDescriptor()),
+        Field.of("f_int64", TypeName.INT64.typeDescriptor()),
+        Field.of("f_decimal", TypeName.DECIMAL.typeDescriptor()),
+        Field.of("f_float", TypeName.FLOAT.typeDescriptor()),
+        Field.of("f_double", TypeName.DOUBLE.typeDescriptor()),
+        Field.of("f_string", TypeName.STRING.typeDescriptor()),
+        Field.of("f_datetime", TypeName.DATETIME.typeDescriptor()),
+        Field.of("f_boolean", TypeName.BOOLEAN.typeDescriptor()));
     assertEquals(10, schema.getFieldCount());
 
     assertEquals(0, schema.indexOf("f_byte"));
     assertEquals("f_byte", schema.getField(0).getName());
-    assertEquals(FieldType.BYTE.typeDescriptor(), schema.getField(0).getTypeDescriptor());
+    assertEquals(TypeName.BYTE.typeDescriptor(), schema.getField(0).getTypeDescriptor());
 
     assertEquals(1, schema.indexOf("f_int16"));
     assertEquals("f_int16", schema.getField(1).getName());
-    assertEquals(FieldType.INT16.typeDescriptor(), schema.getField(1).getTypeDescriptor());
+    assertEquals(TypeName.INT16.typeDescriptor(), schema.getField(1).getTypeDescriptor());
 
     assertEquals(2, schema.indexOf("f_int32"));
     assertEquals("f_int32", schema.getField(2).getName());
-    assertEquals(FieldType.INT32.typeDescriptor(), schema.getField(2).getTypeDescriptor());
+    assertEquals(TypeName.INT32.typeDescriptor(), schema.getField(2).getTypeDescriptor());
 
     assertEquals(3, schema.indexOf("f_int64"));
     assertEquals("f_int64", schema.getField(3).getName());
-    assertEquals(FieldType.INT64.typeDescriptor(), schema.getField(3).getTypeDescriptor());
+    assertEquals(TypeName.INT64.typeDescriptor(), schema.getField(3).getTypeDescriptor());
 
     assertEquals(4, schema.indexOf("f_decimal"));
     assertEquals("f_decimal", schema.getField(4).getName());
-    assertEquals(FieldType.DECIMAL.typeDescriptor(),
+    assertEquals(TypeName.DECIMAL.typeDescriptor(),
         schema.getField(4).getTypeDescriptor());
 
     assertEquals(5, schema.indexOf("f_float"));
     assertEquals("f_float", schema.getField(5).getName());
-    assertEquals(FieldType.FLOAT.typeDescriptor(), schema.getField(5).getTypeDescriptor());
+    assertEquals(TypeName.FLOAT.typeDescriptor(), schema.getField(5).getTypeDescriptor());
 
     assertEquals(6, schema.indexOf("f_double"));
     assertEquals("f_double", schema.getField(6).getName());
-    assertEquals(FieldType.DOUBLE.typeDescriptor(), schema.getField(6).getTypeDescriptor());
+    assertEquals(TypeName.DOUBLE.typeDescriptor(), schema.getField(6).getTypeDescriptor());
 
     assertEquals(7, schema.indexOf("f_string"));
     assertEquals("f_string", schema.getField(7).getName());
-    assertEquals(FieldType.STRING.typeDescriptor(), schema.getField(7).getTypeDescriptor());
+    assertEquals(TypeName.STRING.typeDescriptor(), schema.getField(7).getTypeDescriptor());
 
     assertEquals(8, schema.indexOf("f_datetime"));
     assertEquals("f_datetime", schema.getField(8).getName());
-    assertEquals(FieldType.DATETIME.typeDescriptor(),
+    assertEquals(TypeName.DATETIME.typeDescriptor(),
         schema.getField(8).getTypeDescriptor());
 
     assertEquals(9, schema.indexOf("f_boolean"));
     assertEquals("f_boolean", schema.getField(9).getName());
-    assertEquals(FieldType.BOOLEAN.typeDescriptor(), schema.getField(9).getTypeDescriptor());
+    assertEquals(TypeName.BOOLEAN.typeDescriptor(), schema.getField(9).getTypeDescriptor());
   }
 
   @Test
   public void testNestedSchema() {
     Schema nestedSchema = Schema.of(
-        Field.of("f1_str", FieldType.STRING.typeDescriptor()));
+        Field.of("f1_str", TypeName.STRING.typeDescriptor()));
     Schema schema = Schema.of(
-        Field.of("nested", FieldType.ROW.typeDescriptor().withRowSchema(nestedSchema)));
+        Field.of("nested", TypeName.ROW.typeDescriptor().withRowSchema(nestedSchema)));
     Field inner = schema.getField("nested").getTypeDescriptor().getRowSchema().getField("f1_str");
     assertEquals("f1_str", inner.getName());
-    assertEquals(FieldType.STRING, inner.getTypeDescriptor().getType());
+    assertEquals(TypeName.STRING, inner.getTypeDescriptor().getType());
   }
 
   @Test
   public void testArraySchema() {
-    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
-        .withComponentType(FieldType.STRING.typeDescriptor());
+    FieldTypeDescriptor arrayType = TypeName.ARRAY.typeDescriptor()
+        .withComponentType(TypeName.STRING.typeDescriptor());
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -118,9 +118,9 @@ public class SchemaTest {
   @Test
   public void testArrayOfRowSchema() {
     Schema nestedSchema = Schema.of(
-        Field.of("f1_str", FieldType.STRING.typeDescriptor()));
-    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
-        .withComponentType(FieldType.ROW.typeDescriptor()
+        Field.of("f1_str", TypeName.STRING.typeDescriptor()));
+    FieldTypeDescriptor arrayType = TypeName.ARRAY.typeDescriptor()
+        .withComponentType(TypeName.ROW.typeDescriptor()
             .withRowSchema(nestedSchema));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
@@ -130,9 +130,9 @@ public class SchemaTest {
 
   @Test
   public void testNestedArraySchema() {
-    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
-        .withComponentType(FieldType.ARRAY.typeDescriptor()
-            .withComponentType(FieldType.STRING.typeDescriptor()));
+    FieldTypeDescriptor arrayType = TypeName.ARRAY.typeDescriptor()
+        .withComponentType(TypeName.ARRAY.typeDescriptor()
+            .withComponentType(TypeName.STRING.typeDescriptor()));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
@@ -141,7 +141,7 @@ public class SchemaTest {
 
   @Test
   public void testWrongName() {
-    Schema schema = Schema.of(Field.of("f_byte", FieldType.BYTE.typeDescriptor()));
+    Schema schema = Schema.of(Field.of("f_byte", TypeName.BYTE.typeDescriptor()));
     thrown.expect(IllegalArgumentException.class);
     schema.getField("f_string");
   }
@@ -149,7 +149,7 @@ public class SchemaTest {
   @Test
   public void testWrongIndex() {
     Schema schema = Schema.of(
-        Field.of("f_byte", FieldType.BYTE.typeDescriptor()));
+        Field.of("f_byte", TypeName.BYTE.typeDescriptor()));
     thrown.expect(IndexOutOfBoundsException.class);
     schema.getField(1);
   }
@@ -161,15 +161,15 @@ public class SchemaTest {
     Schema schema =
         Stream
             .of(
-                Schema.Field.of("f_int", FieldType.INT32.typeDescriptor()),
-                Schema.Field.of("f_string", FieldType.STRING.typeDescriptor()))
+                Schema.Field.of("f_int", TypeName.INT32.typeDescriptor()),
+                Schema.Field.of("f_string", TypeName.STRING.typeDescriptor()))
             .collect(toSchema());
 
     assertEquals(2, schema.getFieldCount());
 
     assertEquals("f_int", schema.getField(0).getName());
-    assertEquals(FieldType.INT32, schema.getField(0).getTypeDescriptor().getType());
+    assertEquals(TypeName.INT32, schema.getField(0).getTypeDescriptor().getType());
     assertEquals("f_string", schema.getField(1).getName());
-    assertEquals(FieldType.STRING, schema.getField(1).getTypeDescriptor().getType());
+    assertEquals(TypeName.STRING, schema.getField(1).getTypeDescriptor().getType());
   }
 }
