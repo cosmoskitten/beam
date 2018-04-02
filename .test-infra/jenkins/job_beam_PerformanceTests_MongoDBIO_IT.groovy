@@ -19,6 +19,8 @@
 import common_job_properties
 
 job('beam_PerformanceTests_MongoDBIO_IT') {
+    disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 

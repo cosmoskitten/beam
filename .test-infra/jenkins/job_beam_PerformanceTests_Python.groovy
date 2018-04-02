@@ -19,7 +19,9 @@
 import common_job_properties
 
 // This job runs the Beam Python performance tests on PerfKit Benchmarker.
-job('beam_PerformanceTests_Python'){
+job('beam_PerformanceTests_Python') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   // Set default Beam job properties.
   common_job_properties.setTopLevelMainJobProperties(delegate)
 

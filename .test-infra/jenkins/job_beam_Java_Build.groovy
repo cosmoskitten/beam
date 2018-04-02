@@ -20,6 +20,8 @@ import common_job_properties
 
 // This is the Java Jenkins job which builds artifacts for downstream jobs to consume.
 mavenJob('beam_Java_Build') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Builds Beam Java SDK and archives artifacts. Meant to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.

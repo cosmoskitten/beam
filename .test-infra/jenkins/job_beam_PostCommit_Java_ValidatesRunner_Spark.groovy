@@ -20,6 +20,8 @@ import common_job_properties
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
 mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs the ValidatesRunner suite on the Spark runner.')
 
   previousNames('beam_PostCommit_Java_RunnableOnService_Spark')

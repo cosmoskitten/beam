@@ -21,6 +21,8 @@ import common_job_properties
 // This is the Python precommit which runs a maven install, and the current set
 // of precommit tests.
 mavenJob('beam_PreCommit_Python_MavenInstall') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs an install of the current GitHub Pull Request.')
 
   previousNames('beam_PreCommit_MavenVerify')

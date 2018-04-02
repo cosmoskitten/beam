@@ -20,6 +20,8 @@ import common_job_properties
 
 // This is the Java Jenkins job which runs the Beam code health checks.
 mavenJob('beam_Java_CodeHealth') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs Java code health checks. Meant to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.

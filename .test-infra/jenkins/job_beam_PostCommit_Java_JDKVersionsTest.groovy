@@ -20,6 +20,8 @@ import common_job_properties
 
 // This job runs the Java postcommit tests cross multiple JDK versions.
 matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Set common parameters.

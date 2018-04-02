@@ -21,6 +21,8 @@ import common_job_properties
 // This is the Python Jenkins job which runs a maven install, and the current set of precommit
 // tests.
 mavenJob('beam_Python_UnitTest') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs Python unit tests on a specific commit. Designed to be run by a pipeline job.')
 
   // Set standard properties for a job which is part of a pipeline.

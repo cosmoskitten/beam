@@ -20,6 +20,8 @@ import common_job_properties
 
 // This is the Java Jenkins job which runs the current set of standard unit tests.
 mavenJob('beam_Java_UnitTest') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs Java Surefire unit tests. Designed to be run by a pipeline job.')
 
   // Set standard properties for a job which is part of a pipeline.
