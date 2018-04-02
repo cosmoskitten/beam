@@ -63,26 +63,26 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
             FieldType.INT32, "order_id",
             FieldType.INT32, "site_id",
             FieldType.INT32, "price",
-            FieldType.INT32, "order_time"
+            FieldType.DATETIME, "order_time"
         )
         .timestampColumnIndex(3)
         .addRows(
             Duration.ZERO,
-            1, 1, 1, FIRST_DATE.getMillis(),
-            1, 2, 2, FIRST_DATE.getMillis()
+            1, 1, 1, FIRST_DATE,
+            1, 2, 2, FIRST_DATE
         )
         .addRows(
             WINDOW_SIZE.plus(Duration.standardSeconds(1)),
-            2, 2, 3, SECOND_DATE.getMillis(),
-            2, 3, 3, SECOND_DATE.getMillis(),
+            2, 2, 3, SECOND_DATE,
+            2, 3, 3, SECOND_DATE,
             // this late data is omitted
-            1, 2, 3, FIRST_DATE.getMillis()
+            1, 2, 3, FIRST_DATE
         )
         .addRows(
             WINDOW_SIZE.plus(WINDOW_SIZE).plus(Duration.standardSeconds(1)),
-            3, 3, 3, THIRD_DATE.getMillis(),
+            3, 3, 3, THIRD_DATE,
             // this late data is omitted
-            2, 2, 3, SECOND_DATE.getMillis()
+            2, 2, 3, SECOND_DATE
         )
     );
 

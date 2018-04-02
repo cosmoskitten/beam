@@ -158,7 +158,6 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
 
   //
   private static <T> T convertValue(T value, SqlTypeName typeName) {
-    // TODO: We should just convert Calcite to use either Joda or Java8 time.
     if (SqlTypeName.DATETIME_TYPES.contains(typeName)) {
       checkArgument(value instanceof ReadableInstant);
     }
