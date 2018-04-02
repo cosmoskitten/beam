@@ -598,7 +598,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this);
+      return new WindowedContextOutputReceiver<>(this, mainOutputTag);
     }
 
     @Override
@@ -741,7 +741,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this);
+      return new WindowedContextOutputReceiver<>(this, mainOutputTag);
     }
 
     @Override
