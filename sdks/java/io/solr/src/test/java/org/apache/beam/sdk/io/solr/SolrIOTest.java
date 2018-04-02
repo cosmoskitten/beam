@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.solr;
 
+import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
@@ -43,7 +44,9 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.cloud.SolrCloudTestCase;
 import org.apache.solr.common.SolrDocument;
@@ -328,5 +331,49 @@ public class SolrIOTest extends SolrCloudTestCase {
     }
 
     fail("Pipeline should not have run to completion");
+  }
+
+  /**
+   * Tests predicate performs as documented.
+   */
+  @Test
+  public void testDefaultRetryPredicate() {
+    assertTrue(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));
+    assertTrue(DEFAULT_RETRY_PREDICATE.test(new SolrServerException("test")));
+
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(new SolrException(SolrException.ErrorCode.CONFLICT, "test")));
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.SERVER_ERROR, "test")));
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.SERVICE_UNAVAILABLE, "test")));
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.INVALID_STATE, "test")));
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(new SolrException(SolrException.ErrorCode.UNKNOWN, "test")));
+    assertTrue(
+        DEFAULT_RETRY_PREDICATE.test(
+            new HttpSolrClient.RemoteSolrException(
+                "localhost",
+                SolrException.ErrorCode.SERVICE_UNAVAILABLE.code,
+                "test",
+                new Exception())));
+
+    assertFalse(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.BAD_REQUEST, "test")));
+    assertFalse(
+        DEFAULT_RETRY_PREDICATE.test(new SolrException(SolrException.ErrorCode.FORBIDDEN, "test")));
+    assertFalse(
+        DEFAULT_RETRY_PREDICATE.test(new SolrException(SolrException.ErrorCode.NOT_FOUND, "test")));
+    assertFalse(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.UNAUTHORIZED, "test")));
+    assertFalse(
+        DEFAULT_RETRY_PREDICATE.test(
+            new SolrException(SolrException.ErrorCode.UNSUPPORTED_MEDIA_TYPE, "test")));
   }
 }

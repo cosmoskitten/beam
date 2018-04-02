@@ -236,7 +236,8 @@ public class SolrIO {
    */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
-    private static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+    @VisibleForTesting
+    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
     abstract int getMaxAttempts();
 
@@ -286,13 +287,13 @@ public class SolrIO {
 
     /** This is the default predicate used to test if a failed Solr operation should be retried. */
     private static class DefaultRetryPredicate implements RetryPredicate {
-      private static final Set<SolrException.ErrorCode> ELIGIBLE_CODES =
+      private static final Set<Integer> ELIGIBLE_CODES =
           ImmutableSet.of(
-              SolrException.ErrorCode.CONFLICT,
-              SolrException.ErrorCode.SERVER_ERROR,
-              SolrException.ErrorCode.SERVICE_UNAVAILABLE,
-              SolrException.ErrorCode.INVALID_STATE,
-              SolrException.ErrorCode.UNKNOWN);
+              SolrException.ErrorCode.CONFLICT.code,
+              SolrException.ErrorCode.SERVER_ERROR.code,
+              SolrException.ErrorCode.SERVICE_UNAVAILABLE.code,
+              SolrException.ErrorCode.INVALID_STATE.code,
+              SolrException.ErrorCode.UNKNOWN.code);
 
       @Override
       public boolean test(Throwable t) {
