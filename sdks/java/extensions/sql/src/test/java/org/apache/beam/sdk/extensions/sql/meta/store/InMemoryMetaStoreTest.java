@@ -35,7 +35,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -135,7 +135,7 @@ public class InMemoryMetaStoreTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .typeDescriptor(FieldType.INT32.typeDescriptor())
+                .typeDescriptor(TypeName.INT32.typeDescriptor())
                 .primaryKey(true)
                 .build(),
             Column.builder()
