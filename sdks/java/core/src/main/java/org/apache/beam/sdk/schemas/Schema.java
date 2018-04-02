@@ -78,7 +78,7 @@ public abstract class Schema implements Serializable {
   /**
    * An enumerated list of supported types.
    */
-  public enum FieldType {
+  public enum TypeName {
     BYTE,    // One-byte signed integer.
     INT16,   // two-byte signed integer.
     INT32,   // four-byte signed integer.
@@ -92,12 +92,12 @@ public abstract class Schema implements Serializable {
     ARRAY,
     ROW;    // The field is itself a nested row.
 
-    public static final List<FieldType> NUMERIC_TYPES = ImmutableList.of(
+    public static final List<TypeName> NUMERIC_TYPES = ImmutableList.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
-    public static final List<FieldType> STRING_TYPES = ImmutableList.of(STRING);
-    public static final List<FieldType> DATE_TYPES = ImmutableList.of(DATETIME);
-    public static final List<FieldType> CONTAINER_TYPES = ImmutableList.of(ARRAY);
-    public static final List<FieldType> COMPOSITE_TYPES = ImmutableList.of(ROW);
+    public static final List<TypeName> STRING_TYPES = ImmutableList.of(STRING);
+    public static final List<TypeName> DATE_TYPES = ImmutableList.of(DATETIME);
+    public static final List<TypeName> CONTAINER_TYPES = ImmutableList.of(ARRAY);
+    public static final List<TypeName> COMPOSITE_TYPES = ImmutableList.of(ROW);
 
     public boolean isNumericType() {
       return NUMERIC_TYPES.contains(this);
@@ -128,7 +128,7 @@ public abstract class Schema implements Serializable {
   @AutoValue
   public abstract static class FieldTypeDescriptor implements Serializable {
     // Returns the type of this field.
-    public abstract FieldType getType();
+    public abstract TypeName getType();
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldTypeDescriptor getComponentType();
     // For ROW types, returns the schema for the row.
@@ -140,7 +140,7 @@ public abstract class Schema implements Serializable {
     abstract FieldTypeDescriptor.Builder toBuilder();
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setType(FieldType fieldType);
+      abstract Builder setType(TypeName typeName);
       abstract Builder setComponentType(@Nullable FieldTypeDescriptor componentType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
       abstract Builder setMetadata(@Nullable byte[] metadata);
@@ -150,8 +150,8 @@ public abstract class Schema implements Serializable {
     /**
      * Create a {@link FieldTypeDescriptor} for the given type.
      */
-    public static FieldTypeDescriptor of(FieldType fieldType) {
-      return new AutoValue_Schema_FieldTypeDescriptor.Builder().setType(fieldType).build();
+    public static FieldTypeDescriptor of(TypeName typeName) {
+      return new AutoValue_Schema_FieldTypeDescriptor.Builder().setType(typeName).build();
     }
 
     /**

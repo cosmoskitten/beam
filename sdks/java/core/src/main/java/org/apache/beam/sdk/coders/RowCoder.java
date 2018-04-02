@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.values.Row;
 
@@ -36,30 +36,30 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
-  private static final Map<FieldType, Coder> CODER_MAP = ImmutableMap.<FieldType, Coder>builder()
-      .put(FieldType.BYTE, ByteCoder.of())
-      .put(FieldType.INT16, BigEndianShortCoder.of())
-      .put(FieldType.INT32, BigEndianIntegerCoder.of())
-      .put(FieldType.INT64, BigEndianLongCoder.of())
-      .put(FieldType.DECIMAL, BigDecimalCoder.of())
-      .put(FieldType.FLOAT, FloatCoder.of())
-      .put(FieldType.DOUBLE, DoubleCoder.of())
-      .put(FieldType.STRING, StringUtf8Coder.of())
-      .put(FieldType.DATETIME, InstantCoder.of())
-      .put(FieldType.BOOLEAN, BooleanCoder.of())
+  private static final Map<TypeName, Coder> CODER_MAP = ImmutableMap.<TypeName, Coder>builder()
+      .put(TypeName.BYTE, ByteCoder.of())
+      .put(TypeName.INT16, BigEndianShortCoder.of())
+      .put(TypeName.INT32, BigEndianIntegerCoder.of())
+      .put(TypeName.INT64, BigEndianLongCoder.of())
+      .put(TypeName.DECIMAL, BigDecimalCoder.of())
+      .put(TypeName.FLOAT, FloatCoder.of())
+      .put(TypeName.DOUBLE, DoubleCoder.of())
+      .put(TypeName.STRING, StringUtf8Coder.of())
+      .put(TypeName.DATETIME, InstantCoder.of())
+      .put(TypeName.BOOLEAN, BooleanCoder.of())
       .build();
 
-  private static final Map<FieldType, Integer> ESTIMATED_FIELD_SIZES =
-      ImmutableMap.<FieldType, Integer>builder()
-          .put(FieldType.BYTE, Byte.BYTES)
-          .put(FieldType.INT16, Short.BYTES)
-          .put(FieldType.INT32, Integer.BYTES)
-          .put(FieldType.INT64, Long.BYTES)
-          .put(FieldType.FLOAT, Float.BYTES)
-          .put(FieldType.DOUBLE, Double.BYTES)
-          .put(FieldType.DECIMAL, 32)
-          .put(FieldType.BOOLEAN, 1)
-          .put(FieldType.DATETIME, Long.BYTES)
+  private static final Map<TypeName, Integer> ESTIMATED_FIELD_SIZES =
+      ImmutableMap.<TypeName, Integer>builder()
+          .put(TypeName.BYTE, Byte.BYTES)
+          .put(TypeName.INT16, Short.BYTES)
+          .put(TypeName.INT32, Integer.BYTES)
+          .put(TypeName.INT64, Long.BYTES)
+          .put(TypeName.FLOAT, Float.BYTES)
+          .put(TypeName.DOUBLE, Double.BYTES)
+          .put(TypeName.DECIMAL, 32)
+          .put(TypeName.BOOLEAN, 1)
+          .put(TypeName.DATETIME, Long.BYTES)
           .build();
 
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
@@ -69,8 +69,8 @@ public class RowCoder extends CustomCoder<Row> {
   /**
    * Returns the coder used for a given primitive type.
    */
-  public static <T> Coder<T> coderForPrimitiveType(FieldType fieldType) {
-    return (Coder<T>) CODER_MAP.get(fieldType);
+  public static <T> Coder<T> coderForPrimitiveType(TypeName typeName) {
+    return (Coder<T>) CODER_MAP.get(typeName);
   }
 
   /**
@@ -120,9 +120,9 @@ public class RowCoder extends CustomCoder<Row> {
   }
 
   Coder getCoder(FieldTypeDescriptor fieldTypeDescriptor) {
-    if (FieldType.ARRAY.equals(fieldTypeDescriptor.getType())) {
+    if (TypeName.ARRAY.equals(fieldTypeDescriptor.getType())) {
       return ListCoder.of(getCoder(fieldTypeDescriptor.getComponentType()));
-    } else if (FieldType.ROW.equals((fieldTypeDescriptor.getType()))) {
+    } else if (TypeName.ROW.equals((fieldTypeDescriptor.getType()))) {
       return RowCoder.of(fieldTypeDescriptor.getRowSchema());
     } else {
       return coderForPrimitiveType(fieldTypeDescriptor.getType());
