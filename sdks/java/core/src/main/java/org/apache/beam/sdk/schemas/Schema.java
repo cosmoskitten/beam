@@ -114,6 +114,11 @@ public abstract class Schema implements Serializable {
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
     }
+
+    /** Returns a {@link FieldTypeDescriptor} representing this primitive type. */
+    public FieldTypeDescriptor typeDescriptor() {
+      return FieldTypeDescriptor.of(this);
+    }
   }
 
   /**

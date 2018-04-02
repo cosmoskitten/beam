@@ -50,16 +50,16 @@ public class RowCoderTest {
   @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema = Schema.of(Lists.newArrayList(
-        Field.of("f_byte", FieldTypeDescriptor.of(FieldType.BYTE)),
-        Field.of("f_int16", FieldTypeDescriptor.of(FieldType.INT16)),
-        Field.of("f_int32", FieldTypeDescriptor.of(FieldType.INT32)),
-        Field.of("f_int64", FieldTypeDescriptor.of(FieldType.INT64)),
-        Field.of("f_decimal", FieldTypeDescriptor.of(FieldType.DECIMAL)),
-        Field.of("f_float", FieldTypeDescriptor.of(FieldType.FLOAT)),
-        Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)),
-        Field.of("f_string", FieldTypeDescriptor.of(FieldType.STRING)),
-        Field.of("f_datetime", FieldTypeDescriptor.of(FieldType.DATETIME)),
-        Field.of("f_boolean", FieldTypeDescriptor.of(FieldType.BOOLEAN))));
+        Field.of("f_byte", FieldType.BYTE.typeDescriptor()),
+        Field.of("f_int16", FieldType.INT16.typeDescriptor()),
+        Field.of("f_int32", FieldType.INT32.typeDescriptor()),
+        Field.of("f_int64", FieldType.INT64.typeDescriptor()),
+        Field.of("f_decimal", FieldType.DECIMAL.typeDescriptor()),
+        Field.of("f_float", FieldType.FLOAT.typeDescriptor()),
+        Field.of("f_double", FieldType.DOUBLE.typeDescriptor()),
+        Field.of("f_string", FieldType.STRING.typeDescriptor()),
+        Field.of("f_datetime", FieldType.DATETIME.typeDescriptor()),
+        Field.of("f_boolean", FieldType.BOOLEAN.typeDescriptor())));
 
     DateTime dateTime = new DateTime().withDate(1979, 03, 14)
         .withTime(1, 2, 3, 4)
@@ -76,11 +76,11 @@ public class RowCoderTest {
   @Test
   public void testNestedTypes() throws Exception {
     Schema nestedSchema = Schema.of(
-        Field.of("f1_int", FieldTypeDescriptor.of(FieldType.INT32)),
-        Field.of("f1_str", FieldTypeDescriptor.of(FieldType.STRING)));
+        Field.of("f1_int", FieldType.INT32.typeDescriptor()),
+        Field.of("f1_str", FieldType.STRING.typeDescriptor()));
     Schema schema = Schema.of(
-        Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
-        Field.of("nested", FieldTypeDescriptor.of(FieldType.ROW).withRowSchema(nestedSchema)));
+        Field.of("f_int", FieldType.INT32.typeDescriptor()),
+        Field.of("nested", FieldType.ROW.typeDescriptor().withRowSchema(nestedSchema)));
 
     Row nestedRow = Row.withSchema(nestedSchema).addValues(18, "foobar").build();
     Row row = Row.withSchema(schema).addValues(42, nestedRow).build();
@@ -89,8 +89,8 @@ public class RowCoderTest {
 
   @Test
   public void testArrays() throws Exception {
-    FieldTypeDescriptor arrayType = FieldTypeDescriptor.of(FieldType.ARRAY)
-        .withComponentType(FieldTypeDescriptor.of(FieldType.STRING));
+    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
+        .withComponentType(FieldType.STRING.typeDescriptor());
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Row row = Row.withSchema(schema).addArray("one", "two", "three", "four").build();
     checkEncodeDecode(row);
@@ -99,10 +99,10 @@ public class RowCoderTest {
   @Test
   public void testArrayOfRow() throws Exception {
     Schema nestedSchema = Schema.of(
-        Field.of("f1_int", FieldTypeDescriptor.of(FieldType.INT32)),
-        Field.of("f1_str", FieldTypeDescriptor.of(FieldType.STRING)));
-    FieldTypeDescriptor arrayType = FieldTypeDescriptor.of(FieldType.ARRAY)
-        .withComponentType(FieldTypeDescriptor.of(FieldType.ROW)
+        Field.of("f1_int", FieldType.INT32.typeDescriptor()),
+        Field.of("f1_str", FieldType.STRING.typeDescriptor()));
+    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
+        .withComponentType(FieldType.ROW.typeDescriptor()
             .withRowSchema(nestedSchema));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Row row = Row.withSchema(schema).addArray(
@@ -115,9 +115,9 @@ public class RowCoderTest {
 
   @Test
   public void testArrayOfArray() throws Exception {
-    FieldTypeDescriptor arrayType = FieldTypeDescriptor.of(FieldType.ARRAY)
-        .withComponentType(FieldTypeDescriptor.of(FieldType.ARRAY)
-            .withComponentType(FieldTypeDescriptor.of(FieldType.INT32)));
+    FieldTypeDescriptor arrayType = FieldType.ARRAY.typeDescriptor()
+        .withComponentType(FieldType.ARRAY.typeDescriptor()
+            .withComponentType(FieldType.INT32.typeDescriptor()));
     Schema schema = Schema.of(Field.of("f_array", arrayType));
     Row row = Row.withSchema(schema).addArray(
         Lists.newArrayList(1, 2, 3, 4),

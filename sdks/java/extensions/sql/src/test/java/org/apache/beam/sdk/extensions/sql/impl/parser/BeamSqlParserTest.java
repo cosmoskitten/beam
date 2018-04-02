@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
@@ -165,14 +164,13 @@ public class BeamSqlParserTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.INT32))
+                .typeDescriptor(FieldType.INT32.typeDescriptor())
                 .primaryKey(false)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING)
-                    .withMetadata(CalciteUtils.typeToMetadata(SqlTypeName.VARCHAR)))
+                .typeDescriptor(CalciteUtils.toFieldTypeDescriptor(SqlTypeName.VARCHAR))
                 .primaryKey(false)
                 .comment("name")
                 .build()
