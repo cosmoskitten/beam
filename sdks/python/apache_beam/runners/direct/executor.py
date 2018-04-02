@@ -315,7 +315,8 @@ class TransformExecutor(_ExecutorService.CallableTask):
         # Find the projection of main's window onto the side input's window.
         window_mapping_fn = side_input._view_options().get(
             'window_mapping_fn', sideinputs._global_window_mapping_fn)
-        main_onto_side_window = window_mapping_fn(self._latest_main_input_window)
+        main_onto_side_window = window_mapping_fn(
+            self._latest_main_input_window)
         block_until = main_onto_side_window.end
 
         if side_input not in self._side_input_values:
@@ -326,8 +327,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
             # available.
             return
           self._side_input_values[side_input] = value
-      side_input_values = [self._side_input_values[side_input]
-                           for side_input in self._applied_ptransform.side_inputs]
+      side_input_values = [
+          self._side_input_values[side_input]
+          for side_input in self._applied_ptransform.side_inputs]
 
       while self._retry_count < self._max_retries_per_bundle:
         try:
