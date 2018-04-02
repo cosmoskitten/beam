@@ -555,7 +555,6 @@ class DoFnRunner(Receiver):
 
     # TODO(BEAM-3937): Remove if block after output counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    per_element_output_counter = None
     # Experimental flag format: experimental-name_version-number.
     # Specify version number to ensure old SDKs will not be affected by features
     # rollout.
@@ -566,6 +565,8 @@ class DoFnRunner(Receiver):
                       step_name=operation_name))
       per_element_output_counter = state._counter_factory.get_counter(
           per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
+    else:
+      per_element_output_counter = None
 
     output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers,
