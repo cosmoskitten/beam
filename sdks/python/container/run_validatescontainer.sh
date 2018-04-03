@@ -105,7 +105,7 @@ python setup.py nosetests \
 
 # Delete the container locally and remotely
 docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-echo "y" | gcloud container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
 
 # Clean up tempdir
 rm -rf $TMPDIR
