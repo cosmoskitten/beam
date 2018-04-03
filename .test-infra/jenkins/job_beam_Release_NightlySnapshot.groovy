@@ -22,6 +22,8 @@ import common_job_properties
 // to https://repository.apache.org/content/groups/snapshots/org/apache/beam.
 // Runs the postsubmit suite before deploying.
 mavenJob('beam_Release_NightlySnapshot') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs a mvn clean deploy of the nightly snapshot.')
 
   // Execute concurrent builds if necessary.

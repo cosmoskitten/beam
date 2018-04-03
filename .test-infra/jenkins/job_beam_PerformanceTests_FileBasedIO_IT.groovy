@@ -88,6 +88,8 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 
     // This job runs the file-based IOs performance tests on PerfKit Benchmarker.
     job(testConfiguration.jobName) {
+        disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
         description(testConfiguration.jobDescription)
 
         // Set default Beam job properties.

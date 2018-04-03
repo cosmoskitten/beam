@@ -20,6 +20,8 @@ import common_job_properties
 
 // This is the Java postcommit which runs maven install targeting Jenkins running on Windows.
 mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs postcommit tests on Windows for the Java SDK.')
 
   // Execute concurrent builds if necessary.

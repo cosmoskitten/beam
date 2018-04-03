@@ -21,6 +21,8 @@ import common_job_properties
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
 mavenJob('beam_PostCommit_Java_MavenInstall') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs postcommit tests on the Java SDK.')
 
   previousNames('beam_PostCommit_MavenVerify')

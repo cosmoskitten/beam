@@ -21,6 +21,8 @@ import common_job_properties
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
 job('beam_PostCommit_Python_ValidatesContainer_Dataflow') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
   // Set common parameters.

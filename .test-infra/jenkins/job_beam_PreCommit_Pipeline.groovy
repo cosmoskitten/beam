@@ -22,6 +22,8 @@ import common_job_properties
 // This job owns the overall execution of the precommit pipeline. The actual pipeline code is in
 // Precommit_Pipeline.groovy.
 pipelineJob('beam_PreCommit_Pipeline') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('PreCommit Pipeline Job. Owns overall lifecycle of PreCommit tests.')
 
   properties {

@@ -21,6 +21,8 @@ import common_job_properties
 // This job runs the suite of ValidatesRunner tests against the Gearpump
 // runner.
 mavenJob('beam_PostCommit_Java_ValidatesRunner_Gearpump') {
+  disabled()  // [BEAM-3249] Disabled for Maven -> Gradle fixit day.
+
   description('Runs the ValidatesRunner suite on the Gearpump runner.')
 
   previousNames('beam_PostCommit_Java_RunnableOnService_Gearpump')
