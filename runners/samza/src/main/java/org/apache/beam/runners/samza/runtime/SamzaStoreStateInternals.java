@@ -143,16 +143,15 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
   /**
    * Reuse the ByteArrayOutputStream buffer.
    */
-  private ByteArrayOutputStream getBaos() {
+  private static ByteArrayOutputStream getThreadLocalBaos() {
     final SoftReference<ByteArrayOutputStream> refBaos = threadLocalBaos.get();
-    final ByteArrayOutputStream baos;
-    if (refBaos == null) {
+    ByteArrayOutputStream baos = refBaos == null ? null : refBaos.get();
+    if (baos == null) {
       baos = new ByteArrayOutputStream();
       threadLocalBaos.set(new SoftReference<>(baos));
-    } else {
-      baos = refBaos.get();
-      baos.reset();
     }
+
+    baos.reset();
     return baos;
   }
 
@@ -202,7 +201,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
                                  Coder<T> coder) {
       this.coder = coder;
 
-      final ByteArrayOutputStream baos = getBaos();
+      final ByteArrayOutputStream baos = getThreadLocalBaos();
       final DataOutputStream dos = new DataOutputStream(baos);
 
       this.namespace = namespace.stringKey();
@@ -252,7 +251,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     protected byte[] encodeValue(T value) {
-      final ByteArrayOutputStream baos = getBaos();
+      final ByteArrayOutputStream baos = getThreadLocalBaos();
       try {
         coder.encode(value, baos);
       } catch (IOException e) {
@@ -393,7 +392,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
     private byte[] encodeKey(int size) {
       try {
-        final ByteArrayOutputStream baos = getBaos();
+        final ByteArrayOutputStream baos = getThreadLocalBaos();
         final DataOutputStream dos = new DataOutputStream(baos);
         dos.write(getEncodedStoreKey());
         dos.writeInt(size);
