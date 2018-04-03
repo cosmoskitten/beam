@@ -70,12 +70,12 @@ public class KafkaTableProviderTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .typeDescriptor(TypeName.INT32.typeDescriptor())
+                .typeDescriptor(TypeName.INT32.type())
                 .primaryKey(true)
             .build(),
             Column.builder()
                 .name("name")
-                .typeDescriptor(CalciteUtils.toFieldTypeDescriptor(SqlTypeName.VARCHAR))
+                .typeDescriptor(CalciteUtils.toFieldType(SqlTypeName.VARCHAR))
                 .primaryKey(false)
                 .build()))
         .type("kafka")

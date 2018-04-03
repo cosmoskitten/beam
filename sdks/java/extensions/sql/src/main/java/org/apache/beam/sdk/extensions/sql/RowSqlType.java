@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.type.RelDataType;
@@ -37,7 +35,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * <a href="https://beam.apache.org/documentation/dsls/sql/#data-types">data types</a>
  * for more details.
  *
+ * <p>TODO: We should remove this class in favor of directly using Beam.Schema.Builder
+ *
  */
+@Experimental
 public class RowSqlType {
   public static Builder builder() {
     return new Builder();
@@ -47,106 +48,119 @@ public class RowSqlType {
    * Builder class to construct {@link Schema}.
    */
   public static class Builder {
+    Schema.Builder builder;
 
-    private ImmutableList.Builder<Schema.Field> fields;
-
-    private Builder withField(String fieldName, Schema.FieldTypeDescriptor fieldTypeDescriptor) {
-      // For now, we mark all fields as Nullable. Calcite supports nullable annotations, so
-      // TODO: Support proper nullable annotations in SQL. Note that Join schemas still need to be
-      // marked nullable (for the case of outer joins).
-      fields.add(Field.of(fieldName, fieldTypeDescriptor)
-          .withNullable(true));
+    public Builder withTinyIntField(String fieldName) {
+      builder.addByteField(fieldName, true);
       return this;
     }
 
-    public Builder withTinyIntField(String fieldName) {
-      return withField(fieldName, TypeName.BYTE.typeDescriptor());
-    }
-
     public Builder withSmallIntField(String fieldName) {
-      return withField(fieldName, TypeName.INT16.typeDescriptor());
+      builder.addInt16Field(fieldName, true);
+      return this;
     }
 
     public Builder withIntegerField(String fieldName) {
-      return withField(fieldName, TypeName.INT32.typeDescriptor());
+      builder.addInt32Field(fieldName, true);
+      return this;
     }
 
     public Builder withBigIntField(String fieldName) {
-      return withField(fieldName, TypeName.INT64.typeDescriptor());
+      builder.addInt64Field(fieldName, true);
+      return this;
     }
 
     public Builder withFloatField(String fieldName) {
-      return withField(fieldName, TypeName.FLOAT.typeDescriptor());
+      builder.addFloatField(fieldName, true);
+      return this;
     }
 
     public Builder withDoubleField(String fieldName) {
-      return withField(fieldName, TypeName.DOUBLE.typeDescriptor());
+      builder.addDoubleField(fieldName, true);
+      return this;
     }
 
     public Builder withDecimalField(String fieldName) {
-      return withField(fieldName, TypeName.DECIMAL.typeDescriptor());
+      builder.addDecimalField(fieldName, true);
+      return this;
     }
 
     public Builder withBooleanField(String fieldName) {
-      return withField(fieldName, TypeName.BOOLEAN.typeDescriptor());
+      builder.addBooleanField(fieldName, true);
+      return this;
     }
 
     public Builder withCharField(String fieldName) {
-      return withField(fieldName, CalciteUtils.toFieldTypeDescriptor(SqlTypeName.CHAR));
+       builder.addField(Field.of(fieldName,
+           CalciteUtils.toFieldType(SqlTypeName.CHAR)).withNullable(true));
+       return this;
     }
 
     public Builder withVarcharField(String fieldName) {
-      return withField(fieldName, CalciteUtils.toFieldTypeDescriptor(SqlTypeName.VARCHAR));
-    }
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toFieldType(SqlTypeName.VARCHAR)).withNullable(true));
+      return this;    }
 
     public Builder withTimeField(String fieldName) {
-      return withField(fieldName, CalciteUtils.toFieldTypeDescriptor(SqlTypeName.TIME));
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toFieldType(SqlTypeName.TIME)).withNullable(true));
+      return this;
     }
 
     public Builder withDateField(String fieldName) {
-      return withField(fieldName, CalciteUtils.toFieldTypeDescriptor(SqlTypeName.DATE));
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toFieldType(SqlTypeName.DATE)).withNullable(true));
+      return this;
     }
 
     public Builder withTimestampField(String fieldName) {
-      return withField(fieldName, CalciteUtils.toFieldTypeDescriptor(SqlTypeName.TIMESTAMP));
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toFieldType(SqlTypeName.TIMESTAMP)).withNullable(true));
+      return this;
     }
 
     /**
      * Adds an ARRAY field with elements of the give type.
      */
     public Builder withArrayField(String fieldName, RelDataType relDataType) {
-      return withField(fieldName, CalciteUtils.toArrayTypeDescriptor(relDataType));
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toArrayType(relDataType)));
+      return this;
     }
 
     /**
      * Adds an ARRAY field with elements of the give type.
      */
     public Builder withArrayField(String fieldName, SqlTypeName typeName) {
-      return withField(fieldName, CalciteUtils.toArrayTypeDescriptor(typeName));
+      builder.addField(Field.of(fieldName,
+          CalciteUtils.toArrayType(typeName)));
+      return this;
     }
 
     /**
      * Adds an ARRAY field with elements of {@code rowType}.
      */
     public Builder withArrayField(String fieldName, Schema schema) {
-      FieldTypeDescriptor componentType =
-          FieldTypeDescriptor
+      FieldType componentType =
+          FieldType
               .of(TypeName.ROW)
               .withRowSchema(schema);
-      return withField(fieldName, TypeName.ARRAY.typeDescriptor()
-          .withComponentType(componentType));
+      builder.addField(Field.of(fieldName,
+          TypeName.ARRAY.type().withComponentType(componentType)));
+      return this;
     }
 
     public Builder withRowField(String fieldName, Schema schema) {
-      return withField(fieldName, TypeName.ROW.typeDescriptor().withRowSchema(schema));
+       builder.addRowField(fieldName, schema, true);
+       return this;
     }
 
     private Builder() {
-      this.fields = ImmutableList.builder();
+      this.builder = Schema.builder();
     }
 
     public Schema build() {
-      return fields.build().stream().collect(toSchema());
+      return builder.build();
     }
   }
 }
