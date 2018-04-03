@@ -32,7 +32,7 @@ import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -150,7 +150,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
             exps.stream()
                 .map(exp -> Schema.Field.of(
                     exp.getKey(),
-                    FieldTypeDescriptor.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
+                    FieldType.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
                 .collect(toSchema());
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());

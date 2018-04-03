@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
@@ -33,7 +32,7 @@ import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -196,8 +195,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Byte getByte(int idx) {
-    checkState(
-        TypeName.BYTE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -206,8 +203,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Short getInt16(int idx) {
-    checkState(
-        TypeName.INT16.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -216,8 +211,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Integer getInt32(int idx) {
-    checkState(
-        TypeName.INT32.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -226,8 +219,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Float getFloat(int idx) {
-    checkState(
-        TypeName.FLOAT.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -236,8 +227,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Double getDouble(int idx) {
-    checkState(
-        TypeName.DOUBLE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -246,8 +235,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Long getInt64(int idx) {
-    checkState(
-        TypeName.INT64.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -256,8 +243,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public String getString(int idx) {
-    checkState(
-        TypeName.STRING.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -275,8 +260,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public BigDecimal getDecimal(int idx) {
-    checkState(
-        TypeName.DECIMAL.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -285,8 +268,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public boolean getBoolean(int idx) {
-    checkState(
-        TypeName.BOOLEAN.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -295,8 +276,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public <T> List<T> getArray(int idx) {
-    checkState(
-        TypeName.ARRAY.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -305,8 +284,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Row getRow(int idx) {
-    checkState(
-        TypeName.ROW.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -401,15 +378,15 @@ public abstract class Row implements Serializable {
           }
           verifiedValues.add(null);
         } else {
-          FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();
-          if (TypeName.ARRAY.equals(typeDescriptor.getType())) {
+          FieldType type = field.getType();
+          if (TypeName.ARRAY.equals(type.getTypeName())) {
             List<Object> arrayElements = verifyArray(
-                value, typeDescriptor.getComponentType(), field.getName());
+                value, type.getComponentType(), field.getName());
             verifiedValues.add(arrayElements);
-          } else if (TypeName.ROW.equals(typeDescriptor.getType())) {
+          } else if (TypeName.ROW.equals(type.getTypeName())) {
             verifiedValues.add(verifyRow(value, field.getName()));
           } else {
-            verifiedValues.add(verifyPrimitiveType(value, typeDescriptor.getType(),
+            verifiedValues.add(verifyPrimitiveType(value, type.getTypeName(),
                 field.getName()));
           }
         }
@@ -417,7 +394,7 @@ public abstract class Row implements Serializable {
       return verifiedValues;
     }
 
-    private List<Object> verifyArray(Object value, FieldTypeDescriptor componentType,
+    private List<Object> verifyArray(Object value, FieldType componentType,
                                      String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
@@ -427,14 +404,14 @@ public abstract class Row implements Serializable {
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        if (TypeName.ARRAY.equals(componentType.getType())) {
+        if (TypeName.ARRAY.equals(componentType.getTypeName())) {
           verifiedList.add(verifyArray(listValue, componentType.getComponentType(),
               fieldName + "nested"));
-        } else if (TypeName.ROW.equals(componentType.getType())) {
+        } else if (TypeName.ROW.equals(componentType.getTypeName())) {
           verifiedList.add(verifyRow(listValue, fieldName));
         } else {
           verifiedList.add(verifyPrimitiveType(listValue,
-              componentType.getType(), fieldName));
+              componentType.getTypeName(), fieldName));
         }
       }
       return verifiedList;
