@@ -88,194 +88,31 @@ import org.joda.time.Instant;
 public class RabbitMqIO {
 
   public static Read read() {
-    return new AutoValue_RabbitMqIO_Read.Builder()
-        .setConnectionConfig(ConnectionConfig.create()).setQueueDeclare(false)
+    return new AutoValue_RabbitMqIO_Read.Builder().setQueueDeclare(false)
         .setMaxReadTime(null).setMaxNumRecords(Long.MAX_VALUE).setUseCorrelationId(false).build();
   }
 
   public static Write write() {
-    return new AutoValue_RabbitMqIO_Write.Builder()
-        .setConnectionConfig(ConnectionConfig.create())
-        .setExchangeDeclare(false).build();
+    return new AutoValue_RabbitMqIO_Write.Builder().setExchangeDeclare(false).build();
   }
 
   private RabbitMqIO() {
   }
 
-  /**
-   * Describe a connection configuration to a RabbitMQ server.
-   */
-  @AutoValue
-  public abstract static class ConnectionConfig implements Serializable {
+  private static ConnectionFactory createConnectionFactory(String uri) throws URISyntaxException,
+          NoSuchAlgorithmException, KeyManagementException {
+    ConnectionFactory connectionFactory = new ConnectionFactory();
+    connectionFactory.setUri(uri);
 
-    @Nullable abstract String uri();
+    connectionFactory.setAutomaticRecoveryEnabled(true);
+    connectionFactory.setConnectionTimeout(60000);
+    connectionFactory.setNetworkRecoveryInterval(5000);
+    connectionFactory.setRequestedHeartbeat(60);
+    connectionFactory.setTopologyRecoveryEnabled(true);
+    connectionFactory.setRequestedChannelMax(0);
+    connectionFactory.setRequestedFrameMax(0);
 
-    abstract int networkRecoveryInterval();
-    abstract boolean automaticRecovery();
-    abstract boolean topologyRecovery();
-
-    abstract int connectionTimeout();
-    abstract int requestedChannelMax();
-    abstract int requestedFrameMax();
-    abstract int requestedHeartbeat();
-
-    abstract Builder builder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setUri(String uri);
-      abstract Builder setNetworkRecoveryInterval(int networkRecoveryInterval);
-      abstract Builder setAutomaticRecovery(boolean automaticRecovery);
-      abstract Builder setTopologyRecovery(boolean topologyRecovery);
-      abstract Builder setConnectionTimeout(int connectionTimeout);
-      abstract Builder setRequestedChannelMax(int requestedChannelMax);
-      abstract Builder setRequestedFrameMax(int requestedFrameMax);
-      abstract Builder setRequestedHeartbeat(int requestedHeartbeat);
-      abstract ConnectionConfig build();
-    }
-
-    public static ConnectionConfig create() {
-      return new AutoValue_RabbitMqIO_ConnectionConfig.Builder()
-          .setUri("amqp://localhost:5672")
-          .setAutomaticRecovery(true)
-          .setTopologyRecovery(true)
-          .setConnectionTimeout(60000)
-          .setRequestedChannelMax(0)
-          .setRequestedFrameMax(0)
-          .setRequestedHeartbeat(60)
-          .setNetworkRecoveryInterval(5000)
-          .build();
-    }
-
-    /**
-     * Create a RabbitMQ connection configuration with broker URI and a queue name.
-     *
-     * @param uri The RabbitMQ server URI.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public static ConnectionConfig create(String uri) {
-      checkArgument(uri != null, "uri can not be null");
-      return new AutoValue_RabbitMqIO_ConnectionConfig.Builder()
-          .setUri(uri)
-          .setAutomaticRecovery(true)
-          .setTopologyRecovery(true)
-          .setConnectionTimeout(60000)
-          .setRequestedChannelMax(0)
-          .setRequestedFrameMax(0)
-          .setRequestedHeartbeat(60)
-          .setNetworkRecoveryInterval(5000)
-          .build();
-    }
-
-    /**
-     * Define the RabbitMQ URI.
-     *
-     * @param uri The RabbitMQ URI.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withUri(String uri) {
-      checkArgument(uri != null, "uri can not be null");
-      return builder().setUri(uri).build();
-    }
-
-    /**
-     * Define the RabbitMQ connection network recovery interval.
-     *
-     * @param networkRecoveryInterval The network recovery interval (in ms).
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withNetworkRecoveryInterval(int networkRecoveryInterval) {
-      checkArgument(networkRecoveryInterval >= 0,
-          "networkRecoveryInterval has to be positive or 0");
-      return builder().setNetworkRecoveryInterval(networkRecoveryInterval).build();
-    }
-
-    /**
-     * Define the RabbitMQ connection automatic recovery.
-     *
-     * @param automaticRecovery True to enable automatic recovery on the RabbitMQ connection,
-     *                          false else.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withAutomaticRecovery(boolean automaticRecovery) {
-      return builder().setAutomaticRecovery(automaticRecovery).build();
-    }
-
-    /**
-     * Define the RabbitMQ connection topology recovery.
-     *
-     * @param topologyRecovery True to enable topology recovery on the RabbitMQ connection, false
-     *                         else.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withTopologyRecovery(boolean topologyRecovery) {
-      return builder().setTopologyRecovery(topologyRecovery).build();
-    }
-
-    /**
-     * Define the RabbitMQ connection timeout.
-     *
-     * @param connectionTimeout The connection timeout in ms.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withConnectionTimeout(int connectionTimeout) {
-      checkArgument(connectionTimeout >= 0,
-          "connectionTimeout has to be positive or 0");
-      return builder().setConnectionTimeout(connectionTimeout).build();
-    }
-
-    /**
-     * Define the RabbitMQ requested channel max number.
-     *
-     * @param requestedChannelMax The max number of requested channel.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withRequestedChannelMax(int requestedChannelMax) {
-      checkArgument(requestedChannelMax >= 0,
-          "requestedChannelMax has to be positive or 0");
-      return builder().setRequestedChannelMax(requestedChannelMax).build();
-    }
-
-    /**
-     * Define the RabbitMQ requested frame max number.
-     *
-     * @param requestedFrameMax The max number of requested frame.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withRequestedFrameMax(int requestedFrameMax) {
-      checkArgument(requestedFrameMax >= 0,
-          "requestedFrameMax has to be positive or 0");
-      return builder().setRequestedFrameMax(requestedFrameMax).build();
-    }
-
-    /**
-     * Define the RabbitMQ requested heartbeat number.
-     *
-     * @param requestedHeartbeat The number of requested heartbeat to perform.
-     * @return The corresponding {@link ConnectionConfig}.
-     */
-    public ConnectionConfig withRequestedHeartbeat(int requestedHeartbeat) {
-      checkArgument(requestedHeartbeat >= 0,
-          "requestedHeartbeat has to be positive or 0");
-      return builder().setRequestedHeartbeat(requestedHeartbeat).build();
-    }
-
-    ConnectionFactory createConnectionFactory() throws URISyntaxException,
-        NoSuchAlgorithmException, KeyManagementException {
-      ConnectionFactory connectionFactory = new ConnectionFactory();
-      connectionFactory.setUri(uri());
-
-      connectionFactory.setAutomaticRecoveryEnabled(automaticRecovery());
-      connectionFactory.setConnectionTimeout(connectionTimeout());
-      connectionFactory.setNetworkRecoveryInterval(networkRecoveryInterval());
-      connectionFactory.setRequestedHeartbeat(requestedHeartbeat());
-      connectionFactory.setTopologyRecoveryEnabled(topologyRecovery());
-      connectionFactory.setRequestedChannelMax(requestedChannelMax());
-      connectionFactory.setRequestedFrameMax(requestedFrameMax());
-
-      return connectionFactory;
-    }
-
+    return connectionFactory;
   }
 
   /**
@@ -284,7 +121,7 @@ public class RabbitMqIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<RabbitMqMessage>> {
 
-    @Nullable abstract ConnectionConfig connectionConfig();
+    @Nullable abstract String uri();
     @Nullable abstract String queue();
     abstract boolean queueDeclare();
     @Nullable abstract String exchange();
@@ -298,7 +135,7 @@ public class RabbitMqIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setConnectionConfig(ConnectionConfig connectionConfig);
+      abstract Builder setUri(String uri);
       abstract Builder setQueue(String queue);
       abstract Builder setQueueDeclare(boolean queueDeclare);
       abstract Builder setExchange(String exchange);
@@ -310,14 +147,9 @@ public class RabbitMqIO {
       abstract Read build();
     }
 
-    public Read withConnectionConfig(ConnectionConfig connectionConfig) {
-      checkArgument(connectionConfig != null, "connectionConfig can not be null");
-      return builder().setConnectionConfig(connectionConfig).build();
-    }
-
     public Read withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
-      return builder().setConnectionConfig(connectionConfig().withUri(uri)).build();
+      return builder().setUri(uri).build();
     }
 
     public Read withQueue(String queue) {
@@ -513,8 +345,7 @@ public class RabbitMqIO {
     public boolean start() throws IOException {
       ConnectionFactory connectionFactory;
       try {
-        connectionFactory =
-            source.spec.connectionConfig().createConnectionFactory();
+        connectionFactory = createConnectionFactory(source.spec.uri());
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -609,7 +440,7 @@ public class RabbitMqIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<RabbitMqMessage>, PDone> {
 
-    @Nullable abstract ConnectionConfig connectionConfig();
+    @Nullable abstract String uri();
     @Nullable abstract String exchange();
     @Nullable abstract String exchangeType();
     abstract boolean exchangeDeclare();
@@ -618,24 +449,16 @@ public class RabbitMqIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setConnectionConfig(ConnectionConfig connectionConfig);
+      abstract Builder setUri(String uri);
       abstract Builder setExchange(String exchange);
       abstract Builder setExchangeType(String exchangeType);
       abstract Builder setExchangeDeclare(boolean exchangeDeclare);
       abstract Write build();
     }
 
-    /**
-     * Define the {@link ConnectionConfig} to RabbitMQ server.
-     */
-    public Write withConnectionConfig(ConnectionConfig connectionConfig) {
-      checkArgument(connectionConfig != null, "connectionConfig can not be null");
-      return builder().setConnectionConfig(connectionConfig).build();
-    }
-
     public Write withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
-      return builder().setConnectionConfig(connectionConfig().withUri(uri)).build();
+      return builder().setUri(uri).build();
     }
 
     public Write withExchange(String exchange, String exchangeType) {
@@ -671,7 +494,7 @@ public class RabbitMqIO {
 
       @Setup
       public void setup() throws Exception {
-        ConnectionFactory connectionFactory = spec.connectionConfig().createConnectionFactory();
+        ConnectionFactory connectionFactory = createConnectionFactory(spec.uri());
         connection = connectionFactory.newConnection();
         channel = connection.createChannel();
         if (channel == null) {
