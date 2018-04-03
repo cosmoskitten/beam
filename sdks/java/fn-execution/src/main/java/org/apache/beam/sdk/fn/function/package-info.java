@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Java 8 functional interface extensions.
- */
-package org.apache.beam.fn.harness.fn;
+/** Java 8 functional utilities for fn-execution. */
+package org.apache.beam.sdk.fn.function;

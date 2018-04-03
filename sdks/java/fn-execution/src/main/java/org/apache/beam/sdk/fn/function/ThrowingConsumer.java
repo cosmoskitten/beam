@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.fn.function;
 
-package org.apache.beam.fn.harness.fn;
-
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /**
- * A {@link Function} which can throw {@link Exception}s.
+ * A {@link Consumer} which can throw {@link Exception}s.
  *
  * <p>Used to expand the allowed set of method references to be used by Java 8
  * functional interfaces.
  */
 @FunctionalInterface
-public interface ThrowingFunction<T1, T2> {
-  T2 apply(T1 value) throws Exception;
+public interface ThrowingConsumer<T> {
+  void accept(T t) throws Exception;
 }
