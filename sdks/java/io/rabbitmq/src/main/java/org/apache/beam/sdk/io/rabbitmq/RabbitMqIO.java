@@ -71,8 +71,7 @@ import org.joda.time.Instant;
  *
  * <p>{@link RabbitMqIO} {@link Write} can send {@code byte[]} to a RabbitMQ server queue.
  *
- * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ
- * {@link ConnectionConfig}.
+ * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ URI.
  *
  * <p>For instance:
  *
@@ -152,24 +151,37 @@ public class RabbitMqIO {
       return builder().setUri(uri).build();
     }
 
+    /**
+     * If you want to directly consume messages from a specific queue, you just have to specify the
+     * queue name. Optionally, you can declare the queue
+     * using {@link RabbitMqIO.Read#withQueueDeclare(boolean)}.
+     */
     public Read withQueue(String queue) {
       checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
 
+    /**
+     * You can "force" the declaration of a queue on the RabbitMQ broker. Exchanges and queues
+     * are the high-level building blocks of AMQP. These must be "declared" before they can be used.
+     * Declaring either type of object simply ensures that one of that name exists, creating it if
+     * necessary.
+     *
+     * @param queueDeclare If {@code true}, {@link RabbitMqIO} will declare the queue. If another
+     *                     application declare the queue, it's not required.
+     */
     public Read withQueueDeclare(boolean queueDeclare) {
       return builder().setQueueDeclare(queueDeclare).build();
     }
 
+    /**
+     * Instead of consuming messages on a specific queue, you can consume message from a given
+     * exchange. Then you specify the exchange name, type and optionnally routing key where you
+     * want to consume messages.
+     */
     public Read withExchange(String name, String type, String routingKey) {
       checkArgument(name != null, "name can not be null");
       checkArgument(type != null, "type can not be null");
-      checkArgument(routingKey != null, "routingKey can not be null");
-      checkArgument(type.equals("direct")
-              || type.equals("topic")
-              || type.equals("headers")
-              || type.equals("fanout"),
-          "exchangeType should be direct, topic, headers, fanout");
       return builder().setExchange(name).setExchangeType(type).setRoutingKey(routingKey).build();
     }
 
@@ -357,16 +369,21 @@ public class RabbitMqIO {
         }
         String queueName = source.spec.queue();
         if (source.spec.queueDeclare()) {
+          // declare the quueue (if not done by another application)
+          // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
           channel.queueDeclare(queueName, false, false, false, null);
         }
         if (source.spec.exchange() != null) {
           channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
-          queueName = channel.queueDeclare().getQueue();
+          if (queueName == null) {
+            queueName = channel.queueDeclare().getQueue();
+          }
           channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
         checkpointMark.channel = channel;
         consumer = new QueueingConsumer(channel);
         channel.txSelect();
+        // we consume message without autoAck (we want to do the ack ourselves)
         channel.basicConsume(queueName, false, consumer);
       } catch (Exception e) {
         throw new IOException(e);
@@ -461,16 +478,23 @@ public class RabbitMqIO {
       return builder().setUri(uri).build();
     }
 
+    /**
+     * Defines the exchange where the messages will be sent. The exchange has to be declared. It
+     * can be done by another application or by {@link RabbitMqIO} if you define {@code true} for
+     * {@link RabbitMqIO.Write#withExchangeDeclare(boolean)}.
+     */
     public Write withExchange(String exchange, String exchangeType) {
       checkArgument(exchange != null, "exchange can not be null");
-      checkArgument(exchangeType.equals("direct")
-              || exchangeType.equals("topic")
-              || exchangeType.equals("headers")
-              || exchangeType.equals("fanout"),
-          "exchangeType should be direct, topic, headers, fanout");
+      checkArgument(exchangeType != null, "exchangeType can not be null");
       return builder().setExchange(exchange).setExchangeType(exchangeType).build();
     }
 
+    /**
+     * If the exchange is not declared by another application, {@link RabbitMqIO} can declare the
+     * exchange itself.
+     *
+     * @param exchangeDeclare {@code true} to declare the exchange, {@code false} else.
+     */
     public Write withExchangeDeclare(boolean exchangeDeclare) {
       return builder().setExchangeDeclare(exchangeDeclare).build();
     }
