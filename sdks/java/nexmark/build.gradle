@@ -46,3 +46,16 @@ dependencies {
 test {
   jvmArgs "-da"
 }
+
+task runDirectSmoke(type:JavaExec) {
+  main = "org.apache.beam.sdk.nexmark.Main"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--runner=DirectRunner", "--suite=SMOKE", "--manageResources=false", "--monitorJobs=true", "--perfFilename=nexmark-perf.txt"]
+}
+
+task runDirectQuery10(type:JavaExec) {
+  main = "org.apache.beam.sdk.nexmark.Main"
+  classpath = sourceSets.main.runtimeClasspath
+  args = ["--query=10", "--runner=DirectRunner", "--manageResources=false", "--monitorJobs=true", "--perfFilename=nexmark-perf.txt"]
+  jvmArgs = ["-agentlib:hprof=cpu=samples"]
+}
