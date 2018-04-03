@@ -80,7 +80,7 @@ public class RabbitMqIOTest implements Serializable {
   @Test
   public void testReadQueue() throws Exception {
     PCollection<RabbitMqMessage> raw = pipeline.apply(
-        RabbitMqIO.read().withUri("amqp://gues:guess@localhost:" + port).withQueue("READ")
+        RabbitMqIO.read().withUri("amqp://guest:guest@localhost:" + port).withQueue("READ")
           .withMaxNumRecords(10));
     PCollection<byte[]> output = raw.apply(ParDo.of(new ConverterFn()));
 
