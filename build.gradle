@@ -168,6 +168,7 @@ task javaPreCommit() {
   dependsOn ":rat"
   dependsOn ":sdks:java:core:buildNeeded"
   dependsOn ":sdks:java:core:buildDependents"
+  dependsOn ":sdks:java:archetypes:examples:archetypesTest"
   dependsOn ":examples:java:preCommit"
 }
 
