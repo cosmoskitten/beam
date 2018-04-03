@@ -48,6 +48,8 @@ from past.builtins import str as old_str
 from past.builtins import long
 from past.builtins import unicode
 
+from types import NoneType
+
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -289,7 +291,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is type(None):
+    if t is NoneType:
       stream.write_byte(NONE_TYPE)
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
