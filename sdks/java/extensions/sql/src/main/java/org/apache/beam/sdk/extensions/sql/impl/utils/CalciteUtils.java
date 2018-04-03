@@ -23,11 +23,10 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -40,57 +39,45 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class CalciteUtils {
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
-  // Calcite time classes. We do this by storing extra metadata in the FieldTypeDescriptor so we
+  // Calcite time classes. We do this by storing extra metadata in the FieldType so we
   // can tell which time class this is.
   //
   // Same story with CHAR and VARCHAR - they both map to STRING.
-  private static final BiMap<Schema.FieldTypeDescriptor, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
-      ImmutableBiMap.<Schema.FieldTypeDescriptor, SqlTypeName>builder()
-          .put(TypeName.BYTE.typeDescriptor(), SqlTypeName.TINYINT)
-          .put(TypeName.INT16.typeDescriptor(), SqlTypeName.SMALLINT)
-          .put(TypeName.INT32.typeDescriptor(), SqlTypeName.INTEGER)
-          .put(TypeName.INT64.typeDescriptor(), SqlTypeName.BIGINT)
+  private static final BiMap<FieldType, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
+      ImmutableBiMap.<FieldType, SqlTypeName>builder()
+          .put(TypeName.BYTE.type(), SqlTypeName.TINYINT)
+          .put(TypeName.INT16.type(), SqlTypeName.SMALLINT)
+          .put(TypeName.INT32.type(), SqlTypeName.INTEGER)
+          .put(TypeName.INT64.type(), SqlTypeName.BIGINT)
 
-          .put(TypeName.FLOAT.typeDescriptor(), SqlTypeName.FLOAT)
-          .put(TypeName.DOUBLE.typeDescriptor(), SqlTypeName.DOUBLE)
+          .put(TypeName.FLOAT.type(), SqlTypeName.FLOAT)
+          .put(TypeName.DOUBLE.type(), SqlTypeName.DOUBLE)
 
-          .put(TypeName.DECIMAL.typeDescriptor(), SqlTypeName.DECIMAL)
+          .put(TypeName.DECIMAL.type(), SqlTypeName.DECIMAL)
 
-          .put(TypeName.BOOLEAN.typeDescriptor(), SqlTypeName.BOOLEAN)
+          .put(TypeName.BOOLEAN.type(), SqlTypeName.BOOLEAN)
 
-          .put(TypeName.ARRAY.typeDescriptor(), SqlTypeName.ARRAY)
-          .put(TypeName.ROW.typeDescriptor(), SqlTypeName.ROW)
-          .put(TypeName.DATETIME.typeDescriptor()
-                  .withMetadata("DATE".getBytes(StandardCharsets.UTF_8)),
-              SqlTypeName.DATE)
-          .put(TypeName.DATETIME.typeDescriptor()
-                  .withMetadata("TIME".getBytes(StandardCharsets.UTF_8)),
-              SqlTypeName.TIME)
-          .put(TypeName.DATETIME.typeDescriptor()
-                  .withMetadata("TIME_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8)),
+          .put(TypeName.ARRAY.type(), SqlTypeName.ARRAY)
+          .put(TypeName.ROW.type(), SqlTypeName.ROW)
+          .put(TypeName.DATETIME.type().withMetadata("DATE"), SqlTypeName.DATE)
+          .put(TypeName.DATETIME.type().withMetadata("TIME"), SqlTypeName.TIME)
+          .put(TypeName.DATETIME.type().withMetadata("TIME_WITH_LOCAL_TZ"),
               SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(TypeName.DATETIME.typeDescriptor()
-                  .withMetadata("TS".getBytes(StandardCharsets.UTF_8)),
-              SqlTypeName.TIMESTAMP)
-          .put(TypeName.DATETIME.typeDescriptor()
-                  .withMetadata("TS_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8)),
+          .put(TypeName.DATETIME.type().withMetadata("TS"), SqlTypeName.TIMESTAMP)
+          .put(TypeName.DATETIME.type().withMetadata("TS_WITH_LOCAL_TZ"),
               SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          .put(TypeName.STRING.typeDescriptor()
-                  .withMetadata("CHAR".getBytes(StandardCharsets.UTF_8)),
-              SqlTypeName.CHAR)
-          .put(TypeName.STRING.typeDescriptor()
-                  .withMetadata("VARCHAR".getBytes(StandardCharsets.UTF_8)),
-              SqlTypeName.VARCHAR)
+          .put(TypeName.STRING.type().withMetadata("CHAR"), SqlTypeName.CHAR)
+          .put(TypeName.STRING.type().withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
           .build();
-  private static final BiMap<SqlTypeName, Schema.FieldTypeDescriptor> CALCITE_TO_BEAM_TYPE_MAPPING =
+  private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
       BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the
   // default mapping.
-  private static final Map<FieldTypeDescriptor, SqlTypeName>
+  private static final Map<FieldType, SqlTypeName>
       BEAM_TO_CALCITE_DEFAULT_MAPPING = ImmutableMap.of(
-          TypeName.DATETIME.typeDescriptor(), SqlTypeName.TIMESTAMP,
-          TypeName.STRING.typeDescriptor(), SqlTypeName.VARCHAR);
+          TypeName.DATETIME.type(), SqlTypeName.TIMESTAMP,
+          TypeName.STRING.type(), SqlTypeName.VARCHAR);
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
@@ -104,46 +91,45 @@ public class CalciteUtils {
             .collect(toSchema());
   }
 
-  public static SqlTypeName toSqlTypeName(FieldTypeDescriptor typeDescriptor) {
+  public static SqlTypeName toSqlTypeName(FieldType type) {
     SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(
-        typeDescriptor.withComponentType(null).withRowSchema(null));
+        type.withComponentType(null).withRowSchema(null));
     if (typeName != null) {
       return typeName;
     } else {
       // This will happen e.g. if looking up a STRING type, and metadata isn't set to say which
       // type of SQL string we want. In this case, use the default mapping.
-      return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(typeDescriptor);
+      return BEAM_TO_CALCITE_DEFAULT_MAPPING.get(type);
     }
   }
 
-  public static Schema.FieldTypeDescriptor toFieldTypeDescriptor(SqlTypeName sqlTypeName) {
-    return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getType().typeDescriptor();
+  public static FieldType toFieldType(SqlTypeName sqlTypeName) {
+    return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getTypeName().type();
   }
 
-  public static Schema.FieldTypeDescriptor toFieldTypeDescriptor(RelDataType calciteType) {
-    FieldTypeDescriptor typeDescriptor = toFieldTypeDescriptor((calciteType.getSqlTypeName()));
+  public static FieldType toFieldType(RelDataType calciteType) {
+    FieldType type = toFieldType((calciteType.getSqlTypeName()));
     if (calciteType.getComponentType() != null) {
-      typeDescriptor = typeDescriptor.withComponentType(toFieldTypeDescriptor(
-          calciteType.getComponentType()));
+      type = type.withComponentType(toFieldType(calciteType.getComponentType()));
     }
     if (calciteType.isStruct()) {
-      typeDescriptor = typeDescriptor.withRowSchema(toBeamSchema(calciteType));
+      type = type.withRowSchema(toBeamSchema(calciteType));
     }
-    return typeDescriptor;
+    return type;
   }
 
-  public static Schema.FieldTypeDescriptor toArrayTypeDescriptor(SqlTypeName componentType) {
-    return TypeName.ARRAY.typeDescriptor().withComponentType(toFieldTypeDescriptor(componentType));
+  public static FieldType toArrayType(SqlTypeName componentType) {
+    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
   }
 
-  public static Schema.FieldTypeDescriptor toArrayTypeDescriptor(RelDataType componentType) {
-    return TypeName.ARRAY.typeDescriptor().withComponentType(toFieldTypeDescriptor(componentType));
+  public static FieldType toArrayType(RelDataType componentType) {
+    return TypeName.ARRAY.type().withComponentType(toFieldType(componentType));
   }
 
   public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
-    Schema.FieldTypeDescriptor fieldTypeDescriptor = toFieldTypeDescriptor(calciteField.getType());
+    FieldType fieldType = toFieldType(calciteField.getType());
     // TODO: We should support Calcite's nullable annotations.
-    return Schema.Field.of(calciteField.getName(), fieldTypeDescriptor)
+    return Schema.Field.of(calciteField.getName(), fieldType)
         .withNullable(true);
   }
 
@@ -163,14 +149,14 @@ public class CalciteUtils {
   }
 
   private static RelDataType toRelDataType(
-      RelDataTypeFactory dataTypeFactory, Schema.FieldTypeDescriptor fieldTypeDescriptor) {
-    SqlTypeName typeName = toSqlTypeName(fieldTypeDescriptor);
+      RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
+    SqlTypeName typeName = toSqlTypeName(fieldType);
     if (SqlTypeName.ARRAY.equals(typeName)) {
       RelDataType componentType = toRelDataType(
-          dataTypeFactory, fieldTypeDescriptor.getComponentType());
+          dataTypeFactory, fieldType.getComponentType());
       return dataTypeFactory.createArrayType(componentType, UNLIMITED_ARRAY_SIZE);
     } else if (SqlTypeName.ROW.equals(typeName)) {
-      return toCalciteRowType(fieldTypeDescriptor.getRowSchema(), dataTypeFactory);
+      return toCalciteRowType(fieldType.getRowSchema(), dataTypeFactory);
     } else {
       return dataTypeFactory.createSqlType(typeName);
     }
@@ -181,6 +167,6 @@ public class CalciteUtils {
       Schema schema,
       int fieldIndex) {
     Schema.Field field = schema.getField(fieldIndex);
-    return toRelDataType(dataTypeFactory, field.getTypeDescriptor());
+    return toRelDataType(dataTypeFactory, field.getType());
   }
 }

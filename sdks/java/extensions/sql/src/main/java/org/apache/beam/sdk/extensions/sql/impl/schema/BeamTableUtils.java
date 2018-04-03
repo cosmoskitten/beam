@@ -88,7 +88,7 @@ public final class BeamTableUtils {
       return null;
     }
 
-    TypeName type = field.getTypeDescriptor().getType();
+    TypeName type = field.getType().getTypeName();
     if (type.isStringType()) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();

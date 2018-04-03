@@ -102,7 +102,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
     PCollection<Row> input = p.apply(Create.of(inputRows));
 
-    Schema keySchema = Schema.of(Lists.newArrayList(inputSchema.getField(0)));
+    Schema keySchema = Schema.builder()
+        .addFields(Lists.newArrayList(inputSchema.getField(0))).build();
     // 1. extract fields in group-by key part
     PCollection<KV<Row, Row>> exGroupByStream =
         input

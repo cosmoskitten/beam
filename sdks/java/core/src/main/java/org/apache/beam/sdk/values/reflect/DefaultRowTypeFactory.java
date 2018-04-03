@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 
@@ -63,12 +63,12 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
           .build();
 
   // Does not support neested types.
-  private FieldTypeDescriptor getTypeDescriptor(Class clazz) {
+  private FieldType getTypeDescriptor(Class clazz) {
     TypeName typeName = SUPPORTED_TYPES.get(clazz);
     if (typeName == null) {
       throw new UnsupportedOperationException("Unsupported type");
     }
-    return FieldTypeDescriptor.of(typeName);
+    return FieldType.of(typeName);
   }
 
   /**
@@ -81,7 +81,7 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
     for (FieldValueGetter getter : fieldValueGetters) {
       fields.add(Schema.Field.of(getter.name(), getTypeDescriptor(getter.type())));
     }
-    return Schema.of(fields);
+    return Schema.builder().addFields(fields).build();
   }
 
 }

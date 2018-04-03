@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 
@@ -83,13 +83,13 @@ public class RowCoder extends CustomCoder<Row> {
 
     int fieldsSize = 0;
     for (int i = 0; i < schema.getFieldCount(); ++i) {
-      fieldsSize += estimatedSizeBytes(schema.getField(i).getTypeDescriptor(), row.getValue(i));
+      fieldsSize += estimatedSizeBytes(schema.getField(i).getType(), row.getValue(i));
     }
     return bitmapSize + fieldsSize;
   }
 
-  private static long estimatedSizeBytes(FieldTypeDescriptor typeDescriptor, Object value) {
-    switch (typeDescriptor.getType()) {
+  private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
+    switch (typeDescriptor.getTypeName()) {
       case ROW:
         return estimatedSizeBytes((Row) value);
       case ARRAY:
@@ -103,7 +103,7 @@ public class RowCoder extends CustomCoder<Row> {
         // Not always accurate - String.getBytes().length() would be more accurate here, but slower.
         return ((String) value).length();
       default:
-        return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getType());
+        return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getTypeName());
     }
   }
 
@@ -119,13 +119,13 @@ public class RowCoder extends CustomCoder<Row> {
     return schema;
   }
 
-  Coder getCoder(FieldTypeDescriptor fieldTypeDescriptor) {
-    if (TypeName.ARRAY.equals(fieldTypeDescriptor.getType())) {
-      return ListCoder.of(getCoder(fieldTypeDescriptor.getComponentType()));
-    } else if (TypeName.ROW.equals((fieldTypeDescriptor.getType()))) {
-      return RowCoder.of(fieldTypeDescriptor.getRowSchema());
+  Coder getCoder(FieldType fieldType) {
+    if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
+      return ListCoder.of(getCoder(fieldType.getComponentType()));
+    } else if (TypeName.ROW.equals((fieldType.getTypeName()))) {
+      return RowCoder.of(fieldType.getRowSchema());
     } else {
-      return coderForPrimitiveType(fieldTypeDescriptor.getType());
+      return coderForPrimitiveType(fieldType.getTypeName());
     }
   }
 
@@ -138,7 +138,7 @@ public class RowCoder extends CustomCoder<Row> {
       if (value.getValue(idx) == null) {
         continue;
       }
-      Coder coder = getCoder(field.getTypeDescriptor());
+      Coder coder = getCoder(field.getType());
       coder.encode(value.getValue(idx), outStream);
     }
   }
@@ -151,7 +151,7 @@ public class RowCoder extends CustomCoder<Row> {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
-        Coder coder = getCoder(schema.getField(idx).getTypeDescriptor());
+        Coder coder = getCoder(schema.getField(idx).getType());
         Object value = coder.decode(inStream);
         fieldValues.add(value);
       }
