@@ -517,26 +517,23 @@ class DoFnRunner(Receiver):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
 
   def _reraise_augmented(self, exn):
+    if getattr(exn, '_tagged_with_step', False) or not self.step_name:
+      raise
+    step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
     original_traceback = sys.exc_info()[2]
-
-    if getattr(exn, '_tagged_with_step', False) or not self.step_name:
-      new_exn = exn
-    else:
-      step_annotation = " [while running '%s']" % self.step_name
-      try:
-        # Attempt to construct the same kind of exception
-        # with an augmented message.
-        new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
-        new_exn._tagged_with_step = True  # Could raise attribute error.
-      except:  # pylint: disable=bare-except
-        # If anything goes wrong, construct a RuntimeError whose message
-        # records the original exception's type and message.
-        new_exn = RuntimeError(
-            traceback.format_exception_only(type(exn), exn)[-1].strip()
-            + step_annotation)
-        new_exn._tagged_with_step = True
-
+    try:
+      # Attempt to construct the same kind of exception
+      # with an augmented message.
+      new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
+      new_exn._tagged_with_step = True  # Could raise attribute error.
+    except:  # pylint: disable=bare-except
+      # If anything goes wrong, construct a RuntimeError whose message
+      # records the original exception's type and message.
+      new_exn = RuntimeError(
+          traceback.format_exception_only(type(exn), exn)[-1].strip()
+          + step_annotation)
+      new_exn._tagged_with_step = True
     six.reraise(type(new_exn), new_exn, original_traceback)
 
 
