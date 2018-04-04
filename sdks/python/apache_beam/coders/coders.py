@@ -24,10 +24,10 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
-from builtins import object
-from builtins import str
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 import google.protobuf
+from future.builtins import *
 from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
@@ -42,7 +42,6 @@ try:
 except ImportError:
   import pickle # Python 3
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from .stream import get_varint_size
 except ImportError:

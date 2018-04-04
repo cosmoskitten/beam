@@ -24,9 +24,8 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
-from builtins import bytes
-from builtins import chr
-from builtins import object
+
+from future.builtins import *
 
 
 class OutputStream(object):

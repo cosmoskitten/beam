@@ -35,20 +35,12 @@ from __future__ import print_function
 native_int = int
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-from builtins import bytes
-from builtins import chr
-from builtins import dict
-from builtins import int
-from builtins import object
-from builtins import range
-from builtins import str
+from future.builtins import *
 
 from past.builtins import dict as old_dict
 from past.builtins import str as old_str
 from past.builtins import long
 from past.builtins import unicode
-
-from types import NoneType
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -291,7 +283,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
@@ -316,7 +308,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       for e in value:
         self.encode_to_stream(e, stream, True)
     elif t is dict or t is old_dict:
-      dict_value = value  # for typing
+      dict_value = dict(value)
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
       for k, v in dict_value.items():
