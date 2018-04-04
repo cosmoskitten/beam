@@ -30,7 +30,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 public abstract class Column implements Serializable {
   // TODO: Add Nullable types.
   public abstract String getName();
-  public abstract FieldType getTypeDescriptor();
+  public abstract FieldType getFieldType();
 
   @Nullable
   public abstract String getComment();
@@ -46,7 +46,7 @@ public abstract class Column implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder name(String name);
-    public abstract Builder typeDescriptor(FieldType fieldType);
+    public abstract Builder fieldType(FieldType fieldType);
     public abstract Builder comment(String comment);
     public abstract Builder primaryKey(boolean isPrimaryKey);
     public abstract Column build();

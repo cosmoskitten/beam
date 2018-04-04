@@ -27,7 +27,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -364,14 +364,14 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     inRecordCoder = inputSchema.getRowCoder();
 
     keyType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .build();
 
     keyCoder = keyType.getRowCoder();
 
-    aggPartType = RowSqlType
+    aggPartType = RowSqlTypes
         .builder()
         .withBigIntField("count")
 
@@ -482,7 +482,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
    */
   private Schema prepareFinalRowType() {
     return
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("count")
