@@ -22,6 +22,7 @@
 // tasks.
 
 apply from: project(":").file("build_rules.gradle")
+createPerformanceTestHarness()
 
 // Define the set of repositories and dependencies required to
 // fetch and enable plugins.

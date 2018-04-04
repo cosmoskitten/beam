@@ -18,7 +18,7 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(artifactId: "beam-sdks-java-io-file-based-io-tests")
-apply from: project(":sdks:java:io").file("build_rules.gradle")
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 
@@ -33,7 +33,6 @@ evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
   shadowTest project(":sdks:java:core")
-  shadowTest project(":runners:direct-java").sourceSets.test.output
   shadowTest project(":sdks:java:io:common")
   shadowTest project(":sdks:java:io:common").sourceSets.test.output
   shadowTest project(":sdks:java:io:xml")
