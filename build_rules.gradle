@@ -683,6 +683,7 @@ ext.createPerformanceTestHarness = {
             "--gradle_binary=${configuration.gradleBinary}",
             "--official=${configuration.isOfficial}",
             "--benchmarks=${configuration.benchmarks}",
+            "--beam_location=${rootProject.projectDir}",
 
             "--beam_prebuilt=${configuration.beamPrebuilt}",
             "--beam_sdk=${configuration.beamSdk}",
