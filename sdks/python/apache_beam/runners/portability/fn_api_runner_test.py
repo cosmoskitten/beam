@@ -21,6 +21,7 @@ import logging
 import os
 import tempfile
 import time
+import traceback
 import unittest
 
 import apache_beam as beam
@@ -265,7 +266,7 @@ class FnApiRunnerTest(unittest.TestCase):
              | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
-  def test_errors_stage(self):
+  def test_error_message_includes_stage(self):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
         def raise_error(x):
@@ -280,7 +281,8 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertIn('StageC', e_cm.exception.args[0])
     self.assertNotIn('StageB', e_cm.exception.args[0])
 
-  def test_errors_traceback(self):
+  def test_error_traceback_includes_user_code(self):
+
     def first(x):
       return second(x)
 
@@ -290,13 +292,17 @@ class FnApiRunnerTest(unittest.TestCase):
     def third(x):
       raise RuntimeError('x')
 
-    with self.assertRaises(BaseException) as e_cm:
+    try:
       with self.create_pipeline() as p:
         p | beam.Create([0]) | beam.Map(first)  # pylint: disable=expression-not-assigned
+    except Exception:  # pylint: disable=broad-except
+      message = traceback.format_exc()
+    else:
+      raise AssertionError('expected exception not raised')
 
-    self.assertIn('first', e_cm.exception.args[0])
-    self.assertIn('second', e_cm.exception.args[0])
-    self.assertIn('third', e_cm.exception.args[0])
+    self.assertIn('first', message)
+    self.assertIn('second', message)
+    self.assertIn('third', message)
 
   def test_no_subtransform_composite(self):
 
