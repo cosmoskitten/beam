@@ -295,7 +295,7 @@ public class Schema implements Serializable {
     /**
      * Returns a copy of the descriptor with metadata  set.
      */
-    public FieldType withMetadata(@Nullable String metadata) {
+    public FieldType withMetadata(String metadata) {
       return toBuilder().setMetadata(metadata.getBytes(StandardCharsets.UTF_8)).build();
     }
 
