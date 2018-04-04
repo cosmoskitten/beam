@@ -512,7 +512,8 @@ class HadoopFileSystemTest(unittest.TestCase):
 
 
 class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
-  """Tests pipeline_options, as passed via RuntimeValueProvider."""
+  """Tests pipeline_options, in the form of a
+  RuntimeValueProvider.runtime_options object."""
 
   def test_dict_options(self):
     self._fake_hdfs = FakeHdfs()
