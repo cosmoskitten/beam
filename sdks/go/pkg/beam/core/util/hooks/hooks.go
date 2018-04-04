@@ -34,6 +34,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
@@ -126,6 +127,7 @@ func SerializeHooks() {
 		// Shouldn't happen, since all the data is strings.
 		panic(fmt.Sprintf("Couldn't serialize hooks: %v", err))
 	}
+	fmt.Fprintf(os.Stderr, "SerializeHooks: %q", string(data))
 	runtime.GlobalOptions.Set("hooks", string(data))
 }
 
@@ -135,7 +137,7 @@ func DeserializeHooks() {
 	cfg := runtime.GlobalOptions.Get("hooks")
 	if err := json.Unmarshal([]byte(cfg), &enabledHooks); err != nil {
 		// Shouldn't happen
-		panic(fmt.Sprintf("DeserializeHooks failed: %v", err))
+		panic(fmt.Sprintf("DeserializeHooks failed on input %q: %v", cfg, err))
 	}
 
 	for h, opts := range enabledHooks {

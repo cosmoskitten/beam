@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
@@ -57,7 +58,7 @@ var (
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
-	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles")
+	cpuProfiling     = flag.String("cpu_profiling", "", "Job records CPU profiles to this GCS location (optional)")
 	sessionRecording = flag.String("session_recording", "", "Job records session transcripts")
 )
 
@@ -69,8 +70,7 @@ func init() {
 }
 
 type dataflowOptions struct {
-	Options     map[string]string `json:"options"`
-	PipelineURL string            `json:"pipelineUrl"`
+	PipelineURL string `json:"pipelineUrl"`
 }
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
@@ -98,9 +98,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	if *sessionRecording != "" {
-		// TODO(wcn/diagnostic_interfaces): reimplement this
+		// TODO(wcn): implement this.
+		// It's a bit inconvenient for GCS because the whole object is written in
+		// one pass, whereas the session logs are constantly appended. We wouldn't
+		// want to hold all the logs in memory to flush at the end of the pipeline
+		// as we'd blow out memory on the worker. The implementation of the
+		// CaptureHook should create an internal buffer and write chunks out to GCS
+		// once they get to an appropriate size (50M or so?)
 	}
 
+	hooks.SerializeHooks()
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary and model to GCS.
@@ -149,9 +156,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: findPipelineFlags(),
 				Options: dataflowOptions{
-					Options:     options.Options,
 					PipelineURL: modelURL,
 				},
+				GoOptions: options,
 			}),
 			WorkerPools: []*df.WorkerPool{{
 				Kind: "harness",
