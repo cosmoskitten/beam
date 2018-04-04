@@ -25,5 +25,5 @@ job('beam_PostRelease_Python_Candidate') {
 
     // Execute shell command to test Python SDK.
     steps {
-        shell('bash release/src/main/groovy/run_release_candidate_python_quickstart.sh')}
+        shell('pwd && ./release/src/main/groovy/run_release_candidate_python_quickstart.sh')}
 }
