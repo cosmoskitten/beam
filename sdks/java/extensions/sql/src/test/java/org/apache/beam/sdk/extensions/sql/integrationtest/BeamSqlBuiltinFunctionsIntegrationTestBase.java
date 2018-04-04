@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -61,7 +61,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       .put(Boolean.class, TypeName.BOOLEAN)
       .build();
 
-  private static final Schema ROW_TYPE = RowSqlType.builder()
+  private static final Schema ROW_TYPE = RowSqlTypes.builder()
       .withDateField("ts")
       .withTinyIntField("c_tinyint")
       .withSmallIntField("c_smallint")
