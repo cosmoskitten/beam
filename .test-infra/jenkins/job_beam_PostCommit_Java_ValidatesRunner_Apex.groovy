@@ -26,8 +26,14 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Apex') {
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
-  // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  def gradle_switches = [
+    // Gradle log verbosity enough to diagnose basic build issues
+    "--info",
+    // Continue the build even if there is a failure to show as many potential failures as possible.
+    '--continue',
+    // Until we verify the build cache is working appropriately, force rerunning all tasks
+    '--rerun-tasks',
+  ]
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
@@ -38,11 +44,14 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Apex') {
     'Apache Apex Runner ValidatesRunner Tests',
     'Run Apex ValidatesRunner')
 
-  // Maven goals for this job.
-  goals('''clean verify --projects runners/apex \
-      --also-make \
-      --batch-mode \
-      --errors \
-      --activate-profiles validates-runner-tests \
-      --activate-profiles local-validates-runner-tests''')
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':runners:apex:validatesRunner')
+      for (String gradle_switch : gradle_switches) {
+        switches(gradle_switch)
+      }
+    }
+  }
 }
