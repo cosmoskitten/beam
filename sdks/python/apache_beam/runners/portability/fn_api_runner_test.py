@@ -290,7 +290,7 @@ class FnApiRunnerTest(unittest.TestCase):
       return third(x)
 
     def third(x):
-      raise RuntimeError('x')
+      raise ValueError('x')
 
     try:
       with self.create_pipeline() as p:
