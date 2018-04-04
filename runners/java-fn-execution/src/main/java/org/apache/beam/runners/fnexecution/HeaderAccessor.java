@@ -16,25 +16,10 @@
  * limitations under the License.
  */
 
-import common_job_properties
+package org.apache.beam.runners.fnexecution;
 
-// This is the Python Jenkins job which runs a maven install, and the current set of precommit
-// tests.
-mavenJob('beam_Python_UnitTest') {
-  description('Runs Python unit tests on a specific commit. Designed to be run by a pipeline job.')
-
-  // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 35, "Python Unit Tests")
-  // Set standard properties for a pipeline job which needs to pull from GitHub instead of an
-  // upstream job.
-  common_job_properties.setPipelineBuildJobProperties(delegate)
-
-  // Construct Maven goals for this job.
-  args = [
-    '-B',
-    '-e',
-    'clean install',
-    '-pl sdks/python',
-  ]
-  goals(args.join(' '))
+/** Interface to access headers in the client request. */
+public interface HeaderAccessor {
+  /** This method should be called from the request method. */
+  String getSdkWorkerId();
 }

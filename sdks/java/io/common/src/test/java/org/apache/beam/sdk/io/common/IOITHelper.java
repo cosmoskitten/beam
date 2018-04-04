@@ -15,25 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.common;
 
-import common_job_properties
+import java.util.Map;
 
-// This is the Java Jenkins job which runs the Beam code health checks.
-mavenJob('beam_Java_CodeHealth') {
-  description('Runs Java code health checks. Meant to be run as part of a pipeline.')
+/**
+ * Methods common to all types of IOITs.
+ */
+public class IOITHelper {
 
-  // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 30, "Java Code Health")
-  // This job runs downstream of the beam_Java_Build job and gets artifacts from that job.
-  common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
+  private IOITHelper() {
+  }
 
-  args = [
-    '-B',
-    '-e',
-    "-pl '!sdks/python'",
-    'checkstyle:check',
-    'findbugs:check',
-    'org.apache.rat:apache-rat-plugin:check',
-  ]
-  goals(args.join(' '))
+  public static String getHashForRecordCount(int recordCount, Map<Integer, String> hashes) {
+    String hash = hashes.get(recordCount);
+    if (hash == null) {
+      throw new UnsupportedOperationException(
+        String.format("No hash for that record count: %s", recordCount)
+      );
+    }
+    return hash;
+  }
 }
