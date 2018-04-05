@@ -23,6 +23,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
+from apache_beam.transforms.distribution_counter import DistributionAccumulator
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -132,6 +133,26 @@ class UtilTest(unittest.TestCase):
                      distribution_update.sum)
     self.assertEqual(metric_update.distribution.count.lowBits,
                      distribution_update.count)
+
+  def test_translate_distribution_counter(self):
+    counter_update = DistributionAccumulator()
+    counter_update.add_inputs_for_test([1])
+    metric_proto = dataflow.CounterUpdate()
+    apiclient.translate_distribution(counter_update, metric_proto)
+    histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
+    counter_update.translate_to_histogram(histogram)
+    self.assertEqual(metric_proto.distribution.min.lowBits,
+                     counter_update.min)
+    self.assertEqual(metric_proto.distribution.max.lowBits,
+                     counter_update.max)
+    self.assertEqual(metric_proto.distribution.sum.lowBits,
+                     counter_update.sum)
+    self.assertEqual(metric_proto.distribution.count.lowBits,
+                     counter_update.count)
+    self.assertEqual(metric_proto.distribution.histogram.bucketCounts,
+                     histogram.bucketCounts)
+    self.assertEqual(metric_proto.distribution.histogram.firstBucketOffset,
+                     histogram.firstBucketOffset)
 
   def test_translate_means(self):
     metric_update = dataflow.CounterUpdate()
