@@ -789,8 +789,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code events} to Kafka.
    */
   private void sinkEventsToKafka(PCollection<Event> events) {
-    PCollection<byte[]> event_to_bytes = events.apply("Event to bytes", ParDo.of(EVENT_TO_BYTEARRAY));
-    event_to_bytes.apply(KafkaIO.<Void, byte[]>write()
+    PCollection<byte[]> eventToBytes =
+        events.apply("Event to bytes", ParDo.of(EVENT_TO_BYTEARRAY));
+    eventToBytes.apply(KafkaIO.<Void, byte[]>write()
                     .withBootstrapServers(options.getBootstrapServers())
                     .withTopic(options.getKafkaSinkTopic())
                     .withValueSerializer(ByteArraySerializer.class)
