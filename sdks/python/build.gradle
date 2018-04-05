@@ -26,6 +26,7 @@ task test {}
 check.dependsOn test
 
 def envdir = "${project.buildDir}/gradleenv"
+def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
   doLast {
@@ -77,7 +78,7 @@ task lintPy27(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py27-lint -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
     }
   }
 }
@@ -87,7 +88,7 @@ task lintPy3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py3-lint -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
     }
   }
 }
@@ -97,7 +98,7 @@ task testGcp(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py27-gcp -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
     }
   }
 }
@@ -107,7 +108,7 @@ task testPython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py27 -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
     }
   }
 }
@@ -117,7 +118,7 @@ task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py27-cython2 -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython2"
     }
   }
 }
@@ -131,7 +132,7 @@ task docs(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e docs -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
     }
   }
 }
@@ -141,7 +142,7 @@ task cover(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e cover -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
     }
   }
 }
