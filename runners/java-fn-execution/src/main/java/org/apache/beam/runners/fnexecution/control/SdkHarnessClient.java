@@ -300,9 +300,7 @@ public class SdkHarnessClient implements AutoCloseable {
   private final InstructionRequestHandler fnApiControlClient;
   private final FnDataService fnApiDataService;
 
-  @SuppressWarnings("unchecked") /* SdkHarnessClient does not need to know the type information of
-  BundleProcessor. */
-  private final ConcurrentHashMap<String, BundleProcessor> clientProcessors;
+  private final ConcurrentHashMap<String, BundleProcessor<?>> clientProcessors;
 
   private SdkHarnessClient(
       InstructionRequestHandler fnApiControlClient,
@@ -371,7 +369,7 @@ public class SdkHarnessClient implements AutoCloseable {
       BeamFnApi.ProcessBundleDescriptor descriptor,
       RemoteInputDestination<WindowedValue<T>> remoteInputDesination,
       StateDelegator stateDelegator) {
-    BundleProcessor<T> bundleProcessor =
+    BundleProcessor<?> bundleProcessor =
         clientProcessors.computeIfAbsent(
             descriptor.getId(),
             s -> create(
@@ -384,7 +382,7 @@ public class SdkHarnessClient implements AutoCloseable {
         BeamFnApi.ProcessBundleDescriptor.class.getSimpleName(),
         descriptor.getId(),
         BeamFnApi.ProcessBundleDescriptor.class.getSimpleName());
-    return bundleProcessor;
+    return (BundleProcessor<T>) bundleProcessor;
   }
 
   /**
