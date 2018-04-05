@@ -15,14 +15,23 @@ Unit tests for the Distribution Counter
 import math
 import unittest
 
-from apache_beam.transforms.cy_combiners import DistributionAccumulator
-
+from mock import Mock
+from nose.plugins.skip import SkipTest
 
 class DistributionAccumulatorTest(unittest.TestCase):
 
+  def setUp(self):
+    try:
+      #py-lint: disable=global-variable-not-assigned
+      global DistributionAccumulator
+      from apache_beam.transforms.distribution_counter \
+        import DistributionAccumulator
+    except ImportError:
+      raise SkipTest('DistributionAccumulator not complied.')
+
   def test_calculate_bucket_index_with_input_0(self):
     counter = DistributionAccumulator()
-    index = counter.calculate_bucket_index(0)
+    index = counter.calculate_bucket_index_for_test(0)
     self.assertEquals(index, 0)
 
   def test_calculate_bucket_index_within_max_long(self):
@@ -33,7 +42,7 @@ class DistributionAccumulatorTest(unittest.TestCase):
     while power_of_ten <= INT64_MAX:
       for multiplier in [1, 2, 5]:
         value = multiplier * power_of_ten
-        actual_bucket = counter.calculate_bucket_index(value - 1)
+        actual_bucket = counter.calculate_bucket_index_for_test(value - 1)
         self.assertEquals(actual_bucket, bucket - 1)
         bucket += 1
       power_of_ten *= 10
@@ -46,19 +55,15 @@ class DistributionAccumulatorTest(unittest.TestCase):
     expected_count = 6
     expected_min = 1
     expected_max = 1000
-    for value in [1, 500, 2, 3, 1000, 4]:
-      counter.add_input(value)
-    self.assertEquals(counter.buckets, expected_buckets)
+    counter.add_inputs_for_test([1, 500, 2, 3, 1000, 4])
+    histogram = Mock(firstBucketOffset=None, bucketCounts=None)
+    counter.translate_to_histogram(histogram)
     self.assertEquals(counter.sum, expected_sum)
-    self.assertEquals(counter.first_bucket_offset, expected_first_bucket_index)
     self.assertEquals(counter.count, expected_count)
     self.assertEquals(counter.min, expected_min)
     self.assertEquals(counter.max, expected_max)
-
-  def test_add_input_with_invalid_input(self):
-    counter = DistributionAccumulator()
-    with self.assertRaises(ValueError):
-      counter.add_input(-1)
+    self.assertEquals(histogram.firstBucketOffset, expected_first_bucket_index)
+    self.assertEquals(histogram.bucketCounts, expected_buckets)
 
 
 if __name__ == '__main__':
