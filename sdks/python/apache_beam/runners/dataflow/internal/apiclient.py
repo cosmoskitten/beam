@@ -751,7 +751,8 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
   # Only DistributionAccumulator has buckets and first_bucket_offset.
-  if isinstance(distribution_update, distribution_counter.DistributionAccumulator):
+  if isinstance(distribution_update,
+                distribution_counter.DistributionAccumulator):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
   metric_update_proto.distribution = dist_update_proto

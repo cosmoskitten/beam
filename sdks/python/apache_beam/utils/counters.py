@@ -27,7 +27,6 @@ import threading
 from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners
-from apache_beam.transforms import distribution_counter
 
 # Information identifying the IO being measured by a counter.
 #
@@ -132,7 +131,7 @@ class Counter(object):
   SUM = cy_combiners.SumInt64Fn()
   MEAN = cy_combiners.MeanInt64Fn()
 
-  # Distribution Metadata: a list of int(output_count)
+  # Distribution Accumulator Fn
   DISTRIBUTION = cy_combiners.DistributionCounterFn()
 
   def __init__(self, name, combine_fn):
