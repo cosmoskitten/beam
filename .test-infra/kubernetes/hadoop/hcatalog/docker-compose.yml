@@ -1,4 +1,0 @@
-hcatalog_test:
-    build: .
-    dockerfile: ./Dockerfile
-    restart: always
