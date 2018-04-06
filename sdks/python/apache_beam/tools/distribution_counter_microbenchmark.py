@@ -31,6 +31,7 @@ import time
 
 from apache_beam.tools import utils
 
+
 def generate_input_values(num_input, lower_bound, upper_bound):
   values = []
   # pylint: disable=unused-variable
