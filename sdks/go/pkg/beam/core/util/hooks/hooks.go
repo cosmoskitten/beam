@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Hooks allow runners to tailor execution of the worker to allow for customization
-// of features used by the harness.
+// Package hooks allows runners to tailor execution of the worker harness.
 //
 // Examples of customization:
 //
@@ -25,7 +24,6 @@
 // Registration methods for hooks must be called prior to calling beam.Init()
 // Request methods for hooks must be called as part of building the pipeline
 // request for the runner's Execute method.
-
 package hooks
 
 import (
@@ -88,7 +86,7 @@ func RunInitHooks(ctx context.Context) error {
 	return nil
 }
 
-// RequestHook is called when handling a Fn API instruction.
+// RequestHook is called when handling a FnAPI instruction.
 type RequestHook func(context.Context, *fnpb.InstructionRequest) error
 
 // RunRequestHooks runs the hooks that handle a FnAPI request.
@@ -105,7 +103,7 @@ func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
 	}
 }
 
-// ResponseHook is called when sending a Fn API instruction response.
+// ResponseHook is called when sending a FnAPI instruction response.
 type ResponseHook func(context.Context, *fnpb.InstructionRequest, *fnpb.InstructionResponse) error
 
 // RunResponseHooks runs the hooks that handle a FnAPI response.
