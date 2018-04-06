@@ -303,8 +303,10 @@ class AnyAccumulator(object):
   def extract_output(self):
     return self.value
 
+
 class DistributionCounterFn(AccumulatorCombineFn):
   _accumulator_type = DistributionAccumulator
+
 
 class AnyCombineFn(AccumulatorCombineFn):
   _accumulator_type = AnyAccumulator

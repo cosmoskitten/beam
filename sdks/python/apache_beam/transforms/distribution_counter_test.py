@@ -18,6 +18,7 @@ import unittest
 from mock import Mock
 from nose.plugins.skip import SkipTest
 
+
 class DistributionAccumulatorTest(unittest.TestCase):
 
   def setUp(self):
