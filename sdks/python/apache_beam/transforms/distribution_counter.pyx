@@ -16,9 +16,11 @@
 
 # cython: profile=True
 
+""" For internal use only. No backwards compatibility guarantees."""
+
 cimport cython
 from libc.stdint cimport int64_t, INT64_MAX
-from libc.stdlib cimport malloc
+from libc.stdlib cimport malloc, free
 
 cdef extern from "stdlib.h" nogil:
   void *memset(void *str, int c, size_t n)
@@ -84,6 +86,10 @@ cdef class DistributionAccumulator(object):
     self.buckets = <int64_t*> malloc(sizeof(int64_t) * 59)
     memset(self.buckets, 0, sizeof(int64_t) * 59)
     self.buckets_per_10 = 3
+
+  def __dealloc__(self):
+    """free allocated memory"""
+    free(self.buckets)
 
   cdef bint add_input(self, int64_t element) except -1:
     if element < 0:
