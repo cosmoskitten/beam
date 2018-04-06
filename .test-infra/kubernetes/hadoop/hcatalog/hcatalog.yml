@@ -6,11 +6,19 @@ metadata:
     name: hcatalog
 spec:
   ports:
-    - port: 8088
-      nodePort: 31234
+    - port: 9083
+      name: metaserver
+    - port: 10002
+      name: hive
+    - port: 9000
+      name: node
+    - port: 10000
+      name: data
+    - port: 50075
+      name: web
   selector:
     name: hcatalog
-  type: NodePort
+  type: LoadBalancer
 
 ---
 
@@ -29,12 +37,16 @@ spec:
         name: hcatalog
     spec:
       containers:
-        - name: hadoop
-          image: .
-          env:
-            - name: POSTGRES_PASSWORD
-              value: uuinkks
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
+        - name: hadoop-master
+          image: teradatalabs/cdh5-hive
           ports:
-            - containerPort: 5432
+            - name: metaserver
+              containerPort: 9083
+            - name: hive
+              containerPort: 10002
+            - containerPort: 9000
+              name: node
+            - containerPort: 10000
+              name: data
+            - containerPort: 50075
+              name: web

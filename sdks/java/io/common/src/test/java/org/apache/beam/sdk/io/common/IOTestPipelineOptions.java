@@ -133,4 +133,19 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getMongoDBDatabaseName();
 
   void setMongoDBDatabaseName(String name);
+
+
+  /* HCatalog */
+  @Description("Hcatalog metastore host (hostname/ip address)")
+//  @Default.String("hcatalog-metastore")
+  String getHCatalogMetastoreUri();
+
+  void setHCatalogMetastoreUri(String host);
+
+  @Description("Hcatalog metastore port")
+//  @Default.Integer(9083)
+  Integer getHCatalogMetastorePort();
+
+  void setHCatalogMetastorePort(Integer port);
+
 }
