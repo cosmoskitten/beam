@@ -14,25 +14,26 @@
 # limitations under the License.
 #
 
-# cython: profile=True
-
 """ For internal use only. No backwards compatibility guarantees."""
 
-cimport cython
-from libc.stdint cimport int64_t
+class DistributionAccumulator(object):
+  """Pure python DistributionAccumulator in case Cython not available
+  Pure python DistributionAccumulator will no nothing since it's super slow
+  """
+  def __init__(self):
+    self.min = 0
+    self.max = 0
+    self.count = 0
+    self.sum = 0
+    self.first_bucket_offset = 0
+    self.buckets = []
+    self.bucket_per_10 = 3
 
-cdef class DistributionAccumulator(object):
-  cdef public int64_t min
-  cdef public int64_t max
-  cdef public int64_t count
-  cdef public int64_t sum
-  cdef int64_t first_bucket_offset
-  cdef int64_t last_bucket_offset
-  cdef int64_t* buckets
-  cdef int64_t buckets_per_10
-  cdef bint add_input(self, int64_t element) except -1
-  cdef int64_t calculate_bucket_index(self, int64_t element)
-  cpdef object translate_to_histogram(self, histogram)
-  cpdef object get_add_input_fn(self)
-  cpdef bint add_inputs_for_test(self, elements) except -1
-  cpdef int64_t calculate_bucket_index_for_test(self, int64_t element)
+  def add_input(self, element):
+    pass
+
+  def get_add_input_fn(self):
+    return self.add_input
+
+  def translate_to_histogram(self, histogram):
+    pass

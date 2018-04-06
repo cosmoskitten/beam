@@ -9,9 +9,8 @@
 # limitations under the License.
 #
 
-'''
-Unit tests for the Distribution Counter
-'''
+"""Unit tests for the Distribution Counter"""
+
 import math
 import unittest
 

@@ -47,9 +47,13 @@ from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
-from apache_beam.transforms import distribution_counter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+
+try:
+  from apache_beam.transforms import distribution_counter as distribution_counter
+except ImportError:
+  from apache_beam.transforms import distribution_counter_slow as distribution_counter
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
