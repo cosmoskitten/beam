@@ -24,7 +24,11 @@ from __future__ import absolute_import
 
 
 from apache_beam.transforms import core
-from apache_beam.transforms.distribution_counter import DistributionAccumulator
+
+try:
+  from apache_beam.transforms import distribution_counter as distribution_counter
+except ImportError:
+  from apache_beam.transforms import distribution_counter_slow as distribution_counter
 
 
 class AccumulatorCombineFn(core.CombineFn):
@@ -305,7 +309,7 @@ class AnyAccumulator(object):
 
 
 class DistributionCounterFn(AccumulatorCombineFn):
-  _accumulator_type = DistributionAccumulator
+  _accumulator_type = distribution_counter.DistributionAccumulator
 
 
 class AnyCombineFn(AccumulatorCombineFn):

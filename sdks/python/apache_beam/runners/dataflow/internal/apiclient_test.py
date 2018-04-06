@@ -23,7 +23,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.transforms.distribution_counter import DistributionAccumulator
+from nose.plugins.skip import SkipTest
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -135,7 +135,13 @@ class UtilTest(unittest.TestCase):
                      distribution_update.count)
 
   def test_translate_distribution_counter(self):
-    counter_update = DistributionAccumulator()
+    try:
+      distribution_counter = __import__(
+          'apache_beam.transforms.distribution_counter',
+          globals(), locals(), -1)
+    except ImportError:
+      raise SkipTest('DistributionAccumulator not complied.')
+    counter_update = distribution_counter.DistributionAccumulator()
     counter_update.add_inputs_for_test([1])
     metric_proto = dataflow.CounterUpdate()
     apiclient.translate_distribution(counter_update, metric_proto)
