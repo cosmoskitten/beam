@@ -47,15 +47,13 @@ test {
   jvmArgs "-da"
 }
 
-task runDirectSmoke(type:JavaExec) {
+def nexmarkArgsProperty = "nexmark.args"
+
+task run (type: JavaExec) {
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = sourceSets.main.runtimeClasspath
-  args = ["--runner=DirectRunner", "--suite=SMOKE", "--manageResources=false", "--monitorJobs=true", "--perfFilename=nexmark-perf.txt"]
+  args(project.hasProperty(nexmarkArgsProperty)
+      ? project.getProperty(nexmarkArgsProperty).split()
+      : [])
 }
 
-task runDirectQuery10(type:JavaExec) {
-  main = "org.apache.beam.sdk.nexmark.Main"
-  classpath = sourceSets.main.runtimeClasspath
-  args = ["--query=10", "--runner=DirectRunner", "--manageResources=false", "--monitorJobs=true", "--perfFilename=nexmark-perf.txt"]
-  jvmArgs = ["-agentlib:hprof=cpu=samples"]
-}
