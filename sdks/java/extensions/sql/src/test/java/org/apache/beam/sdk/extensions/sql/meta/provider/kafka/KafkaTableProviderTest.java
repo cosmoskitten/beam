@@ -66,8 +66,8 @@ public class KafkaTableProviderTest {
         .comment(name + " table")
         .location("kafka://localhost:2181/brokers?topic=test")
         .columns(ImmutableList.of(
-            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
+            Column.builder().name("id").coder(INTEGER).build(),
+            Column.builder().name("name").coder(VARCHAR).build()
         ))
         .type("kafka")
         .properties(properties)

@@ -159,13 +159,11 @@ public class BeamSqlParserTest {
             Column.builder()
                 .name("id")
                 .coder(INTEGER)
-                .primaryKey(false)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
                 .coder(VARCHAR)
-                .primaryKey(false)
                 .comment("name")
                 .build()
         ))

@@ -130,8 +130,8 @@ public class InMemoryMetaStoreTest {
         .comment(name + " table")
         .location("/home/admin/" + name)
         .columns(ImmutableList.of(
-            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
+            Column.builder().name("id").coder(INTEGER).build(),
+            Column.builder().name("name").coder(VARCHAR).build()
         ))
         .type(type)
         .properties(new JSONObject())

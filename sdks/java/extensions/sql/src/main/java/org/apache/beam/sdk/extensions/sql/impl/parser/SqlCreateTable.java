@@ -127,7 +127,6 @@ public class SqlCreateTable extends SqlCreate {
                 )
             )
             .comment(getString(d.comment))
-            .primaryKey(false)
             .build();
         columns.add(column);
       } else {

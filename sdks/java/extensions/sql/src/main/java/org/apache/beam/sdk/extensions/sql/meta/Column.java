@@ -32,7 +32,6 @@ public abstract class Column implements Serializable {
   public abstract Coder getCoder();
   @Nullable
   public abstract String getComment();
-  public abstract boolean isPrimaryKey();
 
   public static Builder builder() {
     return new org.apache.beam.sdk.extensions.sql.meta.AutoValue_Column.Builder();
@@ -46,7 +45,6 @@ public abstract class Column implements Serializable {
     public abstract Builder name(String name);
     public abstract Builder coder(Coder coder);
     public abstract Builder comment(String comment);
-    public abstract Builder primaryKey(boolean isPrimaryKey);
     public abstract Column build();
   }
 }
