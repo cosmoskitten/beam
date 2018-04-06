@@ -36,7 +36,12 @@ job('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle') {
     '--rerun-tasks',
   ]
 
-  // Sets that this is a PostCommit job.
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
   // Allows triggering this build against pull requests.
