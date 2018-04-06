@@ -116,7 +116,6 @@ public class SqlCreateTable extends SqlCreate {
             .fieldType(CalciteUtils.toFieldType(
                 d.dataType.deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()))
             .comment(getString(d.comment))
-            .primaryKey(false)
             .build();
         columns.add(column);
       } else {
