@@ -109,9 +109,10 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testDateTimeFormatWithTimezone() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59.89079 PST"));
-    ReadableInstant expected = new DateTime().withDate(2017, 05, 22)
-        .withTime(0, 0, 0, 0)
-        .withZone(DateTimeZone.forID("US/Pacific"));
+    ReadableInstant expected = new DateTime()
+        .withZone(DateTimeZone.forID("US/Pacific"))
+        .withDate(2017, 05, 22)
+        .withTime(0, 0, 0, 0);
     Assert.assertEquals(expected,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
