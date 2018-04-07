@@ -39,13 +39,13 @@ import org.junit.Test;
  * A test of {@link ElasticsearchIO} on an independent Elasticsearch v5.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
- * database.
+ * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
  *
  * <p>You can run this test by doing the following from the beam parent module directory with the
  * correct server IP:
  *
  * <pre>
- *  mvn -e -Pio-it verify -pl elasticsearch-tests/elasticsearch-tests-5 \
+ *  mvn -e -Pio-it verify -pl sdks/java/io/elasticsearch-tests/elasticsearch-tests-5 \
  *    -DintegrationTestPipelineOptions='[
  *      "--elasticsearchServer=127.0.0.1",
  *      "--elasticsearchHttpPort=9200"]'
