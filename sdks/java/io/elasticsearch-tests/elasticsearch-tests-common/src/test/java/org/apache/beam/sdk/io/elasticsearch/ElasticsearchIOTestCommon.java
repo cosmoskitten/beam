@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.FAMOUS_SCIENTISTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.NUM_SCIENTISTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.countByScientistName;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
@@ -31,7 +33,6 @@ import static org.junit.Assert.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -41,10 +42,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.nio.entity.NStringEntity;
-import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
 import org.junit.rules.ExpectedException;
@@ -64,7 +61,6 @@ class ElasticsearchIOTestCommon implements Serializable {
   private static final long AVERAGE_DOC_SIZE = 25L;
 
 
-  private static final int NUM_SCIENTISTS = FAMOUS_SCIENTISTS.length;
   private static final long BATCH_SIZE = 200L;
   private static final long BATCH_SIZE_BYTES = 2048L;
 
@@ -163,23 +159,11 @@ class ElasticsearchIOTestCommon implements Serializable {
         .apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
-    long currentNumDocs = ElasticSearchIOTestUtils
-        .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    long currentNumDocs =
+            refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
     assertEquals(numDocs, currentNumDocs);
 
-    String requestBody =
-        "{\n"
-        + "  \"query\" : {\"match\": {\n"
-        + "    \"scientist\": \"Einstein\"\n"
-        + "  }}\n"
-        + "}\n";
-    String endPoint = String.format("/%s/%s/_search", connectionConfiguration.getIndex(),
-        connectionConfiguration.getType());
-    HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-    Response response =
-        restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
-    JsonNode searchResult = parseResponse(response);
-    int count = searchResult.path("hits").path("total").asInt();
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
     assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 
@@ -238,8 +222,8 @@ class ElasticsearchIOTestCommon implements Serializable {
         if ((numDocsProcessed % 100) == 0) {
           // force the index to upgrade after inserting for the inserted docs
           // to be searchable immediately
-          long currentNumDocs = ElasticSearchIOTestUtils
-              .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+          long currentNumDocs =
+                  refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
           if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
             assertEquals(
@@ -282,8 +266,8 @@ class ElasticsearchIOTestCommon implements Serializable {
         if ((numDocsProcessed % 40) == 0) {
           // force the index to upgrade after inserting for the inserted docs
           // to be searchable immediately
-          long currentNumDocs = ElasticSearchIOTestUtils
-              .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+          long currentNumDocs =
+                  refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
           if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
           /* bundle end */
             assertThat(
@@ -305,7 +289,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /** Extracts the scientist name from the JSON document. */
-  static class ExtractScientistFn implements Write.FieldExtractFn {
+  private static class ExtractScientistFn implements Write.FieldValueExtractFn {
     @Override
     public String apply(JsonNode input) {
       return input.path("scientist").asText();
@@ -329,31 +313,19 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
 
     long currentNumDocs =
-        ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs(
+        refreshIndexAndGetCurrentNumDocs(
             connectionConfiguration, restClient);
     assertEquals(NUM_SCIENTISTS, currentNumDocs);
 
-    String requestBody =
-            "{\n"
-                    + "  \"query\" : {\"match\": {\n"
-                    + "    \"scientist\": \"Einstein\"\n"
-                    + "  }}\n"
-                    + "}\n";
-    String endPoint = String.format("/%s/%s/_search", connectionConfiguration.getIndex(),
-            connectionConfiguration.getType());
-    HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-    Response response =
-            restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
-    JsonNode searchResult = parseResponse(response);
-    int count = searchResult.path("hits").path("total").asInt();
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
     assertEquals(1, count);
   }
 
   /**
-   * Tests that documents are dynamically routed to different indexes. Documents should be routed to
-   * the an index named the same as the scientist in the document. Multiple indexes adds significant
-   * work to the ES server and even passing moderate number of docs can overload the bulk queue and
-   * workers. The post explains more
+   * Tests that documents are dynamically routed to different indexes and not the one specified in
+   * the configuration. Documents should be routed to an index named the same as the scientist in
+   * the document. Multiple indexes adds significant work to the ES server and even passing moderate
+   * number of docs can overload the bulk queue and workers. The post explains more
    * https://www.elastic.co/blog/why-am-i-seeing-bulk-rejections-in-my-elasticsearch-cluster.
    * Therefore limit to a small number of docs to test routing behavior only.
    */
@@ -375,22 +347,16 @@ class ElasticsearchIOTestCommon implements Serializable {
     // verify counts on each index
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase();
-
-      // flush writes server side to ensure ready for reading
-      restClient.performRequest("POST", String.format("/%s/_refresh", index));
-
-      String endPoint = String.format("/%s/%s/_search", index, connectionConfiguration.getType());
-      Response response = restClient.performRequest("GET", endPoint);
-      JsonNode searchResult = parseResponse(response);
-      int count = searchResult.path("hits").path("total").asInt();
+      long count =
+          refreshIndexAndGetCurrentNumDocs(restClient, index, connectionConfiguration.getType());
       assertEquals(scientist + " index holds incorrect count", docsPerScientist, count);
     }
   }
 
   /**
-   * Returns TYPE_0 or TYPE_1 based on the modulus of the document id.
+   * Returns TYPE_0 or TYPE_1 based on the modulo 2 of the document id.
    */
-  static class TypeIdFn implements Write.FieldExtractFn {
+  static class TypeIdFn implements Write.FieldValueExtractFn {
     @Override
     public String apply(JsonNode input) {
       return "TYPE_" + input.path("id").asInt() % 2;
@@ -398,8 +364,9 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /**
-   * Tests that documents are dynamically routed to different types. Documents should be routed to
-   * the a type of type_0 or type_1 using modulus approach of the explicit id.
+   * Tests that documents are dynamically routed to different types and not the type that is given
+   * in the configuration. Documents should be routed to the a type of type_0 or type_1 using a
+   * modulo approach of the explicit id.
    */
   void testWriteWithTypeFn() throws Exception {
     // defensive coding: this test requires an even number of docs
@@ -417,15 +384,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
 
     for (int i = 0; i < 2; i++) {
-      // flush writes server side to ensure ready for reading
-      restClient.performRequest(
-          "POST", String.format("/%s/_refresh", connectionConfiguration.getIndex()));
-
-      String endPoint = String.format("/%s/TYPE_%s/_search", connectionConfiguration.getIndex(), i);
-      Response response = restClient.performRequest("GET", endPoint);
-      JsonNode searchResult = parseResponse(response);
-      int count = searchResult.path("hits").path("total").asInt();
-      assertEquals("TYPE_" + i + " holds incorrect count", adjustedNumDocs / 2, count);
+      String type = "TYPE_" + i;
+      long count =
+          refreshIndexAndGetCurrentNumDocs(
+              restClient, connectionConfiguration.getIndex(), type);
+      assertEquals(type + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
 }
