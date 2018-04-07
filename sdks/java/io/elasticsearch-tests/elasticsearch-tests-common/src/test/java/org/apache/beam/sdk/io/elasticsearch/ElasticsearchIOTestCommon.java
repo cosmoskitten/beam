@@ -391,4 +391,35 @@ class ElasticsearchIOTestCommon implements Serializable {
       assertEquals(type + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
+
+  /**
+   * Tests that documents are correctly routed when index, type and document ID functions are
+   * provided to overwrite the defaults of using the configuration and auto-generation of the
+   * document IDs by Elasticsearch. The scientist name is used for the index, type and document ID.
+   * As a result there there should be only a single document in each index/type.
+   */
+  void testWriteWithFullAddressing() throws Exception {
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+                numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractScientistFn())
+                .withIndexFn(new ExtractScientistFn())
+                .withTypeFn(new ExtractScientistFn()));
+    pipeline.run();
+
+    for (String scientist : FAMOUS_SCIENTISTS) {
+      String index = scientist.toLowerCase();
+      String type = scientist;
+
+      long count =
+            refreshIndexAndGetCurrentNumDocs(restClient, index, type);
+        assertEquals(
+            "Incorrect count for " + index + "/" + type, 1, count);
+    }
+  }
 }

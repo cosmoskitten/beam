@@ -112,8 +112,8 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testWriteVolume() throws Exception {
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
-        writeConnectionConfiguration, restClient, true);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }
@@ -121,5 +121,21 @@ public class ElasticsearchIOIT {
   @Test
   public void testSizesVolume() throws Exception {
     elasticsearchIOTestCommon.testSizes();
+  }
+
+  /**
+   * This test will pass a lot of documents to Elasticsearch, but because the scientist name is used
+   * for the document ID it will result in Elasticsearch seeing many updates to the same documents.
+   * The goal of this IT is to help observe and verify that the overhead of adding the functions to
+   * parse the document and extract the ID is acceptable, and not to be an Elasticsearch throughput
+   * test.
+   */
+  @Test
+  public void testWriteVolumeWithFullAddressing() throws Exception {
+    //cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
+            writeConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonWrite.setPipeline(pipeline);
+    elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
   }
 }
