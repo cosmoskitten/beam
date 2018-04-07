@@ -41,12 +41,14 @@ import org.junit.Test;
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database.
  *
- * <p>You can run this test by doing the following from the beam parent module directory:
+ * <p>You can run this test by doing the following from the beam parent module directory with the
+ * correct server IP:
  *
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/elasticsearch -DintegrationTestPipelineOptions='[
- *  "--elasticsearchServer=1.2.3.4",
- *  "--elasticsearchHttpPort=9200"]'
+ *  mvn -e -Pio-it verify -pl elasticsearch-tests/elasticsearch-tests-5 \
+ *    -DintegrationTestPipelineOptions='[
+ *      "--elasticsearchServer=127.0.0.1",
+ *      "--elasticsearchHttpPort=9200"]'
  * </pre>
  */
 public class ElasticsearchIOIT {
