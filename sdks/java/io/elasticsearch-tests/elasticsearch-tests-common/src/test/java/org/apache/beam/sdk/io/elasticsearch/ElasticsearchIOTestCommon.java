@@ -288,11 +288,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
   }
 
-  /** Extracts the scientist name from the JSON document. */
-  private static class ExtractScientistFn implements Write.FieldValueExtractFn {
+  /** Extracts the name field from the JSON document. */
+  private static class ExtractValueFn implements Write.FieldValueExtractFn {
+    private final String fieldName;
+
+    private ExtractValueFn(String fieldName) {
+      this.fieldName = fieldName;
+    }
+
     @Override
     public String apply(JsonNode input) {
-      return input.path("scientist").asText();
+      return input.path(fieldName).asText();
     }
   }
 
@@ -309,7 +315,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         .apply(
             ElasticsearchIO.write()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withIdFn(new ExtractScientistFn()));
+                .withIdFn(new ExtractValueFn("scientist")));
     pipeline.run();
 
     long currentNumDocs =
@@ -341,7 +347,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             .apply(
                     ElasticsearchIO.write()
                             .withConnectionConfiguration(connectionConfiguration)
-                            .withIndexFn(new ExtractScientistFn()));
+                            .withIndexFn(new ExtractValueFn("scientist")));
     pipeline.run();
 
     // verify counts on each index
@@ -354,12 +360,18 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /**
-   * Returns TYPE_0 or TYPE_1 based on the modulo 2 of the document id.
+   * Returns TYPE_0 or TYPE_1 based on the modulo 2 of the named field.
    */
-  static class TypeIdFn implements Write.FieldValueExtractFn {
+  static class Modulo2ValueFn implements Write.FieldValueExtractFn {
+    private final String fieldName;
+
+    Modulo2ValueFn(String fieldName) {
+      this.fieldName = fieldName;
+    }
+
     @Override
     public String apply(JsonNode input) {
-      return "TYPE_" + input.path("id").asInt() % 2;
+      return "TYPE_" + input.path(fieldName).asText().hashCode() % 2;
     }
   }
 
@@ -380,7 +392,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         .apply(
             ElasticsearchIO.write()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withTypeFn(new TypeIdFn()));
+                .withTypeFn(new Modulo2ValueFn("id")));
     pipeline.run();
 
     for (int i = 0; i < 2; i++) {
@@ -407,19 +419,20 @@ class ElasticsearchIOTestCommon implements Serializable {
         .apply(
             ElasticsearchIO.write()
                 .withConnectionConfiguration(connectionConfiguration)
-                .withIdFn(new ExtractScientistFn())
-                .withIndexFn(new ExtractScientistFn())
-                .withTypeFn(new ExtractScientistFn()));
+                .withIdFn(new ExtractValueFn("id"))
+                .withIndexFn(new ExtractValueFn("scientist"))
+                .withTypeFn(new Modulo2ValueFn("scientist")));
     pipeline.run();
 
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase();
-      String type = scientist;
+      for (int i = 0; i < 2; i++) {
+        String type = "TYPE_" + scientist.hashCode() % 2;
+        long count =
+                refreshIndexAndGetCurrentNumDocs(restClient, index, type);
+        assertEquals("Incorrect count for " + index + "/" + type, numDocs / NUM_SCIENTISTS, count);
+      }
 
-      long count =
-            refreshIndexAndGetCurrentNumDocs(restClient, index, type);
-        assertEquals(
-            "Incorrect count for " + index + "/" + type, 1, count);
     }
   }
 }

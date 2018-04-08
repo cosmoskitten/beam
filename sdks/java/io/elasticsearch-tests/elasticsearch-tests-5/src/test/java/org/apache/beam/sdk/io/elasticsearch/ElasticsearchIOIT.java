@@ -50,6 +50,9 @@ import org.junit.Test;
  *      "--elasticsearchServer=127.0.0.1",
  *      "--elasticsearchHttpPort=9200"]'
  * </pre>
+ *
+ * <p>It is likely that you will need to configure <code>thread_pool.bulk.queue_size: 250</code> (or
+ * higher) in Elasticsearch for this test to run.
  */
 public class ElasticsearchIOIT {
   private static RestClient restClient;
@@ -117,12 +120,16 @@ public class ElasticsearchIOIT {
     elasticsearchIOTestCommonWrite.testWrite();
   }
 
+  @Test
+  public void testSizesVolume() throws Exception {
+    elasticsearchIOTestCommon.testSizes();
+  }
+
   /**
-   * This test will pass a lot of documents to Elasticsearch, but because the scientist name is used
-   * for the document ID it will result in Elasticsearch seeing many updates to the same documents.
-   * The goal of this IT is to help observe and verify that the overhead of adding the functions to
-   * parse the document and extract the ID is acceptable, and not to be an Elasticsearch throughput
-   * test.
+   * This test verifies volume loading of Elasticsearch using explicit document IDs and routed to an
+   * index named the same as the scientist, and type which is based on the modulo 2 of the scientist
+   * name. The goal of this IT is to help observe and verify that the overhead of adding the
+   * functions to parse the document and extract the ID is acceptable.
    */
   @Test
   public void testWriteWithFullAddressingVolume() throws Exception {
@@ -131,10 +138,5 @@ public class ElasticsearchIOIT {
             writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
-  }
-
-  @Test
-  public void testSizesVolume() throws Exception {
-    elasticsearchIOTestCommon.testSizes();
   }
 }

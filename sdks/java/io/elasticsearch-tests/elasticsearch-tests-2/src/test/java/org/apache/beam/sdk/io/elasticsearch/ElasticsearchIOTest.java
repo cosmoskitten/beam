@@ -94,7 +94,7 @@ public class ElasticsearchIOTest implements Serializable {
             .put("index.store.stats_refresh_interval", 0)
             // had problems with some jdk, embedded ES was too slow for bulk insertion,
             // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
-            .put("threadpool.bulk.queue_size", 100);
+            .put("threadpool.bulk.queue_size", 250);
     node = new Node(settingsBuilder.build());
     LOG.info("Elasticsearch node created");
     node.start();
