@@ -61,7 +61,7 @@ cdef int64_t get_log10_round_to_floor(int64_t element):
   return y - compare_to(element, POWER_TEN[y])
 
 
-cdef class DistributionAccumulator(object):
+cdef class DataflowDistributionCounter(object):
   """Distribution Counter:
   contains value distribution statistics and methods for incrementing
   Attributes:

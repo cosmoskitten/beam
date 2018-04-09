@@ -23,3 +23,9 @@ with no backwards-compatibility guarantees.
 
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.dataflow.py_dataflow_distribution_counter import DataflowDistributionCounterFn
+
+try:
+  from apache_beam.runners.dataflow.cy_dataflow_distribution_counter import DataflowDistributionCounter
+except ImportError:
+  from apache_beam.runners.dataflow.py_dataflow_distribution_counter import DataflowDistributionCounter

@@ -137,11 +137,11 @@ class UtilTest(unittest.TestCase):
   def test_translate_distribution_counter(self):
     try:
       distribution_counter = __import__(
-          'apache_beam.transforms.distribution_counter',
+          'apache_beam.runners.dataflow.cy_dataflow_distribution_counter',
           globals(), locals(), -1)
     except ImportError:
       raise SkipTest('DistributionAccumulator not complied.')
-    counter_update = distribution_counter.DistributionAccumulator()
+    counter_update = distribution_counter.DataflowDistributionAccumulator()
     counter_update.add_inputs_for_test([1])
     metric_proto = dataflow.CounterUpdate()
     apiclient.translate_distribution(counter_update, metric_proto)

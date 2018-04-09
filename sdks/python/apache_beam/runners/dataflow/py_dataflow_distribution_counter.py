@@ -16,7 +16,9 @@
 
 """ For internal use only. No backwards compatibility guarantees."""
 
-class DistributionAccumulator(object):
+from apache_beam.transforms.cy_combiners import AccumulatorCombineFn
+
+class DataflowDistributionCounter(object):
   """Pure python DistributionAccumulator in case Cython not available
   Pure python DistributionAccumulator will no nothing since it's super slow
   """
@@ -37,3 +39,19 @@ class DistributionAccumulator(object):
 
   def translate_to_histogram(self, histogram):
     pass
+
+
+class DataflowDistributionCounterFn(AccumulatorCombineFn):
+  """A subclass of cy_combiners.AccumulatorCombineFn
+  Make DataflowDistributionCounter able to report to Dataflow service via
+  CounterFactory
+  When cythonized DataflowDistributinoCounter available, make
+  CounterFn combine with cythonized module, otherwise, combine with python
+  version
+  """
+  try:
+    from apache_beam.runners.dataflow.cy_dataflow_distribution_counter \
+      import DataflowDistributionCounter
+    _accumulator_type = DataflowDistributionCounter
+  except ImportError:
+    _accumulator_type = DataflowDistributionCounter
