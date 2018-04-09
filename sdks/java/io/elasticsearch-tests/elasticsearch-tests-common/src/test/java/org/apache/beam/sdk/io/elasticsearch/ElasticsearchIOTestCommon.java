@@ -359,9 +359,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
   }
 
-  /**
-   * Returns TYPE_0 or TYPE_1 based on the modulo 2 of the named field.
-   */
+  /** Returns TYPE_0 or TYPE_1 based on the modulo 2 of the hash of the named field. */
   static class Modulo2ValueFn implements Write.FieldValueExtractFn {
     private final String fieldName;
 
@@ -408,7 +406,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    * Tests that documents are correctly routed when index, type and document ID functions are
    * provided to overwrite the defaults of using the configuration and auto-generation of the
    * document IDs by Elasticsearch. The scientist name is used for the index, type and document ID.
-   * As a result there there should be only a single document in each index/type.
+   * As a result there should be only a single document in each index/type.
    */
   void testWriteWithFullAddressing() throws Exception {
     List<String> data =
