@@ -20,10 +20,9 @@ import common_job_properties
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-job('beam_PostCommit_Java_GradleBuild') {
+job('beam_PostCommit_Java_MavenInstall') {
   description('Runs PostCommit tests on the Java SDK.')
-  previousNames('beam_PostCommit_MavenVerify')
-  previousNames('beam_PostCommit_Java_MavenInstall')
+  previousNames('beam_PostCommit_Java_GradleBuild')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
