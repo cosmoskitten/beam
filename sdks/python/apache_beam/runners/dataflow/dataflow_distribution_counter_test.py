@@ -18,24 +18,24 @@ from mock import Mock
 from nose.plugins.skip import SkipTest
 
 
-class DistributionAccumulatorTest(unittest.TestCase):
+class DataflowDistributionAccumulatorTest(unittest.TestCase):
 
   def setUp(self):
     try:
       #pylint: disable=global-variable-not-assigned
-      global DistributionAccumulator
-      from apache_beam.transforms.distribution_counter \
-        import DistributionAccumulator
+      global DataflowDistributionCounter
+      from apache_beam.runners.dataflow.cy_dataflow_distribution_counter \
+        import DataflowDistributionCounter
     except ImportError:
       raise SkipTest('DistributionAccumulator not complied.')
 
   def test_calculate_bucket_index_with_input_0(self):
-    counter = DistributionAccumulator()
+    counter = DataflowDistributionCounter()
     index = counter.calculate_bucket_index_for_test(0)
     self.assertEquals(index, 0)
 
   def test_calculate_bucket_index_within_max_long(self):
-    counter = DistributionAccumulator()
+    counter = DataflowDistributionCounter()
     bucket = 1
     power_of_ten = 1
     INT64_MAX = math.pow(2, 63) - 1
@@ -48,7 +48,7 @@ class DistributionAccumulatorTest(unittest.TestCase):
       power_of_ten *= 10
 
   def test_add_input(self):
-    counter = DistributionAccumulator()
+    counter = DataflowDistributionCounter()
     expected_buckets = [1, 3, 0, 0, 0, 0, 0, 0, 1, 1]
     expected_sum = 1510
     expected_first_bucket_index = 1

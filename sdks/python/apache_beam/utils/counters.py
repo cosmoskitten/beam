@@ -27,6 +27,7 @@ import threading
 from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners
+from apache_beam.runners.dataflow import DataflowDistributionCounterFn
 
 # Information identifying the IO being measured by a counter.
 #
@@ -132,7 +133,7 @@ class Counter(object):
   MEAN = cy_combiners.MeanInt64Fn()
 
   # Distribution Accumulator Fn
-  DISTRIBUTION = cy_combiners.DistributionCounterFn()
+  DISTRIBUTION = DataflowDistributionCounterFn()
 
   def __init__(self, name, combine_fn):
     """Creates a Counter object.
@@ -171,7 +172,7 @@ class AccumulatorCombineFnCounter(Counter):
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
     # DistributionAccumulator is c-access(cdef) only
-    if isinstance(combine_fn, cy_combiners.DistributionCounterFn):
+    if isinstance(combine_fn, DataflowDistributionCounterFn):
       self._fast_add_input = self.accumulator.get_add_input_fn()
     else:
       self._fast_add_input = self.accumulator.add_input

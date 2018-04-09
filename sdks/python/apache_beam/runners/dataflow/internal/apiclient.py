@@ -49,11 +49,7 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
-
-try:
-  from apache_beam.transforms import distribution_counter as distribution_counter
-except ImportError:
-  from apache_beam.transforms import distribution_counter_slow as distribution_counter
+from apache_beam.runners.dataflow import DataflowDistributionCounter, DataflowDistributionCounterFn
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
@@ -755,8 +751,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
   # Only DistributionAccumulator has buckets and first_bucket_offset.
-  if isinstance(distribution_update,
-                distribution_counter.DistributionAccumulator):
+  if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
   metric_update_proto.distribution = dist_update_proto
@@ -819,7 +814,7 @@ structured_counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
-    cy_combiners.DistributionCounterFn: (
+    DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
         translate_distribution)
 }
@@ -859,7 +854,7 @@ counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
-    cy_combiners.DistributionCounterFn: (
+    DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
         translate_distribution)
 }

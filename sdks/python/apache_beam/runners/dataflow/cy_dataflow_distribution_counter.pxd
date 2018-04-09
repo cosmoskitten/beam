@@ -21,7 +21,7 @@
 cimport cython
 from libc.stdint cimport int64_t
 
-cdef class DistributionAccumulator(object):
+cdef class DataflowDistributionCounter(object):
   cdef public int64_t min
   cdef public int64_t max
   cdef public int64_t count
