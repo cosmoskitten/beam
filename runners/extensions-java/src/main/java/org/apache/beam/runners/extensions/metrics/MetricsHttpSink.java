@@ -21,6 +21,8 @@ package org.apache.beam.runners.extensions.metrics;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.DataOutputStream;
@@ -67,6 +69,17 @@ public class MetricsHttpSink implements MetricsSink<String> {
     objectMapper.registerModule(new JodaModule());
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
-    return objectMapper.writeValueAsString(metricQueryResults);
+    String metrics;
+    try {
+      metrics = objectMapper.writeValueAsString(metricQueryResults);
+    } catch (UnsupportedOperationException e){ //unsupported committed metrics
+      if (e.getMessage().contains("committed metrics")) {
+        SimpleFilterProvider filterProvider = new SimpleFilterProvider();
+        filterProvider.addFilter("avoid_committed_metrics", SimpleBeanPropertyFilter.serializeAllExcept("getCommitted"));
+        objectMapper.setFilterProvider(filterProvider);
+      }
+        metrics = objectMapper.writeValueAsString(metricQueryResults);
+    }
+    return metrics;
   }
 }
