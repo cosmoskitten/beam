@@ -108,7 +108,7 @@
                 <argument>${pkbBeamRunnerOption}</argument>
                 <!-- specific to this IO -->
                 <argument>-beam_it_module=sdks/java/io/hcatalog</argument>
-                <argument>-beam_it_class=${fileBasedIoItClass}</argument>
+                <argument>-beam_it_class=${ioItClass}</argument>
                 <!-- arguments typically defined by user -->
                 <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
                 <!--
@@ -144,16 +144,6 @@
             <scope>runtime</scope>
           </dependency>
         </dependencies>
-    </profile>
-    <profile>
-      <id>hcatalog-remote-access</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.postgresql</groupId>
-          <artifactId>postgresql</artifactId>
-          <scope>test</scope>
-        </dependency>
-      </dependencies>
     </profile>
   </profiles>
 
@@ -287,6 +277,13 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-jdbc</artifactId>
+      <version>${hive.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <scope>test</scope>
@@ -297,17 +294,20 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-common</artifactId>
       <scope>test</scope>
       <classifier>tests</classifier>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-common</artifactId>
