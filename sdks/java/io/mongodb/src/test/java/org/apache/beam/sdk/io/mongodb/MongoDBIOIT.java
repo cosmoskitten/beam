@@ -54,9 +54,10 @@ import org.junit.runners.JUnit4;
  *  "--mongoDBDatabaseName=mypass",
  *  "--numberOfRecords=1000" ]'
  *  --tests org.apache.beam.sdk.io.mongodb.MongoDbIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
- * <p>Please see beam parent's 'build.gradle' for instructions regarding
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)

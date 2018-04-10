@@ -56,6 +56,7 @@ import org.junit.runners.JUnit4;
  *  "--elasticUserName=user",
  *  "--elasticPassword=mypass" ]'
  *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HIFIOElasticIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow

@@ -55,8 +55,11 @@ import org.postgresql.ds.PGSimpleDataSource;
  *  "--postgresSsl=false",
  *  "--numberOfRecords=1000" ]'
  *  --tests org.apache.beam.sdk.io.jdbc.JdbcIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {

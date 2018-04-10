@@ -56,10 +56,11 @@ import org.junit.runners.JUnit4;
  *  "--compressionType=GZIP"
  *  ]'
  *  --tests org.apache.beam.sdk.io.text.TextIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
  *
- * <p>Please see beam parent's 'build.gradle' for instructions regarding
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)

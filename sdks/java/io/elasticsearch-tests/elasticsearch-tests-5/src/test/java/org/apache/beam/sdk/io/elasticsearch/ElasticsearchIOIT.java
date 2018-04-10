@@ -48,6 +48,7 @@ import org.junit.Test;
  *  "--elasticsearchServer=1.2.3.4",
  *  "--elasticsearchHttpPort=9200"]'
  *  --tests org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  */
 public class ElasticsearchIOIT {

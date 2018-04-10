@@ -595,56 +595,84 @@ ext.applyJavaNature = {
 
 // Reads and contains all necessary performance test parameters
 class JavaPerformanceTestConfiguration {
+
+  // Path to PerfKitBenchmarker application (pkb.py).
   String pkbLocation = System.getProperty('pkbLocation')
 
+  // Data Processing Backend's log level.
   String logLevel = System.getProperty('logLevel', 'INFO')
+
+  // Path to gradle binary.
   String gradleBinary = System.getProperty('gradleBinary', './gradlew')
-  String isOfficial = System.getProperty('official', 'true')
+
+  // If benchmark is official or not.
+  // Official benchmark results are meant to be displayed on PerfKitExplorer dashboards.
+  String isOfficial = System.getProperty('official', 'false')
+
+  // Specifies names of benchmarks to be run by perfkit.
   String benchmarks = System.getProperty('benchmarks', 'beam_integration_benchmark')
 
+  // If beam is not "prebuilt then perfkit runs the build task before running the tests.
   String beamPrebuilt = System.getProperty('beamPrebuilt', 'true')
+
+  // Beam's sdk to be used by perfkit.
   String beamSdk = System.getProperty('beamSdk', 'java')
 
+  // Timeout (in seconds) after which PerfKit will stop executing the benchmark (and will fail).
   String timeout = System.getProperty('itTimeout', '1200')
 
+  // Path to kubernetes configuration file.
   String kubeconfig = System.getProperty('kubeconfig', System.getProperty('user.home') + '/.kube/config')
+
+  // Path to kubernetes executable.
   String kubectl = System.getProperty('kubectl', 'kubectl')
 
+  // Paths to files with kubernetes infrastructure to setup before the test runs.
   // PerfKit will have trouble reading 'null' path. It expects empty string if no scripts are expected.
   String kubernetesScripts = System.getProperty('kubernetesScripts', '')
 
+  // Pipeline options to be used by the tested pipeline.
   String integrationTestPipelineOptions = System.getProperty('integrationTestPipelineOptions')
 
+  // Path to file with 'dynamic' and 'static' pipeline options.
+  // that will be appended by perfkit to the test running command.
   // PerfKit will have trouble reading 'null' path. It expects empty string if no config file is expected.
   String optionsConfigFile = System.getProperty('beamITOptions', '')
 
+  // Fully qualified name of the test to be run, eg:
+  // 'org.apache.beam.sdks.java.io.jdbc.JdbcIOIT'.
   String integrationTest = System.getProperty('integrationTest')
+
+  // Relative path to module where the test is, eg. 'sdks/java/io/jdbc.
   String itModule = System.getProperty('itModule')
 
+  // Runner which will be used for running the tests.
   String runner = System.getProperty('integrationTestRunner', 'direct')
 
+  // Any additional properties to be appended to benchmark execution command.
   String extraProperties = System.getProperty('beamExtraProperties', '')
 }
 
-// Configures a project with a set of tasks needed for running performance tests
+// When applied in a module's build.gradle file, this closure provides set of tasks
+// needed to run IOIT integration tests (manually, without perfkit).
 ext.enableJavaPerformanceTesting = {
   println "enableJavaPerformanceTesting with ${it ? "$it" : "default configuration"} for project ${project.name}"
 
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+  // See: http://groovy-lang.org/closures.html#implicit-it
   JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
   // Add runners needed to run integration tests on
   task packageIntegrationTests(type: Jar) {
-    if (gradle.startParameter.taskNames.contains('integrationTest')) {
-
       def runner = configuration.runner
       dependencies {
         if (runner.contains('dataflow')) {
           testCompile project(path: ":runners:google-cloud-dataflow-java", configuration: 'shadowTest')
-        } else {
+        }
+
+        if (runner.contains('direct')) {
           testCompile project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
-      }
     }
   }
 
@@ -655,10 +683,13 @@ ext.enableJavaPerformanceTesting = {
   }
 }
 
+// When applied in a module's build gradle file, this closure provides a task
+// that will involve perfkit for running integrationTests.
 ext.createPerformanceTestHarness = {
   println "createPerformanceTestHarness with ${it ? "$it" : "default configuration"} for project ${project.name}"
 
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+  // See: http://groovy-lang.org/closures.html#implicit-it
   JavaPerformanceTestConfiguration configuration = it ? it as JavaPerformanceTestConfiguration : new JavaPerformanceTestConfiguration()
 
   // This task runs PerfKitBenchmarker, which does benchmarking of the IO ITs.

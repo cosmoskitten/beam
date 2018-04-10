@@ -66,6 +66,7 @@ import org.postgresql.ds.PGSimpleDataSource;
  *     "--postgresSsl=false",
  *     "--numberOfRecords=1000" ]'
  *  --tests org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  */
 public class HadoopInputFormatIOIT {

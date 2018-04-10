@@ -22,6 +22,9 @@
 // tasks.
 
 apply from: project(":").file("build_rules.gradle")
+
+// Add performanceTest task to this build.gradle file
+// so that running Performance tests using PerfKitBenchmarker is possible.
 createPerformanceTestHarness()
 
 // Define the set of repositories and dependencies required to
