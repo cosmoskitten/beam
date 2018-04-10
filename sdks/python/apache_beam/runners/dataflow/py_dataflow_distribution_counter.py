@@ -18,6 +18,7 @@
 
 from apache_beam.transforms.cy_combiners import AccumulatorCombineFn
 
+
 class DataflowDistributionCounter(object):
   """Pure python DistributionAccumulator in case Cython not available
   Pure python DistributionAccumulator will no nothing since it's super slow

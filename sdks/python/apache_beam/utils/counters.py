@@ -26,8 +26,8 @@ For internal use only; no backwards-compatibility guarantees.
 import threading
 from collections import namedtuple
 
-from apache_beam.transforms import cy_combiners
 from apache_beam.runners.dataflow import DataflowDistributionCounterFn
+from apache_beam.transforms import cy_combiners
 
 # Information identifying the IO being measured by a counter.
 #

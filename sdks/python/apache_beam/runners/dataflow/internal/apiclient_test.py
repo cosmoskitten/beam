@@ -18,15 +18,15 @@
 import unittest
 
 import mock
+from nose.plugins.skip import SkipTest
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from nose.plugins.skip import SkipTest
 
 # Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
