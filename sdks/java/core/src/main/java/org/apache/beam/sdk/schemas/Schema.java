@@ -238,17 +238,35 @@ public class Schema implements Serializable {
    */
   @AutoValue
   public abstract static class FieldType implements Serializable {
-    // Returns the type of this field.
-    public abstract TypeName getTypeName();
-    // For container types (e.g. ARRAY), returns the type of the contained element.
-    @Nullable public abstract FieldType getComponentType();
-    // For ROW types, returns the schema for the row.
-    @Nullable public abstract Schema getRowSchema();
+
     /**
-     * Returns optional extra metadata.
+     * Returns the type name of this field.
+     */
+    public abstract TypeName getTypeName();
+
+    /**
+     * For container types (e.g. ARRAY), returns the type of the contained element.
+     *
+     * <p>Returns null for all other field types.
+     */
+    @Nullable public abstract FieldType getComponentType();
+
+    /**
+     * For ROW types, returns the schema for the row.
+     *
+     * <p>Returns null for all other field types.
+     */
+    @Nullable public abstract Schema getRowSchema();
+
+    /**
+     * Returns optional extra metadata if present.
+     *
+     * <p>Returns null if metadata is not present.
      */
     @Nullable public abstract byte[] getMetadata();
+
     abstract FieldType.Builder toBuilder();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
