@@ -21,6 +21,12 @@
 cimport cython
 from libc.stdint cimport int64_t
 
+
+# const int for number of buckets in every log10 bucket
+cdef enum:
+  buckets_per_10 = 3
+
+
 cdef class DataflowDistributionCounter(object):
   cdef public int64_t min
   cdef public int64_t max
@@ -29,10 +35,8 @@ cdef class DataflowDistributionCounter(object):
   cdef int64_t first_bucket_offset
   cdef int64_t last_bucket_offset
   cdef int64_t* buckets
-  cdef int64_t buckets_per_10
-  cdef bint add_input(self, int64_t element) except -1
+  cpdef bint add_input(self, int64_t element) except -1
   cdef int64_t calculate_bucket_index(self, int64_t element)
   cpdef object translate_to_histogram(self, histogram)
-  cpdef object get_add_input_fn(self)
   cpdef bint add_inputs_for_test(self, elements) except -1
   cpdef int64_t calculate_bucket_index_for_test(self, int64_t element)

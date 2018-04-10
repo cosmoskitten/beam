@@ -171,11 +171,7 @@ class AccumulatorCombineFnCounter(Counter):
   def __init__(self, name, combine_fn):
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
     super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
-    # DistributionAccumulator is c-access(cdef) only
-    if isinstance(combine_fn, DataflowDistributionCounterFn):
-      self._fast_add_input = self.accumulator.get_add_input_fn()
-    else:
-      self._fast_add_input = self.accumulator.add_input
+    self._fast_add_input = self.accumulator.add_input
 
   def update(self, value):
     self._fast_add_input(value)
