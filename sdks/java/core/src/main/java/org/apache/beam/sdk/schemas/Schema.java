@@ -238,7 +238,7 @@ public class Schema implements Serializable {
    */
   @AutoValue
   public abstract static class FieldType implements Serializable {
-    // Returns the type of this field.
+    // Returns the type name of this field.
     public abstract TypeName getTypeName();
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldType getComponentType();
