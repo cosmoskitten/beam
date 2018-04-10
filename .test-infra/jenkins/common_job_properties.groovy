@@ -111,8 +111,9 @@ class common_job_properties {
         abortBuild()
       }
 
-      // Set SPARK_LOCAL_IP for spark tests.
       environmentVariables {
+        env('CI', 1)
+        // Set SPARK_LOCAL_IP for spark tests.
         env('SPARK_LOCAL_IP', '127.0.0.1')
       }
       credentialsBinding {
@@ -166,8 +167,8 @@ class common_job_properties {
   }
 
   static String[] gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
+    // Produce and upload a build scan on each build.uu
+    "--scan",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
     // Until we verify the build cache is working appropriately, force rerunning all tasks
