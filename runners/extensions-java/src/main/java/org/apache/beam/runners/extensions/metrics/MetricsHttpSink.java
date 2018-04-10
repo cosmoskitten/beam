@@ -33,6 +33,7 @@ import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.slf4j.LoggerFactory;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
@@ -46,6 +47,8 @@ public class MetricsHttpSink implements MetricsSink<String> {
   @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
     String metrics = serializeMetrics(metricQueryResults);
+    org.slf4j.Logger logger = LoggerFactory.getLogger(MetricsHttpSink.class);
+    logger.info("pushing metric " + metrics);
     byte[] postData = metrics.getBytes(StandardCharsets.UTF_8);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setDoOutput(true);
@@ -75,7 +78,8 @@ public class MetricsHttpSink implements MetricsSink<String> {
     } catch (UnsupportedOperationException e){ //unsupported committed metrics
       if (e.getMessage().contains("committed metrics")) {
         SimpleFilterProvider filterProvider = new SimpleFilterProvider();
-        filterProvider.addFilter("avoid_committed_metrics", SimpleBeanPropertyFilter.serializeAllExcept("getCommitted"));
+        filterProvider.addFilter(
+            "avoid_committed_metrics", SimpleBeanPropertyFilter.serializeAllExcept("getCommitted"));
         objectMapper.setFilterProvider(filterProvider);
       }
         metrics = objectMapper.writeValueAsString(metricQueryResults);
