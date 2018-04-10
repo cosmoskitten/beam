@@ -17,9 +17,8 @@
  * limitations under the License.
  */
 
-import MobileGamingJavaUtils
-
 t = new TestScripts(args)
+mobileGamingCommands = new MobileGamingCommands(testScripts: t)
 
 /*
  * Run the mobile game examples on DirectRunner.
@@ -38,8 +37,8 @@ String command_output_text
  * */
 
 t.intent("Running: UserScore example on DirectRunner")
-t.run(MobileGamingJavaUtils.createExampleExecutionCommand("UserScore", runner, t))
-command_output_text = t.run "grep user19_BananaWallaby ${MobileGamingJavaUtils.getUserScoreOutputName(runner)}* "
+t.run(mobileGamingCommands.createPipelineCommand("UserScore", runner))
+command_output_text = t.run "grep user19_BananaWallaby ${mobileGamingCommands.getUserScoreOutputName(runner)}* "
 t.see "total_score: 231, user: user19_BananaWallaby", command_output_text
 t.success("UserScore successfully run on DirectRunners.")
 
@@ -49,8 +48,8 @@ t.success("UserScore successfully run on DirectRunners.")
  * */
 
 t.intent("Running: HourlyTeamScore example on DirectRunner")
-t.run(MobileGamingJavaUtils.createExampleExecutionCommand("HourlyTeamScore", runner, t))
-command_output_text = t.run "grep AzureBilby ${MobileGamingJavaUtils.getHourlyTeamScoreOutputName(runner)}* "
+t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))
+command_output_text = t.run "grep AzureBilby ${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}* "
 t.see "total_score: 2788, team: AzureBilby", command_output_text
 t.success("HourlyTeamScore successfully run on DirectRunners.")
 
@@ -62,7 +61,8 @@ t.success("HourlyTeamScore successfully run on DirectRunners.")
 t.intent("Running: LeaderBoard example on DirectRunner")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_user")
 t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_team")
-// it will take couple seconds to clean up tables. This loop makes sure tables are completely deleted before running the pipeline
+// It will take couple seconds to clean up tables.
+// This loop makes sure tables are completely deleted before running the pipeline
 String tables = ""
 while({
   sleep(3000)
@@ -71,27 +71,27 @@ while({
 }());
 
 def InjectorThread = Thread.start() {
-  t.run(MobileGamingJavaUtils.createInjectorCommand(t))
+  t.run(mobileGamingCommands.createInjectorCommand())
 }
 
 def LeaderBoardThread = Thread.start() {
-  t.run(MobileGamingJavaUtils.createExampleExecutionCommand("LeaderBoard", runner, t))
+  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner))
 }
 
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
 def isSuccess = false
 String query_result = ""
-while((System.currentTimeMillis() - startTime)/60000 < MobileGamingJavaUtils.EXECUTION_TIMEOUT_IN_MINUTES) {
+while((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
   tables = t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
   if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")){
     query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-    if(t.seeAnyOf(MobileGamingJavaUtils.COLORS, query_result)){
+    if(t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
       isSuccess = true
       break
     }
   }
-  println "Waiting for verifying results..."
+  println "Waiting for pipeline to produce more results..."
   sleep(60000) // wait for 1 min
 }
 InjectorThread.stop()

@@ -18,7 +18,9 @@
  */
 
 
-class MobileGamingJavaUtils {
+class MobileGamingCommands {
+
+  private TestScripts testScripts
 
   public static final RUNNERS = [DirectRunner: "direct-runner",
     DataflowRunner: "dataflow-runner",
@@ -54,86 +56,86 @@ class MobileGamingJavaUtils {
     "BarnRed",
     "BattleshipGrey"))
 
-  public static String getUserScoreOutputName(String runner){
+  public String getUserScoreOutputName(String runner){
     return "java-userscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public static String getHourlyTeamScoreOutputName(String runner){
+  public String getHourlyTeamScoreOutputName(String runner){
     return "java-hourlyteamscore-result-${RUNNERS[runner]}.txt"
   }
 
-  public static String createExampleExecutionCommand(String exampleName, String runner, TestScripts t){
+  public String createPipelineCommand(String exampleName, String runner){
     return """mvn compile exec:java -q \
       -Dexec.mainClass=org.apache.beam.examples.complete.game.${exampleName} \
-      -Dexec.args=\"${getArgs(exampleName, runner, t)}\" \
+      -Dexec.args=\"${getArgs(exampleName, runner)}\" \
       -P${RUNNERS[runner]}"""
   }
 
-  public static String createInjectorCommand(TestScripts t){
+  public String createInjectorCommand(){
     return """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
-      -Dexec.args=\"${t.gcpProject()} ${t.pubsubTopic()} none\""""
+      -Dexec.args=\"${testScripts.gcpProject()} ${testScripts.pubsubTopic()} none\""""
   }
 
 
-  private static String getArgs(String exampleName, String runner, TestScripts t){
+  private String getArgs(String exampleName, String runner){
     def args
     switch (exampleName) {
       case "UserScore":
-        args = getUserScoreArgs(runner, t)
+        args = getUserScoreArgs(runner)
         break
       case "HourlyTeamScore":
-        args = getHourlyTeamScoreArgs(runner, t)
+        args = getHourlyTeamScoreArgs(runner)
         break
       case "LeaderBoard":
-        args = getLeaderBoardArgs(runner, t)
+        args = getLeaderBoardArgs(runner)
         break
       case "GameStats":
-        args = getGameStatsArgs(runner, t)
+        args = getGameStatsArgs(runner)
         break
       default:
-        t.error("Cannot find example ${exampleName} in archetypes.")
+        testScripts.error("Cannot find example ${exampleName} in archetypes.")
     }
 
-    StringBuilder exampleArgs = new StringBuilder("--tempLocation=gs://${t.gcsBucket()}/tmp --runner=${runner} ")
+    StringBuilder exampleArgs = new StringBuilder("--tempLocation=gs://${testScripts.gcsBucket()}/tmp --runner=${runner} ")
     args.each{argName, argValue -> exampleArgs.append("--${argName}=${argValue} ")}
     return exampleArgs
   }
 
-  private static Map getUserScoreArgs(String runner, TestScripts t){
+  private Map getUserScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
-        project: t.gcpProject(),
-        output: "gs://${t.gcsBucket()}/${getUserScoreOutputName(runner)}"]
+      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+        project: testScripts.gcpProject(),
+        output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
-    return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
       output: "${getUserScoreOutputName(runner)}"]
   }
 
-  private static Map getHourlyTeamScoreArgs(String runner, TestScripts t){
+  private Map getHourlyTeamScoreArgs(String runner){
     if(runner == "DataflowRunner"){
-      return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
-        project: t.gcpProject(),
-        output: "gs://${t.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
+      return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
+        project: testScripts.gcpProject(),
+        output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
-    return [input: "gs://${t.gcsBucket()}/5000_gaming_data.csv",
+    return [input: "gs://${testScripts.gcsBucket()}/5000_gaming_data.csv",
       output: "${getHourlyTeamScoreOutputName(runner)}"]
   }
 
-  private static Map getLeaderBoardArgs(String runner, TestScripts t){
-    return [project: t.gcpProject(),
-      dataset: t.bqDataset(),
-      topic: "projects/${t.gcpProject()}/topics/${t.pubsubTopic()}",
-      output: "gs://${t.gcsBucket()}/java-leaderboard-result.txt",
+  private Map getLeaderBoardArgs(String runner){
+    return [project: testScripts.gcpProject(),
+      dataset: testScripts.bqDataset(),
+      topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
+      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       leaderBoardTableName: "leaderboard_${runner}",
       teamWindowDuration: 5]
   }
 
-  private static Map getGameStatsArgs(String runner, TestScripts t){
-    return [project: t.gcpProject(),
-      dataset: t.bqDataset(),
-      topic: "projects/${t.gcpProject()}/topics/${t.pubsubTopic()}",
-      output: "gs://${t.gcsBucket()}/java-leaderboard-result.txt",
+  private Map getGameStatsArgs(String runner){
+    return [project: testScripts.gcpProject(),
+      dataset: testScripts.bqDataset(),
+      topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
+      output: "gs://${testScripts.gcsBucket()}/java-leaderboard-result.txt",
       fixedWindowDuration: 5,
       userActivityWindowDuration: 5,
       sessionGap: 1,
