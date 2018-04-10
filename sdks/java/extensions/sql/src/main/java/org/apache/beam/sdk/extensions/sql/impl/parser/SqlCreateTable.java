@@ -115,6 +115,7 @@ public class SqlCreateTable extends SqlCreate {
             .name(d.name.getSimple().toLowerCase())
             .fieldType(CalciteUtils.toFieldType(
                 d.dataType.deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()))
+            .nullable(d.dataType.getNullable())
             .comment(getString(d.comment))
             .build();
         columns.add(column);
