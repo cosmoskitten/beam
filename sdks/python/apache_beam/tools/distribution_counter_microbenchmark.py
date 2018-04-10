@@ -47,13 +47,13 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
   upper_bound = sys.maxint
   inputs = generate_input_values(num_input, lower_bound, upper_bound)
   distribution_counter = __import__(
-      'apache_beam.transforms.distribution_counter', globals(), locals(), -1)
+      'apache_beam.runners.dataflow.cy_dataflow_distribution_counter', globals(), locals(), -1)
   print ("Number of runs:", num_runs)
   print("Input size:", num_input)
   print("Input sequence from %d to %d" % (lower_bound, upper_bound))
   print("Random seed:", seed)
   for i in range(num_runs):
-    counter = distribution_counter.DistributionAccumulator()
+    counter = distribution_counter.DataflowDistributionCounter()
     start = time.time()
     counter.add_inputs_for_test(inputs)
     time_cost = time.time() - start
@@ -63,5 +63,5 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
 
 
 if __name__ == '__main__':
-  utils.check_compiled('apache_beam.transforms.distribution_counter')
+  utils.check_compiled('apache_beam.runners.dataflow.cy_dataflow_distribution_counter')
   run_benchmark()
