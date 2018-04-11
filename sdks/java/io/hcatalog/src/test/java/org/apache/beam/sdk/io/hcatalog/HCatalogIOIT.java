@@ -42,8 +42,10 @@ import org.junit.runners.JUnit4;
  * IOIT test to run HCatalog.
  * <p>You can run tests on prepared hCatalog infrastructure.</p>
  * <p>To run test specify number of records (numberOfRecords) to write to HCatalog,
- * metastore url (HCatalogMetastoreHostName), metastore port (HCatalogMetastorePort),
- * hive port (HCatalogHivePort) and hive database (HCatalogHiveDatabase)
+ * metastore url (HCatalogMetastoreHostName),
+ * metastore port (HCatalogMetastorePort),
+ * hive port (HCatalogHivePort)
+ * and hive database (HCatalogHiveDatabase)
  * to create a hive test table.</p>
  * <pre>{@code mvn clean verify -Pio-it -pl sdks/java/io/hcatalog/
  * -DintegrationTestPipelineOptions=
@@ -65,7 +67,7 @@ public class HCatalogIOIT {
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
       100, "34c19971bd34cc1ed6218b84d0db3018",
       1000, "2db7f961724848ffcea299075c166ae8",
-      10_000, "a53cc63bb0216fe04d1f4c3709e155b4"
+      10_000, "7885cdda3ed927e17f7db330adcbebcc"
   );
 
   private static String tableName;
@@ -114,7 +116,7 @@ public class HCatalogIOIT {
   @After
   public void tearDown() throws Exception {
     try {
-      helper.dropHiveTable();
+      helper.dropHiveTable(tableName);
     } catch (Exception e) {
       helper.closeConnection();
       throw new Exception("Problem with deleting database.");

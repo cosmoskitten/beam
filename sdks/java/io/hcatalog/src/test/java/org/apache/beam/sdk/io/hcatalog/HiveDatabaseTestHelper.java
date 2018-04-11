@@ -26,7 +26,6 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 
 public class HiveDatabaseTestHelper {
   private static Connection con;
-  private static String tableName;
   private static Statement stmt;
 
   HiveDatabaseTestHelper(String hiveHost,
@@ -48,7 +47,7 @@ public class HiveDatabaseTestHelper {
    * Create hive table.
    */
   public String createHiveTable(String testIdentifier) throws SQLException {
-    tableName = DatabaseTestHelper.getTestTableName(testIdentifier);
+    String tableName = DatabaseTestHelper.getTestTableName(testIdentifier);
     stmt.execute(" CREATE TABLE IF NOT EXISTS " + tableName + " ( id STRING) ");
     return tableName;
   }
@@ -57,7 +56,7 @@ public class HiveDatabaseTestHelper {
   /**
    * Delete hive table.
    */
-  public void dropHiveTable() throws SQLException {
+  public void dropHiveTable(String tableName) throws SQLException {
     stmt.execute(" DROP TABLE " + tableName);
   }
 
