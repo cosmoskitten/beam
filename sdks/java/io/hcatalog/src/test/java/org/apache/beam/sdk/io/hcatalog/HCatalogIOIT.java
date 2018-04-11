@@ -155,7 +155,6 @@ public class HCatalogIOIT {
     pipelineRead.run();
   }
 
-
   /**
    * Outputs value stored in the HCatRecord.
    */
@@ -165,7 +164,5 @@ public class HCatalogIOIT {
       c.output(c.element().get(0).toString());
     }
   }
-
-
 }
 
