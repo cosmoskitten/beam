@@ -68,18 +68,18 @@ dependencies {
   shadow library.java.joda_time
   shadow "io.dropwizard.metrics:metrics-core:3.1.2"
   shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
-  provided library.java.spark_core
-  provided library.java.spark_streaming
-  provided library.java.spark_network_common
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  provided library.java.commons_compress
-  provided library.java.commons_lang3
-  provided library.java.commons_io_2x
-  provided library.java.hamcrest_core
-  provided "org.apache.zookeeper:zookeeper:3.4.11"
-  provided "org.scala-lang:scala-library:2.11.8"
-  provided "com.esotericsoftware.kryo:kryo:2.21"
+  shadow library.java.spark_core
+  shadow library.java.spark_streaming
+  shadow library.java.spark_network_common
+  shadow library.java.hadoop_common
+  shadow library.java.hadoop_mapreduce_client_core
+  shadow library.java.commons_compress
+  shadow library.java.commons_lang3
+  shadow library.java.commons_io_2x
+  shadow library.java.hamcrest_core
+  shadow "org.apache.zookeeper:zookeeper:3.4.11"
+  shadow "org.scala-lang:scala-library:2.11.8"
+  shadow "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
@@ -94,7 +94,6 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "provided")
-  validatesRunner project.sourceSets.test.output
 }
 
 configurations.testRuntimeClasspath {
