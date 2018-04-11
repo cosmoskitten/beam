@@ -35,6 +35,8 @@ cp -r ${ROOT_DIR}/model ${CONTEXT_DIR}/
 PROJECT_NAME=$(echo hdfs_IT-${BUILD_TAG:-non-jenkins})
 
 cd ${CONTEXT_DIR}
+# TODO: prune?
+docker network ls
 time docker-compose -p ${PROJECT_NAME} build
 time docker-compose -p ${PROJECT_NAME} up --exit-code-from test \
     --abort-on-container-exit
