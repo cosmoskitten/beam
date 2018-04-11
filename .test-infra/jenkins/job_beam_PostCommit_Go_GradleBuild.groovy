@@ -21,7 +21,7 @@ import common_job_properties
 // This is the Go postcommit which runs a gradle build, and the current set
 // of postcommit tests.
 job('beam_PostCommit_Go_GradleBuild') {
-  description('Runs Go PostCommit tests against master.)
+  description('Runs Go PostCommit tests against master.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
