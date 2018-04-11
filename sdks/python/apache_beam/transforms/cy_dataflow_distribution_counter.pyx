@@ -38,7 +38,10 @@ cdef int64_t get_log10_round_to_floor(int64_t element):
 
 cdef class DataflowDistributionCounter(object):
   """Distribution Counter:
-  contains value distribution statistics and methods for incrementing
+
+
+  contains value distribution statistics and methods for incrementing.
+
   Attributes:
     min: minimum value of all inputs.
     max: maximum value of all inputs.
@@ -46,10 +49,9 @@ cdef class DataflowDistributionCounter(object):
     sum: sum of all inputs.
     first_bucket_offset: starting index of the first stored bucket.
     last_bucket_offset: end index of buckets.
-    buckets: histogram buckets of value counts for a distribution
-                                                    (1,2,5 bucketing).
-             max bucket_index is 58( sys.maxint as input)
-    is_cythonized: mark whether DataflowDistributionCounter cythonized
+    buckets: histogram buckets of value counts for a
+    distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
+    is_cythonized: mark whether DataflowDistributionCounter cythonized.
   """
   def __init__(self):
     self.min = INT64_MAX
@@ -72,13 +74,15 @@ cdef class DataflowDistributionCounter(object):
     self.max = max(self.max, element)
     self.count += 1
     self.sum += element
-    cdef int64_t bucket_index = self.calculate_bucket_index(element)
+    cdef int64_t bucket_index = self._fast_calculate_bucket_index(element)
     self.buckets[bucket_index] += 1
     self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
     self.last_bucket_offset = max(self.last_bucket_offset, bucket_index)
 
-  cdef int64_t calculate_bucket_index(self, int64_t element):
-    """Calculate the bucket index for the given element
+  cdef int64_t _fast_calculate_bucket_index(self, int64_t element):
+    """Calculate the bucket index for the given element.
+    
+    
     Declare calculate_bucket_index as cdef in order to improve performance, 
     since cpdef will have significant overhead.    
     """
@@ -95,8 +99,14 @@ cdef class DataflowDistributionCounter(object):
       bucket_offset = 2
     return 1 + log10_floor * buckets_per_10 + bucket_offset
 
-  cpdef object translate_to_histogram(self, histogram):
-    """Translate buckets into Histogram"""
+  cpdef void translate_to_histogram(self, histogram):
+    """Translate buckets into Histogram.
+    
+    Args:
+      histogram: apache_beam.runners.dataflow.internal.clents.dataflow.Histogram
+      Ideally, only call this function when reporting counter to 
+      dataflow service.
+    """
     histogram.firstBucketOffset = self.first_bucket_offset
     histogram.bucketCounts = []
     cdef int64_t index = self.first_bucket_offset
@@ -104,7 +114,9 @@ cdef class DataflowDistributionCounter(object):
       histogram.bucketCounts.append(self.buckets[index])
 
   cpdef bint add_inputs_for_test(self, elements) except -1:
-    """Used for performance microbenchmark
+    """Used for performance microbenchmark.
+    
+    
     During runtime, add_input will be called through c-call, so we want to have
     the same calling routine when running microbenchmark as application runtime.
     Directly calling cpdef from def will cause significant overhead.
@@ -112,8 +124,10 @@ cdef class DataflowDistributionCounter(object):
     for element in elements:
       self.add_input(element)
 
-  cpdef int64_t calculate_bucket_index_for_test(self, int64_t element):
-    """Used for unit tests
+  cpdef int64_t calculate_bucket_index(self, int64_t element):
+    """Used for unit tests.
+    
+    
     cdef calculate_bucket_index cannot be called directly from def.
     """
-    return self.calculate_bucket_index(element)
+    return self._fast_calculate_bucket_index(element)

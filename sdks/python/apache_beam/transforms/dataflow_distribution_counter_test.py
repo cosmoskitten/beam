@@ -10,7 +10,7 @@
 #
 
 """Unit tests for DataflowDistributionCounter
-When Cyhthon is available, unit tests will test on cythonized module,
+When Cython is available, unit tests will test on cythonized module,
 otherwise, test on pure python module
 """
 
@@ -25,10 +25,7 @@ from apache_beam.transforms import DataflowDistributionCounter
 class DataflowDistributionAccumulatorTest(unittest.TestCase):
   def test_calculate_bucket_index_with_input_0(self):
     counter = DataflowDistributionCounter()
-    if counter.is_cythonized:
-      index = counter.calculate_bucket_index_for_test(0)
-    else:
-      index = counter.calculate_bucket_index(0)
+    index = counter.calculate_bucket_index(0)
     self.assertEquals(index, 0)
 
   def test_calculate_bucket_index_within_max_long(self):
@@ -39,10 +36,7 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
     while power_of_ten <= INT64_MAX:
       for multiplier in [1, 2, 5]:
         value = multiplier * power_of_ten
-        if counter.is_cythonized:
-          actual_bucket = counter.calculate_bucket_index_for_test(value - 1)
-        else:
-          actual_bucket = counter.calculate_bucket_index(value - 1)
+        actual_bucket = counter.calculate_bucket_index(value - 1)
         self.assertEquals(actual_bucket, bucket - 1)
         bucket += 1
       power_of_ten *= 10

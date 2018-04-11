@@ -324,10 +324,23 @@ def get_log10_round_to_floor(element):
 
 
 class DataflowDistributionCounter(object):
-  """Pure python DataflowDistributionCounter in case Cython not available
+  """Pure python DataflowDistributionCounter in case Cython not available.
+
+
   Please avoid using python mode if possible, since it's super slow
   Cythonized DatadflowDistributionCounter defined in
-  apache_beam.transforms.cy_dataflow_distribution_counter
+  apache_beam.transforms.cy_dataflow_distribution_counter.
+
+  Attributes:
+    min: minimum value of all inputs.
+    max: maximum value of all inputs.
+    count: total count of all inputs.
+    sum: sum of all inputs.
+    first_bucket_offset: starting index of the first stored bucket.
+    last_bucket_offset: end index of buckets.
+    buckets: histogram buckets of value counts for a
+    distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
+    is_cythonized: mark whether DataflowDistributionCounter cythonized.
   """
   def __init__(self):
     self.min = INT64_MAX
@@ -353,6 +366,7 @@ class DataflowDistributionCounter(object):
     self.last_bucket_offset = max(self.last_bucket_offset, bucket_index)
 
   def calculate_bucket_index(self, element):
+    """Calculate the bucket index for the given element."""
     if element == 0:
       return 0
     log10_floor = get_log10_round_to_floor(element)
@@ -366,18 +380,28 @@ class DataflowDistributionCounter(object):
     return 1 + log10_floor * self.buckets_per_10 + bucket_offset
 
   def translate_to_histogram(self, histogram):
+    """Translate buckets into Histogram.
+
+    Args:
+      histogram: apache_beam.runners.dataflow.internal.clents.dataflow.Histogram
+      Ideally, only call this function when reporting counter to
+      dataflow service.
+    """
     histogram.firstBucketOffset = self.first_bucket_offset
     histogram.bucketCounts = (
         self.buckets[self.first_bucket_offset:self.last_bucket_offset + 1])
 
 
 class DataflowDistributionCounterFn(AccumulatorCombineFn):
-  """A subclass of cy_combiners.AccumulatorCombineFn
+  """A subclass of cy_combiners.AccumulatorCombineFn.
+
+
   Make DataflowDistributionCounter able to report to Dataflow service via
-  CounterFactory
+  CounterFactory.
+
   When cythonized DataflowDistributinoCounter available, make
   CounterFn combine with cythonized module, otherwise, combine with python
-  version
+  version.
   """
   try:
     from apache_beam.transforms.cy_dataflow_distribution_counter \
