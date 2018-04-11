@@ -47,9 +47,9 @@ from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
+from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
-from apache_beam.runners.dataflow import DataflowDistributionCounter, DataflowDistributionCounterFn
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
@@ -814,7 +814,7 @@ structured_counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
-    DataflowDistributionCounterFn: (
+    cy_combiners.DataflowDistributionCounterFn: (
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
         translate_distribution)
 }
@@ -854,7 +854,7 @@ counter_translations = {
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
         MetricUpdateTranslators.translate_boolean),
-    DataflowDistributionCounterFn: (
+    cy_combiners.DataflowDistributionCounterFn: (
         dataflow.NameAndKind.KindValueValuesEnum.DISTRIBUTION,
         translate_distribution)
 }

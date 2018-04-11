@@ -9,29 +9,25 @@
 # limitations under the License.
 #
 
-"""Unit tests for the Distribution Counter"""
+"""Unit tests for DataflowDistributionCounter
+When Cyhthon is available, unit tests will test on cythonized module,
+otherwise, test on pure python module
+"""
 
 import math
 import unittest
 
 from mock import Mock
-from nose.plugins.skip import SkipTest
+from apache_beam.transforms import DataflowDistributionCounter
 
 
 class DataflowDistributionAccumulatorTest(unittest.TestCase):
-
-  def setUp(self):
-    try:
-      #pylint: disable=global-variable-not-assigned
-      global DataflowDistributionCounter
-      from apache_beam.runners.dataflow.cy_dataflow_distribution_counter \
-        import DataflowDistributionCounter
-    except ImportError:
-      raise SkipTest('DistributionAccumulator not complied.')
-
   def test_calculate_bucket_index_with_input_0(self):
     counter = DataflowDistributionCounter()
-    index = counter.calculate_bucket_index_for_test(0)
+    if counter.is_cythonized:
+      index = counter.calculate_bucket_index_for_test(0)
+    else:
+      index = counter.calculate_bucket_index(0)
     self.assertEquals(index, 0)
 
   def test_calculate_bucket_index_within_max_long(self):
@@ -42,7 +38,10 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
     while power_of_ten <= INT64_MAX:
       for multiplier in [1, 2, 5]:
         value = multiplier * power_of_ten
-        actual_bucket = counter.calculate_bucket_index_for_test(value - 1)
+        if counter.is_cythonized:
+          actual_bucket = counter.calculate_bucket_index_for_test(value - 1)
+        else:
+          actual_bucket = counter.calculate_bucket_index(value - 1)
         self.assertEquals(actual_bucket, bucket - 1)
         bucket += 1
       power_of_ten *= 10
@@ -55,7 +54,8 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
     expected_count = 6
     expected_min = 1
     expected_max = 1000
-    counter.add_inputs_for_test([1, 500, 2, 3, 1000, 4])
+    for element in [1, 500, 2, 3, 1000, 4]:
+      counter.add_input(element)
     histogram = Mock(firstBucketOffset=None, bucketCounts=None)
     counter.translate_to_histogram(histogram)
     self.assertEquals(counter.sum, expected_sum)

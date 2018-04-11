@@ -49,7 +49,7 @@ cdef class DataflowDistributionCounter(object):
     buckets: histogram buckets of value counts for a distribution
                                                     (1,2,5 bucketing).
              max bucket_index is 58( sys.maxint as input)
-    buckets_per_10: 3 buckets for every power of ten -> 1, 2, 5
+    is_cythonized: mark whether DataflowDistributionCounter cythonized
   """
   def __init__(self):
     self.min = INT64_MAX
@@ -59,6 +59,7 @@ cdef class DataflowDistributionCounter(object):
     self.first_bucket_offset = 58
     self.last_bucket_offset = 0
     self.buckets = <int64_t*> calloc(59, sizeof(int64_t))
+    self.is_cythonized = True
 
   def __dealloc__(self):
     """free allocated memory"""
@@ -79,14 +80,14 @@ cdef class DataflowDistributionCounter(object):
   cdef int64_t calculate_bucket_index(self, int64_t element):
     """Calculate the bucket index for the given element
     Declare calculate_bucket_index as cdef in order to improve performance, 
-    since cpdef will have significant overhead    
+    since cpdef will have significant overhead.    
     """
     if element == 0:
       return 0
     cdef int64_t log10_floor = get_log10_round_to_floor(element)
     cdef int64_t power_of_ten = POWER_TEN[log10_floor]
     cdef int64_t bucket_offset = 0
-    if element <  power_of_ten * 2:
+    if element < power_of_ten * 2:
       bucket_offset = 0
     elif element < power_of_ten * 5:
       bucket_offset = 1
@@ -103,16 +104,16 @@ cdef class DataflowDistributionCounter(object):
       histogram.bucketCounts.append(self.buckets[index])
 
   cpdef bint add_inputs_for_test(self, elements) except -1:
-    """Used for performance microbenchmark and unit tests
+    """Used for performance microbenchmark
     During runtime, add_input will be called through c-call, so we want to have
     the same calling routine when running microbenchmark as application runtime.
-    Directly calling cpdef from def will cause significant overhead,
+    Directly calling cpdef from def will cause significant overhead.
     """
     for element in elements:
       self.add_input(element)
 
   cpdef int64_t calculate_bucket_index_for_test(self, int64_t element):
     """Used for unit tests
-    cdef calculate_bucket_index cannot be called directly from def
+    cdef calculate_bucket_index cannot be called directly from def.
     """
     return self.calculate_bucket_index(element)

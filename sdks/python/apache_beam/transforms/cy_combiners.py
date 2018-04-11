@@ -308,3 +308,80 @@ class AnyCombineFn(AccumulatorCombineFn):
 
 class AllCombineFn(AccumulatorCombineFn):
   _accumulator_type = AllAccumulator
+
+
+POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
+             10e6, 10e7, 10e8, 10e9, 10e10, 10e11,
+             10e12, 10e13, 10e14, 10e15, 10e16, 10e17,
+             10e18]
+
+
+def get_log10_round_to_floor(element):
+  power = 0
+  while element >= POWER_TEN[power]:
+    power += 1
+  return power - 1
+
+
+class DataflowDistributionCounter(object):
+  """Pure python DataflowDistributionCounter in case Cython not available
+  Please avoid using python mode if possible, since it's super slow
+  Cythonized DatadflowDistributionCounter defined in
+  apache_beam.transforms.cy_dataflow_distribution_counter
+  """
+  def __init__(self):
+    self.min = INT64_MAX
+    self.max = 0
+    self.count = 0
+    self.sum = 0
+    self.first_bucket_offset = 58
+    self.last_bucket_offset = 0
+    self.buckets = [0]*59
+    self.buckets_per_10 = 3
+    self.is_cythonized = False
+
+  def add_input(self, element):
+    if element < 0:
+      raise ValueError('Distribution counters support only non-negative value')
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+    self.count += 1
+    self.sum += element
+    bucket_index = self.calculate_bucket_index(element)
+    self.buckets[bucket_index] += 1
+    self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
+    self.last_bucket_offset = max(self.last_bucket_offset, bucket_index)
+
+  def calculate_bucket_index(self, element):
+    if element == 0:
+      return 0
+    log10_floor = get_log10_round_to_floor(element)
+    power_of_ten = POWER_TEN[log10_floor]
+    if element < power_of_ten * 2:
+      bucket_offset = 0
+    elif element < power_of_ten * 5:
+      bucket_offset = 1
+    else:
+      bucket_offset = 2
+    return 1 + log10_floor * self.buckets_per_10 + bucket_offset
+
+  def translate_to_histogram(self, histogram):
+    histogram.firstBucketOffset = self.first_bucket_offset
+    histogram.bucketCounts = (
+        self.buckets[self.first_bucket_offset:self.last_bucket_offset + 1])
+
+
+class DataflowDistributionCounterFn(AccumulatorCombineFn):
+  """A subclass of cy_combiners.AccumulatorCombineFn
+  Make DataflowDistributionCounter able to report to Dataflow service via
+  CounterFactory
+  When cythonized DataflowDistributinoCounter available, make
+  CounterFn combine with cythonized module, otherwise, combine with python
+  version
+  """
+  try:
+    from apache_beam.transforms.cy_dataflow_distribution_counter \
+      import DataflowDistributionCounter
+    _accumulator_type = DataflowDistributionCounter
+  except ImportError:
+    _accumulator_type = DataflowDistributionCounter
