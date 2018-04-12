@@ -409,6 +409,7 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
   """
   try:
     from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
-    _accumulator_type = DataflowDistributionCounter
   except ImportError:
-    _accumulator_type = DataflowDistributionCounter
+    pass
+
+  _accumulator_type = DataflowDistributionCounter
