@@ -31,7 +31,7 @@ ext.summary = "IO to read and write with Apache Cassandra database"
  */
 evaluationDependsOn(":beam-sdks-java-io-common")
 
-def cassandra_version = "3.2.0"
+def cassandra_version = "3.4.0"
 
 dependencies {
   compile library.java.guava

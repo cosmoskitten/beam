@@ -32,6 +32,9 @@ import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -350,12 +353,13 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    * Writer storing an entity into Apache Cassandra database.
    */
   protected class WriterImpl<T> implements Writer<T> {
-
+    private static final int CONCURRENT_ASYNC_QUERIES = 100;
     private final CassandraIO.Write<T> spec;
 
     private final Cluster cluster;
     private final Session session;
     private final MappingManager mappingManager;
+    private List<ListenableFuture<Void>> writeFutures;
 
     public WriterImpl(CassandraIO.Write<T> spec) {
       this.spec = spec;
@@ -363,6 +367,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
           spec.localDc(), spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.mappingManager = new MappingManager(session);
+      this.writeFutures = Lists.newArrayList();
     }
 
     /**
@@ -373,11 +378,22 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     @Override
     public void write(T entity) {
       Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
-      mapper.save(entity);
+      this.writeFutures.add(mapper.saveAsync(entity));
+      if (this.writeFutures.size() % CONCURRENT_ASYNC_QUERIES == 0) {
+        // We reached the max number of allowed in flight queries
+        LOG.debug("Waiting for a batch of 100 Cassandra writes to be executed...");
+        Futures.successfulAsList(this.writeFutures);
+        this.writeFutures = Lists.newArrayList();
+      }
     }
 
     @Override
     public void close() {
+      if (this.writeFutures.size() > 0) {
+        // Waiting for the last in flight queries to end
+        Futures.successfulAsList(this.writeFutures);
+      }
+
       if (session != null) {
         session.close();
       }
