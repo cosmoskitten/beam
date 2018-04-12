@@ -103,8 +103,9 @@ public class RowCoder extends CustomCoder<Row> {
         Map map = (Map) value;
         long mapSizeBytes = 0;
         for (Object elem : map.keySet()) {
-          mapSizeBytes += estimatedSizeBytes(typeDescriptor.getComponentKeyType(), elem);
-          mapSizeBytes += estimatedSizeBytes(typeDescriptor.getComponentValueType(), map.get(elem));
+          mapSizeBytes += typeDescriptor.getMapKeyType().equals(TypeName.STRING)
+            ? ((String) elem).length() : ESTIMATED_FIELD_SIZES.get(typeDescriptor.getMapKeyType());
+          mapSizeBytes += estimatedSizeBytes(typeDescriptor.getMapValueType(), map.get(elem));
         }
         return 4 + mapSizeBytes;
       case STRING:
@@ -131,8 +132,8 @@ public class RowCoder extends CustomCoder<Row> {
     if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
       return ListCoder.of(getCoder(fieldType.getComponentType()));
     } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
-      return MapCoder.of(getCoder(fieldType.getComponentKeyType()),
-          getCoder(fieldType.getComponentValueType()));
+      return MapCoder.of(coderForPrimitiveType(fieldType.getMapKeyType()),
+          getCoder(fieldType.getMapValueType()));
     } else if (TypeName.ROW.equals((fieldType.getTypeName()))) {
       return RowCoder.of(fieldType.getRowSchema());
     } else {
