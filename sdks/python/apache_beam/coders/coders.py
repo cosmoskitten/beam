@@ -216,14 +216,15 @@ class Coder(object):
   def __repr__(self):
     return self.__class__.__name__
 
+  # pylint: disable=protected-access
   def __eq__(self, other):
-    # pylint: disable=protected-access
     return (self.__class__ == other.__class__
             and self._dict_without_impl() == other._dict_without_impl())
-    # pylint: enable=protected-access
 
   def __hash__(self):
-    return hash(type(self))
+    return hash((self.__class__,) +
+                tuple(sorted(self._dict_without_impl().items())))
+  # pylint: enable=protected-access
 
   _known_urns = {}
 
@@ -318,6 +319,11 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
+    try:               # Python 2
+      if isinstance(value, unicode):   # pylint: disable=unicode-builtin
+        return value.encode('utf-8')
+    except NameError:  # Python 3
+      pass
     return str(value)
 
   def decode(self, _):
