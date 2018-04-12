@@ -740,9 +740,10 @@ def to_split_int(n):
 
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
+
   Args:
-    distribution_update: Instance of DistributionUpdate or
-    DistributionAccumulator.
+    distribution_update: Instance of DistributionData or
+    DataflowDistributionCounter.
     metric_update_proto: Used for report metrics.
   """
   dist_update_proto = dataflow.DistributionUpdate()
@@ -750,7 +751,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # Only DistributionAccumulator has buckets and first_bucket_offset.
+  # Only DatadflowDistributionCounter has buckets and first_bucket_offset.
   if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)

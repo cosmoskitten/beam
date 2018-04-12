@@ -137,6 +137,7 @@ class UtilTest(unittest.TestCase):
   def test_translate_distribution_counter(self):
     counter_update = DataflowDistributionCounter()
     counter_update.add_input(1)
+    counter_update.add_input(3)
     metric_proto = dataflow.CounterUpdate()
     apiclient.translate_distribution(counter_update, metric_proto)
     histogram = mock.Mock(firstBucketOffset=None, bucketCounts=None)
