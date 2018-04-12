@@ -39,7 +39,6 @@ cdef int64_t get_log10_round_to_floor(int64_t element):
 cdef class DataflowDistributionCounter(object):
   """Distribution Counter:
 
-
   contains value distribution statistics and methods for incrementing.
 
   Attributes:
@@ -58,9 +57,9 @@ cdef class DataflowDistributionCounter(object):
     self.max = 0
     self.count = 0
     self.sum = 0
-    self.first_bucket_offset = 58
+    self.first_bucket_offset = MAX_BUCKET_SIZE -1
     self.last_bucket_offset = 0
-    self.buckets = <int64_t*> calloc(59, sizeof(int64_t))
+    self.buckets = <int64_t*> calloc(MAX_BUCKET_SIZE, sizeof(int64_t))
     self.is_cythonized = True
 
   def __dealloc__(self):
@@ -82,7 +81,6 @@ cdef class DataflowDistributionCounter(object):
   cdef int64_t _fast_calculate_bucket_index(self, int64_t element):
     """Calculate the bucket index for the given element.
     
-    
     Declare calculate_bucket_index as cdef in order to improve performance, 
     since cpdef will have significant overhead.    
     """
@@ -97,7 +95,7 @@ cdef class DataflowDistributionCounter(object):
       bucket_offset = 1
     else:
       bucket_offset = 2
-    return 1 + log10_floor * buckets_per_10 + bucket_offset
+    return 1 + log10_floor * BUCKET_PER_TEN + bucket_offset
 
   cpdef void translate_to_histogram(self, histogram):
     """Translate buckets into Histogram.
@@ -116,7 +114,6 @@ cdef class DataflowDistributionCounter(object):
   cpdef bint add_inputs_for_test(self, elements) except -1:
     """Used for performance microbenchmark.
     
-    
     During runtime, add_input will be called through c-call, so we want to have
     the same calling routine when running microbenchmark as application runtime.
     Directly calling cpdef from def will cause significant overhead.
@@ -126,7 +123,6 @@ cdef class DataflowDistributionCounter(object):
 
   cpdef int64_t calculate_bucket_index(self, int64_t element):
     """Used for unit tests.
-    
     
     cdef calculate_bucket_index cannot be called directly from def.
     """

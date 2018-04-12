@@ -22,10 +22,13 @@ cimport cython
 from libc.stdint cimport int64_t
 
 
-# buckets_per_10: 3 buckets for every power of ten -> 1, 2, 5
+# 3 buckets for every power of ten -> 1, 2, 5
 cdef enum:
-  buckets_per_10 = 3
+  BUCKET_PER_TEN = 3
 
+# Assume the max input is max(int64_t), then the possible max bucket size is 59
+cdef enum:
+  MAX_BUCKET_SIZE = 59
 
 cdef class DataflowDistributionCounter(object):
   cdef public int64_t min
