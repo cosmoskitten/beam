@@ -39,7 +39,7 @@ rm -rf sdks/python/target/.tox
 pip install --user --upgrade virtualenv tox
 
 # Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini -v -v
+${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
 
 # Virtualenv for the rest of the script to run setup & e2e tests
 ${LOCAL_PATH}/virtualenv sdks/python
@@ -71,7 +71,7 @@ python setup.py nosetests \
   --attr IT \
   --nocapture \
   --processes=4 \
-  --process-timeout=900 \
+  --process-timeout=1800 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
