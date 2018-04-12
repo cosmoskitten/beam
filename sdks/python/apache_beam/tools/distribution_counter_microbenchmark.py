@@ -47,7 +47,7 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
   upper_bound = sys.maxint
   inputs = generate_input_values(num_input, lower_bound, upper_bound)
   from apache_beam.transforms import DataflowDistributionCounter
-  print ("Number of runs:", num_runs)
+  print("Number of runs:", num_runs)
   print("Input size:", num_input)
   print("Input sequence from %d to %d" % (lower_bound, upper_bound))
   print("Random seed:", seed)
