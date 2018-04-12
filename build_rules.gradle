@@ -1198,6 +1198,8 @@ ext.createJavaExamplesArchetypeValidationTask = {
   }
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+    group = "Verification"
+    description = "Run a sample quickstart pipeline with the ${config.name} runner"
     main = "${config.type}-java-${config.runner}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
