@@ -447,12 +447,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     overridesBuilder
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()))
-        // Order is important. Streaming views almost all use Combine internally.
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-                new PrimitiveCombineGroupedValuesOverrideFactory()))
+                PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory()));
+    // Order is important. Streaming views almost all use Combine internally.
+    if (!hasExperiment(options, "beam_fn_api")) {
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
+                  new PrimitiveCombineGroupedValuesOverrideFactory()));
+    }
+    overridesBuilder
         .add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
