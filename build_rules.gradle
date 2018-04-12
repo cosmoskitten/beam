@@ -596,7 +596,10 @@ ext.applyJavaNature = {
 // Reads and contains all necessary performance test parameters
 class JavaPerformanceTestConfiguration {
 
+  /* Optional properties (set only if needed in your case): */
+
   // Path to PerfKitBenchmarker application (pkb.py).
+  // It is only required when running Performance Tests with PerfKitBenchmarker
   String pkbLocation = System.getProperty('pkbLocation')
 
   // Data Processing Backend's log level.
@@ -609,16 +612,16 @@ class JavaPerformanceTestConfiguration {
   // Official benchmark results are meant to be displayed on PerfKitExplorer dashboards.
   String isOfficial = System.getProperty('official', 'false')
 
-  // Specifies names of benchmarks to be run by perfkit.
+  // Specifies names of benchmarks to be run by PerfKitBenchmarker.
   String benchmarks = System.getProperty('benchmarks', 'beam_integration_benchmark')
 
-  // If beam is not "prebuilt then perfkit runs the build task before running the tests.
+  // If beam is not "prebuilt" then PerfKitBenchmarker runs the build task before running the tests.
   String beamPrebuilt = System.getProperty('beamPrebuilt', 'true')
 
-  // Beam's sdk to be used by perfkit.
+  // Beam's sdk to be used by PerfKitBenchmarker.
   String beamSdk = System.getProperty('beamSdk', 'java')
 
-  // Timeout (in seconds) after which PerfKit will stop executing the benchmark (and will fail).
+  // Timeout (in seconds) after which PerfKitBenchmarker will stop executing the benchmark (and will fail).
   String timeout = System.getProperty('itTimeout', '1200')
 
   // Path to kubernetes configuration file.
@@ -628,16 +631,24 @@ class JavaPerformanceTestConfiguration {
   String kubectl = System.getProperty('kubectl', 'kubectl')
 
   // Paths to files with kubernetes infrastructure to setup before the test runs.
-  // PerfKit will have trouble reading 'null' path. It expects empty string if no scripts are expected.
+  // PerfKitBenchmarker will have trouble reading 'null' path. It expects empty string if no scripts are expected.
   String kubernetesScripts = System.getProperty('kubernetesScripts', '')
+
+  // Path to file with 'dynamic' and 'static' pipeline options.
+  // that will be appended by PerfKitBenchmarker to the test running command.
+  // PerfKitBenchmarker will have trouble reading 'null' path. It expects empty string if no config file is expected.
+  String optionsConfigFile = System.getProperty('beamITOptions', '')
+
+  // Any additional properties to be appended to benchmark execution command.
+  String extraProperties = System.getProperty('beamExtraProperties', '')
+
+  // Runner which will be used for running the tests.
+  String runner = System.getProperty('integrationTestRunner', 'direct')
+
+  /* Always required properties: */
 
   // Pipeline options to be used by the tested pipeline.
   String integrationTestPipelineOptions = System.getProperty('integrationTestPipelineOptions')
-
-  // Path to file with 'dynamic' and 'static' pipeline options.
-  // that will be appended by perfkit to the test running command.
-  // PerfKit will have trouble reading 'null' path. It expects empty string if no config file is expected.
-  String optionsConfigFile = System.getProperty('beamITOptions', '')
 
   // Fully qualified name of the test to be run, eg:
   // 'org.apache.beam.sdks.java.io.jdbc.JdbcIOIT'.
@@ -645,16 +656,10 @@ class JavaPerformanceTestConfiguration {
 
   // Relative path to module where the test is, eg. 'sdks/java/io/jdbc.
   String itModule = System.getProperty('itModule')
-
-  // Runner which will be used for running the tests.
-  String runner = System.getProperty('integrationTestRunner', 'direct')
-
-  // Any additional properties to be appended to benchmark execution command.
-  String extraProperties = System.getProperty('beamExtraProperties', '')
 }
 
 // When applied in a module's build.gradle file, this closure provides set of tasks
-// needed to run IOIT integration tests (manually, without perfkit).
+// needed to run IOIT integration tests (manually, without PerfKitBenchmarker).
 ext.enableJavaPerformanceTesting = {
   println "enableJavaPerformanceTesting with ${it ? "$it" : "default configuration"} for project ${project.name}"
 
@@ -684,7 +689,7 @@ ext.enableJavaPerformanceTesting = {
 }
 
 // When applied in a module's build gradle file, this closure provides a task
-// that will involve perfkit for running integrationTests.
+// that will involve PerfKitBenchmarker for running integrationTests.
 ext.createPerformanceTestHarness = {
   println "createPerformanceTestHarness with ${it ? "$it" : "default configuration"} for project ${project.name}"
 
@@ -707,7 +712,7 @@ ext.createPerformanceTestHarness = {
   // There are more options with default values that can be tweaked if needed (see below).
   task performanceTest(type: Exec) {
 
-    // Perfkit needs to work in the Beam's root directory,
+    // PerfKitBenchmarker needs to work in the Beam's root directory,
     // otherwise it requires absolute paths ./gradlew, kubernetes scripts etc.
     commandLine "${configuration.pkbLocation}",
             "--dpb_log_level=${configuration.logLevel}",
