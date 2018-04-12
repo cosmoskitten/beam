@@ -111,7 +111,6 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     };
 
     final SamzaPipelineResult result = new SamzaPipelineResult(app, runner, executionContext);
-    result.markStarted();
     runner.run(app);
     return result;
   }
