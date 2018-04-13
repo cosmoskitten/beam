@@ -886,8 +886,13 @@ class JavaPerformanceTestConfiguration {
   // Any additional properties to be appended to benchmark execution command.
   String extraProperties = System.getProperty('beamExtraProperties', '')
 
-  // Runner which will be used for running the tests.
-  String runner = System.getProperty('integrationTestRunner', 'direct')
+  // Runner which will be used for running the tests. Possible values: dataflow/direct.
+  // PerfKitBenchmarker will have trouble reading 'null' value. It expects empty string if no config file is expected.
+  String runner = System.getProperty('integrationTestRunner', '')
+
+  // Filesystem which will be used for running the tests. Possible values: hdfs.
+  // if not specified runner's local filesystem will be used.
+  String filesystem = System.getProperty('filesystem')
 
   /* Always required properties: */
 
@@ -914,13 +919,23 @@ ext.enableJavaPerformanceTesting = {
   // Add runners needed to run integration tests on
   task packageIntegrationTests(type: Jar) {
       def runner = configuration.runner
+      def filesystem = configuration.filesystem
+
       dependencies {
-        if (runner.contains('dataflow')) {
-          testCompile project(path: ":runners:google-cloud-dataflow-java", configuration: 'shadowTest')
+
+        /* include dependencies required by runners */
+        if (runner?.contains('dataflow')) {
+          testCompile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
         }
 
-        if (runner.contains('direct')) {
+        if (runner?.contains('direct')) {
           testCompile project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+        }
+
+        /* include dependencies required by filesystems */
+        if (filesystem?.contains('hdfs')) {
+          testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
+          shadowTest library.java.hadoop_client
         }
     }
   }
