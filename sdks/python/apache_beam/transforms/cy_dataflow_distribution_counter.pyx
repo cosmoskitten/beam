@@ -57,7 +57,7 @@ cdef class DataflowDistributionCounter(object):
     self.max = 0
     self.count = 0
     self.sum = 0
-    self.first_bucket_offset = MAX_BUCKET_SIZE -1
+    self.first_bucket_offset = MAX_BUCKET_SIZE - 1
     self.last_bucket_offset = 0
     self.buckets = <int64_t*> calloc(MAX_BUCKET_SIZE, sizeof(int64_t))
     self.is_cythonized = True
@@ -108,7 +108,7 @@ cdef class DataflowDistributionCounter(object):
     histogram.firstBucketOffset = self.first_bucket_offset
     histogram.bucketCounts = []
     cdef int64_t index = self.first_bucket_offset
-    for index in range(self.first_bucket_offset, self.last_bucket_offset+1):
+    for index in range(self.first_bucket_offset, self.last_bucket_offset + 1):
       histogram.bucketCounts.append(self.buckets[index])
 
   cpdef bint add_inputs_for_test(self, elements) except -1:
