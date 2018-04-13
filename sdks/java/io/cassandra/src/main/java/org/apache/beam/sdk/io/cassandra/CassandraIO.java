@@ -113,6 +113,7 @@ public class CassandraIO {
     @Nullable abstract String password();
     @Nullable abstract String localDc();
     @Nullable abstract String consistencyLevel();
+    @Nullable abstract Integer minNumberOfSplits();
     @Nullable abstract CassandraService<T> cassandraService();
     abstract Builder<T> builder();
 
@@ -196,6 +197,12 @@ public class CassandraIO {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
+    public Read<T> withMinNumberOfSplits(Integer minNumberOfSplits) {
+      checkArgument(minNumberOfSplits != null, "minNumberOfSplits can not be null");
+      checkArgument(minNumberOfSplits > 0, "minNumberOfSplits must be greater than 0");
+      return builder().setMinNumberOfSplits(minNumberOfSplits).build();
+    }
+
     /**
      * Specify an instance of {@link CassandraService} used to connect and read from Cassandra
      * database.
@@ -230,6 +237,7 @@ public class CassandraIO {
       abstract Builder<T> setPassword(String password);
       abstract Builder<T> setLocalDc(String localDc);
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
+      abstract Builder<T> setMinNumberOfSplits(Integer minNumberOfSplits);
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
       abstract Read<T> build();
     }
