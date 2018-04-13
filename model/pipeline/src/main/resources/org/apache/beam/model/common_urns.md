@@ -51,20 +51,13 @@ Payload: A windowing strategy id.
 
 ## Combining
 
-If any of the combine operations are produced by an SDK, it is assumed that
-the SDK understands the last three combine helper operations.
-
-### beam:transform:combine_globally:v1
-
 ### beam:transform:combine_per_key:v1
 
-### beam:transform:combine_grouped_values:v1
+### beam:transform:combine_per_key_precombine:v1
 
-### beam:transform:combine_pgbkcv:v1
+### beam:transform:combine_per_key_merge_accumulators:v1
 
-### beam:transform:combine_merge_accumulators:v1
-
-### beam:transform:combine_extract_outputs:v1
+### beam:transform:combine_per_key_extract_outputs:v1
 
 
 ## Other common transforms
