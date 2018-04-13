@@ -15,6 +15,7 @@ otherwise, test on pure python module
 """
 
 import math
+import sys
 import unittest
 
 from mock import Mock
@@ -59,6 +60,22 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
     self.assertEquals(counter.max, expected_max)
     self.assertEquals(histogram.firstBucketOffset, expected_first_bucket_index)
     self.assertEquals(histogram.bucketCounts, expected_buckets)
+
+  def test_translate_to_histogram_with_input_0(self):
+    counter = DataflowDistributionCounter()
+    counter.add_input(0)
+    histogram = Mock(firstBucketOffset=None, bucketCounts=None)
+    counter.translate_to_histogram(histogram)
+    self.assertEquals(histogram.firstBucketOffset, 0)
+    self.assertEquals(histogram.bucketCounts, [1])
+
+  def test_translate_to_histogram_with_max_input(self):
+    counter = DataflowDistributionCounter()
+    counter.add_input(sys.maxint)
+    histogram = Mock(firstBucketOffset=None, bucketCounts=None)
+    counter.translate_to_histogram(histogram)
+    self.assertEquals(histogram.firstBucketOffset, 57)
+    self.assertEquals(histogram.bucketCounts, [1])
 
 
 if __name__ == '__main__':
