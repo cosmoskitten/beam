@@ -35,8 +35,6 @@ cdef class DataflowDistributionCounter(object):
   cdef public int64_t max
   cdef public int64_t count
   cdef public int64_t sum
-  cdef int64_t first_bucket_offset
-  cdef int64_t last_bucket_offset
   cdef int64_t* buckets
   cdef public bint is_cythonized
   cpdef bint add_input(self, int64_t element) except -1

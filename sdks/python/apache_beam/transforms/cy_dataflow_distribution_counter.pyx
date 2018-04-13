@@ -39,15 +39,15 @@ cdef int64_t get_log10_round_to_floor(int64_t element):
 cdef class DataflowDistributionCounter(object):
   """Distribution Counter:
 
-  contains value distribution statistics and methods for incrementing.
+  Contains value distribution statistics and methods for incrementing.
+
+  Currently using special bucketing strategy suitable for Dataflow
 
   Attributes:
     min: minimum value of all inputs.
     max: maximum value of all inputs.
     count: total count of all inputs.
     sum: sum of all inputs.
-    first_bucket_offset: starting index of the first stored bucket.
-    last_bucket_offset: end index of buckets.
     buckets: histogram buckets of value counts for a
     distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
     is_cythonized: mark whether DataflowDistributionCounter cythonized.
@@ -57,8 +57,6 @@ cdef class DataflowDistributionCounter(object):
     self.max = 0
     self.count = 0
     self.sum = 0
-    self.first_bucket_offset = MAX_BUCKET_SIZE - 1
-    self.last_bucket_offset = 0
     self.buckets = <int64_t*> calloc(MAX_BUCKET_SIZE, sizeof(int64_t))
     self.is_cythonized = True
 
@@ -75,8 +73,6 @@ cdef class DataflowDistributionCounter(object):
     self.sum += element
     cdef int64_t bucket_index = self._fast_calculate_bucket_index(element)
     self.buckets[bucket_index] += 1
-    self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
-    self.last_bucket_offset = max(self.last_bucket_offset, bucket_index)
 
   cdef int64_t _fast_calculate_bucket_index(self, int64_t element):
     """Calculate the bucket index for the given element.
@@ -105,10 +101,20 @@ cdef class DataflowDistributionCounter(object):
       Ideally, only call this function when reporting counter to 
       dataflow service.
     """
-    histogram.firstBucketOffset = self.first_bucket_offset
+    cdef int first_bucket_offset = 0
+    cdef int last_bucket_offset = 0
+    cdef int index = 0
+    for index in range(0, MAX_BUCKET_SIZE):
+      if self.buckets[index] != 0:
+        first_bucket_offset = index
+        break
+    for index in range(MAX_BUCKET_SIZE - 1, -1, -1):
+      if self.buckets[index] != 0:
+        last_bucket_offset = index
+        break
+    histogram.firstBucketOffset = first_bucket_offset
     histogram.bucketCounts = []
-    cdef int64_t index = self.first_bucket_offset
-    for index in range(self.first_bucket_offset, self.last_bucket_offset + 1):
+    for index in range(first_bucket_offset, last_bucket_offset + 1):
       histogram.bucketCounts.append(self.buckets[index])
 
   cpdef bint add_inputs_for_test(self, elements) except -1:

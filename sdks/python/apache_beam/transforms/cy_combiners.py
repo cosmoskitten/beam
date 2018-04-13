@@ -24,6 +24,11 @@ from __future__ import absolute_import
 
 from apache_beam.transforms import core
 
+try:
+  from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
+except ImportError:
+  from apache_beam.transforms.py_dataflow_distribution_counter import DataflowDistributionCounter
+
 
 class AccumulatorCombineFn(core.CombineFn):
   # singleton?
@@ -310,93 +315,6 @@ class AllCombineFn(AccumulatorCombineFn):
   _accumulator_type = AllAccumulator
 
 
-POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
-             10e6, 10e7, 10e8, 10e9, 10e10, 10e11,
-             10e12, 10e13, 10e14, 10e15, 10e16, 10e17,
-             10e18]
-
-
-def get_log10_round_to_floor(element):
-  power = 0
-  while element >= POWER_TEN[power]:
-    power += 1
-  return power - 1
-
-
-class DataflowDistributionCounter(object):
-  """Pure python DataflowDistributionCounter in case Cython not available.
-
-
-  Please avoid using python mode if possible, since it's super slow
-  Cythonized DatadflowDistributionCounter defined in
-  apache_beam.transforms.cy_dataflow_distribution_counter.
-
-  Attributes:
-    min: minimum value of all inputs.
-    max: maximum value of all inputs.
-    count: total count of all inputs.
-    sum: sum of all inputs.
-    first_bucket_offset: starting index of the first stored bucket.
-    last_bucket_offset: end index of buckets.
-    buckets: histogram buckets of value counts for a
-    distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
-    is_cythonized: mark whether DataflowDistributionCounter cythonized.
-  """
-  # Assume the max input is sys.maxint, then the possible max bucket size is 59
-  MAX_BUCKET_SIZE = 59
-
-  # 3 buckets for every power of ten -> 1, 2, 5
-  BUCKET_PER_TEN = 3
-
-  def __init__(self):
-    self.min = INT64_MAX
-    self.max = 0
-    self.count = 0
-    self.sum = 0
-    self.first_bucket_offset = self.MAX_BUCKET_SIZE - 1
-    self.last_bucket_offset = 0
-    self.buckets = [0] * self.MAX_BUCKET_SIZE
-    self.is_cythonized = False
-
-  def add_input(self, element):
-    if element < 0:
-      raise ValueError('Distribution counters support only non-negative value')
-    self.min = min(self.min, element)
-    self.max = max(self.max, element)
-    self.count += 1
-    self.sum += element
-    bucket_index = self.calculate_bucket_index(element)
-    self.buckets[bucket_index] += 1
-    self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
-    self.last_bucket_offset = max(self.last_bucket_offset, bucket_index)
-
-  def calculate_bucket_index(self, element):
-    """Calculate the bucket index for the given element."""
-    if element == 0:
-      return 0
-    log10_floor = get_log10_round_to_floor(element)
-    power_of_ten = POWER_TEN[log10_floor]
-    if element < power_of_ten * 2:
-      bucket_offset = 0
-    elif element < power_of_ten * 5:
-      bucket_offset = 1
-    else:
-      bucket_offset = 2
-    return 1 + log10_floor * self.BUCKET_PER_TEN + bucket_offset
-
-  def translate_to_histogram(self, histogram):
-    """Translate buckets into Histogram.
-
-    Args:
-      histogram: apache_beam.runners.dataflow.internal.clents.dataflow.Histogram
-      Ideally, only call this function when reporting counter to
-      dataflow service.
-    """
-    histogram.firstBucketOffset = self.first_bucket_offset
-    histogram.bucketCounts = (
-        self.buckets[self.first_bucket_offset:self.last_bucket_offset + 1])
-
-
 class DataflowDistributionCounterFn(AccumulatorCombineFn):
   """A subclass of cy_combiners.AccumulatorCombineFn.
 
@@ -407,9 +325,4 @@ class DataflowDistributionCounterFn(AccumulatorCombineFn):
   CounterFn combine with cythonized module, otherwise, combine with python
   version.
   """
-  try:
-    from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
-  except ImportError:
-    pass
-
   _accumulator_type = DataflowDistributionCounter

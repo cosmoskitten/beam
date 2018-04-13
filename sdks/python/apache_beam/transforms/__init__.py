@@ -28,4 +28,4 @@ from apache_beam.transforms.util import *
 try:
   from apache_beam.transforms.cy_dataflow_distribution_counter import DataflowDistributionCounter
 except ImportError:
-  from apache_beam.transforms.cy_combiners import DataflowDistributionCounter
+  from apache_beam.transforms.py_dataflow_distribution_counter import DataflowDistributionCounter
