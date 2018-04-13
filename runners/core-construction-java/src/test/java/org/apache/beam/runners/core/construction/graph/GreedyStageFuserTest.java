@@ -947,8 +947,9 @@ public class GreedyStageFuserTest {
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(
             p, readOutput, ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    PTransformNode parDoNode = PipelineNode.pTransform("parDo", parDoTransform);
     SideInputReference sideInputRef = SideInputReference.of(
-        "parDo", "side_input", PipelineNode.pCollection("side_read.out", sideInputPCollection));
+        parDoNode, "side_input", PipelineNode.pCollection("side_read.out", sideInputPCollection));
     assertThat(
         subgraph.getSideInputs(),
         contains(sideInputRef));

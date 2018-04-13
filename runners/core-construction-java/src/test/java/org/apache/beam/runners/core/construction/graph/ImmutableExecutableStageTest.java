@@ -34,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -75,8 +76,9 @@ public class ImmutableExecutableStageTest {
             .putEnvironments("foo", env)
             .build();
 
+    PTransformNode transformNode = PipelineNode.pTransform("pt", pt);
     SideInputReference sideInputRef = SideInputReference.of(
-        "pt", "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+        transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,

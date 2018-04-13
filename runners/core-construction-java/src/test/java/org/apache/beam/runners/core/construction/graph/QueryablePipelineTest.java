@@ -215,10 +215,10 @@ public class QueryablePipelineTest {
     PCollectionNode sideInput =
         PipelineNode.pCollection(sideInputCollectionId,
             components.getPcollectionsOrThrow(sideInputCollectionId));
-    SideInputReference sideInputRef = SideInputReference.of("par_do", sideInputLocalName,
+    PTransformNode parDoNode = PipelineNode.pTransform(
+        "par_do", components.getTransformsOrThrow("par_do"));
+    SideInputReference sideInputRef = SideInputReference.of(parDoNode, sideInputLocalName,
         sideInput);
-    PTransformNode parDoNode =
-        PipelineNode.pTransform("par_do", components.getTransformsOrThrow("par_do"));
 
     assertThat(qp.getSideInputs(parDoNode), contains(sideInputRef));
     assertThat(qp.getPerElementConsumers(mainInput), contains(parDoNode));
@@ -260,7 +260,7 @@ public class QueryablePipelineTest {
         PipelineNode.pCollection("read_pc", components.getPcollectionsOrThrow("read_pc"));
     PTransformNode multiConsumerPT =
         PipelineNode.pTransform("multiConsumer", components.getTransformsOrThrow("multiConsumer"));
-    SideInputReference sideInputRef = SideInputReference.of("multiConsumer", "side_in",
+    SideInputReference sideInputRef = SideInputReference.of(multiConsumerPT, "side_in",
         multiInputPc);
     assertThat(qp.getPerElementConsumers(multiInputPc), contains(multiConsumerPT));
     assertThat(qp.getSideInputs(multiConsumerPT), contains(sideInputRef));

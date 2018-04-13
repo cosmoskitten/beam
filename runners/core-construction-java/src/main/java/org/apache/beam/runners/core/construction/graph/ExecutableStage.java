@@ -127,11 +127,11 @@ public interface ExecutableStage {
       // Side inputs of the ExecutableStage itself can be uniquely identified by inner PTransform
       // name and local name.
       String outerLocalName = String.format("%s:%s",
-          sideInput.transformId(), sideInput.localName());
-      pt.putInputs(outerLocalName, sideInput.getCollection().getId());
+          sideInput.transform(), sideInput.localName());
+      pt.putInputs(outerLocalName, sideInput.collection().getId());
       payload.addSideInputs(
           SideInputId.newBuilder()
-            .setTransformId(sideInput.transformId())
+            .setTransformId(sideInput.transform().getId())
             .setLocalName(sideInput.localName())
             .build());
     }

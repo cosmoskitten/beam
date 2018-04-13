@@ -246,9 +246,12 @@ public class QueryablePipeline {
         .map(
             localName -> {
               String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
               String collectionId = transform.getTransform().getInputsOrThrow(localName);
               PCollection collection = components.getPcollectionsOrThrow(collectionId);
-              return SideInputReference.of(transformId, localName,
+              return SideInputReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
                   PipelineNode.pCollection(collectionId, collection));
             })
         .collect(Collectors.toSet());

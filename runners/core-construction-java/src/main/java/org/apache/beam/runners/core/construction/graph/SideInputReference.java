@@ -20,7 +20,10 @@ package org.apache.beam.runners.core.construction.graph;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
 /**
  * A reference to a side input. This includes the PTransform that references the side input as well
@@ -30,9 +33,9 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 public abstract class SideInputReference {
 
   /** Create a side input reference. */
-  public static SideInputReference of(String transformId, String localName,
+  public static SideInputReference of(PTransformNode transform, String localName,
       PCollectionNode collection) {
-    return new AutoValue_SideInputReference(transformId, localName, collection);
+    return new AutoValue_SideInputReference(transform, localName, collection);
   }
 
   /** Create a side input reference from a SideInputId proto and components. */
@@ -41,15 +44,18 @@ public abstract class SideInputReference {
     String transformId = sideInputId.getTransformId();
     String localName = sideInputId.getLocalName();
     String collectionId = components.getTransformsOrThrow(transformId).getInputsOrThrow(localName);
-    RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
+    PTransform transform = components.getTransformsOrThrow(transformId);
+    PCollection collection = components.getPcollectionsOrThrow(collectionId);
     return SideInputReference.of(
-        transformId, localName, PipelineNode.pCollection(collectionId, collection));
+        PipelineNode.pTransform(transformId, transform),
+        localName,
+        PipelineNode.pCollection(collectionId, collection));
   }
 
   /** The id of the PTransform that uses this side input. */
-  public abstract String transformId();
+  public abstract PTransformNode transform();
   /** The local name the referencing PTransform uses to refer to this side input. */
   public abstract String localName();
   /** The PCollection that backs this side input. */
-  public abstract PCollectionNode getCollection();
+  public abstract PCollectionNode collection();
 }

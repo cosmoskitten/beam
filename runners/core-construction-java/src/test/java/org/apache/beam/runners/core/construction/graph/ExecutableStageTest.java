@@ -39,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -79,8 +80,9 @@ public class ExecutableStageTest {
             .putEnvironments("foo", env)
             .build();
 
+    PTransformNode transformNode = PipelineNode.pTransform("pt", pt);
     SideInputReference sideInputRef = SideInputReference.of(
-        "pt", "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+        transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             components,
