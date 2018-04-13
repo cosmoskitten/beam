@@ -20,7 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
@@ -29,6 +31,8 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSinkRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -39,18 +43,21 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.config.CalciteConnectionConfig;
-import org.apache.calcite.linq4j.Enumerable;
+import org.apache.calcite.adapter.java.AbstractQueryableTable;
+import org.apache.calcite.linq4j.QueryProvider;
+import org.apache.calcite.linq4j.Queryable;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.schema.ScannableTable;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.ModifiableTable;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
+import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.Frameworks;
 
 /**
@@ -135,8 +142,7 @@ public class BeamSqlEnv implements Serializable {
    */
   public void registerTable(String tableName, BeamSqlTable table) {
     tables.put(tableName, table);
-    schema.add(tableName, new BeamCalciteTable(table.getSchema()));
-    planner.getSourceTables().put(tableName, table);
+    schema.add(tableName, new BeamCalciteTable(table));
   }
 
   public void deregisterTable(String targetTableName) {
@@ -146,61 +152,59 @@ public class BeamSqlEnv implements Serializable {
       String tableName = entry.getKey();
       BeamSqlTable table = entry.getValue();
       if (!tableName.equals(targetTableName)) {
-        schema.add(tableName, new BeamCalciteTable(table.getSchema()));
+        schema.add(tableName, new BeamCalciteTable(table));
       }
     }
     planner = new BeamQueryPlanner(this, schema);
   }
 
-  /**
-   * Find {@link BaseBeamTable} by table name.
-   */
-  public BeamSqlTable findTable(String tableName) {
-    return planner.getSourceTables().get(tableName);
-  }
+  private static class BeamCalciteTable extends AbstractQueryableTable
+      implements ModifiableTable, TranslatableTable, Serializable {
+    private BeamSqlTable beamTable;
 
-  private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private Schema beamSchema;
-
-    public BeamCalciteTable(Schema beamSchema) {
-      this.beamSchema = beamSchema;
+    public BeamCalciteTable(BeamSqlTable beamTable) {
+      super(Object[].class);
+      this.beamTable = beamTable;
     }
 
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRowType(this.beamSchema, BeamQueryPlanner.TYPE_FACTORY);
+      return CalciteUtils.toCalciteRowType(this.beamTable.getSchema(),
+          BeamQueryPlanner.TYPE_FACTORY);
     }
 
     @Override
-    public Enumerable<Object[]> scan(DataContext root) {
-      // not used as Beam SQL uses its own execution engine
+    public RelNode toRel(
+      RelOptTable.ToRelContext context,
+      RelOptTable relOptTable) {
+      return new BeamIOSourceRel(
+          context.getCluster(), relOptTable, beamTable);
+    }
+
+    @Override
+    public <T> Queryable<T> asQueryable(QueryProvider queryProvider,
+        SchemaPlus schema, String tableName) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Collection getModifiableCollection() {
       return null;
     }
 
-    /**
-     * Not used {@link Statistic} to optimize the plan.
-     */
     @Override
-    public Statistic getStatistic() {
-      return Statistics.UNKNOWN;
-    }
-
-    /**
-     * all sources are treated as TABLE in Beam SQL.
-     */
-    @Override
-    public org.apache.calcite.schema.Schema.TableType getJdbcTableType() {
-      return org.apache.calcite.schema.Schema.TableType.TABLE;
-    }
-
-    @Override public boolean isRolledUp(String column) {
-      return false;
-    }
-
-    @Override public boolean rolledUpColumnValidInsideAgg(String column,
-                                                          SqlCall call, SqlNode parent,
-                                                          CalciteConnectionConfig config) {
-      return false;
+    public TableModify toModificationRel(
+        RelOptCluster cluster,
+        RelOptTable table,
+        Prepare.CatalogReader catalogReader,
+        RelNode child,
+        TableModify.Operation operation,
+        List<String> updateColumnList,
+        List<RexNode> sourceExpressionList,
+        boolean flattened) {
+      return new BeamIOSinkRel(
+          cluster, table, catalogReader, child, operation, updateColumnList,
+          sourceExpressionList, flattened, beamTable);
     }
   }
 
