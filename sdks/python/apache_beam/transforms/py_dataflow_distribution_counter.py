@@ -15,15 +15,11 @@
 # limitations under the License.
 #
 
-"""A library of basic cythonized CombineFn subclasses.
-
-For internal use only; no backwards-compatibility guarantees.
-"""
+"""For internal use only; no backwards-compatibility guarantees."""
 
 
-_63 = 63  # Avoid large literals in C source code.
-globals()['INT64_MAX'] = 2**_63 - 1
-globals()['INT64_MIN'] = -2**_63
+globals()['INT64_MAX'] = 2**63 - 1
+globals()['INT64_MIN'] = -2**63
 
 POWER_TEN = [10e-1, 10e0, 10e1, 10e2, 10e3, 10e4, 10e5,
              10e6, 10e7, 10e8, 10e9, 10e10, 10e11,

@@ -751,7 +751,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   dist_update_proto.max = to_split_int(distribution_update.max)
   dist_update_proto.count = to_split_int(distribution_update.count)
   dist_update_proto.sum = to_split_int(distribution_update.sum)
-  # Only DatadflowDistributionCounter has buckets and first_bucket_offset.
+  # DatadflowDistributionCounter needs to translate histogram
   if isinstance(distribution_update, DataflowDistributionCounter):
     dist_update_proto.histogram = dataflow.Histogram()
     distribution_update.translate_to_histogram(dist_update_proto.histogram)
