@@ -60,11 +60,10 @@ public class JsonToRow {
 
   public static PTransform<PCollection<? extends String>, PCollection<Row>> withSchema(
       Schema rowSchema) {
-
-    return MapElements.via(JsonToRowFn.forSchema(rowSchema));
+    return JsonToRowFn.forSchema(rowSchema);
   }
 
-  static class JsonToRowFn extends SimpleFunction<String, Row> {
+  static class JsonToRowFn extends PTransform<PCollection<? extends String>,PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
 
@@ -77,7 +76,20 @@ public class JsonToRow {
     }
 
     @Override
-    public Row apply(String jsonString) {
+    public PCollection<Row> expand(PCollection<? extends String> jsonStrings) {
+      return jsonStrings
+          .apply(
+              ParDo.of(
+                  new DoFn<String, Row>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      context.output(jsonToRow(context.element()));
+                    }
+                  }))
+          .setCoder(schema.getRowCoder());
+    }
+
+    private Row jsonToRow(String jsonString) {
       try {
         return objectMapper().readValue(jsonString, Row.class);
       } catch (IOException e) {
