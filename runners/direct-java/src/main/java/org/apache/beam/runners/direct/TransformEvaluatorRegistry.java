@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
 
-  public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
+  public static TransformEvaluatorRegistry javaSdkNativeRegistry(EvaluationContext ctxt) {
     ImmutableMap<String, TransformEvaluatorFactory> primitives =
         ImmutableMap.<String, TransformEvaluatorFactory>builder()
             // Beam primitives
