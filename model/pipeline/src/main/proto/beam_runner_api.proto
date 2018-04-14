@@ -217,8 +217,8 @@ message ExecutableStagePayload {
   // PTransform the ExecutableStagePayload is the payload of.
   string input = 2;
 
-  // The side inputs required for this executable stage. Each must be present as a side input of
-  // exactly one PTransform within this ExecutableStagePayload.
+  // The side inputs required for this executable stage. Each Side Input of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
   repeated SideInputId side_inputs = 3;
 
   // PTransform ids contained within this executable stage. This must contain at least one
