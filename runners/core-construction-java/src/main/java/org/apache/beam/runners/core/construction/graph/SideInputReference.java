@@ -33,8 +33,8 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 public abstract class SideInputReference {
 
   /** Create a side input reference. */
-  public static SideInputReference of(PTransformNode transform, String localName,
-      PCollectionNode collection) {
+  public static SideInputReference of(
+      PTransformNode transform, String localName, PCollectionNode collection) {
     return new AutoValue_SideInputReference(transform, localName, collection);
   }
 
