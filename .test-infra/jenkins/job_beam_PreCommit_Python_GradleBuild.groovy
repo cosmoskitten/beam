@@ -38,6 +38,18 @@ job('beam_PreCommit_Python_GradleBuild') {
     archiveJunit('**/nosetests.xml')
   }
 
+  // Allow the test to only run on particular nodes
+  // TODO(BEAM-1817): Remove once the tests can run on all nodes
+  parameters {
+    nodeParam('TEST_HOST') {
+      description('select test host as either beam1, 6 or 7')
+      defaultNodes(['beam1', 'beam6', 'beam7'])
+      allowedNodes(['beam1', 'beam6', 'beam7'])
+      trigger('multiSelectionDisallowed')
+      eligibility('IgnoreOfflineNodeEligibility')
+    }
+  }
+
   def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
