@@ -15,21 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
-
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 /**
- * This is the default metrics sink that does nothing. When it is set,
- * MetricsPusher does not start pushing thread.
+ * Provides extensions to be used with the runners such as metrics sinks.
+ *
  */
-public class NoOpMetricsSink implements MetricsSink<Void>{
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.runners.extensions.metrics;
 
-  public NoOpMetricsSink(PipelineOptions pipelineOptions) {}
-
-  @Override
-  public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-  }
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

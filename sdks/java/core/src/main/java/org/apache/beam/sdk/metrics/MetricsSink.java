@@ -19,8 +19,10 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /** Interface for all metric sinks. */
 public interface MetricsSink<OutputT> extends Serializable {
+  @Experimental(Experimental.Kind.METRICS)
   void writeMetrics(MetricQueryResults metricQueryResults) throws Exception;
 }
