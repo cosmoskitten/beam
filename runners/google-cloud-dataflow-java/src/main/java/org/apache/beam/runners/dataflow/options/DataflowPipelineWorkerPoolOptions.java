@@ -189,6 +189,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   String getWorkerMachineType();
   void setWorkerMachineType(String value);
 
+  // TODO: Replace this with PortablePipelineOptions#getFilesToStage.
   /**
    * List of local files to make available to workers.
    *
@@ -196,9 +197,10 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    *
    * <p>The default value is the list of jars from the main program's classpath.
    */
-  @Description("Files to stage on GCS and make available to workers. "
-      + "Files are placed on the worker's classpath. "
-      + "The default value is all files from the classpath.")
+  @Description(
+      "Files to stage on GCS and make available to workers. "
+          + "Files are placed on the worker's classpath. "
+          + "The default value is all files from the classpath.")
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 
