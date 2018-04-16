@@ -141,6 +141,11 @@ task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
 }
 
+task pythonPostCommit() {
+  dependsOn ":beam-sdks-python:preCommit"
+  dependsOn ":beam-sdks-python:postCommit"
+}
+
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-go:test"
@@ -153,6 +158,6 @@ task goPostCommit() {
 
 task pythonPreCommit() {
   dependsOn ":rat"
-  dependsOn ":beam-sdks-python:check"
+  dependsOn ":beam-sdks-python:preCommit"
 }
 
