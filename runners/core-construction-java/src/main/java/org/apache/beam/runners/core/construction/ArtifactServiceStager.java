@@ -87,26 +87,27 @@ public class ArtifactServiceStager {
     this.bufferSize = bufferSize;
   }
 
-  public void stage(Iterable<File> files) throws IOException, InterruptedException {
-    final Map<File, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
-    for (File file : files) {
+  public String stage(Iterable<FileToStage> files) throws IOException, InterruptedException {
+    final Map<FileToStage, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
+    for (FileToStage file : files) {
       futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
     }
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
             .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
-    stageManifest(stagingResult);
+    return stageManifest(stagingResult);
   }
 
-  private void stageManifest(CompletionStage<StagingResult> stagingFuture)
+  private String stageManifest(CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
       if (stagingResult.isSuccess()) {
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
-        blockingStub.commitManifest(
-            CommitManifestRequest.newBuilder().setManifest(manifest).build());
+        return blockingStub
+            .commitManifest(CommitManifestRequest.newBuilder().setManifest(manifest).build())
+            .getStagingToken();
       } else {
         RuntimeException failure =
             new RuntimeException(
@@ -124,9 +125,9 @@ public class ArtifactServiceStager {
   }
 
   private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
-    private final File file;
+    private final FileToStage file;
 
-    private StagingCallable(File file) {
+    private StagingCallable(FileToStage file) {
       this.file = file;
     }
 
@@ -135,11 +136,12 @@ public class ArtifactServiceStager {
       // TODO: Add Retries
       PutArtifactResponseObserver responseObserver = new PutArtifactResponseObserver();
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
-      ArtifactMetadata metadata = ArtifactMetadata.newBuilder().setName(file.getName()).build();
+      ArtifactMetadata metadata =
+          ArtifactMetadata.newBuilder().setName(file.getStageName()).build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(metadata).build());
 
       MessageDigest md5Digest = MessageDigest.getInstance("MD5");
-      FileChannel channel = new FileInputStream(file).getChannel();
+      FileChannel channel = new FileInputStream(file.getFile()).getChannel();
       ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
       while (!responseObserver.isTerminal() && channel.position() < channel.size()) {
         readBuffer.clear();
@@ -193,18 +195,19 @@ public class ArtifactServiceStager {
   }
 
   private static class ExtractStagingResultsCallable implements Callable<StagingResult> {
-    private final Map<File, CompletionStage<ArtifactMetadata>> futures;
+    private final Map<FileToStage, CompletionStage<ArtifactMetadata>> futures;
 
     private ExtractStagingResultsCallable(
-        Map<File, CompletionStage<ArtifactMetadata>> futures) {
+        Map<FileToStage, CompletionStage<ArtifactMetadata>> futures) {
       this.futures = futures;
     }
 
     @Override
     public StagingResult call() {
       Set<ArtifactMetadata> metadata = new HashSet<>();
-      Map<File, Throwable> failures = new HashMap<>();
-      for (Entry<File, CompletionStage<ArtifactMetadata>> stagedFileResult : futures.entrySet()) {
+      Map<FileToStage, Throwable> failures = new HashMap<>();
+      for (Entry<FileToStage, CompletionStage<ArtifactMetadata>> stagedFileResult :
+          futures.entrySet()) {
         try {
           metadata.add(MoreFutures.get(stagedFileResult.getValue()));
         } catch (ExecutionException ee) {
@@ -222,13 +225,26 @@ public class ArtifactServiceStager {
     }
   }
 
+  /** A file along with a staging name. */
+  @AutoValue
+  public abstract static class FileToStage {
+    public static FileToStage of(File file, String stageName) {
+      return new AutoValue_ArtifactServiceStager_FileToStage(file, stageName);
+    }
+
+    /** The file to stage. */
+    public abstract File getFile();
+    /** Staging handle to this file. */
+    public abstract String getStageName();
+  }
+
   @AutoValue
   abstract static class StagingResult {
     static StagingResult success(Set<ArtifactMetadata> metadata) {
       return new AutoValue_ArtifactServiceStager_StagingResult(metadata, Collections.emptyMap());
     }
 
-    static StagingResult failure(Map<File, Throwable> failures) {
+    static StagingResult failure(Map<FileToStage, Throwable> failures) {
       return new AutoValue_ArtifactServiceStager_StagingResult(
           null, failures);
     }
@@ -240,6 +256,7 @@ public class ArtifactServiceStager {
     @Nullable
     abstract Set<ArtifactMetadata> getMetadata();
 
-    abstract Map<File, Throwable> getFailures();
+    abstract Map<FileToStage, Throwable> getFailures();
   }
+
 }
