@@ -26,6 +26,7 @@ import random
 import time
 
 from apache_beam import typehints
+from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
@@ -220,8 +221,6 @@ class _BatchSizeEstimator(object):
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
-
-    from apache_beam.metrics import Metrics
 
     self._size_distribution = Metrics.distribution(
         'BatchElements', 'batch_size')
