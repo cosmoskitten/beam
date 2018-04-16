@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.fn.function;
 
-/**
- * Java 8 functional interface extensions.
- */
-package org.apache.beam.fn.harness.fn;
+/** A {@link ThrowingConsumer} that can be closed. */
+public interface CloseableThrowingConsumer<T> extends AutoCloseable, ThrowingConsumer<T> {
+}

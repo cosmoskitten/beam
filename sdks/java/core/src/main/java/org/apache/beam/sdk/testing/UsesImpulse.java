@@ -15,18 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.testing;
 
-package org.apache.beam.fn.harness.fn;
-
-import java.util.function.Consumer;
-
-/**
- * A {@link Consumer} which can throw {@link Exception}s.
- *
- * <p>Used to expand the allowed set of method references to be used by Java 8
- * functional interfaces.
- */
-@FunctionalInterface
-public interface ThrowingConsumer<T> {
-  void accept(T t) throws Exception;
-}
+/** Category for tests that use {@link org.apache.beam.sdk.transforms.Impulse} transformations. */
+public class UsesImpulse {}
