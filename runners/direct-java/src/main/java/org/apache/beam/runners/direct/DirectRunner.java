@@ -203,7 +203,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         if (t instanceof RuntimeException) {
           throw (RuntimeException) t;
         }
-        throw new RuntimeException(t);
+        throw new RuntimeException(t);t
       }
     }
     return result;

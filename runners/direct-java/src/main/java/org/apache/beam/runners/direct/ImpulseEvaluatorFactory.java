@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext ctxt;
 
-  ImpulseEvaluatorFactory(EvaluationContext ctxt) {
+  ImpulseEvaluatorFactory(BundleFactory ctxt) {
     this.ctxt = ctxt;
   }
 
@@ -51,13 +51,13 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private static class ImpulseEvaluator implements TransformEvaluator<ImpulseShard> {
-    private final EvaluationContext ctxt;
+    private final BundleFactory bundleFactory;
     private final AppliedPTransform<?, PCollection<byte[]>, Impulse> transform;
     private final StepTransformResult.Builder<ImpulseShard> result;
 
     private ImpulseEvaluator(
-        EvaluationContext ctxt, AppliedPTransform<?, PCollection<byte[]>, Impulse> transform) {
-      this.ctxt = ctxt;
+        BundleFactory bundleFactory, AppliedPTransform<?, PCollection<byte[]>, Impulse> transform) {
+      this.bundleFactory = bundleFactory;
       this.transform = transform;
       this.result = StepTransformResult.withoutHold(transform);
     }
@@ -67,7 +67,9 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
       PCollection<byte[]> outputPCollection =
           (PCollection<byte[]>) Iterables.getOnlyElement(transform.getOutputs().values());
       result.addOutput(
-          ctxt.createBundle(outputPCollection).add(WindowedValue.valueInGlobalWindow(new byte[0])));
+          bundleFactory
+              .createBundle(outputPCollection)
+              .add(WindowedValue.valueInGlobalWindow(new byte[0])));
     }
 
     @Override
