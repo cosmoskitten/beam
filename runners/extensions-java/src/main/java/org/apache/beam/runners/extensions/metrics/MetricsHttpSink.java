@@ -31,7 +31,6 @@ import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.codehaus.jackson.map.SerializationConfig;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
