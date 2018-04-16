@@ -133,6 +133,8 @@ class Operation(object):
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
+    # TODO(BEAM-4094): Remove ScopedMetricsContainer after Dataflow no longer
+    # depends on it.
     self.scoped_metrics_container = ScopedMetricsContainer()
 
     self.state_sampler = state_sampler

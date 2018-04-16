@@ -311,6 +311,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
         metrics_container=metrics_container)
 
     with start_state:
+      # Side input initialization should be accounted for in start_state.
       for side_input in self._applied_ptransform.side_inputs:
         # Find the projection of main's window onto the side input's window.
         window_mapping_fn = side_input._view_options().get(
@@ -331,22 +332,23 @@ class TransformExecutor(_ExecutorService.CallableTask):
           self._side_input_values[side_input]
           for side_input in self._applied_ptransform.side_inputs]
 
-      while self._retry_count < self._max_retries_per_bundle:
-        try:
-          self.attempt_call(metrics_container,
-                            side_input_values,
-                            process_state,
-                            finish_state)
-          break
-        except Exception as e:
-          self._retry_count += 1
-          logging.error(
-              'Exception at bundle %r, due to an exception.\n %s',
-              self._input_bundle, traceback.format_exc())
-          if self._retry_count == self._max_retries_per_bundle:
-            logging.error('Giving up after %s attempts.',
-                          self._max_retries_per_bundle)
-            self._completion_callback.handle_exception(self, e)
+    while self._retry_count < self._max_retries_per_bundle:
+      try:
+        self.attempt_call(metrics_container,
+                          side_input_values,
+                          start_state,
+                          process_state,
+                          finish_state)
+        break
+      except Exception as e:
+        self._retry_count += 1
+        logging.error(
+            'Exception at bundle %r, due to an exception.\n %s',
+            self._input_bundle, traceback.format_exc())
+        if self._retry_count == self._max_retries_per_bundle:
+          logging.error('Giving up after %s attempts.',
+                        self._max_retries_per_bundle)
+          self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
         self._input_bundle,
@@ -355,14 +357,16 @@ class TransformExecutor(_ExecutorService.CallableTask):
 
   def attempt_call(self, metrics_container,
                    side_input_values,
+                   start_state,
                    process_state,
                    finish_state):
-    """Attempts to run a bundle. Called within the 'start' ExecutionState."""
+    """Attempts to run a bundle."""
     evaluator = self._transform_evaluator_registry.get_evaluator(
         self._applied_ptransform, self._input_bundle,
         side_input_values)
 
-    evaluator.start_bundle()
+    with start_state:
+      evaluator.start_bundle()
 
     with process_state:
       if self._fired_timers:
