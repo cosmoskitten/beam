@@ -167,7 +167,7 @@ def google_auth_version = "0.7.1"
 def grpc_version = "1.2.0"
 def protobuf_version = "3.2.0"
 def guava_version = "20.0"
-def netty_version = "4.1.8.Final"
+def netty_version = "4.1.17.Final"
 def grpc_google_common_protos = "0.1.9"
 def hamcrest_version = "1.3"
 def hadoop_version = "2.7.3"
@@ -999,7 +999,7 @@ ext.createJavaQuickstartValidationTask = {
   def taskName = "runQuickstartJava${config.name}"
   println "Generating :${taskName}"
   def releaseVersion = project.findProperty('ver') ?: version
-  def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+  def releaseRepo = project.findProperty('repourl') ?: 'https://github.com/yifanzou/beam/tree/fix_Java_PostRelease'
   def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"]
   if (config.gcpProject) {
     argsNeeded.add("--gcpProject=${config.gcpProject}")
