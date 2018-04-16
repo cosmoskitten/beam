@@ -53,6 +53,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-extensions-java", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
@@ -79,6 +80,7 @@ dependencies {
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -96,7 +98,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     if (config.streaming) {
