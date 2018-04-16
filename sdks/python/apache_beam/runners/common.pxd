@@ -19,6 +19,7 @@ cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
+from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from libc.stdint cimport int64_t
 
@@ -98,7 +99,7 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
-  cdef object per_element_output_counter
+  cdef DataflowDistributionCounter per_element_output_counter
 
 cdef class DoFnContext(object):
   cdef object label

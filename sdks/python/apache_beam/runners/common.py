@@ -560,11 +560,10 @@ class DoFnRunner(Receiver):
     # rollout.
     if 'outputs_per_element_counter_v0' in experiments:
       # TODO(BEAM-3955): Make step_name and operation_name less confused.
-      per_element_output_counter_name = (
-          CounterName('per-element-output-count-meta',
-                      step_name=operation_name))
+      output_counter_name = (CounterName('per-element-output-count',
+                                         step_name=operation_name))
       per_element_output_counter = state._counter_factory.get_counter(
-          per_element_output_counter_name, Counter.DISTRIBUTION_METADATA)
+          output_counter_name, Counter.DATAFLOW_DISTRIBUTION).accumulator
     else:
       per_element_output_counter = None
 
@@ -665,8 +664,10 @@ class _OutputProcessor(OutputProcessor):
     """
     if results is None:
       # TODO(BEAM-3937): Remove if block after output counter released.
-      if self.per_element_output_counter:
-        self.per_element_output_counter.update(0)
+      # Only enable per_element_output_counter when counter cythonized.
+      if (self.per_element_output_counter and
+          self.per_element_output_counter.is_cythonized):
+        self.per_element_output_counter.add_input(0)
       return
 
     output_element_count = 0
@@ -698,8 +699,10 @@ class _OutputProcessor(OutputProcessor):
       else:
         self.tagged_receivers[tag].receive(windowed_value)
     # TODO(BEAM-3937): Remove if block after output counter released.
-    if self.per_element_output_counter:
-      self.per_element_output_counter.update(output_element_count)
+    # Only enable per_element_output_counter when counter cythonized
+    if (self.per_element_output_counter and
+        self.per_element_output_counter.is_cythonized):
+      self.per_element_output_counter.add_input(output_element_count)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""

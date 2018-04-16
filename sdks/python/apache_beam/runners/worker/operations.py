@@ -391,7 +391,7 @@ class DoOperation(Operation):
               step_name=self.name_context.logging_name()),
           state=state,
           scoped_metrics_container=self.scoped_metrics_container,
-          operation_name=self.operation_name)
+          operation_name=self.name_context.metrics_name())
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
