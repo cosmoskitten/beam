@@ -31,6 +31,22 @@ def tox_opts = "-c tox.ini --recreate"
 task setupVirtualenv {
   doLast {
     exec {
+      executable 'sh'
+      args '-c', 'python --version; pip --version; virtualenv --version'
+    }
+    exec {
+      executable 'sh'
+      args '-c', 'pip install --user --upgrade pip==9.0.3'
+    }
+    exec {
+      executable 'sh'
+      args '-c', 'python -m pip install --user --upgrade virtualenv==15.2.0'
+    }
+    exec {
+      executable 'sh'
+      args '-c', 'python --version; pip --version; python -m pip --version; virtualenv --version'
+    }
+    exec {
       commandLine 'virtualenv', "${envdir}"
     }
     exec {
