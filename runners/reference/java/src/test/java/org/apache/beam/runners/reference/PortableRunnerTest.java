@@ -57,8 +57,7 @@ public class PortableRunnerTest implements Serializable {
     try (CloseableResource<Server> server = createJobServer(JobState.Enum.DONE)) {
       server.get().start();
       PortableRunner runner =
-          PortableRunner.createInternal(
-              options, new EmptyFileZipper(), new InProcessManagedChannelFactory());
+          PortableRunner.createInternal(options, new InProcessManagedChannelFactory());
       State state = runner.run(p).waitUntilFinish();
       assertThat(state, is(State.DONE));
     }
@@ -81,10 +80,4 @@ public class PortableRunnerTest implements Serializable {
     return options;
   }
 
-  private static class EmptyFileZipper extends DirectoryZipper {
-    @Override
-    public String replaceDirectoryWithZipFile(String path) throws IOException {
-      return File.createTempFile("emptyStageFile", ".zip").toString();
-    }
-  }
 }

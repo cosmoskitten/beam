@@ -88,12 +88,13 @@ class JobServicePipelineResult implements PipelineResult {
   public State waitUntilFinish() {
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
-    State lastState;
-    do {
+    GetJobStateResponse response = stub.getState(request);
+    State lastState = getJavaState(response.getState());
+    while (!lastState.isTerminal()) {
       Uninterruptibles.sleepUninterruptibly(POLL_INTERVAL_SEC, TimeUnit.SECONDS);
-      GetJobStateResponse response = stub.getState(request);
+      response = stub.getState(request);
       lastState = getJavaState(response.getState());
-    } while (!lastState.isTerminal());
+    }
     try {
       jobService.close();
     } catch (Exception e) {

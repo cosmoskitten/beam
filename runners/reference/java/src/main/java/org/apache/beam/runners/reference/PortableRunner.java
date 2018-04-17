@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.util.ZipFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,12 +78,12 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static PortableRunner fromOptions(PipelineOptions options) {
-    return createInternal(options, new DirectoryZipper(), getChannelFactory(options));
+    return createInternal(options, getChannelFactory(options));
   }
 
   @VisibleForTesting
   static PortableRunner createInternal(
-      PipelineOptions options, DirectoryZipper zipper, ManagedChannelFactory channelFactory) {
+      PipelineOptions options, ManagedChannelFactory channelFactory) {
     PortablePipelineOptions portableOptions =
         PipelineOptionsValidator.validate(PortablePipelineOptions.class, options);
 
@@ -100,18 +102,22 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           pathsToStage.size());
     }
 
-    // Zip up directories so we can upload them to the artifact service.
     ImmutableList.Builder<FileToStage> filesToStage = ImmutableList.builder();
-    try {
-      for (String path : pathsToStage) {
-        if (new File(path).exists()) {
-          // Spurious items get added to the classpath. Filter by just those that exist.
-          String zippedFile = zipper.replaceDirectoryWithZipFile(path);
-          filesToStage.add(createStagingFile(zippedFile));
+    for (String path : pathsToStage) {
+      File file = new File(path);
+      if (new File(path).exists()) {
+        // Spurious items get added to the classpath. Filter by just those that exist.
+        if (file.isDirectory()) {
+          // Zip up directories so we can upload them to the artifact service.
+          try {
+            filesToStage.add(createStagingFile(zipDirectory(file)));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        } else {
+          filesToStage.add(createStagingFile(file));
         }
       }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
     }
 
     return new PortableRunner(options, endpoint, filesToStage.build(), channelFactory);
@@ -130,7 +136,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    replaceTransforms(pipeline, false);
+    pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
 
     LOG.debug("Initial files to stage: " + filesToStage);
 
@@ -142,7 +148,9 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
             .build();
 
     ManagedChannel jobServiceChannel =
-        channelFactory.forDescriptor(getApiServiceDescriptor(endpoint));
+        channelFactory.forDescriptor(
+            ApiServiceDescriptor.newBuilder()
+                .setUrl(endpoint).build());
 
     JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
     CloseableResource<JobServiceBlockingStub> wrappedJobService =
@@ -182,21 +190,6 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     return new JobServicePipelineResult(jobId, wrappedJobService);
   }
 
-  private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String descriptor) {
-    Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptorBuilder =
-        Endpoints.ApiServiceDescriptor.newBuilder();
-    apiServiceDescriptorBuilder.setUrl(descriptor);
-    return apiServiceDescriptorBuilder.build();
-  }
-
-  private void replaceTransforms(Pipeline pipeline, boolean streaming) {
-    pipeline.replaceAll(getOverrides(streaming));
-  }
-
-  private List<PTransformOverride> getOverrides(boolean streaming) {
-    return ImmutableList.of(JavaReadViaImpulse.boundedOverride());
-  }
-
   @Override
   public String toString() {
     return "PortableRunner#" + hashCode();
@@ -213,14 +206,23 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     return channelFactory;
   }
 
-  private static FileToStage createStagingFile(String path) {
+  private static File zipDirectory(File directory) throws IOException {
+    File zipFile = File.createTempFile(directory.getName(), ".zip");
+    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+      ZipFiles.zipDirectory(directory, fos);
+    }
+    return zipFile;
+  }
+
+  private static FileToStage createStagingFile(File file) {
+    // https://issues.apache.org/jira/browse/BEAM-4109
     // HACK: Encode the path name ourselves because the local artifact staging service currently
     // assumes artifact names correspond to a flat directory. Artifact staging services should
     // generally accept arbitrary artifact names.
     // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
     // and exceed file length limits on the artifact stager.
-    String encodedPath = escapePath(path);
-    return FileToStage.of(new File(path), encodedPath);
+    String encodedPath = escapePath(file.getPath());
+    return FileToStage.of(file, encodedPath);
   }
 
   /** Create a filename-friendly artifact name for the given path. */
