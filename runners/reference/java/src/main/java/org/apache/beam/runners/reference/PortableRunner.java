@@ -76,9 +76,6 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static PortableRunner fromOptions(PipelineOptions options) {
-    if (true) {
-      throw new UnsupportedOperationException();
-    }
     return createInternal(options, new DirectoryZipper(), getChannelFactory(options));
   }
 
