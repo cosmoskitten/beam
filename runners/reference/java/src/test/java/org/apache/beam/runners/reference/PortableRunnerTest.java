@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.reference;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
 import java.io.File;
@@ -27,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.reference.testing.InMemoryArtifactService;
 import org.apache.beam.runners.reference.testing.InProcessManagedChannelFactory;
 import org.apache.beam.runners.reference.testing.TestJobService;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -50,20 +54,23 @@ public class PortableRunnerTest implements Serializable {
 
   @Test
   public void stagesAndRunsJob() throws Exception {
-    try (CloseableResource<Server> server =
-        CloseableResource.of(
-            InProcessServerBuilder.forName(ENDPOINT_URL)
-                .addService(
-                    new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", JobState.Enum.DONE))
-                .addService(new InMemoryArtifactService(false /* keepArtifacts */))
-                .build(),
-            Server::shutdown)) {
+    try (CloseableResource<Server> server = createJobServer(JobState.Enum.DONE)) {
       server.get().start();
       PortableRunner runner =
           PortableRunner.createInternal(
               options, new EmptyFileZipper(), new InProcessManagedChannelFactory());
-      runner.run(p).waitUntilFinish();
+      State state = runner.run(p).waitUntilFinish();
+      assertThat(state, is(State.DONE));
     }
+  }
+
+  private static CloseableResource<Server> createJobServer(JobState.Enum jobState) {
+    return CloseableResource.of(
+        InProcessServerBuilder.forName(ENDPOINT_URL)
+            .addService(new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState))
+            .addService(new InMemoryArtifactService(false /* keepArtifacts */))
+            .build(),
+        Server::shutdown);
   }
 
   private static PipelineOptions createPipelineOptions() {
