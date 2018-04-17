@@ -940,16 +940,17 @@ ext.provideIntegrationTestingDependencies = {
     dependencies {
 
       /* include dependencies required by runners */
-      if (runner?.contains('dataflow')) {
+      //if (runner?.contains('dataflow')) {
+      if (runner?.equalsIgnoreCase('dataflow')) {
         testCompile project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
       }
 
-      if (runner?.contains('direct')) {
+      if (runner?.equalsIgnoreCase('direct')) {
         testCompile project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
       }
 
       /* include dependencies required by filesystems */
-      if (filesystem?.contains('hdfs')) {
+      if (filesystem?.equalsIgnoreCase('hdfs')) {
         testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
         shadowTest library.java.hadoop_client
       }
@@ -976,7 +977,7 @@ ext.createPerformanceTestHarness = {
   //  -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "<more options>"]' \
   //  -DintegrationTest=<io test, eg. org.apache.beam.sdk.io.text.TextIOIT> \
   //  -DitModule=<directory containing desired test, eg. sdks/java/io/file-based-io-tests> \
-  //  -DintegrationTestRunner=direct/dataflow/<other>
+  //  -DintegrationTestRunner=<runner to be used for testing, eg. dataflow>
   //
   // There are more options with default values that can be tweaked if needed (see below).
   task performanceTest(type: Exec) {
