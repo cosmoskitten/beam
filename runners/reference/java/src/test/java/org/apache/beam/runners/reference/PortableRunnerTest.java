@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.is;
 
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
@@ -55,7 +54,6 @@ public class PortableRunnerTest implements Serializable {
   @Test
   public void stagesAndRunsJob() throws Exception {
     try (CloseableResource<Server> server = createJobServer(JobState.Enum.DONE)) {
-      server.get().start();
       PortableRunner runner =
           PortableRunner.createInternal(options, new InProcessManagedChannelFactory());
       State state = runner.run(p).waitUntilFinish();
@@ -63,13 +61,16 @@ public class PortableRunnerTest implements Serializable {
     }
   }
 
-  private static CloseableResource<Server> createJobServer(JobState.Enum jobState) {
-    return CloseableResource.of(
+  private static CloseableResource<Server> createJobServer(JobState.Enum jobState)
+      throws IOException {
+    CloseableResource<Server> server = CloseableResource.of(
         InProcessServerBuilder.forName(ENDPOINT_URL)
             .addService(new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState))
             .addService(new InMemoryArtifactService(false /* keepArtifacts */))
             .build(),
         Server::shutdown);
+    server.get().start();
+    return server;
   }
 
   private static PipelineOptions createPipelineOptions() {
