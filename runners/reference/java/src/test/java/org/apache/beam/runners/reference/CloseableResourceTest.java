@@ -69,7 +69,6 @@ public class CloseableResourceTest {
     } catch (CloseException e) {
       closeException = e;
     }
-    assertThat(closeException, is(notNullValue()));
     assertThat(closeException, is(instanceOf(CloseException.class)));
     assertThat(closeException.getCause(), is(wrapped));
   }
