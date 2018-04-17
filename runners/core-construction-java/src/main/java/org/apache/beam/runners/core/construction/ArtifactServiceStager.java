@@ -87,6 +87,10 @@ public class ArtifactServiceStager {
     this.bufferSize = bufferSize;
   }
 
+  /**
+   * Stages the given artifact files to the staging service.
+   * @return The artifact staging token returned by the service
+   */
   public String stage(Iterable<FileToStage> files) throws IOException, InterruptedException {
     final Map<FileToStage, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (FileToStage file : files) {
