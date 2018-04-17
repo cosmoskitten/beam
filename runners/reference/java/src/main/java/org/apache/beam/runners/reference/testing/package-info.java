@@ -16,21 +16,5 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-description = "Apache Beam :: Runners :: Reference :: Java"
-ext.summary = """A Java implementation of the Beam Model which utilizes the portability
-framework to execute user-definied functions."""
-
-
-dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  shadow library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
-}
+/** Testing utilities for the reference runner. */
+package org.apache.beam.runners.reference.testing;
