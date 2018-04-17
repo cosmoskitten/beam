@@ -57,6 +57,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -382,6 +383,10 @@ public class TextIOWriteTest {
           matches.add(match.resourceId().toString());
         }
         assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
+        // Verify that files exist.
+        for (String filename : values) {
+          FileSystems.match(filename, EmptyMatchTreatment.DISALLOW);
+        }
       } catch (Exception e) {
         fail("Exception caught " + e);
       }

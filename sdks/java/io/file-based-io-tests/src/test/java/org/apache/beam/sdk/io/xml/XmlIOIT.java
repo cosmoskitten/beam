@@ -107,7 +107,6 @@ public class XmlIOIT {
           .withPrefix("birds")
           .withSuffix(".xml"))
       .getPerDestinationOutputFilenames()
-      .apply("Prevent fusion", Reshuffle.viaRandomKey())
       .apply("Get file names", Values.create());
 
     PCollection<Bird> birds = testFileNames
