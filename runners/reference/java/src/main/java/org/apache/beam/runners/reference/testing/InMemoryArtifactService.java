@@ -40,6 +40,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: Implement artifact retrieval.
 /** A StagingService for tests. */
 public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
 
@@ -55,6 +56,11 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
   @GuardedBy("artifactLock")
   private boolean committed = false;
 
+  /**
+   * Constructs an {@link InMemoryArtifactService}. If {@code keepArtifacts} is true, all artifacts
+   * are kept in memory as {@link ByteString ByteStrings}. Doing so is currently a waste of space
+   * because artifact retrieval is not yet implemented.
+   */
   public InMemoryArtifactService(boolean keepArtifacts) {
     this.keepArtifacts = keepArtifacts;
   }
