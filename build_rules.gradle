@@ -1184,7 +1184,7 @@ ext.createJavaQuickstartValidationTask = {
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
     group = "Verification"
-    description = "Run a sample quickstart pipeline with the ${config.name} runner"
+    description = "Run the Beam quickstart with the ${config.name} runner"
     main = "quickstart-java-${config.name}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
