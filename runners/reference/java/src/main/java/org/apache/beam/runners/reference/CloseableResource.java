@@ -51,19 +51,22 @@ public class CloseableResource<T> implements AutoCloseable {
   }
 
   /**
-   * Close the underlying resource. Must only be called once.
+   * Closes the underlying resource. The closer will only be executed on the first call.
    *
    * @throws CloseException wrapping any exceptions thrown while closing
    */
   @Override
   public void close() throws CloseException {
-    checkState(!isClosed, "% is closed", CloseableResource.class.getName());
-    try {
-      closer.close(resource);
-    } catch (Exception e) {
-      throw new CloseException(e);
+    if (!isClosed) {
+      try {
+        closer.close(resource);
+        isClosed = true;
+      } catch (Exception e) {
+        // Mark resource as closed even if we catch an exception.
+        isClosed = true;
+        throw new CloseException(e);
+      }
     }
-    isClosed = true;
   }
 
   /** A function that knows how to clean up after a resource. */
