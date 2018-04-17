@@ -23,6 +23,8 @@ import org.apache.beam.sdk.options.Validation.Required;
 /** Pipeline options common to all portable runners. */
 public interface PortablePipelineOptions extends PipelineOptions {
 
+  // TODO: https://issues.apache.org/jira/browse/BEAM-4106: Consider pulling this out into a new
+  // options interface, e.g., FileStagingOptions.
   /**
    * List of local files to make available to workers.
    *
