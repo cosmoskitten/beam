@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -190,7 +191,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
     List<FileToStage> artifactFiles = new ArrayList<>();
     for (Map.Entry<String, byte[]> artifact : artifacts.entrySet()) {
       File artifactFile = tmp.newFile(artifact.getKey());
-      new FileOutputStream(artifactFile).getChannel().write(ByteBuffer.wrap(artifact.getValue()));
+      Files.write(artifactFile.toPath(), artifact.getValue());
       artifactFiles.add(FileToStage.of(artifactFile, artifactFile.getName()));
     }
 
