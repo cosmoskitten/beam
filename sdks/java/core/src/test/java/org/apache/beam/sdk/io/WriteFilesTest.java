@@ -323,6 +323,7 @@ public class WriteFilesTest {
             .withNumShards(1));
   }
 
+  @Test
   public void testBuildWrite() {
     SimpleSink<Void> sink = makeSimpleSink();
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
