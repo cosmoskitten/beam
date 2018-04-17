@@ -32,7 +32,12 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 
-/** A JobService for tests. */
+/**
+ * A JobService for tests.
+ *
+ * <p>A {@link TestJobService} always returns a fixed staging endpoint, job preparation id, job id,
+ * and job state. As soon as a job is run, it is put into the given job state.
+ */
 public class TestJobService extends JobServiceImplBase {
 
   private final ApiServiceDescriptor stagingEndpoint;
