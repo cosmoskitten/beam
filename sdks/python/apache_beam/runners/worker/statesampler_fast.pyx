@@ -104,9 +104,9 @@ cdef class StateSampler(object):
     self.scoped_states_by_index = [unknown_state]
     pythread.PyThread_release_lock(self.lock)
     self.element_tracker = DataflowElementExecutionTracker()
-    # TODO: remove experimental flag once time_counter release
+    # TODO(BEAM-4111): Remove experimental flag once time_counter release.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    if 'time_per_element_counter' in experiments:
+    if 'time_per_element_counter_v0' in experiments:
       self.has_time_counter_experiment = True
     else:
       self.has_time_counter_experiment = False
@@ -132,7 +132,7 @@ cdef class StateSampler(object):
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
           elapsed_nsecs = get_nsec_time() - last_nsecs
-          # TODO: remove if block once time_counter release
+          # TODO(BEAM-4111): Remove if block once time_counter release.
           if self.has_time_counter_experiment:
             self.element_tracker.take_sample(elapsed_nsecs)
           if self.finished:
@@ -232,7 +232,7 @@ cdef class ScopedState(object):
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
-    # TODO: remove experimental flag check once time_counter release
+    # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
     if self.sampler.has_time_counter_experiment and self.is_processing_state:
       self.sampler.element_tracker.enter(self.name.step_name)
     pythread.PyThread_release_lock(self.sampler.lock)
@@ -241,7 +241,7 @@ cdef class ScopedState(object):
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
-    # TODO: remove experimental flag check once time_counter release
+    # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
     if self.sampler.has_time_counter_experiment and self.is_processing_state:
       self.sampler.element_tracker.exit()
     pythread.PyThread_release_lock(self.sampler.lock)
