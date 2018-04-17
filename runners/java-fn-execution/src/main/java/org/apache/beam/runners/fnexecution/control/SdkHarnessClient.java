@@ -189,7 +189,7 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /** An active bundle for a particular {@link BeamFnApi.ProcessBundleDescriptor}. */
-  public static class ActiveBundle<InputT> implements AutoCloseable {
+  public static class ActiveBundle<InputT> implements RemoteBundle<InputT> {
     private final String bundleId;
     private final CompletionStage<BeamFnApi.ProcessBundleResponse> response;
     private final CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver;
