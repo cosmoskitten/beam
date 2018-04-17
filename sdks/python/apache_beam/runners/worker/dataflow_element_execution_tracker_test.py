@@ -20,9 +20,10 @@ from __future__ import absolute_import
 
 import unittest
 
+from mock import Mock
 from nose.plugins.skip import SkipTest
 
-from apache_beam.transforms.cy_combiners import DistributionAccumulator
+from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
@@ -53,11 +54,12 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
 
   def _get_counter_value(self, op_name):
     counter_name = CounterName('per-element-processing-time', step_name=op_name)
-    return self.counter_factory.get_counter(counter_name,
-                                            Counter.DISTRIBUTION).value()
+    return self.counter_factory.get_counter(
+        counter_name, Counter.DATAFLOW_DISTRIBUTION).accumulator
 
   def test_typical_usage(self):
     """Typical usage scenario
+
     Format info: execution_journal[] | partial timings not yet reported{}
     """
     state_a = 'A'
@@ -177,7 +179,7 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
                                      self._get_expected_distribution([20]))
 
   def _get_expected_distribution(self, values):
-    distribution = DistributionAccumulator()
+    distribution = DataflowDistributionCounter()
     for value in values:
       distribution.add_input(value)
     return distribution
@@ -187,9 +189,13 @@ class DataflowElementExecutionTrackerTest(unittest.TestCase):
     self.assertEquals(counter.max, expected_distribution.max)
     self.assertEquals(counter.count, expected_distribution.count)
     self.assertEquals(counter.sum, expected_distribution.sum)
-    self.assertEquals(counter.buckets, expected_distribution.buckets)
-    self.assertEquals(counter.first_bucket_offset,
-                      expected_distribution.first_bucket_offset)
+    histogram = Mock(firstBucketOffset=None, bucketCounts=None)
+    expected_histogram = Mock(firstBucketOffset=None, bucketCounts=None)
+    counter.translate_to_histogram(histogram)
+    expected_distribution.translate_to_histogram(expected_histogram)
+    self.assertEquals(histogram.bucketCounts, expected_histogram.bucketCounts)
+    self.assertEquals(histogram.firstBucketOffset,
+                      expected_histogram.firstBucketOffset)
 
 
 if __name__ == '__main__':

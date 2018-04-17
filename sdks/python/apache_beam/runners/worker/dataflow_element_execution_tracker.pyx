@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# cython: profile=True
+# cython: profile=False
 
 """Element execution tracker for Dataflow service.
 
@@ -45,8 +45,11 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 cimport cython
+from libc.stdlib cimport malloc, free
+
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
+from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
 
 from cython.operator cimport dereference as dref
 from cython.operator cimport preincrement as iref
@@ -67,6 +70,7 @@ cdef class Journal(object):
   cdef void add_journal(self, ElementExecutionPtr execution_ptr,
                         int64_t snapshot):
     """Create SnapshottedExecutionPtr and append to journal.
+    
     Args:
       execution_ptr: Pointer of ElementExecution for new journal element.
                      Could be NULL if current element is IDLE.
@@ -77,7 +81,7 @@ cdef class Journal(object):
                        + 'Input snapshot %d is not greater than max snapshot %d'
                        % (snapshot, self.max_snapshot))
     cdef SnapshottedExecutionPtr snapshotted_ptr = (
-      <SnapshottedExecutionPtr> PyMem_Malloc(sizeof(SnapshottedExecution)))
+      <SnapshottedExecutionPtr> malloc(sizeof(SnapshottedExecution)))
     snapshotted_ptr.execution_ptr = execution_ptr
     snapshotted_ptr.snapshot = snapshot
     self.journal.push_back(snapshotted_ptr)
@@ -85,6 +89,7 @@ cdef class Journal(object):
 
 cdef class ReaderWriterState(object):
   """State shared between ExecutionJournalReader and ExecutionJournalWriter.
+
   Attributes:
     execution_journal: Journal of fragments of execution per element to count
     for attributing processing time. Each time we transition up or down
@@ -110,11 +115,13 @@ cdef class ReaderWriterState(object):
 cdef class ExecutionJournalReader(object):
   """Accounts sampled time to processed elements based on execution journal
   entries.
+
   Attributes:
     shared_state: Shared journals with ExecutionJournalWriter.
     execution_duration: Accumulated execution time per element. Once an element
     has finished processing and execution time has been attributed, the total
     execution time is reported via the counter and removed from the collection.
+
   Args:
     shared_state: Initialized in DataflowElementExecutionTracker.
   """
@@ -192,6 +199,7 @@ cdef class ExecutionJournalReader(object):
 
 cdef class ExecutionJournalWriter(object):
   """Writes journal entries on element processing state changes.
+
   Attributes:
     shared_state: Shared journals with ExecutionJournalReader.
     execution_stack: Execution stack of processing elements. Elements are pushed
@@ -199,6 +207,7 @@ cdef class ExecutionJournalWriter(object):
     scoped_process_state.__exit__. This stack mirrors the actual runtime stack
     and contains the step + element context in order to attribute sampled
     execution time.
+
   Args:
     shared_state: Initialized in DataflowElementExecutionTracker.
   """
@@ -218,10 +227,10 @@ cdef class ExecutionJournalWriter(object):
     self.shared_state.latest_snapshot = next_snapshot
 
   cdef void start_processing(self, char* operation_name):
-    """Create and journal a new ElementExecution to track a processing element 
+    """Create and journal a new ElementExecution to track a processing element.
     """
     cdef ElementExecutionPtr execution_ptr = (
-      <ElementExecutionPtr> PyMem_Malloc(sizeof(ElementExecution)))
+      <ElementExecutionPtr> malloc(sizeof(ElementExecution)))
     assert (execution_ptr != NULL)
     execution_ptr.operation_name = operation_name
     self.add_execution(execution_ptr)
@@ -249,6 +258,7 @@ cdef class ExecutionJournalWriter(object):
 
 cdef class DataflowElementExecutionTracker(object):
   """Implementation of DataflowElementExecutionTracker.
+
   Attributes:
     counter_cache: An map to cache processing time per element per step.
     cache_start_index: An map used for finding the range of time list to update.
@@ -275,15 +285,24 @@ cdef class DataflowElementExecutionTracker(object):
                                       self.counter_cache)
 
   cpdef void enter_for_test(self, char* operation_name):
-    """Only visible for unit test."""
+    """Only visible for unit test.
+    
+    Need to keep enter func as cdef to making calling fast enough.
+    """
     self.enter(operation_name)
 
   cpdef void exit_for_test(self):
-    """Only visible for unit test."""
+    """Only visible for unit test.
+    
+    Need to keep exit func as cdef to make calling fast enough.
+    """
     self.exit()
 
   cpdef void take_sample_for_test(self, int64_t nanos_sampling_duration):
-    """Only visible for unit test."""
+    """Only visible for unit test.
+    
+    Need to keep take_sample as cdef to get rid of gil.
+    """
     self.execution_reader.take_sample(nanos_sampling_duration,
                                       self.counter_cache)
 
@@ -294,6 +313,7 @@ cdef class DataflowElementExecutionTracker(object):
     cdef int64_t start_index = 0, end_index = 0
     cdef char* op_name
     cdef vector[int64_t] values
+    cdef DataflowDistributionCounter time_counter = None
     while map_it != self.counter_cache.end():
       op_name = dref(map_it).first
       values = dref(map_it).second
@@ -301,10 +321,10 @@ cdef class DataflowElementExecutionTracker(object):
       start_index = self.cache_start_index[op_name]
       counter_name = CounterName('per-element-processing-time',
                                  step_name=op_name)
-      time_counter = counter_factory.get_counter(counter_name,
-                                                 Counter.DISTRIBUTION)
+      time_counter = counter_factory.get_counter(
+          counter_name, Counter.DATAFLOW_DISTRIBUTION).accumulator
       while start_index < end_index:
-        time_counter.update(values[start_index])
+        time_counter.add_input(values[start_index])
         start_index += 1
       self.cache_start_index[op_name] = end_index
       iref(map_it)

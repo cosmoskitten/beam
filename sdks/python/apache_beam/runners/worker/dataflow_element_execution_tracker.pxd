@@ -15,12 +15,11 @@
 # limitations under the License.
 #
 
-# cython: profile=True
+# cython: profile=False
 # distutils: language=c++
 # distutils: extra_compile_args=['-std=c++11']
 
 cimport cython
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from libc.stdint cimport int64_t
 from libcpp.deque cimport deque
 from libcpp.unordered_map cimport unordered_map
