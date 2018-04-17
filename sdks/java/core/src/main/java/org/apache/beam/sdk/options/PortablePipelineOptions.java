@@ -38,7 +38,8 @@ public interface PortablePipelineOptions extends PipelineOptions {
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 
-  @Description("Job service endpoint to use.")
+  @Description(
+      "Job service endpoint to use. Should be in the form of address and port, e.g. localhost:3000")
   @Required
   String getJobEndpoint();
   void setJobEndpoint(String endpoint);
