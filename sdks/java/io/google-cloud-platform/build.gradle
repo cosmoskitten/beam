@@ -24,6 +24,7 @@ applyJavaNature(
   shadowClosure: {
     dependencies {
       exclude(".*")
+      exclude("io/netty/**")
     }
   })
 
