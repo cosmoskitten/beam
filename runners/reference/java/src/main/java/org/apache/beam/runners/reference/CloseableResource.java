@@ -20,15 +20,36 @@ package org.apache.beam.runners.reference;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import javax.annotation.Nullable;
+
 /**
  * An {@link AutoCloseable} that wraps a resource that needs to be cleaned up but does not implement
- * {@link AutoCloseable} itself. Recipients of a {@link CloseableResource} are in general
- * responsible for cleanup. Not thread-safe.
+ * {@link AutoCloseable} itself.
+ *
+ * <p>Recipients of a {@link CloseableResource} are in general responsible for cleanup. Ownership
+ * can be transferred from one context to another via {@link #transfer()}. Transferring relinquishes
+ * ownership from the original resource. This allows resources to be safely constructed and
+ * transferred within a try-with-resources block. For example:
+ *
+ * <pre>try (CloseableResource&lt;Foo&gt; resource = CloseableResource.of(...)) {
+ *   // Do something with resource.
+ *   ...
+ *   // Then transfer ownership to some consumer.
+ *   resourceConsumer(resource.release());
+ * }</pre>
+ *
+ * <p>Not thread-safe.
  */
 public class CloseableResource<T> implements AutoCloseable {
 
   private final T resource;
-  private final Closer<T> closer;
+
+  /**
+   * {@link Closer } for the underlying resource. Closers are nullable to allow transfer of
+   * ownership. However, newly-constructed {@link CloseableResource CloseableResources} must always
+   * have non-null closers.
+   */
+  @Nullable private Closer<T> closer;
 
   private boolean isClosed = false;
 
@@ -46,8 +67,22 @@ public class CloseableResource<T> implements AutoCloseable {
 
   /** Gets the underlying resource. */
   public T get() {
+    checkState(closer != null, "%s has transferred ownership", CloseableResource.class.getName());
     checkState(!isClosed, "% is closed", CloseableResource.class.getName());
     return resource;
+  }
+
+  /**
+   * Returns a new {@link CloseableResource} that owns the underlying resource and relinquishes
+   * ownership from this {@link CloseableResource}. {@link #close()} on the original instance
+   * becomes a no-op.
+   */
+  public CloseableResource<T> transfer() {
+    checkState(closer != null, "%s has transferred ownership", CloseableResource.class.getName());
+    checkState(!isClosed, "% is closed", CloseableResource.class.getName());
+    CloseableResource<T> other = CloseableResource.of(resource, closer);
+    this.closer = null;
+    return other;
   }
 
   /**
@@ -57,7 +92,7 @@ public class CloseableResource<T> implements AutoCloseable {
    */
   @Override
   public void close() throws CloseException {
-    if (!isClosed) {
+    if (closer != null && !isClosed) {
       try {
         closer.close(resource);
         isClosed = true;
