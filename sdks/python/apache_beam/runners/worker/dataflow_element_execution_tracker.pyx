@@ -134,6 +134,7 @@ cdef class ExecutionJournalReader(object):
     """Account the specified processing time duration to elements which have 
     processed since the last sampling round, and update counter_cache for 
     completed elements.
+    
     Args:
       sample_time: Total sampling time since last time.
       counter_cache: Initialized in DataflowElementExecutionTracker.
@@ -154,6 +155,9 @@ cdef class ExecutionJournalReader(object):
     while self.shared_state.execution_journal.journal.empty() is False:
       if (self.shared_state.execution_journal.journal.front().snapshot
           <= latest_snapshot):
+        # Clean up SnapshottedExecutionPtr before reassigning new value.
+        if snapshotted_ptr != NULL:
+          free(snapshotted_ptr)
         total_execution += 1
         snapshotted_ptr = self.shared_state.execution_journal.journal.front()
         self.shared_state.execution_journal.journal.pop_front()
@@ -193,6 +197,10 @@ cdef class ExecutionJournalReader(object):
         # Unit of sampling time is nano secs, we update counter_cache with ms.
         (counter_cache[element_ptr.operation_name]
          .push_back(self.execution_duration[element_ptr]/1000000))
+        # Clean up SnapshottedExecutionPtr & ElementExecutionPtr after updating
+        # counter
+        free(snapshotted_ptr)
+        free(element_ptr)
       else:
         break
 
