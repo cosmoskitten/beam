@@ -40,7 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.runners.core.construction.ArtifactServiceStager.FileToStage;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -88,7 +88,7 @@ public class ArtifactServiceStagerTest {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
-    stager.stage(Collections.singleton(FileToStage.of(file, file.getName())));
+    stager.stage(Collections.singleton(StagedFile.of(file, file.getName())));
 
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(1));
     byte[] stagedContent = Iterables.getOnlyElement(service.getStagedArtifacts().values());
@@ -125,9 +125,9 @@ public class ArtifactServiceStagerTest {
 
     stager.stage(
         ImmutableList.of(
-            FileToStage.of(file, file.getName()),
-            FileToStage.of(otherFile, otherFile.getName()),
-            FileToStage.of(thirdFile, thirdFile.getName())));
+            StagedFile.of(file, file.getName()),
+            StagedFile.of(otherFile, otherFile.getName()),
+            StagedFile.of(thirdFile, thirdFile.getName())));
 
     assertThat(service.getManifest().getArtifactCount(), equalTo(3));
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(3));

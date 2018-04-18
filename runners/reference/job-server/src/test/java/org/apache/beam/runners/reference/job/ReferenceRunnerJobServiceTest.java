@@ -40,7 +40,7 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
-import org.apache.beam.runners.core.construction.ArtifactServiceStager.FileToStage;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.hamcrest.Description;
@@ -100,7 +100,7 @@ public class ReferenceRunnerJobServiceTest {
     File foo = writeTempFile("foo", "foo, bar, baz".getBytes());
     File bar = writeTempFile("spam", "spam, ham, eggs".getBytes());
     stager.stage(
-        ImmutableList.of(FileToStage.of(foo, foo.getName()), FileToStage.of(bar, bar.getName())));
+        ImmutableList.of(StagedFile.of(foo, foo.getName()), StagedFile.of(bar, bar.getName())));
     List<byte[]> tempDirFiles = readFlattenedFiles(runnerTemp.getRoot());
     assertThat(
         tempDirFiles,

@@ -89,11 +89,12 @@ public class ArtifactServiceStager {
 
   /**
    * Stages the given artifact files to the staging service.
+   *
    * @return The artifact staging token returned by the service
    */
-  public String stage(Iterable<FileToStage> files) throws IOException, InterruptedException {
-    final Map<FileToStage, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
-    for (FileToStage file : files) {
+  public String stage(Iterable<StagedFile> files) throws IOException, InterruptedException {
+    final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
+    for (StagedFile file : files) {
       futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
     }
     CompletionStage<StagingResult> stagingResult =
@@ -129,9 +130,9 @@ public class ArtifactServiceStager {
   }
 
   private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
-    private final FileToStage file;
+    private final StagedFile file;
 
-    private StagingCallable(FileToStage file) {
+    private StagingCallable(StagedFile file) {
       this.file = file;
     }
 
@@ -199,18 +200,18 @@ public class ArtifactServiceStager {
   }
 
   private static class ExtractStagingResultsCallable implements Callable<StagingResult> {
-    private final Map<FileToStage, CompletionStage<ArtifactMetadata>> futures;
+    private final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures;
 
     private ExtractStagingResultsCallable(
-        Map<FileToStage, CompletionStage<ArtifactMetadata>> futures) {
+        Map<StagedFile, CompletionStage<ArtifactMetadata>> futures) {
       this.futures = futures;
     }
 
     @Override
     public StagingResult call() {
       Set<ArtifactMetadata> metadata = new HashSet<>();
-      Map<FileToStage, Throwable> failures = new HashMap<>();
-      for (Entry<FileToStage, CompletionStage<ArtifactMetadata>> stagedFileResult :
+      Map<StagedFile, Throwable> failures = new HashMap<>();
+      for (Entry<StagedFile, CompletionStage<ArtifactMetadata>> stagedFileResult :
           futures.entrySet()) {
         try {
           metadata.add(MoreFutures.get(stagedFileResult.getValue()));
@@ -231,9 +232,9 @@ public class ArtifactServiceStager {
 
   /** A file along with a staging name. */
   @AutoValue
-  public abstract static class FileToStage {
-    public static FileToStage of(File file, String stageName) {
-      return new AutoValue_ArtifactServiceStager_FileToStage(file, stageName);
+  public abstract static class StagedFile {
+    public static StagedFile of(File file, String stageName) {
+      return new AutoValue_ArtifactServiceStager_StagedFile(file, stageName);
     }
 
     /** The file to stage. */
@@ -248,7 +249,7 @@ public class ArtifactServiceStager {
       return new AutoValue_ArtifactServiceStager_StagingResult(metadata, Collections.emptyMap());
     }
 
-    static StagingResult failure(Map<FileToStage, Throwable> failures) {
+    static StagingResult failure(Map<StagedFile, Throwable> failures) {
       return new AutoValue_ArtifactServiceStager_StagingResult(
           null, failures);
     }
@@ -260,7 +261,7 @@ public class ArtifactServiceStager {
     @Nullable
     abstract Set<ArtifactMetadata> getMetadata();
 
-    abstract Map<FileToStage, Throwable> getFailures();
+    abstract Map<StagedFile, Throwable> getFailures();
   }
 
 }
