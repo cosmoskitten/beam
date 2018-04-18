@@ -37,10 +37,9 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
-import org.apache.beam.runners.core.construction.ArtifactServiceStager.FileToStage;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +65,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   /** Job API endpoint. */
   private final String endpoint;
   /** Files to stage to artifact staging service. They will ultimately be added to the classpath. */
-  private final Collection<FileToStage> filesToStage;
+  private final Collection<StagedFile> filesToStage;
   /** Channel factory used to create communication channel with job and staging services. */
   private final ManagedChannelFactory channelFactory;
 
@@ -102,7 +100,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           pathsToStage.size());
     }
 
-    ImmutableList.Builder<FileToStage> filesToStage = ImmutableList.builder();
+    ImmutableList.Builder<StagedFile> filesToStage = ImmutableList.builder();
     for (String path : pathsToStage) {
       File file = new File(path);
       if (new File(path).exists()) {
@@ -126,7 +124,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   private PortableRunner(
       PipelineOptions options,
       String endpoint,
-      Collection<FileToStage> filesToStage,
+      Collection<StagedFile> filesToStage,
       ManagedChannelFactory channelFactory) {
     this.options = options;
     this.endpoint = endpoint;
@@ -214,7 +212,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     return zipFile;
   }
 
-  private static FileToStage createStagingFile(File file) {
+  private static StagedFile createStagingFile(File file) {
     // https://issues.apache.org/jira/browse/BEAM-4109
     // HACK: Encode the path name ourselves because the local artifact staging service currently
     // assumes artifact names correspond to a flat directory. Artifact staging services should
@@ -222,7 +220,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
     // and exceed file length limits on the artifact stager.
     String encodedPath = escapePath(file.getPath());
-    return FileToStage.of(file, encodedPath);
+    return StagedFile.of(file, encodedPath);
   }
 
   /** Create a filename-friendly artifact name for the given path. */
