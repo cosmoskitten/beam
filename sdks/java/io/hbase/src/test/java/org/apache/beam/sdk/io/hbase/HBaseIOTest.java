@@ -180,16 +180,28 @@ public class HBaseIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = tmpTable.getName();
     createTable(table);
+
     runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
+    runReadTest(
+        HBaseIO.read().withConfiguration(conf).withTableId(table).useSdf(), new ArrayList<>());
   }
 
   @Test
   public void testReading() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 1001;
-    createTable(table);
-    writeData(table, numRows);
-    runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table), 1001);
+    createAndWriteData(table, numRows);
+
+    runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table), numRows);
+  }
+
+  @Test
+  public void testReadingSDF() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    createAndWriteData(table, numRows);
+
+    runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table).useSdf(), numRows);
   }
 
   /** Tests reading all rows from a split table. */
@@ -199,10 +211,7 @@ public class HBaseIOTest {
     final int numRows = 1500;
     final int numRegions = 4;
     final long bytesPerRow = 100L;
-
-    // Set up test table data and sample row keys for size estimation and splitting.
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
     HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
@@ -219,10 +228,7 @@ public class HBaseIOTest {
   public void testReadingSourceTwice() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 10;
-
-    // Set up test table data and sample row keys for size estimation and splitting.
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
     HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
@@ -236,15 +242,24 @@ public class HBaseIOTest {
   public void testReadingWithFilter() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 1001;
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     String regex = ".*17.*";
     Filter filter = new RowFilter(CompareFilter.CompareOp.EQUAL, new RegexStringComparator(regex));
-    HBaseIO.Read read =
-        HBaseIO.read().withConfiguration(conf).withTableId(table).withFilter(filter);
-    runReadTestLength(read, 20);
+    runReadTestLength(
+        HBaseIO.read().withConfiguration(conf).withTableId(table).withFilter(filter), 20);
+  }
+
+  @Test
+  public void testReadingWithFilterSDF() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    createAndWriteData(table, numRows);
+
+    String regex = ".*17.*";
+    Filter filter = new RowFilter(CompareFilter.CompareOp.EQUAL, new RegexStringComparator(regex));
+    runReadTestLength(
+        HBaseIO.read().withConfiguration(conf).withTableId(table).withFilter(filter).useSdf(), 20);
   }
 
   /**
@@ -258,14 +273,32 @@ public class HBaseIOTest {
     final byte[] startRow = "2".getBytes();
     final byte[] stopRow = "9".getBytes();
     final ByteKey startKey = ByteKey.copyFrom(startRow);
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     // Test prefix: [beginning, startKey).
     final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(prefixRange), 126);
+  }
+
+  @Test
+  public void testReadingKeyRangePrefixSDF() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    createAndWriteData(table, numRows);
+
+    // Test prefix: [beginning, startKey).
+    final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
+    runReadTestLength(
+            HBaseIO.read()
+                    .withConfiguration(conf)
+                    .withTableId(table)
+                    .withKeyRange(prefixRange)
+                    .useSdf(),
+            126);
   }
 
   /**
@@ -279,14 +312,32 @@ public class HBaseIOTest {
     final byte[] startRow = "2".getBytes();
     final byte[] stopRow = "9".getBytes();
     final ByteKey startKey = ByteKey.copyFrom(startRow);
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     // Test suffix: [startKey, end).
     final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(suffixRange), 875);
+  }
+
+  @Test
+  public void testReadingKeyRangeSuffixSDF() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    createAndWriteData(table, numRows);
+
+    // Test suffix: [startKey, end).
+    final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
+    runReadTestLength(
+            HBaseIO.read()
+                    .withConfiguration(conf)
+                    .withTableId(table)
+                    .withKeyRange(suffixRange)
+                    .useSdf(),
+            875);
   }
 
   /**
@@ -300,9 +351,7 @@ public class HBaseIOTest {
     final byte[] startRow = "2".getBytes();
     final byte[] stopRow = "9".getBytes();
     final ByteKey startKey = ByteKey.copyFrom(startRow);
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     // Test restricted range: [startKey, endKey).
     // This one tests the second signature of .withKeyRange
@@ -311,14 +360,32 @@ public class HBaseIOTest {
         441);
   }
 
+  @Test
+  public void testReadingKeyRangeMiddleSDF() throws Exception {
+    final String table = tmpTable.getName();
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+    createAndWriteData(table, numRows);
+
+    // Test restricted range: [startKey, endKey).
+    // This one tests the second signature of .withKeyRange
+    runReadTestLength(
+            HBaseIO.read()
+                    .withConfiguration(conf)
+                    .withTableId(table)
+                    .withKeyRange(startRow, stopRow)
+                    .useSdf(),
+            441);
+  }
+
   /** Tests dynamic work rebalancing exhaustively. */
   @Test
   public void testReadingSplitAtFractionExhaustive() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 7;
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
     HBaseSource source =
@@ -334,9 +401,7 @@ public class HBaseIOTest {
   public void testReadingSplitAtFraction() throws Exception {
     final String table = tmpTable.getName();
     final int numRows = 10;
-
-    createTable(table);
-    writeData(table, numRows);
+    createAndWriteData(table, numRows);
 
     HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
     HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
@@ -448,6 +513,11 @@ public class HBaseIOTest {
     mutator.close();
   }
 
+  private static void createAndWriteData(final String tableId, final int numRows) throws Exception {
+    createTable(tableId);
+    writeData(tableId, numRows);
+  }
+
   private static List<Mutation> makeTableData(int numRows) {
     List<Mutation> mutations = new ArrayList<>(numRows);
     for (int i = 0; i < numRows; ++i) {
@@ -519,7 +589,8 @@ public class HBaseIOTest {
 
     private String name;
 
-    @Override protected void before() {
+    @Override
+    protected void before() {
       name = "table_" + UUID.randomUUID();
     }
 
