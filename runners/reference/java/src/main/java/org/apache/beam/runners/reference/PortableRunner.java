@@ -99,6 +99,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           "PortablePipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: {}",
           pathsToStage.size());
+    } else {
+      pathsToStage.addAll(portableOptions.getFilesToStage());
     }
 
     ImmutableList.Builder<StagedFile> filesToStage = ImmutableList.builder();
