@@ -43,6 +43,7 @@ import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFil
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.reference.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -151,41 +152,45 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
                 .setUrl(endpoint).build());
 
     JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(jobServiceChannel);
-    CloseableResource<JobServiceBlockingStub> wrappedJobService =
-        CloseableResource.of(jobService, (unused) -> jobServiceChannel.shutdown());
+    try (CloseableResource<JobServiceBlockingStub> wrappedJobService =
+        CloseableResource.of(jobService, (unused) -> jobServiceChannel.shutdown())) {
 
-    PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
-    LOG.info("PrepareJobResponse: {}", prepareJobResponse);
+      PrepareJobResponse prepareJobResponse = jobService.prepare(prepareJobRequest);
+      LOG.info("PrepareJobResponse: {}", prepareJobResponse);
 
-    ApiServiceDescriptor artifactStagingEndpoint = prepareJobResponse.getArtifactStagingEndpoint();
+      ApiServiceDescriptor artifactStagingEndpoint =
+          prepareJobResponse.getArtifactStagingEndpoint();
 
-    String stagingToken = null;
-    try (CloseableResource<ManagedChannel> artifactChannel =
-        CloseableResource.of(
-            channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
-      ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
-      LOG.debug("Actual files staged: {}", filesToStage);
-      stagingToken = stager.stage(filesToStage);
-    } catch (CloseableResource.CloseException e) {
-      LOG.warn("Error closing artifact staging channel", e);
-      // CloseExceptions should only be thrown while closing the channel.
-      checkState(stagingToken != null);
-    } catch (Exception e) {
-      throw new RuntimeException("Error staging files.", e);
+      String stagingToken = null;
+      try (CloseableResource<ManagedChannel> artifactChannel =
+          CloseableResource.of(
+              channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
+        ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
+        LOG.debug("Actual files staged: {}", filesToStage);
+        stagingToken = stager.stage(filesToStage);
+      } catch (CloseableResource.CloseException e) {
+        LOG.warn("Error closing artifact staging channel", e);
+        // CloseExceptions should only be thrown while closing the channel.
+        checkState(stagingToken != null);
+      } catch (Exception e) {
+        throw new RuntimeException("Error staging files.", e);
+      }
+
+      RunJobRequest runJobRequest =
+          RunJobRequest.newBuilder()
+              .setPreparationId(prepareJobResponse.getPreparationId())
+              .setStagingToken(stagingToken)
+              .build();
+
+      RunJobResponse runJobResponse = jobService.run(runJobRequest);
+
+      LOG.info("RunJobResponse: {}", runJobResponse);
+      ByteString jobId = runJobResponse.getJobIdBytes();
+
+      return new JobServicePipelineResult(jobId, wrappedJobService.transfer());
+    } catch (CloseException e) {
+      throw new RuntimeException(e);
     }
-
-    RunJobRequest runJobRequest =
-        RunJobRequest.newBuilder()
-            .setPreparationId(prepareJobResponse.getPreparationId())
-            .setStagingToken(stagingToken)
-            .build();
-
-    RunJobResponse runJobResponse = jobService.run(runJobRequest);
-
-    LOG.info("RunJobResponse: {}", runJobResponse);
-    ByteString jobId = runJobResponse.getJobIdBytes();
-
-    return new JobServicePipelineResult(jobId, wrappedJobService);
   }
 
   @Override
