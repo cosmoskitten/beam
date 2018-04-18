@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
@@ -48,7 +47,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -77,7 +75,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static PortableRunner fromOptions(PipelineOptions options) {
-    return createInternal(options, getChannelFactory(options));
+    return createInternal(options, ManagedChannelFactory.createDefault());
   }
 
   @VisibleForTesting
@@ -198,17 +196,6 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   @Override
   public String toString() {
     return "PortableRunner#" + hashCode();
-  }
-
-  private static ManagedChannelFactory getChannelFactory(PipelineOptions options) {
-    ManagedChannelFactory channelFactory;
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
-      channelFactory = ManagedChannelFactory.createEpoll();
-    } else {
-      channelFactory = ManagedChannelFactory.createDefault();
-    }
-    return channelFactory;
   }
 
   private static File zipDirectory(File directory) throws IOException {
