@@ -163,6 +163,21 @@ import org.slf4j.LoggerFactory;
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
+ *
+ * <p>IMPORTANT! In case of using {@code DBInputFormat} to read data from RDBMS, Beam parallelizes
+ * the process by using LIMIT and OFFSET clauses of SQL query to fetch different ranges of records
+ * (as a split) by different workers. To guarantee the same order and proper split of results you
+ * need to order them by one or more keys (either PRIMARY or UNIQUE). It can be done during
+ * configuration step, for example:
+ *
+ * <pre>
+ * {@code
+ * Configuration conf = new Configuration();
+ * conf.set(DBConfiguration.INPUT_TABLE_NAME_PROPERTY, tableName);
+ * conf.setStrings(DBConfiguration.INPUT_FIELD_NAMES_PROPERTY, "id", "name");
+ * conf.set(DBConfiguration.INPUT_ORDER_BY_PROPERTY, "id ASC");
+ * }
+ * </pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class HadoopInputFormatIO {
