@@ -88,6 +88,7 @@ cdef class Journal(object):
                        % (snapshot, self.max_snapshot))
     cdef SnapshottedExecutionPtr snapshotted_ptr = (
       <SnapshottedExecutionPtr> malloc(sizeof(SnapshottedExecution)))
+    assert(snapshotted_ptr != NULL)
     snapshotted_ptr.execution_ptr = execution_ptr
     snapshotted_ptr.snapshot = snapshot
     self.journal.push_back(snapshotted_ptr)
