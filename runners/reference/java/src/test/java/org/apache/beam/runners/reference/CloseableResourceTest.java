@@ -20,8 +20,7 @@ package org.apache.beam.runners.reference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.reference.CloseableResource.CloseException;
@@ -52,7 +51,7 @@ public class CloseableResourceTest {
             })) {
       // Do nothing.
     }
-    assertTrue(closed.get());
+    assertThat(closed.get(), is(true));
   }
 
   @Test
@@ -71,6 +70,48 @@ public class CloseableResourceTest {
     }
     assertThat(closeException, is(instanceOf(CloseException.class)));
     assertThat(closeException.getCause(), is(wrapped));
+  }
+
+  @Test
+  public void transferReleasesCloser() throws Exception {
+    try (CloseableResource<Foo> foo =
+        CloseableResource.of(
+            new Foo(), (unused) -> fail("Transferred resource should not be closed"))) {
+      foo.transfer();
+    }
+  }
+
+  @Test
+  public void transferMovesOwnership() throws Exception {
+    AtomicBoolean closed = new AtomicBoolean(false);
+    CloseableResource<Foo> original = CloseableResource.of(new Foo(), (unused) -> closed.set(true));
+    CloseableResource<Foo> transferred = original.transfer();
+    transferred.close();
+    assertThat(closed.get(), is(true));
+  }
+
+  @Test
+  public void cannotTransferClosed() throws Exception {
+    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
+    foo.close();
+    try {
+      foo.transfer();
+      fail("Cannot transfer after closing");
+    } catch (Exception e) {
+      assertThat(e, instanceOf(IllegalStateException.class));
+    }
+  }
+
+  @Test
+  public void cannotTransferTwice() {
+    CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
+    foo.transfer();
+    try {
+      foo.transfer();
+      fail("Cannot transfer twice");
+    } catch (Exception e) {
+      assertThat(e, instanceOf(IllegalStateException.class));
+    }
   }
 
   private static class Foo {}
