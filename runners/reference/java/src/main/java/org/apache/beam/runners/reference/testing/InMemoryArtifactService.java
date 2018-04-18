@@ -20,16 +20,13 @@ package org.apache.beam.runners.reference.testing;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
-import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.security.MessageDigest;
-import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
@@ -40,8 +37,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Implement artifact retrieval.
-/** A StagingService for tests. */
+/** A StagingService for tests. Only stores artifact metadata. */
 public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryArtifactService.class);
@@ -49,26 +45,17 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
   private final Object artifactLock = new Object();
 
   @GuardedBy("artifactLock")
-  private final Map<ArtifactMetadata, ByteString> artifacts = Maps.newHashMap();
-
-  private final boolean keepArtifacts;
+  private final Set<ArtifactMetadata> artifacts = Sets.newHashSet();
 
   @GuardedBy("artifactLock")
   private boolean committed = false;
 
-  /**
-   * Constructs an {@link InMemoryArtifactService}. If {@code keepArtifacts} is true, all artifacts
-   * are kept in memory as {@link ByteString ByteStrings}. Doing so is currently a waste of space
-   * because artifact retrieval is not yet implemented.
-   */
-  public InMemoryArtifactService(boolean keepArtifacts) {
-    this.keepArtifacts = keepArtifacts;
-  }
+  public InMemoryArtifactService() {}
 
   @Override
   public StreamObserver<PutArtifactRequest> putArtifact(
       StreamObserver<PutArtifactResponse> responseObserver) {
-    return new PutArtifactRequestObserver(responseObserver, keepArtifacts, this::putArtifact);
+    return new PutArtifactRequestObserver(responseObserver, this::putArtifact);
   }
 
   @Override
@@ -81,14 +68,13 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
       synchronized (artifactLock) {
         checkState(!committed, "Manifest already committed");
         // TODO: Consider comparing only by artifact name if checksums are not sent.
-        Set<ArtifactMetadata> missingFromServer =
-            Sets.difference(commitMetadata, artifacts.keySet());
+        Set<ArtifactMetadata> missingFromServer = Sets.difference(commitMetadata, artifacts);
         checkArgument(
             missingFromServer.isEmpty(),
             "Artifacts from request never uploaded: %s",
             missingFromServer);
 
-        Set<ArtifactMetadata> extraOnServer = Sets.difference(artifacts.keySet(), commitMetadata);
+        Set<ArtifactMetadata> extraOnServer = Sets.difference(artifacts, commitMetadata);
         checkArgument(extraOnServer.isEmpty(), "Extraneous artifacts received: %s", extraOnServer);
         // NOTE: We do not attempt to commit transactionally; if a commit fails, the artifact server
         // is assumed to be in a bad state.
@@ -106,30 +92,26 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
     }
   }
 
-  private void putArtifact(ArtifactMetadata metadata, ByteString artifactBytes) {
+  private void putArtifact(ArtifactMetadata metadata) {
     synchronized (artifactLock) {
       checkState(!committed, "Manifest already committed");
       LOG.debug("Adding artifact: {}", metadata);
-      artifacts.put(metadata, artifactBytes);
+      artifacts.add(metadata);
     }
   }
 
   private static class PutArtifactRequestObserver implements StreamObserver<PutArtifactRequest> {
 
     private final StreamObserver<PutArtifactResponse> responseObserver;
-    private final boolean keepArtifacts;
-    private final BiConsumer<ArtifactMetadata, ByteString> commitConsumer;
+    private final Consumer<ArtifactMetadata> commitConsumer;
 
     private ArtifactMetadata metadata;
-    private ByteString artifactBytes;
     private MessageDigest md5Digest;
 
     PutArtifactRequestObserver(
         StreamObserver<PutArtifactResponse> responseObserver,
-        boolean keepArtifacts,
-        BiConsumer<ArtifactMetadata, ByteString> commitConsumer) {
+        Consumer<ArtifactMetadata> commitConsumer) {
       this.responseObserver = responseObserver;
-      this.keepArtifacts = keepArtifacts;
       this.commitConsumer = commitConsumer;
     }
 
@@ -142,14 +124,10 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
           checkArgument(name != null && !name.isEmpty(), "Artifact name required");
           LOG.debug("Starting artifact upload for: {}", metadata);
           this.metadata = metadata;
-          this.artifactBytes = ByteString.EMPTY;
           this.md5Digest = MessageDigest.getInstance("MD5");
         } else {
-          checkArgument(artifactBytes != null, "Artifact metadata must be supplied before data");
+          checkArgument(metadata != null, "Artifact metadata must be supplied before data");
           md5Digest.update(request.getData().getData().asReadOnlyByteBuffer());
-          if (keepArtifacts) {
-            artifactBytes = artifactBytes.concat(request.getData().getData());
-          }
         }
       } catch (Exception e) {
         LOG.warn("Error uploading artifact", e);
@@ -167,9 +145,8 @@ public class InMemoryArtifactService extends ArtifactStagingServiceImplBase {
     public void onCompleted() {
       try {
         checkState(metadata != null, "Missing artifact metadata");
-        checkState(artifactBytes != null, "Missing artifact bytes");
         String md5String = BaseEncoding.base64().encode(md5Digest.digest());
-        commitConsumer.accept(metadata.toBuilder().setMd5(md5String).build(), artifactBytes);
+        commitConsumer.accept(metadata.toBuilder().setMd5(md5String).build());
         responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
         responseObserver.onCompleted();
       } catch (Exception e) {

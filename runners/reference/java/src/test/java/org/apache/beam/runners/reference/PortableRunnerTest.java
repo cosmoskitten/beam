@@ -63,12 +63,13 @@ public class PortableRunnerTest implements Serializable {
 
   private static CloseableResource<Server> createJobServer(JobState.Enum jobState)
       throws IOException {
-    CloseableResource<Server> server = CloseableResource.of(
-        InProcessServerBuilder.forName(ENDPOINT_URL)
-            .addService(new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState))
-            .addService(new InMemoryArtifactService(false /* keepArtifacts */))
-            .build(),
-        Server::shutdown);
+    CloseableResource<Server> server =
+        CloseableResource.of(
+            InProcessServerBuilder.forName(ENDPOINT_URL)
+                .addService(new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState))
+                .addService(new InMemoryArtifactService())
+                .build(),
+            Server::shutdown);
     server.get().start();
     return server;
   }
