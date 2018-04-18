@@ -37,7 +37,7 @@ Implementation itself is not thread-safe.
 Concurrency situation: For multiple execution threads and execution threads with
 sampling thread, we use StateSampler.lock to ensure safety. For report_progress
 thread, we only report counters(access to counter_cache) when a work_item
-completed , which means, there is no other executions and sampling at the same
+completed, which means, there is no other executions and sampling at the same
 time.
 
 For internal use only; no backwards-compatibility guarantees.
@@ -55,13 +55,19 @@ from cython.operator cimport dereference as dref
 from cython.operator cimport preincrement as iref
 
 cdef class Journal(object):
-  """Deque-based data structure for passing journaled events between a single
+  """A collection of elements
+
+  Deque-based data structure for passing journaled events between a single
   journal reader and single journal writer.
 
   Each event is journaled with an externally-managed snapshot version. Snapshot
   versions are unique and monotonically increasing.
 
   No thread-safe guarantees. Needs lock during operation.
+
+  Attributes:
+    max_snapshot: keep track of latest snapshot
+    journal: a deque keeping SnapshottedExecutionPtrs
   """
   def __init__(self):
     self.max_snapshot = -1
@@ -131,7 +137,9 @@ cdef class ExecutionJournalReader(object):
 
   cdef void take_sample(self, int64_t sample_time,
       unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil:
-    """Account the specified processing time duration to elements which have 
+    """Sampling execution elements
+    
+    Account the specified processing time duration to elements which have 
     processed since the last sampling round, and update counter_cache for 
     completed elements.
     
@@ -152,7 +160,7 @@ cdef class ExecutionJournalReader(object):
     cdef unordered_map[ElementExecutionPtr, int64_t] executions_per_element
     cdef SnapshottedExecutionPtr snapshotted_ptr = NULL
     # Calculate total execution counts and prune execution_journal.
-    while self.shared_state.execution_journal.journal.empty() is False:
+    while not self.shared_state.execution_journal.journal.empty():
       if (self.shared_state.execution_journal.journal.front().snapshot
           <= latest_snapshot):
         # Clean up SnapshottedExecutionPtr before reassigning new value.
@@ -176,11 +184,11 @@ cdef class ExecutionJournalReader(object):
     cdef int64_t attribution_time = 0
     # Attribute processing time.
     while it != executions_per_element.end():
-      element_ptr = dref(it).first
+      element_ptr = dref(it).first # get key of current map_item
       attribution_time = (sample_time / total_execution
                          * executions_per_element[element_ptr])
       self.execution_duration[element_ptr] += attribution_time
-      iref(it)
+      iref(it) # next
 
   cdef void update_counter_cache(self, int64_t latest_snapshot,
       unordered_map[CharPtr, vector[int64_t]]& counter_cache) nogil:
@@ -189,7 +197,7 @@ cdef class ExecutionJournalReader(object):
     """
     cdef SnapshottedExecutionPtr snapshotted_ptr = NULL
     cdef ElementExecutionPtr element_ptr = NULL
-    while self.shared_state.done_journal.journal.empty() is False:
+    while not self.shared_state.done_journal.journal.empty():
       snapshotted_ptr = self.shared_state.done_journal.journal.front()
       if snapshotted_ptr.snapshot <= latest_snapshot:
         self.shared_state.done_journal.journal.pop_front()
@@ -235,7 +243,9 @@ cdef class ExecutionJournalWriter(object):
     self.shared_state.latest_snapshot = next_snapshot
 
   cdef void start_processing(self, char* operation_name):
-    """Create and journal a new ElementExecution to track a processing element.
+    """ Called when processing_scoped_state.__enter__
+    
+    Create and journal a new ElementExecution to track a processing element.
     """
     cdef ElementExecutionPtr execution_ptr = (
       <ElementExecutionPtr> malloc(sizeof(ElementExecution)))
@@ -244,7 +254,9 @@ cdef class ExecutionJournalWriter(object):
     self.add_execution(execution_ptr)
 
   cdef void done_processing(self):
-    """ Indicates that the execution thread has exited the process method for 
+    """ Called when processing_scoped_state.__exit__
+    
+    Indicates that the execution thread has exited the process method for 
     an element.When an element is finished processing, it is popped from the 
     execution stack, but will be tracked in the done_journal collection 
     until the next sampling round in order to account timing for the final 
@@ -257,8 +269,7 @@ cdef class ExecutionJournalWriter(object):
     self.execution_stack.pop_back()
     cdef int64_t next_snapshot = self.shared_state.latest_snapshot + 1
     self.shared_state.done_journal.add_journal(last_execution, next_snapshot)
-    if self.execution_stack.empty() is False:
-      next_execution = self.execution_stack.back()
+    next_execution = self.execution_stack.back()
     self.shared_state.execution_journal.add_journal(next_execution,
                                                     next_snapshot)
     self.shared_state.latest_snapshot = next_snapshot
@@ -323,8 +334,8 @@ cdef class DataflowElementExecutionTracker(object):
     cdef vector[int64_t] values
     cdef DataflowDistributionCounter time_counter = None
     while map_it != self.counter_cache.end():
-      op_name = dref(map_it).first
-      values = dref(map_it).second
+      op_name = dref(map_it).first # get key of map_item
+      values = dref(map_it).second # get value of map_item
       end_index = values.size()
       start_index = self.cache_start_index[op_name]
       counter_name = CounterName('per-element-processing-time',
@@ -335,4 +346,4 @@ cdef class DataflowElementExecutionTracker(object):
         time_counter.add_input(values[start_index])
         start_index += 1
       self.cache_start_index[op_name] = end_index
-      iref(map_it)
+      iref(map_it) # next
