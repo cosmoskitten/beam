@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# cython: profile=False
+# cython: profile=True
 
 """Element execution tracker for Dataflow service.
 

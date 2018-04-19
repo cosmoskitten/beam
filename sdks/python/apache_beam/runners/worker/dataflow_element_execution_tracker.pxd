@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# cython: profile=False
+# cython: profile=True
 # distutils: language=c++
 # distutils: extra_compile_args=['-std=c++11']
 
