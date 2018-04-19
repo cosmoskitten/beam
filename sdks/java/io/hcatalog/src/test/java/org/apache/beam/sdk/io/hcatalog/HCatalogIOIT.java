@@ -15,15 +15,18 @@
 package org.apache.beam.sdk.io.hcatalog;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -39,30 +42,67 @@ import org.junit.runners.JUnit4;
 
 
 /**
- * IOIT test to run HCatalog.
- * <p>You can run tests on prepared hCatalog infrastructure.</p>
- * <p>To run test specify number of records (numberOfRecords) to write to HCatalog,
- * metastore url (HCatalogMetastoreHostName),
- * metastore port (HCatalogMetastorePort),
- * hive port (HCatalogHivePort)
- * and hive database (HCatalogHiveDatabase)
- * to create a hive test table.</p>
- * <pre>{@code mvn clean verify -Pio-it -pl sdks/java/io/hcatalog/
- * -DintegrationTestPipelineOptions=
- * '[
- * "--tempRoot=gs://url",
- * "--runner=TestDataflowRunner",
- * "--numberOfRecords=100",
- * "--HCatalogMetastoreHostName=hcatalog-metastore",
- * "--HCatalogMetastorePort=9083"
- * "--HCatalogHivePort=10000"
- * "--HCatalogHiveDatabaseName=default"
- * ]'
- * }</pre>
+ * A test of {@link org.apache.beam.sdk.io.hcatalog.HCatalogIO} on an independent
+ * Hive/HCatalog instance.
+ *
+ * <p>This test requires a running instance of Hadoop, Hive and HCatalog.
+ * Pass in connection information using PipelineOptions:
+ * <pre>
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hcatalog -DintegrationTestPipelineOptions='[
+ *  "--HCatalogMetastoreHostName=hcatalog-metastore",
+ *  "--HCatalogMetastorePort=9083",
+ *  "--HCatalogHivePort=10000",
+ *  "--HCatalogHiveDatabaseName=default",
+ *  "--HCatalogHiveUsername=user",
+ *  "--HCatalogHivePassword=password",
+ *  "--numberOfRecords=1000" ]'
+ * </pre>
+ *
+ * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
+ * and spark in the hcatalog pom. You'll want to activate those in addition to the normal
+ * test runner invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
 public class HCatalogIOIT {
+
+  private interface HCatalogPipelineOptions extends TestPipelineOptions {
+    @Description("HCatalog metastore host (hostname/ip address)")
+    @Default.String("hcatalog-metastore")
+    String getHCatalogMetastoreHostName();
+
+    void setHCatalogMetastoreHostName(String host);
+
+    @Description("HCatalog metastore port")
+    @Default.Integer(9083)
+    Integer getHCatalogMetastorePort();
+
+    void setHCatalogMetastorePort(Integer port);
+
+    @Description("HCatalog hive port")
+    @Default.Integer(10000)
+    Integer getHCatalogHivePort();
+
+    void setHCatalogHivePort(Integer port);
+
+    @Description("HCatalog hive database")
+    @Default.String("default")
+    String getHCatalogHiveDatabaseName();
+
+    void setHCatalogHiveDatabaseName(String databaseName);
+
+    @Description("HCatalog hive username")
+    @Default.String("")
+    String getHCatalogHiveUsername();
+
+    void setHCatalogHiveUsername(String username);
+
+    @Description("HCatalog hive password")
+    @Default.String("")
+    String getHCatalogHivePassword();
+
+    void setHCatalogHivePassword(String password);
+  }
 
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
       100, "34c19971bd34cc1ed6218b84d0db3018",
@@ -70,7 +110,6 @@ public class HCatalogIOIT {
       10_000, "7885cdda3ed927e17f7db330adcbebcc"
   );
 
-  private static String tableName;
   private static HiveDatabaseTestHelper helper;
   private static Map<String, String> configProperties;
   private static Integer numberOfRecords;
@@ -79,6 +118,10 @@ public class HCatalogIOIT {
   private static Integer hivePort;
   private static String hostName;
   private static String databaseName;
+  private static String hiveUsername;
+  private static String hivePassword;
+  private static String tableName;
+  private static final String testIdentifier = "HCatalogIOIT";
 
   @Rule
   public TestPipeline pipelineWrite = TestPipeline.create();
@@ -88,28 +131,36 @@ public class HCatalogIOIT {
   @BeforeClass
   public static void setup() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    PipelineOptionsFactory.register(HCatalogPipelineOptions.class);
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
+    HCatalogPipelineOptions localOptions = TestPipeline.testingPipelineOptions()
+        .as(HCatalogPipelineOptions.class);
+
     numberOfRecords = options.getNumberOfRecords();
-    hostName = options.getHCatalogMetastoreHostName();
-    metastorePort = options.getHCatalogMetastorePort();
+    hostName = localOptions.getHCatalogMetastoreHostName();
+    metastorePort = localOptions.getHCatalogMetastorePort();
     metastoreUri = String.format("thrift://%s:%s", hostName, metastorePort);
 
     configProperties = ImmutableMap.of("hive.metastore.uris", metastoreUri);
 
-    hivePort = options.getHCatalogHivePort();
-    databaseName = options.getHCatalogHiveDatabaseName();
+    hivePort = localOptions.getHCatalogHivePort();
+    databaseName = localOptions.getHCatalogHiveDatabaseName();
+    hiveUsername = localOptions.getHCatalogHiveUsername();
+    hivePassword = localOptions.getHCatalogHivePassword();
     helper = new HiveDatabaseTestHelper(
         hostName,
         hivePort,
-        databaseName);
+        databaseName,
+        hiveUsername,
+        hivePassword);
 
     try {
-      tableName = helper.createHiveTable("HCatalogIOIT");
+      tableName = helper.createHiveTable(testIdentifier);
     } catch (Exception e) {
       helper.closeConnection();
-      throw new Exception("Problem with creating table. " + e);
+      throw new Exception("Problem with creating table for " + testIdentifier + ": " + e, e);
     }
   }
 
@@ -119,7 +170,7 @@ public class HCatalogIOIT {
       helper.dropHiveTable(tableName);
     } catch (Exception e) {
       helper.closeConnection();
-      throw new Exception("Problem with deleting database.");
+      throw new Exception("Problem with deleting table " + tableName + ": " + e, e);
     } finally {
       helper.closeConnection();
     }
@@ -128,7 +179,7 @@ public class HCatalogIOIT {
   @Test
   public void writeAndReadAll() throws Exception {
     pipelineWrite
-        .apply("Generate sequence", Create.of(getHCatRecords(numberOfRecords)))
+        .apply("Generate sequence", Create.of(buildHCatRecords(numberOfRecords)))
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(configProperties)
@@ -158,7 +209,7 @@ public class HCatalogIOIT {
   /**
    * Outputs value stored in the HCatRecord.
    */
-  public static class CreateHCatFn extends DoFn<HCatRecord, String> {
+  private static class CreateHCatFn extends DoFn<HCatRecord, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().get(0).toString());

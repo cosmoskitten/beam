@@ -19,36 +19,30 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
-
 /**
  * Helper for creating connection and test tables on hive database via JDBC driver.
  */
 
-public class HiveDatabaseTestHelper {
+class HiveDatabaseTestHelper {
   private static Connection con;
   private static Statement stmt;
 
   HiveDatabaseTestHelper(String hiveHost,
                          Integer hivePort,
-                         String hiveDatabase) throws SQLException {
-    String driverName = "org.apache.hadoop.hive.jdbc.HiveDriver";
-
-    try {
-      Class.forName(driverName);
-    } catch (ClassNotFoundException e) {
-      e.printStackTrace();
-    }
+                         String hiveDatabase,
+                         String hiveUsername,
+                         String hivePassword) throws Exception {
     String hiveUrl = String.format("jdbc:hive2://%s:%s/%s", hiveHost, hivePort, hiveDatabase);
-    con = DriverManager.getConnection(hiveUrl, "", "");
+    con = DriverManager.getConnection(hiveUrl, hiveUsername, hivePassword);
     stmt = con.createStatement();
   }
 
   /**
    * Create hive table.
    */
-  public String createHiveTable(String testIdentifier) throws SQLException {
+  String createHiveTable(String testIdentifier) throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName(testIdentifier);
-    stmt.execute(" CREATE TABLE IF NOT EXISTS " + tableName + " ( id STRING) ");
+    stmt.execute(" CREATE TABLE IF NOT EXISTS " + tableName + " (id STRING)");
     return tableName;
   }
 
@@ -56,11 +50,11 @@ public class HiveDatabaseTestHelper {
   /**
    * Delete hive table.
    */
-  public void dropHiveTable(String tableName) throws SQLException {
+  void dropHiveTable(String tableName) throws SQLException {
     stmt.execute(" DROP TABLE " + tableName);
   }
 
-  public void closeConnection() throws SQLException {
+  void closeConnection() throws Exception {
     stmt.close();
     con.close();
   }

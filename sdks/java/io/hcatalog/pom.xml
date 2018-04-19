@@ -43,10 +43,16 @@
 
            To invoke this, run:
 
-           mvn verify -Dio-it-suite -pl sdks/java/io/file-based-io-tests
+           mvn verify -Dio-it-suite -pl sdks/java/io/hcatalog
                -DpkbLocation="path-to-pkb.py" \
-               -DintegrationTestPipelineOptions='["&ndash;&ndash;numberOfRecords=100000"]' \
-               -DfileBasedIoItClass=file-based IO IT class, eg. org.apache.beam.sdk.io.text.TextIOIT
+               -DintegrationTestPipelineOptions='[
+                  "&ndash;&ndash;numberOfRecords=1000",
+                  "&ndash;&ndash;HCatalogMetastoreHostName=hcatalog-metastore",
+                  "&ndash;&ndash;HCatalogHivePort=10000",
+                  "&ndash;&ndash;HCatalogHiveDatabaseName=default",
+                  "&ndash;&ndash;HCatalogHiveUsername=user",
+                  "&ndash;&ndash;HCatalogHivePassword=password"
+                  "]' \
 
            For DirectRunner, please use -DforceDirectRunner=true argument
            For other runners please check doc in BEAM-3060 and https://beam.apache.org/documentation/io/testing/
@@ -276,6 +282,10 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- It is not used but required for IOIT test.
+    Check HiveDatabaseTestHelper for usage as driver for jdbc:hive2://url .
+    Test uses org.apache.hadoop.hive.jdbc.HiveDriver.
+    -->
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-jdbc</artifactId>
