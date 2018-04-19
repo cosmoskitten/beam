@@ -207,7 +207,7 @@ func JSONEnc(in typex.T) ([]byte, error) {
 }
 
 // JSONDec decodes the supplied JSON into an instance of the supplied type.
-func JSONDec(t reflect.Type, in []byte) (T, error) {
+func JSONDec(t reflect.Type, in []byte) (typex.T, error) {
 	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
 		return nil, err
