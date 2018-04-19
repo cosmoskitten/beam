@@ -47,7 +47,6 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
 import org.joda.time.Instant;
 
@@ -354,13 +353,14 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
           return Collections.emptyList();
         }
 
-        final byte[] from = encodeKey(0);
-        final byte[] to = encodeKey(size);
-        final List<T> list = new ArrayList<>(size);
-        final KeyValueIterator<byte[], byte[]> iter = store.range(from, to);
-        while (iter.hasNext()) {
-          list.add(decodeValue(iter.next().getValue()));
+        final List<byte[]> keys = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+          keys.add(encodeKey(i));
         }
+        final List<T> list = new ArrayList<>(size);
+        store.getAll(keys).values().forEach(value -> {
+          list.add(decodeValue(value));
+        });
         return list;
       }
     }
@@ -482,8 +482,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     public void add(Instant value) {
       final Instant currentValue = readInternal();
       final Instant combinedValue = currentValue == null
-          ? value
-          : timestampCombiner.combine(currentValue, value);
+          ? value : timestampCombiner.combine(currentValue, value);
       writeInternal(combinedValue);
     }
 
