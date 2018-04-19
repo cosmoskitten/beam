@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
@@ -313,7 +314,7 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Category({NeedsRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testBoundedSourceMetrics() {
     long numElements = 1000;
 
@@ -340,7 +341,7 @@ public class MetricsTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Category({NeedsRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testUnboundedSourceMetrics() {
     long numElements = 1000;
 

@@ -347,22 +347,6 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDo2() {
-
-    List<Integer> inputs = Arrays.asList(3, -42, 666);
-
-    PCollection<String> output = pipeline
-        .apply(Create.of(inputs))
-        .apply(ParDo.of(new TestDoFn()));
-
-    PAssert.that(output)
-        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
   public void testParDoEmpty() {
 
     List<Integer> inputs = Arrays.asList();
