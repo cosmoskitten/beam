@@ -47,6 +47,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
@@ -110,9 +111,10 @@ public class ArtifactServiceStager {
       if (stagingResult.isSuccess()) {
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
-        return blockingStub
-            .commitManifest(CommitManifestRequest.newBuilder().setManifest(manifest).build())
-            .getStagingToken();
+        CommitManifestResponse response =
+            blockingStub.commitManifest(
+                CommitManifestRequest.newBuilder().setManifest(manifest).build());
+        return response.getStagingToken();
       } else {
         RuntimeException failure =
             new RuntimeException(
