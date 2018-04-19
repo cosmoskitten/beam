@@ -355,7 +355,7 @@ public class ApproximateUniqueTest implements Serializable {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testApproximateUniqueWithSmallInput() {
       final PCollection<Integer> input = p.apply(
           Create.of(Arrays.asList(1, 2, 3, 3)));

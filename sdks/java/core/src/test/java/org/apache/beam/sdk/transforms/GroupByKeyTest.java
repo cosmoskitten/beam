@@ -508,7 +508,7 @@ public class GroupByKeyTest implements Serializable {
    * and not the value itself.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
     final int numValues = 10;
     final int numKeys = 5;
