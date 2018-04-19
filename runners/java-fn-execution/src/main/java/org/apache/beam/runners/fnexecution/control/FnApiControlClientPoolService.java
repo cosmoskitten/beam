@@ -28,19 +28,19 @@ import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A Fn API control service which adds incoming SDK harness connections to a pool. */
+/** A Fn API control service which adds incoming SDK harness connections to a sink. */
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
-  private final ControlClientSink clientPool;
+  private final ControlClientSink clientSink;
   private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
   private final HeaderAccessor headerAccessor;
   private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(
-      ControlClientSink clientPool, HeaderAccessor headerAccessor) {
-    this.clientPool = clientPool;
+      ControlClientSink clientSink, HeaderAccessor headerAccessor) {
+    this.clientSink = clientSink;
     this.headerAccessor = headerAccessor;
   }
 
@@ -48,8 +48,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
    * Creates a new {@link FnApiControlClientPoolService} which will enqueue and vend new SDK harness
    * connections.
    *
-   * <p>Clients placed into the {@code clientPool} are owned by whichever consumer owns the pool.
-   * That consumer is responsible for closing the clients when they are no longer needed.
+   * <p>Clients placed into the {@code clientSink} are owned by whoever consumes them from the other
+   * end of the pool. That consumer is responsible for closing the clients when they are no longer
+   * needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
       ControlClientSink clientPool, HeaderAccessor headerAccessor) {
@@ -76,7 +77,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
       // able to handle an unexpectedly terminated connection.
       vendedClients.add(newClient);
-      clientPool.accept(headerAccessor.getSdkWorkerId(), newClient);
+      clientSink.accept(headerAccessor.getSdkWorkerId(), newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
