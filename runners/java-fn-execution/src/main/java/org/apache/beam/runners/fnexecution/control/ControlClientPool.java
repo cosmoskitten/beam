@@ -17,12 +17,31 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-/** Control client pool that exposes a source and sink of control clients. */
+/**
+ * A pool of control clients that brokers incoming SDK harness connections (in the form of {@link
+ * InstructionRequestHandler InstructionRequestHandlers}.
+ *
+ * <p>Incoming instruction handlers usually come from the control plane gRPC service. Typical use:
+ *
+ * <pre>
+ *   // Within owner of the pool, who may or may not own the control plane server as well
+ *   ControlClientPool pool = ...
+ *   FnApiControlClientPoolService service =
+ *       FnApiControlClientPoolService.offeringClientsToSink(pool.getSink(), headerAccessor)
+ *   // Incoming gRPC control connections will now be added to the client pool.
+ *
+ *   // Within code that interacts with the instruction handler. The get call blocks until an
+ *   // incoming client is available:
+ *   ControlClientSource clientSource = ... InstructionRequestHandler
+ *   instructionHandler = clientSource.get("worker-id");
+ * </pre>
+ */
 public interface ControlClientPool {
+
+  /** Sink for control clients. */
+  ControlClientSink getSink();
 
   /** Source of control clients. */
   ControlClientSource getSource();
 
-  /** Sink for control clients. */
-  ControlClientSink getSink();
 }
