@@ -66,7 +66,7 @@ public class PartitionTest implements Serializable {
 
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testEvenOddPartition() {
 
     PCollectionList<Integer> outputs = pipeline

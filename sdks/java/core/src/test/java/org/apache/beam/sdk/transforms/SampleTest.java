@@ -41,6 +41,7 @@ import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CombineFnTester;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -172,7 +173,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testPickAny() {
       runPickAnyTest(lines, limit);
     }
@@ -256,7 +257,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleAny() {
       PCollection<Integer> input =
           pipeline
@@ -276,7 +277,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleAnyEmpty() {
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
       PCollection<Integer> output =
@@ -289,7 +290,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleAnyZero() {
       PCollection<Integer> input =
           pipeline.apply(
@@ -310,7 +311,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleAnyInsufficientElements() {
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
       PCollection<Integer> output =
@@ -331,7 +332,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSample() {
 
       PCollection<Integer> input =
@@ -345,7 +346,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleEmpty() {
 
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
@@ -357,7 +358,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleZero() {
 
       PCollection<Integer> input = pipeline.apply(Create.of(ImmutableList.copyOf(DATA))
@@ -370,7 +371,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleInsufficientElements() {
 
       PCollection<Integer> input =
@@ -394,7 +395,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testSampleMultiplicity() {
 
       PCollection<Integer> input =

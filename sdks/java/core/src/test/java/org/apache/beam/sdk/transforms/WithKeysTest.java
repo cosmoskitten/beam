@@ -157,7 +157,7 @@ public class WithKeysTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void withLambdaAndTypeDescriptorShouldSucceed() {
 
     PCollection<String> values = p.apply(Create.of("1234", "3210", "0", "-12"));
