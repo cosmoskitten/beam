@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-/** Control client pool that exposes a source and sink of control clients. */
-public interface ControlClientPool {
-
-  /** Source of control clients. */
-  ControlClientSource getSource();
-
-  /** Sink for control clients. */
-  ControlClientSink getSink();
+/** A sink for {@link InstructionRequestHandler InstructionRequestHandlers} keyed by worker id. */
+@FunctionalInterface
+public interface ControlClientSink {
+  void accept(String workerId, InstructionRequestHandler instructionHandler) throws Exception;
 }

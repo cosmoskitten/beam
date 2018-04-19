@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -106,7 +107,7 @@ public class RemoteExecutionTest implements Serializable {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
-    ControlClientPool<FnApiControlClient> clientPool = QueueControlClientPool.createSynchronous();
+    ControlClientPool clientPool = MapControlClientPool.withTimeout(Duration.ofSeconds(2));
     controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
@@ -128,7 +129,8 @@ public class RemoteExecutionTest implements Serializable {
                   }
                 },
                 StreamObserverFactory.direct()));
-    FnApiControlClient controlClient = clientPool.getSource().get();
+    // HACK: The harness does not set worker ids.
+    InstructionRequestHandler controlClient = clientPool.getSource().get(null);
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 

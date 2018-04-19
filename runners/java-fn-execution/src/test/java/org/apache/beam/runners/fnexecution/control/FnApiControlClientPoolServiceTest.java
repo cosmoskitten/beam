@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,8 +50,7 @@ public class FnApiControlClientPoolServiceTest {
 
   // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
   // for matching incoming connections and server threads is likely.
-  private final ControlClientPool<FnApiControlClient> pool =
-      QueueControlClientPool.createBuffering();
+  private final ControlClientPool pool = MapControlClientPool.withTimeout(Duration.ofSeconds(10));
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
           pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
@@ -76,7 +76,9 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    FnApiControlClient client = pool.getSource().get();
+    // HACK: The Java Harness does not populate its own control client headers currently. They end
+    // up getting set to null by default, so we fetch clients by the null id.
+    InstructionRequestHandler client = pool.getSource().get(null);
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -114,7 +116,8 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    pool.getSource().get();
+    // HACK: As above, use null client id.
+    pool.getSource().get(null);
     server.close();
 
     latch.await();
