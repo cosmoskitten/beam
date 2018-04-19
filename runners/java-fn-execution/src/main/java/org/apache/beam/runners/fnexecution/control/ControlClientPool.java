@@ -17,16 +17,58 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.sdk.fn.function.ThrowingConsumer;
-import org.apache.beam.sdk.util.ThrowingSupplier;
+import javax.annotation.concurrent.ThreadSafe;
 
-/** Control client pool that exposes a source and sink of control clients. */
-public interface ControlClientPool<T extends InstructionRequestHandler> {
-
-  /** Source of control clients. */
-  ThrowingSupplier<T> getSource();
+/**
+ * A pool of control clients that brokers incoming SDK harness connections (in the form of {@link
+ * InstructionRequestHandler InstructionRequestHandlers}.
+ *
+ * <p>Incoming instruction handlers usually come from the control plane gRPC service. Typical use:
+ *
+ * <pre>
+ *   // Within owner of the pool, who may or may not own the control plane server as well
+ *   ControlClientPool pool = ...
+ *   FnApiControlClientPoolService service =
+ *       FnApiControlClientPoolService.offeringClientsToSink(pool.getSink(), headerAccessor)
+ *   // Incoming gRPC control connections will now be added to the client pool.
+ *
+ *   // Within code that interacts with the instruction handler. The get call blocks until an
+ *   // incoming client is available:
+ *   ControlClientSource clientSource = ... InstructionRequestHandler
+ *   instructionHandler = clientSource.get("worker-id");
+ * </pre>
+ *
+ * <p>All {@link ControlClientPool} must be thread-safe.
+ */
+@ThreadSafe
+public interface ControlClientPool {
 
   /** Sink for control clients. */
-  ThrowingConsumer<T> getSink();
+  Sink getSink();
 
+  /** Source of control clients. */
+  Source getSource();
+
+  /** A sink for {@link InstructionRequestHandler InstructionRequestHandlers} keyed by worker id. */
+  @FunctionalInterface
+  interface Sink {
+
+    /**
+     * Puts an {@link InstructionRequestHandler} into a client pool. Worker ids must be unique per
+     * pool.
+     */
+    void put(String workerId, InstructionRequestHandler instructionHandler) throws Exception;
+  }
+
+  /** A source of {@link InstructionRequestHandler InstructionRequestHandlers}. */
+  @FunctionalInterface
+  interface Source {
+
+    /**
+     * Retrieves the {@link InstructionRequestHandler} for the given worker id, blocking until
+     * available. Worker ids must be unique per pool. A given worker id must not be requested
+     * multiple times.
+     */
+    InstructionRequestHandler get(String workerId) throws Exception;
+  }
 }
