@@ -968,6 +968,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
     }
   }
 
+  /** Apply a {@link PendingWatermarkUpdate} to the {@link WatermarkManager}. */
   private void applyPendingUpdate(PendingWatermarkUpdate<ExecutableT> pending) {
     ExecutableT executable = pending.getExecutable();
     CommittedBundle<?> inputBundle = pending.getInputBundle();
@@ -980,8 +981,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
         pending.getOutputs());
 
     TransformWatermarks transformWms = transformToWatermarks.get(executable);
-    transformWms.setEventTimeHold(
-        inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
+    transformWms.setEventTimeHold(inputBundle.getKey(), pending.getEarliestHold());
   }
 
   /**
@@ -995,6 +995,9 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * a Watermark to appear in a state in which the upstream (completed) element does not hold the
    * watermark but the element it produced is not yet pending. This can cause the watermark to
    * erroneously advance.
+   *
+   * <p>See {@link #updateWatermarks(CommittedBundle, TimerUpdate, Object, CommittedBundle,
+   * Iterable, Instant)} for information about the parameters of this method.
    */
   private void updatePending(
       CommittedBundle<?> input,
