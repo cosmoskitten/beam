@@ -921,7 +921,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
    *                     is no hold
    */
   public void updateWatermarks(
-      @Nullable CommittedBundle<?> completed,
+      CommittedBundle<?> completed,
       TimerUpdate timerUpdate,
       ExecutableT executable,
       @Nullable CommittedBundle<?> unprocessedInputs,
@@ -1553,7 +1553,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
 
     public static <ExecutableT> PendingWatermarkUpdate<ExecutableT> create(
         ExecutableT executable,
-        @Nullable CommittedBundle<?> inputBundle,
+        CommittedBundle<?> inputBundle,
         TimerUpdate timerUpdate,
         @Nullable CommittedBundle<?> unprocessedInputs,
         Iterable<? extends CommittedBundle<?>> outputs,
