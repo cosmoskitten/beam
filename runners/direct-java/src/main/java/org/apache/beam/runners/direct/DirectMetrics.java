@@ -79,9 +79,10 @@ class DirectMetrics extends MetricResults {
     private final AtomicReference<UpdateT> finishedCommitted;
 
     private final Object attemptedLock = new Object();
+
     @GuardedBy("attemptedLock")
     private volatile UpdateT finishedAttempted;
-    @GuardedBy("attemptedLock")
+
     private final ConcurrentMap<CommittedBundle<?>, UpdateT> inflightAttempted =
         new ConcurrentHashMap<>();
 
@@ -98,7 +99,7 @@ class DirectMetrics extends MetricResults {
      * @param tentativeCumulative The new cumulative value for the given bundle.
      */
     public void updatePhysical(CommittedBundle<?> bundle, UpdateT tentativeCumulative) {
-      // Add (or update) the cumulatiev value for the given bundle.
+      // Add (or update) the cumulative value for the given bundle.
       inflightAttempted.put(bundle, tentativeCumulative);
     }
 
