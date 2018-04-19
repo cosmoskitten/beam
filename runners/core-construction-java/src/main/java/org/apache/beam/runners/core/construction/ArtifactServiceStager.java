@@ -144,7 +144,7 @@ public class ArtifactServiceStager {
       PutArtifactResponseObserver responseObserver = new PutArtifactResponseObserver();
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
       ArtifactMetadata metadata =
-          ArtifactMetadata.newBuilder().setName(file.getStageName()).build();
+          ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(metadata).build());
 
       MessageDigest md5Digest = MessageDigest.getInstance("MD5");
@@ -235,14 +235,14 @@ public class ArtifactServiceStager {
   /** A file along with a staging name. */
   @AutoValue
   public abstract static class StagedFile {
-    public static StagedFile of(File file, String stageName) {
-      return new AutoValue_ArtifactServiceStager_StagedFile(file, stageName);
+    public static StagedFile of(File file, String stagingName) {
+      return new AutoValue_ArtifactServiceStager_StagedFile(file, stagingName);
     }
 
     /** The file to stage. */
     public abstract File getFile();
     /** Staging handle to this file. */
-    public abstract String getStageName();
+    public abstract String getStagingName();
   }
 
   @AutoValue
