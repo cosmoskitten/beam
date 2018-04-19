@@ -45,8 +45,8 @@ public class SamzaPipelineTranslator {
 
   static {
     Map<Class<? extends PTransform>, TransformTranslator<?>> translators = new HashMap<>();
-    translators.put(Read.Bounded.class, new ReadBoundedTranslator<>());
-    translators.put(Read.Unbounded.class, new ReadUnboundedTranslator<>());
+    translators.put(Read.Bounded.class, new ReadTranslator<>());
+    translators.put(Read.Unbounded.class, new ReadTranslator<>());
     translators.put(ParDo.MultiOutput.class, new ParDoBoundMultiTranslator<>());
     translators.put(GroupByKey.class, new GroupByKeyTranslator<>());
     translators.put(Window.Assign.class, new WindowAssignTranslator<>());
