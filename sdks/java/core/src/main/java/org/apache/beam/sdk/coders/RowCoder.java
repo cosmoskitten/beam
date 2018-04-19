@@ -85,7 +85,7 @@ public class RowCoder extends CustomCoder<Row> {
     for (int i = 0; i < schema.getFieldCount(); ++i) {
       fieldsSize += estimatedSizeBytes(schema.getField(i).getType(), row.getValue(i));
     }
-    return bitmapSize + fieldsSize;
+    return bitmapSize + (long) fieldsSize;
   }
 
   private static long estimatedSizeBytes(FieldType typeDescriptor, Object value) {
