@@ -70,7 +70,7 @@ public class DistinctTest {
 
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinct() {
     List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
 
@@ -83,7 +83,7 @@ public class DistinctTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
@@ -117,7 +117,7 @@ public class DistinctTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testDistinctWithRepresentativeValue() {
     List<KV<String, String>> strings =
         Arrays.asList(KV.of("k1", "v1"), KV.of("k1", "v2"), KV.of("k2", "v1"));
@@ -137,7 +137,7 @@ public class DistinctTest {
   @Rule public TestPipeline windowedDistinctPipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWindowedDistinct() {
     Instant base = new Instant(0);
     TestStream<String> values =
@@ -179,7 +179,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctPipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testTriggeredDistinct() {
     Instant base = new Instant(0);
     TestStream<String> values =
@@ -215,7 +215,7 @@ public class DistinctTest {
   @Rule public TestPipeline triggeredDistinctRepresentativePipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class})
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testTriggeredDistinctRepresentativeValues() {
     Instant base = new Instant(0);
     TestStream<KV<Integer, String>> values =
