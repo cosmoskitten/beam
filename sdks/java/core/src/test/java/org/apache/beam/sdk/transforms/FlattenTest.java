@@ -138,7 +138,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFlattenInputMultipleCopies() {
     int count = 5;
     PCollection<Long> longs = p.apply("mkLines", GenerateSequence.from(0).to(count));
@@ -216,7 +216,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFlattenPCollectionsEmptyThenParDo() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
@@ -271,7 +271,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFlattenIterablesSets() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -286,7 +286,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFlattenIterablesCollections() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -302,7 +302,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFlattenIterablesEmpty() {
     PCollection<Iterable<String>> input = p
         .apply(Create.<Iterable<String>>of(NO_LINES)

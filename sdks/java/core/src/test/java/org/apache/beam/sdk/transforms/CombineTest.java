@@ -184,13 +184,13 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testSimpleCombineWithContextEmpty() {
     runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testSimpleCombineEmpty() {
     runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
   }
@@ -228,7 +228,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testBasicCombineEmpty() {
     runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
   }
@@ -249,7 +249,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFixedWindowsCombine() {
     PCollection<KV<String, Integer>> input =
         pipeline
@@ -276,7 +276,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testFixedWindowsCombineWithContext() {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline
@@ -317,7 +317,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testSlidingWindowsCombine() {
     PCollection<String> input =
         pipeline
@@ -376,7 +376,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testSlidingWindowsCombineWithContext() {
     // [a: 1, 1], [a: 4; b: 1], [b: 13]
     PCollection<KV<String, Integer>> perKeyInput =
@@ -483,7 +483,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testSessionsCombineWithContext() {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(
@@ -533,7 +533,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testWindowedCombineEmpty() {
     PCollection<Double> mean =
         pipeline
@@ -547,7 +547,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testAccumulatingCombine() {
     runTestAccumulatingCombine(Arrays.asList(
       KV.of("a", 1),
@@ -559,7 +559,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testAccumulatingCombineEmpty() {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
   }
@@ -624,7 +624,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testHotKeyCombiningWithAccumulationMode() {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
@@ -707,7 +707,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCombineGloballyAsSingletonView() {
     final PCollectionView<Integer> view = pipeline
         .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
@@ -727,7 +727,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testWindowedCombineGloballyAsSingletonView() {
     FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
     final PCollectionView<Integer> view =
@@ -1259,7 +1259,7 @@ public class CombineTest implements Serializable {
    * Tests creation of a global {@link Combine} via Java 8 lambda.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCombineGloballyLambda() {
 
     PCollection<Integer> output = pipeline
@@ -1280,7 +1280,7 @@ public class CombineTest implements Serializable {
    * Tests creation of a global {@link Combine} via a Java 8 method reference.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCombineGloballyInstanceMethodReference() {
 
     PCollection<Integer> output = pipeline
@@ -1295,7 +1295,7 @@ public class CombineTest implements Serializable {
    * Tests creation of a per-key {@link Combine} via a Java 8 lambda.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCombinePerKeyLambda() {
 
     PCollection<KV<String, Integer>> output = pipeline
@@ -1319,7 +1319,7 @@ public class CombineTest implements Serializable {
    * Tests creation of a per-key {@link Combine} via a Java 8 method reference.
    */
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testCombinePerKeyInstanceMethodReference() {
 
     PCollection<KV<String, Integer>> output = pipeline
