@@ -96,11 +96,11 @@ public class CloseableResource<T> implements AutoCloseable {
     if (closer != null && !isClosed) {
       try {
         closer.close(resource);
-        isClosed = true;
       } catch (Exception e) {
+        throw new CloseException(e);
+      } finally {
         // Mark resource as closed even if we catch an exception.
         isClosed = true;
-        throw new CloseException(e);
       }
     }
   }
