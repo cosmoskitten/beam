@@ -76,8 +76,7 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    // HACK: The Java Harness does not populate its own control client headers currently. They end
-    // up getting set to null by default, so we fetch clients by the null id.
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     InstructionRequestHandler client = pool.getSource().get(null);
 
     // Check that the client is wired up to the request channel
@@ -116,7 +115,7 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    // HACK: As above, use null client id.
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
     pool.getSource().get(null);
     server.close();
 
