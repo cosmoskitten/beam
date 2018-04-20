@@ -77,7 +77,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
       // able to handle an unexpectedly terminated connection.
       vendedClients.add(newClient);
-      clientSink.accept(headerAccessor.getSdkWorkerId(), newClient);
+      clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

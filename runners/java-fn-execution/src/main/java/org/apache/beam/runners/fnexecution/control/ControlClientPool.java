@@ -52,7 +52,7 @@ public interface ControlClientPool {
      * Puts an {@link InstructionRequestHandler} into a client pool. Worker ids must be unique per
      * pool.
      */
-    void accept(String workerId, InstructionRequestHandler instructionHandler) throws Exception;
+    void put(String workerId, InstructionRequestHandler instructionHandler) throws Exception;
   }
 
   /** A source of {@link InstructionRequestHandler InstructionRequestHandlers}. */
