@@ -396,8 +396,8 @@ public interface PipelineOptions extends HasDisplayData {
 
   @Description("The beam sink class to which the metrics will be pushed")
   @Default.InstanceFactory(NoOpMetricsSink.class)
-  Class<? extends MetricsSink<?>>  getMetricsSink();
-  void setMetricsSink(Class<? extends MetricsSink<?>> metricsSink);
+  Class<? extends MetricsSink>  getMetricsSink();
+  void setMetricsSink(Class<? extends MetricsSink> metricsSink);
 
   /**
    * A {@link DefaultValueFactory} that obtains the class of the {@code NoOpMetricsSink}
@@ -408,11 +408,11 @@ public interface PipelineOptions extends HasDisplayData {
    */
   class NoOpMetricsSink implements DefaultValueFactory<Class<? extends MetricsSink<?>>> {
     @Override
-    public Class<? extends MetricsSink<?>> create(PipelineOptions options) {
+    public Class<? extends MetricsSink> create(PipelineOptions options) {
       try {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Class<? extends MetricsSink<?>> noOpMetricsSinkClass =
-            (Class<? extends MetricsSink<?>>)
+        Class<? extends MetricsSink> noOpMetricsSinkClass =
+            (Class<? extends MetricsSink>)
                 Class.forName(
                     "org.apache.beam.runners.core.metrics.NoOpMetricsSink", true,
                     ReflectHelpers.findClassLoader());
