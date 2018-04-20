@@ -113,7 +113,8 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
           return null;
         });
 
-    // HACK: Worker ids cannot currently be set by harness. Everything uses the null id for now.
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
+    // the harness. All clients have the implicit null id for now.
     client =
         SdkHarnessClient.usingFnApiClient(
             clientPool.getSource().get(null), dataServer.getService());
