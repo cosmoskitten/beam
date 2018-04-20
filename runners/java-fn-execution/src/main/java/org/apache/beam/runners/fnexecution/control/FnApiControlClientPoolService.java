@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
@@ -34,14 +35,15 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
-  private final Object vendedClientLock = new Object();
+  private final Object lock = new Object();
   private final ControlClientPool.Sink clientSink;
-
-  @GuardedBy("vendedClientLock")
-  private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
-
   private final HeaderAccessor headerAccessor;
-  private AtomicBoolean closed = new AtomicBoolean();
+
+  @GuardedBy("lock")
+  private final Collection<FnApiControlClient> vendedClients = new ArrayList<>();
+
+  @GuardedBy("lock")
+  private boolean closed = false;
 
   private FnApiControlClientPoolService(
       ControlClientPool.Sink clientSink, HeaderAccessor headerAccessor) {
@@ -81,7 +83,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // service is closed, in which case the client will be discarded when the service is
       // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
       // able to handle an unexpectedly terminated connection.
-      synchronized (vendedClientLock) {
+      synchronized (lock) {
+        checkState(
+            !closed, "%s already closed", FnApiControlClientPoolService.class.getSimpleName());
         vendedClients.add(newClient);
       }
       // NOTE: The client sink must provide its own thread safety. We do not attempt to
@@ -98,8 +102,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
 
   @Override
   public void close() {
-    if (!closed.getAndSet(true)) {
-      synchronized (vendedClientLock) {
+    synchronized (lock) {
+      if (!closed) {
+        closed = true;
         for (FnApiControlClient vended : vendedClients) {
           vended.close();
         }
