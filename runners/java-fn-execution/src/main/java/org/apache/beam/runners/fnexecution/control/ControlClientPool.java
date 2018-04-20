@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * A pool of control clients that brokers incoming SDK harness connections (in the form of {@link
  * InstructionRequestHandler InstructionRequestHandlers}.
@@ -35,7 +37,10 @@ package org.apache.beam.runners.fnexecution.control;
  *   ControlClientSource clientSource = ... InstructionRequestHandler
  *   instructionHandler = clientSource.get("worker-id");
  * </pre>
+ *
+ * <p>All {@link ControlClientPool} must be thread-safe.
  */
+@ThreadSafe
 public interface ControlClientPool {
 
   /** Sink for control clients. */
