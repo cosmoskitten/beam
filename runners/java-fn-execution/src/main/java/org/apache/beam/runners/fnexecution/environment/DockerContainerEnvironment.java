@@ -24,6 +24,9 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 /**
  * A {@link RemoteEnvironment} that wraps a running Docker container.
  *
+ * <p>A {@link DockerContainerEnvironment} owns both the underlying docker container that it
+ * communicates with an the {@link InstructionRequestHandler} that it uses to do so.
+ *
  * <p>Accessors are thread-compatible.
  */
 class DockerContainerEnvironment implements RemoteEnvironment {
