@@ -90,8 +90,8 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
         // from leaking.
         vendedClients.add(newClient);
       }
-      // NOTE: The client sink must provide its own thread safety. We do not attempt to
-      // transactionally add the client to our internal list and offer it to the sink.
+      // We do not attempt to transactionally add the client to our internal list and offer it to
+      // the sink.
       clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
