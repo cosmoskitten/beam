@@ -20,5 +20,11 @@ package org.apache.beam.runners.fnexecution.control;
 /** A source of {@link InstructionRequestHandler InstructionRequestHandlers}. */
 @FunctionalInterface
 public interface ControlClientSource {
+
+  /**
+   * Retrieves the {@link InstructionRequestHandler} for the given worker id, blocking until
+   * available. Worker ids must be unique per pool. A given worker id must not be requested multiple
+   * times.
+   */
   InstructionRequestHandler get(String workerId) throws Exception;
 }
