@@ -96,6 +96,19 @@ public class DockerEnvironmentFactoryTest {
     verify(docker).killContainer(CONTAINER_ID);
   }
 
+  @Test
+  public void createsMultipleEnvironments() throws Exception {
+    DockerEnvironmentFactory factory = getFactory();
+
+    Environment fooEnv = Environment.newBuilder().setUrl("foo").build();
+    RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
+    assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
+
+    Environment barEnv = Environment.newBuilder().setUrl("bar").build();
+    RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
+    assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
+  }
+
   private DockerEnvironmentFactory getFactory() {
     return DockerEnvironmentFactory.forServices(
         docker,

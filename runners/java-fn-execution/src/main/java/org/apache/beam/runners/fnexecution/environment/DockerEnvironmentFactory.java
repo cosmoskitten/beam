@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -34,7 +32,8 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 
 /**
- * An {@link EnvironmentFactory} that creates docker containers by shelling out to docker. Not
+ * An {@link EnvironmentFactory} that creates docker containers by shelling out to docker. Returned
+ * {@link RemoteEnvironment RemoteEnvironments} own their respective docker containers. Not
  * thread-safe.
  */
 public class DockerEnvironmentFactory implements EnvironmentFactory {
@@ -66,8 +65,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final Supplier<String> idGenerator;
   private final ControlClientSource clientSource;
 
-  private RemoteEnvironment dockerEnvironment = null;
-
   private DockerEnvironmentFactory(
       DockerWrapper docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
@@ -85,24 +82,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     this.clientSource = clientSource;
   }
 
-  /** Creates an active {@link RemoteEnvironment} backed by a local Docker container. */
+  /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
-    if (dockerEnvironment == null) {
-      dockerEnvironment = createDockerEnv(environment);
-    } else {
-      checkArgument(
-          environment.getUrl().equals(dockerEnvironment.getEnvironment().getUrl()),
-          "A %s must only be queried for a single %s. Existing %s, Argument %s",
-          DockerEnvironmentFactory.class.getSimpleName(),
-          Environment.class.getSimpleName(),
-          dockerEnvironment.getEnvironment().getUrl(),
-          environment.getUrl());
-    }
-    return dockerEnvironment;
-  }
-
-  private DockerContainerEnvironment createDockerEnv(Environment environment) throws Exception {
     String workerId = idGenerator.get();
 
     // Prepare docker invocation.
