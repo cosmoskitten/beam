@@ -170,36 +170,15 @@ class common_job_properties {
     "--info",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-    // Disable daemon, which helps ensure hermetic environment at small startup performance penalty.
-    // This needs to be disabled if we move to incremental builds.
-    "--no-daemon",
+    // Limit background number of workers to prevent exhausting machine memory.
+    // Jenkins machines have 15GB memory, and run 2 jobs in parallel; workers are configured with
+    // JVM max heap size 3.5GB. So 2 jobs * 2 workers * 3.5GB heap = 14GB
+    '--max-workers=2',
   ]
 
   static void setGradleSwitches(context) {
     for (String gradle_switch : gradle_switches) {
       context.switches(gradle_switch)
-    }
-  }
-
-  // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
-    context.mavenInstallation(mavenInstallation)
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
-    // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
-    // tiered compilation to make the JVM startup times faster during the tests.
-    context.mavenOpts('-XX:+TieredCompilation')
-    context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM(checkoutDir + '/pom.xml')
-    // Use a repository local to the workspace for better isolation of jobs.
-    context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
-    // Disable archiving the built artifacts by default, as this is slow and flaky.
-    // We can usually recreate them easily, and we can also opt-in individual jobs
-    // to artifact archiving.
-    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
-      context.archivingDisabled(true)
     }
   }
 
