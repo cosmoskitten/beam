@@ -90,13 +90,14 @@ import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link Combine} transforms.
  */
-@RunWith(JUnit4.class)
+@RunWith(Enclosed.class)
 public class CombineTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -155,44 +156,741 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testSimpleCombine() {
-    runTestSimpleCombine(Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    ), 20, Arrays.asList(KV.of("a", "114"), KV.of("b", "113")));
+  /** Tests validating basic Combine transform scenarios. */
+  @RunWith(JUnit4.class)
+  public class BasicTests {
+    @Test
+    @Category(ValidatesRunner.class)
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testSimpleCombine() {
+      runTestSimpleCombine(Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+      ), 20, Arrays.asList(KV.of("a", "114"), KV.of("b", "113")));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSimpleCombineEmpty() {
+      runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBasicCombine() {
+      runTestBasicCombine(Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+      ), ImmutableSet.of(1, 13, 4), Arrays.asList(
+          KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
+          KV.of("b", (Set<Integer>) ImmutableSet.of(1, 13))));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBasicCombineEmpty() {
+      runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
+    }
+
+    // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
+    @Test
+    public void testCombinerNames() {
+      Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
+      Combine.PerKey<String, Integer, Integer> max = Max.integersPerKey();
+      Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
+      Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
+
+      assertThat(min.getName(), equalTo("Combine.perKey(MinInteger)"));
+      assertThat(max.getName(), equalTo("Combine.perKey(MaxInteger)"));
+      assertThat(mean.getName(), equalTo("Combine.perKey(Mean)"));
+      assertThat(sum.getName(), equalTo("Combine.perKey(SumInteger)"));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testHotKeyCombining() {
+      PCollection<KV<String, Integer>> input = copy(createInput(pipeline, Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+      )), 10);
+
+      CombineFn<Integer, ?, Double> mean = new MeanInts();
+      PCollection<KV<String, Double>> coldMean = input.apply("ColdMean",
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(0));
+      PCollection<KV<String, Double>> warmMean = input.apply("WarmMean",
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(hotKeyFanout));
+      PCollection<KV<String, Double>> hotMean = input.apply("HotMean",
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(5));
+      PCollection<KV<String, Double>> splitMean = input.apply("SplitMean",
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(splitHotKeyFanout));
+
+      List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
+      PAssert.that(coldMean).containsInAnyOrder(expected);
+      PAssert.that(warmMean).containsInAnyOrder(expected);
+      PAssert.that(hotMean).containsInAnyOrder(expected);
+      PAssert.that(splitMean).containsInAnyOrder(expected);
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testHotKeyCombiningWithAccumulationMode() {
+      PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
+
+      PCollection<Integer> output = input
+          .apply(Window.<Integer>into(new GlobalWindows())
+              .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+              .accumulatingFiredPanes()
+              .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+          .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
+          .apply(ParDo.of(new GetLast()));
+
+      PAssert.that(output)
+          .satisfies(
+              input1 -> {
+                assertThat(input1, hasItem(15));
+                return null;
+              });
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testBinaryCombineFn() {
+      PCollection<KV<String, Integer>> input = copy(createInput(pipeline, Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+      )), 2);
+      PCollection<KV<String, Integer>> intProduct =
+          input.apply("IntProduct", Combine.perKey(new TestProdInt()));
+      PCollection<KV<String, Integer>> objProduct =
+          input.apply("ObjProduct", Combine.perKey(new TestProdObj()));
+
+      List<KV<String, Integer>> expected = Arrays.asList(KV.of("a", 16), KV.of("b", 169));
+      PAssert.that(intProduct).containsInAnyOrder(expected);
+      PAssert.that(objProduct).containsInAnyOrder(expected);
+
+      pipeline.run();
+    }
+
+    @Test
+    public void testBinaryCombineFnWithNulls() {
+      testCombineFn(new NullCombiner(), Arrays.asList(3, 3, 5), 45);
+      testCombineFn(new NullCombiner(), Arrays.asList(null, 3, 5), 30);
+      testCombineFn(new NullCombiner(), Arrays.asList(3, 3, null), 18);
+      testCombineFn(new NullCombiner(), Arrays.asList(null, 3, null), 12);
+      testCombineFn(new NullCombiner(), Arrays.asList(null, null, null), 8);
+    }
+
+    @Test
+    public void testCombineGetName() {
+      assertEquals("Combine.globally(SumInts)", Combine.globally(new SumInts()).getName());
+      assertEquals(
+          "Combine.GloballyAsSingletonView",
+          Combine.globally(new SumInts()).asSingletonView().getName());
+      assertEquals("Combine.perKey(Test)", Combine.perKey(new TestCombineFn()).getName());
+      assertEquals(
+          "Combine.perKeyWithFanout(Test)",
+          Combine.perKey(new TestCombineFn()).withHotKeyFanout(10).getName());
+    }
+
+    @Test
+    public void testDisplayData() {
+      UniqueInts combineFn = new UniqueInts() {
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          builder.add(DisplayData.item("fnMetadata", "foobar"));
+        }
+      };
+      Combine.Globally<?, ?> combine = Combine.globally(combineFn)
+          .withFanout(1234);
+      DisplayData displayData = DisplayData.from(combine);
+
+      assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+      assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
+      assertThat(displayData, hasDisplayItem("fanout", 1234));
+      assertThat(displayData, includesDisplayDataFor("combineFn", combineFn));
+    }
+
+    @Test
+    public void testDisplayDataForWrappedFn() {
+      UniqueInts combineFn = new UniqueInts() {
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          builder.add(DisplayData.item("foo", "bar"));
+        }
+      };
+      Combine.PerKey<?, ?, ?> combine = Combine.perKey(combineFn);
+      DisplayData displayData = DisplayData.from(combine);
+
+      assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+      assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombinePerKeyPrimitiveDisplayData() {
+      DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+      CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+      PTransform<PCollection<KV<Integer, Integer>>, ? extends POutput> combine =
+          Combine.perKey(combineFn);
+
+      Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
+          KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+      assertThat("Combine.perKey should include the combineFn in its primitive transform",
+          displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombinePerKeyWithHotKeyFanoutPrimitiveDisplayData() {
+      int hotKeyFanout = 2;
+      DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+
+      CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+      PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>> combine =
+          Combine.<Integer, Integer, Set<Integer>>perKey(combineFn).withHotKeyFanout(hotKeyFanout);
+
+      Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
+          KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+      assertThat("Combine.perKey.withHotKeyFanout should include the combineFn in its primitive "
+          + "transform", displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
+      assertThat("Combine.perKey.withHotKeyFanout(int) should include the fanout in its primitive "
+          + "transform", displayData, hasItem(hasDisplayItem("fanout", hotKeyFanout)));
+    }
+
+    /**
+     * Tests creation of a per-key {@link Combine} via a Java 8 lambda.
+     */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombinePerKeyLambda() {
+
+      PCollection<KV<String, Integer>> output = pipeline
+          .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+          .apply(Combine.perKey(integers -> {
+            int sum = 0;
+            for (int i : integers) {
+              sum += i;
+            }
+            return sum;
+          }));
+
+      PAssert.that(output).containsInAnyOrder(
+          KV.of("a", 4),
+          KV.of("b", 2),
+          KV.of("c", 4));
+      pipeline.run();
+    }
+
+    /**
+     * Tests creation of a per-key {@link Combine} via a Java 8 method reference.
+     */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombinePerKeyInstanceMethodReference() {
+
+      PCollection<KV<String, Integer>> output = pipeline
+          .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+          .apply(Combine.perKey(new Summer()::sum));
+
+      PAssert.that(output).containsInAnyOrder(
+          KV.of("a", 4),
+          KV.of("b", 2),
+          KV.of("c", 4));
+      pipeline.run();
+    }
+
+    /**
+     * Tests that we can serialize {@link Combine.CombineFn CombineFns} constructed from a lambda.
+     * Lambdas can be problematic because the {@link Class} object is synthetic and cannot be
+     * deserialized.
+     */
+    @Test
+    public void testLambdaSerialization() {
+      SerializableFunction<Iterable<Object>, Object> combiner = xs -> Iterables.getFirst(xs, 0);
+
+      boolean lambdaClassSerializationThrows;
+      try {
+        SerializableUtils.clone(combiner.getClass());
+        lambdaClassSerializationThrows = false;
+      } catch (IllegalArgumentException e) {
+        // Expected
+        lambdaClassSerializationThrows = true;
+      }
+      Assume.assumeTrue("Expected lambda class serialization to fail. "
+              + "If it's fixed, we can remove special behavior in Combine.",
+          lambdaClassSerializationThrows);
+
+
+      Combine.Globally<?, ?> combine = Combine.globally(combiner);
+      SerializableUtils.clone(combine); // should not throw.
+    }
+
+    @Test
+    public void testLambdaDisplayData() {
+      Combine.Globally<?, ?> combine = Combine.globally(xs -> Iterables.getFirst(xs, 0));
+      DisplayData displayData = DisplayData.from(combine);
+      MatcherAssert.assertThat(displayData.items(), not(empty()));
+    }
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testSimpleCombineWithContext() {
-    runTestSimpleCombineWithContext(Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    ), 20,
-        Arrays.asList(KV.of("a", "20:114"), KV.of("b", "20:113")),
-        new String[] {"20:111134"});
+  /** Tests validating CombineWithContext behaviors. */
+  @RunWith(JUnit4.class)
+  public class CombineWithContextTests {
+    @Test
+    @Category(ValidatesRunner.class)
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testSimpleCombineWithContext() {
+      runTestSimpleCombineWithContext(Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+          ), 20,
+          Arrays.asList(KV.of("a", "20:114"), KV.of("b", "20:113")),
+          new String[] {"20:111134"});
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSimpleCombineWithContextEmpty() {
+      runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+    }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testSimpleCombineWithContextEmpty() {
-    runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+  /** Tests validating windowing behaviors. */
+  @RunWith(JUnit4.class)
+  public class WindowingTests {
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testFixedWindowsCombine() {
+      PCollection<KV<String, Integer>> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
+                      TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
+                      TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
+                      TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
+                      TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
+                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+              .apply(Window.into(FixedWindows.of(Duration.millis(2))));
+
+      PCollection<Integer> sum =
+          input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
+
+      PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
+
+      PAssert.that(sum).containsInAnyOrder(2, 5, 13);
+      PAssert.that(sumPerKey)
+          .containsInAnyOrder(
+              Arrays.asList(KV.of("a", "11"), KV.of("a", "4"), KV.of("b", "1"), KV.of("b", "13")));
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testFixedWindowsCombineWithContext() {
+      PCollection<KV<String, Integer>> perKeyInput =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
+                      TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
+                      TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
+                      TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
+                      TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
+                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+              .apply(Window.into(FixedWindows.of(Duration.millis(2))));
+
+      PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
+
+      PCollection<Integer> sum = globallyInput
+          .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
+
+      PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKeyWithContext =
+          perKeyInput.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
+                  .withSideInputs(globallySumView));
+
+      PCollection<String> combineGloballyWithContext = globallyInput
+          .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
+              .withoutDefaults()
+              .withSideInputs(globallySumView));
+
+      PAssert.that(sum).containsInAnyOrder(2, 5, 13);
+      PAssert.that(combinePerKeyWithContext)
+          .containsInAnyOrder(
+              Arrays.asList(
+                  KV.of("a", "2:11"), KV.of("a", "5:4"), KV.of("b", "5:1"), KV.of("b", "13:13")));
+      PAssert.that(combineGloballyWithContext).containsInAnyOrder("2:11", "5:14", "13:13");
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSlidingWindowsCombine() {
+      PCollection<String> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of("a", new Instant(1L)),
+                      TimestampedValue.of("b", new Instant(2L)),
+                      TimestampedValue.of("c", new Instant(3L))))
+              .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
+      PCollection<List<String>> combined =
+          input.apply(
+              Combine.globally(
+                  new CombineFn<String, List<String>, List<String>>() {
+                    @Override
+                    public List<String> createAccumulator() {
+                      return new ArrayList<>();
+                    }
+
+                    @Override
+                    public List<String> addInput(List<String> accumulator, String input) {
+                      accumulator.add(input);
+                      return accumulator;
+                    }
+
+                    @Override
+                    public List<String> mergeAccumulators(Iterable<List<String>> accumulators) {
+                      // Mutate all of the accumulators. Instances should be used in only one
+                      // place, and not
+                      // reused after merging.
+                      List<String> cur = createAccumulator();
+                      for (List<String> accumulator : accumulators) {
+                        accumulator.addAll(cur);
+                        cur = accumulator;
+                      }
+                      return cur;
+                    }
+
+                    @Override
+                    public List<String> extractOutput(List<String> accumulator) {
+                      List<String> result = new ArrayList<>(accumulator);
+                      Collections.sort(result);
+                      return result;
+                    }
+                  })
+                  .withoutDefaults());
+
+      PAssert.that(combined)
+          .containsInAnyOrder(
+              ImmutableList.of("a"),
+              ImmutableList.of("a", "b"),
+              ImmutableList.of("a", "b", "c"),
+              ImmutableList.of("b", "c"),
+              ImmutableList.of("c"));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSlidingWindowsCombineWithContext() {
+      // [a: 1, 1], [a: 4; b: 1], [b: 13]
+      PCollection<KV<String, Integer>> perKeyInput =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("a", 1), new Instant(2L)),
+                      TimestampedValue.of(KV.of("a", 1), new Instant(3L)),
+                      TimestampedValue.of(KV.of("a", 4), new Instant(8L)),
+                      TimestampedValue.of(KV.of("b", 1), new Instant(9L)),
+                      TimestampedValue.of(KV.of("b", 13), new Instant(10L)))
+                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+              .apply(Window.into(SlidingWindows.of(Duration.millis(2))));
+
+      PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
+
+      PCollection<Integer> sum = globallyInput.apply("Sum", Sum.integersGlobally().withoutDefaults());
+
+      PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKeyWithContext =
+          perKeyInput.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
+                  .withSideInputs(globallySumView));
+
+      PCollection<String> combineGloballyWithContext = globallyInput
+          .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
+              .withoutDefaults()
+              .withSideInputs(globallySumView));
+
+      PAssert.that(sum).containsInAnyOrder(1, 2, 1, 4, 5, 14, 13);
+      PAssert.that(combinePerKeyWithContext)
+          .containsInAnyOrder(
+              Arrays.asList(
+                  KV.of("a", "1:1"),
+                  KV.of("a", "2:11"),
+                  KV.of("a", "1:1"),
+                  KV.of("a", "4:4"),
+                  KV.of("a", "5:4"),
+                  KV.of("b", "5:1"),
+                  KV.of("b", "14:113"),
+                  KV.of("b", "13:13")));
+      PAssert.that(combineGloballyWithContext).containsInAnyOrder(
+          "1:1", "2:11", "1:1", "4:4", "5:14", "14:113", "13:13");
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testGlobalCombineWithDefaultsAndTriggers() {
+      PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
+
+      PCollection<String> output = input
+          .apply(Window.<Integer>into(new GlobalWindows())
+              .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+              .accumulatingFiredPanes()
+              .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+          .apply(Sum.integersGlobally())
+          .apply(ParDo.of(new FormatPaneInfo()));
+
+      // The actual elements produced are nondeterministic. Could be one, could be two.
+      // But it should certainly have a final element with the correct final sum.
+      PAssert.that(output)
+          .satisfies(
+              input1 -> {
+                assertThat(input1, hasItem("2: true"));
+                return null;
+              });
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSessionsCombine() {
+      PCollection<KV<String, Integer>> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
+                      TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
+                      TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
+                      TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
+                      TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
+                      .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+              .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))));
+
+      PCollection<Integer> sum =
+          input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
+
+      PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
+
+      PAssert.that(sum).containsInAnyOrder(7, 13);
+      PAssert.that(sumPerKey)
+          .containsInAnyOrder(Arrays.asList(KV.of("a", "114"), KV.of("b", "1"), KV.of("b", "13")));
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSessionsCombineWithContext() {
+      PCollection<KV<String, Integer>> perKeyInput =
+          pipeline.apply(
+              Create.timestamped(
+                  TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
+                  TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
+                  TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
+                  TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
+                  TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
+                  .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+      PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
+
+      PCollection<Integer> fixedWindowsSum =
+          globallyInput
+              .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(5))))
+              .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
+
+      PCollectionView<Integer> globallyFixedWindowsView =
+          fixedWindowsSum.apply(View.<Integer>asSingleton().withDefaultValue(0));
+
+      PCollection<KV<String, String>> sessionsCombinePerKey =
+          perKeyInput
+              .apply(
+                  "PerKey Input Sessions", Window.into(Sessions.withGapDuration(Duration.millis(5))))
+              .apply(
+                  Combine.<String, Integer, String>perKey(
+                      new TestCombineFnWithContext(globallyFixedWindowsView))
+                      .withSideInputs(globallyFixedWindowsView));
+
+      PCollection<String> sessionsCombineGlobally =
+          globallyInput
+              .apply(
+                  "Globally Input Sessions",
+                  Window.into(Sessions.withGapDuration(Duration.millis(5))))
+              .apply(
+                  Combine.globally(new TestCombineFnWithContext(globallyFixedWindowsView))
+                      .withoutDefaults()
+                      .withSideInputs(globallyFixedWindowsView));
+
+      PAssert.that(fixedWindowsSum).containsInAnyOrder(2, 4, 1, 13);
+      PAssert.that(sessionsCombinePerKey)
+          .containsInAnyOrder(
+              Arrays.asList(KV.of("a", "1:114"), KV.of("b", "1:1"), KV.of("b", "0:13")));
+      PAssert.that(sessionsCombineGlobally).containsInAnyOrder("1:1114", "0:13");
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testWindowedCombineEmpty() {
+      PCollection<Double> mean =
+          pipeline
+              .apply(Create.empty(BigEndianIntegerCoder.of()))
+              .apply(Window.into(FixedWindows.of(Duration.millis(1))))
+              .apply(Combine.globally(new MeanInts()).withoutDefaults());
+
+      PAssert.that(mean).empty();
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombineGloballyAsSingletonView() {
+      final PCollectionView<Integer> view = pipeline
+          .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
+          .apply(Sum.integersGlobally().asSingletonView());
+
+      PCollection<Integer> output = pipeline
+          .apply("CreateVoidMainInput", Create.of((Void) null))
+          .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              c.output(c.sideInput(view));
+            }
+          }).withSideInputs(view));
+
+      PAssert.thatSingleton(output).isEqualTo(0);
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testWindowedCombineGloballyAsSingletonView() {
+      FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
+      final PCollectionView<Integer> view =
+          pipeline
+              .apply(
+                  "CreateSideInput",
+                  Create.timestamped(
+                      TimestampedValue.of(1, new Instant(100)),
+                      TimestampedValue.of(3, new Instant(100))))
+              .apply("WindowSideInput", Window.into(windowFn))
+              .apply("CombineSideInput", Sum.integersGlobally().asSingletonView());
+
+      TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, new Instant(100));
+      TimestampedValue<Void> emptyElement = TimestampedValue.atMinimumTimestamp(null);
+      PCollection<Integer> output =
+          pipeline
+              .apply(
+                  "CreateMainInput",
+                  Create.timestamped(nonEmptyElement, emptyElement).withCoder(VoidCoder.of()))
+              .apply("WindowMainInput", Window.into(windowFn))
+              .apply(
+                  "OutputSideInput",
+                  ParDo.of(
+                      new DoFn<Void, Integer>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          c.output(c.sideInput(view));
+                        }
+                      })
+                      .withSideInputs(view));
+
+      PAssert.that(output).containsInAnyOrder(4, 0);
+      PAssert.that(output)
+          .inWindow(windowFn.assignWindow(nonEmptyElement.getTimestamp()))
+          .containsInAnyOrder(4);
+      PAssert.that(output)
+          .inWindow(windowFn.assignWindow(emptyElement.getTimestamp()))
+          .containsInAnyOrder(0);
+      pipeline.run();
+    }
+
+    /**
+     * Tests creation of a global {@link Combine} via Java 8 lambda.
+     */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombineGloballyLambda() {
+
+      PCollection<Integer> output = pipeline
+          .apply(Create.of(1, 2, 3, 4))
+          .apply(Combine.globally(integers -> {
+            int sum = 0;
+            for (int i : integers) {
+              sum += i;
+            }
+            return sum;
+          }));
+
+      PAssert.that(output).containsInAnyOrder(10);
+      pipeline.run();
+    }
+
+    /**
+     * Tests creation of a global {@link Combine} via a Java 8 method reference.
+     */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testCombineGloballyInstanceMethodReference() {
+
+      PCollection<Integer> output = pipeline
+          .apply(Create.of(1, 2, 3, 4))
+          .apply(Combine.globally(new Summer()::sum));
+
+      PAssert.that(output).containsInAnyOrder(10);
+      pipeline.run();
+    }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testSimpleCombineEmpty() {
-    runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
+  /** Tests validating accumulation scenarios. */
+  @RunWith(JUnit4.class)
+  public class AccumulationTests {
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testAccumulatingCombine() {
+      runTestAccumulatingCombine(Arrays.asList(
+          KV.of("a", 1),
+          KV.of("a", 1),
+          KV.of("a", 4),
+          KV.of("b", 1),
+          KV.of("b", 13)
+      ), 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testAccumulatingCombineEmpty() {
+      runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -213,26 +911,6 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testBasicCombine() {
-    runTestBasicCombine(Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    ), ImmutableSet.of(1, 13, 4), Arrays.asList(
-        KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
-        KV.of("b", (Set<Integer>) ImmutableSet.of(1, 13))));
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testBasicCombineEmpty() {
-    runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
-  }
-
   private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
                                           Double globalMean,
                                           List<KV<String, Double>> perKeyMeans) {
@@ -248,334 +926,11 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testFixedWindowsCombine() {
-    PCollection<KV<String, Integer>> input =
-        pipeline
-            .apply(
-                Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
-                        TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
-                        TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
-                        TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-            .apply(Window.into(FixedWindows.of(Duration.millis(2))));
-
-    PCollection<Integer> sum =
-        input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
-
-    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
-
-    PAssert.that(sum).containsInAnyOrder(2, 5, 13);
-    PAssert.that(sumPerKey)
-        .containsInAnyOrder(
-            Arrays.asList(KV.of("a", "11"), KV.of("a", "4"), KV.of("b", "1"), KV.of("b", "13")));
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testFixedWindowsCombineWithContext() {
-    PCollection<KV<String, Integer>> perKeyInput =
-        pipeline
-            .apply(
-                Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                        TimestampedValue.of(KV.of("a", 1), new Instant(1L)),
-                        TimestampedValue.of(KV.of("a", 4), new Instant(6L)),
-                        TimestampedValue.of(KV.of("b", 1), new Instant(7L)),
-                        TimestampedValue.of(KV.of("b", 13), new Instant(8L)))
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-            .apply(Window.into(FixedWindows.of(Duration.millis(2))));
-
-    PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
-
-    PCollection<Integer> sum = globallyInput
-        .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
-
-    PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
-
-    PCollection<KV<String, String>> combinePerKeyWithContext =
-        perKeyInput.apply(
-            Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
-                .withSideInputs(globallySumView));
-
-    PCollection<String> combineGloballyWithContext = globallyInput
-        .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
-            .withoutDefaults()
-            .withSideInputs(globallySumView));
-
-    PAssert.that(sum).containsInAnyOrder(2, 5, 13);
-    PAssert.that(combinePerKeyWithContext)
-        .containsInAnyOrder(
-            Arrays.asList(
-                KV.of("a", "2:11"), KV.of("a", "5:4"), KV.of("b", "5:1"), KV.of("b", "13:13")));
-    PAssert.that(combineGloballyWithContext).containsInAnyOrder("2:11", "5:14", "13:13");
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testSlidingWindowsCombine() {
-    PCollection<String> input =
-        pipeline
-            .apply(
-                Create.timestamped(
-                    TimestampedValue.of("a", new Instant(1L)),
-                    TimestampedValue.of("b", new Instant(2L)),
-                    TimestampedValue.of("c", new Instant(3L))))
-            .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
-    PCollection<List<String>> combined =
-        input.apply(
-            Combine.globally(
-                    new CombineFn<String, List<String>, List<String>>() {
-                      @Override
-                      public List<String> createAccumulator() {
-                        return new ArrayList<>();
-                      }
-
-                      @Override
-                      public List<String> addInput(List<String> accumulator, String input) {
-                        accumulator.add(input);
-                        return accumulator;
-                      }
-
-                      @Override
-                      public List<String> mergeAccumulators(Iterable<List<String>> accumulators) {
-                        // Mutate all of the accumulators. Instances should be used in only one
-                        // place, and not
-                        // reused after merging.
-                        List<String> cur = createAccumulator();
-                        for (List<String> accumulator : accumulators) {
-                          accumulator.addAll(cur);
-                          cur = accumulator;
-                        }
-                        return cur;
-                      }
-
-                      @Override
-                      public List<String> extractOutput(List<String> accumulator) {
-                        List<String> result = new ArrayList<>(accumulator);
-                        Collections.sort(result);
-                        return result;
-                      }
-                    })
-                .withoutDefaults());
-
-    PAssert.that(combined)
-        .containsInAnyOrder(
-            ImmutableList.of("a"),
-            ImmutableList.of("a", "b"),
-            ImmutableList.of("a", "b", "c"),
-            ImmutableList.of("b", "c"),
-            ImmutableList.of("c"));
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testSlidingWindowsCombineWithContext() {
-    // [a: 1, 1], [a: 4; b: 1], [b: 13]
-    PCollection<KV<String, Integer>> perKeyInput =
-        pipeline
-            .apply(
-                Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(2L)),
-                        TimestampedValue.of(KV.of("a", 1), new Instant(3L)),
-                        TimestampedValue.of(KV.of("a", 4), new Instant(8L)),
-                        TimestampedValue.of(KV.of("b", 1), new Instant(9L)),
-                        TimestampedValue.of(KV.of("b", 13), new Instant(10L)))
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-            .apply(Window.into(SlidingWindows.of(Duration.millis(2))));
-
-    PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
-
-    PCollection<Integer> sum = globallyInput.apply("Sum", Sum.integersGlobally().withoutDefaults());
-
-    PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
-
-    PCollection<KV<String, String>> combinePerKeyWithContext =
-        perKeyInput.apply(
-            Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
-                .withSideInputs(globallySumView));
-
-    PCollection<String> combineGloballyWithContext = globallyInput
-        .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
-            .withoutDefaults()
-            .withSideInputs(globallySumView));
-
-    PAssert.that(sum).containsInAnyOrder(1, 2, 1, 4, 5, 14, 13);
-    PAssert.that(combinePerKeyWithContext)
-        .containsInAnyOrder(
-            Arrays.asList(
-                KV.of("a", "1:1"),
-                KV.of("a", "2:11"),
-                KV.of("a", "1:1"),
-                KV.of("a", "4:4"),
-                KV.of("a", "5:4"),
-                KV.of("b", "5:1"),
-                KV.of("b", "14:113"),
-                KV.of("b", "13:13")));
-    PAssert.that(combineGloballyWithContext).containsInAnyOrder(
-      "1:1", "2:11", "1:1", "4:4", "5:14", "14:113", "13:13");
-    pipeline.run();
-  }
-
   private static class FormatPaneInfo extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element() + ": " + c.pane().isLast());
     }
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testGlobalCombineWithDefaultsAndTriggers() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
-
-    PCollection<String> output = input
-        .apply(Window.<Integer>into(new GlobalWindows())
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-            .accumulatingFiredPanes()
-            .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
-        .apply(Sum.integersGlobally())
-        .apply(ParDo.of(new FormatPaneInfo()));
-
-    // The actual elements produced are nondeterministic. Could be one, could be two.
-    // But it should certainly have a final element with the correct final sum.
-    PAssert.that(output)
-        .satisfies(
-            input1 -> {
-              assertThat(input1, hasItem("2: true"));
-              return null;
-            });
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testSessionsCombine() {
-    PCollection<KV<String, Integer>> input =
-        pipeline
-            .apply(
-                Create.timestamped(
-                        TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                        TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
-                        TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
-                        TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
-                        TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
-                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-            .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))));
-
-    PCollection<Integer> sum =
-        input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
-
-    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
-
-    PAssert.that(sum).containsInAnyOrder(7, 13);
-    PAssert.that(sumPerKey)
-        .containsInAnyOrder(Arrays.asList(KV.of("a", "114"), KV.of("b", "1"), KV.of("b", "13")));
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testSessionsCombineWithContext() {
-    PCollection<KV<String, Integer>> perKeyInput =
-        pipeline.apply(
-            Create.timestamped(
-                    TimestampedValue.of(KV.of("a", 1), new Instant(0L)),
-                    TimestampedValue.of(KV.of("a", 1), new Instant(4L)),
-                    TimestampedValue.of(KV.of("a", 4), new Instant(7L)),
-                    TimestampedValue.of(KV.of("b", 1), new Instant(10L)),
-                    TimestampedValue.of(KV.of("b", 13), new Instant(16L)))
-                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
-
-    PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
-
-    PCollection<Integer> fixedWindowsSum =
-        globallyInput
-            .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(5))))
-            .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
-
-    PCollectionView<Integer> globallyFixedWindowsView =
-        fixedWindowsSum.apply(View.<Integer>asSingleton().withDefaultValue(0));
-
-    PCollection<KV<String, String>> sessionsCombinePerKey =
-        perKeyInput
-            .apply(
-                "PerKey Input Sessions", Window.into(Sessions.withGapDuration(Duration.millis(5))))
-            .apply(
-                Combine.<String, Integer, String>perKey(
-                        new TestCombineFnWithContext(globallyFixedWindowsView))
-                    .withSideInputs(globallyFixedWindowsView));
-
-    PCollection<String> sessionsCombineGlobally =
-        globallyInput
-            .apply(
-                "Globally Input Sessions",
-                Window.into(Sessions.withGapDuration(Duration.millis(5))))
-            .apply(
-                Combine.globally(new TestCombineFnWithContext(globallyFixedWindowsView))
-                    .withoutDefaults()
-                    .withSideInputs(globallyFixedWindowsView));
-
-    PAssert.that(fixedWindowsSum).containsInAnyOrder(2, 4, 1, 13);
-    PAssert.that(sessionsCombinePerKey)
-        .containsInAnyOrder(
-            Arrays.asList(KV.of("a", "1:114"), KV.of("b", "1:1"), KV.of("b", "0:13")));
-    PAssert.that(sessionsCombineGlobally).containsInAnyOrder("1:1114", "0:13");
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWindowedCombineEmpty() {
-    PCollection<Double> mean =
-        pipeline
-            .apply(Create.empty(BigEndianIntegerCoder.of()))
-            .apply(Window.into(FixedWindows.of(Duration.millis(1))))
-            .apply(Combine.globally(new MeanInts()).withoutDefaults());
-
-    PAssert.that(mean).empty();
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAccumulatingCombine() {
-    runTestAccumulatingCombine(Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    ), 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAccumulatingCombineEmpty() {
-    runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
-  }
-
-  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
-  @Test
-  public void testCombinerNames() {
-    Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
-    Combine.PerKey<String, Integer, Integer> max = Max.integersPerKey();
-    Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
-    Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
-
-    assertThat(min.getName(), equalTo("Combine.perKey(MinInteger)"));
-    assertThat(max.getName(), equalTo("Combine.perKey(MaxInteger)"));
-    assertThat(mean.getName(), equalTo("Combine.perKey(Mean)"));
-    assertThat(sum.getName(), equalTo("Combine.perKey(SumInteger)"));
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
@@ -584,36 +939,6 @@ public class CombineTest implements Serializable {
   private static final SerializableFunction<String, Integer> splitHotKeyFanout =
       input -> Math.random() < 0.5 ? 3 : 0;
 
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testHotKeyCombining() {
-    PCollection<KV<String, Integer>> input = copy(createInput(pipeline, Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    )), 10);
-
-    CombineFn<Integer, ?, Double> mean = new MeanInts();
-    PCollection<KV<String, Double>> coldMean = input.apply("ColdMean",
-        Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(0));
-    PCollection<KV<String, Double>> warmMean = input.apply("WarmMean",
-        Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(hotKeyFanout));
-    PCollection<KV<String, Double>> hotMean = input.apply("HotMean",
-        Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(5));
-    PCollection<KV<String, Double>> splitMean = input.apply("SplitMean",
-        Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(splitHotKeyFanout));
-
-    List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
-    PAssert.that(coldMean).containsInAnyOrder(expected);
-    PAssert.that(warmMean).containsInAnyOrder(expected);
-    PAssert.that(hotMean).containsInAnyOrder(expected);
-    PAssert.that(splitMean).containsInAnyOrder(expected);
-
-    pipeline.run();
-  }
-
   private static class GetLast extends DoFn<Integer, Integer> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -621,60 +946,6 @@ public class CombineTest implements Serializable {
         c.output(c.element());
       }
     }
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testHotKeyCombiningWithAccumulationMode() {
-    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
-
-    PCollection<Integer> output = input
-        .apply(Window.<Integer>into(new GlobalWindows())
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-            .accumulatingFiredPanes()
-            .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
-        .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
-        .apply(ParDo.of(new GetLast()));
-
-    PAssert.that(output)
-        .satisfies(
-            input1 -> {
-              assertThat(input1, hasItem(15));
-              return null;
-            });
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testBinaryCombineFn() {
-    PCollection<KV<String, Integer>> input = copy(createInput(pipeline, Arrays.asList(
-      KV.of("a", 1),
-      KV.of("a", 1),
-      KV.of("a", 4),
-      KV.of("b", 1),
-      KV.of("b", 13)
-    )), 2);
-    PCollection<KV<String, Integer>> intProduct =
-        input.apply("IntProduct", Combine.perKey(new TestProdInt()));
-    PCollection<KV<String, Integer>> objProduct =
-        input.apply("ObjProduct", Combine.perKey(new TestProdObj()));
-
-    List<KV<String, Integer>> expected = Arrays.asList(KV.of("a", 16), KV.of("b", 169));
-    PAssert.that(intProduct).containsInAnyOrder(expected);
-    PAssert.that(objProduct).containsInAnyOrder(expected);
-
-    pipeline.run();
-  }
-
-  @Test
-  public void testBinaryCombineFnWithNulls() {
-    testCombineFn(new NullCombiner(), Arrays.asList(3, 3, 5), 45);
-    testCombineFn(new NullCombiner(), Arrays.asList(null, 3, 5), 30);
-    testCombineFn(new NullCombiner(), Arrays.asList(3, 3, null), 18);
-    testCombineFn(new NullCombiner(), Arrays.asList(null, 3, null), 12);
-    testCombineFn(new NullCombiner(), Arrays.asList(null, null, null), 8);
   }
 
   private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
@@ -706,148 +977,6 @@ public class CombineTest implements Serializable {
     }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCombineGloballyAsSingletonView() {
-    final PCollectionView<Integer> view = pipeline
-        .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
-        .apply(Sum.integersGlobally().asSingletonView());
-
-    PCollection<Integer> output = pipeline
-        .apply("CreateVoidMainInput", Create.of((Void) null))
-        .apply("OutputSideInput", ParDo.of(new DoFn<Void, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(c.sideInput(view));
-                  }
-                }).withSideInputs(view));
-
-    PAssert.thatSingleton(output).isEqualTo(0);
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWindowedCombineGloballyAsSingletonView() {
-    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
-    final PCollectionView<Integer> view =
-        pipeline
-            .apply(
-                "CreateSideInput",
-                Create.timestamped(
-                    TimestampedValue.of(1, new Instant(100)),
-                    TimestampedValue.of(3, new Instant(100))))
-            .apply("WindowSideInput", Window.into(windowFn))
-            .apply("CombineSideInput", Sum.integersGlobally().asSingletonView());
-
-    TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, new Instant(100));
-    TimestampedValue<Void> emptyElement = TimestampedValue.atMinimumTimestamp(null);
-    PCollection<Integer> output =
-        pipeline
-            .apply(
-                "CreateMainInput",
-                Create.timestamped(nonEmptyElement, emptyElement).withCoder(VoidCoder.of()))
-            .apply("WindowMainInput", Window.into(windowFn))
-            .apply(
-                "OutputSideInput",
-                ParDo.of(
-                        new DoFn<Void, Integer>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            c.output(c.sideInput(view));
-                          }
-                        })
-                    .withSideInputs(view));
-
-    PAssert.that(output).containsInAnyOrder(4, 0);
-    PAssert.that(output)
-        .inWindow(windowFn.assignWindow(nonEmptyElement.getTimestamp()))
-        .containsInAnyOrder(4);
-    PAssert.that(output)
-        .inWindow(windowFn.assignWindow(emptyElement.getTimestamp()))
-        .containsInAnyOrder(0);
-    pipeline.run();
-  }
-
-  @Test
-  public void testCombineGetName() {
-    assertEquals("Combine.globally(SumInts)", Combine.globally(new SumInts()).getName());
-    assertEquals(
-        "Combine.GloballyAsSingletonView",
-        Combine.globally(new SumInts()).asSingletonView().getName());
-    assertEquals("Combine.perKey(Test)", Combine.perKey(new TestCombineFn()).getName());
-    assertEquals(
-        "Combine.perKeyWithFanout(Test)",
-        Combine.perKey(new TestCombineFn()).withHotKeyFanout(10).getName());
-  }
-
-  @Test
-  public void testDisplayData() {
-    UniqueInts combineFn = new UniqueInts() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("fnMetadata", "foobar"));
-      }
-    };
-    Combine.Globally<?, ?> combine = Combine.globally(combineFn)
-        .withFanout(1234);
-    DisplayData displayData = DisplayData.from(combine);
-
-    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
-    assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
-    assertThat(displayData, hasDisplayItem("fanout", 1234));
-    assertThat(displayData, includesDisplayDataFor("combineFn", combineFn));
-  }
-
-  @Test
-  public void testDisplayDataForWrappedFn() {
-    UniqueInts combineFn = new UniqueInts() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    Combine.PerKey<?, ?, ?> combine = Combine.perKey(combineFn);
-    DisplayData displayData = DisplayData.from(combine);
-
-    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
-    assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testCombinePerKeyPrimitiveDisplayData() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
-    CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
-    PTransform<PCollection<KV<Integer, Integer>>, ? extends POutput> combine =
-        Combine.perKey(combineFn);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
-        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
-
-    assertThat("Combine.perKey should include the combineFn in its primitive transform",
-        displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testCombinePerKeyWithHotKeyFanoutPrimitiveDisplayData() {
-    int hotKeyFanout = 2;
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-
-    CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
-    PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>> combine =
-        Combine.<Integer, Integer, Set<Integer>>perKey(combineFn).withHotKeyFanout(hotKeyFanout);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
-        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
-
-    assertThat("Combine.perKey.withHotKeyFanout should include the combineFn in its primitive "
-        + "transform", displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
-    assertThat("Combine.perKey.withHotKeyFanout(int) should include the fanout in its primitive "
-        + "transform", displayData, hasItem(hasDisplayItem("fanout", hotKeyFanout)));
-  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Test classes, for different kinds of combining fns.
@@ -1253,116 +1382,5 @@ public class CombineTest implements Serializable {
       }
       return sum;
     }
-  }
-
-  /**
-   * Tests creation of a global {@link Combine} via Java 8 lambda.
-   */
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCombineGloballyLambda() {
-
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3, 4))
-        .apply(Combine.globally(integers -> {
-          int sum = 0;
-          for (int i : integers) {
-            sum += i;
-          }
-          return sum;
-        }));
-
-    PAssert.that(output).containsInAnyOrder(10);
-    pipeline.run();
-  }
-
-  /**
-   * Tests creation of a global {@link Combine} via a Java 8 method reference.
-   */
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCombineGloballyInstanceMethodReference() {
-
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3, 4))
-        .apply(Combine.globally(new Summer()::sum));
-
-    PAssert.that(output).containsInAnyOrder(10);
-    pipeline.run();
-  }
-
-  /**
-   * Tests creation of a per-key {@link Combine} via a Java 8 lambda.
-   */
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCombinePerKeyLambda() {
-
-    PCollection<KV<String, Integer>> output = pipeline
-        .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
-        .apply(Combine.perKey(integers -> {
-          int sum = 0;
-          for (int i : integers) {
-            sum += i;
-          }
-          return sum;
-        }));
-
-    PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 4),
-        KV.of("b", 2),
-        KV.of("c", 4));
-    pipeline.run();
-  }
-
-  /**
-   * Tests creation of a per-key {@link Combine} via a Java 8 method reference.
-   */
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCombinePerKeyInstanceMethodReference() {
-
-    PCollection<KV<String, Integer>> output = pipeline
-        .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
-        .apply(Combine.perKey(new Summer()::sum));
-
-    PAssert.that(output).containsInAnyOrder(
-        KV.of("a", 4),
-        KV.of("b", 2),
-        KV.of("c", 4));
-    pipeline.run();
-  }
-
-  /**
-   * Tests that we can serialize {@link Combine.CombineFn CombineFns} constructed from a lambda.
-   * Lambdas can be problematic because the {@link Class} object is synthetic and cannot be
-   * deserialized.
-   */
-  @Test
-  public void testLambdaSerialization() {
-    SerializableFunction<Iterable<Object>, Object> combiner = xs -> Iterables.getFirst(xs, 0);
-
-    boolean lambdaClassSerializationThrows;
-    try {
-      SerializableUtils.clone(combiner.getClass());
-      lambdaClassSerializationThrows = false;
-    } catch (IllegalArgumentException e) {
-      // Expected
-      lambdaClassSerializationThrows = true;
-    }
-    Assume.assumeTrue("Expected lambda class serialization to fail. "
-            + "If it's fixed, we can remove special behavior in Combine.",
-        lambdaClassSerializationThrows);
-
-
-    Combine.Globally<?, ?> combine = Combine.globally(combiner);
-    SerializableUtils.clone(combine); // should not throw.
-  }
-
-  @Test
-  public void testLambdaDisplayData() {
-    Combine.Globally<?, ?> combine = Combine.globally(xs -> Iterables.getFirst(xs, 0));
-    DisplayData displayData = DisplayData.from(combine);
-    MatcherAssert.assertThat(displayData.items(), not(empty()));
   }
 }
