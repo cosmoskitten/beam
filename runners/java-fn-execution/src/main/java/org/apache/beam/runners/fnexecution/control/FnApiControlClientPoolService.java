@@ -86,6 +86,8 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       synchronized (lock) {
         checkState(
             !closed, "%s already closed", FnApiControlClientPoolService.class.getSimpleName());
+        // TODO: https://issues.apache.org/jira/browse/BEAM-4151: Prevent stale client references
+        // from leaking.
         vendedClients.add(newClient);
       }
       // NOTE: The client sink must provide its own thread safety. We do not attempt to
