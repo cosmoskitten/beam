@@ -57,12 +57,12 @@ public class MapControlClientPool implements ControlClientPool {
   }
 
   @Override
-  public ControlClientSource getSource() {
+  public Source getSource() {
     return this::getClient;
   }
 
   @Override
-  public ControlClientSink getSink() {
+  public Sink getSink() {
     return this::putClient;
   }
 

@@ -25,7 +25,7 @@ import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.control.ControlClientSource;
+import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -44,7 +44,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      ControlClientSource clientSource,
+      ControlClientPool.Source clientSource,
       // TODO: Refine this to IdGenerator when we determine where that should live.
       Supplier<String> idGenerator) {
     return new DockerEnvironmentFactory(
@@ -63,7 +63,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final Supplier<String> idGenerator;
-  private final ControlClientSource clientSource;
+  private final ControlClientPool.Source clientSource;
 
   private DockerEnvironmentFactory(
       DockerWrapper docker,
@@ -72,7 +72,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       Supplier<String> idGenerator,
-      ControlClientSource clientSource) {
+      ControlClientPool.Source clientSource) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;

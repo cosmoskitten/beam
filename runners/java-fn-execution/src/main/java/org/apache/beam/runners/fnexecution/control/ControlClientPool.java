@@ -39,9 +39,31 @@ package org.apache.beam.runners.fnexecution.control;
 public interface ControlClientPool {
 
   /** Sink for control clients. */
-  ControlClientSink getSink();
+  Sink getSink();
 
   /** Source of control clients. */
-  ControlClientSource getSource();
+  Source getSource();
 
+  /** A sink for {@link InstructionRequestHandler InstructionRequestHandlers} keyed by worker id. */
+  @FunctionalInterface
+  interface Sink {
+
+    /**
+     * Puts an {@link InstructionRequestHandler} into a client pool. Worker ids must be unique per
+     * pool.
+     */
+    void accept(String workerId, InstructionRequestHandler instructionHandler) throws Exception;
+  }
+
+  /** A source of {@link InstructionRequestHandler InstructionRequestHandlers}. */
+  @FunctionalInterface
+  interface Source {
+
+    /**
+     * Retrieves the {@link InstructionRequestHandler} for the given worker id, blocking until
+     * available. Worker ids must be unique per pool. A given worker id must not be requested
+     * multiple times.
+     */
+    InstructionRequestHandler get(String workerId) throws Exception;
+  }
 }

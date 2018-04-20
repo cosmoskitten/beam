@@ -33,13 +33,13 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
-  private final ControlClientSink clientSink;
+  private final ControlClientPool.Sink clientSink;
   private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
   private final HeaderAccessor headerAccessor;
   private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(
-      ControlClientSink clientSink, HeaderAccessor headerAccessor) {
+      ControlClientPool.Sink clientSink, HeaderAccessor headerAccessor) {
     this.clientSink = clientSink;
     this.headerAccessor = headerAccessor;
   }
@@ -53,7 +53,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
    * needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
-      ControlClientSink clientPool, HeaderAccessor headerAccessor) {
+      ControlClientPool.Sink clientPool, HeaderAccessor headerAccessor) {
     return new FnApiControlClientPoolService(clientPool, headerAccessor);
   }
 
