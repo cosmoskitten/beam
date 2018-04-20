@@ -21,6 +21,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
@@ -33,8 +34,12 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
+  private final Object vendedClientLock = new Object();
   private final ControlClientPool.Sink clientSink;
+
+  @GuardedBy("vendedClientLock")
   private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
+
   private final HeaderAccessor headerAccessor;
   private AtomicBoolean closed = new AtomicBoolean();
 
@@ -76,7 +81,11 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // service is closed, in which case the client will be discarded when the service is
       // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
       // able to handle an unexpectedly terminated connection.
-      vendedClients.add(newClient);
+      synchronized (vendedClientLock) {
+        vendedClients.add(newClient);
+      }
+      // NOTE: The client sink must provide its own thread safety. We do not attempt to
+      // transactionally add the client to our internal list and offer it to the sink.
       clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -90,8 +99,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   @Override
   public void close() {
     if (!closed.getAndSet(true)) {
-      for (FnApiControlClient vended : vendedClients) {
-        vended.close();
+      synchronized (vendedClientLock) {
+        for (FnApiControlClient vended : vendedClients) {
+          vended.close();
+        }
       }
     }
   }
