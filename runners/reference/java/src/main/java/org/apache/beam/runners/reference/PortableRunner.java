@@ -206,7 +206,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   }
 
   private static StagedFile createStagingFile(File file) {
-    // https://issues.apache.org/jira/browse/BEAM-4109
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4109 Support arbitrary names in the staging
+    // service itself.
     // HACK: Encode the path name ourselves because the local artifact staging service currently
     // assumes artifact names correspond to a flat directory. Artifact staging services should
     // generally accept arbitrary artifact names.
