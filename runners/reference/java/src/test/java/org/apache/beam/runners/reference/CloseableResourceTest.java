@@ -18,19 +18,21 @@
 package org.apache.beam.runners.reference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.fail;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.reference.CloseableResource.CloseException;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link CloseableResource}. */
 @RunWith(JUnit4.class)
 public class CloseableResourceTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void alwaysReturnsSameResource() {
@@ -55,9 +57,10 @@ public class CloseableResourceTest {
   }
 
   @Test
-  public void wrapsExceptionsInCloseException() {
+  public void wrapsExceptionsInCloseException() throws Exception {
     Exception wrapped = new Exception();
-    CloseException closeException = null;
+    thrown.expect(CloseException.class);
+    thrown.expectCause(is(wrapped));
     try (CloseableResource<Foo> ignored =
         CloseableResource.of(
             new Foo(),
@@ -65,11 +68,7 @@ public class CloseableResourceTest {
               throw wrapped;
             })) {
       // Do nothing.
-    } catch (CloseException e) {
-      closeException = e;
     }
-    assertThat(closeException, is(instanceOf(CloseException.class)));
-    assertThat(closeException.getCause(), is(wrapped));
   }
 
   @Test
@@ -94,24 +93,16 @@ public class CloseableResourceTest {
   public void cannotTransferClosed() throws Exception {
     CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
     foo.close();
-    try {
-      foo.transfer();
-      fail("Cannot transfer after closing");
-    } catch (Exception e) {
-      assertThat(e, instanceOf(IllegalStateException.class));
-    }
+    thrown.expect(IllegalStateException.class);
+    foo.transfer();
   }
 
   @Test
   public void cannotTransferTwice() {
     CloseableResource<Foo> foo = CloseableResource.of(new Foo(), (unused) -> {});
     foo.transfer();
-    try {
-      foo.transfer();
-      fail("Cannot transfer twice");
-    } catch (Exception e) {
-      assertThat(e, instanceOf(IllegalStateException.class));
-    }
+    thrown.expect(IllegalStateException.class);
+    foo.transfer();
   }
 
   private static class Foo {}
