@@ -32,20 +32,20 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 class DockerContainerEnvironment implements RemoteEnvironment {
 
   static DockerContainerEnvironment create(
-      DockerWrapper docker,
+      DockerCommand docker,
       Environment environment,
       String containerId,
       InstructionRequestHandler instructionHandler) {
     return new DockerContainerEnvironment(docker, environment, containerId, instructionHandler);
   }
 
-  private final DockerWrapper docker;
+  private final DockerCommand docker;
   private final Environment environment;
   private final String containerId;
   private final InstructionRequestHandler instructionHandler;
 
   private DockerContainerEnvironment(
-      DockerWrapper docker,
+      DockerCommand docker,
       Environment environment,
       String containerId,
       InstructionRequestHandler instructionHandler) {

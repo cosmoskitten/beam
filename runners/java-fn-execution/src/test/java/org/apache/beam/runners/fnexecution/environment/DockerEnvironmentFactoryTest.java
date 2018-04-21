@@ -57,7 +57,7 @@ public class DockerEnvironmentFactoryTest {
   private static final Supplier<String> ID_GENERATOR =
       () -> Long.toString(nextId.getAndIncrement());
 
-  @Mock private DockerWrapper docker;
+  @Mock private DockerCommand docker;
 
   @Mock private GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   @Mock private GrpcFnServer<GrpcLoggingService> loggingServiceServer;

@@ -39,7 +39,7 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   public static DockerEnvironmentFactory forServices(
-      DockerWrapper docker,
+      DockerCommand docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
@@ -57,7 +57,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         clientSource);
   }
 
-  private final DockerWrapper docker;
+  private final DockerCommand docker;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
@@ -66,7 +66,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final ControlClientPool.Source clientSource;
 
   private DockerEnvironmentFactory(
-      DockerWrapper docker,
+      DockerCommand docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,

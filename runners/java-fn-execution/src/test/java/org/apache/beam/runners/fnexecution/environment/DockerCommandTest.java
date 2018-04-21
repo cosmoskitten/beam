@@ -26,26 +26,26 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link DockerWrapper}. */
+/** Tests for {@link DockerCommand}. */
 @Category(NeedsDocker.class)
 @RunWith(JUnit4.class)
-public class DockerWrapperTest {
+public class DockerCommandTest {
 
   @Test
   public void helloWorld() throws Exception {
-    DockerWrapper docker = getWrapper();
+    DockerCommand docker = getWrapper();
     String container = docker.runImage("hello-world", Collections.emptyList());
     System.out.printf("Started container: %s%n", container);
   }
 
   @Test
   public void killContainer() throws Exception {
-    DockerWrapper docker = getWrapper();
+    DockerCommand docker = getWrapper();
     String container = docker.runImage("debian", Arrays.asList("/bin/bash", "-c", "sleep 60"));
     docker.killContainer(container);
   }
 
-  private static DockerWrapper getWrapper() {
-    return DockerWrapper.forCommand("docker", Duration.ofMillis(10000));
+  private static DockerCommand getWrapper() {
+    return DockerCommand.forCommand("docker", Duration.ofMillis(10000));
   }
 }
