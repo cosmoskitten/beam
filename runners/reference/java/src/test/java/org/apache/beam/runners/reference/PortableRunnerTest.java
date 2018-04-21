@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.reference.testing.InMemoryArtifactService;
+import org.apache.beam.runners.core.construction.InMemoryArtifactStagerService;
 import org.apache.beam.runners.reference.testing.InProcessManagedChannelFactory;
 import org.apache.beam.runners.reference.testing.TestJobService;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -66,7 +66,7 @@ public class PortableRunnerTest implements Serializable {
         CloseableResource.of(
             InProcessServerBuilder.forName(ENDPOINT_URL)
                 .addService(new TestJobService(ENDPOINT_DESCRIPTOR, "prepId", "jobId", jobState))
-                .addService(new InMemoryArtifactService())
+                .addService(new InMemoryArtifactStagerService())
                 .build(),
             Server::shutdown);
     server.get().start();
