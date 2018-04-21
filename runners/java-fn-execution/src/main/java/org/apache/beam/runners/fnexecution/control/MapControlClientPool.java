@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * A {@link ControlClientPool} backed by a client map. It is expected that a given client id will be
@@ -45,9 +46,11 @@ public class MapControlClientPool implements ControlClientPool {
   }
 
   private final Duration timeout;
+  private final Object lock = new Object();
 
+  @GuardedBy("lock")
   private final Map<String, CompletableFuture<InstructionRequestHandler>> clients =
-      Maps.newConcurrentMap();
+      Maps.newHashMap();
 
   private MapControlClientPool(Duration timeout) {
     this.timeout = timeout;
@@ -64,23 +67,29 @@ public class MapControlClientPool implements ControlClientPool {
   }
 
   private void putClient(String workerId, InstructionRequestHandler client) {
-    CompletableFuture<InstructionRequestHandler> future =
-        clients.computeIfAbsent(workerId, MapControlClientPool::createClientFuture);
-    boolean success = future.complete(client);
-    if (!success) {
-      throw new IllegalStateException(
-          String.format("Control client for worker id %s failed to compete", workerId));
+    synchronized (lock) {
+      CompletableFuture<InstructionRequestHandler> future =
+          clients.computeIfAbsent(workerId, MapControlClientPool::createClientFuture);
+      boolean success = future.complete(client);
+      if (!success) {
+        throw new IllegalStateException(
+            String.format("Control client for worker id %s failed to compete", workerId));
+      }
     }
   }
 
   private InstructionRequestHandler getClient(String workerId)
       throws ExecutionException, InterruptedException, TimeoutException {
-    CompletableFuture<InstructionRequestHandler> future =
-        clients.computeIfAbsent(workerId, MapControlClientPool::createClientFuture);
+    CompletableFuture<InstructionRequestHandler> future;
+    synchronized (lock) {
+      future = clients.computeIfAbsent(workerId, MapControlClientPool::createClientFuture);
+    }
     // TODO: Wire in health checking of clients so requests don't hang.
     future.get(timeout.getSeconds(), TimeUnit.SECONDS);
     InstructionRequestHandler client = future.get();
-    clients.remove(workerId);
+    synchronized (lock) {
+      clients.remove(workerId);
+    }
     return client;
   }
 
