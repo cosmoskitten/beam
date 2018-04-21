@@ -75,12 +75,11 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
    * @return The newly created runner.
    */
   public static PortableRunner fromOptions(PipelineOptions options) {
-    return createInternal(options, ManagedChannelFactory.createDefault());
+    return create(options, ManagedChannelFactory.createDefault());
   }
 
   @VisibleForTesting
-  static PortableRunner createInternal(
-      PipelineOptions options, ManagedChannelFactory channelFactory) {
+  static PortableRunner create(PipelineOptions options, ManagedChannelFactory channelFactory) {
     PortablePipelineOptions portableOptions =
         PipelineOptionsValidator.validate(PortablePipelineOptions.class, options);
 

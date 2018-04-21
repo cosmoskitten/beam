@@ -54,8 +54,7 @@ public class PortableRunnerTest implements Serializable {
   @Test
   public void stagesAndRunsJob() throws Exception {
     try (CloseableResource<Server> server = createJobServer(JobState.Enum.DONE)) {
-      PortableRunner runner =
-          PortableRunner.createInternal(options, new InProcessManagedChannelFactory());
+      PortableRunner runner = PortableRunner.create(options, new InProcessManagedChannelFactory());
       State state = runner.run(p).waitUntilFinish();
       assertThat(state, is(State.DONE));
     }
