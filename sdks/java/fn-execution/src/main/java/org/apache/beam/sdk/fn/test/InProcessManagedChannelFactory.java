@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.reference.testing;
+package org.apache.beam.sdk.fn.test;
 
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -23,7 +23,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 
 /**
- * A {@link org.apache.beam.sdk.fn.channel.ManagedChannelFactory} that uses in-process channels.
+ * A {@link ManagedChannelFactory} that uses in-process channels.
  *
  * <p>The channel builder uses {@link ApiServiceDescriptor#getUrl()} as the unique in-process name.
  */
