@@ -18,12 +18,8 @@
 package org.apache.beam.runners.reference.testing;
 
 import io.grpc.stub.StreamObserver;
-import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
-import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
@@ -78,22 +74,5 @@ public class TestJobService extends JobServiceImplBase {
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     responseObserver.onNext(GetJobStateResponse.newBuilder().setState(jobState).build());
     responseObserver.onCompleted();
-  }
-
-  @Override
-  public void cancel(CancelJobRequest request, StreamObserver<CancelJobResponse> responseObserver) {
-    super.cancel(request, responseObserver);
-  }
-
-  @Override
-  public void getStateStream(
-      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
-    super.getStateStream(request, responseObserver);
-  }
-
-  @Override
-  public void getMessageStream(
-      JobMessagesRequest request, StreamObserver<JobMessagesResponse> responseObserver) {
-    super.getMessageStream(request, responseObserver);
   }
 }
