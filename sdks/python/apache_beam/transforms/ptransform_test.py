@@ -33,7 +33,9 @@ import apache_beam as beam
 import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
 import apache_beam.typehints as typehints
+from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
+from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import TypeOptions
@@ -182,7 +184,46 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_read_metrics(self):
-    from apache_beam.examples.snippets.snippets import CountingSource
+
+    class CountingSource(iobase.BoundedSource):
+
+      def __init__(self, count):
+        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self._count = count
+
+      def estimate_size(self):
+        return self._count
+
+      def get_range_tracker(self, start_position, stop_position):
+        if start_position is None:
+          start_position = 0
+        if stop_position is None:
+          stop_position = self._count
+
+        return OffsetRangeTracker(start_position, stop_position)
+
+      def read(self, range_tracker):
+        for i in range(self._count):
+          if not range_tracker.try_claim(i):
+            return
+          self.records_read.inc()
+          yield i
+
+      def split(self, desired_bundle_size, start_position=None,
+                stop_position=None):
+        if start_position is None:
+          start_position = 0
+        if stop_position is None:
+          stop_position = self._count
+
+        bundle_start = start_position
+        while bundle_start < self._count:
+          bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+          yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                    source=self,
+                                    start_position=bundle_start,
+                                    stop_position=bundle_stop)
+          bundle_start = bundle_stop
 
     class CounterDoFn(beam.DoFn):
       def __init__(self):
@@ -197,7 +238,6 @@ class PTransformTest(unittest.TestCase):
     (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
     res = pipeline.run()
     res.wait_until_finish()
-    # This counter is defined in snippets.CountingSource.
     metric_results = res.metrics().query(MetricsFilter()
                                          .with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
