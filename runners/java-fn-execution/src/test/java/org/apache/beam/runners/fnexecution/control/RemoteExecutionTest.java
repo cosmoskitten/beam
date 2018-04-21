@@ -129,8 +129,8 @@ public class RemoteExecutionTest implements Serializable {
                   }
                 },
                 StreamObserverFactory.direct()));
-    // HACK: The harness does not set worker ids.
-    InstructionRequestHandler controlClient = clientPool.getSource().get(null);
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
+    InstructionRequestHandler controlClient = clientPool.getSource().get("");
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 

@@ -77,7 +77,7 @@ public class FnApiControlClientPoolServiceTest {
         controlService.control(requestObserver);
 
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    InstructionRequestHandler client = pool.getSource().get(null);
+    InstructionRequestHandler client = pool.getSource().get("");
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -116,7 +116,7 @@ public class FnApiControlClientPoolServiceTest {
         });
 
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    pool.getSource().get(null);
+    pool.getSource().get("");
     server.close();
 
     latch.await();
