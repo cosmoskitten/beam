@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.reference;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 class JobServicePipelineResult implements PipelineResult {
 
-  private static final long POLL_INTERVAL_SEC = 10;
+  private static final long POLL_INTERVAL_MS = 10 * 1000;
 
   private static final Logger LOG = LoggerFactory.getLogger(JobServicePipelineResult.class);
 
@@ -73,11 +72,13 @@ class JobServicePipelineResult implements PipelineResult {
     } else {
       CompletableFuture<State> result = CompletableFuture.supplyAsync(this::waitUntilFinish);
       try {
-        return Uninterruptibles.getUninterruptibly(
-            result, duration.getMillis(), TimeUnit.MILLISECONDS);
+        return result.get(duration.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException e) {
         // Null result indicates a timeout.
         return null;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
@@ -91,7 +92,12 @@ class JobServicePipelineResult implements PipelineResult {
     GetJobStateResponse response = stub.getState(request);
     State lastState = getJavaState(response.getState());
     while (!lastState.isTerminal()) {
-      Uninterruptibles.sleepUninterruptibly(POLL_INTERVAL_SEC, TimeUnit.SECONDS);
+      try {
+        Thread.sleep(POLL_INTERVAL_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
       response = stub.getState(request);
       lastState = getJavaState(response.getState());
     }
