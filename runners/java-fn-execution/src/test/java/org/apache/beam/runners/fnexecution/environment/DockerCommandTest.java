@@ -46,6 +46,6 @@ public class DockerCommandTest {
   }
 
   private static DockerCommand getWrapper() {
-    return DockerCommand.forCommand("docker", Duration.ofMillis(10000));
+    return DockerCommand.forExecutable("docker", Duration.ofMillis(10000));
   }
 }
