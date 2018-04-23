@@ -44,6 +44,8 @@ class DockerContainerEnvironment implements RemoteEnvironment {
   private final String containerId;
   private final InstructionRequestHandler instructionHandler;
 
+  private boolean isClosed = false;
+
   private DockerContainerEnvironment(
       DockerCommand docker,
       Environment environment,
@@ -72,8 +74,13 @@ class DockerContainerEnvironment implements RemoteEnvironment {
   @Override
   public void close() throws Exception {
     synchronized (lock) {
-      instructionHandler.close();
-      docker.killContainer(containerId);
+      // The running docker container and instruction handler should each only be terminated once.
+      // Do nothing if we have already requested termination.
+      if (!isClosed) {
+        isClosed = true;
+        instructionHandler.close();
+        docker.killContainer(containerId);
+      }
     }
   }
 }
