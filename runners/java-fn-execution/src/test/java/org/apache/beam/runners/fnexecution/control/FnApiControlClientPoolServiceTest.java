@@ -48,9 +48,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FnApiControlClientPoolServiceTest {
 
-  // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
-  // for matching incoming connections and server threads is likely.
-  private final ControlClientPool pool = MapControlClientPool.withTimeout(Duration.ofSeconds(10));
+  private final ControlClientPool pool = MapControlClientPool.create();
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
           pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
@@ -77,7 +75,7 @@ public class FnApiControlClientPoolServiceTest {
         controlService.control(requestObserver);
 
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    InstructionRequestHandler client = pool.getSource().get("");
+    InstructionRequestHandler client = pool.getSource().get("", Duration.ofSeconds(2));
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -116,7 +114,7 @@ public class FnApiControlClientPoolServiceTest {
         });
 
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    pool.getSource().get("");
+    pool.getSource().get("", Duration.ofSeconds(2));
     server.close();
 
     latch.await();

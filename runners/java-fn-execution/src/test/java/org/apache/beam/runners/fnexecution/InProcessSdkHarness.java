@@ -81,11 +81,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
     ControlClientPool clientPool;
-    if (clientTimeout != null) {
-      clientPool = MapControlClientPool.withTimeout(clientTimeout);
-    } else {
-      clientPool = MapControlClientPool.create();
-    }
+    clientPool = MapControlClientPool.create();
     FnApiControlClientPoolService clientPoolService =
         FnApiControlClientPoolService.offeringClientsToPool(
             clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
@@ -116,7 +112,8 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by
     // the harness. All clients have the implicit empty id for now.
     client =
-        SdkHarnessClient.usingFnApiClient(clientPool.getSource().get(""), dataServer.getService());
+        SdkHarnessClient.usingFnApiClient(
+            clientPool.getSource().get("", clientTimeout), dataServer.getService());
   }
 
   protected void after() {

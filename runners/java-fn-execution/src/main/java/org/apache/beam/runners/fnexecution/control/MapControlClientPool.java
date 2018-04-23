@@ -31,27 +31,15 @@ import java.util.concurrent.TimeoutException;
  */
 public class MapControlClientPool implements ControlClientPool {
 
-  /** Creates a {@link MapControlClientPool} with an unspecified timeout. */
+  /** Creates a {@link MapControlClientPool}. */
   public static MapControlClientPool create() {
-    return withTimeout(Duration.ofSeconds(Long.MAX_VALUE));
+    return new MapControlClientPool();
   }
-
-  /**
-   * Creates a {@link MapControlClientPool} with the given timeout. Timeouts only apply to source
-   * requests.
-   */
-  public static MapControlClientPool withTimeout(Duration timeout) {
-    return new MapControlClientPool(timeout);
-  }
-
-  private final Duration timeout;
 
   private final Map<String, CompletableFuture<InstructionRequestHandler>> clients =
       Maps.newConcurrentMap();
 
-  private MapControlClientPool(Duration timeout) {
-    this.timeout = timeout;
-  }
+  private MapControlClientPool() {}
 
   @Override
   public Source getSource() {
@@ -73,7 +61,7 @@ public class MapControlClientPool implements ControlClientPool {
     }
   }
 
-  private InstructionRequestHandler getClient(String workerId)
+  private InstructionRequestHandler getClient(String workerId, Duration timeout)
       throws ExecutionException, InterruptedException, TimeoutException {
     CompletableFuture<InstructionRequestHandler> future =
         clients.computeIfAbsent(workerId, MapControlClientPool::createClientFuture);
