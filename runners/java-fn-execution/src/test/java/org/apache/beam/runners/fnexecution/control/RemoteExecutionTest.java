@@ -107,7 +107,7 @@ public class RemoteExecutionTest implements Serializable {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
-    ControlClientPool clientPool = MapControlClientPool.withTimeout(Duration.ofSeconds(2));
+    ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
@@ -130,7 +130,7 @@ public class RemoteExecutionTest implements Serializable {
                 },
                 StreamObserverFactory.direct()));
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    InstructionRequestHandler controlClient = clientPool.getSource().get("");
+    InstructionRequestHandler controlClient = clientPool.getSource().get("", Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 

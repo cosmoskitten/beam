@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -38,7 +40,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *   instructionHandler = clientSource.get("worker-id");
  * </pre>
  *
- * <p>All {@link ControlClientPool} must be thread-safe.
+ * <p>All {@link ControlClientPool} implementations must be thread-safe.
  */
 @ThreadSafe
 public interface ControlClientPool {
@@ -66,9 +68,12 @@ public interface ControlClientPool {
 
     /**
      * Retrieves the {@link InstructionRequestHandler} for the given worker id, blocking until
-     * available. Worker ids must be unique per pool. A given worker id must not be requested
-     * multiple times.
+     * available or the request times out. Worker ids must be unique per pool. A given worker id
+     * must not be requested multiple times.
+     *
+     * @throws TimeoutException if the request times out
+     * @throws InterruptedException if interrupted while waiting
      */
-    InstructionRequestHandler get(String workerId) throws Exception;
+    InstructionRequestHandler get(String workerId, Duration timeout) throws Exception;
   }
 }
