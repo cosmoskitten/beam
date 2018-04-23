@@ -40,7 +40,7 @@ class DockerCommand {
   // but we _should_ always capture full ids.
   private static final Pattern CONTAINER_ID_PATTERN = Pattern.compile("\\p{XDigit}{64}");
 
-  static DockerCommand forCommand(String dockerExecutable, Duration commandTimeout) {
+  static DockerCommand forExecutable(String dockerExecutable, Duration commandTimeout) {
     return new DockerCommand(dockerExecutable, commandTimeout);
   }
 
