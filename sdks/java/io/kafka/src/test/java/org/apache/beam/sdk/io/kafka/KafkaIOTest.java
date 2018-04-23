@@ -260,10 +260,10 @@ public class KafkaIOTest {
           }
         }
         if (recordsAdded == 0) {
-          // MockConsumer.poll(timeout) does not actually wait when there aren't any records.
-          // Add a small wait here in order to avoid busy looping on CPUs
+          // MockConsumer.poll(timeout) does not actually wait even when there aren't any records.
+          // Add a small wait here in order to avoid busy looping in the reader.
           Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-          //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() is hangs occasionally
+          //TODO: BEAM-4086: testUnboundedSourceWithoutBoundedWrapper() occasionally hangs
           //     without this wait. Need to look into it.
         }
         consumer.schedulePollTask(this);
