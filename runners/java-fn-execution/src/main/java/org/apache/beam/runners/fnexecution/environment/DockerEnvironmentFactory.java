@@ -128,7 +128,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         try {
           instructionHandler = clientSource.get(workerId, Duration.ofMinutes(2));
         } catch (TimeoutException timeoutEx) {
-          LOG.info("Waiting for docker environment: {}", environment.getUrl());
+          LOG.info(
+              "Still waiting for startup of environment {} for worker id {}",
+              environment.getUrl(),
+              workerId);
         } catch (InterruptedException interruptEx) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(interruptEx);
