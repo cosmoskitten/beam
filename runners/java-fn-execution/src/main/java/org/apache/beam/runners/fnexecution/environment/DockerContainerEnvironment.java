@@ -17,18 +17,17 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 
 /**
  * A {@link RemoteEnvironment} that wraps a running Docker container.
  *
  * <p>A {@link DockerContainerEnvironment} owns both the underlying docker container that it
  * communicates with an the {@link InstructionRequestHandler} that it uses to do so.
- *
- * <p>Accessors are thread-compatible.
  */
+@ThreadSafe
 class DockerContainerEnvironment implements RemoteEnvironment {
 
   static DockerContainerEnvironment create(
@@ -39,6 +38,7 @@ class DockerContainerEnvironment implements RemoteEnvironment {
     return new DockerContainerEnvironment(docker, environment, containerId, instructionHandler);
   }
 
+  private final Object lock = new Object();
   private final DockerCommand docker;
   private final Environment environment;
   private final String containerId;
@@ -66,12 +66,14 @@ class DockerContainerEnvironment implements RemoteEnvironment {
   }
 
   /**
-   * Closes this remote docker environment. The associated {@link SdkHarnessClient} must not be used
-   * after calling this.
+   * Closes this remote docker environment. The associated {@link InstructionRequestHandler} should
+   * not be used after calling this.
    */
   @Override
   public void close() throws Exception {
-    instructionHandler.close();
-    docker.killContainer(containerId);
+    synchronized (lock) {
+      instructionHandler.close();
+      docker.killContainer(containerId);
+    }
   }
 }
