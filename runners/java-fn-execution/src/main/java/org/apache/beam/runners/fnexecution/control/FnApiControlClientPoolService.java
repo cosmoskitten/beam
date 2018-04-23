@@ -74,9 +74,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   @Override
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    LOGGER.info("Beam Fn Control client connected with id {}", headerAccessor.getSdkWorkerId());
+    String workerId = headerAccessor.getSdkWorkerId();
+    LOGGER.info("Beam Fn Control client connected with id {}", workerId);
     FnApiControlClient newClient =
-        FnApiControlClient.forRequestObserver(headerAccessor.getSdkWorkerId(), requestObserver);
+        FnApiControlClient.forRequestObserver(workerId, requestObserver);
     try {
       // Add the client to the pool of vended clients before making it available - we should close
       // the client when we close even if no one has picked it up yet. This can occur after the
