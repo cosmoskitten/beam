@@ -19,8 +19,10 @@ package org.apache.beam.runners.fnexecution.environment;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -30,6 +32,8 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An {@link EnvironmentFactory} that creates docker containers by shelling out to docker. Returned
@@ -37,6 +41,8 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
  * thread-safe.
  */
 public class DockerEnvironmentFactory implements EnvironmentFactory {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DockerEnvironmentFactory.class);
 
   public static DockerEnvironmentFactory forServices(
       DockerCommand docker,
@@ -114,11 +120,20 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     String containerId = null;
-    InstructionRequestHandler instructionHandler;
+    InstructionRequestHandler instructionHandler = null;
     try {
       containerId = docker.runImage(containerImage, args);
       // Wait on a client from the gRPC server.
-      instructionHandler = clientSource.get(workerId);
+      while (instructionHandler == null) {
+        try {
+          instructionHandler = clientSource.get(workerId, Duration.ofMinutes(2));
+        } catch (TimeoutException timeoutEx) {
+          LOG.info("Waiting for docker environment: {}", environment.getUrl());
+        } catch (InterruptedException interruptEx) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(interruptEx);
+        }
+      }
     } catch (Exception e) {
       if (containerId != null) {
         // Kill the launched docker container if we can't retrieve a client for it.

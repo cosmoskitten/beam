@@ -116,7 +116,7 @@ public class DockerEnvironmentFactoryTest {
         loggingServiceServer,
         retrievalServiceServer,
         provisioningServiceServer,
-        (unused) -> client,
+        (workerId, timeout) -> client,
         ID_GENERATOR);
   }
 }
