@@ -87,14 +87,14 @@ func RunInitHooks(ctx context.Context) error {
 }
 
 // RequestHook is called when handling a FnAPI instruction.
-type RequestHook func(context.Context, *fnpb.InstructionRequest) error
+type RequestHook func(context.Context, *fnpb.InstructionRequest) (context.Context, error)
 
 // RunRequestHooks runs the hooks that handle a FnAPI request.
 func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
 	// The request hooks should not modify the request.
 	for n, h := range activeHooks {
 		if h.Req != nil {
-			if err := h.Req(ctx, req); err != nil {
+			if ctx, err := h.Req(ctx, req); err != nil {
 				log.Infof(ctx, "request hook %s failed: %v", n, err)
 			}
 		}
