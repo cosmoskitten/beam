@@ -126,7 +126,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
-          instructionHandler = clientSource.get(workerId, Duration.ofMinutes(2));
+          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
         } catch (TimeoutException timeoutEx) {
           LOG.info(
               "Still waiting for startup of environment {} for worker id {}",
