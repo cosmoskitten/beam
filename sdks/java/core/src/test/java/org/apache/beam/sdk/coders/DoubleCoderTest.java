@@ -66,7 +66,7 @@ public class DoubleCoderTest {
       "v9MzMzMzMzM",
       "P_AAAAAAAAA",
       "wEXypeJ9ODo",
-      "QAkh-fAbhm4",
+      "QAkh-1RELRg",
       "f-________8",
       "AAAAAAAAAAE",
       "f_AAAAAAAAA",

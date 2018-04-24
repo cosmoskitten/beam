@@ -253,9 +253,9 @@ public class ProxyInvocationHandlerTest {
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
-    assertEquals("Current Settings:%n"
+    assertEquals(String.format("Current Settings:%n"
             + "  long: 57%n"
-            + "  string: stringValue%n",
+            + "  string: stringValue%n"),
         proxy.toString());
   }
 
