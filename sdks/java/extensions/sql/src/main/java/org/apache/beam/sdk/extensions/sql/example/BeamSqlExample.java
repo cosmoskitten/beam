@@ -36,11 +36,9 @@ import org.apache.beam.sdk.values.TupleTag;
 /**
  * This is a quick example, which uses Beam SQL DSL to create a data pipeline.
  *
- * <p>Run the example with
+ * <p>Run the example from the Beam source root with
  * <pre>
- * mvn -pl sdks/java/extensions/sql \
- *   compile exec:java -Dexec.mainClass=org.apache.beam.sdk.extensions.sql.example.BeamSqlExample \
- *   -Dexec.args="--runner=DirectRunner" -Pdirect-runner
+ *   ./gradlew :beam-sdks-java-extensions-sql:runBasicExample
  * </pre>
  */
 class BeamSqlExample {
