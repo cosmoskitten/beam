@@ -90,15 +90,15 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTest implements Serializable {
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
-
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
-
   /** Tests validating basic {@link GroupByKey} scenarios */
   @RunWith(JUnit4.class)
-  public class BasicTests {
+  public static class BasicTests {
+    @Rule
+    public transient TestPipeline p = TestPipeline.create();
+
+    @Rule
+    public transient ExpectedException thrown = ExpectedException.none();
+
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKey() {
@@ -349,6 +349,12 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, LargeKeys.Above10KB.class})
+    public void testLargeKeys10KB() throws Exception {
+      runLargeKeysTest(p, 10 << 10);
+    }
+
+    @Test
     @Category({ValidatesRunner.class, LargeKeys.Above100KB.class})
     public void testLargeKeys100KB() throws Exception {
       runLargeKeysTest(p, 100 << 10);
@@ -375,7 +381,13 @@ public class GroupByKeyTest implements Serializable {
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)
-  public class WindowTests {
+  public static class WindowTests {
+    @Rule
+    public transient TestPipeline p = TestPipeline.create();
+
+    @Rule
+    public transient ExpectedException thrown = ExpectedException.none();
+
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKeyAndWindows() {
@@ -624,12 +636,6 @@ public class GroupByKeyTest implements Serializable {
             });
 
     p.run();
-  }
-
-  @Test
-  @Category({ValidatesRunner.class, LargeKeys.Above10KB.class})
-  public void testLargeKeys10KB() throws Exception {
-    runLargeKeysTest(p, 10 << 10);
   }
 
   /**
