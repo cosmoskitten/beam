@@ -69,11 +69,12 @@ public interface ControlClientPool {
     /**
      * Retrieves the {@link InstructionRequestHandler} for the given worker id, blocking until
      * available or the request times out. Worker ids must be unique per pool. A given worker id
-     * must not be requested multiple times.
+     * must not be requested multiple times. Note that if the given worker id is never entered
+     * into the pool, this call will never return.
      *
      * @throws TimeoutException if the request times out
      * @throws InterruptedException if interrupted while waiting
      */
-    InstructionRequestHandler get(String workerId, Duration timeout) throws Exception;
+    InstructionRequestHandler take(String workerId, Duration timeout) throws Exception;
   }
 }

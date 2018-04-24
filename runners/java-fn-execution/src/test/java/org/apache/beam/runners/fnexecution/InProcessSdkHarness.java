@@ -113,7 +113,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     // the harness. All clients have the implicit empty id for now.
     client =
         SdkHarnessClient.usingFnApiClient(
-            clientPool.getSource().get("", clientTimeout), dataServer.getService());
+            clientPool.getSource().take("", clientTimeout), dataServer.getService());
   }
 
   protected void after() {
