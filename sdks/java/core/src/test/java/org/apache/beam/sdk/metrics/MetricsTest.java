@@ -74,20 +74,21 @@ public class MetricsTest implements Serializable {
             .build());
   }
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
-
-  @Rule
-  public final transient ExpectedException thrown = ExpectedException.none();
-
-  @After
-  public void tearDown() {
+  public static void tearDown() {
     MetricsEnvironment.setCurrentContainer(null);
   }
 
   /** Tests validating basic metric scenarios */
   @RunWith(JUnit4.class)
-  public class BasicTests {
+  public static class BasicTests {
+    @Rule
+    public final transient ExpectedException thrown = ExpectedException.none();
+
+    @After
+    public static void tearDown() {
+      MetricsTest.tearDown();
+    }
+
     @Test
     public void testDistributionWithoutContainer() {
       assertNull(MetricsEnvironment.getCurrentContainer());
@@ -170,12 +171,20 @@ public class MetricsTest implements Serializable {
 
   /** Tests for committed metrics */
   @RunWith(JUnit4.class)
-  public class CommittedMetricTests {
+  public static class CommittedMetricTests {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @After
+    public static void tearDown() {
+      MetricsTest.tearDown();
+    }
+
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
         UsesDistributionMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAllCommittedMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
 
       assertAllMetrics(metrics, true);
@@ -184,7 +193,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
     @Test
     public void testCommittedCounterMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertCounterMetrics(metrics, true);
     }
@@ -192,7 +201,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesDistributionMetrics.class})
     @Test
     public void testCommittedDistributionMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertDistributionMetrics(metrics, true);
     }
@@ -200,7 +209,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testCommittedGaugeMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, true);
     }
@@ -264,12 +273,20 @@ public class MetricsTest implements Serializable {
 
   /** Tests for attempted metrics. */
   @RunWith(JUnit4.class)
-  public class AttemptedMetricTests {
+  public static class AttemptedMetricTests {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @After
+    public static void tearDown() {
+      MetricsTest.tearDown();
+    }
+
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
         UsesDistributionMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAllAttemptedMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
 
       // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
@@ -279,7 +296,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
     @Test
     public void testAttemptedCounterMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertCounterMetrics(metrics, false);
     }
@@ -287,7 +304,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
     @Test
     public void testAttemptedDistributionMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertDistributionMetrics(metrics, false);
     }
@@ -295,13 +312,13 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAttemptedGaugeMetrics() {
-      PipelineResult result = runPipelineWithMetrics();
+      PipelineResult result = runPipelineWithMetrics(pipeline);
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, false);
     }
   }
 
-  private PipelineResult runPipelineWithMetrics() {
+  private static PipelineResult runPipelineWithMetrics(TestPipeline pipeline) {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
     final TupleTag<Integer> output2 = new TupleTag<Integer>(){};

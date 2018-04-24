@@ -104,18 +104,14 @@ public class CombineTest implements Serializable {
 
   static final List<KV<String, Integer>> EMPTY_TABLE = Collections.emptyList();
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
-
-  PCollection<KV<String, Integer>> createInput(Pipeline p,
+  private static PCollection<KV<String, Integer>> createInput(Pipeline p,
                                                List<KV<String, Integer>> table) {
     return p.apply(Create.of(table).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
-  private void runTestSimpleCombine(List<KV<String, Integer>> table,
-                                    int globalSum,
-                                    List<KV<String, String>> perKeyCombines) {
+  private static void runTestSimpleCombine(TestPipeline pipeline,
+      List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
@@ -128,10 +124,9 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private void runTestSimpleCombineWithContext(List<KV<String, Integer>> table,
-                                               int globalSum,
-                                               List<KV<String, String>> perKeyCombines,
-                                               String[] globallyCombines) {
+  private static void runTestSimpleCombineWithContext(TestPipeline pipeline,
+      List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines,
+      String[] globallyCombines) {
     PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
     PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
 
@@ -158,12 +153,15 @@ public class CombineTest implements Serializable {
 
   /** Tests validating basic Combine transform scenarios. */
   @RunWith(JUnit4.class)
-  public class BasicTests {
+  public static class BasicTests {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
     @Test
     @Category(ValidatesRunner.class)
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
-      runTestSimpleCombine(Arrays.asList(
+      runTestSimpleCombine(pipeline, Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -175,13 +173,13 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testSimpleCombineEmpty() {
-      runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
+      runTestSimpleCombine(pipeline, EMPTY_TABLE, 0, Collections.emptyList());
     }
 
     @Test
     @Category(ValidatesRunner.class)
     public void testBasicCombine() {
-      runTestBasicCombine(Arrays.asList(
+      runTestBasicCombine(pipeline, Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -195,7 +193,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testBasicCombineEmpty() {
-      runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
+      runTestBasicCombine(pipeline, EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
     }
 
     // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
@@ -454,12 +452,15 @@ public class CombineTest implements Serializable {
 
   /** Tests validating CombineWithContext behaviors. */
   @RunWith(JUnit4.class)
-  public class CombineWithContextTests {
+  public static class CombineWithContextTests {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
     @Test
     @Category(ValidatesRunner.class)
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombineWithContext() {
-      runTestSimpleCombineWithContext(Arrays.asList(
+      runTestSimpleCombineWithContext(pipeline, Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -473,13 +474,16 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testSimpleCombineWithContextEmpty() {
-      runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+      runTestSimpleCombineWithContext(pipeline, EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
     }
   }
 
   /** Tests validating windowing behaviors. */
   @RunWith(JUnit4.class)
-  public class WindowingTests {
+  public static class WindowingTests implements Serializable {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
     @Test
     @Category(ValidatesRunner.class)
     public void testFixedWindowsCombine() {
@@ -873,11 +877,14 @@ public class CombineTest implements Serializable {
 
   /** Tests validating accumulation scenarios. */
   @RunWith(JUnit4.class)
-  public class AccumulationTests {
+  public static class AccumulationTests {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
     @Test
     @Category(ValidatesRunner.class)
     public void testAccumulatingCombine() {
-      runTestAccumulatingCombine(Arrays.asList(
+      runTestAccumulatingCombine(pipeline, Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -889,14 +896,13 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testAccumulatingCombineEmpty() {
-      runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
+      runTestAccumulatingCombine(pipeline, EMPTY_TABLE, 0.0, Collections.emptyList());
     }
   }
 
   @SuppressWarnings("unchecked")
-  private void runTestBasicCombine(List<KV<String, Integer>> table,
-                                   Set<Integer> globalUnique,
-                                   List<KV<String, Set<Integer>>> perKeyUnique) {
+  private static void runTestBasicCombine(TestPipeline pipeline, List<KV<String, Integer>> table,
+      Set<Integer> globalUnique, List<KV<String, Set<Integer>>> perKeyUnique) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Set<Integer>> unique =
@@ -911,9 +917,8 @@ public class CombineTest implements Serializable {
     pipeline.run();
   }
 
-  private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
-                                          Double globalMean,
-                                          List<KV<String, Double>> perKeyMeans) {
+  private static void runTestAccumulatingCombine(TestPipeline pipeline,
+      List<KV<String, Integer>> table, Double globalMean, List<KV<String, Double>> perKeyMeans) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
@@ -1216,7 +1221,7 @@ public class CombineTest implements Serializable {
    * A {@link CombineFnWithContext} that produces a sorted list of all characters occurring in the
    * key and the decimal representations of main and side inputs values.
    */
-  public class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
+  public static class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
     private final PCollectionView<Integer> view;
 
     public TestCombineFnWithContext(PCollectionView<Integer> view) {
