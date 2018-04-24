@@ -556,8 +556,6 @@ class DoFnRunner(Receiver):
     # TODO(BEAM-3937): Remove if block after output counter released.
     experiments = RuntimeValueProvider.get_value('experiments', str, [])
     # Experimental flag format: experimental-name_version-number.
-    # Specify version number to ensure old SDKs will not be affected by features
-    # rollout.
     if 'outputs_per_element_counter_v0' in experiments:
       # TODO(BEAM-3955): Make step_name and operation_name less confused.
       output_counter_name = (CounterName('per-element-output-count',
@@ -665,7 +663,7 @@ class _OutputProcessor(OutputProcessor):
     if results is None:
       # TODO(BEAM-3937): Remove if block after output counter released.
       # Only enable per_element_output_counter when counter cythonized.
-      if (self.per_element_output_counter and
+      if (self.per_element_output_counter is not None and
           self.per_element_output_counter.is_cythonized):
         self.per_element_output_counter.add_input(0)
       return
@@ -700,7 +698,7 @@ class _OutputProcessor(OutputProcessor):
         self.tagged_receivers[tag].receive(windowed_value)
     # TODO(BEAM-3937): Remove if block after output counter released.
     # Only enable per_element_output_counter when counter cythonized
-    if (self.per_element_output_counter and
+    if (self.per_element_output_counter is not None and
         self.per_element_output_counter.is_cythonized):
       self.per_element_output_counter.add_input(output_element_count)
 
