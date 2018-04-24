@@ -14,7 +14,7 @@
  * the License.
  */
 
-package org.apache.beam.runners.fnexecution.graph;
+package org.apache.beam.runners.fnexecution.wire;
 
 import com.google.common.collect.Sets;
 import java.util.Set;
