@@ -130,7 +130,7 @@ public class RemoteExecutionTest implements Serializable {
                 },
                 StreamObserverFactory.direct()));
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Use proper worker id.
-    InstructionRequestHandler controlClient = clientPool.getSource().get("", Duration.ofSeconds(2));
+    InstructionRequestHandler controlClient = clientPool.getSource().take("", Duration.ofSeconds(2));
     this.controlClient = SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
   }
 
