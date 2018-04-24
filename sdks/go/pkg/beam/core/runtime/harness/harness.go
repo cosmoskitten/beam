@@ -109,7 +109,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
-			hooks.RunRequestHooks(ctx, req)
+			ctx = hooks.RunRequestHooks(ctx, req)
 			resp := ctrl.handleInstruction(ctx, req)
 
 			hooks.RunResponseHooks(ctx, req, resp)
