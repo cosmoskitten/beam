@@ -99,6 +99,15 @@ class DockerCommand {
                       new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
               return reader.lines().collect(Collectors.joining());
             });
+    // NOTE: We only consume the error string in the case of an error.
+    CompletableFuture<String> errorFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              BufferedReader reader =
+                  new BufferedReader(
+                      new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
+              return reader.lines().collect(Collectors.joining());
+            });
     // TODO: Retry on interrupt?
     boolean processDone = process.waitFor(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
     if (!processDone) {
@@ -110,10 +119,16 @@ class DockerCommand {
     }
     int exitCode = process.exitValue();
     if (exitCode != 0) {
+      String errorString;
+      try {
+        errorString = errorFuture.get(commandTimeout.toMillis(), TimeUnit.MILLISECONDS);
+      } catch (Exception stderrEx) {
+        errorString = String.format("Error capturing stderr: %s", stderrEx.getMessage());
+      }
       throw new IOException(
           String.format(
-              "Received exit code %d for command '%s'",
-              exitCode, invocation.stream().collect(Collectors.joining(" "))));
+              "Received exit code %d for command '%s'. stderr: %s",
+              exitCode, invocation.stream().collect(Collectors.joining(" ")), errorString));
     }
     try {
       // TODO: Consider a stricter timeout.
