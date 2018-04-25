@@ -72,4 +72,7 @@ public class WireCoders {
         components.toBuilder().putCoders(windowedValueId, windowedValueCoder).build(),
         useByteArrayCoder);
   }
+
+  // Not instantiable.
+  private WireCoders() {}
 }
