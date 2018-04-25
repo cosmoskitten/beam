@@ -19,7 +19,14 @@ package org.apache.beam.runners.flink;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
-/** Interface for portable Flink translators. */
+/**
+ * Interface for portable Flink translators. This allows for a uniform invocation pattern for
+ * pipeline translation between streaming and portable runners.
+ *
+ * <p>Pipeline translators will generally provide a mechanism to produce the translation contexts
+ * that they use for pipeline translation. Post translation, the translation context should contain
+ * a pipeline plan that has not yet been executed.
+ */
 public interface FlinkPortablePipelineTranslator<
     T extends FlinkPortablePipelineTranslator.TranslationContext> {
 
