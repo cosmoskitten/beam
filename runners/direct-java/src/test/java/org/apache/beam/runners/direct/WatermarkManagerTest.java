@@ -68,7 +68,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
