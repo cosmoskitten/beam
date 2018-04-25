@@ -182,7 +182,7 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_read_metrics(self):
-    from apache_beam.examples.snippets.snippets import CountingSource
+    from apache_beam.io.snippets import CountingSource
 
     class CounterDoFn(beam.DoFn):
       def __init__(self):
