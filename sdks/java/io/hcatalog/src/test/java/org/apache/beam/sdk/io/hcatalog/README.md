@@ -17,7 +17,7 @@
     under the License.
 -->
 
-For the test of [HCatalogIO](src/main/java/org/apache/beam/sdk/io/hcatalog/HCatalogIO.java) 
+For the test of [HCatalogIO](../../../../../../../../main/java/org/apache/beam/sdk/io/hcatalog/HCatalogIO.java) 
 with independent infrastructure was prepared `dataproc` service with HCatalog.
 
 To setup similar infrastructure on `dataproc` run following command:
@@ -33,4 +33,4 @@ Test were run in same network as infrastructure.
 The test should pass for infrastructure set up locally by installing: Hadoop, Hive (with HCatalog included).  
 
 Details about how to run the test can be found in: 
-[HCatalogIOIT](src/test/java/org/apache/beam/sdk/io/hcatalog/HCatalogIOIT.java). 
+[HCatalogIOIT](HCatalogIOIT.java). 
