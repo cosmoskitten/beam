@@ -354,6 +354,10 @@ public abstract class DoFnSignature {
       return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
+    public static RowParameter rowParamater(FieldAccessDescriptor fieldAccessDescriptor) {
+      return new AutoValue_DoFnSignature_Parameter_RowParameter(fieldAccessDescriptor);
+    }
+
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
     }
@@ -455,6 +459,14 @@ public abstract class DoFnSignature {
       ElementParameter() {}
 
       public abstract TypeDescriptor<?> elementT();
+    }
+
+
+    @AutoValue
+    public abstract static class RowParameter extends  Parameter {
+      RowParameter() { }
+
+      public abstract FieldAccessDescriptor fieldAccessDescriptor();
     }
 
     /**
