@@ -482,7 +482,7 @@ public abstract class Row implements Serializable {
             }
             break;
           case INT16:
-            if (value instanceof Short){
+            if (value instanceof Short) {
             return value;
           }
             break;

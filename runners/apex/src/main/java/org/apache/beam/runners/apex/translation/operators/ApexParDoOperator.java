@@ -436,6 +436,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        null,
         windowingStrategy
         );
 

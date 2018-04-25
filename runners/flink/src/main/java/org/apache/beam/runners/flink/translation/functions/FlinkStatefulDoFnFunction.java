@@ -133,6 +133,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
             return timerInternals;
           }
         },
+        null,
         windowingStrategy);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class))
