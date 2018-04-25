@@ -145,7 +145,10 @@ public class FlinkBatchPortablePipelineTranslator
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
 
-  /** Batch translation context. */
+  /**
+   * Batch translation context. Stores metadata about known PCollections/DataSets and holds the
+   * flink {@link ExecutionEnvironment} that the execution plan will be applied to.
+   */
   public static class BatchTranslationContext
       implements FlinkPortablePipelineTranslator.TranslationContext {
 
@@ -195,7 +198,7 @@ public class FlinkBatchPortablePipelineTranslator
     }
   }
 
-  interface PTransformTranslator<T> {
+  private interface PTransformTranslator<T> {
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
