@@ -18,37 +18,22 @@
 package org.apache.beam.sdk.io.cassandra;
 
 import java.math.BigInteger;
-import java.util.Comparator;
 
-/**
- * Models a Cassandra token range.
- */
-public final class RingRange {
-
-  /**
-   * Allows to order token ranges by start token.
-   */
-  public static final Comparator<RingRange> START_COMPARATOR =
-      (RingRange o1, RingRange o2) -> o1.start.compareTo(o2.start);
-
+/** Models a Cassandra token range. */
+final class RingRange {
   private final BigInteger start;
   private final BigInteger end;
 
-  public RingRange(BigInteger start, BigInteger end) {
+  RingRange(BigInteger start, BigInteger end) {
     this.start = start;
     this.end = end;
   }
 
-  public RingRange(String... range) {
-    start = new BigInteger(range[0]);
-    end = new BigInteger(range[1]);
-  }
-
-  public BigInteger getStart() {
+  BigInteger getStart() {
     return start;
   }
 
-  public BigInteger getEnd() {
+  BigInteger getEnd() {
     return end;
   }
 
@@ -57,8 +42,8 @@ public final class RingRange {
    *
    * @return size of the range, max - range, in case of wrap
    */
-  public BigInteger span(BigInteger ringSize) {
-    if (SplitGenerator.greaterThanOrEqual(start, end)) {
+  BigInteger span(BigInteger ringSize) {
+    if (start.compareTo(end) >= 0) {
       return end.subtract(start).add(ringSize);
     } else {
       return end.subtract(start);
@@ -69,46 +54,11 @@ public final class RingRange {
    * @return true if 0 is inside of this range. Note that if start == end, then wrapping is true
    */
   public boolean isWrapping() {
-    return SplitGenerator.greaterThanOrEqual(start, end);
+    return start.compareTo(end) >= 0;
   }
 
   @Override
   public String toString() {
     return String.format("(%s,%s]", start.toString(), end.toString());
-  }
-
-  /**
-   * Builder for the RingRange class.
-   */
-  public static final class Builder {
-
-    private BigInteger start;
-    private BigInteger end;
-
-    public Builder() {}
-
-    public Builder withStart(BigInteger start) {
-      this.start = start;
-      return this;
-    }
-
-    public Builder withStart(String start) {
-      this.start = new BigInteger(start);
-      return this;
-    }
-
-    public Builder withEnd(BigInteger end) {
-      this.end = end;
-      return this;
-    }
-
-    public Builder withEnd(String end) {
-      this.end = new BigInteger(end);
-      return this;
-    }
-
-    public RingRange build() {
-      return new RingRange(this.start, this.end);
-    }
   }
 }

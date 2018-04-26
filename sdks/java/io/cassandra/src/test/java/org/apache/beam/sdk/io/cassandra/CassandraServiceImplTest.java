@@ -27,20 +27,13 @@ import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.TableMetadata;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * Tests on {@link CassandraServiceImplTest}.
- */
+/** Tests on {@link CassandraServiceImplTest}. */
 public class CassandraServiceImplTest {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraServiceImplTest.class);
-
   private static final String MURMUR3_PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
   private Cluster createClusterMock() {
@@ -52,7 +45,8 @@ public class CassandraServiceImplTest {
     Mockito.when(metadata.getPartitioner()).thenReturn(MURMUR3_PARTITIONER);
     Mockito.when(metadata.getKeyspace(Mockito.anyString())).thenReturn(keyspaceMetadata);
     Mockito.when(keyspaceMetadata.getTable(Mockito.anyString())).thenReturn(tableMetadata);
-    Mockito.when(tableMetadata.getPartitionKey()).thenReturn(Arrays.asList(columnMetadata));
+    Mockito.when(tableMetadata.getPartitionKey())
+        .thenReturn(Collections.singletonList(columnMetadata));
     Mockito.when(columnMetadata.getName()).thenReturn("$pk");
     Cluster cluster = Mockito.mock(Cluster.class);
     Mockito.when(cluster.getMetadata()).thenReturn(metadata);
@@ -60,12 +54,12 @@ public class CassandraServiceImplTest {
   }
 
   @Test
-  public void testValidPartitioner() throws Exception {
+  public void testValidPartitioner() {
     assertTrue(CassandraServiceImpl.isMurmur3Partitioner(createClusterMock()));
   }
 
   @Test
-  public void testDistance() throws Exception {
+  public void testDistance() {
     BigInteger distance = CassandraServiceImpl.distance(new BigInteger("10"),
         new BigInteger("100"));
     assertEquals(BigInteger.valueOf(90), distance);
@@ -75,7 +69,7 @@ public class CassandraServiceImplTest {
   }
 
   @Test
-  public void testRingFraction() throws Exception {
+  public void testRingFraction() {
     // simulate a first range taking "half" of the available tokens
     List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
     tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1,
@@ -89,7 +83,7 @@ public class CassandraServiceImplTest {
   }
 
   @Test
-  public void testEstimatedSizeBytes() throws Exception {
+  public void testEstimatedSizeBytes() {
     List<CassandraServiceImpl.TokenRange> tokenRanges = new ArrayList<>();
     // one partition containing all tokens, the size is actually the size of the partition
     tokenRanges.add(new CassandraServiceImpl.TokenRange(1, 1000,
