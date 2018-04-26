@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +76,7 @@ final class SplitGenerator {
    * @param ringTokens list of all start tokens in big0 cluster. They have to be in ring order.
    * @return big0 list containing at least {@code totalSplitCount} splits.
    */
-  List<RingRange> generateSplits(long totalSplitCount, List<BigInteger> ringTokens) {
+  List<List<RingRange>> generateSplits(long totalSplitCount, List<BigInteger> ringTokens) {
     int tokenRangeCount = ringTokens.size();
 
     List<RingRange> splits = new ArrayList<>();
@@ -136,10 +138,47 @@ final class SplitGenerator {
       throw new RuntimeException(
           "Some tokens are missing from the splits. " + "This should not happen.");
     }
-    return splits;
+    return coalesceSplits(getTargetSplitSize(totalSplitCount), splits);
   }
 
   private boolean inRange(BigInteger token) {
     return !(token.compareTo(rangeMin) < 0 || token.compareTo(rangeMax) > 0);
+  }
+
+  @VisibleForTesting
+  List<List<RingRange>> coalesceSplits(
+      BigInteger targetSplitSize, List<RingRange> splits) {
+
+    List<List<RingRange>> coalescedSplits = Lists.newArrayList();
+    List<RingRange> tokenRangesForCurrentSplit = Lists.newArrayList();
+    BigInteger tokenCount = BigInteger.ZERO;
+
+      for (RingRange tokenRange : splits) {
+        if (tokenRange.span(rangeSize).add(tokenCount).compareTo(targetSplitSize) > 0
+            && !tokenRangesForCurrentSplit.isEmpty()) {
+          // enough tokens in that segment
+          LOG.info(
+              "Got enough tokens for one split ({}) : {}",
+              tokenCount,
+              tokenRangesForCurrentSplit);
+          coalescedSplits.add(tokenRangesForCurrentSplit);
+          tokenRangesForCurrentSplit = Lists.newArrayList();
+          tokenCount = BigInteger.ZERO;
+        }
+
+        tokenCount = tokenCount.add(tokenRange.span(rangeSize));
+        tokenRangesForCurrentSplit.add(tokenRange);
+      }
+
+      if (!tokenRangesForCurrentSplit.isEmpty()) {
+        coalescedSplits.add(tokenRangesForCurrentSplit);
+        tokenRangesForCurrentSplit = Lists.newArrayList();
+      }
+
+      return coalescedSplits;
+    }
+
+  private BigInteger getTargetSplitSize(long splitCount) {
+    return (rangeMax.subtract(rangeMin)).divide(BigInteger.valueOf(splitCount));
   }
 }

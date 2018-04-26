@@ -39,16 +39,16 @@ public final class SplitGeneratorTest {
             .collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
-    List<RingRange> segments = generator.generateSplits(10, tokens);
+    List<List<RingRange>> segments = generator.generateSplits(10, tokens);
 
-    assertEquals(15, segments.size());
-    assertEquals("(0,1]", segments.get(0).toString());
+    assertEquals(12, segments.size());
+    assertEquals("[(0,1], (1,14178431955039102644307275309657008811]]", segments.get(0).toString());
     assertEquals(
-        "(56713727820156410577229101238628035242,56713727820156410577229101238628035243]",
+        "[(14178431955039102644307275309657008811,28356863910078205288614550619314017621]]",
+        segments.get(1).toString());
+    assertEquals(
+        "[(70892159775195513221536376548285044053,85070591730234615865843651857942052863]]",
         segments.get(5).toString());
-    assertEquals(
-        "(113427455640312821154458202477256070484,113427455640312821154458202477256070485]",
-        segments.get(10).toString());
 
     tokens =
         Arrays.asList(
@@ -64,13 +64,13 @@ public final class SplitGeneratorTest {
 
     segments = generator.generateSplits(10, tokens);
 
-    assertEquals(15, segments.size());
-    assertEquals("(5,6]", segments.get(0).toString());
+    assertEquals(12, segments.size());
+    assertEquals("[(5,6], (6,14178431955039102644307275309657008815]]", segments.get(0).toString());
     assertEquals(
-        "(56713727820156410577229101238628035242,56713727820156410577229101238628035243]",
+        "[(70892159775195513221536376548285044053,85070591730234615865843651857942052863]]",
         segments.get(5).toString());
     assertEquals(
-        "(113427455640312821154458202477256070484,113427455640312821154458202477256070485]",
+        "[(141784319550391026443072753096570088109,155962751505430129087380028406227096921]]",
         segments.get(10).toString());
   }
 
@@ -107,15 +107,17 @@ public final class SplitGeneratorTest {
         tokenStrings.stream().map(s -> new BigInteger(s)).collect(Collectors.toList());
 
     SplitGenerator generator = new SplitGenerator("foo.bar.RandomPartitioner");
-    List<RingRange> segments = generator.generateSplits(10, tokens);
-    assertEquals(15, segments.size());
+    List<List<RingRange>> segments = generator.generateSplits(5, tokens);
+    assertEquals(6, segments.size());
     assertEquals(
-        "(113427455640312821154458202477256070484,113427455640312821154458202477256070485]",
-        segments.get(4).toString());
-    assertEquals("(5,6]", segments.get(9).toString());
+        "[(85070591730234615865843651857942052863,113427455640312821154458202477256070484],"
+            + " (113427455640312821154458202477256070484,113427455640312821154458202477256070485]]",
+        segments.get(1).toString());
+    assertEquals("[(113427455640312821154458202477256070485,"
+        + "141784319550391026443072753096570088109]]", segments.get(2).toString());
     assertEquals(
-        "(56713727820156410577229101238628035242,56713727820156410577229101238628035243]",
-        segments.get(14).toString());
+        "[(141784319550391026443072753096570088109,5], (5,6]]",
+        segments.get(3).toString());
   }
 
   @Test(expected = RuntimeException.class)

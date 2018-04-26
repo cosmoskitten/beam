@@ -22,6 +22,7 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
@@ -31,14 +32,17 @@ import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -69,15 +73,27 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     @Override
     public boolean start() throws IOException {
       LOG.debug("Starting Cassandra reader");
+      List<Iterator<T>> iterators = Lists.newArrayList();
       cluster = getCluster(source.spec.hosts(), source.spec.port(), source.spec.username(),
           source.spec.password(), source.spec.localDc(), source.spec.consistencyLevel());
       session = cluster.connect();
-      LOG.debug("Query: " + source.splitQuery);
-      resultSet = session.execute(source.splitQuery);
+      LOG.debug("Queries: " + source.splitQueries);
+      List<ResultSetFuture> futures = Lists.newArrayList();
+      for (String query:source.splitQueries) {
+        futures.add(session.executeAsync(query));
+      }
 
       final MappingManager mappingManager = new MappingManager(session);
       Mapper mapper = mappingManager.mapper(source.spec.entity());
-      iterator = mapper.map(resultSet).iterator();
+
+      for (ResultSetFuture result:futures) {
+        if (iterator == null) {
+          iterator = mapper.map(result.getUninterruptibly()).iterator();
+        } else {
+          iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()).iterator());
+        }
+      }
+
       return advance();
     }
 
@@ -169,7 +185,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             + "the read");
         String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
         List<BoundedSource<T>> sources = new ArrayList<>();
-        sources.add(new CassandraIO.CassandraSource<>(spec, splitQuery));
+        sources.add(new CassandraIO.CassandraSource<>(spec, Arrays.asList(splitQuery)));
         return sources;
       }
     }
@@ -193,6 +209,10 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               .map(partitionKeyColumn -> partitionKeyColumn.getName())
               .collect(Collectors.joining(","));
 
+    Set<com.datastax.driver.core.TokenRange> tokenRanges = cluster.getMetadata()
+        .getTokenRanges();
+
+
     long numSplits = 1;
     List<BoundedSource<T>> sourceList = new ArrayList<>();
     if (desiredBundleSizeBytes > 0) {
@@ -212,36 +232,41 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     List<BigInteger> tokens = cluster.getMetadata().getTokenRanges().stream()
         .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
         .collect(Collectors.toList());
-    List<RingRange> splits = splitGenerator.generateSplits(numSplits, tokens);
+    List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
 
     LOG.info("{} splits were actually generated", splits.size());
 
-    for (RingRange split:splits) {
-      Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
-      if (split.isWrapping()) {
-        // A wrapping range is one that overlaps from the end of the partitioner range and its start
-        // (ie : when the start token of the split is greater than the end token)
-        // We need to generate two queries here : one that goes from the start token to the end of
-        // the partitioner range, and the other from the start of the partitioner range to the
-        // end token of the split.
-        builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", split.getStart()));
-        String query = builder.toString();
-        LOG.info("Cassandra generated read query : {}", query);
-        sourceList.add(new CassandraIO.CassandraSource(spec, query));
+    for (List<RingRange> split:splits) {
+      List<String> queries = Lists.newArrayList();
+      for (RingRange range : split) {
+        Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
+        if (range.isWrapping()) {
+          // A wrapping range is one that overlaps from the end of the partitioner range and its
+          // start (ie : when the start token of the split is greater than the end token)
+          // We need to generate two queries here : one that goes from the start token to the end of
+          // the partitioner range, and the other from the start of the partitioner range to the
+          // end token of the split.
+          builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+          String query = builder.toString();
+          LOG.info("Cassandra generated read query : {}", query);
+          queries.add(query);
 
-        // Generation of the second query of the wrapping range
-        builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
-        builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", split.getEnd()));
-        query = builder.toString();
-        LOG.info("Cassandra generated read query : {}", query);
-        sourceList.add(new CassandraIO.CassandraSource(spec, query));
-      } else {
-        builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", split.getStart()));
-        builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", split.getEnd()));
-        String query = builder.toString();
-        LOG.info("Cassandra generated read query : {}", query);
-        sourceList.add(new CassandraIO.CassandraSource(spec, query));
+          // Generation of the second query of the wrapping range
+          builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
+          builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
+          query = builder.toString();
+          LOG.info("Cassandra generated read query : {}", query);
+          queries.add(query);
+        } else {
+          builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", range.getStart()));
+          builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", range.getEnd()));
+          String query = builder.toString();
+          LOG.info("Cassandra generated read query : {}", query);
+          queries.add(query);
+        }
       }
+      sourceList.add(new CassandraIO.CassandraSource(spec, queries));
+      queries = Lists.newArrayList();
     }
 
     return sourceList;
