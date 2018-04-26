@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.annotations.VisibleForTesting; import java.io.Closeable;
+import com.google.common.annotations.VisibleForTesting;
+import java.io.Closeable;
 import java.util.concurrent.Callable;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
