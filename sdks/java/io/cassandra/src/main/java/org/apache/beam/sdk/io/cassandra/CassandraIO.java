@@ -80,7 +80,6 @@ import org.apache.beam.sdk.values.PDone;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CassandraIO {
-
   private CassandraIO() {}
 
   /**
@@ -103,7 +102,6 @@ public class CassandraIO {
    */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-
     @Nullable abstract List<String> hosts();
     @Nullable abstract Integer port();
     @Nullable abstract String keyspace();
@@ -255,17 +253,14 @@ public class CassandraIO {
       }
       return new CassandraServiceImpl<>();
     }
-
   }
 
   @VisibleForTesting
   static class CassandraSource<T> extends BoundedSource<T> {
+    final Read<T> spec;
+    final String splitQuery;
 
-    protected final Read<T> spec;
-    protected final String splitQuery;
-
-    CassandraSource(Read<T> spec,
-                    String splitQuery) {
+    CassandraSource(Read<T> spec, String splitQuery) {
       this.spec = spec;
       this.splitQuery = splitQuery;
     }
@@ -281,15 +276,14 @@ public class CassandraIO {
     }
 
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws Exception {
+    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
       return spec.getCassandraService().getEstimatedSizeBytes(spec);
     }
 
     @Override
-    public List<BoundedSource<T>> split(long desiredBundleSizeBytes,
-                                                   PipelineOptions pipelineOptions) {
-      return spec.getCassandraService()
-          .split(spec, desiredBundleSizeBytes);
+    public List<BoundedSource<T>> split(
+        long desiredBundleSizeBytes, PipelineOptions pipelineOptions) {
+      return spec.getCassandraService().split(spec, desiredBundleSizeBytes);
     }
 
     @Override
