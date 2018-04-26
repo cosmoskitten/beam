@@ -218,13 +218,30 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
 
     for (RingRange split:splits) {
       Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
-      builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", split.getStart()));
-      builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", split.getEnd()));
+      if (split.isWrapping()) {
+        // A wrapping range is one that overlaps from the end of the partitioner range and its start
+        // (ie : when the start token of the split is greater than the end token)
+        // We need to generate two queries here : one that goes from the start token to the end of
+        // the partitioner range, and the other from the start of the partitioner range to the
+        // end token of the split.
+        builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", split.getStart()));
+        String query = builder.toString();
+        LOG.info("Cassandra generated read query : {}", query);
+        sourceList.add(new CassandraIO.CassandraSource(spec, query));
 
-      String query = builder.toString();
-
-      LOG.info("Cassandra generated read query : {}", query);
-      sourceList.add(new CassandraIO.CassandraSource(spec, query));
+        // Generation of the second query of the wrapping range
+        builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
+        builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", split.getEnd()));
+        query = builder.toString();
+        LOG.info("Cassandra generated read query : {}", query);
+        sourceList.add(new CassandraIO.CassandraSource(spec, query));
+      } else {
+        builder = builder.and(QueryBuilder.gte("token(" + partitionKey + ")", split.getStart()));
+        builder = builder.and(QueryBuilder.lt("token(" + partitionKey + ")", split.getEnd()));
+        String query = builder.toString();
+        LOG.info("Cassandra generated read query : {}", query);
+        sourceList.add(new CassandraIO.CassandraSource(spec, query));
+      }
     }
 
     return sourceList;
