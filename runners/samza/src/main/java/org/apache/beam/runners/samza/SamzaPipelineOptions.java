@@ -46,4 +46,9 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   @Default.Integer(1)
   int getMaxSourceParallelism();
   void setMaxSourceParallelism(int maxSourceParallelism);
+
+  @Description("The batch get size limit for the state store")
+  @Default.Integer(10000)
+  int getStoreBatchGetSize();
+  void setStoreBatchGetSize(int storeBatchGetSize);
 }

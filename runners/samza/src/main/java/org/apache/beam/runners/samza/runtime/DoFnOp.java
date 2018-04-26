@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.samza.runtime;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -25,29 +26,39 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
+import org.apache.beam.runners.core.StatefulDoFnRunner.TimeInternalsCleanupTimer;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.samza.util.Base64Serializer;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateContext;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
 import org.apache.samza.operators.TimerRegistry;
@@ -65,6 +76,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   private final TupleTag<FnOutT> mainOutputTag;
   private final DoFn<InT, FnOutT> doFn;
+  private final Coder<?> keyCoder;
   private final Collection<PCollectionView<?>> sideInputs;
   private final List<TupleTag<?>> sideOutputTags;
   private final WindowingStrategy windowingStrategy;
@@ -73,7 +85,6 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private final HashMap<String, PCollectionView<?>> idToViewMap;
   private final String stepName;
 
-  private transient StateInternalsFactory<Void> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<?> timerInternalsFactory;
   private transient DoFnRunner<InT, FnOutT> fnRunner;
   private transient PushbackSideInputDoFnRunner<InT, FnOutT> pushbackFnRunner;
@@ -88,9 +99,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient Instant inputWatermark;
   private transient Instant sideInputWatermark;
   private transient List<WindowedValue<InT>> pushbackValues;
+  private transient StateInternals stateInternals;
+  private transient DoFnSignature signature;
+  private transient TaskContext context;
+  private transient SamzaPipelineOptions pipelineOptions;
 
   public DoFnOp(TupleTag<FnOutT> mainOutputTag,
                 DoFn<InT, FnOutT> doFn,
+                Coder<?> keyCoder,
                 Collection<PCollectionView<?>> sideInputs,
                 List<TupleTag<?>> sideOutputTags,
                 WindowingStrategy windowingStrategy,
@@ -105,6 +121,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToViewMap = new HashMap<>(idToViewMap);
     this.outputManagerFactory = outputManagerFactory;
     this.stepName = stepName;
+    this.keyCoder = keyCoder;
   }
 
   @Override
@@ -112,42 +129,41 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                    TaskContext context,
                    TimerRegistry<KeyedTimerData<Void>> timerRegistry,
                    OpEmitter<OutT> emitter) {
+    this.pipelineOptions = Base64Serializer.deserializeUnchecked(
+        config.get("beamPipelineOptions"),
+        SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
     this.inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.sideInputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     this.pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
-
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(null, timerRegistry);
-
-    @SuppressWarnings("unchecked")
-    final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) context.getStore("beamStore");
-
-    this.stateInternalsFactory =
-        new SamzaStoreStateInternals.Factory<>(
-            mainOutputTag.getId(),
-            store,
-            VoidCoder.of());
-
-    this.sideInputHandler = new SideInputHandler(
-        sideInputs,
-        stateInternalsFactory.stateInternalsForKey(null));
+    this.context = context;
+    this.signature = DoFnSignatures.getSignature(doFn.getClass());
+    this.sideInputHandler = new SideInputHandler(sideInputs, createStateInternals(null));
+    this.stateInternals = createStateInternals(keyCoder);
 
     final DoFnRunner<InT, FnOutT> doFnRunner = DoFnRunners.simpleRunner(
-        Base64Serializer.deserializeUnchecked(
-            config.get("beamPipelineOptions"),
-            SerializablePipelineOptions.class).get(),
+        pipelineOptions,
         doFn,
         sideInputHandler,
         outputManagerFactory.create(emitter),
         mainOutputTag,
         sideOutputTags,
-        createStepContext(stateInternalsFactory, timerInternalsFactory),
+        createStepContext(stateInternals, createTimerInternals()),
         windowingStrategy);
+
+    final DoFnRunner<InT, FnOutT> statefulDoFnRunner = signature.usesState()
+        ? DoFnRunners.defaultStatefulDoFnRunner(
+            doFn,
+            doFnRunner,
+            windowingStrategy,
+            new TimeInternalsCleanupTimer(createTimerInternals(), windowingStrategy),
+            createStateCleaner())
+        : doFnRunner;
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getUserContext();
     this.fnRunner = DoFnRunnerWithMetrics.wrap(
-        doFnRunner, executionContext.getMetricsContainer(), stepName);
+        statefulDoFnRunner, executionContext.getMetricsContainer(), stepName);
 
     this.pushbackFnRunner =
         SimplePushbackSideInputDoFnRunner.create(
@@ -165,6 +181,10 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   @Override
   public void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter) {
     pushbackFnRunner.startBundle();
+
+    // NOTE: this is thread-safe if we only allow concurrency on the per-key basis.
+    setStateKeyOfElement(inputElement.getValue());
+
     final Iterable<WindowedValue<InT>> rejectedValues =
         pushbackFnRunner.processElementInReadyWindows(inputElement);
     for (WindowedValue<InT> rejectedValue : rejectedValues) {
@@ -246,6 +266,65 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     pushbackFnRunner.finishBundle();
   }
 
+  @Override
+  public void close() {
+    doFnInvoker.invokeTeardown();
+  }
+
+  @SuppressWarnings("unchecked")
+  private StateInternals createStateInternals(Coder<?> keyCoder) {
+    final int batchGetSize = pipelineOptions.getStoreBatchGetSize();
+
+    if (keyCoder != null) {
+      final Map<String, KeyValueStore<byte[], byte[]>> stores = new HashMap<>(
+          SamzaStoreStateInternals.getBeamStore(context)
+      );
+      signature.stateDeclarations().keySet().forEach(stateId ->
+          stores.put(stateId, (KeyValueStore<byte[], byte[]>) context.getStore(stateId)));
+      return new KeyedStateInternals<>(
+          new SamzaStoreStateInternals.Factory<>(
+              mainOutputTag.getId(),
+              ImmutableMap.copyOf(stores),
+              keyCoder,
+              batchGetSize));
+    } else {
+      return new SamzaStoreStateInternals.Factory<>(
+          mainOutputTag.getId(),
+          SamzaStoreStateInternals.getBeamStore(context),
+          VoidCoder.of(),
+          batchGetSize).stateInternalsForKey(null);
+    }
+  }
+
+  private TimerInternals createTimerInternals() {
+    return timerInternalsFactory.timerInternalsForKey(null);
+  }
+
+  @SuppressWarnings("unchecked")
+  private StatefulDoFnRunner.StateCleaner<?> createStateCleaner() {
+    final TypeDescriptor windowType = windowingStrategy.getWindowFn().getWindowTypeDescriptor();
+    if (windowType.isSubtypeOf(TypeDescriptor.of(BoundedWindow.class))) {
+      final Coder<? extends BoundedWindow> windowCoder =
+          windowingStrategy.getWindowFn().windowCoder();
+      return new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+          doFn, stateInternals, windowCoder);
+    } else {
+      return null;
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private void setStateKeyOfElement(InT value) {
+    if (signature.usesState()) {
+      final KeyedStateInternals state = (KeyedStateInternals) stateInternals;
+      if (value instanceof KeyedWorkItem) {
+        state.setKey(((KeyedWorkItem<?, ?>) value).key());
+      } else {
+        state.setKey(((KV<?, ?>) value).getKey());
+      }
+    }
+  }
+
   private void fireTimer(TimerInternals.TimerData timer) {
     LOG.debug("Firing timer {}", timer);
 
@@ -262,30 +341,25 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       final List<WindowedValue<InT>> previousPushbackValues = new ArrayList<>(pushbackValues);
       pushbackWatermarkHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
       pushbackValues.clear();
-      previousPushbackValues.forEach(value -> fnRunner.processElement(value));
+      previousPushbackValues.forEach(fnRunner::processElement);
 
       pushbackFnRunner.finishBundle();
     }
-  }
-
-  public void close() {
-    doFnInvoker.invokeTeardown();
   }
 
   /**
    * Creates a {@link StepContext} that allows accessing state and timer internals.
    */
   public static StepContext createStepContext(
-      StateInternalsFactory stateInternalsFactory,
-      TimerInternalsFactory timerInternalsFactory) {
+      StateInternals stateInternals, TimerInternals timerInternals) {
     return new StepContext() {
       @Override
       public StateInternals stateInternals() {
-        return stateInternalsFactory.stateInternalsForKey(null);
+        return stateInternals;
       }
       @Override
       public TimerInternals timerInternals() {
-        return timerInternalsFactory.timerInternalsForKey(null);
+        return timerInternals;
       }
     };
   }
@@ -334,6 +408,34 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           emitter.emitElement(windowedValue.withValue(rawUnionValue));
         }
       };
+    }
+  }
+
+  /**
+   * KeyedStateInternals for stateful ParDo.
+   * This class is only thread-safe for threads created on a per-key basis.
+   */
+  private static class KeyedStateInternals<K> implements StateInternals {
+    private final ThreadLocal threadLocalKey = new ThreadLocal<>();
+    private final SamzaStoreStateInternals.Factory<K> factory;
+
+    KeyedStateInternals(SamzaStoreStateInternals.Factory<K> factory) {
+      this.factory = factory;
+    }
+
+    private void setKey(K key) {
+      threadLocalKey.set(key);
+    }
+
+    @Override
+    public K getKey() {
+      return (K) threadLocalKey.get();
+    }
+
+    @Override
+    public <T extends State> T state(StateNamespace namespace, StateTag<T> address,
+        StateContext<?> c) {
+      return factory.stateInternalsForKey(getKey()).state(namespace, address, c);
     }
   }
 }

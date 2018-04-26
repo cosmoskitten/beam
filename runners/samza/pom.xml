@@ -31,7 +31,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <samza.version>0.14.1-SNAPSHOT</samza.version>
+    <samza.version>0.15.0-SNAPSHOT</samza.version>
   </properties>
 
   <profiles>
@@ -57,7 +57,6 @@
                   <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.LargeKeys$Above100MB,
-                    org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesAttemptedMetrics,

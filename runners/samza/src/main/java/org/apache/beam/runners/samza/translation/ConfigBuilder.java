@@ -36,6 +36,9 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
@@ -43,6 +46,7 @@ import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.MapConfig;
+import org.apache.samza.serializers.ByteSerdeFactory;
 
 /**
  * Builder class to generate configs for BEAM samza runner during runtime.
@@ -66,6 +70,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
       config.put(ApplicationConfig.APP_RUN_ID, String.valueOf(System.currentTimeMillis()) + "-"
           // use the most significant bits in UUID (8 digits) to avoid collision
           + UUID.randomUUID().toString().substring(0, 8));
+      createConfigForSystemStore(config);
 
       final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
       pipeline.traverseTopologically(builder);
@@ -75,6 +80,14 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static void createConfigForSystemStore(Map<String, String> config) {
+    config.put("stores.beamStore.factory",
+        "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+    config.put("stores.beamStore.key.serde", "byteSerde");
+    config.put("stores.beamStore.msg.serde", "byteSerde");
+    config.put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName());
   }
 
   private ConfigBuilder(Map<PValue, String> idMap,
@@ -91,6 +104,8 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     } else if (node.getTransform() instanceof Read.Unbounded) {
       foundSource = true;
       processReadUnbounded(node, (Read.Unbounded<?>) node.getTransform());
+    } else if (node.getTransform() instanceof ParDo.MultiOutput) {
+      processParDo((ParDo.MultiOutput<?, ?>) node.getTransform());
     }
   }
 
@@ -118,6 +133,20 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
     final Coder<WindowedValue<T>> coder = SamzaCoders.of(output);
 
     config.putAll(UnboundedSourceSystem.createConfigFor(id, source, coder, node.getFullName()));
+  }
+
+  private void processParDo(ParDo.MultiOutput<?, ?> parDo) {
+    final DoFnSignature signature = DoFnSignatures.getSignature(parDo.getFn().getClass());
+    if (signature.usesState()) {
+      // set up user state configs
+      for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
+        String storeId = state.id();
+        config.put("stores." + storeId + ".factory",
+            "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
+        config.put("stores." + storeId + ".key.serde", "byteSerde");
+        config.put("stores." + storeId + ".msg.serde", "byteSerde");
+      }
+    }
   }
 
   private String getId(PValue pvalue) {

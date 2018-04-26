@@ -29,8 +29,11 @@ import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
+import org.apache.beam.runners.samza.util.Base64Serializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -42,7 +45,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
 import org.apache.samza.operators.TimerRegistry;
-import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.task.TaskContext;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -66,6 +68,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private transient StateInternalsFactory<Void> stateInternalsFactory;
   private transient SamzaTimerInternalsFactory<K> timerInternalsFactory;
   private transient DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> fnRunner;
+  private transient SamzaPipelineOptions pipelineOptions;
 
   public GroupByKeyOp(TupleTag<KV<K, OutputT>> mainOutputTag,
                       Coder<KeyedWorkItem<K, InputT>> inputCoder,
@@ -94,17 +97,18 @@ public class GroupByKeyOp<K, InputT, OutputT>
                    TaskContext context,
                    TimerRegistry<KeyedTimerData<K>> timerRegistry,
                    OpEmitter<KV<K, OutputT>> emitter) {
-    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
+    this.pipelineOptions = Base64Serializer
+        .deserializeUnchecked(config.get("beamPipelineOptions"),
+            SerializablePipelineOptions.class).get().as(SamzaPipelineOptions.class);
 
-    @SuppressWarnings("unchecked")
-    final KeyValueStore<byte[], byte[]> store =
-        (KeyValueStore<byte[], byte[]>) context.getStore("beamStore");
+    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
             mainOutputTag.getId(),
-            store,
-            VoidCoder.of());
+            SamzaStoreStateInternals.getBeamStore(context),
+            VoidCoder.of(),
+            pipelineOptions.getStoreBatchGetSize());
 
     this.timerInternalsFactory = new SamzaTimerInternalsFactory<>(
         inputCoder.getKeyCoder(), timerRegistry);
@@ -114,8 +118,9 @@ public class GroupByKeyOp<K, InputT, OutputT>
             windowingStrategy,
             new SamzaStoreStateInternals.Factory<>(
                 mainOutputTag.getId(),
-                store,
-                keyCoder),
+                SamzaStoreStateInternals.getBeamStore(context),
+                keyCoder,
+                pipelineOptions.getStoreBatchGetSize()),
             timerInternalsFactory,
             NullSideInputReader.of(Collections.emptyList()),
             reduceFn,
@@ -130,7 +135,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
             outputManager,
             mainOutputTag,
             Collections.emptyList(),
-            DoFnOp.createStepContext(stateInternalsFactory, timerInternalsFactory),
+            null,
             windowingStrategy);
 
     final SamzaExecutionContext executionContext =

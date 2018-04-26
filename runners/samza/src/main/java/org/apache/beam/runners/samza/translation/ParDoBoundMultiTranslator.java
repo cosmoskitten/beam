@@ -31,6 +31,7 @@ import org.apache.beam.runners.samza.runtime.OpAdapter;
 import org.apache.beam.runners.samza.runtime.OpEmitter;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -62,9 +63,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final PCollection<? extends InT> input = ctx.getInput(transform);
 
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-    if (signature.usesState()) {
-      throw new UnsupportedOperationException("DoFn with state is not currently supported");
-    }
+    final Coder<?> keyCoder = signature.usesState()
+        ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
 
     if (signature.usesTimers()) {
       throw new UnsupportedOperationException("DoFn with timers is not currently supported");
@@ -87,7 +87,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final Map<TupleTag<?>, Integer> tagToIdMap = new HashMap<>();
     final Map<Integer, PCollection<?>> idToPCollectionMap = new HashMap<>();
     final List<Coder<?>> unionCoderElements = new ArrayList<>();
-    ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
+    final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
         new ArrayList<>(node.getOutputs().entrySet());
     for (int id = 0; id < outputs.size(); ++id) {
       final Map.Entry<TupleTag<?>, PValue> taggedOutput = outputs.get(id);
@@ -111,6 +111,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnOp<InT, OutT, RawUnionValue> op = new DoFnOp<>(
         transform.getMainOutputTag(),
         transform.getFn(),
+        keyCoder,
         transform.getSideInputs(),
         transform.getAdditionalOutputTags().getAll(),
         input.getWindowingStrategy(),
