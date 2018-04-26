@@ -258,11 +258,11 @@ public class CassandraIO {
   @VisibleForTesting
   static class CassandraSource<T> extends BoundedSource<T> {
     final Read<T> spec;
-    final String splitQuery;
+    final List<String> splitQueries;
 
-    CassandraSource(Read<T> spec, String splitQuery) {
+    CassandraSource(Read<T> spec, List<String> splitQueries) {
       this.spec = spec;
-      this.splitQuery = splitQuery;
+      this.splitQueries = splitQueries;
     }
 
     @Override
