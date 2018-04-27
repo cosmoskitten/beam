@@ -179,7 +179,7 @@ public class MongoDBGridFSIOTest implements Serializable {
   public void testFullRead() throws Exception {
 
     PCollection<String> output = pipeline.apply(
-        MongoDbGridFSIO.<String>read()
+        MongoDbGridFSIO.read()
             .withUri("mongodb://localhost:" + port)
             .withDatabase(DATABASE));
 
@@ -203,7 +203,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply(
-            MongoDbGridFSIO.<KV<String, Integer>>read()
+            MongoDbGridFSIO.read()
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withBucket("mapBucket")
