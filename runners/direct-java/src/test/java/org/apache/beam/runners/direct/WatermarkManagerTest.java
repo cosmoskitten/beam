@@ -786,7 +786,7 @@ public class WatermarkManagerTest implements Serializable {
     manager.refreshAll();
   }
 
-  public void updateWatermarkWithDifferentWindowedValueInstances() {
+  private void updateWatermarkWithDifferentWindowedValueInstances() {
     manager.updateWatermarks(
         null,
         TimerUpdate.empty(), result(graph.getProducer(createdInts), null,
@@ -975,7 +975,7 @@ public class WatermarkManagerTest implements Serializable {
    *
    * <p>Also demonstrate that the result is monotonic.
    */
-  //  @Test
+  @Test
   public void getSynchronizedProcessingTimeOutputHeldToPendingTimers() {
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(createdInts, 1, 2, 4, 8);
     manager.updateWatermarks(null,
