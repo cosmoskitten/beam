@@ -244,7 +244,7 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   public void testSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.<String>read()
+    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.read()
         .withUri("mongodb://localhost:" + port)
         .withDatabase(DATABASE);
 
