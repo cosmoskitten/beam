@@ -144,7 +144,7 @@ class GroupByKeyTranslator<K, InputT, OutputT>
           AppliedCombineFn
               .withInputCoder(combineFn, pipeline.getCoderRegistry(), kvInputCoder));
     } else {
-      throw new RuntimeException("Transform " + transform + " cannot be translated as Combine.");
+      throw new RuntimeException("Transform " + transform + " cannot be translated as GroupByKey.");
     }
   }
 }
