@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.samza.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
@@ -27,6 +29,7 @@ import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegis
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.samza.operators.StreamGraph;
@@ -44,6 +47,7 @@ public class SamzaPipelineTranslator {
           .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
+          .put(PTransformTranslation.COMBINE_TRANSFORM_URN, new GroupByKeyTranslator())
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
           .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
@@ -72,28 +76,54 @@ public class SamzaPipelineTranslator {
     }
 
     @Override
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+      final PTransform<?, ?> transform = node.getTransform();
+      final String urn = getUrnForTransform(transform);
+      if (canTranslate(urn, transform)) {
+        applyTransform(transform, node, TRANSLATORS.get(urn));
+        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       final PTransform<?, ?> transform = node.getTransform();
-      final String urn = PTransformTranslation.urnForTransformOrNull(transform);
-      final TransformTranslator<?> translator = TRANSLATORS.get(urn);
-      if (translator == null) {
-        throw new UnsupportedOperationException(
-            String.format("Unsupported transform class: %s. Node: %s", transform, node));
-      }
+      final String urn = getUrnForTransform(transform);
+      checkArgument(canTranslate(urn, transform),
+          String.format("Unsupported transform class: %s. Node: %s", transform, node));
 
-      ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
-      ctx.setCurrentTopologicalId(topologicalId++);
-      applyTransform(transform, node, translator);
-      ctx.clearCurrentTransform();
+      applyTransform(transform, node, TRANSLATORS.get(urn));
     }
 
     private <T extends PTransform<?, ?>> void applyTransform(
         T transform,
         TransformHierarchy.Node node,
         TransformTranslator<?> translator) {
+
+      ctx.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
+      ctx.setCurrentTopologicalId(topologicalId++);
+
       @SuppressWarnings("unchecked")
       final TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
       typedTranslator.translate(transform, node, ctx);
+
+      ctx.clearCurrentTransform();
+    }
+
+    private static boolean canTranslate(String urn, PTransform<?, ?> transform) {
+      if (!TRANSLATORS.containsKey(urn)) {
+        return false;
+      } else if (urn.equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
+        // According to BEAM, Combines with side inputs are translated as generic composites
+        return ((Combine.PerKey) transform).getSideInputs().isEmpty();
+      } else {
+        return true;
+      }
+    }
+
+    private static String getUrnForTransform(PTransform<?, ?> transform) {
+      return transform == null ? null : PTransformTranslation.urnForTransformOrNull(transform);
     }
   }
 

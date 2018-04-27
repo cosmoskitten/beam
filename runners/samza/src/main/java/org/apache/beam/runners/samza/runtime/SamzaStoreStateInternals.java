@@ -427,8 +427,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     @Override
     public void add(InT value) {
       final AccumT accum = getAccum();
-      combineFn.addInput(accum, value);
-      writeInternal(accum);
+      final AccumT current = combineFn.addInput(accum, value);
+      writeInternal(current);
     }
 
     @Override
