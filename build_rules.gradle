@@ -325,7 +325,7 @@ ext.DEFAULT_SHADOW_CLOSURE = {
 class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
-  boolean enableErrorProne = true
+  boolean enableErrorProne = true // Controls whether the errorprone plugin is enabled and configured
 
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
@@ -814,6 +814,8 @@ ext.applyJavaNature = {
   // TODO: Figure out whether we should force all dependency conflict resolution
   // to occur in the "shadow" and "shadowTest" configurations.
   configurations.all { config ->
+    // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
+    // has different dependencies than our project.
     if (config.getName() != "errorprone") {
       config.resolutionStrategy {
         force library.java.values()
