@@ -259,7 +259,7 @@ NONE_TYPE = 0
 INT_TYPE = 1
 FLOAT_TYPE = 2
 BYTES_TYPE = 3
-TEXT_TYPE = 4
+UNICODE_TYPE = 4
 BOOL_TYPE = 9
 LIST_TYPE = 5
 TUPLE_TYPE = 6
@@ -297,7 +297,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write(value, nested)
     elif t is unicode:
       text_value = value  # for typing
-      stream.write_byte(TEXT_TYPE)
+      stream.write_byte(UNICODE_TYPE)
       stream.write(text_value.encode('utf-8'), nested)
     elif t is list or t is tuple or t is set:
       stream.write_byte(
@@ -329,7 +329,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return stream.read_bigendian_double()
     elif t == BYTES_TYPE:
       return stream.read_all(nested)
-    elif t == TEXT_TYPE:
+    elif t == UNICODE_TYPE:
       return stream.read_all(nested).decode('utf-8')
     elif t == LIST_TYPE or t == TUPLE_TYPE or t == SET_TYPE:
       vlen = stream.read_var_int64()
