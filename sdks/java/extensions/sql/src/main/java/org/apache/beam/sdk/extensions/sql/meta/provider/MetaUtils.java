@@ -28,7 +28,7 @@ import org.apache.beam.sdk.schemas.Schema;
  * Utility methods for metadata.
  */
 public class MetaUtils {
-  public static Schema getRowTypeFromTable(Table table) {
+  public static Schema getSchema(Table table) {
     return
         table
             .getColumns()
