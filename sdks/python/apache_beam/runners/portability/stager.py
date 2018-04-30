@@ -49,7 +49,6 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
-import functools
 import glob
 import logging
 import os

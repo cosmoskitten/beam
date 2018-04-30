@@ -53,18 +53,14 @@ import functools
 import logging
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 
 import pkg_resources
 
 from apache_beam import version as beam_version
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.runners.dataflow.internal import names, stager
-from apache_beam.utils import processes
+from apache_beam.runners.portability import stager
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
