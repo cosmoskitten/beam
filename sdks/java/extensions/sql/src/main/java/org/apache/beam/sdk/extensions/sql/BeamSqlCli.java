@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.util.List;
+import java.util.Optional;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -27,7 +29,6 @@ import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -74,22 +75,31 @@ public class BeamSqlCli {
   /**
    * Executes the given sql.
    */
-  public void execute(String sqlString) throws Exception {
+  public Optional<PCollection<Row>> execute(String sqlString) throws Exception {
     BeamSqlParser parser = new BeamSqlParser(sqlString);
     SqlNode sqlNode = parser.impl().parseSqlStmtEof();
 
     if (sqlNode instanceof SqlCreateTable) {
       handleCreateTable((SqlCreateTable) sqlNode, metaStore);
-    } else if (sqlNode instanceof SqlDropTable) {
-      handleDropTable((SqlDropTable) sqlNode);
-    } else {
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-          .as(PipelineOptions.class);
-      options.setJobName("BeamPlanCreator");
-      Pipeline pipeline = Pipeline.create(options);
-      compilePipeline(sqlString, pipeline, env);
-      pipeline.run();
+      return Optional.empty();
     }
+
+    if (sqlNode instanceof SqlDropTable) {
+      handleDropTable((SqlDropTable) sqlNode);
+      return Optional.empty();
+    }
+
+    DirectOptions options =
+        PipelineOptionsFactory
+            .fromArgs()
+            .withValidation()
+            .as(DirectOptions.class);
+
+    options.setJobName("BeamPlanCreator");
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Row> result = env.getPlanner().compileBeamPipeline(sqlString, pipeline, env);
+    pipeline.run();
+    return Optional.of(result);
   }
 
   private void handleCreateTable(SqlCreateTable stmt, MetaStore store) {
@@ -108,15 +118,5 @@ public class BeamSqlCli {
   private void handleDropTable(SqlDropTable stmt) {
     metaStore.dropTable(stmt.getNameSimple());
     env.deregisterTable(stmt.getNameSimple());
-  }
-
-  /**
-   * compile SQL, and return a {@link Pipeline}.
-   */
-  private static PCollection<Row> compilePipeline(String sqlStatement, Pipeline basePipeline,
-                                                  BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<Row> resultStream =
-        sqlEnv.getPlanner().compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
-    return resultStream;
   }
 }
