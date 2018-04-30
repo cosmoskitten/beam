@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getSchema;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,7 +48,7 @@ public class BigQueryTableProvider implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = getRowTypeFromTable(table);
+    Schema schema = getSchema(table);
     String filePattern = table.getLocation();
 
     return new BeamBigQueryTable(schema, filePattern);
