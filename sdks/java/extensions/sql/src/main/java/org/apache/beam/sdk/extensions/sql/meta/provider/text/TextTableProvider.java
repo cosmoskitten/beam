@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getSchema;
 
 import com.alibaba.fastjson.JSONObject;
 import java.util.Collections;
@@ -51,7 +51,7 @@ public class TextTableProvider implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = getRowTypeFromTable(table);
+    Schema schema = getSchema(table);
 
     String filePattern = table.getLocation();
     CSVFormat format = CSVFormat.DEFAULT;

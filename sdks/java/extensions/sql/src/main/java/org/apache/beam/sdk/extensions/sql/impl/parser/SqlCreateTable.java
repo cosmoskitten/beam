@@ -20,14 +20,16 @@ import static com.alibaba.fastjson.JSON.parseObject;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.alibaba.fastjson.JSONObject;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCreate;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -102,44 +104,49 @@ public class SqlCreateTable extends SqlCreate {
     }
   }
 
-  private String getString(SqlNode n) {
+  private static String getString(SqlNode n) {
     return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
   public Table toTable() {
-    List<Column> columns = new ArrayList<>(columnList.size());
-    for (Ord<SqlNode> c : Ord.zip(columnList)) {
-      if (c.e instanceof SqlColumnDeclaration) {
-        final SqlColumnDeclaration d = (SqlColumnDeclaration) c.e;
-        Column column = Column.builder()
-            .name(d.name.getSimple().toLowerCase())
-            .fieldType(CalciteUtils.toFieldType(
-                d.dataType.deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()))
-            .nullable(d.dataType.getNullable())
-            .comment(getString(d.comment))
+    List<Column> columns =
+        StreamSupport
+            .stream(columnList.spliterator(), false)
+            .map(SqlCreateTable::toColumn)
+            .collect(Collectors.toList());
+
+    return
+        Table
+            .builder()
+            .type(getString(type).toLowerCase())
+            .name(name.getSimple().toLowerCase())
+            .comment(getString(comment))
+            .location(getString(location))
+            .columns(columns)
+            .properties(tblProperties == null
+                            ? new JSONObject()
+                            : parseObject(getString(tblProperties)))
             .build();
-        columns.add(column);
-      } else {
-        throw new AssertionError(c.e.getClass());
-      }
+  }
+
+  private static Column toColumn(SqlNode sqlNode) {
+    if (!(sqlNode instanceof SqlColumnDeclaration)) {
+      throw new AssertionError(sqlNode.getClass());
     }
 
-    Table.Builder tb = Table.builder()
-        .type(getString(type).toLowerCase())
-        .name(name.getSimple().toLowerCase())
-        .columns(columns);
-    if (comment != null) {
-      tb.comment(getString(comment));
-    }
-    if (location != null) {
-      tb.location(getString(location));
-    }
-    if (tblProperties != null) {
-      tb.properties(parseObject(getString(tblProperties)));
-    } else {
-      tb.properties(new JSONObject());
-    }
-    return tb.build();
+    SqlColumnDeclaration columnDeclaration = (SqlColumnDeclaration) sqlNode;
+    String columnName = columnDeclaration.name.getSimple().toLowerCase();
+    SqlDataTypeSpec columnTypeSpec = columnDeclaration.dataType;
+    RelDataType columnType = columnTypeSpec.deriveType(BeamQueryPlanner.TYPE_FACTORY);
+
+    return
+        Column
+            .builder()
+            .name(columnName)
+            .fieldType(CalciteUtils.toFieldType(columnType))
+            .nullable(columnTypeSpec.getNullable())
+            .comment(getString(columnDeclaration.comment))
+            .build();
   }
 }
 
