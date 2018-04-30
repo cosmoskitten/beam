@@ -53,18 +53,13 @@ import functools
 import logging
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 
 import pkg_resources
 
 from apache_beam import version as beam_version
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.runners.dataflow.internal import names, stager
-from apache_beam.utils import processes
+from apache_beam.runners.portability import stager
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -165,10 +160,8 @@ def stage_job_resources(
       trying to create the resources (e.g., build a setup package).
   """
   temp_dir = temp_dir or tempfile.mkdtemp()
-  resources = []
 
   google_cloud_options = options.view_as(GoogleCloudOptions)
-  setup_options = options.view_as(SetupOptions)
   # Make sure that all required options are specified. There are a few that have
   # defaults to support local running scenarios.
   if google_cloud_options.staging_location is None:
