@@ -120,7 +120,7 @@ public class FlinkBatchPortablePipelineTranslator
 
   /** Creates a batch translator. */
   public static FlinkBatchPortablePipelineTranslator createTranslator() {
-    ImmutableMap.Builder<String, PTransformTranslator<BatchTranslationContext>> translatorMap =
+    ImmutableMap.Builder<String, PTransformTranslator> translatorMap =
         ImmutableMap.builder();
     translatorMap.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN,
@@ -198,14 +198,17 @@ public class FlinkBatchPortablePipelineTranslator
     }
   }
 
-  private interface PTransformTranslator<T> {
-    void translate(String id, RunnerApi.Pipeline pipeline, T t);
+  /** Transform translation interface. */
+  @FunctionalInterface
+  private interface PTransformTranslator {
+    /** Translate the PTransform of the given id into the given translation context. */
+    void translate(String id, RunnerApi.Pipeline pipeline, BatchTranslationContext t);
   }
 
-  private final Map<String, PTransformTranslator<BatchTranslationContext>> urnToTransformTranslator;
+  private final Map<String, PTransformTranslator> urnToTransformTranslator;
 
   private FlinkBatchPortablePipelineTranslator(
-      Map<String, PTransformTranslator<BatchTranslationContext>> urnToTransformTranslator) {
+      Map<String, PTransformTranslator> urnToTransformTranslator) {
     this.urnToTransformTranslator = urnToTransformTranslator;
   }
 
