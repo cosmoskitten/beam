@@ -184,7 +184,7 @@ class common_job_properties {
     // machine memory.
     def totalExecutorMemoryMb = totalMemoryMb / 2
     def perWorkerMemoryMb = totalExecutorMemoryMb / maxWorkers
-    context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
+    // context.switches("-Dorg.gradle.jvmargs=-Xmx${(int)perWorkerMemoryMb}m")
   }
 
   // Sets common config for PreCommit jobs.
