@@ -267,7 +267,8 @@ public class FlinkBatchPortablePipelineTranslator
 
     String inputCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
     String outputCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
-    Coder<WindowedValue<T>> outputCoder = instantiateRunnerCoder(outputCollectionId, components);
+    Coder<WindowedValue<T>> outputCoder =
+        instantiateRunnerWireCoder(outputCollectionId, components);
     TypeInformation<WindowedValue<T>> resultTypeInfo = new CoderTypeInformation<>(outputCoder);
 
     DataSet<WindowedValue<T>> inputDataSet = context.getDataSetOrThrow(inputCollectionId);
@@ -301,7 +302,8 @@ public class FlinkBatchPortablePipelineTranslator
     // Enforce tuple tag sorting by union tag index.
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     for (String collectionId : new TreeMap<>(outputMap.inverse()).values()) {
-      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateRunnerCoder(collectionId, components);
+      Coder<WindowedValue<?>> windowCoder =
+          (Coder) instantiateRunnerWireCoder(collectionId, components);
       outputCoders.put(collectionId, windowCoder);
       unionCoders.add(windowCoder);
     }
@@ -427,7 +429,7 @@ public class FlinkBatchPortablePipelineTranslator
     }
 
     WindowedValueCoder<KV<K, V>> inputCoder =
-        instantiateRunnerCoder(inputPCollectionId, pipeline.getComponents());
+        instantiateRunnerWireCoder(inputPCollectionId, pipeline.getComponents());
 
     KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
 
@@ -582,7 +584,7 @@ public class FlinkBatchPortablePipelineTranslator
   }
 
   /** Instantiates a Java coder for windowed values of the given PCollection id. */
-  private static <T> WindowedValueCoder<T> instantiateRunnerCoder(
+  private static <T> WindowedValueCoder<T> instantiateRunnerWireCoder(
       String collectionId, RunnerApi.Components components) {
     RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
     PCollectionNode collectionNode = PipelineNode.pCollection(collectionId, collection);
