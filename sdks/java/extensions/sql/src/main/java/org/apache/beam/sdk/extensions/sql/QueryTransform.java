@@ -24,16 +24,17 @@ import static org.apache.beam.sdk.extensions.sql.SchemaHelper.toRows;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
@@ -55,15 +56,12 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   @Override
   public PCollection<Row> expand(PInput input) {
-    PCollectionTuple inputTuple = toPCollectionTuple(input);
-
-    BeamSqlEnv sqlEnv = new BeamSqlEnv();
+    BeamSqlEnv sqlEnv = new BeamSqlEnv(toTableProvider(input));
 
     if (input instanceof PCollection) {
       validateQuery(sqlEnv, queryString());
     }
 
-    sqlEnv.registerPCollectionTuple(inputTuple);
     registerFunctions(sqlEnv);
 
     try {
@@ -78,25 +76,18 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     }
   }
 
-  private PCollectionTuple toPCollectionTuple(PInput inputs) {
-    return (inputs instanceof PCollection)
-        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), toRows(inputs))
-        : tupleOfAllInputs(inputs.getPipeline(), inputs.expand());
-  }
-
-  private PCollectionTuple tupleOfAllInputs(
-      Pipeline pipeline,
-      Map<TupleTag<?>, PValue> taggedInputs) {
-
-    PCollectionTuple tuple = PCollectionTuple.empty(pipeline);
-
-    for (Map.Entry<TupleTag<?>, PValue> input : taggedInputs.entrySet()) {
-      tuple = tuple.and(
-          new TupleTag<>(input.getKey().getId()),
-          toRows(input.getValue()));
+  private BeamSqlTableProvider toTableProvider(PInput inputs) {
+    ImmutableMap.Builder<String, BeamSqlTable> tables = ImmutableMap.builder();
+    if (inputs instanceof PCollection) {
+      tables.put(PCOLLECTION_NAME,
+          new BeamPCollectionTable(toRows(inputs)));
+    } else {
+      for (Map.Entry<TupleTag<?>, PValue> input : inputs.expand().entrySet()) {
+        tables.put(input.getKey().getId(),
+            new BeamPCollectionTable(toRows(input.getValue())));
+      }
     }
-
-    return tuple;
+    return new BeamSqlTableProvider(PCOLLECTION_NAME, tables.build());
   }
 
   private void registerFunctions(BeamSqlEnv sqlEnv) {
