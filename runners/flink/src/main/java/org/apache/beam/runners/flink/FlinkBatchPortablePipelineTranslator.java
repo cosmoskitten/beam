@@ -267,7 +267,7 @@ public class FlinkBatchPortablePipelineTranslator
 
     String inputCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
     String outputCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
-    Coder<WindowedValue<T>> outputCoder = instantiateCoder(outputCollectionId, components);
+    Coder<WindowedValue<T>> outputCoder = instantiateRunnerCoder(outputCollectionId, components);
     TypeInformation<WindowedValue<T>> resultTypeInfo = new CoderTypeInformation<>(outputCoder);
 
     DataSet<WindowedValue<T>> inputDataSet = context.getDataSetOrThrow(inputCollectionId);
@@ -301,7 +301,7 @@ public class FlinkBatchPortablePipelineTranslator
     // Enforce tuple tag sorting by union tag index.
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     for (String collectionId : new TreeMap<>(outputMap.inverse()).values()) {
-      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateCoder(collectionId, components);
+      Coder<WindowedValue<?>> windowCoder = (Coder) instantiateRunnerCoder(collectionId, components);
       outputCoders.put(collectionId, windowCoder);
       unionCoders.add(windowCoder);
     }
@@ -427,7 +427,7 @@ public class FlinkBatchPortablePipelineTranslator
     }
 
     WindowedValueCoder<KV<K, V>> inputCoder =
-        instantiateCoder(inputPCollectionId, pipeline.getComponents());
+        instantiateRunnerCoder(inputPCollectionId, pipeline.getComponents());
 
     KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) inputCoder.getValueCoder();
 
@@ -570,7 +570,7 @@ public class FlinkBatchPortablePipelineTranslator
     context.addDataSet(collectionId, pruningOperator);
   }
 
-  // Creates a mapping from PCollection id to output tag integer.
+  /**  Creates a mapping from PCollection id to output tag integer. */
   private static BiMap<String, Integer> createOutputMap(Iterable<String> localOutputs) {
     ImmutableBiMap.Builder<String, Integer> builder = ImmutableBiMap.builder();
     int outputIndex = 0;
@@ -581,7 +581,8 @@ public class FlinkBatchPortablePipelineTranslator
     return builder.build();
   }
 
-  private static <T> WindowedValueCoder<T> instantiateCoder(
+  /** Instantiates a Java coder for windowed values of the given PCollection id. */
+  private static <T> WindowedValueCoder<T> instantiateRunnerCoder(
       String collectionId, RunnerApi.Components components) {
     RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
     PCollectionNode collectionNode = PipelineNode.pCollection(collectionId, collection);
