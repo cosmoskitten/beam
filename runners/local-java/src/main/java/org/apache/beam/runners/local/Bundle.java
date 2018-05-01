@@ -50,7 +50,7 @@ public interface Bundle<T, CollectionT> extends Iterable<WindowedValue<T>> {
    * past this point before consuming this bundle.
    *
    * <p>This value is no greater than the earliest incomplete processing time or synchronized
-   * processing time {@link org.apache.beam.runners.core.TimerInternals.TimerData} at the time
+   * processing time {@link org.apache.beam.runners.core.TimerInternals.TimerData timer} at the time
    * this bundle was committed, including any timers that fired to produce this bundle.
    */
   Instant getSynchronizedProcessingOutputWatermark();
