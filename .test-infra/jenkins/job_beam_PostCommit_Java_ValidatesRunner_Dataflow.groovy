@@ -52,7 +52,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
       // because each one launches a Dataflow job with about 3 mins of overhead.
       // 3 x num_cores strikes a good balance between maxing out parallelism without
       // overloading the machines.
-      common_job_properties.setGradleSwitches(delegate, maxWorkers: 3 * Runtime.runtime.availableProcessors())
+      common_job_properties.setGradleSwitches(context: delegate, maxWorkers: 3 * Runtime.runtime.availableProcessors())
     }
   }
 }
