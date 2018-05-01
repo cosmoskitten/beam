@@ -165,7 +165,7 @@ class common_job_properties {
     }
   }
 
-  void String setGradleSwitches(context, maxWorkers: Runtime.getRuntime().availableProcessors()) {
+  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
     def defaultSwitches = [
       // Gradle log verbosity enough to diagnose basic build issues
       "--info",
@@ -179,7 +179,7 @@ class common_job_properties {
     context.switches("--max-workers=${maxWorkers}")
 
     // Ensure that parallel workers don't exceed total available memory.
-    def totalMemoryMb = Runtime.getRuntime().maxMemory() /(1024*1024)
+    def totalMemoryMb = Runtime.getRuntime().maxMemory() / (1024*1024)
     // Jenkins uses 2 executors to schedule concurrent jobs, so ensure that each executor uses only half the
     // machine memory.
     def totalExecutorMemoryMb = totalMemoryMb / 2
