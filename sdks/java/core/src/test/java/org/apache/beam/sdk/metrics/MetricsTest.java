@@ -83,7 +83,7 @@ public class MetricsTest implements Serializable {
     public final transient TestPipeline pipeline = TestPipeline.create();
 
     @After
-    public static void tearDown() {
+    public void tearDown() {
       MetricsEnvironment.setCurrentContainer(null);
     }
 
