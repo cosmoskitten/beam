@@ -89,16 +89,18 @@ import org.junit.runners.JUnit4;
 @RunWith(Enclosed.class)
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTest implements Serializable {
-
-  /** Tests validating basic {@link GroupByKey} scenarios */
-  @RunWith(JUnit4.class)
-  public static class BasicTests {
+  /** Shared test base class with setup/teardown helpers. */
+  public static abstract class SharedTestBase {
     @Rule
     public transient TestPipeline p = TestPipeline.create();
 
     @Rule
     public transient ExpectedException thrown = ExpectedException.none();
+  }
 
+  /** Tests validating basic {@link GroupByKey} scenarios */
+  @RunWith(JUnit4.class)
+  public static class BasicTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKey() {
@@ -381,13 +383,7 @@ public class GroupByKeyTest implements Serializable {
 
   /** Tests validating GroupByKey behaviors with windowing. */
   @RunWith(JUnit4.class)
-  public static class WindowTests {
-    @Rule
-    public transient TestPipeline p = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class WindowTests extends SharedTestBase{
     @Test
     @Category(ValidatesRunner.class)
     public void testGroupByKeyAndWindows() {
