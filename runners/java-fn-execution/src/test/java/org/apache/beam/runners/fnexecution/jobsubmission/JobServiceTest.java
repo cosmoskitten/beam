@@ -1,5 +1,8 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import com.google.protobuf.Struct;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
@@ -15,6 +18,8 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link JobService}. */
 @RunWith(JUnit4.class)
 public class JobServiceTest {
+  private static final String TEST_JOB_NAME = "test-job";
+
   @Mock
   GrpcFnServer<ArtifactStagingService> artifactStagingServer;
   @Mock
@@ -37,8 +42,14 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testJobSuccessfullyProcessed() throws Exception {
-    // TODO: prepare and start a job
+  public void testJobSubmissionUsesJobInvoker() throws Exception {
+  }
 
+  private JobApi.PrepareJobRequest createTestJobRequest() {
+    return JobApi.PrepareJobRequest.newBuilder()
+        .setJobName(TEST_JOB_NAME)
+        .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
+        .setPipelineOptions(Struct.getDefaultInstance())
+        .build();
   }
 }
