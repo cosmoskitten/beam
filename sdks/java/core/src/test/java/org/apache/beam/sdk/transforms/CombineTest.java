@@ -62,7 +62,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.CombineTest.TestCombineFn.Accumulator;
+import org.apache.beam.sdk.transforms.CombineTest.SharedTestBase.TestCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -102,6 +102,542 @@ public class CombineTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
 
+  /** Base class to share setup/teardown and helpers. */
+  public abstract static class SharedTestBase {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
+    protected void runTestSimpleCombine(List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
+      PCollection<KV<String, Integer>> input = createInput(pipeline, table);
+
+      PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
+
+      PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
+
+      PAssert.that(sum).containsInAnyOrder(globalSum);
+      PAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
+
+      pipeline.run();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void runTestBasicCombine(List<KV<String, Integer>> table,
+        Set<Integer> globalUnique, List<KV<String, Set<Integer>>> perKeyUnique) {
+      PCollection<KV<String, Integer>> input = createInput(pipeline, table);
+
+      PCollection<Set<Integer>> unique =
+          input.apply(Values.create()).apply(Combine.globally(new UniqueInts()));
+
+      PCollection<KV<String, Set<Integer>>> uniquePerKey =
+          input.apply(Combine.perKey(new UniqueInts()));
+
+      PAssert.that(unique).containsInAnyOrder(globalUnique);
+      PAssert.that(uniquePerKey).containsInAnyOrder(perKeyUnique);
+
+      pipeline.run();
+    }
+
+    protected void runTestSimpleCombineWithContext(
+        List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines,
+        String[] globallyCombines) {
+      PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
+      PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
+
+      PCollection<Integer> sum = globallyInput.apply("Sum", Combine.globally(new SumInts()));
+
+      PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
+
+      PCollection<KV<String, String>> combinePerKey =
+          perKeyInput.apply(
+              Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
+                  .withSideInputs(globallySumView));
+
+      PCollection<String> combineGlobally = globallyInput
+          .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
+              .withoutDefaults()
+              .withSideInputs(globallySumView));
+
+      PAssert.that(sum).containsInAnyOrder(globalSum);
+      PAssert.that(combinePerKey).containsInAnyOrder(perKeyCombines);
+      PAssert.that(combineGlobally).containsInAnyOrder(globallyCombines);
+
+      pipeline.run();
+    }
+
+    protected void runTestAccumulatingCombine(
+        List<KV<String, Integer>> table, Double globalMean, List<KV<String, Double>> perKeyMeans) {
+      PCollection<KV<String, Integer>> input = createInput(pipeline, table);
+
+      PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
+
+      PCollection<KV<String, Double>> meanPerKey = input.apply(Combine.perKey(new MeanInts()));
+
+      PAssert.that(mean).containsInAnyOrder(globalMean);
+      PAssert.that(meanPerKey).containsInAnyOrder(perKeyMeans);
+
+      pipeline.run();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Test classes, for different kinds of combining fns.
+
+    /** Another example AccumulatingCombineFn. */
+    public static class TestCounter extends
+        Combine.AccumulatingCombineFn<
+            Integer, TestCounter.Counter, Iterable<Long>> {
+
+      /** An accumulator that observes its merges and outputs. */
+      public class Counter implements
+          Combine.AccumulatingCombineFn.Accumulator<Integer, Counter, Iterable<Long>>,
+          Serializable {
+
+        public long sum = 0;
+        public long inputs = 0;
+        public long merges = 0;
+        public long outputs = 0;
+
+        public Counter(long sum, long inputs, long merges, long outputs) {
+          this.sum = sum;
+          this.inputs = inputs;
+          this.merges = merges;
+          this.outputs = outputs;
+        }
+
+        @Override
+        public void addInput(Integer element) {
+          checkState(merges == 0);
+          checkState(outputs == 0);
+
+          inputs++;
+          sum += element;
+        }
+
+        @Override
+        public void mergeAccumulator(Counter accumulator) {
+          checkState(outputs == 0);
+          assertEquals(0, accumulator.outputs);
+
+          merges += accumulator.merges + 1;
+          inputs += accumulator.inputs;
+          sum += accumulator.sum;
+        }
+
+        @Override
+        public Iterable<Long> extractOutput() {
+          checkState(outputs == 0);
+
+          return Arrays.asList(sum, inputs, merges, outputs);
+        }
+
+        @Override
+        public int hashCode() {
+          return (int) (sum * 17 + inputs * 31 + merges * 43 + outputs * 181);
+        }
+
+        @Override
+        public boolean equals(Object otherObj) {
+          if (otherObj instanceof Counter) {
+            Counter other = (Counter) otherObj;
+            return (sum == other.sum
+                && inputs == other.inputs
+                && merges == other.merges
+                && outputs == other.outputs);
+          }
+          return false;
+        }
+
+        @Override
+        public String toString() {
+          return sum + ":" + inputs + ":" + merges + ":" + outputs;
+        }
+      }
+
+      @Override
+      public Counter createAccumulator() {
+        return new Counter(0, 0, 0, 0);
+      }
+
+      @Override
+      public Coder<Counter> getAccumulatorCoder(
+          CoderRegistry registry, Coder<Integer> inputCoder) {
+        // This is a *very* inefficient encoding to send over the wire, but suffices
+        // for tests.
+        return SerializableCoder.of(Counter.class);
+      }
+    }
+
+    /**
+     * A {@link CombineFn} that results in a sorted list of all characters occurring in the key and
+     * the decimal representations of each value.
+     */
+    public static class TestCombineFn extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
+
+      // Not serializable.
+      static class Accumulator {
+        final String seed;
+        String value;
+        public Accumulator(String seed, String value) {
+          this.seed = seed;
+          this.value = value;
+        }
+
+        public static Coder<Accumulator> getCoder() {
+          return new AtomicCoder<Accumulator>() {
+            @Override
+            public void encode(Accumulator accumulator, OutputStream outStream) throws IOException {
+              StringUtf8Coder.of().encode(accumulator.seed, outStream);
+              StringUtf8Coder.of().encode(accumulator.value, outStream);
+            }
+
+            @Override
+            public Accumulator decode(InputStream inStream) throws IOException {
+              String seed = StringUtf8Coder.of().decode(inStream);
+              String value = StringUtf8Coder.of().decode(inStream);
+              return new Accumulator(seed, value);
+            }
+          };
+        }
+      }
+
+      @Override
+      public Coder<Accumulator> getAccumulatorCoder(
+          CoderRegistry registry, Coder<Integer> inputCoder) {
+        return Accumulator.getCoder();
+      }
+
+      @Override
+      public Accumulator createAccumulator() {
+        return new Accumulator("", "");
+      }
+
+      @Override
+      public Accumulator addInput(Accumulator accumulator, Integer value) {
+        try {
+          return new Accumulator(accumulator.seed, accumulator.value + String.valueOf(value));
+        } finally {
+          accumulator.value = "cleared in addInput";
+        }
+      }
+
+      @Override
+      public Accumulator mergeAccumulators(Iterable<Accumulator> accumulators) {
+        Accumulator seedAccumulator = null;
+        StringBuilder all = new StringBuilder();
+        for (Accumulator accumulator : accumulators) {
+          if (seedAccumulator == null) {
+            seedAccumulator = accumulator;
+          } else {
+            assertEquals(
+                String.format(
+                    "Different seed values in accumulator: %s vs. %s", seedAccumulator, accumulator),
+                seedAccumulator.seed,
+                accumulator.seed);
+          }
+          all.append(accumulator.value);
+          accumulator.value = "cleared in mergeAccumulators";
+        }
+        return new Accumulator(checkNotNull(seedAccumulator).seed, all.toString());
+      }
+
+      @Override
+      public String extractOutput(Accumulator accumulator) {
+        char[] chars = accumulator.value.toCharArray();
+        Arrays.sort(chars);
+        return new String(chars);
+      }
+    }
+
+    /**
+     * A {@link CombineFnWithContext} that produces a sorted list of all characters occurring in the
+     * key and the decimal representations of main and side inputs values.
+     */
+    public static class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
+      private final PCollectionView<Integer> view;
+
+      public TestCombineFnWithContext(PCollectionView<Integer> view) {
+        this.view = view;
+      }
+
+      @Override
+      public Coder<TestCombineFn.Accumulator> getAccumulatorCoder(
+          CoderRegistry registry, Coder<Integer> inputCoder) {
+        return TestCombineFn.Accumulator.getCoder();
+      }
+
+      @Override
+      public TestCombineFn.Accumulator createAccumulator(Context c) {
+        Integer sideInputValue = c.sideInput(view);
+        return new TestCombineFn.Accumulator(sideInputValue.toString(), "");
+      }
+
+      @Override
+      public TestCombineFn.Accumulator addInput(
+          TestCombineFn.Accumulator accumulator, Integer value, Context c) {
+        try {
+          assertThat(
+              "Not expecting view contents to change",
+              accumulator.seed,
+              Matchers.equalTo(Integer.toString(c.sideInput(view))));
+          return new TestCombineFn.Accumulator(
+              accumulator.seed, accumulator.value + String.valueOf(value));
+        } finally {
+          accumulator.value = "cleared in addInput";
+        }
+      }
+
+      @Override
+      public TestCombineFn.Accumulator mergeAccumulators(
+          Iterable<TestCombineFn.Accumulator> accumulators, Context c) {
+        String sideInputValue = c.sideInput(view).toString();
+        StringBuilder all = new StringBuilder();
+        for (TestCombineFn.Accumulator accumulator : accumulators) {
+          assertThat(
+              "Accumulators should all have the same Side Input Value",
+              accumulator.seed,
+              Matchers.equalTo(sideInputValue));
+          all.append(accumulator.value);
+          accumulator.value = "cleared in mergeAccumulators";
+        }
+        return new TestCombineFn.Accumulator(sideInputValue, all.toString());
+      }
+
+      @Override
+      public String extractOutput(TestCombineFn.Accumulator accumulator, Context c) {
+        assertThat(accumulator.seed, Matchers.startsWith(c.sideInput(view).toString()));
+        char[] chars = accumulator.value.toCharArray();
+        Arrays.sort(chars);
+        return accumulator.seed + ":" + new String(chars);
+      }
+    }
+
+    private static class FormatPaneInfo extends DoFn<Integer, String> {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(c.element() + ": " + c.pane().isLast());
+      }
+    }
+
+    protected static final SerializableFunction<String, Integer> hotKeyFanout =
+        input -> "a".equals(input) ? 3 : 0;
+
+    protected static final SerializableFunction<String, Integer> splitHotKeyFanout =
+        input -> Math.random() < 0.5 ? 3 : 0;
+
+    protected static class GetLast extends DoFn<Integer, Integer> {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        if (c.pane().isLast()) {
+          c.output(c.element());
+        }
+      }
+    }
+
+    protected static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
+      @Override
+      public int apply(int left, int right) {
+        return left * right;
+      }
+
+      @Override
+      public int identity() {
+        return 1;
+      }
+    }
+
+    protected static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
+      @Override
+      public Integer apply(Integer left, Integer right) {
+        return left * right;
+      }
+    }
+
+    /**
+     * Computes the product, considering null values to be 2.
+     */
+    protected static final class NullCombiner extends Combine.BinaryCombineFn<Integer> {
+      @Override
+      public Integer apply(Integer left, Integer right) {
+        return (left == null ? 2 : left) * (right == null ? 2 : right);
+      }
+    }
+
+
+    /** Example SerializableFunction combiner. */
+    public static class SumInts
+        implements SerializableFunction<Iterable<Integer>, Integer> {
+      @Override
+      public Integer apply(Iterable<Integer> input) {
+        int sum = 0;
+        for (int item : input) {
+          sum += item;
+        }
+        return sum;
+      }
+    }
+
+    /** Example CombineFn. */
+    public static class UniqueInts extends
+        Combine.CombineFn<Integer, Set<Integer>, Set<Integer>> {
+
+      @Override
+      public Set<Integer> createAccumulator() {
+        return new HashSet<>();
+      }
+
+      @Override
+      public Set<Integer> addInput(Set<Integer> accumulator, Integer input) {
+        accumulator.add(input);
+        return accumulator;
+      }
+
+      @Override
+      public Set<Integer> mergeAccumulators(Iterable<Set<Integer>> accumulators) {
+        Set<Integer> all = new HashSet<>();
+        for (Set<Integer> part : accumulators) {
+          all.addAll(part);
+        }
+        return all;
+      }
+
+      @Override
+      public Set<Integer> extractOutput(Set<Integer> accumulator) {
+        return accumulator;
+      }
+    }
+
+    /** Example AccumulatingCombineFn. */
+    private static class MeanInts extends
+        Combine.AccumulatingCombineFn<Integer, MeanInts.CountSum, Double> {
+      private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
+      private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
+
+      class CountSum implements
+          Combine.AccumulatingCombineFn.Accumulator<Integer, CountSum, Double> {
+        long count = 0;
+        double sum = 0.0;
+
+        CountSum(long count, double sum) {
+          this.count = count;
+          this.sum = sum;
+        }
+
+        @Override
+        public void addInput(Integer element) {
+          count++;
+          sum += element.doubleValue();
+        }
+
+        @Override
+        public void mergeAccumulator(CountSum accumulator) {
+          count += accumulator.count;
+          sum += accumulator.sum;
+        }
+
+        @Override
+        public Double extractOutput() {
+          return count == 0 ? 0.0 : sum / count;
+        }
+
+        @Override
+        public int hashCode() {
+          return Objects.hash(count, sum);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+          if (obj == this) {
+            return true;
+          }
+          if (!(obj instanceof CountSum)) {
+            return false;
+          }
+          CountSum other = (CountSum) obj;
+          return this.count == other.count
+              && (Math.abs(this.sum - other.sum) < 0.1);
+        }
+
+        @Override
+        public String toString() {
+          return MoreObjects.toStringHelper(this)
+              .add("count", count)
+              .add("sum", sum)
+              .toString();
+        }
+      }
+
+      @Override
+      public CountSum createAccumulator() {
+        return new CountSum(0, 0.0);
+      }
+
+      @Override
+      public Coder<CountSum> getAccumulatorCoder(
+          CoderRegistry registry, Coder<Integer> inputCoder) {
+        return new CountSumCoder();
+      }
+
+      /**
+       * A {@link Coder} for {@link CountSum}.
+       */
+      private class CountSumCoder extends AtomicCoder<CountSum> {
+        @Override
+        public void encode(CountSum value, OutputStream outStream) throws IOException {
+          LONG_CODER.encode(value.count, outStream);
+          DOUBLE_CODER.encode(value.sum, outStream);
+        }
+
+        @Override
+        public CountSum decode(InputStream inStream) throws IOException {
+          long count = LONG_CODER.decode(inStream);
+          double sum = DOUBLE_CODER.decode(inStream);
+          return new CountSum(count, sum);
+        }
+
+        @Override
+        public void verifyDeterministic() throws NonDeterministicException { }
+
+        @Override
+        public boolean isRegisterByteSizeObserverCheap(
+            CountSum value) {
+          return true;
+        }
+
+        @Override
+        public void registerByteSizeObserver(
+            CountSum value, ElementByteSizeObserver observer)
+            throws Exception {
+          LONG_CODER.registerByteSizeObserver(value.count, observer);
+          DOUBLE_CODER.registerByteSizeObserver(value.sum, observer);
+        }
+      }
+    }
+
+
+    protected static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
+      return pc.apply(ParDo.of(new DoFn<T, T>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
+          for (int i = 0; i < n; i++) {
+            c.output(c.element());
+          }
+        }
+      }));
+    }
+
+    /**
+     * Class for use in testing use of Java 8 method references.
+     */
+    private static class Summer implements Serializable {
+      public int sum(Iterable<Integer> integers) {
+        int sum = 0;
+        for (int i : integers) {
+          sum += i;
+        }
+        return sum;
+      }
+    }
+  }
+
   static final List<KV<String, Integer>> EMPTY_TABLE = Collections.emptyList();
 
   private static PCollection<KV<String, Integer>> createInput(Pipeline p,
@@ -110,58 +646,14 @@ public class CombineTest implements Serializable {
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
-  private static void runTestSimpleCombine(TestPipeline pipeline,
-      List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
-    PCollection<KV<String, Integer>> input = createInput(pipeline, table);
-
-    PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
-
-    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
-
-    PAssert.that(sum).containsInAnyOrder(globalSum);
-    PAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
-
-    pipeline.run();
-  }
-
-  private static void runTestSimpleCombineWithContext(TestPipeline pipeline,
-      List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines,
-      String[] globallyCombines) {
-    PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
-    PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
-
-    PCollection<Integer> sum = globallyInput.apply("Sum", Combine.globally(new SumInts()));
-
-    PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
-
-    PCollection<KV<String, String>> combinePerKey =
-        perKeyInput.apply(
-            Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
-                .withSideInputs(globallySumView));
-
-    PCollection<String> combineGlobally = globallyInput
-        .apply(Combine.globally(new TestCombineFnWithContext(globallySumView))
-            .withoutDefaults()
-            .withSideInputs(globallySumView));
-
-    PAssert.that(sum).containsInAnyOrder(globalSum);
-    PAssert.that(combinePerKey).containsInAnyOrder(perKeyCombines);
-    PAssert.that(combineGlobally).containsInAnyOrder(globallyCombines);
-
-    pipeline.run();
-  }
-
   /** Tests validating basic Combine transform scenarios. */
   @RunWith(JUnit4.class)
-  public static class BasicTests {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
+  public static class BasicTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombine() {
-      runTestSimpleCombine(pipeline, Arrays.asList(
+      runTestSimpleCombine(Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -173,13 +665,13 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testSimpleCombineEmpty() {
-      runTestSimpleCombine(pipeline, EMPTY_TABLE, 0, Collections.emptyList());
+      runTestSimpleCombine(EMPTY_TABLE, 0, Collections.emptyList());
     }
 
     @Test
     @Category(ValidatesRunner.class)
     public void testBasicCombine() {
-      runTestBasicCombine(pipeline, Arrays.asList(
+      runTestBasicCombine(Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -193,7 +685,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testBasicCombineEmpty() {
-      runTestBasicCombine(pipeline, EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
+      runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
     }
 
     // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
@@ -344,7 +836,7 @@ public class CombineTest implements Serializable {
     public void testCombinePerKeyPrimitiveDisplayData() {
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-      CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+      UniqueInts combineFn = new UniqueInts();
       PTransform<PCollection<KV<Integer, Integer>>, ? extends POutput> combine =
           Combine.perKey(combineFn);
 
@@ -361,7 +853,7 @@ public class CombineTest implements Serializable {
       int hotKeyFanout = 2;
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-      CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+      UniqueInts combineFn = new UniqueInts();
       PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>> combine =
           Combine.<Integer, Integer, Set<Integer>>perKey(combineFn).withHotKeyFanout(hotKeyFanout);
 
@@ -452,15 +944,12 @@ public class CombineTest implements Serializable {
 
   /** Tests validating CombineWithContext behaviors. */
   @RunWith(JUnit4.class)
-  public static class CombineWithContextTests {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
+  public static class CombineWithContextTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void testSimpleCombineWithContext() {
-      runTestSimpleCombineWithContext(pipeline, Arrays.asList(
+      runTestSimpleCombineWithContext(Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -474,16 +963,13 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testSimpleCombineWithContextEmpty() {
-      runTestSimpleCombineWithContext(pipeline, EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+      runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
     }
   }
 
   /** Tests validating windowing behaviors. */
   @RunWith(JUnit4.class)
-  public static class WindowingTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
+  public static class WindowingTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testFixedWindowsCombine() {
@@ -877,14 +1363,11 @@ public class CombineTest implements Serializable {
 
   /** Tests validating accumulation scenarios. */
   @RunWith(JUnit4.class)
-  public static class AccumulationTests {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
+  public static class AccumulationTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)
     public void testAccumulatingCombine() {
-      runTestAccumulatingCombine(pipeline, Arrays.asList(
+      runTestAccumulatingCombine(Arrays.asList(
           KV.of("a", 1),
           KV.of("a", 1),
           KV.of("a", 4),
@@ -896,496 +1379,8 @@ public class CombineTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testAccumulatingCombineEmpty() {
-      runTestAccumulatingCombine(pipeline, EMPTY_TABLE, 0.0, Collections.emptyList());
+      runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.emptyList());
     }
   }
 
-  @SuppressWarnings("unchecked")
-  private static void runTestBasicCombine(TestPipeline pipeline, List<KV<String, Integer>> table,
-      Set<Integer> globalUnique, List<KV<String, Set<Integer>>> perKeyUnique) {
-    PCollection<KV<String, Integer>> input = createInput(pipeline, table);
-
-    PCollection<Set<Integer>> unique =
-        input.apply(Values.create()).apply(Combine.globally(new UniqueInts()));
-
-    PCollection<KV<String, Set<Integer>>> uniquePerKey =
-        input.apply(Combine.perKey(new UniqueInts()));
-
-    PAssert.that(unique).containsInAnyOrder(globalUnique);
-    PAssert.that(uniquePerKey).containsInAnyOrder(perKeyUnique);
-
-    pipeline.run();
-  }
-
-  private static void runTestAccumulatingCombine(TestPipeline pipeline,
-      List<KV<String, Integer>> table, Double globalMean, List<KV<String, Double>> perKeyMeans) {
-    PCollection<KV<String, Integer>> input = createInput(pipeline, table);
-
-    PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
-
-    PCollection<KV<String, Double>> meanPerKey = input.apply(Combine.perKey(new MeanInts()));
-
-    PAssert.that(mean).containsInAnyOrder(globalMean);
-    PAssert.that(meanPerKey).containsInAnyOrder(perKeyMeans);
-
-    pipeline.run();
-  }
-
-  private static class FormatPaneInfo extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(c.element() + ": " + c.pane().isLast());
-    }
-  }
-
-  private static final SerializableFunction<String, Integer> hotKeyFanout =
-      input -> "a".equals(input) ? 3 : 0;
-
-  private static final SerializableFunction<String, Integer> splitHotKeyFanout =
-      input -> Math.random() < 0.5 ? 3 : 0;
-
-  private static class GetLast extends DoFn<Integer, Integer> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (c.pane().isLast()) {
-        c.output(c.element());
-      }
-    }
-  }
-
-  private static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
-    @Override
-    public int apply(int left, int right) {
-      return left * right;
-    }
-
-    @Override
-    public int identity() {
-      return 1;
-    }
-  }
-
-  private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
-    @Override
-    public Integer apply(Integer left, Integer right) {
-      return left * right;
-    }
-  }
-
-  /**
-   * Computes the product, considering null values to be 2.
-   */
-  private static final class NullCombiner extends Combine.BinaryCombineFn<Integer> {
-    @Override
-    public Integer apply(Integer left, Integer right) {
-      return (left == null ? 2 : left) * (right == null ? 2 : right);
-    }
-  }
-
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Test classes, for different kinds of combining fns.
-
-  /** Example SerializableFunction combiner. */
-  public static class SumInts
-      implements SerializableFunction<Iterable<Integer>, Integer> {
-    @Override
-    public Integer apply(Iterable<Integer> input) {
-      int sum = 0;
-      for (int item : input) {
-        sum += item;
-      }
-      return sum;
-    }
-  }
-
-  /** Example CombineFn. */
-  public static class UniqueInts extends
-      Combine.CombineFn<Integer, Set<Integer>, Set<Integer>> {
-
-    @Override
-    public Set<Integer> createAccumulator() {
-      return new HashSet<>();
-    }
-
-    @Override
-    public Set<Integer> addInput(Set<Integer> accumulator, Integer input) {
-      accumulator.add(input);
-      return accumulator;
-    }
-
-    @Override
-    public Set<Integer> mergeAccumulators(Iterable<Set<Integer>> accumulators) {
-      Set<Integer> all = new HashSet<>();
-      for (Set<Integer> part : accumulators) {
-        all.addAll(part);
-      }
-      return all;
-    }
-
-    @Override
-    public Set<Integer> extractOutput(Set<Integer> accumulator) {
-      return accumulator;
-    }
-  }
-
-  /** Example AccumulatingCombineFn. */
-  private static class MeanInts extends
-      Combine.AccumulatingCombineFn<Integer, MeanInts.CountSum, Double> {
-    private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
-    private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
-
-    class CountSum implements
-        Combine.AccumulatingCombineFn.Accumulator<Integer, CountSum, Double> {
-      long count = 0;
-      double sum = 0.0;
-
-      CountSum(long count, double sum) {
-        this.count = count;
-        this.sum = sum;
-      }
-
-      @Override
-      public void addInput(Integer element) {
-        count++;
-        sum += element.doubleValue();
-      }
-
-      @Override
-      public void mergeAccumulator(CountSum accumulator) {
-        count += accumulator.count;
-        sum += accumulator.sum;
-      }
-
-      @Override
-      public Double extractOutput() {
-        return count == 0 ? 0.0 : sum / count;
-      }
-
-      @Override
-      public int hashCode() {
-        return Objects.hash(count, sum);
-      }
-
-      @Override
-      public boolean equals(Object obj) {
-        if (obj == this) {
-          return true;
-        }
-        if (!(obj instanceof CountSum)) {
-          return false;
-        }
-        CountSum other = (CountSum) obj;
-        return this.count == other.count
-            && (Math.abs(this.sum - other.sum) < 0.1);
-      }
-
-      @Override
-      public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("count", count)
-            .add("sum", sum)
-            .toString();
-      }
-    }
-
-    @Override
-    public CountSum createAccumulator() {
-      return new CountSum(0, 0.0);
-    }
-
-    @Override
-    public Coder<CountSum> getAccumulatorCoder(
-        CoderRegistry registry, Coder<Integer> inputCoder) {
-      return new CountSumCoder();
-    }
-
-    /**
-     * A {@link Coder} for {@link CountSum}.
-     */
-    private class CountSumCoder extends AtomicCoder<CountSum> {
-      @Override
-      public void encode(CountSum value, OutputStream outStream) throws IOException {
-        LONG_CODER.encode(value.count, outStream);
-        DOUBLE_CODER.encode(value.sum, outStream);
-      }
-
-      @Override
-      public CountSum decode(InputStream inStream) throws IOException {
-        long count = LONG_CODER.decode(inStream);
-        double sum = DOUBLE_CODER.decode(inStream);
-        return new CountSum(count, sum);
-      }
-
-      @Override
-      public void verifyDeterministic() throws NonDeterministicException { }
-
-      @Override
-      public boolean isRegisterByteSizeObserverCheap(
-          CountSum value) {
-        return true;
-      }
-
-      @Override
-      public void registerByteSizeObserver(
-          CountSum value, ElementByteSizeObserver observer)
-          throws Exception {
-        LONG_CODER.registerByteSizeObserver(value.count, observer);
-        DOUBLE_CODER.registerByteSizeObserver(value.sum, observer);
-      }
-    }
-  }
-
-  /**
-   * A {@link CombineFn} that results in a sorted list of all characters occurring in the key and
-   * the decimal representations of each value.
-   */
-  public static class TestCombineFn extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
-
-    // Not serializable.
-    static class Accumulator {
-      final String seed;
-      String value;
-      public Accumulator(String seed, String value) {
-        this.seed = seed;
-        this.value = value;
-      }
-
-      public static Coder<Accumulator> getCoder() {
-        return new AtomicCoder<Accumulator>() {
-          @Override
-          public void encode(Accumulator accumulator, OutputStream outStream) throws IOException {
-            StringUtf8Coder.of().encode(accumulator.seed, outStream);
-            StringUtf8Coder.of().encode(accumulator.value, outStream);
-          }
-
-          @Override
-          public Accumulator decode(InputStream inStream) throws IOException {
-            String seed = StringUtf8Coder.of().decode(inStream);
-            String value = StringUtf8Coder.of().decode(inStream);
-            return new Accumulator(seed, value);
-          }
-        };
-      }
-    }
-
-    @Override
-    public Coder<Accumulator> getAccumulatorCoder(
-        CoderRegistry registry, Coder<Integer> inputCoder) {
-      return Accumulator.getCoder();
-    }
-
-    @Override
-    public Accumulator createAccumulator() {
-      return new Accumulator("", "");
-    }
-
-    @Override
-    public Accumulator addInput(Accumulator accumulator, Integer value) {
-      try {
-        return new Accumulator(accumulator.seed, accumulator.value + String.valueOf(value));
-      } finally {
-        accumulator.value = "cleared in addInput";
-      }
-    }
-
-    @Override
-    public Accumulator mergeAccumulators(Iterable<Accumulator> accumulators) {
-      Accumulator seedAccumulator = null;
-      StringBuilder all = new StringBuilder();
-      for (Accumulator accumulator : accumulators) {
-        if (seedAccumulator == null) {
-          seedAccumulator = accumulator;
-        } else {
-          assertEquals(
-              String.format(
-                  "Different seed values in accumulator: %s vs. %s", seedAccumulator, accumulator),
-              seedAccumulator.seed,
-              accumulator.seed);
-        }
-        all.append(accumulator.value);
-        accumulator.value = "cleared in mergeAccumulators";
-      }
-      return new Accumulator(checkNotNull(seedAccumulator).seed, all.toString());
-    }
-
-    @Override
-    public String extractOutput(Accumulator accumulator) {
-      char[] chars = accumulator.value.toCharArray();
-      Arrays.sort(chars);
-      return new String(chars);
-    }
-  }
-
-  /**
-   * A {@link CombineFnWithContext} that produces a sorted list of all characters occurring in the
-   * key and the decimal representations of main and side inputs values.
-   */
-  public static class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
-    private final PCollectionView<Integer> view;
-
-    public TestCombineFnWithContext(PCollectionView<Integer> view) {
-      this.view = view;
-    }
-
-    @Override
-    public Coder<TestCombineFn.Accumulator> getAccumulatorCoder(
-        CoderRegistry registry, Coder<Integer> inputCoder) {
-      return TestCombineFn.Accumulator.getCoder();
-    }
-
-    @Override
-    public TestCombineFn.Accumulator createAccumulator(Context c) {
-      Integer sideInputValue = c.sideInput(view);
-      return new TestCombineFn.Accumulator(sideInputValue.toString(), "");
-    }
-
-    @Override
-    public TestCombineFn.Accumulator addInput(
-        TestCombineFn.Accumulator accumulator, Integer value, Context c) {
-      try {
-        assertThat(
-            "Not expecting view contents to change",
-            accumulator.seed,
-            Matchers.equalTo(Integer.toString(c.sideInput(view))));
-        return new TestCombineFn.Accumulator(
-            accumulator.seed, accumulator.value + String.valueOf(value));
-      } finally {
-        accumulator.value = "cleared in addInput";
-      }
-    }
-
-    @Override
-    public TestCombineFn.Accumulator mergeAccumulators(
-        Iterable<TestCombineFn.Accumulator> accumulators, Context c) {
-      String sideInputValue = c.sideInput(view).toString();
-      StringBuilder all = new StringBuilder();
-      for (TestCombineFn.Accumulator accumulator : accumulators) {
-        assertThat(
-            "Accumulators should all have the same Side Input Value",
-            accumulator.seed,
-            Matchers.equalTo(sideInputValue));
-        all.append(accumulator.value);
-        accumulator.value = "cleared in mergeAccumulators";
-      }
-      return new TestCombineFn.Accumulator(sideInputValue, all.toString());
-    }
-
-    @Override
-    public String extractOutput(TestCombineFn.Accumulator accumulator, Context c) {
-      assertThat(accumulator.seed, Matchers.startsWith(c.sideInput(view).toString()));
-      char[] chars = accumulator.value.toCharArray();
-      Arrays.sort(chars);
-      return accumulator.seed + ":" + new String(chars);
-    }
-  }
-
-  /** Another example AccumulatingCombineFn. */
-  public static class TestCounter extends
-      Combine.AccumulatingCombineFn<
-          Integer, TestCounter.Counter, Iterable<Long>> {
-
-    /** An accumulator that observes its merges and outputs. */
-    public class Counter implements
-        Combine.AccumulatingCombineFn.Accumulator<Integer, Counter, Iterable<Long>>,
-        Serializable {
-
-      public long sum = 0;
-      public long inputs = 0;
-      public long merges = 0;
-      public long outputs = 0;
-
-      public Counter(long sum, long inputs, long merges, long outputs) {
-        this.sum = sum;
-        this.inputs = inputs;
-        this.merges = merges;
-        this.outputs = outputs;
-      }
-
-      @Override
-      public void addInput(Integer element) {
-        checkState(merges == 0);
-        checkState(outputs == 0);
-
-        inputs++;
-        sum += element;
-      }
-
-      @Override
-      public void mergeAccumulator(Counter accumulator) {
-        checkState(outputs == 0);
-        assertEquals(0, accumulator.outputs);
-
-        merges += accumulator.merges + 1;
-        inputs += accumulator.inputs;
-        sum += accumulator.sum;
-      }
-
-      @Override
-      public Iterable<Long> extractOutput() {
-        checkState(outputs == 0);
-
-        return Arrays.asList(sum, inputs, merges, outputs);
-      }
-
-      @Override
-      public int hashCode() {
-        return (int) (sum * 17 + inputs * 31 + merges * 43 + outputs * 181);
-      }
-
-      @Override
-      public boolean equals(Object otherObj) {
-        if (otherObj instanceof Counter) {
-          Counter other = (Counter) otherObj;
-          return (sum == other.sum
-              && inputs == other.inputs
-              && merges == other.merges
-              && outputs == other.outputs);
-        }
-        return false;
-      }
-
-      @Override
-      public String toString() {
-        return sum + ":" + inputs + ":" + merges + ":" + outputs;
-      }
-    }
-
-    @Override
-    public Counter createAccumulator() {
-      return new Counter(0, 0, 0, 0);
-    }
-
-    @Override
-    public Coder<Counter> getAccumulatorCoder(
-        CoderRegistry registry, Coder<Integer> inputCoder) {
-      // This is a *very* inefficient encoding to send over the wire, but suffices
-      // for tests.
-      return SerializableCoder.of(Counter.class);
-    }
-  }
-
-  private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
-    return pc.apply(ParDo.of(new DoFn<T, T>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        for (int i = 0; i < n; i++) {
-          c.output(c.element());
-        }
-      }
-    }));
-  }
-
-  /**
-   * Class for use in testing use of Java 8 method references.
-   */
-  private static class Summer implements Serializable {
-    public int sum(Iterable<Integer> integers) {
-      int sum = 0;
-      for (int i : integers) {
-        sum += i;
-      }
-      return sum;
-    }
-  }
 }
