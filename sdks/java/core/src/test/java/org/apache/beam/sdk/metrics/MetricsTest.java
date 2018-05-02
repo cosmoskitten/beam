@@ -74,21 +74,75 @@ public class MetricsTest implements Serializable {
             .build());
   }
 
-  public static void tearDown() {
-    MetricsEnvironment.setCurrentContainer(null);
+  /** Shared test helpers and setup/teardown */
+  public abstract static class SharedTestBase {
+    @Rule
+    public final transient ExpectedException thrown = ExpectedException.none();
+
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @After
+    public static void tearDown() {
+      MetricsEnvironment.setCurrentContainer(null);
+    }
+
+    protected PipelineResult runPipelineWithMetrics() {
+      final Counter count = Metrics.counter(MetricsTest.class, "count");
+      final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
+      final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
+      pipeline
+          .apply(Create.of(5, 8, 13))
+          .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
+            Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+
+            @StartBundle
+            public void startBundle() {
+              bundleDist.update(10L);
+            }
+
+            @SuppressWarnings("unused")
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              Distribution values = Metrics.distribution(MetricsTest.class, "input");
+              count.inc();
+              values.update(c.element());
+
+              c.output(c.element());
+              c.output(c.element());
+            }
+
+            @DoFn.FinishBundle
+            public void finishBundle() {
+              bundleDist.update(40L);
+            }
+          }))
+          .apply("MyStep2", ParDo
+              .of(new DoFn<Integer, Integer>() {
+                @SuppressWarnings("unused")
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                  Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
+                  Integer element = c.element();
+                  count.inc();
+                  values.update(element);
+                  gauge.set(12L);
+                  c.output(element);
+                  c.output(output2, element);
+                }
+              })
+              .withOutputTags(output1, TupleTagList.of(output2)));
+      PipelineResult result = pipeline.run();
+
+      result.waitUntilFinish();
+      return result;
+    }
   }
 
   /** Tests validating basic metric scenarios */
   @RunWith(JUnit4.class)
-  public static class BasicTests {
-    @Rule
-    public final transient ExpectedException thrown = ExpectedException.none();
-
-    @After
-    public static void tearDown() {
-      MetricsTest.tearDown();
-    }
-
+  public static class BasicTests extends SharedTestBase {
     @Test
     public void testDistributionWithoutContainer() {
       assertNull(MetricsEnvironment.getCurrentContainer());
@@ -171,20 +225,12 @@ public class MetricsTest implements Serializable {
 
   /** Tests for committed metrics */
   @RunWith(JUnit4.class)
-  public static class CommittedMetricTests {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @After
-    public static void tearDown() {
-      MetricsTest.tearDown();
-    }
-
+  public static class CommittedMetricTests extends SharedTestBase {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
         UsesDistributionMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAllCommittedMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
 
       assertAllMetrics(metrics, true);
@@ -193,7 +239,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
     @Test
     public void testCommittedCounterMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertCounterMetrics(metrics, true);
     }
@@ -201,7 +247,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesDistributionMetrics.class})
     @Test
     public void testCommittedDistributionMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertDistributionMetrics(metrics, true);
     }
@@ -209,7 +255,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testCommittedGaugeMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, true);
     }
@@ -273,20 +319,12 @@ public class MetricsTest implements Serializable {
 
   /** Tests for attempted metrics. */
   @RunWith(JUnit4.class)
-  public static class AttemptedMetricTests {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @After
-    public static void tearDown() {
-      MetricsTest.tearDown();
-    }
-
+  public static class AttemptedMetricTests extends SharedTestBase {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
         UsesDistributionMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAllAttemptedMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
 
       // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
@@ -296,7 +334,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
     @Test
     public void testAttemptedCounterMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertCounterMetrics(metrics, false);
     }
@@ -304,7 +342,7 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
     @Test
     public void testAttemptedDistributionMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertDistributionMetrics(metrics, false);
     }
@@ -312,62 +350,10 @@ public class MetricsTest implements Serializable {
     @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
     @Test
     public void testAttemptedGaugeMetrics() {
-      PipelineResult result = runPipelineWithMetrics(pipeline);
+      PipelineResult result = runPipelineWithMetrics();
       MetricQueryResults metrics = queryTestMetrics(result);
       assertGaugeMetrics(metrics, false);
     }
-  }
-
-  private static PipelineResult runPipelineWithMetrics(TestPipeline pipeline) {
-    final Counter count = Metrics.counter(MetricsTest.class, "count");
-    final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
-    final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
-    pipeline
-        .apply(Create.of(5, 8, 13))
-        .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
-          Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
-
-          @StartBundle
-          public void startBundle() {
-            bundleDist.update(10L);
-          }
-
-          @SuppressWarnings("unused")
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            Distribution values = Metrics.distribution(MetricsTest.class, "input");
-            count.inc();
-            values.update(c.element());
-
-            c.output(c.element());
-            c.output(c.element());
-          }
-
-          @DoFn.FinishBundle
-          public void finishBundle() {
-            bundleDist.update(40L);
-          }
-        }))
-        .apply("MyStep2", ParDo
-            .of(new DoFn<Integer, Integer>() {
-              @SuppressWarnings("unused")
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                Distribution values = Metrics.distribution(MetricsTest.class, "input");
-                Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
-                Integer element = c.element();
-                count.inc();
-                values.update(element);
-                gauge.set(12L);
-                c.output(element);
-                c.output(output2, element);
-              }
-            })
-            .withOutputTags(output1, TupleTagList.of(output2)));
-    PipelineResult result = pipeline.run();
-
-    result.waitUntilFinish();
-    return result;
   }
 
   private static void assertCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
