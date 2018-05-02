@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -49,19 +49,20 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PInput, PCollection<Row>> toPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PInput inputPCollections) {
       RelNode input = getInput();
       String stageName = BeamSqlRelUtils.getStageName(BeamFilterRel.this);
 
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+          inputPCollections.getPipeline()
+              .apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamFilterRel.this);
 

@@ -39,7 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.linq4j.Ord;
@@ -77,18 +77,19 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PInput, PCollection<Row>> toPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
 
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PInput inputPCollections) {
       RelNode input = getInput();
       String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
 
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+          inputPCollections.getPipeline()
+              .apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
       if (windowField.isPresent()) {
         upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))

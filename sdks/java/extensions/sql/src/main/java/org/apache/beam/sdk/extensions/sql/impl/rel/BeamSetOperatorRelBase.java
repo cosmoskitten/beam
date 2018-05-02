@@ -29,7 +29,7 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.rel.RelNode;
@@ -61,12 +61,12 @@ public class BeamSetOperatorRelBase {
     this.all = all;
   }
 
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections) {
+  public PCollection<Row> buildBeamPipeline(PInput inputPCollections) {
     PCollection<Row> leftRows =
-        inputPCollections.apply(
+        inputPCollections.getPipeline().apply(
             "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform());
     PCollection<Row> rightRows =
-        inputPCollections.apply(
+        inputPCollections.getPipeline().apply(
             "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform());
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();

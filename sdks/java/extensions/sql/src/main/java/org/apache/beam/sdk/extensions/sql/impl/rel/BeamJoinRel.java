@@ -44,8 +44,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
@@ -116,14 +116,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PInput, PCollection<Row>> toPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PInput, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+    public PCollection<Row> expand(PInput inputPCollections) {
       BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
       final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
@@ -133,9 +133,10 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             .setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
       }
 
-      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform());
+      PCollection<Row> leftRows =
+          inputPCollections.getPipeline().apply("left", leftRelNode.toPTransform());
       PCollection<Row> rightRows =
-          inputPCollections.apply("right", rightRelNode.toPTransform());
+          inputPCollections.getPipeline().apply("right", rightRelNode.toPTransform());
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
@@ -369,8 +370,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private PCollection<Row> joinAsLookup(
       BeamRelNode leftRelNode,
       BeamRelNode rightRelNode,
-      PCollectionTuple inputPCollections) {
-    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
+      PInput inputPCollections) {
+    PCollection<Row> factStream = inputPCollections.getPipeline().apply(leftRelNode.toPTransform());
     BeamIOSourceRel srcRel = (BeamIOSourceRel) rightRelNode;
     BeamSqlSeekableTable seekableTable = (BeamSqlSeekableTable) srcRel.getBeamSqlTable();
 

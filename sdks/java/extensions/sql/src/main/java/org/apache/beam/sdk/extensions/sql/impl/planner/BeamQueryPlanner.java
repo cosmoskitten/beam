@@ -24,7 +24,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
@@ -119,7 +118,7 @@ public class BeamQueryPlanner {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
+    return basePipeline.apply(relNode.toPTransform());
   }
 
   /**
