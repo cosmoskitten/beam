@@ -43,6 +43,9 @@ job('beam_PostCommit_Java_Nexmark_Flink') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
+              '        --sinkType=BIGQUERY\n' +
+              '        --project=apache-beam-testing\n' +
+              '        --resourceNameMode=QUERY\n'+
               '        --runner=FlinkRunner\n' +
               '        --streaming=false\n' +
               '        --suite=SMOKE\n' +
@@ -58,6 +61,9 @@ job('beam_PostCommit_Java_Nexmark_Flink') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
+              '        --sinkType=BIGQUERY\n' +
+              '        --project=apache-beam-testing\n' +
+              '        --resourceNameMode=QUERY\n'+
               '        --runner=FlinkRunner\n' +
               '        --streaming=true\n' +
               '        --suite=SMOKE\n' +
