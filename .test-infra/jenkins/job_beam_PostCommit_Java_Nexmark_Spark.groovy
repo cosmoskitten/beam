@@ -43,6 +43,7 @@ job('beam_PostCommit_Java_Nexmark_Spark') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-spark"' +
               ' -Pnexmark.args="' +
+              '        --sinkType=BIGQUERY\n' +
               '        --runner=SparkRunner\n' +
               '        --streaming=false\n' +
               '        --suite=SMOKE\n' +

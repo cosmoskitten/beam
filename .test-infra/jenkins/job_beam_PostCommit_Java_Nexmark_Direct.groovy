@@ -43,6 +43,7 @@ job('beam_PostCommit_Java_Nexmark_Direct') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-direct-java"' +
               ' -Pnexmark.args="' +
+              '        --sinkType=BIGQUERY\n' +
               '        --runner=DirectRunner\n' +
               '        --streaming=false\n' +
               '        --suite=SMOKE\n' +
@@ -58,6 +59,7 @@ job('beam_PostCommit_Java_Nexmark_Direct') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-direct-java"' +
               ' -Pnexmark.args="' +
+              '        --sinkType=BIGQUERY\n' +
               '        --runner=DirectRunner\n' +
               '        --streaming=true\n' +
               '        --suite=SMOKE\n' +
