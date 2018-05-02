@@ -132,6 +132,15 @@ public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
 
+  /** Shared base test base with setup/teardown helpers */
+  public abstract static class SharedTestBase {
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
+
+    @Rule
+    public transient ExpectedException thrown = ExpectedException.none();
+  }
+
   private static class PrintingDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(@Element String element,
@@ -326,13 +335,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests for basic {@link ParDo} scenarios */
   @RunWith(JUnit4.class)
-  public static class BasicTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testParDo() {
@@ -543,13 +546,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests to validate behaviors around multiple inputs or outputs */
   @RunWith(JUnit4.class)
-  public static class MultipleInputsAndOutputTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class MultipleInputsAndOutputTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testParDoWithTaggedOutput() {
@@ -1150,13 +1147,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests for ParDo lifecycle methods */
   @RunWith(JUnit4.class)
-  public static class LifecycleTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class LifecycleTests extends SharedTestBase implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testParDoWithErrorInStartBatch() {
@@ -1236,13 +1227,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests to validate output timestamps */
   @RunWith(JUnit4.class)
-  public static class TimestampTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class TimestampTests extends SharedTestBase implements Serializable {
     @Test
     @Category(NeedsRunner.class)
     public void testParDoOutputWithTimestamp() {
@@ -1417,13 +1402,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests to validate ParDo state. */
   @RunWith(JUnit4.class)
-  public static class StateTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class StateTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateSimple() {
@@ -2009,13 +1988,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests for state coder inference behaviors. */
   @RunWith(JUnit4.class)
-  public static class StateCoderInferenceTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testBagStateCoderInference() {
@@ -2410,13 +2383,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests to validate ParDo timers. */
   @RunWith(JUnit4.class)
-  public static class TimerTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class TimerTests extends SharedTestBase implements Serializable {
     @Test
     public void testTimerNotKeyed() {
       final String timerId = "foo";
@@ -3122,13 +3089,7 @@ public class ParDoTest implements Serializable {
 
   /** Tests validating Timer coder inference behaviors. */
   @RunWith(JUnit4.class)
-  public static class TimerCoderInferenceTests implements Serializable {
-    @Rule
-    public final transient TestPipeline pipeline = TestPipeline.create();
-
-    @Rule
-    public transient ExpectedException thrown = ExpectedException.none();
-
+  public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
     public void testValueStateCoderInference() {
