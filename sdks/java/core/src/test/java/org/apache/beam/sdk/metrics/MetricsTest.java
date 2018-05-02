@@ -74,7 +74,7 @@ public class MetricsTest implements Serializable {
             .build());
   }
 
-  /** Shared test helpers and setup/teardown */
+  /** Shared test helpers and setup/teardown. */
   public abstract static class SharedTestBase {
     @Rule
     public final transient ExpectedException thrown = ExpectedException.none();
@@ -140,7 +140,7 @@ public class MetricsTest implements Serializable {
     }
   }
 
-  /** Tests validating basic metric scenarios */
+  /** Tests validating basic metric scenarios. */
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
@@ -223,7 +223,7 @@ public class MetricsTest implements Serializable {
     }
   }
 
-  /** Tests for committed metrics */
+  /** Tests for committed metrics. */
   @RunWith(JUnit4.class)
   public static class CommittedMetricTests extends SharedTestBase {
     @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,

@@ -90,7 +90,7 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
-  public static abstract class SharedTestBase {
+  public abstract static class SharedTestBase {
     @Rule
     public transient TestPipeline p = TestPipeline.create();
 
@@ -98,7 +98,7 @@ public class GroupByKeyTest implements Serializable {
     public transient ExpectedException thrown = ExpectedException.none();
   }
 
-  /** Tests validating basic {@link GroupByKey} scenarios */
+  /** Tests validating basic {@link GroupByKey} scenarios. */
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase {
     @Test
@@ -148,8 +148,8 @@ public class GroupByKeyTest implements Serializable {
     }
 
     /**
-     * Tests that when a processing time timers comes in after a window is expired it does not cause a
-     * spurious output.
+     * Tests that when a processing time timers comes in after a window is expired it does not cause
+     * a spurious output.
      */
     @Test
     @Category({ValidatesRunner.class, UsesTestStream.class})
@@ -414,7 +414,10 @@ public class GroupByKeyTest implements Serializable {
       PAssert.that(output)
           .inWindow(new IntervalWindow(new Instant(0L), Duration.millis(5L)))
           .satisfies(
-              containsKvs(kv("k1", 3), kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE), kv("k2", 66)));
+              containsKvs(
+                  kv("k1", 3),
+                  kv("k5", Integer.MIN_VALUE, Integer.MAX_VALUE),
+                  kv("k2", 66)));
       PAssert.that(output)
           .inWindow(new IntervalWindow(new Instant(5L), Duration.millis(5L)))
           .satisfies(containsKvs(kv("k1", 4), kv("k2", -33), kv("k3", 0)));
@@ -431,7 +434,9 @@ public class GroupByKeyTest implements Serializable {
                   TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
                   TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
                   TimestampedValue.of(KV.of("bar", 3), new Instant(3))))
-              .apply(Window.into(SlidingWindows.of(Duration.millis(5L)).every(Duration.millis(3L))));
+              .apply(Window.into(SlidingWindows
+                  .of(Duration.millis(5L))
+                  .every(Duration.millis(3L))));
 
       PCollection<KV<String, Iterable<Integer>>> output = windowedInput.apply(GroupByKey.create());
 

@@ -107,10 +107,15 @@ public class CombineTest implements Serializable {
     @Rule
     public final transient TestPipeline pipeline = TestPipeline.create();
 
-    protected void runTestSimpleCombine(List<KV<String, Integer>> table, int globalSum, List<KV<String, String>> perKeyCombines) {
+    protected void runTestSimpleCombine(
+        List<KV<String, Integer>> table,
+        int globalSum,
+        List<KV<String, String>> perKeyCombines) {
       PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
-      PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
+      PCollection<Integer> sum = input
+          .apply(Values.create())
+          .apply(Combine.globally(new SumInts()));
 
       PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
 
@@ -168,7 +173,9 @@ public class CombineTest implements Serializable {
         List<KV<String, Integer>> table, Double globalMean, List<KV<String, Double>> perKeyMeans) {
       PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
-      PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
+      PCollection<Double> mean = input
+          .apply(Values.create())
+          .apply(Combine.globally(new MeanInts()));
 
       PCollection<KV<String, Double>> meanPerKey = input.apply(Combine.perKey(new MeanInts()));
 
@@ -270,7 +277,8 @@ public class CombineTest implements Serializable {
      * A {@link CombineFn} that results in a sorted list of all characters occurring in the key and
      * the decimal representations of each value.
      */
-    public static class TestCombineFn extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
+    public static class TestCombineFn
+        extends CombineFn<Integer, TestCombineFn.Accumulator, String> {
 
       // Not serializable.
       static class Accumulator {
@@ -329,7 +337,8 @@ public class CombineTest implements Serializable {
           } else {
             assertEquals(
                 String.format(
-                    "Different seed values in accumulator: %s vs. %s", seedAccumulator, accumulator),
+                    "Different seed values in accumulator: %s vs. %s",
+                    seedAccumulator, accumulator),
                 seedAccumulator.seed,
                 accumulator.seed);
           }
@@ -351,7 +360,8 @@ public class CombineTest implements Serializable {
      * A {@link CombineFnWithContext} that produces a sorted list of all characters occurring in the
      * key and the decimal representations of main and side inputs values.
      */
-    public static class TestCombineFnWithContext extends CombineFnWithContext<Integer, Accumulator, String> {
+    public static class TestCombineFnWithContext
+        extends CombineFnWithContext<Integer, Accumulator, String> {
       private final PCollectionView<Integer> view;
 
       public TestCombineFnWithContext(PCollectionView<Integer> view) {
@@ -410,6 +420,7 @@ public class CombineTest implements Serializable {
       }
     }
 
+    /** Sample DoFn for testing combine. */
     protected static class FormatPaneInfo extends DoFn<Integer, String> {
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -417,12 +428,13 @@ public class CombineTest implements Serializable {
       }
     }
 
-    protected static final SerializableFunction<String, Integer> hotKeyFanout =
+    protected static final SerializableFunction<String, Integer> HOT_KEY_FANOUT =
         input -> "a".equals(input) ? 3 : 0;
 
-    protected static final SerializableFunction<String, Integer> splitHotKeyFanout =
+    protected static final SerializableFunction<String, Integer> SPLIT_HOT_KEY_FANOUT =
         input -> Math.random() < 0.5 ? 3 : 0;
 
+    /** Sample DoFn for testing hot keys. */
     protected static class GetLast extends DoFn<Integer, Integer> {
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -432,6 +444,7 @@ public class CombineTest implements Serializable {
       }
     }
 
+    /** Sample BinaryCombineFn for testing int inputs. */
     protected static final class TestProdInt extends Combine.BinaryCombineIntegerFn {
       @Override
       public int apply(int left, int right) {
@@ -444,6 +457,7 @@ public class CombineTest implements Serializable {
       }
     }
 
+    /** Sample BinaryCombineFn for testing Integer inputs. */
     protected static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {
       @Override
       public Integer apply(Integer left, Integer right) {
@@ -717,11 +731,11 @@ public class CombineTest implements Serializable {
       PCollection<KV<String, Double>> coldMean = input.apply("ColdMean",
           Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(0));
       PCollection<KV<String, Double>> warmMean = input.apply("WarmMean",
-          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(hotKeyFanout));
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(HOT_KEY_FANOUT));
       PCollection<KV<String, Double>> hotMean = input.apply("HotMean",
           Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(5));
       PCollection<KV<String, Double>> splitMean = input.apply("SplitMean",
-          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(splitHotKeyFanout));
+          Combine.<String, Integer, Double>perKey(mean).withHotKeyFanout(SPLIT_HOT_KEY_FANOUT));
 
       List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
       PAssert.that(coldMean).containsInAnyOrder(expected);
@@ -854,8 +868,10 @@ public class CombineTest implements Serializable {
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
       UniqueInts combineFn = new UniqueInts();
-      PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>> combine =
-          Combine.<Integer, Integer, Set<Integer>>perKey(combineFn).withHotKeyFanout(hotKeyFanout);
+      PTransform<PCollection<KV<Integer, Integer>>, PCollection<KV<Integer, Set<Integer>>>>
+          combine = Combine
+            .<Integer, Integer, Set<Integer>>perKey(combineFn)
+            .withHotKeyFanout(hotKeyFanout);
 
       Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
           KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
@@ -1115,7 +1131,8 @@ public class CombineTest implements Serializable {
 
       PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
 
-      PCollection<Integer> sum = globallyInput.apply("Sum", Sum.integersGlobally().withoutDefaults());
+      PCollection<Integer> sum = globallyInput
+          .apply("Sum", Sum.integersGlobally().withoutDefaults());
 
       PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
 
@@ -1223,7 +1240,8 @@ public class CombineTest implements Serializable {
       PCollection<KV<String, String>> sessionsCombinePerKey =
           perKeyInput
               .apply(
-                  "PerKey Input Sessions", Window.into(Sessions.withGapDuration(Duration.millis(5))))
+                  "PerKey Input Sessions",
+                  Window.into(Sessions.withGapDuration(Duration.millis(5))))
               .apply(
                   Combine.<String, Integer, String>perKey(
                       new TestCombineFnWithContext(globallyFixedWindowsView))

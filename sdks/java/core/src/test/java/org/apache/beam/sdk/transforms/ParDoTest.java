@@ -132,7 +132,7 @@ public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
 
-  /** Shared base test base with setup/teardown helpers */
+  /** Shared base test base with setup/teardown helpers. */
   public abstract static class SharedTestBase {
     @Rule
     public final transient TestPipeline pipeline = TestPipeline.create();
@@ -333,7 +333,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests for basic {@link ParDo} scenarios */
+  /** Tests for basic {@link ParDo} scenarios. */
   @RunWith(JUnit4.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
@@ -544,7 +544,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests to validate behaviors around multiple inputs or outputs */
+  /** Tests to validate behaviors around multiple inputs or outputs. */
   @RunWith(JUnit4.class)
   public static class MultipleInputsAndOutputTests extends SharedTestBase implements Serializable {
     @Test
@@ -1145,7 +1145,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests for ParDo lifecycle methods */
+  /** Tests for ParDo lifecycle methods. */
   @RunWith(JUnit4.class)
   public static class LifecycleTests extends SharedTestBase implements Serializable {
     @Test
@@ -1225,7 +1225,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests to validate output timestamps */
+  /** Tests to validate output timestamps. */
   @RunWith(JUnit4.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
     @Test
@@ -1838,8 +1838,8 @@ public class ParDoTest implements Serializable {
               count.add(1);
               if (count.read() >= 4) {
                 Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
-                // Make sure that the cached Iterable doesn't change when new elements are added, but
-                // that cached ReadableState views of the state do change.
+                // Make sure that the cached Iterable doesn't change when new elements are added,
+                // but that cached ReadableState views of the state do change.
                 state.put("BadKey", -1);
                 assertEquals(3, Iterables.size(iterate));
                 assertEquals(4, Iterables.size(entriesView.read()));
@@ -1874,8 +1874,8 @@ public class ParDoTest implements Serializable {
             private static final double EPSILON = 0.0001;
 
             @StateId(stateId)
-            private final StateSpec<CombiningState<Double, CountSum<Double>, Double>> combiningState =
-                StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.of());
+            private final StateSpec<CombiningState<Double, CountSum<Double>, Double>>
+                combiningState = StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.of());
 
             @ProcessElement
             public void processElement(
@@ -2024,7 +2024,8 @@ public class ParDoTest implements Serializable {
                   KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
               .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
 
-      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(new MyInteger(12), new MyInteger(42),
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(
+          new MyInteger(12), new MyInteger(42),
           new MyInteger(84), new MyInteger(97)));
 
       pipeline.run();
@@ -2371,7 +2372,8 @@ public class ParDoTest implements Serializable {
           };
 
       thrown.expect(RuntimeException.class);
-      thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
+      thrown.expectMessage(
+          "Unable to infer a coder for CombiningState and no Coder was specified.");
 
       pipeline
           .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
@@ -2443,15 +2445,15 @@ public class ParDoTest implements Serializable {
      * <p>This test relies on two properties:
      *
      * <ol>
-     * <li>A timer that is set on time should always get a chance to fire. For this to be true, timers
-     *     per-key-and-window must be delivered in order so the timer is not wiped out until the
-     *     window is expired by the runner.
-     * <li>A {@link Create} transform sends its elements on time, and later advances the watermark to
-     *     infinity
+     * <li>A timer that is set on time should always get a chance to fire. For this to be true,
+     *     timers per-key-and-window must be delivered in order so the timer is not wiped out until
+     *     the window is expired by the runner.
+     * <li>A {@link Create} transform sends its elements on time, and later advances the watermark
+     *     to infinity
      * </ol>
      *
-     * <p>Note that {@link TestStream} is not applicable because it requires very special runner hooks
-     * and is only supported by the direct runner.
+     * <p>Note that {@link TestStream} is not applicable because it requires very special runner
+     * hooks and is only supported by the direct runner.
      */
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class})
@@ -2478,7 +2480,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      PCollection<Integer> output = pipeline
+          .apply(Create.of(KV.of("hello", 37)))
+          .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(3, 42);
       pipeline.run();
     }
@@ -2600,8 +2604,9 @@ public class ParDoTest implements Serializable {
     }
 
     /**
-     * Tests that an event time timer set absolutely for the last possible moment fires and results in
-     * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
+     * Tests that an event time timer set absolutely for the last possible moment fires and results
+     * in supplementary output. The test is otherwise identical to
+     * {@link #testEventTimeTimerBounded()}.
      */
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class})
@@ -2627,7 +2632,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      PCollection<Integer> output = pipeline
+          .apply(Create.of(KV.of("hello", 37)))
+          .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(3, 42);
       pipeline.run();
     }
@@ -2653,7 +2660,8 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> countState, @TimerId(timerId) Timer loopTimer) {
+                @StateId(stateId) ValueState<Integer> countState,
+                @TimerId(timerId) Timer loopTimer) {
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
 
@@ -2671,7 +2679,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+      PCollection<Integer> output = pipeline
+          .apply(Create.of(KV.of("hello", 42)))
+          .apply(ParDo.of(fn));
 
       PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
       pipeline.run();
