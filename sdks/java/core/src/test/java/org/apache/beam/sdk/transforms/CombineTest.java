@@ -410,7 +410,7 @@ public class CombineTest implements Serializable {
       }
     }
 
-    private static class FormatPaneInfo extends DoFn<Integer, String> {
+    protected static class FormatPaneInfo extends DoFn<Integer, String> {
       @ProcessElement
       public void processElement(ProcessContext c) {
         c.output(c.element() + ": " + c.pane().isLast());
@@ -506,7 +506,7 @@ public class CombineTest implements Serializable {
     }
 
     /** Example AccumulatingCombineFn. */
-    private static class MeanInts extends
+    protected static class MeanInts extends
         Combine.AccumulatingCombineFn<Integer, MeanInts.CountSum, Double> {
       private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
       private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
@@ -627,7 +627,7 @@ public class CombineTest implements Serializable {
     /**
      * Class for use in testing use of Java 8 method references.
      */
-    private static class Summer implements Serializable {
+    protected static class Summer implements Serializable {
       public int sum(Iterable<Integer> integers) {
         int sum = 0;
         for (int i : integers) {
