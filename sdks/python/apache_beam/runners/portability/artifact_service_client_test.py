@@ -50,7 +50,8 @@ class ArtifactStagingFileHandlerTest(unittest.TestCase):
   def copy_files(self, files):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
-        LocalFileSystemArtifactStagingServiceServicer(self._remote_dir), server)
+        TestLocalFileSystemArtifactStagingServiceServicer(self._remote_dir),
+        server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
     file_handler = artifact_service_client.ArtifactStagingFileHandler(
@@ -116,11 +117,11 @@ class ArtifactStagingFileHandlerTest(unittest.TestCase):
                      [manifest.name for manifest in copied_files])
 
 
-class LocalFileSystemArtifactStagingServiceServicer(
+class TestLocalFileSystemArtifactStagingServiceServicer(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
 
   def __init__(self, temp_dir):
-    super(LocalFileSystemArtifactStagingServiceServicer, self).__init__()
+    super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
     self.temp_dir = temp_dir
 
   def PutArtifact(self, request_iterator, context):
