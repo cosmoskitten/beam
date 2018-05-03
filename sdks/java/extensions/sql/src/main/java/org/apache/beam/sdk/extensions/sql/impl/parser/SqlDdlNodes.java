@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
@@ -27,14 +26,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlDdlNodes {
   private SqlDdlNodes() {}
-
-  /** Creates a CREATE TABLE. */
-  public static SqlCreateTable createTable(SqlParserPos pos, boolean replace,
-      boolean ifNotExists, SqlIdentifier name, SqlNodeList columnList,
-      SqlNode type, SqlNode comment, SqlNode location, SqlNode tblProperties) {
-    return new SqlCreateTable(pos, replace, ifNotExists, name, columnList,
-        type, comment, location, tblProperties);
-  }
 
   /** Creates a DROP TABLE. */
   public static SqlDropTable dropTable(SqlParserPos pos, boolean ifExists,

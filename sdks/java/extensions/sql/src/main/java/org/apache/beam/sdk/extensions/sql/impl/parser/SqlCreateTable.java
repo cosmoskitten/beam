@@ -18,26 +18,23 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static com.alibaba.fastjson.JSON.parseObject;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.stream.Collectors.toList;
 
 import com.alibaba.fastjson.JSONObject;
-import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.calcite.linq4j.Ord;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 
 /**
@@ -45,7 +42,7 @@ import org.apache.calcite.util.NlsString;
  */
 public class SqlCreateTable extends SqlCreate {
   private final SqlIdentifier name;
-  private final SqlNodeList columnList;
+  private final List<Schema.Field> columnList;
   private final SqlNode type;
   private final SqlNode comment;
   private final SqlNode location;
@@ -55,9 +52,16 @@ public class SqlCreateTable extends SqlCreate {
       new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
 
   /** Creates a SqlCreateTable. */
-  SqlCreateTable(SqlParserPos pos, boolean replace, boolean ifNotExists,
-      SqlIdentifier name, SqlNodeList columnList, SqlNode type,
-      SqlNode comment, SqlNode location, SqlNode tblProperties) {
+  public SqlCreateTable(
+      SqlParserPos pos,
+      boolean replace,
+      boolean ifNotExists,
+      SqlIdentifier name,
+      List<Schema.Field> columnList,
+      SqlNode type,
+      SqlNode comment,
+      SqlNode location,
+      SqlNode tblProperties) {
     super(OPERATOR, pos, replace, ifNotExists);
     this.name = checkNotNull(name);
     this.columnList = columnList; // may be null
@@ -67,8 +71,10 @@ public class SqlCreateTable extends SqlCreate {
     this.tblProperties = tblProperties; // may be null
   }
 
+  @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.of(name, columnList, type, comment, location, tblProperties);
+    throw new UnsupportedOperationException(
+        "Getting operands CREATE TABLE is unsupported at the moment");
   }
 
   @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
@@ -78,12 +84,10 @@ public class SqlCreateTable extends SqlCreate {
       writer.keyword("IF NOT EXISTS");
     }
     name.unparse(writer, leftPrec, rightPrec);
+
     if (columnList != null) {
       SqlWriter.Frame frame = writer.startList("(", ")");
-      for (SqlNode c : columnList) {
-        writer.sep(",");
-        c.unparse(writer, 0, 0);
-      }
+      columnList.forEach(column -> unparseColumn(writer, column));
       writer.endList(frame);
     }
     writer.keyword("TYPE");
@@ -102,27 +106,37 @@ public class SqlCreateTable extends SqlCreate {
     }
   }
 
+  private void unparseColumn(SqlWriter writer, Schema.Field column) {
+    writer.sep(",");
+    writer.identifier(column.getName());
+    writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name());
+
+    if (column.getNullable() != null && !column.getNullable()) {
+      writer.keyword("NOT NULL");
+    }
+
+    if (column.getDescription() != null) {
+      writer.keyword("COMMENT");
+      writer.literal(column.getDescription());
+    }
+  }
+
   private String getString(SqlNode n) {
     return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
   public Table toTable() {
-    List<Column> columns = new ArrayList<>(columnList.size());
-    for (Ord<SqlNode> c : Ord.zip(columnList)) {
-      if (c.e instanceof SqlColumnDeclaration) {
-        final SqlColumnDeclaration d = (SqlColumnDeclaration) c.e;
-        Column column = Column.builder()
-            .name(d.name.getSimple().toLowerCase())
-            .fieldType(CalciteUtils.toFieldType(
-                d.dataType.deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()))
-            .nullable(d.dataType.getNullable())
-            .comment(getString(d.comment))
-            .build();
-        columns.add(column);
-      } else {
-        throw new AssertionError(c.e.getClass());
-      }
-    }
+    List<Column> columns = columnList
+        .stream()
+        .map(
+            field ->
+                Column.builder()
+                      .name(field.getName().toLowerCase())
+                      .fieldType(field.getType())
+                      .nullable(field.getNullable())
+                      .comment(field.getDescription())
+                      .build())
+        .collect(toList());
 
     Table.Builder tb = Table.builder()
         .type(getString(type).toLowerCase())
