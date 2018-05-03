@@ -64,7 +64,8 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     if '_runner' not in cls.__dict__:
       cls._runner = universal_local_runner.UniversalLocalRunner(
           use_grpc=cls._use_grpc,
-          use_subprocesses=cls._use_subprocesses)
+          use_subprocesses=cls._use_subprocesses,
+          stage_resources=False)
     return cls._runner
 
   @classmethod
