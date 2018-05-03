@@ -18,12 +18,11 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static com.alibaba.fastjson.JSON.parseObject;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.alibaba.fastjson.JSONObject;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.SqlCreate;
@@ -51,7 +50,9 @@ public class SqlCreateTable extends SqlCreate {
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
 
-  /** Creates a SqlCreateTable. */
+  /**
+   * Creates a SqlCreateTable.
+   */
   public SqlCreateTable(
       SqlParserPos pos,
       boolean replace,
@@ -77,7 +78,8 @@ public class SqlCreateTable extends SqlCreate {
         "Getting operands CREATE TABLE is unsupported at the moment");
   }
 
-  @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+  @Override
+  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("CREATE");
     writer.keyword("TABLE");
     if (ifNotExists) {
@@ -126,34 +128,18 @@ public class SqlCreateTable extends SqlCreate {
   }
 
   public Table toTable() {
-    List<Column> columns = columnList
-        .stream()
-        .map(
-            field ->
-                Column.builder()
-                      .name(field.getName().toLowerCase())
-                      .fieldType(field.getType())
-                      .nullable(field.getNullable())
-                      .comment(field.getDescription())
-                      .build())
-        .collect(toList());
-
-    Table.Builder tb = Table.builder()
-        .type(getString(type).toLowerCase())
-        .name(name.getSimple().toLowerCase())
-        .columns(columns);
-    if (comment != null) {
-      tb.comment(getString(comment));
-    }
-    if (location != null) {
-      tb.location(getString(location));
-    }
-    if (tblProperties != null) {
-      tb.properties(parseObject(getString(tblProperties)));
-    } else {
-      tb.properties(new JSONObject());
-    }
-    return tb.build();
+    return
+        Table
+            .builder()
+            .type(getString(type).toLowerCase())
+            .name(name.getSimple().toLowerCase())
+            .schema(columnList.stream().collect(toSchema()))
+            .comment(getString(comment))
+            .location(getString(location))
+            .properties((tblProperties == null)
+                            ? new JSONObject()
+                            : parseObject(getString(tblProperties)))
+            .build();
   }
 }
 
