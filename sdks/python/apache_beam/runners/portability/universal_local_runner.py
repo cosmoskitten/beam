@@ -22,6 +22,7 @@ import Queue as queue
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -33,13 +34,18 @@ from google.protobuf import text_format
 
 from apache_beam import coders
 from apache_beam.internal import pickler
+from apache_beam.options import pipeline_options
+from apache_beam.portability.api import beam_artifact_api_pb2
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.portability import artifact_service_client
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability import stager
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
@@ -63,7 +69,9 @@ class UniversalLocalRunner(runner.PipelineRunner):
       use_grpc=True,
       use_subprocesses=False,
       runner_api_address=None,
-      docker_image=None):
+      artifact_api_address=None,
+      docker_image=None,
+      stage_resources=True):
     if use_subprocesses and not use_grpc:
       raise ValueError("GRPC must be used with subprocesses")
     super(UniversalLocalRunner, self).__init__()
@@ -74,7 +82,9 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._job_service_lock = threading.Lock()
     self._subprocess = None
     self._runner_api_address = runner_api_address
+    self._artifact_api_address = artifact_api_address
     self._docker_image = docker_image or self.default_docker_image()
+    self._stage_resources = stage_resources
 
   def __del__(self):
     # Best effort to not leave any dangling processes around.
@@ -181,6 +191,16 @@ class UniversalLocalRunner(runner.PipelineRunner):
             pipeline=proto_pipeline))
     run_response = job_service.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
+    if self._stage_resources:
+      file_handler = artifact_service_client.ArtifactStagingFileHandler(
+          artifact_service_channel=grpc.insecure_channel(
+              prepare_response.artifact_staging_endpoint.url))
+      resource_stager = stager.Stager(file_handler=file_handler)
+      # TODO(angoenka): Plumb in pipeline options.
+      # Artifact service will decide the staging location.
+      options = pipeline_options.PipelineOptions()
+      resource_stager.stage_job_resources(options=options, staging_location='')
+      file_handler.commit_manifest()
     return PipelineResult(job_service, run_response.job_id)
 
 
@@ -301,17 +321,23 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   Manages one or more pipelines, possibly concurrently.
   """
   def __init__(
-      self, worker_command_line=None, use_grpc=True):
+      self, worker_command_line=None, use_grpc=True, artifact_api_address=None):
     self._worker_command_line = worker_command_line
     self._use_grpc = use_grpc or bool(worker_command_line)
     self._jobs = {}
+    self._artifact_api_address = artifact_api_address
 
   def start_grpc(self, port=0):
     self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
     port = self._server.add_insecure_port('localhost:%d' % port)
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     self._server.start()
-    logging.info("Grpc server started on port %s", port)
+    logging.info('Grpc server started for JobServicer on port %s', port)
+
+    # Start a local artifact server
+    self._artifact_api_address = endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%d' %
+        LocalFSArtifactServicer(use_grpc=True).start_grpc())
     return port
 
   def Prepare(self, request, context=None):
@@ -327,7 +353,9 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         preparation_id, request.pipeline_options, request.pipeline,
         use_grpc=self._use_grpc, sdk_harness_factory=sdk_harness_factory)
     logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
-    return beam_job_api_pb2.PrepareJobResponse(preparation_id=preparation_id)
+    return beam_job_api_pb2.PrepareJobResponse(
+        preparation_id=preparation_id,
+        artifact_staging_endpoint=self._artifact_api_address)
 
   def Run(self, request, context=None):
     job_id = request.preparation_id
@@ -372,6 +400,41 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         yield job.log_queue.get(block=False)
     except queue.Empty:
       pass
+
+
+class LocalFSArtifactServicer(
+    beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
+
+  def __init__(self, temp_dir=None, use_grpc=True):
+    super(LocalFSArtifactServicer, self).__init__()
+    self.temp_dir = temp_dir or tempfile.mkdtemp()
+    self.port = 0
+
+  def start_grpc(self, port=0):
+    self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
+    port = self._server.add_insecure_port('localhost:%d' % port)
+    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+        self, self._server)
+    self._server.start()
+    logging.info('Grpc server for LocalFSArtifactServicer started on port %s',
+                 port)
+    return port
+
+  def PutArtifact(self, request_iterator, context):
+    first = True
+    file_name = None
+    for request in request_iterator:
+      if first:
+        first = False
+        file_name = request.metadata.name
+      else:
+        with open(os.path.join(self.temp_dir, file_name), 'ab') as f:
+          f.write(request.data.data)
+
+    return beam_artifact_api_pb2.PutArtifactResponse()
+
+  def CommitManifest(self, request, context):
+    return beam_artifact_api_pb2.CommitManifestResponse(staging_token='token')
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
