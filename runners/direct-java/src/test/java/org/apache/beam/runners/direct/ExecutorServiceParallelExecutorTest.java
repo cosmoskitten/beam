@@ -23,8 +23,8 @@ import static org.junit.rules.RuleChain.outerRule;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.MetricsPusherTest;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -59,15 +59,14 @@ public class ExecutorServiceParallelExecutorTest {
   public final TestName testName = new TestName();
 
   @Test
-  public void ensureMetricsThreadDoesntLeak() {
+  public void ensureMetricsThreadDoesntLeak() throws Exception {
     final DirectGraph graph = DirectGraph.create(
       emptyMap(), emptyMap(), LinkedListMultimap.create(),
       emptySet(), emptyMap());
-    final ExecutorService metricsExecutorService = Executors.newSingleThreadExecutor(
-      new ThreadFactoryBuilder()
-        .setDaemon(false)
-        .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
-        .build());
+    ThreadPoolExecutor metricsExecutorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS,
+        new SynchronousQueue<>(), new ThreadFactoryBuilder().setDaemon(false)
+            .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
+            .build());
 
     // fake a metrics usage
     metricsExecutorService.submit(() -> {});
@@ -82,10 +81,17 @@ public class ExecutorServiceParallelExecutorTest {
               context,
               metricsExecutorService)
       .stop();
-    try {
-      metricsExecutorService.awaitTermination(10000L, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    metricsExecutorService.awaitTermination(10L, TimeUnit.SECONDS);
+    if (!metricsExecutorService.isTerminated()){
+      if (metricsExecutorService.isTerminating()){
+        throw new Exception(String
+            .format("metricsExecutorService is terminating but still has %s threads",
+                metricsExecutorService.getPoolSize()));
+      } else{
+        throw new Exception("metricsExecutorService should be terminating");
+      }
+
+
     }
   }
 
