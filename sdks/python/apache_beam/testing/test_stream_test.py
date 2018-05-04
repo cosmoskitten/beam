@@ -327,15 +327,6 @@ class TestStreamTest(unittest.TestCase):
     self.assertEqual([('e', Timestamp(10), [2, 1, 7, 4])], result)
 
   def test_basic_execution_batch_sideinputs_fixed_windows(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -360,24 +351,18 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream     # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side))
-               | beam.Map(recorded_elements))
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
+
+    assert_that(records, equal_to(([
+        (('a', Timestamp(2), [2]),
+         window.IntervalWindow(2, 3)),
+        (('b', Timestamp(4), [4]),
+         window.IntervalWindow(4, 5)),
+        ])), windowed=True)
+
     p.run()
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('a', Timestamp(2), [2]),
-                      ('b', Timestamp(4), [4])], result)
-
   def test_basic_execution_sideinputs_fixed_windows(self):
-
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    global result     # pylint: disable=global-variable-undefined
-    result = []
-
-    def recorded_elements(elem):
-      result.append(elem)
-      return elem
-
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -410,17 +395,24 @@ class TestStreamTest(unittest.TestCase):
         yield (elm, ts, side)
 
     records = (main_stream     # pylint: disable=unused-variable
-               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream))
-               | beam.Map(recorded_elements))
-    p.run()
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
-    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('a1', Timestamp(9), ['s1']),
-                      ('a2', Timestamp(9), ['s1']),
-                      ('a3', Timestamp(9), ['s1']),
-                      ('a4', Timestamp(9), ['s1']),
-                      ('b', Timestamp(9), ['s1']),
-                      ('c', Timestamp(18), ['s2'])], result)
+    assert_that(records, equal_to(([
+        (('a1', Timestamp(9), ['s1']),
+         window.IntervalWindow(9, 10)),
+        (('a2', Timestamp(9), ['s1']),
+         window.IntervalWindow(9, 10)),
+        (('a3', Timestamp(9), ['s1']),
+         window.IntervalWindow(9, 10)),
+        (('a4', Timestamp(9), ['s1']),
+         window.IntervalWindow(9, 10)),
+        (('b', Timestamp(9), ['s1']),
+         window.IntervalWindow(9, 10)),
+        (('c', Timestamp(18), ['s2']),
+         window.IntervalWindow(18, 19)),
+        ])), windowed=True)
+
+    p.run()
 
 
 if __name__ == '__main__':

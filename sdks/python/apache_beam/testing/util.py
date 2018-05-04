@@ -100,7 +100,8 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, label='assert_that', reify_windows=False):
+def assert_that(actual, matcher, label='assert_that',
+                windowed=False, reify_windows=False):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -113,6 +114,7 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
+    windowed: If True, matcher is passed a tuple (element, window to check).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
 
   Returns:
@@ -128,11 +130,19 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       # the timestamp and window out of the latter.
       return [TestWindowedValue(element, timestamp, [window])]
 
+  class AddWindow(DoFn):
+    def process(self, element, timestamp=DoFn.TimestampParam,
+                window=DoFn.WindowParam):
+      yield element, window
+
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
+
+      if windowed:
+        pcoll = pcoll | ParDo(AddWindow())
 
       # We must have at least a single element to ensure the matcher
       # code gets run even if the input pcollection is empty.
