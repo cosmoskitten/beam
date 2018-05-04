@@ -99,9 +99,11 @@ class FlinkBatchStateRequestHandler implements StateRequestHandler {
     List<Object> broadcastVariable = runtimeContext.getBroadcastVariable(collectionNode.getId());
 
     // TODO: Ensure that PCollections referenced within ProcessBundleDescriptors use length
-    // prefixing when consumed as side inputs.
+    // prefixing when consumed as side inputs. Alternatively, provide a new WireCoders mechanism
+    // to instantiate the original PCollection coder _without_ inserting length prefixes.
     Coder javaCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    // TODO: What is the protocol for state api coders? Can we _always_ use KV<byte[], byte[]>?
+    // TODO: What is the protocol for state api coders? If we're only answering multimap requests,
+    // can we _always_ use KV<byte[], byte[]>?
 
     // TODO: we wouldn't have to do this if the harness didn't always
     // expect a KV<Void, T> as input for a side input, currently the key field

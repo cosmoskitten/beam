@@ -17,27 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.flink.api.common.cache.DistributedCache;
 
-/**
- * A simple {@link JobBundleFactory} for Flink operators. Uses Docker for underlying environment
- * management.
- */
-public class FlinkBundleFactory {
+/** A distributed cache whose lifetime can be observed by listeners. */
+public interface ManagedDistributedCache {
+  DistributedCache getDistributedCache();
 
-  public static FlinkBundleFactory getInstance() {
-    return Holder.INSTANCE;
-  }
-
-  /** Gets or creates a {@link JobBundleFactory}. */
-  public JobBundleFactory getJobBundleFactory(
-      JobInfo jobInfo, ManagedDistributedCache distributedCache) {
-    // TODO: Implement.
-    return null;
-  }
-
-  private static class Holder {
-    private static final FlinkBundleFactory INSTANCE = new FlinkBundleFactory();
-  }
+  void addCloseListener(ThrowingRunnable onClose);
 }

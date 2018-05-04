@@ -20,16 +20,17 @@ package org.apache.beam.runners.flink.translation.functions;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.protobuf.Struct;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.CloseableDistributedCache;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -54,7 +55,7 @@ public class FlinkExecutableStageFunction<InputT>
   // The executable stage this function will run.
   private final RunnerApi.ExecutableStagePayload stagePayload;
   // Pipeline options. Used for provisioning api.
-  private final Struct pipelineOptions;
+  private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
 
@@ -62,13 +63,14 @@ public class FlinkExecutableStageFunction<InputT>
   private transient RuntimeContext runtimeContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient StageBundleFactory stageBundleFactory;
+  private transient CloseableDistributedCache distributedCache;
 
   public FlinkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
-      Struct pipelineOptions,
+      JobInfo jobInfo,
       Map<String, Integer> outputMap) {
     this.stagePayload = stagePayload;
-    this.pipelineOptions = pipelineOptions;
+    this.jobInfo = jobInfo;
     this.outputMap = outputMap;
   }
 
@@ -80,9 +82,10 @@ public class FlinkExecutableStageFunction<InputT>
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = FlinkBatchStateRequestHandler.forStage(executableStage, runtimeContext);
-    // TODO: Implement and wire in JobBundleFactory.
+    distributedCache = CloseableDistributedCache.wrapping(runtimeContext.getDistributedCache());
     FlinkBundleFactory flinkBundleFactory = FlinkBundleFactory.getInstance();
-    JobBundleFactory jobBundleFactory = flinkBundleFactory.getJobBundleFactory();
+    JobBundleFactory jobBundleFactory =
+        flinkBundleFactory.getJobBundleFactory(jobInfo, distributedCache);
     stageBundleFactory = jobBundleFactory.forStage(executableStage);
   }
 
@@ -112,7 +115,9 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
+    // TODO: Wrap close calls to ensure all calls are attempted?
     stageBundleFactory.close();
+    distributedCache.close();
   }
 
   private static class ReceiverFactory implements OutputReceiverFactory {
@@ -134,7 +139,6 @@ public class FlinkExecutableStageFunction<InputT>
       Integer unionTag = outputMap.get(collectionId);
       checkArgument(unionTag != null, "Unknown PCollection id: %s", collectionId);
       int tagInt = unionTag;
-      // TODO: Synchronize access to collector.
       return (receivedElement) -> {
         synchronized (collectorLock) {
           collector.collect(new RawUnionValue(tagInt, receivedElement));
