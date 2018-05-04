@@ -32,6 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -53,6 +54,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Environments}. */
 @RunWith(JUnit4.class)
 public class EnvironmentsTest implements Serializable {
+  private final Pipeline p = Pipeline.create();
+
   @Test
   public void getEnvironmentUnknownFnType() throws IOException {
     SdkComponents components = SdkComponents.create();
@@ -80,6 +83,7 @@ public class EnvironmentsTest implements Serializable {
                       public void process(ProcessContext ctxt) {}
                     })
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+            p,
             components);
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(components.toComponents());
