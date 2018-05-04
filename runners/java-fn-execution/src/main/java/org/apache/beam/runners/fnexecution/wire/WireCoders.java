@@ -34,10 +34,11 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 /** Helpers to construct coders for gRPC port reads and writes. */
 public class WireCoders {
   /**
-   * Creates an SDK-side wire coder for a port read/write for the given PCollection. Returns a
-   * windowed value coder. Coders that are unknown to the runner are wrapped with length-prefix
-   * coders. The inner element coders are kept intact so that SDK harnesses can reconstruct the
-   * original elements.
+   * Creates an SDK-side wire coder for a port read/write for the given PCollection. Coders that are
+   * unknown to the runner are wrapped with length-prefix coders. The inner element coders are kept
+   * intact so that SDK harnesses can reconstruct the original elements.
+   *
+   * @return a windowed value coder containing the PCollection's element coder
    */
   public static RunnerApi.MessageWithComponents createSdkWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
@@ -45,8 +46,10 @@ public class WireCoders {
   }
 
   /**
-   * Creates a runner-side wire coder for a port read/write for the given PCollection. Returns a
-   * windowed value coder. Unknown coders are replaced with length-prefixed byte arrays.
+   * Creates a runner-side wire coder for a port read/write for the given PCollection. Unknown
+   * coders are replaced with length-prefixed byte arrays.
+   *
+   * @return a windowed value coder containing the PCollection's element coder
    */
   public static RunnerApi.MessageWithComponents createRunnerWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components components, Predicate<String> idUsed) {
@@ -54,9 +57,10 @@ public class WireCoders {
   }
 
   /**
-   * Instantiates a runner-side wire coder for the given PCollection. The returned coder codes full
-   * windowed values of the given collection rather than the raw elements. Any component coders that
-   * are unknown by the runner are replaced with length-prefixed byte arrays.
+   * Instantiates a runner-side wire coder for the given PCollection. Any component coders that are
+   * unknown by the runner are replaced with length-prefixed byte arrays.
+   *
+   * @return a windowed value coder containing the PCollection's element coder
    */
   public static <T> Coder<WindowedValue<T>> instantiateRunnerWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components components) throws IOException {
