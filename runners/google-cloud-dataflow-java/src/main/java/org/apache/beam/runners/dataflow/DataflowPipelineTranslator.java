@@ -45,6 +45,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.TextFormat;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -965,20 +966,34 @@ public class DataflowPipelineTranslator {
 
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
-                translateOutputs(context.getOutputs(transform), stepContext);
-            stepContext.addInput(
-                PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(
-                    serializeToByteArray(
-                        DoFnInfo.forFn(
-                            transform.getFn(),
-                            transform.getInputWindowingStrategy(),
-                            transform.getSideInputs(),
-                            transform.getElementCoder(),
-                            transform.getMainOutputTag()))));
-            stepContext.addInput(
-                PropertyNames.RESTRICTION_CODER,
-                CloudObjects.asCloudObject(transform.getRestrictionCoder()));
+            translateOutputs(context.getOutputs(transform), stepContext);
+            String ptransformId =
+                context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
+            translateFn(
+                stepContext,
+                ptransformId,
+                transform.getFn(),
+                context.getInput(transform).getWindowingStrategy(),
+                transform.getSideInputs(),
+                context.getInput(transform).getCoder(),
+                context,
+                transform.getMainOutputTag());
+
+            if (context.isFnApi()) {
+              try {
+                stepContext.addInput(
+                    PropertyNames.RESTRICTION_CODER,
+                    context.getSdkComponents()
+                        .registerCoder(transform.getRestrictionCoder()));
+              } catch (IOException e) {
+                throw new RuntimeException(
+                    "Failed to get restriction coder id for " + transform.getRestrictionCoder(), e);
+              }
+            } else {
+              stepContext.addInput(
+                  PropertyNames.RESTRICTION_CODER,
+                  CloudObjects.asCloudObject(transform.getRestrictionCoder()));
+            }
           }
         });
   }
@@ -1019,13 +1034,6 @@ public class DataflowPipelineTranslator {
       TupleTag<?> mainOutput) {
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              DataflowRunner.class.getSimpleName(),
-              fn));
-    }
 
     if (signature.usesState() || signature.usesTimers()) {
       DataflowRunner.verifyStateSupported(fn);
@@ -1034,12 +1042,9 @@ public class DataflowPipelineTranslator {
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
 
-    List<String> experiments = context.getPipelineOptions().getExperiments();
-    boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
-
     // Fn API does not need the additional metadata in the wrapper, and it is Java-only serializable
     // hence not suitable for portable execution
-    if (isFnApi) {
+    if (context.isFnApi()) {
       stepContext.addInput(PropertyNames.SERIALIZED_FN, ptransformId);
     } else {
       stepContext.addInput(
