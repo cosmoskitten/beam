@@ -52,6 +52,9 @@ import org.apache.flink.util.Collector;
 public class FlinkExecutableStageFunction<InputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, RawUnionValue> {
 
+  // Main constructor fields. All must be Serializable because Flink distributes Functions to
+  // task managers via java serialization.
+
   // The executable stage this function will run.
   private final RunnerApi.ExecutableStagePayload stagePayload;
   // Pipeline options. Used for provisioning api.
