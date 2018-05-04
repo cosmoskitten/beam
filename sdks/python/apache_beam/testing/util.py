@@ -75,6 +75,22 @@ def contains_in_any_order(iterable):
   return InAnyOrder(iterable)
 
 
+def equal_to_per_window(expected_dict_window_to_its_elements):
+  def matcher(elements):
+    actual_elements_in_window, window = elements
+    assert isinstance(expected_dict_window_to_its_elements, dict)
+    if window in expected_dict_window_to_its_elements:
+      expected_elements_in_window = list(
+          expected_dict_window_to_its_elements[window])
+      sorted_expected = sorted(expected_elements_in_window)
+      sorted_actual = sorted(actual_elements_in_window)
+      if sorted_expected != sorted_actual:
+        raise BeamAssertException(
+            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+
+  return matcher
+
+
 # Note that equal_to always sorts the expected and actual since what we
 # compare are PCollections for which there is no guaranteed order.
 # However the sorting does not go beyond top level therefore [1,2] and [2,1]
@@ -88,6 +104,7 @@ def equal_to(expected):
     if sorted_expected != sorted_actual:
       raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+
   return _equal
 
 
@@ -100,7 +117,8 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, label='assert_that', reify_windows=False):
+def assert_that(actual, matcher, windowing=None,
+                label='assert_that', reify_windows=False):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -113,6 +131,7 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
+    windowed: If True, matcher is passed a tuple (element, window to check).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
 
   Returns:
@@ -128,23 +147,30 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
       # the timestamp and window out of the latter.
       return [TestWindowedValue(element, timestamp, [window])]
 
+  class AddWindow(DoFn):
+    def process(self, element, timestamp=DoFn.TimestampParam,
+                window=DoFn.WindowParam):
+      yield element, window
+
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
-      # We must have at least a single element to ensure the matcher
-      # code gets run even if the input pcollection is empty.
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
       keyed_actual = (
           pcoll
-          | WindowInto(window.GlobalWindows())
+          | WindowInto(windowing or window.GlobalWindows())
           | "ToVoidKey" >> Map(lambda v: (None, v)))
-      _ = ((keyed_singleton, keyed_actual)
-           | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
-           | "Match" >> Map(matcher))
+      plain_actual = ((keyed_singleton, keyed_actual)
+                      | "Group" >> CoGroupByKey()
+                      | "Unkey" >> Map(lambda k_values: k_values[1][1]))
+
+      if windowing:
+        plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
+
+      plain_actual = plain_actual | "Match" >> Map(matcher)
 
     def default_label(self):
       return label
