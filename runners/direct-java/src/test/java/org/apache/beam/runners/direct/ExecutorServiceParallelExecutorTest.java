@@ -23,7 +23,12 @@ import static org.junit.rules.RuleChain.outerRule;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.util.concurrent.SynchronousQueue;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.MetricsPusherTest;
@@ -48,68 +53,86 @@ import org.junit.rules.TestRule;
 public class ExecutorServiceParallelExecutorTest {
 
   private static final long NUM_ELEMENTS = 1000L;
-
+  @Rule public final TestName testName = new TestName();
   private final TestPipeline pipeline = TestPipeline.create();
   private final TestRule threadLeakTracker = new ThreadLeakTracker();
+  @Rule public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
 
-  @Rule
-  public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
-
-  @Rule
-  public final TestName testName = new TestName();
-
-  @Test
-  public void ensureMetricsThreadDoesntLeak() throws Exception {
-    final DirectGraph graph = DirectGraph.create(
-      emptyMap(), emptyMap(), LinkedListMultimap.create(),
-      emptySet(), emptyMap());
-    ThreadPoolExecutor metricsExecutorService = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS,
-        new SynchronousQueue<>(), new ThreadFactoryBuilder().setDaemon(false)
+  @Test public void ensureMetricsThreadDoesntLeak() throws Exception {
+    final DirectGraph graph = DirectGraph
+        .create(emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
+    InstrumentedThreadPoolExecutor metricsExecutorService = new InstrumentedThreadPoolExecutor(1, 1,
+        0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue(),
+        new ThreadFactoryBuilder().setDaemon(false)
             .setNameFormat("dontleak_" + getClass().getName() + "#" + testName.getMethodName())
             .build());
 
     // fake a metrics usage
     metricsExecutorService.submit(() -> {});
 
-    final EvaluationContext context = EvaluationContext.create(
-      MockClock.fromInstant(Instant.now()),
-      CloningBundleFactory.create(), graph, emptySet(), metricsExecutorService);
-    ExecutorServiceParallelExecutor
-      .create(
-        2, TransformEvaluatorRegistry.javaSdkNativeRegistry(context,
-              PipelineOptionsFactory.create().as(DirectOptions.class)), emptyMap(),
-              context,
-              metricsExecutorService)
-      .stop();
+    final EvaluationContext context = EvaluationContext
+        .create(MockClock.fromInstant(Instant.now()), CloningBundleFactory.create(), graph,
+            emptySet(), metricsExecutorService);
+    ExecutorServiceParallelExecutor.create(2, TransformEvaluatorRegistry
+            .javaSdkNativeRegistry(context, PipelineOptionsFactory.create().as(DirectOptions.class)),
+        emptyMap(), context, metricsExecutorService).stop();
     metricsExecutorService.awaitTermination(10L, TimeUnit.SECONDS);
-    if (!metricsExecutorService.isTerminated()){
-      if (metricsExecutorService.isTerminating()){
+    if (!metricsExecutorService.isTerminated()) {
+      if (metricsExecutorService.isTerminating()) {
+        throw new Exception(String.format(
+            "metricsExecutorService is terminating but still has %s threads. History is: %s",
+            metricsExecutorService.getPoolSize(), metricsExecutorService.showMessages()));
+      } else {
         throw new Exception(String
-            .format("metricsExecutorService is terminating but still has %s threads",
-                metricsExecutorService.getPoolSize()));
-      } else{
-        throw new Exception("metricsExecutorService should be terminating");
+            .format("metricsExecutorService should be terminating. History is: %s",
+                metricsExecutorService.showMessages()));
       }
-
-
     }
   }
 
-  @Test
-  public void test() throws Exception {
-    pipeline
-        .apply(
-            // Use maxReadTime to force unbounded mode.
-            GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
+  @Test public void test() throws Exception {
+    pipeline.apply(
+        // Use maxReadTime to force unbounded mode.
+        GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
         .apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
   }
 
+  private static class InstrumentedThreadPoolExecutor extends ThreadPoolExecutor {
+
+    private List<String> messages = new ArrayList<>();
+
+    private InstrumentedThreadPoolExecutor(int corePoolSize, int maximumPoolSize,
+        long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue,
+        ThreadFactory threadFactory) {
+      super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
+    }
+
+    @Override public void shutdown() {
+      messages.add(String.format("shutdown %s " + Instant.now()));
+      super.shutdown();
+    }
+
+    @Override public void execute(Runnable command) {
+      super.execute(command);
+      messages.add(String.format("after execute %s " + Instant.now()));
+    }
+
+    @Override protected void terminated() {
+      messages.add(String.format("terminated %s " + Instant.now()));
+      super.terminated();
+    }
+
+    public String showMessages() {
+      return Arrays.toString(messages.toArray());
+    }
+  }
+
   private static class CountingDoFn extends DoFn<Long, Long> {
+
     private final Counter counter = Metrics.counter(MetricsPusherTest.class, "counter");
 
-    @ProcessElement
-    public void processElement(ProcessContext context) {
+    @ProcessElement public void processElement(ProcessContext context) {
       try {
         counter.inc();
         context.output(context.element());
