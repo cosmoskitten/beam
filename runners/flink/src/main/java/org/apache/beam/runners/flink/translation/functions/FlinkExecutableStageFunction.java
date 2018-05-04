@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -80,7 +81,8 @@ public class FlinkExecutableStageFunction<InputT>
     // in backward-incompatible Flink changes.
     stateRequestHandler = FlinkBatchStateRequestHandler.forStage(executableStage, runtimeContext);
     // TODO: Implement and wire in JobBundleFactory.
-    JobBundleFactory jobBundleFactory = null;
+    FlinkBundleFactory flinkBundleFactory = FlinkBundleFactory.getInstance();
+    JobBundleFactory jobBundleFactory = flinkBundleFactory.getJobBundleFactory();
     stageBundleFactory = jobBundleFactory.forStage(executableStage);
   }
 

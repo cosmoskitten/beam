@@ -29,10 +29,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.core.construction.CoderTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
@@ -56,7 +52,11 @@ class FlinkBatchStateRequestHandler implements StateRequestHandler {
   private final Components components;
   private final RuntimeContext runtimeContext;
 
-  public static FlinkBatchStateRequestHandler forStage(
+  /**
+   * Creates a new state handler for the given stage. Note that this requires a traversal of the
+   * stage itself, so this should only be called once per stage rather than once per bundle.
+   */
+  static FlinkBatchStateRequestHandler forStage(
       ExecutableStage stage, RuntimeContext runtimeContext) {
     ImmutableMap.Builder<SideInputId, PCollectionNode> sideInputBuilder = ImmutableMap.builder();
     for (SideInputReference sideInput : stage.getSideInputs()) {
@@ -98,18 +98,9 @@ class FlinkBatchStateRequestHandler implements StateRequestHandler {
     checkState(collectionNode != null, "No side input for %s/%s", transformId, localName);
     List<Object> broadcastVariable = runtimeContext.getBroadcastVariable(collectionNode.getId());
 
-    PCollection pCollection = collectionNode.getPCollection();
-
-    String windowingStrategyId = pCollection.getWindowingStrategyId();
-    String windowCoderId =
-        components.getWindowingStrategiesOrThrow(windowingStrategyId).getWindowCoderId();
-
-    MessageWithComponents protoCoder =
-        WireCoders.createRunnerWireCoder(collectionNode, components, components::containsCoders);
-    // TODO: Does this need to use length-prefixed coders?
-    Coder javaCoder =
-        CoderTranslation.fromProto(
-            protoCoder.getCoder(), RehydratedComponents.forComponents(protoCoder.getComponents()));
+    // TODO: Ensure that PCollections referenced within ProcessBundleDescriptors use length
+    // prefixing when consumed as side inputs.
+    Coder javaCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, components);
     // TODO: What is the protocol for state api coders? Can we _always_ use KV<byte[], byte[]>?
 
     // TODO: we wouldn't have to do this if the harness didn't always
