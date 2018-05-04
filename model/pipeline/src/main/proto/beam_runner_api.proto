@@ -69,6 +69,7 @@ message MessageWithComponents {
     CombinePayload combine_payload = 3;
     SdkFunctionSpec sdk_function_spec = 4;
     ParDoPayload par_do_payload = 6;
+    SplittableProcessKeyedPayload splittable_process_keyed_payload = 15;
     PTransform ptransform = 7;
     PCollection pcollection = 8;
     ReadPayload read_payload = 9;
@@ -245,6 +246,9 @@ message StandardPTransforms {
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
   }
+  enum SplittableParDoComponents {
+    SPLITTABLE_PROCESS_KEYED = 0 [(beam_urn) = "beam:transform:splittable_process_keyed_elements:v1"];
+  }
 
   // This field is needed only as a work-around for a proto compiler bug.
   // See https://github.com/google/protobuf/issues/4514
@@ -350,6 +354,20 @@ message ParDoPayload {
 
   // Whether the DoFn is splittable
   bool splittable = 6;
+}
+
+// The payload for the primitive SplittableProcessKeyed transform.
+message SplittableProcessKeyedPayload {
+
+  // (Required) The SdkFunctionSpec of the splittable DoFn.
+  SdkFunctionSpec do_fn = 1;
+
+  // (Optional) A mapping of local input names to side inputs, describing
+  // the expected access pattern.
+  map<string, SideInput> side_inputs = 3;
+
+  // (Required) Id of the restriction coder.
+  string restriction_coder_id = 4;
 }
 
 // Parameters that a UDF might require.
