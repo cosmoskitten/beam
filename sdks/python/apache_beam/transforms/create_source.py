@@ -18,6 +18,7 @@
 from apache_beam.io import iobase
 from apache_beam.transforms.core import Create
 
+
 class _CreateSource(iobase.BoundedSource):
   """Internal source that is used by Create()"""
 
@@ -27,9 +28,11 @@ class _CreateSource(iobase.BoundedSource):
     self._total_size = 0
     self._serialized_values = serialized_values
     self._total_size = sum(map(len, self._serialized_values))
+
   def read(self, range_tracker):
     start_position = range_tracker.start_position()
     current_position = start_position
+
     def split_points_unclaimed(stop_position):
       if current_position >= stop_position:
         return 0
@@ -42,6 +45,7 @@ class _CreateSource(iobase.BoundedSource):
         return
       current_position = i
       yield self._coder.decode(next(element_iter))
+
   def split(self, desired_bundle_size, start_position=None,
             stop_position=None):
     if len(self._serialized_values) < 2:
@@ -70,6 +74,7 @@ class _CreateSource(iobase.BoundedSource):
                                   start_position=0,
                                   stop_position=(end - start))
         start = end
+
   def get_range_tracker(self, start_position, stop_position):
     if start_position is None:
       start_position = 0
@@ -77,5 +82,6 @@ class _CreateSource(iobase.BoundedSource):
       stop_position = len(self._serialized_values)
     from apache_beam import io
     return io.OffsetRangeTracker(start_position, stop_position)
+
   def estimate_size(self):
     return self._total_size
