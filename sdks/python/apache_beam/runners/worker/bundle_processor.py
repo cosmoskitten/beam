@@ -661,8 +661,8 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
     common_urns.primitives.MAP_WINDOWS.urn,
     beam_runner_api_pb2.SdkFunctionSpec)
 def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
-  assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
-  window_mapping_fn = pickler.loads(mapping_fn_spec.payload)
+  assert mapping_fn_spec.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
+  window_mapping_fn = pickler.loads(mapping_fn_spec.spec.payload)
   class MapWindows(beam.DoFn):
     def process(self, element):
       key, window = element
