@@ -191,7 +191,7 @@ Attributes:
 
 WorkerDoFn = build_worker_instruction(
     'WorkerDoFn',
-    ['serialized_fn', 'output_tags', 'input', 'side_inputs', 'output_coders'])
+    ['serialized_fn', 'output_tags', 'input', 'output_coders'])
 """Worker details needed to run a DoFn.
 Attributes:
   serialized_fn: A serialized DoFn object to be run for each input element.
@@ -202,9 +202,6 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
-  side_inputs: A list of Worker...Read instances describing sources to be
-    used for getting values. The types supported right now are
-    WorkerInMemoryRead and WorkerTextRead.
 """
 
 
