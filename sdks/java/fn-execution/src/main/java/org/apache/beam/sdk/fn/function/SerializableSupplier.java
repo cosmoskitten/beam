@@ -20,5 +20,5 @@ package org.apache.beam.sdk.fn.function;
 import java.io.Serializable;
 import java.util.function.Supplier;
 
-/** A supplier that is {@link Serializable}. */
+/** A {@link Supplier} that is {@link Serializable}. */
 public interface SerializableSupplier<T> extends Supplier<T>, Serializable {}

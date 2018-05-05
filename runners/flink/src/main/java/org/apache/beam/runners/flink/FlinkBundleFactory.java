@@ -33,8 +33,7 @@ public class FlinkBundleFactory {
   /** Gets or creates a {@link JobBundleFactory}. */
   public JobBundleFactory getJobBundleFactory(
       JobInfo jobInfo, ManagedDistributedCache distributedCache) {
-    // TODO: Implement.
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   private static class Holder {
