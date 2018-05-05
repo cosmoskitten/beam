@@ -94,6 +94,10 @@ public class FlinkExecutableStageFunction<InputT>
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
     distributedCache = CloseableDistributedCache.wrapping(runtimeContext.getDistributedCache());
     FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
+    // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
+    // It's a little strange because this operator is responsible for the lifetime of the stage
+    // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
+    // ownership of the higher level "factories" explicit? Do we care?
     JobBundleFactory jobBundleFactory =
         flinkBundleFactory.getJobBundleFactory(jobInfo, distributedCache);
     stageBundleFactory = jobBundleFactory.forStage(executableStage);
