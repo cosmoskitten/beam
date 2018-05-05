@@ -53,6 +53,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageF
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStagePruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkStateRequestHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
@@ -344,7 +345,12 @@ public class FlinkBatchPortablePipelineTranslator
       throw new RuntimeException(e);
     }
     FlinkExecutableStageFunction<InputT> function =
-        new FlinkExecutableStageFunction<>(stagePayload, context.getJobInfo(), outputMap);
+        new FlinkExecutableStageFunction<>(
+            stagePayload,
+            context.getJobInfo(),
+            outputMap,
+            () -> FlinkBundleFactory.getInstance(),
+            FlinkStateRequestHandlerFactory.forBatch());
 
     DataSet<WindowedValue<InputT>> inputDataSet =
         context.getDataSetOrThrow(stagePayload.getInput());

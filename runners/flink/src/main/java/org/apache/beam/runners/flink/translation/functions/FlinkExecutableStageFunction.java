@@ -33,6 +33,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.function.SerializableSupplier;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
@@ -61,6 +62,8 @@ public class FlinkExecutableStageFunction<InputT>
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
+  private final SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier;
+  private final FlinkStateRequestHandlerFactory stateHandlerFactory;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
@@ -71,10 +74,14 @@ public class FlinkExecutableStageFunction<InputT>
   public FlinkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
-      Map<String, Integer> outputMap) {
+      Map<String, Integer> outputMap,
+      SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier,
+      FlinkStateRequestHandlerFactory stateHandlerFactory) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
+    this.bundleFactorySupplier = bundleFactorySupplier;
+    this.stateHandlerFactory = stateHandlerFactory;
   }
 
   @Override
@@ -84,9 +91,9 @@ public class FlinkExecutableStageFunction<InputT>
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
-    stateRequestHandler = FlinkBatchStateRequestHandler.forStage(executableStage, runtimeContext);
+    stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
     distributedCache = CloseableDistributedCache.wrapping(runtimeContext.getDistributedCache());
-    FlinkBundleFactory flinkBundleFactory = FlinkBundleFactory.getInstance();
+    FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     JobBundleFactory jobBundleFactory =
         flinkBundleFactory.getJobBundleFactory(jobInfo, distributedCache);
     stageBundleFactory = jobBundleFactory.forStage(executableStage);
@@ -123,6 +130,10 @@ public class FlinkExecutableStageFunction<InputT>
     distributedCache.close();
   }
 
+  /**
+   * Receiver factory that wraps outgoing elements with the corresponding union tag for a
+   * multiplexed PCollection.
+   */
   private static class ReceiverFactory implements OutputReceiverFactory {
 
     private final Object collectorLock = new Object();
