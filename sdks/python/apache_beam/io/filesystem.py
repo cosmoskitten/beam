@@ -668,12 +668,12 @@ class FileSystem(BeamPlugin):
 
   @abc.abstractmethod
   def size(self, path):
-    """Get size of path on the FileSystem.
+    """Get size in bytes of a file on the FileSystem.
 
     Args:
-      path: string path in question.
+      path: string filepath of file.
 
-    Returns: int size of path according to the FileSystem.
+    Returns: int size of file according to the FileSystem.
 
     Raises:
       ``BeamIOError`` if path doesn't exist.
