@@ -851,9 +851,8 @@ class ParDo(PTransformWithSideInputs):
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
-    si_tags_and_types = None
     windowing = None
-    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+    return self.fn, self.args, self.kwargs, windowing
 
   def to_runner_api_parameter(self, context):
     assert isinstance(self, ParDo), \
@@ -880,18 +879,16 @@ class ParDo(PTransformWithSideInputs):
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
     assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
-    fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
+    fn, args, kwargs, windowing = pickler.loads(
         pardo_payload.do_fn.spec.payload)
-    if si_tags_and_types:
-      raise NotImplementedError('explicit side input data')
-    elif windowing:
+    if windowing:
       raise NotImplementedError('explicit windowing')
     result = ParDo(fn, *args, **kwargs)
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, context))
-        for ix, si in pardo_payload.side_inputs.items()]
+        (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, context))
+        for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
