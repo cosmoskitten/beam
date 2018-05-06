@@ -35,7 +35,7 @@ task setupVirtualenv {
     }
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip -V && pip install --upgrade tox==3.0.0 protobuf==3.2.0 grpcio-tools==1.3.5"
+      args '-c', ". ${envdir}/bin/activate && pip -V && pip install --upgrade pluggy==0.6.0 tox==3.0.0 protobuf==3.2.0 grpcio-tools==1.3.5"
     }
   }
   // Gradle will delete outputs whenever it thinks they are stale. Putting a
