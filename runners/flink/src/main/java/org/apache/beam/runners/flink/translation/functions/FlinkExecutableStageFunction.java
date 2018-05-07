@@ -129,9 +129,8 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
-    // TODO: Wrap close calls to ensure all calls are attempted?
-    stageBundleFactory.close();
-    distributedCache.close();
+    try (AutoCloseable cacheCloser = distributedCache;
+        AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
   }
 
   /**
