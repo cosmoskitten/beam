@@ -37,6 +37,7 @@ def long_generator(value, elements):
   for _ in range(elements):
     yield value
 
+
 def run_benchmark(num_runs=10, input_per_source=7000, num_sources=4):
   print("Number of runs:", num_runs)
   print("Input size:", num_sources*input_per_source)
