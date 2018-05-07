@@ -351,8 +351,6 @@ class SideInputData(object):
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
     self.coder = coder
-    import logging
-    logging.info("LCWIKAAA %s", coder)
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
