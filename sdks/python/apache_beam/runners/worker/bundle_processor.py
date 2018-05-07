@@ -123,8 +123,6 @@ class StateBackedSideInputMap(object):
     self._tag = tag
     self._side_input_data = side_input_data
     self._element_coder = side_input_data.coder.wrapped_value_coder
-    logging.info("LCWIKADD %s", self._element_coder)
-    logging.info("LCWIKAEE %s", side_input_data.access_pattern)
     self._target_window_coder = side_input_data.coder.window_coder
     # TODO(robertwb): Limit the cache size.
     # TODO(robertwb): Cross-bundle caching respecting cache tokens.
@@ -217,7 +215,6 @@ class BundleProcessor(object):
   def __init__(
       self, process_bundle_descriptor, state_handler, data_channel_factory):
     self.process_bundle_descriptor = process_bundle_descriptor
-    logging.info("LCWIKACC %s", process_bundle_descriptor)
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
     # TODO(robertwb): Figure out the correct prefix to use for output counters
@@ -499,7 +496,6 @@ def _create_pardo_operation(
 
   if side_inputs_proto:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
-    logging.info("LCWIKABB %s", input_tags_to_coders)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(
             si, input_tags_to_coders[tag]))
