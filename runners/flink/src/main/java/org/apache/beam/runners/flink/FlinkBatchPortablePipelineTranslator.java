@@ -350,6 +350,7 @@ public class FlinkBatchPortablePipelineTranslator
             context.getJobInfo(),
             outputMap,
             () -> FlinkBundleFactory.getInstance(),
+            DistributedCachePool.defaultFactory(),
             FlinkStateRequestHandlerFactory.forBatch());
 
     DataSet<WindowedValue<InputT>> inputDataSet =

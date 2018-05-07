@@ -63,6 +63,7 @@ public class FlinkExecutableStageFunction<InputT>
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
   private final SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier;
+  private final DistributedCachePool.Factory cachePoolFactory;
   private final FlinkStateRequestHandlerFactory stateHandlerFactory;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
@@ -76,11 +77,13 @@ public class FlinkExecutableStageFunction<InputT>
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier,
+      DistributedCachePool.Factory cachePoolFactory,
       FlinkStateRequestHandlerFactory stateHandlerFactory) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
     this.bundleFactorySupplier = bundleFactorySupplier;
+    this.cachePoolFactory = cachePoolFactory;
     this.stateHandlerFactory = stateHandlerFactory;
   }
 
@@ -92,7 +95,7 @@ public class FlinkExecutableStageFunction<InputT>
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
-    DistributedCachePool cachePool = DistributedCachePool.forJob(jobInfo.jobId());
+    DistributedCachePool cachePool = cachePoolFactory.forJob(jobInfo.jobId());
     distributedCacheCloser = cachePool.addCacheToPool(runtimeContext.getDistributedCache());
     FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?

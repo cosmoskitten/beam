@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.flink.DistributedCachePool;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -72,6 +73,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
   @Mock private StageBundleFactory stageBundleFactory;
+  @Mock private DistributedCachePool cachePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -212,9 +214,9 @@ public class FlinkExecutableStageFunctionTest {
 
   /**
    * Creates a {@link FlinkExecutableStageFunction}. Intermediate bundle factories are mocked to
-   * return the interesting objects, namely {@link #stageBundleFactory} and {@link
-   * #stateRequestHandler}. These interesting objects are not altered and are expected to be mocked
-   * by individual test cases.
+   * return the interesting objects, namely {@link #stageBundleFactory}, {@link #cachePool}, and
+   * {@link #stateRequestHandler}. These interesting objects are not altered and are expected to be
+   * mocked by individual test cases.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
     JobBundleFactory jobBundleFactory = Mockito.mock(JobBundleFactory.class);
@@ -222,13 +224,22 @@ public class FlinkExecutableStageFunctionTest {
     FlinkBundleFactory flinkBundleFactory = Mockito.mock(FlinkBundleFactory.class);
     when(flinkBundleFactory.getJobBundleFactory(any(), any())).thenReturn(jobBundleFactory);
 
+    DistributedCachePool.Factory cachePoolFactory =
+        Mockito.mock(DistributedCachePool.Factory.class);
+    when(cachePoolFactory.forJob(any())).thenReturn(cachePool);
+
     FlinkStateRequestHandlerFactory stateHandlerFactory =
         Mockito.mock(FlinkStateRequestHandlerFactory.class);
     when(stateHandlerFactory.forStage(any(), any())).thenReturn(stateRequestHandler);
 
     FlinkExecutableStageFunction<Integer> function =
         new FlinkExecutableStageFunction<>(
-            stagePayload, jobInfo, outputMap, () -> flinkBundleFactory, stateHandlerFactory);
+            stagePayload,
+            jobInfo,
+            outputMap,
+            () -> flinkBundleFactory,
+            cachePoolFactory,
+            stateHandlerFactory);
     function.setRuntimeContext(runtimeContext);
     return function;
   }

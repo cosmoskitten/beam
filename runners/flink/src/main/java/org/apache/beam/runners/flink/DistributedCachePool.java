@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.io.Serializable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
@@ -32,9 +33,20 @@ import org.apache.flink.api.common.cache.DistributedCache;
 @ThreadSafe
 public class DistributedCachePool implements ArtifactSource {
 
-  /** Gets the cache pool for the given job id. */
-  public static DistributedCachePool forJob(String jobId) {
-    return new DistributedCachePool();
+  /**
+   * Factory for creating {@link DistributedCachePool cache pools}. Must be serializable for
+   * distribution to TaskManagers.
+   */
+  public interface Factory extends Serializable {
+    /** Gets or creates a cache pool for the given job id. */
+    DistributedCachePool forJob(String jobId);
+  }
+
+  /** Retrieves the default distributed cache pool factory. */
+  public static Factory defaultFactory() {
+    return (jobId) -> {
+      throw new UnsupportedOperationException();
+    };
   }
 
   private DistributedCachePool() {}
