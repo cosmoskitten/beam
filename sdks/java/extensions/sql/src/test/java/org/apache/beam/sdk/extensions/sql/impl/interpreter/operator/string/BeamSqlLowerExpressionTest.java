@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -38,7 +39,7 @@ public class BeamSqlLowerExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "HELLO"));
     assertEquals("hello",
-        new BeamSqlLowerExpression(operands).evaluate(row, null).getValue());
+        new BeamSqlLowerExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
 
 }

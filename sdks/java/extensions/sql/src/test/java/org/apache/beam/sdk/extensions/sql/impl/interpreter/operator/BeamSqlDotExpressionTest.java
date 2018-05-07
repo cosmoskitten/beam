@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
@@ -61,7 +62,7 @@ public class BeamSqlDotExpressionTest {
 
     BeamSqlDotExpression arrayExpression = new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR);
 
-    assertEquals("aaa", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+    assertEquals("aaa", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -86,6 +87,6 @@ public class BeamSqlDotExpressionTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Cannot find field");
 
-    new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR).evaluate(NULL_ROW, NULL_WINDOW);
+    new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR).evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of());
   }
 }

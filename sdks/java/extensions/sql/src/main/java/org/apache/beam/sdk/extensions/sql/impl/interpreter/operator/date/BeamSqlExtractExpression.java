@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -56,8 +57,10 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
         && opType(1) == SqlTypeName.TIMESTAMP;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    ReadableInstant time = opValueEvaluated(1, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    ReadableInstant time = opValueEvaluated(1, inputRow, window, correlateEnv);
 
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
 

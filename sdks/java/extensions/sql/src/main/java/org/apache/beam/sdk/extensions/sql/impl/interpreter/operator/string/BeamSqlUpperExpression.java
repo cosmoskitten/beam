@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -33,8 +34,10 @@ public class BeamSqlUpperExpression extends BeamSqlStringUnaryExpression {
     super(operands, SqlTypeName.VARCHAR);
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
     return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, str.toUpperCase());
   }
 }

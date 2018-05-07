@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -50,7 +51,7 @@ public class BeamSqlArrayExpressionTest {
 
     assertEquals(
         Arrays.asList("aaa", "bbb"),
-        arrayExpression.evaluate(NULL_ROW, NULL_WINDOW).getValue());
+        arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test

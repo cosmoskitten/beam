@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -34,6 +35,6 @@ public class BeamSqlCurrentTimestampExpressionTest extends BeamSqlDateExpression
   public void test() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     assertEquals(SqlTypeName.TIMESTAMP,
-        new BeamSqlCurrentTimestampExpression(operands).evaluate(row, null).getOutputType());
+        new BeamSqlCurrentTimestampExpression(operands).evaluate(row, null, ImmutableMap.of()).getOutputType());
   }
 }

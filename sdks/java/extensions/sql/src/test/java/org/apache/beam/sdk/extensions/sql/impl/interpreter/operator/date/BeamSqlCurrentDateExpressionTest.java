@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -32,7 +33,7 @@ public class BeamSqlCurrentDateExpressionTest extends BeamSqlDateExpressionTestB
     Assert.assertEquals(
         SqlTypeName.DATE,
         new BeamSqlCurrentDateExpression()
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getOutputType()
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getOutputType()
     );
   }
 }

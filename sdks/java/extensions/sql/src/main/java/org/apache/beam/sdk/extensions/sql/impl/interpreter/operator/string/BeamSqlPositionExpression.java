@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -57,12 +58,14 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String targetStr = opValueEvaluated(0, inputRow, window);
-    String containingStr = opValueEvaluated(1, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String targetStr = opValueEvaluated(0, inputRow, window, correlateEnv);
+    String containingStr = opValueEvaluated(1, inputRow, window, correlateEnv);
     int from = -1;
     if (operands.size() == 3) {
-      Number tmp = opValueEvaluated(2, inputRow, window);
+      Number tmp = opValueEvaluated(2, inputRow, window, correlateEnv);
       from = tmp.intValue();
     }
 
