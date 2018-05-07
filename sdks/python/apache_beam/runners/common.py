@@ -377,10 +377,6 @@ class PerWindowInvoker(DoFnInvoker):
     input_args = input_args if input_args else []
     input_kwargs = input_kwargs if input_kwargs else {}
 
-    if not self.has_windowed_inputs:
-      input_args, input_kwargs = util.insert_values_in_args(
-          input_args, input_kwargs, [si[global_window] for si in side_inputs])
-
     arguments = signature.process_method.args
     defaults = signature.process_method.defaults
 
@@ -467,16 +463,12 @@ class PerWindowInvoker(DoFnInvoker):
   def _invoke_per_window(
       self, windowed_value, additional_args,
       additional_kwargs, output_processor):
-    if self.has_windowed_inputs:
-      window, = windowed_value.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      args_for_process, kwargs_for_process = util.insert_values_in_args(
-          self.args_for_process, self.kwargs_for_process,
-          side_inputs)
-    else:
-      args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
+    window, = windowed_value.windows
+    side_inputs = [si[window] for si in self.side_inputs]
+    side_inputs.extend(additional_args)
+    args_for_process, kwargs_for_process = util.insert_values_in_args(
+        self.args_for_process, self.kwargs_for_process,
+        side_inputs)
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
