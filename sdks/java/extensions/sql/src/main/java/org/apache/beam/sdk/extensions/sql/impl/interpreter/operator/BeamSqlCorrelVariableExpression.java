@@ -15,38 +15,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
+
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * Implements map key access expression.
- */
-public class BeamSqlMapItemExpression extends BeamSqlExpression {
+/** A primitive operation for deferencing a correlation variable. */
+public class BeamSqlCorrelVariableExpression extends BeamSqlExpression {
 
-  public BeamSqlMapItemExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
+  private final int correlationId;
 
-    super(operands, sqlTypeName);
+  public BeamSqlCorrelVariableExpression(SqlTypeName sqlTypeName, int correlationId) {
+    super(null, sqlTypeName);
+    this.correlationId = correlationId;
   }
 
   @Override
   public boolean accept() {
-    return operands.size() == 2 && op(0).getOutputType().equals(SqlTypeName.MAP);
+    return true;
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Map<Object, Object> map = opValueEvaluated(0, inputRow, window, correlateEnv);
-    Object key = opValueEvaluated(1, inputRow, window, correlateEnv);
-    return BeamSqlPrimitive.of(outputType, map.get(key));
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+
+    Object correlateValue = correlateEnv.get(correlationId);
+
+    checkState(
+        correlateValue != null,
+        "Correlation variables %s not found in environment %s",
+        correlationId,
+        correlateEnv);
+
+    return BeamSqlPrimitive.of(getOutputType(), correlateValue);
   }
 }

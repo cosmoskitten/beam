@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,10 +53,13 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(Row inputRow,
-      BoundedWindow window) {
-    BigDecimal left = SqlFunctions.toBigDecimal((Object) opValueEvaluated(0, inputRow, window));
-    BigDecimal right = SqlFunctions.toBigDecimal((Object) opValueEvaluated(1, inputRow, window));
+  @Override
+  public BeamSqlPrimitive<? extends Number> evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    BigDecimal left =
+        SqlFunctions.toBigDecimal((Object) opValueEvaluated(0, inputRow, window, correlateEnv));
+    BigDecimal right =
+        SqlFunctions.toBigDecimal((Object) opValueEvaluated(1, inputRow, window, correlateEnv));
 
     BigDecimal result = calc(left, right);
     return getCorrectlyTypedResult(result);

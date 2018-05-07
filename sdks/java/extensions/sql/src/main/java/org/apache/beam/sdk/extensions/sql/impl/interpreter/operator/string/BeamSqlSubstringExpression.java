@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -55,9 +56,11 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
-    int idx = opValueEvaluated(1, inputRow, window);
+  @Override
+  public BeamSqlPrimitive evaluate(
+      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
+    int idx = opValueEvaluated(1, inputRow, window, correlateEnv);
     int startIdx = idx;
     if (startIdx > 0) {
       // NOTE: SQL substring is 1 based(rather than 0 based)
@@ -70,7 +73,7 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     }
 
     if (operands.size() == 3) {
-      int length = opValueEvaluated(2, inputRow, window);
+      int length = opValueEvaluated(2, inputRow, window, correlateEnv);
       if (length < 0) {
         length = 0;
       }

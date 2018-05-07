@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -267,7 +268,7 @@ public class BeamAggregationTransforms implements Serializable{
           BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
           deltaAcc.accumulatorElements.add(
                   aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
-                          exp.evaluate(input, null).getValue()
+                          exp.evaluate(input, null, ImmutableMap.of()).getValue()
                   )
           );
         } else if (sourceFieldExps.get(idx) instanceof KV) {
@@ -280,8 +281,8 @@ public class BeamAggregationTransforms implements Serializable{
           (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
           deltaAcc.accumulatorElements.add(
                   aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
-                          KV.of(exp.getKey().evaluate(input, null).getValue(),
-                                exp.getValue().evaluate(input, null).getValue())));
+                          KV.of(exp.getKey().evaluate(input, null, ImmutableMap.of()).getValue(),
+                                exp.getValue().evaluate(input, null, ImmutableMap.of()).getValue())));
         }
       }
       return deltaAcc;

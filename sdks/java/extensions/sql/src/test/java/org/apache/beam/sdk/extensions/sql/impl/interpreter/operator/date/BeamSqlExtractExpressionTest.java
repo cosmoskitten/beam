@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
@@ -44,7 +45,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2017L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // MONTH
     operands.clear();
@@ -53,7 +54,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(5L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // DAY
     operands.clear();
@@ -62,7 +63,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(22L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // DAY_OF_WEEK
     operands.clear();
@@ -71,7 +72,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // DAY_OF_YEAR
     operands.clear();
@@ -80,7 +81,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(142L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // WEEK
     operands.clear();
@@ -89,7 +90,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(21L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
     // QUARTER
     operands.clear();
@@ -98,7 +99,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null).getValue());
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of()).getValue());
 
   }
 }

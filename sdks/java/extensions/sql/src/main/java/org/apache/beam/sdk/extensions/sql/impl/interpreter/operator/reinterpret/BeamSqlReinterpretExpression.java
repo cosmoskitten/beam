@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -49,9 +50,10 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
         && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+  @Override
+  public BeamSqlPrimitive evaluate(
+          Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
     return REINTERPRETER.convert(
-            SqlTypeName.BIGINT,
-            operands.get(0).evaluate(inputRow, window));
+        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, correlateEnv));
   }
 }
