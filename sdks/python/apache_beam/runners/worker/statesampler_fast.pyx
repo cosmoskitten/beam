@@ -111,11 +111,8 @@ cdef class StateSampler(object):
     pythread.PyThread_release_lock(self.lock)
     self.element_tracker = DataflowElementExecutionTracker()
     # TODO(BEAM-4111): Remove experimental flag once time_counter release.
-    experiments = RuntimeValueProvider.get_value('experiments', str, [])
-    if 'per_element_instrumentation' in experiments:
-      self.has_time_counter_experiment = True
-    else:
-      self.has_time_counter_experiment = False
+    self.has_time_counter_experiment = (
+      RuntimeValueProvider.is_time_counter_enabled)
 
     # Assert that the compiler correctly aligned the current_state field.  This
     # is necessary for reads and writes to this variable to be atomic across
