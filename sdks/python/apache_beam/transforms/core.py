@@ -890,7 +890,7 @@ class ParDo(PTransformWithSideInputs):
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, context))
+        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, None))
         for ix, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result

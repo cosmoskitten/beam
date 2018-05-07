@@ -319,9 +319,9 @@ class AsSideInput(object):
     return self._side_input_data().to_runner_api(context)
 
   @staticmethod
-  def from_runner_api(proto, context):
+  def from_runner_api(proto, coder):
     return _UnpickledSideInput(
-        SideInputData.from_runner_api(proto, context))
+        SideInputData.from_runner_api(proto, coder))
 
 
 class _UnpickledSideInput(AsSideInput):
@@ -351,6 +351,8 @@ class SideInputData(object):
     self.window_mapping_fn = window_mapping_fn
     self.view_fn = view_fn
     self.coder = coder
+    import logging
+    logging.info("LCWIKAAA %s", coder)
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.SideInput(
@@ -360,7 +362,7 @@ class SideInputData(object):
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_VIEWFN,
-                payload=pickler.dumps((self.view_fn, self.coder)))),
+                payload=pickler.dumps(self.view_fn))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
             environment_id=context.default_environment_id(),
             spec=beam_runner_api_pb2.FunctionSpec(
@@ -368,14 +370,15 @@ class SideInputData(object):
                 payload=pickler.dumps(self.window_mapping_fn))))
 
   @staticmethod
-  def from_runner_api(proto, unused_context):
+  def from_runner_api(proto, coder):
     assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
     assert (proto.window_mapping_fn.spec.urn ==
             python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),
-        *pickler.loads(proto.view_fn.spec.payload))
+        pickler.loads(proto.view_fn.spec.payload),
+        coder)
 
 
 class AsSingleton(AsSideInput):
