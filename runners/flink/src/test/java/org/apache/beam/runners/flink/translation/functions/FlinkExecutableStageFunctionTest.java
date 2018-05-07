@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.flink.DistributedCachePool;
+import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -73,7 +73,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
   @Mock private StageBundleFactory stageBundleFactory;
-  @Mock private DistributedCachePool cachePool;
+  @Mock private ArtifactSourcePool cachePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -224,8 +224,7 @@ public class FlinkExecutableStageFunctionTest {
     FlinkBundleFactory flinkBundleFactory = Mockito.mock(FlinkBundleFactory.class);
     when(flinkBundleFactory.getJobBundleFactory(any(), any())).thenReturn(jobBundleFactory);
 
-    DistributedCachePool.Factory cachePoolFactory =
-        Mockito.mock(DistributedCachePool.Factory.class);
+    ArtifactSourcePool.Factory cachePoolFactory = Mockito.mock(ArtifactSourcePool.Factory.class);
     when(cachePoolFactory.forJob(any())).thenReturn(cachePool);
 
     FlinkStateRequestHandlerFactory stateHandlerFactory =

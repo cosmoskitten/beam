@@ -31,15 +31,15 @@ import org.apache.flink.api.common.cache.DistributedCache;
  * registered before artifacts are requested from it.
  */
 @ThreadSafe
-public class DistributedCachePool implements ArtifactSource {
+public class ArtifactSourcePool implements ArtifactSource {
 
   /**
-   * Factory for creating {@link DistributedCachePool cache pools}. Must be serializable for
+   * Factory for creating {@link ArtifactSourcePool cache pools}. Must be serializable for
    * distribution to TaskManagers.
    */
   public interface Factory extends Serializable {
     /** Gets or creates a cache pool for the given job id. */
-    DistributedCachePool forJob(String jobId);
+    ArtifactSourcePool forJob(String jobId);
   }
 
   /** Retrieves the default distributed cache pool factory. */
@@ -49,7 +49,7 @@ public class DistributedCachePool implements ArtifactSource {
     };
   }
 
-  private DistributedCachePool() {}
+  private ArtifactSourcePool() {}
 
   /**
    * Adds a new cache to the pool. When the returned {@link AutoCloseable} is closed, the given

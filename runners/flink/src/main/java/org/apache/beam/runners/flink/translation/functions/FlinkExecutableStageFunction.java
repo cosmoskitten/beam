@@ -24,7 +24,7 @@ import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.DistributedCachePool;
+import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -63,7 +63,7 @@ public class FlinkExecutableStageFunction<InputT>
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
   private final SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier;
-  private final DistributedCachePool.Factory cachePoolFactory;
+  private final ArtifactSourcePool.Factory cachePoolFactory;
   private final FlinkStateRequestHandlerFactory stateHandlerFactory;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
@@ -77,7 +77,7 @@ public class FlinkExecutableStageFunction<InputT>
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier,
-      DistributedCachePool.Factory cachePoolFactory,
+      ArtifactSourcePool.Factory cachePoolFactory,
       FlinkStateRequestHandlerFactory stateHandlerFactory) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
@@ -95,7 +95,7 @@ public class FlinkExecutableStageFunction<InputT>
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
-    DistributedCachePool cachePool = cachePoolFactory.forJob(jobInfo.jobId());
+    ArtifactSourcePool cachePool = cachePoolFactory.forJob(jobInfo.jobId());
     distributedCacheCloser = cachePool.addCacheToPool(runtimeContext.getDistributedCache());
     FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
