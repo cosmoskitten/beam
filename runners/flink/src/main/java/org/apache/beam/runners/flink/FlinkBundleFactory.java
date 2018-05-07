@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 
@@ -31,8 +32,7 @@ public class FlinkBundleFactory {
   }
 
   /** Gets or creates a {@link JobBundleFactory}. */
-  public JobBundleFactory getJobBundleFactory(
-      JobInfo jobInfo, ManagedDistributedCache distributedCache) {
+  public JobBundleFactory getJobBundleFactory(JobInfo jobInfo, ArtifactSource artifactSource) {
     throw new UnsupportedOperationException();
   }
 

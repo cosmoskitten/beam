@@ -24,7 +24,7 @@ import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.flink.CloseableDistributedCache;
+import org.apache.beam.runners.flink.DistributedCachePool;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -69,7 +69,7 @@ public class FlinkExecutableStageFunction<InputT>
   private transient RuntimeContext runtimeContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient StageBundleFactory stageBundleFactory;
-  private transient CloseableDistributedCache distributedCache;
+  private transient AutoCloseable distributedCacheCloser;
 
   public FlinkExecutableStageFunction(
       RunnerApi.ExecutableStagePayload stagePayload,
@@ -92,14 +92,14 @@ public class FlinkExecutableStageFunction<InputT>
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
-    distributedCache = CloseableDistributedCache.wrapping(runtimeContext.getDistributedCache());
+    DistributedCachePool cachePool = DistributedCachePool.forJob(jobInfo.jobId());
+    distributedCacheCloser = cachePool.addCacheToPool(runtimeContext.getDistributedCache());
     FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
-    JobBundleFactory jobBundleFactory =
-        flinkBundleFactory.getJobBundleFactory(jobInfo, distributedCache);
+    JobBundleFactory jobBundleFactory = flinkBundleFactory.getJobBundleFactory(jobInfo, cachePool);
     stageBundleFactory = jobBundleFactory.forStage(executableStage);
   }
 
@@ -129,7 +129,7 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void close() throws Exception {
-    try (AutoCloseable cacheCloser = distributedCache;
+    try (AutoCloseable cacheCloser = distributedCacheCloser;
         AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
   }
 
