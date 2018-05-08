@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
 import org.apache.beam.runners.flink.FlinkBundleFactory;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -96,7 +97,9 @@ public class FlinkExecutableStageFunction<InputT>
     // in backward-incompatible Flink changes.
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
     ArtifactSourcePool cachePool = cachePoolFactory.forJob(jobInfo.jobId());
-    distributedCacheCloser = cachePool.addCacheToPool(runtimeContext.getDistributedCache());
+    // TODO: Wire this into the distributed cache and make it pluggable.
+    ArtifactSource artifactSource = null;
+    distributedCacheCloser = cachePool.addToPool(artifactSource);
     FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage

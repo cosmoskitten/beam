@@ -24,11 +24,18 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
-import org.apache.flink.api.common.cache.DistributedCache;
 
 /**
- * A pool of {@link DistributedCache DistributedCaches} to use as artifact sources. A cache must be
- * registered before artifacts are requested from it.
+ * A pool of {@link ArtifactSource ArtifactSources} that can be used as a single source. At least
+ * one source must be registered before artifacts can be requested from it.
+ *
+ * <p>Artifact pooling is required for Flink operators that use the DistributedCache for artifact
+ * distribution. This is because distributed caches (along with other runtime context) are scoped to
+ * operator lifetimes but the artifact retrieval service must outlive the any remote environments it
+ * serves. Remote environments cannot be shared between jobs and are thus job-scoped.
+ *
+ * <p>Because of the peculiarities of artifact pooling and Flink, this class is packaged with the
+ * Flink runner rather than as a core fn-execution utility.
  */
 @ThreadSafe
 public class ArtifactSourcePool implements ArtifactSource {
@@ -55,7 +62,7 @@ public class ArtifactSourcePool implements ArtifactSource {
    * Adds a new cache to the pool. When the returned {@link AutoCloseable} is closed, the given
    * cache will be removed from the pool.
    */
-  public AutoCloseable addCacheToPool(DistributedCache distributedCache) {
+  public AutoCloseable addToPool(ArtifactSource artifactSource) {
     throw new UnsupportedOperationException();
   }
 
