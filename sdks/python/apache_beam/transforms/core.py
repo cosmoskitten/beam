@@ -887,8 +887,8 @@ class ParDo(PTransformWithSideInputs):
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-      (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, context))
-       for tag, si in pardo_payload.side_inputs.items()]
+        (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, context))
+        for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
@@ -1634,8 +1634,8 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(windowing_strategy_proto, context):
-    windowing = Windowing.from_runner_api(windowing_strategy_proto, context)
+  def from_runner_api_parameter(proto, context):
+    windowing = Windowing.from_runner_api(proto, context)
     return WindowInto(
         windowing.windowfn,
         trigger=windowing.triggerfn,

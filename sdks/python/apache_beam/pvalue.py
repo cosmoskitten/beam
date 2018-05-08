@@ -366,7 +366,7 @@ class SideInputData(object):
                 payload=pickler.dumps(self.window_mapping_fn))))
 
   @staticmethod
-  def from_runner_api(proto, context):
+  def from_runner_api(proto, unused_context):
     assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
     assert (proto.window_mapping_fn.spec.urn ==
             python_urns.PICKLED_WINDOW_MAPPING_FN)

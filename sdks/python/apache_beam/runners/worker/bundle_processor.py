@@ -497,8 +497,7 @@ def _create_pardo_operation(
   if side_inputs_proto:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
-        (tag, beam.pvalue.SideInputData.from_runner_api(
-            si, None))
+        (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
         for tag, si in side_inputs_proto.items()]
     tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
     side_input_maps = [
