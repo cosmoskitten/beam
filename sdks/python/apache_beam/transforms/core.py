@@ -877,36 +877,17 @@ class ParDo(PTransformWithSideInputs):
 
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-  def from_runner_api_parameter(transform_proto, pardo_payload, context):
+  def from_runner_api_parameter(pardo_payload, context):
     assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, windowing = pickler.loads(
         pardo_payload.do_fn.spec.payload)
     if windowing:
       raise NotImplementedError('explicit windowing')
     result = ParDo(fn, *args, **kwargs)
-    import logging
-    logging.info("LCWIKA %s", context.pcollections._id_to_obj.keys())
-    logging.info("LCWIKB %s", context.pcollections._id_to_proto.keys())
-    tag_to_pc = {
-      tag: context.pcollections.get_proto(
-          context.pcollections.get_by_id(transform_proto.inputs[tag]))
-      for tag in pardo_payload.side_inputs.keys()
-    }
-    logging.info("LCWIKC %s", tag_to_pc)
-    logging.info("LCWIKD %s", context.coders._id_to_proto.keys())
-    tag_to_coder = {
-      tag: coders.WindowedValueCoder(
-          context.coders.get_by_id(tag_to_pc[tag].coder_id),
-          context.coders.get_by_id(
-              context.windowing_strategies.get_proto(
-                  context.windowing_strategies.get_by_id(
-                      tag_to_pc[tag].windowing_strategy_id))).window_coder_id)
-      for tag in pardo_payload.side_inputs.keys()
-    }
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-      (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, tag_to_coder[tag]))
+      (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, context))
        for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
@@ -1256,8 +1237,7 @@ class CombinePerKey(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(
-      unused_transform_proto, combine_payload, context):
+  def from_runner_api_parameter(combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1296,8 +1276,7 @@ class CombineValues(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(
-      unused_transform_proto, combine_payload, context):
+  def from_runner_api_parameter(combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1424,8 +1403,7 @@ class GroupByKey(PTransform):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
-  def from_runner_api_parameter(
-      unused_transform_proto, unused_payload, unused_context):
+  def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
 
 
@@ -1656,8 +1634,7 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(
-      unused_transform_proto, windowing_strategy_proto, context):
+  def from_runner_api_parameter(windowing_strategy_proto, context):
     windowing = Windowing.from_runner_api(windowing_strategy_proto, context)
     return WindowInto(
         windowing.windowfn,
@@ -1727,8 +1704,7 @@ class Flatten(PTransform):
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
-  def from_runner_api_parameter(
-      unused_transform_proto, unused_parameter, unused_context):
+  def from_runner_api_parameter(unused_parameter, unused_context):
     return Flatten()
 
 

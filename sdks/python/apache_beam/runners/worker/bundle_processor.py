@@ -117,13 +117,13 @@ class DataInputOperation(RunnerIOOperation):
 
 
 class StateBackedSideInputMap(object):
-  def __init__(self, state_handler, transform_id, tag, side_input_data):
+  def __init__(self, state_handler, transform_id, tag, side_input_data, coder):
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._tag = tag
     self._side_input_data = side_input_data
-    self._element_coder = side_input_data.coder.wrapped_value_coder
-    self._target_window_coder = side_input_data.coder.window_coder
+    self._element_coder = coder.wrapped_value_coder
+    self._target_window_coder = coder.window_coder
     # TODO(robertwb): Limit the cache size.
     # TODO(robertwb): Cross-bundle caching respecting cache tokens.
     self._cache = {}
@@ -498,11 +498,16 @@ def _create_pardo_operation(
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(
-            si, input_tags_to_coders[tag]))
+            si, None))
         for tag, si in side_inputs_proto.items()]
     tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
     side_input_maps = [
-        StateBackedSideInputMap(factory.state_handler, transform_id, tag, si)
+        StateBackedSideInputMap(
+            factory.state_handler,
+            transform_id,
+            tag,
+            si,
+            input_tags_to_coders[tag])
         for tag, si in tagged_side_inputs]
   else:
     side_input_maps = []

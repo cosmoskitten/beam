@@ -555,7 +555,6 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[transform_proto.spec.urn]
     return constructor(
-        transform_proto,
         proto_utils.parse_Bytes(transform_proto.spec.payload, parameter_type),
         context)
 
@@ -570,14 +569,14 @@ class PTransform(WithTypeHints, HasDisplayData):
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
-def _create_transform(unused_transform_proto, payload, unused_context):
+def _create_transform(payload, unused_context):
   empty_transform = PTransform()
   empty_transform._fn_api_payload = payload
   return empty_transform
 
 
 @PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
-def _unpickle_transform(unused_transform_proto, pickled_bytes, unused_context):
+def _unpickle_transform(pickled_bytes, unused_context):
   return pickler.loads(pickled_bytes)
 
 

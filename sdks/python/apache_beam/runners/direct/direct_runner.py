@@ -151,8 +151,7 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
     return _StreamingGroupByKeyOnly.urn, None
 
   @PTransform.register_urn(urn, None)
-  def from_runner_api_parameter(
-      unused_transform_proto, unused_payload, unused_context):
+  def from_runner_api_parameter(unused_payload, unused_context):
     return _StreamingGroupByKeyOnly()
 
 
@@ -170,8 +169,7 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
             self.windowing)))
 
   @PTransform.register_urn(urn, wrappers_pb2.BytesValue)
-  def from_runner_api_parameter(
-      unused_transform_proto, payload, context):
+  def from_runner_api_parameter(payload, context):
     return _StreamingGroupAlsoByWindow(
         context.windowing_strategies.get_by_id(payload.value))
 
