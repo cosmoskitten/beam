@@ -102,6 +102,8 @@ class RuntimeValueProvider(ValueProvider):
   @classmethod
   def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
+    # Set is_time_counter_enabled = True if 'time_per_element_instrumentation'
+    # in experiments option
     experiments = RuntimeValueProvider.get_value('experiments', str, ())
     if 'time_per_element_instrumentation' in experiments:
       RuntimeValueProvider.is_time_counter_enabled = True
