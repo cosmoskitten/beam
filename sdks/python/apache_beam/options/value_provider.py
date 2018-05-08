@@ -103,8 +103,6 @@ class RuntimeValueProvider(ValueProvider):
   @classmethod
   def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
-    # Set is_output_counter_enabled = True if
-    # 'outputs_per_element_instrumentation' in experiments options.
     experiments = RuntimeValueProvider.get_value('experiments', str, ())
     if 'outputs_per_element_instrumentation' in experiments:
       RuntimeValueProvider.is_output_counter_enabled = True
