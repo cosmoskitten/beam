@@ -69,7 +69,6 @@ class StaticValueProvider(ValueProvider):
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
-  is_time_counter_enabled = False
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name
@@ -102,11 +101,6 @@ class RuntimeValueProvider(ValueProvider):
   @classmethod
   def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
-    # Set is_time_counter_enabled = True if 'time_per_element_instrumentation'
-    # in experiments option
-    experiments = RuntimeValueProvider.get_value('experiments', str, ())
-    if 'time_per_element_instrumentation' in experiments:
-      RuntimeValueProvider.is_time_counter_enabled = True
 
   def __str__(self):
     return '%s(option: %s, type: %s, default_value: %s)' % (
