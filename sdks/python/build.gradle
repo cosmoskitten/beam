@@ -31,11 +31,7 @@ def tox_opts = "-c tox.ini --recreate"
 task setupVirtualenv {
   doLast {
     exec {
-      commandLine 'virtualenv', "${envdir}"
-    }
-    exec {
-      executable 'bash'
-      args '-c', ". ${envdir}/bin/activate && ${envdir}/bin/pip -V && ${envdir}/bin/pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+      commandLine 'sh', 'setup_virtualenv.sh',  "${envdir}"
     }
   }
   // Gradle will delete outputs whenever it thinks they are stale. Putting a
