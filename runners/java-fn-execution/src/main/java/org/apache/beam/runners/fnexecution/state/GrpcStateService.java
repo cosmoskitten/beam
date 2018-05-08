@@ -31,10 +31,16 @@ import org.apache.beam.runners.fnexecution.FnService;
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
+  /**
+   * Create a new {@link GrpcStateService}.
+   */
+  public static GrpcStateService create() {
+    return new GrpcStateService();
+  }
+
   private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
 
-  public GrpcStateService()
-      throws Exception {
+  public GrpcStateService() {
     this.requestHandlers = new ConcurrentHashMap<>();
   }
 
@@ -92,7 +98,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     @Override
     public void onNext(StateRequest request) {
       StateRequestHandler handler =
-        requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
+          requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
         result.whenCompleteAsync(
@@ -133,4 +139,3 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     }
   }
 }
-
