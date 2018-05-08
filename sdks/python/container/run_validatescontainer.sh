@@ -44,7 +44,8 @@ docker -v
 gcloud -v
 
 # Create a tarball
-./gradlew :beam-sdks-python:clean
+
+rm -rf sdks/python/build/gradleenv
 virtualenv sdks/python/build/gradleenv
 ls -l sdks/python/build/gradleenv/bin
 cat sdks/python/build/gradleenv/bin/pip
