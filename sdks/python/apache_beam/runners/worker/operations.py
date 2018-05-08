@@ -280,83 +280,17 @@ class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
   def __init__(
-      self, name, spec, counter_factory, sampler, side_input_maps=None):
+      self, name, spec, counter_factory, sampler, side_input_maps=[]):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.tagged_receivers = None
-
-  def _read_side_inputs(self, tags_and_types):
-    """Generator reading side inputs in the order prescribed by tags_and_types.
-
-    Args:
-      tags_and_types: List of tuples (tag, type). Each side input has a string
-        tag that is specified in the worker instruction. The type is actually
-        a boolean which is True for singleton input (read just first value)
-        and False for collection input (read all values).
-
-    Yields:
-      With each iteration it yields the result of reading an entire side source
-      either in singleton or collection mode according to the tags_and_types
-      argument.
-    """
-    # Only call this on the old path where side_input_maps was not
-    # provided directly.
-    assert self.side_input_maps is None
-
-    # Get experiments active in the worker to check for side input metrics exp.
-    experiments = RuntimeValueProvider.get_value('experiments', list, [])
-
-    # We will read the side inputs in the order prescribed by the
-    # tags_and_types argument because this is exactly the order needed to
-    # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
-    # getting the side inputs.
-    #
-    # Note that for each tag there could be several read operations in the
-    # specification. This can happen for instance if the source has been
-    # sharded into several files.
-    for i, (side_tag, view_class, view_options) in enumerate(tags_and_types):
-      sources = []
-      # Using the side_tag in the lambda below will trigger a pylint warning.
-      # However in this case it is fine because the lambda is used right away
-      # while the variable has the value assigned by the current iteration of
-      # the for loop.
-      # pylint: disable=cell-var-from-loop
-      for si in itertools.ifilter(
-          lambda o: o.tag == side_tag, self.spec.side_inputs):
-        if not isinstance(si, operation_specs.WorkerSideInputSource):
-          raise NotImplementedError('Unknown side input type: %r' % si)
-        sources.append(si.source)
-        # The tracking of time spend reading and bytes read from side inputs is
-        # behind an experiment flag to test its performance impact.
-        if 'sideinput_io_metrics' in experiments:
-          si_counter = opcounters.SideInputReadCounter(
-              self.counter_factory,
-              self.state_sampler,
-              declaring_step=self.name_context.step_name,
-              # Inputs are 1-indexed, so we add 1 to i in the side input id
-              input_index=i + 1)
-        else:
-          si_counter = opcounters.NoOpTransformIOCounter()
-      iterator_fn = sideinputs.get_iterator_fn_for_sources(
-          sources, read_counter=si_counter)
-
-      # Backwards compatibility for pre BEAM-733 SDKs.
-      if isinstance(view_options, tuple):
-        if view_class == pvalue.AsSingleton:
-          has_default, default = view_options
-          view_options = {'default': default} if has_default else {}
-        else:
-          view_options = {}
-
-      yield apache_sideinputs.SideInputMap(
-          view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
   def start(self):
     with self.scoped_start_state:
       super(DoOperation, self).start()
 
       # See fn_data in dataflow_runner.py
-      fn, args, kwargs, tags_and_types, window_fn = (
+      fn, args, kwargs, window_fn = (
           pickler.loads(self.spec.serialized_fn))
 
       state = common.DoFnState(self.counter_factory)
@@ -377,12 +311,6 @@ class DoOperation(Operation):
         else:
           raise ValueError('Unexpected output name for operation: %s' % tag)
         self.tagged_receivers[original_tag] = self.receivers[index]
-
-      if self.side_input_maps is None:
-        if tags_and_types:
-          self.side_input_maps = list(self._read_side_inputs(tags_and_types))
-        else:
-          self.side_input_maps = []
 
       self.dofn_runner = common.DoFnRunner(
           fn, args, kwargs, self.side_input_maps, window_fn,

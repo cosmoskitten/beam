@@ -884,22 +884,27 @@ class ParDo(PTransformWithSideInputs):
     if windowing:
       raise NotImplementedError('explicit windowing')
     result = ParDo(fn, *args, **kwargs)
-    # This is an ordered list stored as a dict (see the comments in
-    # to_runner_api_parameter above).
+    import logging
+    logging.info("LCWIKA %s", context.pcollections._id_to_obj.keys())
+    logging.info("LCWIKB %s", context.pcollections._id_to_proto.keys())
     tag_to_pc = {
-      tag: context.get_proto(
+      tag: context.pcollections.get_proto(
           context.pcollections.get_by_id(transform_proto.inputs[tag]))
       for tag in pardo_payload.side_inputs.keys()
     }
+    logging.info("LCWIKC %s", tag_to_pc)
+    logging.info("LCWIKD %s", context.coders._id_to_proto.keys())
     tag_to_coder = {
       tag: coders.WindowedValueCoder(
           context.coders.get_by_id(tag_to_pc[tag].coder_id),
           context.coders.get_by_id(
               context.windowing_strategies.get_proto(
                   context.windowing_strategies.get_by_id(
-                      tag_to_pc[tag].windowing_strategy_id))))
+                      tag_to_pc[tag].windowing_strategy_id))).window_coder_id)
       for tag in pardo_payload.side_inputs.keys()
     }
+    # This is an ordered list stored as a dict (see the comments in
+    # to_runner_api_parameter above).
     indexed_side_inputs = [
       (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, tag_to_coder[tag]))
        for tag, si in pardo_payload.side_inputs.items()]
