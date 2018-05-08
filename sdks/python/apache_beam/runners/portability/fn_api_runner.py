@@ -880,8 +880,8 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
             data_side_input[transform.unique_name, tag] = (
-              'materialize:' + transform.inputs[tag],
-              beam.pvalue.SideInputData.from_runner_api(si, context))
+                'materialize:' + transform.inputs[tag],
+                beam.pvalue.SideInputData.from_runner_api(si, context))
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)

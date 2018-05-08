@@ -550,12 +550,12 @@ class PTransform(WithTypeHints, HasDisplayData):
         else typed_param)
 
   @classmethod
-  def from_runner_api(cls, transform_proto, context):
-    if transform_proto.spec is None or not transform_proto.spec.urn:
+  def from_runner_api(cls, proto, context):
+    if proto is None or not proto.urn:
       return None
-    parameter_type, constructor = cls._known_urns[transform_proto.spec.urn]
+    parameter_type, constructor = cls._known_urns[proto.urn]
     return constructor(
-        proto_utils.parse_Bytes(transform_proto.spec.payload, parameter_type),
+        proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
   def to_runner_api_parameter(self, unused_context):
