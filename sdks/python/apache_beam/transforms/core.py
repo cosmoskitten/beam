@@ -851,9 +851,8 @@ class ParDo(PTransformWithSideInputs):
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
-    si_tags_and_types = None
     windowing = None
-    return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
+    return self.fn, self.args, self.kwargs, windowing
 
   def to_runner_api_parameter(self, context):
     assert isinstance(self, ParDo), \
@@ -878,20 +877,32 @@ class ParDo(PTransformWithSideInputs):
 
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-  def from_runner_api_parameter(pardo_payload, context):
+  def from_runner_api_parameter(transform_proto, pardo_payload, context):
     assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
-    fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
+    fn, args, kwargs, windowing = pickler.loads(
         pardo_payload.do_fn.spec.payload)
-    if si_tags_and_types:
-      raise NotImplementedError('explicit side input data')
-    elif windowing:
+    if windowing:
       raise NotImplementedError('explicit windowing')
     result = ParDo(fn, *args, **kwargs)
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
+    tag_to_pc = {
+      tag: context.get_proto(
+          context.pcollections.get_by_id(transform_proto.inputs[tag]))
+      for tag in pardo_payload.side_inputs.keys()
+    }
+    tag_to_coder = {
+      tag: coders.WindowedValueCoder(
+          context.coders.get_by_id(tag_to_pc[tag].coder_id),
+          context.coders.get_by_id(
+              context.windowing_strategies.get_proto(
+                  context.windowing_strategies.get_by_id(
+                      tag_to_pc[tag].windowing_strategy_id))))
+      for tag in pardo_payload.side_inputs.keys()
+    }
     indexed_side_inputs = [
-        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, None))
-        for ix, si in pardo_payload.side_inputs.items()]
+      (int(tag[4:]), pvalue.AsSideInput.from_runner_api(si, tag_to_coder[tag]))
+       for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
@@ -1240,7 +1251,8 @@ class CombinePerKey(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(
+      unused_transform_proto, combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1279,7 +1291,8 @@ class CombineValues(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(
+      unused_transform_proto, combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1406,7 +1419,8 @@ class GroupByKey(PTransform):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
-  def from_runner_api_parameter(unused_payload, unused_context):
+  def from_runner_api_parameter(
+      unused_transform_proto, unused_payload, unused_context):
     return GroupByKey()
 
 
@@ -1637,8 +1651,9 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(proto, context):
-    windowing = Windowing.from_runner_api(proto, context)
+  def from_runner_api_parameter(
+      unused_transform_proto, windowing_strategy_proto, context):
+    windowing = Windowing.from_runner_api(windowing_strategy_proto, context)
     return WindowInto(
         windowing.windowfn,
         trigger=windowing.triggerfn,
@@ -1707,7 +1722,8 @@ class Flatten(PTransform):
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_transform_proto, unused_parameter, unused_context):
     return Flatten()
 
 
