@@ -27,8 +27,10 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
  */
 public class FlinkBundleFactory {
 
+  private static final FlinkBundleFactory INSTANCE = new FlinkBundleFactory();
+
   public static FlinkBundleFactory getInstance() {
-    return Holder.INSTANCE;
+    return INSTANCE;
   }
 
   /** Gets or creates a {@link JobBundleFactory}. */
@@ -36,7 +38,4 @@ public class FlinkBundleFactory {
     throw new UnsupportedOperationException();
   }
 
-  private static class Holder {
-    private static final FlinkBundleFactory INSTANCE = new FlinkBundleFactory();
-  }
 }
