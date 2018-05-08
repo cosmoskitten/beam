@@ -851,7 +851,7 @@ class AppliedPTransform(object):
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     result = AppliedPTransform(
         parent=None,
-        transform=ptransform.PTransform.from_runner_api(proto, context),
+        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
         inputs=main_inputs)
     if result.transform and result.transform.side_inputs:
