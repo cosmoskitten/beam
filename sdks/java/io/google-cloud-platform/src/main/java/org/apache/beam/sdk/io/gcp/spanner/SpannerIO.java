@@ -182,7 +182,7 @@ public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
   // Max number of mutations to batch together.
-  private static final int DEFAULT_MAX_NUM_MUTATIONS = 10000;
+  private static final int DEFAULT_MAX_NUM_MUTATIONS = 5000;
   // The maximum number of keys to fit in memory when computing approximate quantiles.
   private static final long MAX_NUM_KEYS = (long) 1e6;
   // TODO calculate number of samples based on the size of the input.
@@ -654,8 +654,6 @@ public class SpannerIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Mutation>, PDone> {
 
-    private long maxNumMutations;
-
     abstract SpannerConfig getSpannerConfig();
 
     abstract long getBatchSizeBytes();
@@ -1010,7 +1008,7 @@ public class SpannerIO {
         byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
         long groupSize = MutationSizeEstimator.sizeOf(mg);
-        long groupCells = MutationCellEstimator.countOf(spannerSchema, mg);
+        long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
 
         if (batchCells + groupCells > maxNumMutations
             || batchSizeBytes + groupSize > maxBatchSizeBytes) {

@@ -22,13 +22,13 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
 import com.google.common.collect.Iterables;
 
-final class MutationCellEstimator {
+final class MutationCellCounter {
   // Prevent construction.
-  private MutationCellEstimator() {
+  private MutationCellCounter() {
   }
 
   /**
-   * Estimate the number of cells modified in a {@link MutationGroup}.
+   * Count the number of cells modified by {@link MutationGroup}.
    */
   public static long countOf(SpannerSchema spannerSchema, MutationGroup mutationGroup) {
     long mutatedCells = 0L;
