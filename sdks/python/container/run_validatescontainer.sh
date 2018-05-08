@@ -45,6 +45,10 @@ gcloud -v
 
 # Create a tarball
 ./gradlew :beam-sdks-python:clean
+virtualenv sdks/python/build/gradleenv
+ls -l sdks/python/build/gradleenv/bin
+cat sdks/python/build/gradleenv/bin/pip
+
 ./gradlew :beam-sdks-python:sdist --info
 SDK_LOCATION=$(find sdks/python/build/apache-beam-*.tar.gz)
 
