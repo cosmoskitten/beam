@@ -83,9 +83,10 @@ public class ExecutorServiceParallelExecutorTest {
               metricsExecutorService)
       .stop();
     try {
-      metricsExecutorService.awaitTermination(10000L, TimeUnit.MILLISECONDS);
+      metricsExecutorService.awaitTermination(10L, TimeUnit.MINUTES);
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
     }
   }
 
