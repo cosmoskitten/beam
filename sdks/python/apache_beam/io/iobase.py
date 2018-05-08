@@ -866,7 +866,7 @@ class Read(ptransform.PTransform):
                 else beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(unused_transform_proto, parameter, context):
+  def from_runner_api_parameter(parameter, context):
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 

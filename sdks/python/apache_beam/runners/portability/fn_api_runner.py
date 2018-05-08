@@ -144,23 +144,23 @@ class _GroupingBuffer(object):
 
 class _WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
-  def __init__(self, side_input_data):
+  def __init__(self, side_input_data, coder):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
     if side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn:
       self._kv_extrator = lambda value: ('', value)
       self._key_coder = coders.SingletonCoder('')
-      self._value_coder = side_input_data.coder.wrapped_value_coder
+      self._value_coder = coder.wrapped_value_coder
     elif side_input_data.access_pattern == common_urns.side_inputs.MULTIMAP.urn:
       self._kv_extrator = lambda value: value
-      self._key_coder = side_input_data.coder.wrapped_value_coder.key_coder()
+      self._key_coder = coder.wrapped_value_coder.key_coder()
       self._value_coder = (
-          side_input_data.coder.wrapped_value_coder.value_coder())
+          coder.wrapped_value_coder.value_coder())
     else:
       raise ValueError(
           "Unknown access pattern: '%s'" % side_input_data.access_pattern)
-    self._windowed_value_coder = side_input_data.coder
-    self._window_coder = side_input_data.coder.window_coder
+    self._windowed_value_coder = coder
+    self._window_coder = coder.window_coder
     self._values_by_window = collections.defaultdict(list)
 
   def append(self, elements_data):
@@ -880,8 +880,8 @@ class FnApiRunner(runner.PipelineRunner):
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
             data_side_input[transform.unique_name, tag] = (
-                'materialize:' + transform.inputs[tag],
-                beam.pvalue.SideInputData.from_runner_api(si, None))
+              'materialize:' + transform.inputs[tag],
+              beam.pvalue.SideInputData.from_runner_api(si, context))
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
@@ -904,7 +904,17 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Store the required side inputs into state.
     for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
-      elements_by_window = _WindowGroupingBuffer(si)
+      logging.info("LCWIKA %s | %s | %s | %s", transform_id, tag, pcoll_id, si)
+      logging.info("LCWIKB %s", pipeline_components.pcollections.keys())
+      logging.info("LCWIKC %s", pipeline_components.coders.keys())
+      logging.info("LCWIKD %s", safe_coders.keys())
+      value_coder = context.coders[safe_coders[
+        pipeline_components.pcollections[pcoll_id].coder_id]]
+      window_coder = context.coders[safe_coders[
+        context.windowing_strategies[
+          pipeline_components.pcollections[pcoll_id].windowing_strategy_id].window_coder_id]]
+      elements_by_window = _WindowGroupingBuffer(
+          si, WindowedValueCoder(value_coder, window_coder))
       for element_data in pcoll_buffers[pcoll_id]:
         elements_by_window.append(element_data)
       for key, window, elements_data in elements_by_window.encoded_items():

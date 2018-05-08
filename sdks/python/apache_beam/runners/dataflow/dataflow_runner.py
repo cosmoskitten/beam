@@ -970,11 +970,7 @@ class _DataflowIterableSideInput(_DataflowSideInput):
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']),
-        coders.WindowedValueCoder(
-            coders.TupleCoder((coders.BytesCoder(),
-                               side_input_data.coder.wrapped_value_coder)),
-            side_input_data.coder.window_coder))
+        lambda multimap: iterable_view_fn(multimap['']))
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):
@@ -989,8 +985,7 @@ class _DataflowMultimapSideInput(_DataflowSideInput):
     self._data = beam.pvalue.SideInputData(
         self.DATAFLOW_MULTIMAP_URN,
         side_input_data.window_mapping_fn,
-        side_input_data.view_fn,
-        self._input_element_coder())
+        side_input_data.view_fn)
 
 
 class DataflowPipelineResult(PipelineResult):
