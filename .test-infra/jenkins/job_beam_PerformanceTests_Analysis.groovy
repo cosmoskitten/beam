@@ -39,7 +39,7 @@ def testConfiguration = [
                 ]
         ]
 
-// This job runs the file-based IOs performance tests on PerfKit Benchmarker.
+// This job runs the performance tests analysis job and produces daily report.
 job(testConfiguration.jobName) {
     description(testConfiguration.jobDescription)
 

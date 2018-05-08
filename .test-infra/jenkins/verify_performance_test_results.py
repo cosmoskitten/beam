@@ -31,6 +31,7 @@
 #   Requires setting env variable SLACK_WEBOOK_URL which value could be obtained by
 #   creating incoming webhook on Slack.
 #
+#   This script is intended to be used only by Jenkins.
 #   Example script usage:
 #   verify_performance_test_results.py \
 #     --bqtable='["beam_performance.avroioit_hdfs_pkb_results", \
@@ -44,7 +45,6 @@ from google.cloud import bigquery
 ### TIME SETTINGS ###########
 TIME_PATTERN = '%d-%m-%Y_%H-%M-%S'
 NOW = int(time.time())
-#NOW = calendar.timegm(time.strptime('14-03-2018_13-30-27', TIME_PATTERN)) #left for testing
 # First analysis time interval definition - 24h before
 TIME_POINT_1 = NOW - 1 * 86400
 # Second analysis time interval definition - week before
@@ -119,9 +119,26 @@ def get_records_from(table_name, time_start, time_stop, metric, number_of_record
         metric,
         number_of_records
         )
-    print(sql_command)
     list_of_records = submit_big_query_job(sql_command, "list")
     return list_of_records
+
+def calculate_historical_data(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric, nb_older_records, average_recent):
+    average_old = get_average_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
+    if nb_older_records > 1:
+        stddev_old = get_stddev_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
+    else:
+        # Standard deviation is 0 when there is only single value.
+        stddev_old = 0
+    percentage_change = 100*(average_recent - average_old)/average_old
+    return percentage_change, stddev_old
+
+def update_messages(bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old,
+                    report_message, slack_report_message):
+    report_message = report_message + '{} - {}, avg_time {:.2f}s, change {:+.3f}%, stddev {:.2f}, stddev_old {:.2f} \n'.format(
+        bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
+    slack_report_message = slack_report_message + format_slack_message(
+        bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
+    return report_message, slack_report_message
 
 def create_report(bqtables):
     # This function create a report message from tables.
@@ -145,25 +162,11 @@ def create_report(bqtables):
                 # Standard deviation is 0 when there is only single value.
                 stddev_recent = 0
             nb_older_records = count_queries(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
-
             if nb_older_records > 0:
-                average_old = get_average_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
-                if nb_older_records > 1:
-                    stddev_old = get_stddev_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
-                else:
-                    # Standard deviation is 0 when there is only single value.
-                    stddev_old = 0
-                percentage_change = 100*(average_recent - average_old)/average_old
-                report_message = report_message + '{} - {}, avg_time {:.2f}s, change {:+.3f}%, stddev {:.2f}, stddev_old {:.2f} \n'.format(
-                    bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
-                slack_report_message = slack_report_message + format_slack_message(
-                    bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
-            # Handle the situation when test were just added.
-            else:
-                report_message = report_message + '{} - {}, missing old data or test just added to bq. \n'.format(
-                    bq_table_name, metric)
-                slack_report_message = slack_report_message + '`{}` - {}, missing old data or test just added to bq. :bangbang:\n'.format(
-                    bq_table_name, metric)
+                percentage_change, stddev_old = \
+                    calculate_historical_data(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric, nb_older_records, average_recent)
+                report_message, slack_report_message = \
+                    update_messages(bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old, report_message, slack_report_message)
     print(report_message)
     if args.send_notification:
         notify_on_slack(slack_report_message)
@@ -186,44 +189,32 @@ def validate_single_performance_test(bqtables):
             stddev_recent = 0
         nb_older_records = count_queries(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
         if nb_older_records > 0:
-            average_old = get_average_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
-            if nb_older_records >1:
-                stddev_old = get_stddev_from(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric)
-            else:
-                stddev_old = 0
-            percentage_change = 100*(average_recent - average_old)/average_old
-            report_message = report_message + '{} - {}, avg_time {:.2f}s, change {:+.3f}%, stddev {:.2f}, stddev_old {:.2f} \n'.format(
-                bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
-            slack_report_message = slack_report_message + format_slack_message(
-                bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old)
-            # Handle the situation when test were just added.
-        else:
-            report_message = report_message + '{} - {}, missing old data or test just added to bq. \n'.format(
-                bq_table_name, metric)
-            slack_report_message = slack_report_message + '`{}` - {}, missing old data or test just added to bq. :bangbang:\n'.format(
-                bq_table_name, metric)
+            percentage_change, stddev_old = \
+                calculate_historical_data(bq_table_name, TIME_POINT_2, TIME_POINT_1, metric, nb_older_records, average_recent)
+            report_message, slack_report_message = \
+                update_messages(bq_table_name, metric, average_recent, percentage_change, stddev_recent, stddev_old, report_message, slack_report_message)
     print(report_message)
     if args.send_notification:
         notify_on_slack(slack_report_message)
 
 def format_slack_message(table_name, metric, avg_time, change, stddev, stddev_old):
-    # Function that gives additional slack formating
+    # Function that gives additional slack formatting
     # Highlight table name
-    table_name_formated = '`{}`'.format(table_name)
+    table_name_formatted = '`{}`'.format(table_name)
     # Depending on change value bold or highlight and add emoji
     if change is None:
-        change_formated = "NA"
+        change_formatted = "NA"
     elif change >= 0:
-        change_formated = '`{:+.3f}%` :-1:'.format(change)
+        change_formatted = '`{:+.3f}%` :-1:'.format(change)
     else:
-        change_formated = '*{:+.3f}%* :+1:'.format(change)
+        change_formatted = '*{:+.3f}%* :+1:'.format(change)
 
     # Bold if value available
-    stddev_formated = '*{:.2f}*'.format(stddev)
-    stddev_old_formated = '*{:.2f}*'.format(stddev_old)
+    stddev_formatted = '*{:.2f}*'.format(stddev)
+    stddev_old_formatted = '*{:.2f}*'.format(stddev_old)
 
     return '{} - \"{}\", avg_time {:.2f}s, change {}, stddev {}, stddev_old {} \n'.format(
-        table_name_formated, metric, avg_time, change_formated, stddev_formated, stddev_old_formated)
+        table_name_formatted, metric, avg_time, change_formatted, stddev_formatted, stddev_old_formatted)
 
 def notify_on_slack(message):
     # This function sends message on slack channel defined in environment
