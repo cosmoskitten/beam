@@ -129,12 +129,12 @@ public final class PaneInfo {
   }
 
   private static byte encodedByte(boolean isFirst, boolean isLast, Timing timing) {
-    byte result = 0;
+    byte result = 0b00;
     if (isFirst) {
-      result |= (byte) 1;
+      result |= (byte) 0b01;
     }
     if (isLast) {
-      result |= (byte) 2;
+      result |= (byte) 0b10;
     }
     result |= (byte) (timing.ordinal() << 2);
     return result;
