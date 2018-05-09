@@ -479,11 +479,11 @@ class PerWindowInvoker(DoFnInvoker):
       # Fill in sideInputs if they are globally windowed
       global_window = GlobalWindow()
       self.args_for_process, self.kwargs_for_process = (
-        util.insert_values_in_args(
-            self.args_for_process, self.kwargs_for_process,
-            [si[global_window] for si in self.side_inputs]))
+          util.insert_values_in_args(
+              self.args_for_process, self.kwargs_for_process,
+              [si[global_window] for si in self.side_inputs]))
       args_for_process, kwargs_for_process = (
-        self.args_for_process, self.kwargs_for_process)
+          self.args_for_process, self.kwargs_for_process)
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)

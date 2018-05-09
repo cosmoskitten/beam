@@ -336,7 +336,7 @@ class FnApiRunner(runner.PipelineRunner):
           coder_proto = coders[coder_id]
           if coder_proto.spec.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
             coder_substitutions[coder_id, with_bytes] = (
-              bytes_coder_id if with_bytes else coder_id)
+                bytes_coder_id if with_bytes else coder_id)
           elif coder_proto.spec.spec.urn in good_coder_urns:
             wrapped_components = [wrap_unknown_coders(c, with_bytes)
                                   for c in coder_proto.component_coder_ids]
@@ -349,8 +349,8 @@ class FnApiRunner(runner.PipelineRunner):
                   coder_id + ("_bytes" if with_bytes else "_len_prefix"))
               coders[wrapped_coder_id].CopyFrom(coder_proto)
               coders[wrapped_coder_id].component_coder_ids[:] = [
-                wrap_unknown_coders(c, with_bytes)
-                for c in coder_proto.component_coder_ids]
+                  wrap_unknown_coders(c, with_bytes)
+                  for c in coder_proto.component_coder_ids]
               coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
           else:
             # Not a known coder.
@@ -684,7 +684,8 @@ class FnApiRunner(runner.PipelineRunner):
       """
       for stage in stages:
         for si in stage.side_inputs():
-          fix_pcoll_coder(pipeline_components.pcollections[si], pipeline_components)
+          fix_pcoll_coder(
+              pipeline_components.pcollections[si], pipeline_components)
       return stages
 
     def greedily_fuse(stages):
@@ -831,7 +832,8 @@ class FnApiRunner(runner.PipelineRunner):
         for name in leaf_transforms(pipeline_proto.root_transform_ids)]
 
     # Apply each phase in order.
-    for phase in [annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
+    for phase in [
+        annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
         lift_combiners, expand_gbk, sink_flattens, greedily_fuse, sort_stages]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
@@ -921,7 +923,7 @@ class FnApiRunner(runner.PipelineRunner):
     for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
       actual_pcoll_id = pcoll_id[len("materialize:"):]
       value_coder = context.coders[safe_coders[
-        pipeline_components.pcollections[actual_pcoll_id].coder_id]]
+          pipeline_components.pcollections[actual_pcoll_id].coder_id]]
       elements_by_window = _WindowGroupingBuffer(si, value_coder)
       for element_data in pcoll_buffers[pcoll_id]:
         elements_by_window.append(element_data)
