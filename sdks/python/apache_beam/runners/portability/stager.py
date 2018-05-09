@@ -41,10 +41,6 @@ because quite often only a small fraction of the dependencies present in a
 requirements.txt file are actually needed for remote execution and therefore a
 one-time manual trimming is desirable.
 
-TODO(silviuc): Staged files should have a job specific prefix.
-To prevent several jobs in the same project stomping on each other due to a
-shared staging location.
-
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
@@ -81,7 +77,7 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 class FileHandler(object):
 
   def file_copy(self, from_path, to_path):
-    """Copies a local file to a remote location or vice versa."""
+    """Copies a file from from_path to to_path."""
     logging.info('File copy from %s to %s.', from_path, to_path)
 
     if not os.path.isdir(os.path.dirname(to_path)):
@@ -92,7 +88,7 @@ class FileHandler(object):
     shutil.copyfile(from_path, to_path)
 
   def file_download(self, from_url, to_path):
-    """Downloads a file over http/https from a or copy them from a remote
+    """Downloads a file over http/https from a url or copy them from a remote
     location."""
     if from_url.startswith('http://') or from_url.startswith('https://'):
       # TODO(silviuc): We should cache downloads so we do not do it for every
@@ -105,23 +101,32 @@ class FileHandler(object):
         response, content = __import__('httplib2').Http().request(from_url)
         if int(response['status']) >= 400:
           raise RuntimeError(
-              'Beam SDK not found at %s (response: %s)' % (from_url, response))
+              'Artifact not found at %s (response: %s)' % (from_url, response))
         with open(to_path, 'w') as f:
           f.write(content)
       except Exception:
-        logging.info('Failed to download Beam SDK from %s', from_url)
+        logging.info('Failed to download Artifact from %s', from_url)
         raise
     else:
       # Copy the file from the remote file system to loca files system.
       self.file_copy(from_url, to_path)
 
-  def is_remote_path(self, path):
+  def _is_remote_path(self, path):
     return path.find('://') != -1
 
 
 class Stager(object):
+  """
+  Stager identifies and copies the appropriate artifacts to the staging
+  location.
+  """
 
   def __init__(self, file_handler=FileHandler()):
+    """
+    Args:
+      file_handler: An instance of :class:`FileHandler` capable ofcopying files
+        from local file system to the staging file system.
+    """
     self.file_handler = file_handler
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
@@ -144,7 +149,7 @@ class Stager(object):
           name patterns.
       """
     resources = []
-    staging_temp_dir = None
+    staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
     local_packages = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
@@ -163,17 +168,12 @@ class Stager(object):
             'running on an x64 Linux host).')
 
       if not os.path.isfile(package):
-        if self.file_handler.is_remote_path(package):
+        if self.file_handler._is_remote_path(package):
           # Download remote package.
-          if not staging_temp_dir:
-            staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
           logging.info('Downloading extra package: %s locally before staging',
                        package)
-          if os.path.isfile(staging_temp_dir):
-            local_file_path = staging_temp_dir
-          else:
-            _, last_component = FileSystems.split(package)
-            local_file_path = FileSystems.join(staging_temp_dir, last_component)
+          _, last_component = FileSystems.split(package)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
           self.file_handler.file_download(package, local_file_path)
         else:
           raise RuntimeError(
@@ -182,11 +182,10 @@ class Stager(object):
       else:
         local_packages.append(package)
 
-    if staging_temp_dir:
-      local_packages.extend([
-          FileSystems.join(staging_temp_dir, f)
-          for f in os.listdir(staging_temp_dir)
-      ])
+    local_packages.extend([
+        FileSystems.join(staging_temp_dir, f)
+        for f in os.listdir(staging_temp_dir)
+    ])
 
     for package in local_packages:
       basename = os.path.basename(package)
@@ -317,7 +316,7 @@ class Stager(object):
             'of the SDK: %s', repr(e))
 
       return staged_sdk_files
-    elif self.file_handler.is_remote_path(sdk_remote_location):
+    elif self.file_handler._is_remote_path(sdk_remote_location):
       local_download_file = os.path.join(temp_dir, 'beam-sdk.tar.gz')
       self.file_handler.file_download(sdk_remote_location, local_download_file)
       staged_name = self._desired_sdk_filename_in_staging_location(
@@ -400,12 +399,12 @@ class Stager(object):
                           staging_location=None):
     """For internal use only; no backwards-compatibility guarantees.
 
-      Creates (if needed) and stages job resources to options.staging_location.
+      Creates (if needed) and stages job resources to staging_location.
 
       Args:
         options: Command line options. More specifically the function will
-          expect staging_location, requirements_file, setup_file, and
-          save_main_session options to be present.
+          expect requirements_file, setup_file, and save_main_session options
+          to be present.
         build_setup_args: A list of command line arguments used to build a setup
           package. Used only if options.setup_file is not None. Used only for
           testing.
@@ -500,7 +499,7 @@ class Stager(object):
     if hasattr(setup_options, 'sdk_location'):
 
       if (setup_options.sdk_location == 'default'
-         ) or self.file_handler.is_remote_path(setup_options.sdk_location):
+         ) or self.file_handler._is_remote_path(setup_options.sdk_location):
         # If --sdk_location is not specified then the appropriate package
         # will be obtained from PyPI (https://pypi.python.org) based on the
         # version of the currently running SDK. If the option is

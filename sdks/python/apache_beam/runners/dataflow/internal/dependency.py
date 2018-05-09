@@ -49,17 +49,9 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
-import functools
-import logging
-import os
-import shutil
-import tempfile
-
 import pkg_resources
 
 from apache_beam import version as beam_version
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.runners.portability import stager
 
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
@@ -89,97 +81,6 @@ GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
-
-
-class DataflowFileHandle(stager.FileHandler):
-  def file_copy(self, from_path, to_path):
-    """Copies a local file to a GCS file or vice versa."""
-    logging.info('file copy from %s to %s.', from_path, to_path)
-    if from_path.startswith('gs://') or to_path.startswith('gs://'):
-      from apache_beam.io.gcp import gcsio
-      if from_path.startswith('gs://') and to_path.startswith('gs://'):
-        # Both files are GCS files so copy.
-        gcsio.GcsIO().copy(from_path, to_path)
-      elif to_path.startswith('gs://'):
-        # Only target is a GCS file, read local file and upload.
-        with open(from_path, 'rb') as f:
-          with gcsio.GcsIO().open(to_path, mode='wb') as g:
-            pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
-            for chunk in iter(pfun, ''):
-              g.write(chunk)
-      else:
-        # Source is a GCS file but target is local file.
-        with gcsio.GcsIO().open(from_path, mode='rb') as g:
-          with open(to_path, 'wb') as f:
-            pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
-            for chunk in iter(pfun, ''):
-              f.write(chunk)
-    else:
-      # Branch used only for unit tests and integration tests.
-      # In such environments GCS support is not available.
-      if not os.path.isdir(os.path.dirname(to_path)):
-        logging.info(
-            'Created folder (since we have not done yet, and any errors '
-            'will follow): %s ', os.path.dirname(to_path))
-        os.mkdir(os.path.dirname(to_path))
-      shutil.copyfile(from_path, to_path)
-
-
-def stage_job_resources(
-    options,
-    file_copy=None,
-    file_download=None,
-    build_setup_args=None,
-    temp_dir=None,
-    populate_requirements_cache=None):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Creates (if needed) and stages job resources to options.staging_location.
-
-  Args:
-    options: Command line options. More specifically the function will expect
-      staging_location, requirements_file, setup_file, and save_main_session
-      options to be present.
-    file_copy: Callable for copying files. The default version will copy from
-      a local file to a GCS location using the gsutil tool available in the
-      Google Cloud SDK package.
-    build_setup_args: A list of command line arguments used to build a setup
-      package. Used only if options.setup_file is not None. Used only for
-      testing.
-    temp_dir: Temporary folder where the resource building can happen. If None
-      then a unique temp directory will be created. Used only for testing.
-    populate_requirements_cache: Callable for populating the requirements cache.
-      Used only for testing.
-
-  Returns:
-    A list of file names (no paths) for the resources staged. All the files
-    are assumed to be staged in options.staging_location.
-
-  Raises:
-    RuntimeError: If files specified are not found or error encountered while
-      trying to create the resources (e.g., build a setup package).
-  """
-  temp_dir = temp_dir or tempfile.mkdtemp()
-
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  # Make sure that all required options are specified. There are a few that have
-  # defaults to support local running scenarios.
-  if google_cloud_options.staging_location is None:
-    raise RuntimeError('The --staging_location option must be specified.')
-  if google_cloud_options.temp_location is None:
-    raise RuntimeError('The --temp_location option must be specified.')
-
-  file_handler = DataflowFileHandle()
-  file_handler.file_copy = file_copy if file_copy else file_handler.file_copy
-  file_handler.file_download = (
-      file_download if file_download else file_handler.file_download)
-  resource_stager = DataFlowStager(file_handler=file_handler)
-  return resource_stager.stage_job_resources(
-      options,
-      build_setup_args=build_setup_args,
-      temp_dir=temp_dir,
-      populate_requirements_cache=populate_requirements_cache,
-      staging_location=google_cloud_options.staging_location)
 
 
 def get_runner_harness_container_image():
@@ -247,14 +148,12 @@ def get_sdk_name_and_version():
     return (BEAM_SDK_NAME, beam_version.__version__)
 
 
-class DataFlowStager(stager.Stager):
-
-  def get_sdk_package_name(self):
-    """For internal use only; no backwards-compatibility guarantees.
+def get_sdk_package_name():
+  """For internal use only; no backwards-compatibility guarantees.
 
         Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-    sdk_name, _ = get_sdk_name_and_version()
-    if sdk_name == GOOGLE_SDK_NAME:
-      return GOOGLE_PACKAGE_NAME
-    else:
-      return BEAM_PACKAGE_NAME
+  sdk_name, _ = get_sdk_name_and_version()
+  if sdk_name == GOOGLE_SDK_NAME:
+    return GOOGLE_PACKAGE_NAME
+  else:
+    return BEAM_PACKAGE_NAME

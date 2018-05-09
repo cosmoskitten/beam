@@ -421,7 +421,7 @@ class StagerTest(unittest.TestCase):
       with mock.patch(
           '.'.join([
               stager.FileHandler.__module__, stager.FileHandler.__name__,
-              stager.FileHandler.is_remote_path.__name__
+              stager.FileHandler._is_remote_path.__name__
           ]), is_remote_path):
         self.assertEqual([sdk_filename],
                          self.stager.stage_job_resources(
@@ -500,7 +500,7 @@ class StagerTest(unittest.TestCase):
       with mock.patch(
           '.'.join([
               stager.FileHandler.__module__, stager.FileHandler.__name__,
-              stager.FileHandler.is_remote_path.__name__
+              stager.FileHandler._is_remote_path.__name__
           ]), is_remote_path):
         self.assertEqual([
             'abc.tar.gz', 'xyz.tar.gz', 'xyz2.tar', 'whl.whl',

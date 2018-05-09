@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import time
 from datetime import datetime
 from StringIO import StringIO
@@ -46,6 +47,7 @@ from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.portability.stager import FileHandler, Stager
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms.display import DisplayData
@@ -432,6 +434,22 @@ class DataflowApplicationClient(object):
     with open(from_path, 'rb') as f:
       self.stage_file(to_folder, to_name, f)
 
+  def _stage_resources(self, options):
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if google_cloud_options.staging_location is None:
+      raise RuntimeError('The --staging_location option must be specified.')
+    if google_cloud_options.temp_location is None:
+      raise RuntimeError('The --temp_location option must be specified.')
+
+    file_handler = FileHandler()
+    file_handler.file_copy = self._gcs_file_copy
+    resource_stager = Stager(file_handler=file_handler)
+    resource_stager.get_sdk_package_name = dependency.get_sdk_package_name()
+    return resource_stager.stage_job_resources(
+        options,
+        temp_dir=tempfile.mkdtemp(),
+        staging_location=google_cloud_options.staging_location)
+
   def stage_file(self, gcs_or_local_path, file_name, stream,
                  mime_type='application/octet-stream'):
     """Stages a file at a GCS or local path with stream-supplied contents."""
@@ -496,8 +514,7 @@ class DataflowApplicationClient(object):
                     StringIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
-    resources = dependency.stage_job_resources(
-        job.options, file_copy=self._gcs_file_copy)
+    resources = self._stage_resources(job.options)
 
     job.proto.environment = Environment(
         pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
