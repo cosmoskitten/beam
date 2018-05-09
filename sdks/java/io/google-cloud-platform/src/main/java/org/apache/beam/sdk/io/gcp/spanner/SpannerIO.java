@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
@@ -35,7 +36,6 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -914,11 +914,6 @@ public class SpannerIO {
       SerializedMutation m = c.element();
       c.output(KV.of(m.getTableName().toLowerCase(), m.getEncodedKey()));
     }
-  }
-
-  private static boolean isPointDelete(Mutation m) {
-    return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
-        && Iterables.size(m.getKeySet().getKeys()) == 1;
   }
 
   /**
