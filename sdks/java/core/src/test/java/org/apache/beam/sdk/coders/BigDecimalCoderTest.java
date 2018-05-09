@@ -42,7 +42,7 @@ public class BigDecimalCoderTest {
 
   private static final Coder<BigDecimal> TEST_CODER = BigDecimalCoder.of();
 
-  private static final List<BigDecimal> TEST_VALUES =
+  private static final ImmutableList<BigDecimal> TEST_VALUES =
       ImmutableList.of(
           new BigDecimal(Double.MIN_VALUE).divide(BigDecimal.TEN),
           new BigDecimal(Double.MIN_VALUE),
@@ -65,7 +65,7 @@ public class BigDecimalCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS =
+  private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of(
           "swg12KOw51bHBNnjNkPn-wPiaWQ_AsohTe-mXyOGWcybUGt9TKi2FHqY2OH-gV0_GWqRbjNAGsSskI7K3xf9JmT"
               + "jf1ySZXuvF9S9PsgV3kT-sgypaRw_i1MK_orzcJVg_s3cEGTjTY1_Xor3JM9UBVKiQy3Vpulf7aN9LMki"
