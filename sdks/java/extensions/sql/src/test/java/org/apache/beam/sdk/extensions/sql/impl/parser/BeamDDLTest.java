@@ -142,7 +142,7 @@ public class BeamDDLTest {
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlCreateTable);
     SqlCreateTable stmt = (SqlCreateTable) sqlNode;
-    return stmt.toTable();
+    return stmt.tableDefinition();
   }
 
   private static Table mockTable(String name, String type, String comment, JSONObject properties) {

@@ -17,13 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static org.apache.beam.sdk.schemas.Schema.TypeName.DATETIME;
-import static org.apache.beam.sdk.util.JsonToRowUtils.newObjectMapperWith;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -33,11 +28,7 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.JsonToRowUtils;
-import org.apache.beam.sdk.util.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -69,21 +60,17 @@ import org.apache.beam.sdk.values.Row;
 abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
 
   /**
-   * Schema of the pubsubs message payload.
-   *
-   * <p>Only UTF-8 flat JSON objects are supported at the moment.
-   */
-  abstract Schema getPayloadSchema();
-
-  /**
-   * Attribute key of the Pubsub message from which to extract the event timestamp.
+   * Optional attribute key of the Pubsub message from which to extract the event timestamp.
    *
    * <p>This attribute has to conform to the same requirements as in {@link
    * PubsubIO.Read.Builder#withTimestampAttribute}.
    *
    * <p>Short version: it has to be either millis since epoch or string in RFC 3339 format.
+   *
+   * <p>If the attribute is specified then event timestamps will be extracted from
+   * the specified attribute. If it is not specified then message publish timestamp will be used.
    */
-  abstract String getTimestampAttribute();
+  @Nullable abstract String getTimestampAttribute();
 
   /**
    * Pubsub topic name.
@@ -98,10 +85,9 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
   }
 
   /**
-   * Table schema.
+   * Table schema, describes Pubsub message schema.
    *
-   * <p>Inherited from {@link BeamSqlTable}. Different from {@link #getPayloadSchema()},
-   * includes timestamp attribute.
+   * <p>Includes fields 'timestamp', 'attributes, and 'payload'. See {@link PubsubMessageToRow}.
    */
    public abstract Schema getSchema();
 
@@ -116,45 +102,18 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
         PBegin
             .in(pipeline)
             .apply("readFromPubsub", readMessagesWithAttributes())
-            .apply("parseJsonPayload", parseJsonPayload())
+            .apply("parseJsonPayload", PubsubMessageToRow.forSchema(getSchema()))
             .setCoder(getSchema().getRowCoder());
   }
 
   private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {
-    return
-        PubsubIO
-            .readMessagesWithAttributes()
-            .fromTopic(getTopic())
-            .withTimestampAttribute(getTimestampAttribute());
-  }
+    PubsubIO.Read<PubsubMessage> read = PubsubIO
+        .readMessagesWithAttributes()
+        .fromTopic(getTopic());
 
-  private ParDo.SingleOutput<PubsubMessage, Row> parseJsonPayload() {
-    return ParDo.of(
-        new DoFn<PubsubMessage, Row>() {
-          private transient volatile @Nullable ObjectMapper objectMapper;
-
-          @ProcessElement
-          public void processElement(ProcessContext context) {
-            byte[] payloadBytes = context.element().getPayload();
-            String payloadJson = new String(payloadBytes, StandardCharsets.UTF_8);
-            Row payloadRow = parseRow(payloadJson);
-
-            context.output(
-                Row
-                    .withSchema(getSchema())
-                    .addValues(payloadRow.getValues())
-                    .addValue(context.timestamp())
-                    .build());
-          }
-
-          private Row parseRow(String json) {
-            if (objectMapper == null) {
-              objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(getPayloadSchema()));
-            }
-
-            return JsonToRowUtils.jsonToRow(objectMapper, json);
-          }
-        });
+    return (getTimestampAttribute() == null)
+        ? read
+        : read.withTimestampAttribute(getTimestampAttribute());
   }
 
   @Override
@@ -164,30 +123,10 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
 
   @AutoValue.Builder
   abstract static class Builder {
-    abstract Builder setPayloadSchema(Schema payloadSchema);
     abstract Builder setSchema(Schema schema);
     abstract Builder setTimestampAttribute(String timestampAttribute);
     abstract Builder setTopic(String topic);
 
-    abstract PubsubIOJsonTable autoBuild();
-
-    abstract Schema getPayloadSchema();
-    abstract String getTimestampAttribute();
-
-    public PubsubIOJsonTable build() {
-      return
-          this
-              .setSchema(addTimestampField(getPayloadSchema(), getTimestampAttribute()))
-              .autoBuild();
-    }
-
-    private Schema addTimestampField(Schema schema, String timestampField) {
-      return
-          Schema
-              .builder()
-              .addFields(schema.getFields())
-              .addField(Schema.Field.of(timestampField, DATETIME.type()))
-              .build();
-    }
+    abstract PubsubIOJsonTable build();
   }
 }

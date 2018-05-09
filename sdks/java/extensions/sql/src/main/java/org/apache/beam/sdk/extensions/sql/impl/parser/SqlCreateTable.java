@@ -136,7 +136,7 @@ public class SqlCreateTable extends SqlCreate
           RESOURCE.internal("Schema is not instanceof BeamCalciteSchema"));
     }
     BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
-    schema.getTableProvider().createTable(toTable());
+    schema.getTableProvider().createTable(tableDefinition());
   }
 
   private void unparseColumn(SqlWriter writer, Schema.Field column) {
@@ -158,7 +158,7 @@ public class SqlCreateTable extends SqlCreate
     return n == null ? null : ((NlsString) SqlLiteral.value(n)).getValue();
   }
 
-  Table toTable() {
+  Table tableDefinition() {
     return
         Table
             .builder()

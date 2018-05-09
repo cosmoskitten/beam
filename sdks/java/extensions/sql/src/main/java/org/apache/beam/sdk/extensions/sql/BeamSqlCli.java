@@ -79,7 +79,7 @@ public class BeamSqlCli {
       options.setJobName("BeamPlanCreator");
       Pipeline pipeline = Pipeline.create(options);
       env.getPlanner().compileBeamPipeline(sqlString, pipeline);
-      pipeline.run();
+      pipeline.run().waitUntilFinish();
     }
   }
 }

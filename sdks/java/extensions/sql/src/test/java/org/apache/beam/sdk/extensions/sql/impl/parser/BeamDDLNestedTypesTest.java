@@ -86,7 +86,7 @@ public class BeamDDLNestedTypesTest {
     assertNotNull(sqlNode);
     assertTrue(sqlNode instanceof SqlCreateTable);
     SqlCreateTable stmt = (SqlCreateTable) sqlNode;
-    return stmt.toTable();
+    return stmt.tableDefinition();
   }
 
   private Schema newSimpleSchemaWith(FieldType fieldType) {
