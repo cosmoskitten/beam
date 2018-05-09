@@ -73,7 +73,7 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
 
   private static final boolean SEQUENTIAL = false;
 
-  private static final Map<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
+  private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
       ImmutableMap.<TypeName, ValueExtractor<?>>builder()
           .put(BYTE, byteValueExtractor())
           .put(INT16, shortValueExtractor())

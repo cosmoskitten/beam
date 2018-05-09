@@ -282,6 +282,7 @@ public interface DoFnInvoker<InputT, OutputT> {
               FakeArgumentProvider.class.getSimpleName()));
     }
 
+    @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           String.format(

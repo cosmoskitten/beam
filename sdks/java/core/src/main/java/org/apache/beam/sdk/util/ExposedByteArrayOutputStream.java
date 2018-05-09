@@ -79,13 +79,13 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void write(byte[] b, int off, int len) {
+  public synchronized void write(byte[] b, int off, int len) {
     fallback();
     super.write(b, off, len);
   }
 
   @Override
-  public void write(int b) {
+  public synchronized void write(int b) {
     fallback();
     super.write(b);
   }
@@ -102,7 +102,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  public void reset() {
+  public synchronized void reset() {
     if (count == 0) {
       return;
     }

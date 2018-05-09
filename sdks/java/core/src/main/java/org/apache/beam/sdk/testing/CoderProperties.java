@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
@@ -59,7 +60,7 @@ public class CoderProperties {
   /**
    * All the contexts, for use in test cases.
    */
-   public static final List<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
+   public static final ImmutableList<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
        Coder.Context.OUTER, Coder.Context.NESTED);
 
   /**
@@ -85,7 +86,7 @@ public class CoderProperties {
     try {
       coder.verifyDeterministic();
     } catch (NonDeterministicException e) {
-      fail("Expected that the coder is deterministic");
+      throw new AssertionError("Expected that the coder is deterministic", e);
     }
     assertThat("Expected that the passed in values are equal()", value1, equalTo(value2));
     assertThat(
@@ -362,7 +363,7 @@ public class CoderProperties {
     Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     byte[] buffer;
-    if (context == Coder.Context.NESTED) {
+    if (Objects.equals(context, Coder.Context.NESTED)) {
       buffer = new byte[bytes.length + 1];
       System.arraycopy(bytes, 0, buffer, 0, bytes.length);
       buffer[bytes.length] = 1;
