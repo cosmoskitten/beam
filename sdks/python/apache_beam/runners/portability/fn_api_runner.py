@@ -307,6 +307,7 @@ class FnApiRunner(runner.PipelineRunner):
     # Now define the "optimization" phases.
 
     safe_coders = {}
+
     def fix_pcoll_coder(pcoll, pipeline_components):
       """Length prefixes coder for the given PCollection.
 
