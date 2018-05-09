@@ -84,6 +84,7 @@ public abstract class Row implements Serializable {
    * Get value by field name, {@link ClassCastException} is thrown
    * if type doesn't match.
    */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
