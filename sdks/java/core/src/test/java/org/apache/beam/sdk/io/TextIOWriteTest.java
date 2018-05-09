@@ -27,6 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
@@ -136,7 +137,7 @@ public class TextIOWriteTest {
     }
   }
 
-  class StartsWith implements Predicate<String> {
+  static class StartsWith implements Predicate<String> {
     String prefix;
 
     StartsWith(String prefix) {
@@ -433,7 +434,7 @@ public class TextIOWriteTest {
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
       byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-      String line = new String(encodedElem);
+      String line = new String(encodedElem, Charsets.UTF_8);
       expectedElements.add(line);
     }
 
@@ -450,7 +451,7 @@ public class TextIOWriteTest {
 
   private static List<String> readLinesFromFile(File f) throws IOException {
     List<String> currentFile = new ArrayList<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+    try (BufferedReader reader = Files.newBufferedReader(f.toPath(), Charsets.UTF_8)) {
       while (true) {
         String line = reader.readLine();
         if (line == null) {
