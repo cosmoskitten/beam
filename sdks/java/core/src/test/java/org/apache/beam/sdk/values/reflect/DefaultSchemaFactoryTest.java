@@ -39,7 +39,7 @@ public class DefaultSchemaFactoryTest {
   private static class UnsupportedClass {
   }
 
-  private static final List<FieldValueGetter> GETTERS = ImmutableList
+  private static final ImmutableList<FieldValueGetter> GETTERS = ImmutableList
       .<FieldValueGetter>builder()
       .add(getter("byteGetter", Byte.class))
       .add(getter("integerGetter", Integer.class))
