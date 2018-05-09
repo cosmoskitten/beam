@@ -18,8 +18,10 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import io.grpc.stub.StreamObserver;
+import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 
 /**
  * Internal representation of a Job which has been invoked (prepared and run) by a client.
@@ -49,10 +51,10 @@ public interface JobInvocation {
   /**
    * Observe job state changes with a {@link StreamObserver}.
    */
-  void addStateObserver(StreamObserver<JobState.Enum> stateStreamObserver);
+  void addStateObserver(Consumer<Enum> stateStreamObserver);
 
   /**
    * Observe job messages with a {@link StreamObserver}.
    */
-  void addMessageObserver(StreamObserver<JobMessage> messageStreamObserver);
+  void addMessageObserver(Consumer<JobMessage> messageStreamObserver);
 }
