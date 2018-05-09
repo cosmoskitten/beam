@@ -61,6 +61,10 @@ job(testConfiguration.jobName) {
             'commits@beam.apache.org',
             false)
 
+    credentialsBinding {
+        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
+    }
+
     steps {
         // Clean up environment after other python using tools.
         shell('rm -rf PerfKitBenchmarker')
@@ -75,6 +79,6 @@ job(testConfiguration.jobName) {
         // Install job requirements for analysis script
         shell('.env/bin/pip install requests google.cloud.bigquery')
         // Launch performance tests analysis.
-        shell('.env/bin/python ' + common_job_properties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report')
+        shell('.env/bin/python ' + common_job_properties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results.py --bqtable \"'+ testConfiguration.bqTables + '\" ' + '--metric=\"run_time\" ' + '--mode=report --send_notification')
     }
 }
