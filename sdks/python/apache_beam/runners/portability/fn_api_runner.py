@@ -307,6 +307,72 @@ class FnApiRunner(runner.PipelineRunner):
     # Now define the "optimization" phases.
 
     safe_coders = {}
+    def fix_pcoll_coder(pcoll, pipeline_components):
+      """Length prefixes coder for the given PCollection.
+
+      Updates pipeline_components to have a length prefixed coder for
+      every component coder within the PCollection that is not understood
+      natively by the runner. Also populates the safe_coders map with
+      a corresponding runner side coder which is also length prefixed but
+      compatible for the runner to instantiate.
+      """
+      good_coder_urns = set(
+          value.urn for value in common_urns.coders.__dict__.values())
+      coders = pipeline_components.coders
+
+      for coder_id, coder_proto in coders.items():
+        if coder_proto.spec.spec.urn == common_urns.coders.BYTES.urn:
+          bytes_coder_id = coder_id
+          break
+      else:
+        bytes_coder_id = unique_name(coders, 'bytes_coder')
+        pipeline_components.coders[bytes_coder_id].CopyFrom(
+            beam.coders.BytesCoder().to_runner_api(None))
+      coder_substitutions = {}
+
+      def wrap_unknown_coders(coder_id, with_bytes):
+        if (coder_id, with_bytes) not in coder_substitutions:
+          wrapped_coder_id = None
+          coder_proto = coders[coder_id]
+          if coder_proto.spec.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
+            coder_substitutions[coder_id, with_bytes] = (
+              bytes_coder_id if with_bytes else coder_id)
+          elif coder_proto.spec.spec.urn in good_coder_urns:
+            wrapped_components = [wrap_unknown_coders(c, with_bytes)
+                                  for c in coder_proto.component_coder_ids]
+            if wrapped_components == list(coder_proto.component_coder_ids):
+              # Use as is.
+              coder_substitutions[coder_id, with_bytes] = coder_id
+            else:
+              wrapped_coder_id = unique_name(
+                  coders,
+                  coder_id + ("_bytes" if with_bytes else "_len_prefix"))
+              coders[wrapped_coder_id].CopyFrom(coder_proto)
+              coders[wrapped_coder_id].component_coder_ids[:] = [
+                wrap_unknown_coders(c, with_bytes)
+                for c in coder_proto.component_coder_ids]
+              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
+          else:
+            # Not a known coder.
+            if with_bytes:
+              coder_substitutions[coder_id, with_bytes] = bytes_coder_id
+            else:
+              wrapped_coder_id = unique_name(coders, coder_id +  "_len_prefix")
+              len_prefix_coder_proto = beam_runner_api_pb2.Coder(
+                  spec=beam_runner_api_pb2.SdkFunctionSpec(
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=common_urns.coders.LENGTH_PREFIX.urn)),
+                  component_coder_ids=[coder_id])
+              coders[wrapped_coder_id].CopyFrom(len_prefix_coder_proto)
+              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
+          # This operation is idempotent.
+          if wrapped_coder_id:
+            coder_substitutions[wrapped_coder_id, with_bytes] = wrapped_coder_id
+        return coder_substitutions[coder_id, with_bytes]
+
+      new_coder_id = wrap_unknown_coders(pcoll.coder_id, False)
+      safe_coders[new_coder_id] = wrap_unknown_coders(pcoll.coder_id, True)
+      pcoll.coder_id = new_coder_id
 
     def lift_combiners(stages):
       """Expands CombinePerKey into pre- and post-grouping stages.
@@ -457,74 +523,16 @@ class FnApiRunner(runner.PipelineRunner):
     def expand_gbk(stages):
       """Transforms each GBK into a write followed by a read.
       """
-      good_coder_urns = set(
-          value.urn for value in common_urns.coders.__dict__.values())
-      coders = pipeline_components.coders
-
-      for coder_id, coder_proto in coders.items():
-        if coder_proto.spec.spec.urn == common_urns.coders.BYTES.urn:
-          bytes_coder_id = coder_id
-          break
-      else:
-        bytes_coder_id = unique_name(coders, 'bytes_coder')
-        pipeline_components.coders[bytes_coder_id].CopyFrom(
-            beam.coders.BytesCoder().to_runner_api(None))
-
-      coder_substitutions = {}
-
-      def wrap_unknown_coders(coder_id, with_bytes):
-        if (coder_id, with_bytes) not in coder_substitutions:
-          wrapped_coder_id = None
-          coder_proto = coders[coder_id]
-          if coder_proto.spec.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
-            coder_substitutions[coder_id, with_bytes] = (
-                bytes_coder_id if with_bytes else coder_id)
-          elif coder_proto.spec.spec.urn in good_coder_urns:
-            wrapped_components = [wrap_unknown_coders(c, with_bytes)
-                                  for c in coder_proto.component_coder_ids]
-            if wrapped_components == list(coder_proto.component_coder_ids):
-              # Use as is.
-              coder_substitutions[coder_id, with_bytes] = coder_id
-            else:
-              wrapped_coder_id = unique_name(
-                  coders,
-                  coder_id + ("_bytes" if with_bytes else "_len_prefix"))
-              coders[wrapped_coder_id].CopyFrom(coder_proto)
-              coders[wrapped_coder_id].component_coder_ids[:] = [
-                  wrap_unknown_coders(c, with_bytes)
-                  for c in coder_proto.component_coder_ids]
-              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
-          else:
-            # Not a known coder.
-            if with_bytes:
-              coder_substitutions[coder_id, with_bytes] = bytes_coder_id
-            else:
-              wrapped_coder_id = unique_name(coders, coder_id +  "_len_prefix")
-              len_prefix_coder_proto = beam_runner_api_pb2.Coder(
-                  spec=beam_runner_api_pb2.SdkFunctionSpec(
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=common_urns.coders.LENGTH_PREFIX.urn)),
-                  component_coder_ids=[coder_id])
-              coders[wrapped_coder_id].CopyFrom(len_prefix_coder_proto)
-              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
-          # This operation is idempotent.
-          if wrapped_coder_id:
-            coder_substitutions[wrapped_coder_id, with_bytes] = wrapped_coder_id
-        return coder_substitutions[coder_id, with_bytes]
-
-      def fix_pcoll_coder(pcoll):
-        new_coder_id = wrap_unknown_coders(pcoll.coder_id, False)
-        safe_coders[new_coder_id] = wrap_unknown_coders(pcoll.coder_id, True)
-        pcoll.coder_id = new_coder_id
-
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
         if transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
           for pcoll_id in transform.inputs.values():
-            fix_pcoll_coder(pipeline_components.pcollections[pcoll_id])
+            fix_pcoll_coder(
+                pipeline_components.pcollections[pcoll_id], pipeline_components)
           for pcoll_id in transform.outputs.values():
-            fix_pcoll_coder(pipeline_components.pcollections[pcoll_id])
+            fix_pcoll_coder(
+                pipeline_components.pcollections[pcoll_id], pipeline_components)
 
           # This is used later to correlate the read and write.
           param = str("group:%s" % stage.name)
@@ -672,71 +680,11 @@ class FnApiRunner(runner.PipelineRunner):
       return stages
 
     def fix_side_input_pcoll_coders(stages):
-      """Annotate each stage with fusion-prohibiting information.
+      """Length prefix side input PCollection coders.
       """
-      good_coder_urns = set(
-          value.urn for value in common_urns.coders.__dict__.values())
-      coders = pipeline_components.coders
-
-      for coder_id, coder_proto in coders.items():
-        if coder_proto.spec.spec.urn == common_urns.coders.BYTES.urn:
-          bytes_coder_id = coder_id
-          break
-      else:
-        bytes_coder_id = unique_name(coders, 'bytes_coder')
-        pipeline_components.coders[bytes_coder_id].CopyFrom(
-            beam.coders.BytesCoder().to_runner_api(None))
-
-      coder_substitutions = {}
-
-      def wrap_unknown_coders(coder_id, with_bytes):
-        if (coder_id, with_bytes) not in coder_substitutions:
-          wrapped_coder_id = None
-          coder_proto = coders[coder_id]
-          if coder_proto.spec.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
-            coder_substitutions[coder_id, with_bytes] = (
-              bytes_coder_id if with_bytes else coder_id)
-          elif coder_proto.spec.spec.urn in good_coder_urns:
-            wrapped_components = [wrap_unknown_coders(c, with_bytes)
-                                  for c in coder_proto.component_coder_ids]
-            if wrapped_components == list(coder_proto.component_coder_ids):
-              # Use as is.
-              coder_substitutions[coder_id, with_bytes] = coder_id
-            else:
-              wrapped_coder_id = unique_name(
-                  coders,
-                  coder_id + ("_bytes" if with_bytes else "_len_prefix"))
-              coders[wrapped_coder_id].CopyFrom(coder_proto)
-              coders[wrapped_coder_id].component_coder_ids[:] = [
-                wrap_unknown_coders(c, with_bytes)
-                for c in coder_proto.component_coder_ids]
-              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
-          else:
-            # Not a known coder.
-            if with_bytes:
-              coder_substitutions[coder_id, with_bytes] = bytes_coder_id
-            else:
-              wrapped_coder_id = unique_name(coders, coder_id +  "_len_prefix")
-              len_prefix_coder_proto = beam_runner_api_pb2.Coder(
-                  spec=beam_runner_api_pb2.SdkFunctionSpec(
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=common_urns.coders.LENGTH_PREFIX.urn)),
-                  component_coder_ids=[coder_id])
-              coders[wrapped_coder_id].CopyFrom(len_prefix_coder_proto)
-              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
-          # This operation is idempotent.
-          if wrapped_coder_id:
-            coder_substitutions[wrapped_coder_id, with_bytes] = wrapped_coder_id
-        return coder_substitutions[coder_id, with_bytes]
-
-      def fix_pcoll_coder(pcoll):
-        new_coder_id = wrap_unknown_coders(pcoll.coder_id, False)
-        safe_coders[new_coder_id] = wrap_unknown_coders(pcoll.coder_id, True)
-        pcoll.coder_id = new_coder_id
-
       for stage in stages:
         for si in stage.side_inputs():
-          fix_pcoll_coder(pipeline_components.pcollections[si])
+          fix_pcoll_coder(pipeline_components.pcollections[si], pipeline_components)
       return stages
 
     def greedily_fuse(stages):
@@ -971,18 +919,10 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Store the required side inputs into state.
     for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
-      logging.info("LCWIKA %s | %s | %s | %s", transform_id, tag, pcoll_id, si)
-      logging.info("LCWIKB %s", pipeline_components.pcollections)
-      logging.info("LCWIKC %s", pipeline_components.coders.keys())
-      logging.info("LCWIKD %s", safe_coders.keys())
       actual_pcoll_id = pcoll_id[len("materialize:"):]
       value_coder = context.coders[safe_coders[
         pipeline_components.pcollections[actual_pcoll_id].coder_id]]
-      window_coder = context.coders[
-        pipeline_components.windowing_strategies[
-          pipeline_components.pcollections[actual_pcoll_id].windowing_strategy_id].window_coder_id]
-      elements_by_window = _WindowGroupingBuffer(
-          si, WindowedValueCoder(value_coder, window_coder))
+      elements_by_window = _WindowGroupingBuffer(si, value_coder)
       for element_data in pcoll_buffers[pcoll_id]:
         elements_by_window.append(element_data)
       for key, window, elements_data in elements_by_window.encoded_items():
