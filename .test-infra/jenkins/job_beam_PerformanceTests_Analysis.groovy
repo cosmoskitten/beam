@@ -61,9 +61,6 @@ job(testConfiguration.jobName) {
             'commits@beam.apache.org',
             false)
 
-    credentialsBinding {
-        string("SLACK_WEBHOOK_URL", "beam-slack-webhook-url")
-    }
 
     steps {
         // Clean up environment after other python using tools.
