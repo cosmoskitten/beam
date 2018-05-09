@@ -538,6 +538,7 @@ def _create_pardo_operation(
       serialized_fn=serialized_fn,
       output_tags=[mutate_tag(tag) for tag in output_tags],
       input=None,
+      side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
   return factory.augment_oldstyle_op(
       operations.DoOperation(
@@ -553,7 +554,7 @@ def _create_pardo_operation(
 
 def _create_simple_pardo_operation(
     factory, transform_id, transform_proto, consumers, dofn):
-  serialized_fn = pickler.dumps((dofn, (), {}, None))
+  serialized_fn = pickler.dumps((dofn, (), {}, [], None))
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers, serialized_fn)
 

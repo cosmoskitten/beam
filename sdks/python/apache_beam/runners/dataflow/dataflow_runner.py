@@ -669,7 +669,10 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
     transform = transform_node.transform
-    return (transform.fn, transform.args, transform.kwargs,
+    si_tags_and_types = [  # pylint: disable=protected-access
+        (get_label(side_pval), side_pval.__class__, side_pval._view_options())
+        for side_pval in transform_node.side_inputs]
+    return (transform.fn, transform.args, transform.kwargs, si_tags_and_types,
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
