@@ -86,7 +86,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Information accessible while within the {@link StartBundle} method.
    */
-  public abstract class StartBundleContext {
+  public abstract static class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
      * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.

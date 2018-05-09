@@ -1154,7 +1154,7 @@ public class TextIO {
     /** @see Compression#ZIP */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
