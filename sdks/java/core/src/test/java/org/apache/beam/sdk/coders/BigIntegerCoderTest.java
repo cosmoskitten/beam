@@ -42,7 +42,7 @@ public class BigIntegerCoderTest {
 
   private static final Coder<BigInteger> TEST_CODER = BigIntegerCoder.of();
 
-  private static final List<BigInteger> TEST_VALUES =
+  private static final ImmutableList<BigInteger> TEST_VALUES =
       ImmutableList.of(
           BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.valueOf(Integer.MAX_VALUE)),
           BigInteger.valueOf(Integer.MIN_VALUE).subtract(BigInteger.ONE),
@@ -63,7 +63,7 @@ public class BigIntegerCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS =
+  private static final ImmutableList<String> TEST_ENCODINGS =
       ImmutableList.of("_wAAAAE", "_3____8", "_w", "AA", "AQ", "AIAAAAA", "BP____Y");
 
   @Test

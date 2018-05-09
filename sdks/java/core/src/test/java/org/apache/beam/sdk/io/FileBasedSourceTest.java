@@ -440,7 +440,7 @@ public class FileBasedSourceTest {
     try {
       reader.close();
     } catch (Exception e) {
-      fail("Closing an unstarted FilePatternReader should not throw an exception");
+      throw new AssertionError("Closing an unstarted FilePatternReader should not throw an exception", e);
     }
   }
 
