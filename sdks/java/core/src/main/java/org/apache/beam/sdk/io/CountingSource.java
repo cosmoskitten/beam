@@ -366,6 +366,7 @@ public class CountingSource {
       return VarLongCoder.of();
     }
 
+    @Override
     public boolean equals(Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;

@@ -30,10 +30,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
@@ -205,13 +205,13 @@ public class Schema implements Serializable {
 
     private final FieldType fieldType = FieldType.of(this);
 
-    public static final Set<TypeName> NUMERIC_TYPES = ImmutableSet.of(
+    public static final ImmutableSet<TypeName> NUMERIC_TYPES = ImmutableSet.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
-    public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
-    public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
-    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
-    public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
-    public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
+    public static final ImmutableSet<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
+    public static final ImmutableSet<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
+    public static final ImmutableSet<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
+    public static final ImmutableSet<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
+    public static final ImmutableSet<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
     public boolean isPrimitiveType() {
       return !isCollectionType() && !isMapType() && !isCompositeType();
@@ -246,6 +246,7 @@ public class Schema implements Serializable {
    * allowed.
    */
   @AutoValue
+  @Immutable
   public abstract static class FieldType implements Serializable {
     // Returns the type of this field.
     public abstract TypeName getTypeName();
