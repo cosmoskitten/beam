@@ -40,6 +40,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -50,6 +51,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -385,7 +388,7 @@ public class TextIOReadTest {
       try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
         for (String elem : expected) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem);
+          String line = new String(encodedElem, Charsets.UTF_8);
           writer.println(line);
         }
       }
@@ -424,7 +427,7 @@ public class TextIOReadTest {
       File tmpFile = tempFolder.newFile("tmpfile.txt");
       String filename = tmpFile.getPath();
 
-      try (FileWriter writer = new FileWriter(tmpFile)) {
+      try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
         writer.write(Joiner.on("").join(inputStrings));
       }
 
@@ -641,7 +644,8 @@ public class TextIOReadTest {
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
       try (BoundedSource.BoundedReader<String> reader =
-             prepareSource(file.getBytes()).createReader(PipelineOptionsFactory.create())) {
+             prepareSource(file.getBytes(Charsets.UTF_8))
+                 .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
         assertEquals(0, reader.getSplitPointsConsumed());
@@ -676,7 +680,7 @@ public class TextIOReadTest {
     @Test
     public void testProgressAfterSplitting() throws IOException {
       String file = "line1\nline2\nline3";
-      BoundedSource<String> source = prepareSource(file.getBytes());
+      BoundedSource<String> source = prepareSource(file.getBytes(Charsets.UTF_8));
       BoundedSource<String> remainder;
 
       // Create the remainder, verifying properties pre- and post-splitting.
