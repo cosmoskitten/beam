@@ -669,11 +669,13 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
   assert mapping_fn_spec.spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
   window_mapping_fn = pickler.loads(mapping_fn_spec.spec.payload)
+
   class MapWindows(beam.DoFn):
 
     def process(self, element):
       key, window = element
       return [(key, window_mapping_fn(window))]
+
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       MapWindows())
