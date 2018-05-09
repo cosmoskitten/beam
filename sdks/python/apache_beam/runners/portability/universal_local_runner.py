@@ -192,15 +192,15 @@ class UniversalLocalRunner(runner.PipelineRunner):
     run_response = job_service.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
     if self._stage_resources:
-      file_handler = artifact_service_client.ArtifactStagingFileHandler(
+      with artifact_service_client.ArtifactStagingFileHandler(
           artifact_service_channel=grpc.insecure_channel(
-              prepare_response.artifact_staging_endpoint.url))
-      resource_stager = stager.Stager(file_handler=file_handler)
-      # TODO(angoenka): Plumb in pipeline options.
-      # Artifact service will decide the staging location.
-      options = pipeline_options.PipelineOptions()
-      resource_stager.stage_job_resources(options=options, staging_location='')
-      file_handler.commit_manifest()
+              prepare_response.artifact_staging_endpoint.url)) as file_handler:
+        resource_stager = stager.Stager(file_handler=file_handler)
+        # TODO(angoenka): Plumb in pipeline options.
+        # Artifact service will decide the staging location.
+        options = pipeline_options.PipelineOptions()
+        resource_stager.stage_job_resources(
+            options=options, staging_location='')
     return PipelineResult(job_service, run_response.job_id)
 
 
