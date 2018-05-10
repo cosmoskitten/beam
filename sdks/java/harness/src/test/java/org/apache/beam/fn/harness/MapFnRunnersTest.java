@@ -31,7 +31,7 @@ import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.fn.harness.MapFnRunner.ValueMapFnFactory;
+import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -43,9 +43,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link MapFnRunner}. */
+/** Tests for {@link MapFnRunners}. */
 @RunWith(JUnit4.class)
-public class MapFnRunnerTest {
+public class MapFnRunnersTest {
   private static final String EXPECTED_ID = "pTransformId";
   private static final RunnerApi.PTransform EXPECTED_PTRANSFORM =
       RunnerApi.PTransform.newBuilder()
@@ -63,7 +63,7 @@ public class MapFnRunnerTest {
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
-    MapFnRunner.forValueMapFnFactory(factory)
+    MapFnRunners.forValueMapFnFactory(factory)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
@@ -97,7 +97,7 @@ public class MapFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    MapFnRunner.forMapFnFactory(this::createMapFunctionForPTransform)
+    MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
