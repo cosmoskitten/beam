@@ -58,7 +58,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -73,7 +72,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
   @Mock private StageBundleFactory stageBundleFactory;
-  @Mock private ArtifactSourcePool cachePool;
+  @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
@@ -124,8 +123,8 @@ public class FlinkExecutableStageFunctionTest {
   }
 
   @Test
-  public void inputsAreSentInOrder() throws Exception {
-    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
+  public void expectedInputsAreSent() throws Exception {
+    FlinkExecutableStageFunction<Integer> function = getFunction();
     function.open(new Configuration());
 
     @SuppressWarnings("unchecked")
@@ -141,10 +140,10 @@ public class FlinkExecutableStageFunctionTest {
     WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
     function.mapPartition(Arrays.asList(one, two, three), collector);
 
-    InOrder order = Mockito.inOrder(receiver);
-    order.verify(receiver).accept(one);
-    order.verify(receiver).accept(two);
-    order.verify(receiver).accept(three);
+    verify(receiver).accept(one);
+    verify(receiver).accept(two);
+    verify(receiver).accept(three);
+    verifyNoMoreInteractions(receiver);
   }
 
   @Test
@@ -214,9 +213,9 @@ public class FlinkExecutableStageFunctionTest {
 
   /**
    * Creates a {@link FlinkExecutableStageFunction}. Intermediate bundle factories are mocked to
-   * return the interesting objects, namely {@link #stageBundleFactory}, {@link #cachePool}, and
-   * {@link #stateRequestHandler}. These interesting objects are not altered and are expected to be
-   * mocked by individual test cases.
+   * return the interesting objects, namely {@link #stageBundleFactory}, {@link
+   * #artifactSourcePool}, and {@link #stateRequestHandler}. These interesting objects are not
+   * altered and are expected to be mocked by individual test cases.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
     JobBundleFactory jobBundleFactory = Mockito.mock(JobBundleFactory.class);
@@ -225,7 +224,7 @@ public class FlinkExecutableStageFunctionTest {
     when(flinkBundleFactory.getJobBundleFactory(any(), any())).thenReturn(jobBundleFactory);
 
     ArtifactSourcePool.Factory cachePoolFactory = Mockito.mock(ArtifactSourcePool.Factory.class);
-    when(cachePoolFactory.forJob(any())).thenReturn(cachePool);
+    when(cachePoolFactory.forJob(any())).thenReturn(artifactSourcePool);
 
     FlinkStateRequestHandlerFactory stateHandlerFactory =
         Mockito.mock(FlinkStateRequestHandlerFactory.class);

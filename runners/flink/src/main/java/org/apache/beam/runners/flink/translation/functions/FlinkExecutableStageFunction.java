@@ -64,7 +64,7 @@ public class FlinkExecutableStageFunction<InputT>
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
   private final SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier;
-  private final ArtifactSourcePool.Factory cachePoolFactory;
+  private final ArtifactSourcePool.Factory artifactSourcePoolFactory;
   private final FlinkStateRequestHandlerFactory stateHandlerFactory;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
@@ -78,13 +78,13 @@ public class FlinkExecutableStageFunction<InputT>
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
       SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier,
-      ArtifactSourcePool.Factory cachePoolFactory,
+      ArtifactSourcePool.Factory artifactSourcePoolFactory,
       FlinkStateRequestHandlerFactory stateHandlerFactory) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
     this.bundleFactorySupplier = bundleFactorySupplier;
-    this.cachePoolFactory = cachePoolFactory;
+    this.artifactSourcePoolFactory = artifactSourcePoolFactory;
     this.stateHandlerFactory = stateHandlerFactory;
   }
 
@@ -96,7 +96,7 @@ public class FlinkExecutableStageFunction<InputT>
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
     stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
-    ArtifactSourcePool cachePool = cachePoolFactory.forJob(jobInfo.jobId());
+    ArtifactSourcePool cachePool = artifactSourcePoolFactory.forJob(jobInfo.jobId());
     // TODO: Wire this into the distributed cache and make it pluggable.
     ArtifactSource artifactSource = null;
     distributedCacheCloser = cachePool.addToPool(artifactSource);
