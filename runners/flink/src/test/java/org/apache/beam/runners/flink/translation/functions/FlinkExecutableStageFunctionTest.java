@@ -124,7 +124,7 @@ public class FlinkExecutableStageFunctionTest {
 
   @Test
   public void expectedInputsAreSent() throws Exception {
-    FlinkExecutableStageFunction<Integer> function = getFunction();
+    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
     function.open(new Configuration());
 
     @SuppressWarnings("unchecked")
