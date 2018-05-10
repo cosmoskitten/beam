@@ -28,10 +28,10 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.fn.harness.MapFnRunner.ValueMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -47,14 +47,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MapFnRunnerTest {
   private static final String EXPECTED_ID = "pTransformId";
-  private static final RunnerApi.PTransform EXPECTED_PTRANSFORM = RunnerApi.PTransform.newBuilder()
-      .putInputs("input", "inputPC")
-      .putOutputs("output", "outputPC")
-      .build();
+  private static final RunnerApi.PTransform EXPECTED_PTRANSFORM =
+      RunnerApi.PTransform.newBuilder()
+          .putInputs("input", "inputPC")
+          .putOutputs("output", "outputPC")
+          .build();
 
   @Test
-  public void testWindowMapping() throws Exception {
-
+  public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     consumers.put("outputPC", outputConsumer::add);
@@ -62,7 +62,8 @@ public class MapFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new MapFnRunner.Factory<>(this::createMapFunctionForPTransform)
+    ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
+    MapFnRunner.forValueMapFnFactory(factory)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
@@ -82,16 +83,49 @@ public class MapFnRunnerTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(
-        consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
 
-  public ThrowingFunction<String, String> createMapFunctionForPTransform(String ptransformId,
-      PTransform pTransform) throws IOException {
+  @Test
+  public void testFullWindowedValueMapping() throws Exception {
+    List<WindowedValue<?>> outputConsumer = new ArrayList<>();
+    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
+    consumers.put("outputPC", outputConsumer::add);
+
+    List<ThrowingRunnable> startFunctions = new ArrayList<>();
+    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+
+    MapFnRunner.forMapFnFactory(this::createMapFunctionForPTransform)
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            EXPECTED_ID,
+            EXPECTED_PTRANSFORM,
+            Suppliers.ofInstance("57L")::get,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            consumers,
+            startFunctions::add,
+            finishFunctions::add);
+
+    assertThat(startFunctions, empty());
+    assertThat(finishFunctions, empty());
+
+    assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
+
+    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+
+    assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
+  }
+
+  public ThrowingFunction<WindowedValue<String>, WindowedValue<String>>
+      createMapFunctionForPTransform(String ptransformId, PTransform pTransform) {
     assertEquals(EXPECTED_ID, ptransformId);
     assertEquals(EXPECTED_PTRANSFORM, pTransform);
-    return (String str) -> str.toUpperCase();
+    return (WindowedValue<String> str) -> str.withValue(str.getValue().toUpperCase());
   }
 }
