@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -32,13 +29,10 @@ import com.google.protobuf.Struct;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
-import org.apache.beam.runners.flink.FlinkBundleFactory;
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
@@ -61,7 +55,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.stubbing.Answer;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
 @RunWith(JUnit4.class)
@@ -71,6 +64,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
+  @Mock private FlinkExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private ArtifactSourcePool artifactSourcePool;
   @Mock private StateRequestHandler stateRequestHandler;
@@ -91,6 +85,9 @@ public class FlinkExecutableStageFunctionTest {
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
+    when(stageContext.getArtifactSourcePool()).thenReturn(artifactSourcePool);
+    when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
+    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
 
   @Test
@@ -156,42 +153,48 @@ public class FlinkExecutableStageFunctionTest {
             "one", 1,
             "two", 2,
             "three", 3);
+
+    // We use a real StageBundleFactory here in order to exercise the output receiver factory.
+    StageBundleFactory stageBundleFactory =
+        new StageBundleFactory() {
+          @Override
+          public <InputT> RemoteBundle<InputT> getBundle(
+              OutputReceiverFactory receiverFactory, StateRequestHandler stateRequestHandler)
+              throws Exception {
+            return new RemoteBundle<InputT>() {
+              @Override
+              public String getId() {
+                return "bundle-id";
+              }
+
+              @Override
+              public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
+                return new FnDataReceiver<WindowedValue<InputT>>() {
+                  @Override
+                  public void accept(WindowedValue<InputT> input) throws Exception {
+                    // Ignore input
+                  }
+                };
+              }
+
+              @Override
+              public void close() throws Exception {
+                // Emit all values to the runner when the bundle is closed.
+                receiverFactory.create("one").accept(three);
+                receiverFactory.create("two").accept(four);
+                receiverFactory.create("three").accept(five);
+              }
+            };
+          }
+
+          @Override
+          public void close() throws Exception {}
+        };
+    // Wire the stage bundle factory into our context.
+    when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
+
     FlinkExecutableStageFunction<Integer> function = getFunction(outputTagMap);
     function.open(new Configuration());
-
-    CompletableFuture<OutputReceiverFactory> receiverFactoryFuture = new CompletableFuture<>();
-
-    @SuppressWarnings("unchecked")
-    RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
-    // Capture the real receiver factory when a bundle is requested.
-    when(stageBundleFactory.<Integer>getBundle(any(), any()))
-        .thenAnswer(
-            (Answer<RemoteBundle<Integer>>)
-                invocation -> {
-                  Object[] args = invocation.getArguments();
-                  receiverFactoryFuture.complete((OutputReceiverFactory) args[0]);
-                  return bundle;
-                });
-
-    // When the bundle is closed, send output elements to their respective PCollections. The
-    // semantic of bundle.close() is to block until all elements have been received.
-    doAnswer(
-            (Answer<Void>)
-                invocation -> {
-                  // The bundle can only possibly be closed after it is created by the stage bundle
-                  // factory
-                  // above.
-                  OutputReceiverFactory receiverFactory = receiverFactoryFuture.getNow(null);
-                  assertThat(receiverFactory, is(notNullValue()));
-
-                  // Create receivers for the outputs listed in the output tag map.
-                  receiverFactory.create("one").accept(three);
-                  receiverFactory.create("two").accept(four);
-                  receiverFactory.create("three").accept(five);
-                  return null;
-                })
-        .when(bundle)
-        .close();
 
     function.mapPartition(Collections.emptyList(), collector);
     // Ensure that the tagged values sent to the collector have the correct union tags as specified
@@ -212,32 +215,16 @@ public class FlinkExecutableStageFunctionTest {
   }
 
   /**
-   * Creates a {@link FlinkExecutableStageFunction}. Intermediate bundle factories are mocked to
-   * return the interesting objects, namely {@link #stageBundleFactory}, {@link
-   * #artifactSourcePool}, and {@link #stateRequestHandler}. These interesting objects are not
-   * altered and are expected to be mocked by individual test cases.
+   * Creates a {@link FlinkExecutableStageFunction}. Sets the runtime context to {@link
+   * #runtimeContext}. The context factory is mocked to return {@link #stageContext} every time. The
+   * behavior of the stage context itself is unchanged.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
-    JobBundleFactory jobBundleFactory = Mockito.mock(JobBundleFactory.class);
-    when(jobBundleFactory.forStage(any())).thenReturn(stageBundleFactory);
-    FlinkBundleFactory flinkBundleFactory = Mockito.mock(FlinkBundleFactory.class);
-    when(flinkBundleFactory.getJobBundleFactory(any(), any())).thenReturn(jobBundleFactory);
-
-    ArtifactSourcePool.Factory cachePoolFactory = Mockito.mock(ArtifactSourcePool.Factory.class);
-    when(cachePoolFactory.forJob(any())).thenReturn(artifactSourcePool);
-
-    FlinkStateRequestHandlerFactory stateHandlerFactory =
-        Mockito.mock(FlinkStateRequestHandlerFactory.class);
-    when(stateHandlerFactory.forStage(any(), any())).thenReturn(stateRequestHandler);
-
+    FlinkExecutableStageContext.Factory contextFactory =
+        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<>(
-            stagePayload,
-            jobInfo,
-            outputMap,
-            () -> flinkBundleFactory,
-            cachePoolFactory,
-            stateHandlerFactory);
+        new FlinkExecutableStageFunction<Integer>(stagePayload, jobInfo, outputMap, contextFactory);
     function.setRuntimeContext(runtimeContext);
     return function;
   }

@@ -49,11 +49,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStagePruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
-import org.apache.beam.runners.flink.translation.functions.FlinkStateRequestHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
@@ -349,9 +349,7 @@ public class FlinkBatchPortablePipelineTranslator
             stagePayload,
             context.getJobInfo(),
             outputMap,
-            () -> FlinkBundleFactory.getInstance(),
-            ArtifactSourcePool.defaultFactory(),
-            FlinkStateRequestHandlerFactory.forBatch());
+            FlinkExecutableStageContext.batchFactory());
 
     DataSet<WindowedValue<InputT>> inputDataSet =
         context.getDataSetOrThrow(stagePayload.getInput());

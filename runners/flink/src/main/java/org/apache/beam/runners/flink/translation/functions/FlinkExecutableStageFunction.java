@@ -25,16 +25,13 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
-import org.apache.beam.runners.flink.FlinkBundleFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
-import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.SerializableSupplier;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
@@ -63,9 +60,7 @@ public class FlinkExecutableStageFunction<InputT>
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier;
-  private final ArtifactSourcePool.Factory artifactSourcePoolFactory;
-  private final FlinkStateRequestHandlerFactory stateHandlerFactory;
+  private final FlinkExecutableStageContext.Factory contextFactory;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
@@ -77,36 +72,31 @@ public class FlinkExecutableStageFunction<InputT>
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      SerializableSupplier<FlinkBundleFactory> bundleFactorySupplier,
-      ArtifactSourcePool.Factory artifactSourcePoolFactory,
-      FlinkStateRequestHandlerFactory stateHandlerFactory) {
+      FlinkExecutableStageContext.Factory contextFactory) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
-    this.bundleFactorySupplier = bundleFactorySupplier;
-    this.artifactSourcePoolFactory = artifactSourcePoolFactory;
-    this.stateHandlerFactory = stateHandlerFactory;
+    this.contextFactory = contextFactory;
   }
 
   @Override
   public void open(Configuration parameters) throws Exception {
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
-    // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
-    // same backing runtime context and broadcast variables. We use checkState below to catch errors
-    // in backward-incompatible Flink changes.
-    stateRequestHandler = stateHandlerFactory.forStage(executableStage, runtimeContext);
-    ArtifactSourcePool cachePool = artifactSourcePoolFactory.forJob(jobInfo.jobId());
     // TODO: Wire this into the distributed cache and make it pluggable.
     ArtifactSource artifactSource = null;
-    distributedCacheCloser = cachePool.addToPool(artifactSource);
-    FlinkBundleFactory flinkBundleFactory = bundleFactorySupplier.get();
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
-    JobBundleFactory jobBundleFactory = flinkBundleFactory.getJobBundleFactory(jobInfo, cachePool);
-    stageBundleFactory = jobBundleFactory.forStage(executableStage);
+    FlinkExecutableStageContext stageContext = contextFactory.get(jobInfo);
+    ArtifactSourcePool cachePool = stageContext.getArtifactSourcePool();
+    distributedCacheCloser = cachePool.addToPool(artifactSource);
+    // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
+    // same backing runtime context and broadcast variables. We use checkState below to catch errors
+    // in backward-incompatible Flink changes.
+    stateRequestHandler = stageContext.getStateRequestHandler(executableStage, runtimeContext);
+    stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
   }
 
   @Override
