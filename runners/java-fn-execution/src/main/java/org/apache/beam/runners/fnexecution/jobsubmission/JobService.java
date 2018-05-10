@@ -26,6 +26,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -44,6 +45,7 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingServiceProvider;
+import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,9 +218,10 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
 
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
-      TransformStreamObserver<JobState.Enum, GetJobStateResponse> stateObserver =
-          TransformStreamObserver.create(responseFunction, responseObserver);
-      invocation.addStateObserver(stateObserver);
+      Consumer<JobState.Enum> stateListener =
+          TransformConsumer.create(
+              responseFunction, StreamObserverConsumer.create(responseObserver));
+      invocation.addStateListener(stateListener);
     } catch (Exception e) {
       LOG.error("Encountered Unexpected Exception", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
@@ -232,6 +235,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     try {
       String invocationId = request.getJobId();
       JobInvocation invocation = invocations.get(invocationId);
+      // synchronization is necessary since we are multiplexing this stream observer.
+      responseObserver = SynchronizedStreamObserver.wrapping(responseObserver);
 
       Function<JobState.Enum, JobMessagesResponse> stateResponseFunction =
           state ->
@@ -239,16 +244,18 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
                   .newBuilder()
                   .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
                   .build();
-      TransformStreamObserver<JobState.Enum, JobMessagesResponse> stateObserver =
-          TransformStreamObserver.create(stateResponseFunction, responseObserver);
+      Consumer<JobState.Enum> stateListener =
+          TransformConsumer.create(
+              stateResponseFunction, StreamObserverConsumer.create(responseObserver));
 
       Function<JobMessage, JobMessagesResponse> messagesResponseFunction =
           message -> JobMessagesResponse.newBuilder().setMessageResponse(message).build();
-      TransformStreamObserver<JobMessage, JobMessagesResponse> messageObserver =
-          TransformStreamObserver.create(messagesResponseFunction, responseObserver);
+      Consumer<JobMessage> messageListener =
+          TransformConsumer.create(
+              messagesResponseFunction, StreamObserverConsumer.create(responseObserver));
 
-      invocation.addStateObserver(stateObserver);
-      invocation.addMessageObserver(messageObserver);
+      invocation.addStateListener(stateListener);
+      invocation.addMessageListener(messageListener);
     } catch (Exception e) {
       LOG.error("Encountered Unexpected Exception", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
@@ -267,56 +274,46 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   }
 
   /**
-   * Utility class that transforms observations into one that an output observer can accept.
-   *
-   * <p>This class synchronizes on outputObserver when handling it, allowing for multiple
-   * TransformStreamObservers to multiplex to a single outputObserver.
-   *
-   * @param <T1> Input Type
-   * @param <T2> Output Type
+   * Forward inputs to a StreamObserver.
    */
-  private static class TransformStreamObserver<T1, T2> implements StreamObserver<T1> {
-
-    /**
-     * Create a new TransformStreamObserver.
-     *
-     * @param transform The function used to transform observations.
-     * @param outputObserver The observer to forward transform outputs to.
-     */
-    public static <T1, T2> TransformStreamObserver<T1, T2> create(
-        Function<T1, T2> transform, StreamObserver<T2> outputObserver) {
-      return new TransformStreamObserver<>(transform, outputObserver);
+  private static class StreamObserverConsumer<T> implements Consumer<T> {
+    public static <T> StreamObserverConsumer<T> create(StreamObserver<T> sink) {
+      return new StreamObserverConsumer<>(sink);
     }
 
-    private final Function<T1, T2> transform;
-    private final StreamObserver<T2> outputObserver;
+    private final StreamObserver<T> sink;
 
-    private TransformStreamObserver(Function<T1, T2> transform, StreamObserver<T2> outputObserver) {
-      this.transform = transform;
-      this.outputObserver = outputObserver;
+    private StreamObserverConsumer(StreamObserver<T> sink) {
+      this.sink = sink;
     }
 
     @Override
-    public void onNext(T1 i) {
-      T2 o = transform.apply(i);
-      synchronized (outputObserver) {
-        outputObserver.onNext(o);
-      }
-    }
-
-    @Override
-    public void onError(Throwable throwable) {
-      synchronized (outputObserver) {
-        outputObserver.onError(throwable);
-      }
-    }
-
-    @Override
-    public void onCompleted() {
-      synchronized (outputObserver) {
-        outputObserver.onCompleted();
-      }
+    public void accept(T i) {
+      sink.onNext(i);
     }
   }
 
+  /**
+   * Transform inputs from type I to type O using a transform function before forwarding to a sink
+   * Consumer.
+   */
+  private static class TransformConsumer<I, O> implements Consumer<I> {
+    public static <I, O> TransformConsumer<I, O> create(
+        Function<I, O> transform, Consumer<O> sink) {
+      return new TransformConsumer<>(transform, sink);
+    }
+
+    private final Function<I, O> transform;
+    private final Consumer<O> sink;
+
+    private TransformConsumer(Function<I, O> transform, Consumer<O> sink) {
+      this.transform = transform;
+      this.sink = sink;
+    }
+
+    @Override
+    public void accept(I i) {
+      this.sink.accept(transform.apply(i));
+    }
+  }
 }

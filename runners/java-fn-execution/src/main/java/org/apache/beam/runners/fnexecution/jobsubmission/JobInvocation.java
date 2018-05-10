@@ -49,12 +49,12 @@ public interface JobInvocation {
   JobState.Enum getState();
 
   /**
-   * Observe job state changes with a {@link StreamObserver}.
+   * Listen for job state changes with a {@link Consumer}.
    */
-  void addStateObserver(Consumer<Enum> stateStreamObserver);
+  void addStateListener(Consumer<Enum> stateStreamObserver);
 
   /**
-   * Observe job messages with a {@link StreamObserver}.
+   * Listen for job messages with a {@link Consumer}.
    */
-  void addMessageObserver(Consumer<JobMessage> messageStreamObserver);
+  void addMessageListener(Consumer<JobMessage> messageStreamObserver);
 }
