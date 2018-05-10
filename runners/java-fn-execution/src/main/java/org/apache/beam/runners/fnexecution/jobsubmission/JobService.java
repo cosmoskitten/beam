@@ -138,11 +138,11 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   @Override
   public void run(
       RunJobRequest request, StreamObserver<RunJobResponse> responseObserver) {
-    try {
-      LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
+    LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
 
+    String preparationId = request.getPreparationId();
+    try {
       // retrieve job preparation
-      String preparationId = request.getPreparationId();
       JobPreparation preparation = preparations.get(preparationId);
       if (preparation == null) {
         String errMessage = String.format("Unknown Preparation Id \"%s\".", preparationId);
@@ -164,7 +164,9 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       LOG.warn("Encountered Status Exception", e);
       responseObserver.onError(e);
     } catch (Exception e) {
-      LOG.error("Encountered Unexpected Exception", e);
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Preparation %s", preparationId);
+      LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -172,9 +174,9 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   @Override
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
     try {
-      LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
-      String invocationId = request.getJobId();
       JobInvocation invocation = getInvocation(invocationId);
 
       JobState.Enum state;
@@ -184,16 +186,18 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
-      LOG.error("Encountered Unexpected Exception", e);
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
 
   @Override
   public void cancel(CancelJobRequest request, StreamObserver<CancelJobResponse> responseObserver) {
+    LOG.trace("{} {}", CancelJobRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
     try {
-      LOG.trace("{} {}", CancelJobRequest.class.getSimpleName(), request);
-      String invocationId = request.getJobId();
       JobInvocation invocation = getInvocation(invocationId);
 
       JobState.Enum state;
@@ -204,7 +208,9 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
-      LOG.error("Encountered Unexpected Exception", e);
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -213,10 +219,10 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   public void getStateStream(
       GetJobStateRequest request,
       StreamObserver<GetJobStateResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
     try {
-      String invocationId = request.getJobId();
       JobInvocation invocation = getInvocation(invocationId);
-
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
@@ -224,7 +230,9 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
               responseFunction, StreamObserverConsumer.create(responseObserver));
       invocation.addStateListener(stateListener);
     } catch (Exception e) {
-      LOG.error("Encountered Unexpected Exception", e);
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -233,8 +241,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   public void getMessageStream(
       JobMessagesRequest request,
       StreamObserver<JobMessagesResponse> responseObserver) {
+    String invocationId = request.getJobId();
     try {
-      String invocationId = request.getJobId();
       JobInvocation invocation = getInvocation(invocationId);
       // synchronization is necessary since we are multiplexing this stream observer.
       responseObserver = SynchronizedStreamObserver.wrapping(responseObserver);
@@ -258,7 +266,9 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
     } catch (Exception e) {
-      LOG.error("Encountered Unexpected Exception", e);
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
   }
@@ -272,6 +282,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
         LOG.warn("Exception while closing job {}", preparation);
       }
     }
+    // TODO: should we cancel managed jobs when this gets closed?
   }
 
   private JobInvocation getInvocation(String invocationId) throws StatusException {
