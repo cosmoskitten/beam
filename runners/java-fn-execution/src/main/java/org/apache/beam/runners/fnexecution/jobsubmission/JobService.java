@@ -49,6 +49,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A JobService that prepares and runs jobs on behalf of a client using a {@link JobInvoker}.
+ *
+ * Job management is handled in-memory rather than any persistent storage, running the risk of
+ * leaking jobs if the JobService crashes.
+ *
+ * TODO: replace in-memory job management state with persistent solution.
  */
 public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
@@ -170,9 +175,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       JobInvocation invocation = invocations.get(invocationId);
 
       JobState.Enum state;
-      synchronized (invocation) {
-        state = invocation.getState();
-      }
+      state = invocation.getState();
 
       GetJobStateResponse response = GetJobStateResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
@@ -191,10 +194,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       JobInvocation invocation = invocations.get(invocationId);
 
       JobState.Enum state;
-      synchronized (invocation) {
-        invocation.cancel();
-        state = invocation.getState();
-      }
+      invocation.cancel();
+      state = invocation.getState();
 
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
@@ -217,9 +218,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
           state -> GetJobStateResponse.newBuilder().setState(state).build();
       TransformStreamObserver<JobState.Enum, GetJobStateResponse> stateObserver =
           TransformStreamObserver.create(responseFunction, responseObserver);
-      synchronized (invocation) {
-        invocation.addStateObserver(stateObserver);
-      }
+      invocation.addStateObserver(stateObserver);
     } catch (Exception e) {
       LOG.error("Encountered Unexpected Exception", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
@@ -248,10 +247,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       TransformStreamObserver<JobMessage, JobMessagesResponse> messageObserver =
           TransformStreamObserver.create(messagesResponseFunction, responseObserver);
 
-      synchronized (invocation) {
-        invocation.addStateObserver(stateObserver);
-        invocation.addMessageObserver(messageObserver);
-      }
+      invocation.addStateObserver(stateObserver);
+      invocation.addMessageObserver(messageObserver);
     } catch (Exception e) {
       LOG.error("Encountered Unexpected Exception", e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
