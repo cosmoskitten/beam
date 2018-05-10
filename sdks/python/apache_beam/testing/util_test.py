@@ -29,11 +29,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-from apache_beam.testing.util import equal_to_per_window
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.transforms import window
-from apache_beam.utils.windowed_value import WindowedValue
-
 
 class UtilTest(unittest.TestCase):
 
@@ -48,17 +43,6 @@ class UtilTest(unittest.TestCase):
   def test_assert_that_passes_empty_is_empty(self):
     with TestPipeline() as p:
       assert_that(p | Create([]), is_empty())
-
-  def test_windowed_value_passes(self):
-    expected = {IntervalWindow(0, 1): [1, 2, 3], IntervalWindow(4, 5):['a', 'b']}
-    print expected
-    with TestPipeline() as p:
-
-      p = (p | 'side TestStream' >> TestStream()
-            .add_elements([window.TimestampedValue('s1', 10)])
-            )
-      assert_that(p, equal_to_per_window(expected),
-                windowing=window.FixedWindows(30), reify_windows=True)
 
   def test_assert_that_fails(self):
     with self.assertRaises(Exception):
