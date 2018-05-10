@@ -50,7 +50,7 @@ public class WindowMappingFnRunner {
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
           URN,
-          MapFnRunner.forValueMapFnFactory(WindowMappingFnRunner::createMapFunctionForPTransform));
+          MapFnRunners.forValueMapFnFactory(WindowMappingFnRunner::createMapFunctionForPTransform));
     }
   }
 

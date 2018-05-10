@@ -27,7 +27,7 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.fn.harness.MapFnRunner.WindowedValueMapFnFactory;
+import org.apache.beam.fn.harness.MapFnRunners.WindowedValueMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -40,7 +40,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
 /** The Java SDK Harness implementation of the {@link Window.Assign} primitive. */
-public class AssignWindowsRunner<T, W extends BoundedWindow> {
+class AssignWindowsRunner<T, W extends BoundedWindow> {
 
   /** A registrar which provides a factory to handle Java {@link WindowFn WindowFns}. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -49,7 +49,7 @@ public class AssignWindowsRunner<T, W extends BoundedWindow> {
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
           PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-          MapFnRunner.forMapFnFactory(new AssignWindowsMapFnFactory<>()));
+          MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>()));
     }
   }
 
@@ -73,7 +73,7 @@ public class AssignWindowsRunner<T, W extends BoundedWindow> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  public static <T, W extends BoundedWindow> AssignWindowsRunner<T, W> create(
+  static <T, W extends BoundedWindow> AssignWindowsRunner<T, W> create(
       WindowFn<? super T, W> windowFn) {
     // Safe contravariant cast
     WindowFn<T, W> typedWindowFn = (WindowFn<T, W>) windowFn;
@@ -86,7 +86,7 @@ public class AssignWindowsRunner<T, W extends BoundedWindow> {
     this.windowFn = windowFn;
   }
 
-  public WindowedValue<T> assignWindows(WindowedValue<T> input) throws Exception {
+  WindowedValue<T> assignWindows(WindowedValue<T> input) throws Exception {
     // TODO: BEAM-4272 consider allocating only once and updating the current value per call.
     WindowFn<T, W>.AssignContext ctxt =
         windowFn.new AssignContext() {
