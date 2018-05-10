@@ -107,6 +107,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
         mainOutputTag,
         additionalOutputTags,
         new FlinkNoOpStepContext(),
+        null,
         windowingStrategy);
 
     if ((serializedOptions.get().as(FlinkPipelineOptions.class))

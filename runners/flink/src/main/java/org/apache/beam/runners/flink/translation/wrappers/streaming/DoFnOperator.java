@@ -336,6 +336,7 @@ public class DoFnOperator<InputT, OutputT>
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        null,
         windowingStrategy);
 
     doFnRunner = createWrappingDoFnRunner(doFnRunner);

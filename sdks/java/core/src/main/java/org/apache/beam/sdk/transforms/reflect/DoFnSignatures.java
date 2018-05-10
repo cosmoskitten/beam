@@ -87,6 +87,7 @@ public class DoFnSignatures {
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
           Parameter.ElementParameter.class,
+          Parameter.RowParameter.class,
           Parameter.TimestampParameter.class,
           Parameter.OutputReceiverParameter.class,
           Parameter.TaggedOutputReceiverParameter.class,
@@ -101,6 +102,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
+              Parameter.RowParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
@@ -823,7 +825,7 @@ public class DoFnSignatures {
 
     if (hasElementAnnotation(param.getAnnotations())) {
       if (paramT.equals(TypeDescriptor.of(Row.class)) && !paramT.equals(inputT)) {
-        return Parameter.rowParamater(FieldAccessDescriptor.forSchema)
+        return Parameter.rowParameter(FieldAccessDescriptor.allFields());
       } else {
         methodErrors.checkArgument(paramT.equals(inputT),
             "@Element argument must have type %s", inputT);
