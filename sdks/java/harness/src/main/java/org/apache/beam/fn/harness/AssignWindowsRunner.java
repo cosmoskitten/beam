@@ -87,6 +87,7 @@ public class AssignWindowsRunner<T, W extends BoundedWindow> {
   }
 
   public WindowedValue<T> assignWindows(WindowedValue<T> input) throws Exception {
+    // TODO: BEAM-4272 consider allocating only once and updating the current value per call.
     WindowFn<T, W>.AssignContext ctxt =
         windowFn.new AssignContext() {
           @Override
