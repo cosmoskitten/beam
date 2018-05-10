@@ -273,7 +273,9 @@ public class SpannerWriteIT {
 
     @Override
     protected boolean matchesSafely(Exception e) {
+      System.out.println("!!! Exception class " + e.getClass());
       String stacktrace = Throwables.getStackTraceAsString(e);
+      System.out.println("!!! Exception trace \n" + e.getClass());
       return stacktrace.contains(str);
     }
   }
