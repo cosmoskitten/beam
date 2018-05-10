@@ -175,7 +175,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     try {
       LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
       String invocationId = request.getJobId();
-      JobInvocation invocation = invocations.get(invocationId);
+      JobInvocation invocation = getInvocation(invocationId);
 
       JobState.Enum state;
       state = invocation.getState();
@@ -194,7 +194,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     try {
       LOG.trace("{} {}", CancelJobRequest.class.getSimpleName(), request);
       String invocationId = request.getJobId();
-      JobInvocation invocation = invocations.get(invocationId);
+      JobInvocation invocation = getInvocation(invocationId);
 
       JobState.Enum state;
       invocation.cancel();
@@ -215,7 +215,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       StreamObserver<GetJobStateResponse> responseObserver) {
     try {
       String invocationId = request.getJobId();
-      JobInvocation invocation = invocations.get(invocationId);
+      JobInvocation invocation = getInvocation(invocationId);
 
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
@@ -235,7 +235,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       StreamObserver<JobMessagesResponse> responseObserver) {
     try {
       String invocationId = request.getJobId();
-      JobInvocation invocation = invocations.get(invocationId);
+      JobInvocation invocation = getInvocation(invocationId);
       // synchronization is necessary since we are multiplexing this stream observer.
       responseObserver = SynchronizedStreamObserver.wrapping(responseObserver);
 
@@ -272,6 +272,14 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
         LOG.warn("Exception while closing job {}", preparation);
       }
     }
+  }
+
+  private JobInvocation getInvocation(String invocationId) throws StatusException {
+    JobInvocation invocation = invocations.get(invocationId);
+    if (invocation == null) {
+      throw Status.NOT_FOUND.asException();
+    }
+    return invocation;
   }
 
   /**
