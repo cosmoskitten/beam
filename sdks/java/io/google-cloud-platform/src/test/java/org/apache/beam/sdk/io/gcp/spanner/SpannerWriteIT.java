@@ -191,7 +191,7 @@ public class SpannerWriteIT {
 
   @Test
   public void testFailFast() throws Exception {
-    thrown.expect(new StackTraceContainsString("PipelineExecutionException"));
+    thrown.expect(new StackTraceContainsString("SpannerException"));
     thrown.expect(new StackTraceContainsString("Value must not be NULL in table users"));
     int numRecords = 100;
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
