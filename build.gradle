@@ -145,7 +145,7 @@ task javaPreCommit() {
 task javaPostCommit() {
   dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
-}Ø
+}
 
 task goPreCommit() {
   dependsOn ":rat"
