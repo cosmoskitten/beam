@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import io.grpc.stub.StreamObserver;
 import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;

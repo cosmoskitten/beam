@@ -52,10 +52,10 @@ import org.slf4j.LoggerFactory;
 /**
  * A JobService that prepares and runs jobs on behalf of a client using a {@link JobInvoker}.
  *
- * Job management is handled in-memory rather than any persistent storage, running the risk of
+ * <p>Job management is handled in-memory rather than any persistent storage, running the risk of
  * leaking jobs if the JobService crashes.
  *
- * TODO: replace in-memory job management state with persistent solution.
+ * <p>TODO: replace in-memory job management state with persistent solution.
  */
 public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
@@ -314,25 +314,25 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   }
 
   /**
-   * Transform inputs from type I to type O using a transform function before forwarding to a sink
+   * Transform inputs from type T1 to type T2 using a transform function before forwarding to a sink
    * Consumer.
    */
-  private static class TransformConsumer<I, O> implements Consumer<I> {
-    public static <I, O> TransformConsumer<I, O> create(
-        Function<I, O> transform, Consumer<O> sink) {
+  private static class TransformConsumer<T1, T2> implements Consumer<T1> {
+    public static <T1, T2> TransformConsumer<T1, T2> create(
+        Function<T1, T2> transform, Consumer<T2> sink) {
       return new TransformConsumer<>(transform, sink);
     }
 
-    private final Function<I, O> transform;
-    private final Consumer<O> sink;
+    private final Function<T1, T2> transform;
+    private final Consumer<T2> sink;
 
-    private TransformConsumer(Function<I, O> transform, Consumer<O> sink) {
+    private TransformConsumer(Function<T1, T2> transform, Consumer<T2> sink) {
       this.transform = transform;
       this.sink = sink;
     }
 
     @Override
-    public void accept(I i) {
+    public void accept(T1 i) {
       this.sink.accept(transform.apply(i));
     }
   }
