@@ -40,7 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * A {@code PTransformRunner} which executes simple map functions.
+ * Utilities to create {@code PTransformRunners} which execute simple map functions.
  *
  * <p>Simple map functions are used in a large number of transforms, especially runner-managed
  * transforms, such as map_windows.
@@ -48,16 +48,25 @@ import org.apache.beam.sdk.util.WindowedValue;
  * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead of
  * using the {@link FnApiDoFnRunner} instance.
  */
-public class MapFnRunner<InputT, OutputT> {
+public abstract class MapFnRunners {
 
+  /** Create a {@link MapFnRunners} where the map function consumes elements directly. */
   public static <InputT, OutputT> PTransformRunnerFactory<?> forValueMapFnFactory(
       ValueMapFnFactory<InputT, OutputT> fnFactory) {
-    return forMapFnFactory(new ValueOnlyWindowedValueMapFnFactory<>(fnFactory));
+    return new Factory<>(new CompressedValueOnlyMapperFactory<>(fnFactory));
   }
 
-  public static <InputT, OutputT> PTransformRunnerFactory<?> forMapFnFactory(
+  /**
+   * Create a {@link MapFnRunners} where the map function consumes {@link WindowedValue Windowed
+   * Values} and produced {@link WindowedValue Windowed Values}.
+   *
+   * <p>Each {@link WindowedValue} provided to the function produced by the {@link
+   * WindowedValueMapFnFactory} will be in exactly one {@link
+   * org.apache.beam.sdk.transforms.windowing.BoundedWindow window}.
+   */
+  public static <InputT, OutputT> PTransformRunnerFactory<?> forWindowedValueMapFnFactory(
       WindowedValueMapFnFactory<InputT, OutputT> fnFactory) {
-    return new Factory<>(fnFactory);
+    return new Factory<>(new ExplodedWindowedValueMapperFactory<>(fnFactory));
   }
 
   /** A function factory which given a PTransform returns a map function. */
@@ -77,18 +86,18 @@ public class MapFnRunner<InputT, OutputT> {
         String ptransformId, PTransform ptransform) throws IOException;
   }
 
-  /** A factory for {@link MapFnRunner}s. */
+  /** A factory for {@link MapFnRunners}s. */
   private static class Factory<InputT, OutputT>
-      implements PTransformRunnerFactory<MapFnRunner<InputT, OutputT>> {
+      implements PTransformRunnerFactory<Mapper<InputT, OutputT>> {
 
-    private final WindowedValueMapFnFactory<InputT, OutputT> fnFactory;
+    private final MapperFactory mapperFactory;
 
-    private Factory(WindowedValueMapFnFactory<InputT, OutputT> fnFactory) {
-      this.fnFactory = fnFactory;
+    private Factory(MapperFactory<InputT, OutputT> mapperFactory) {
+      this.mapperFactory = mapperFactory;
     }
 
     @Override
-    public MapFnRunner<InputT, OutputT> createRunnerForPTransform(
+    public Mapper<InputT, OutputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
@@ -107,61 +116,61 @@ public class MapFnRunner<InputT, OutputT> {
           (Collection)
               pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
 
-      MapFnRunner<InputT, OutputT> runner =
-          new MapFnRunner<>(
-              fnFactory.forPTransform(pTransformId, pTransform),
-              MultiplexingFnDataReceiver.forConsumers(consumers));
+      Mapper<InputT, OutputT> mapper =
+          mapperFactory.create(
+              pTransformId, pTransform, MultiplexingFnDataReceiver.forConsumers(consumers));
 
       pCollectionIdsToConsumers.put(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::map);
-      return runner;
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map);
+      return mapper;
     }
   }
 
-  private final ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> mapFunction;
-  private final FnDataReceiver<WindowedValue<OutputT>> consumer;
-
-  MapFnRunner(
-      ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> mapFunction,
-      FnDataReceiver<WindowedValue<OutputT>> consumer) {
-    this.mapFunction = mapFunction;
-    this.consumer = consumer;
+  @FunctionalInterface
+  private interface MapperFactory<InputT, OutputT> {
+    Mapper<InputT, OutputT> create(
+        String ptransformId, PTransform ptransform, FnDataReceiver<WindowedValue<OutputT>> outputs)
+        throws IOException;
   }
 
-  public void map(WindowedValue<InputT> element) throws Exception {
-    for (WindowedValue<InputT> explodedElement : element.explodeWindows()) {
-      WindowedValue<OutputT> output = mapFunction.apply(explodedElement);
-      consumer.accept(output);
-    }
+  private interface Mapper<InputT, OutputT> {
+    void map(WindowedValue<InputT> input) throws Exception;
   }
 
-  private static class ValueOnlyWindowedValueMapFnFactory<InputT, OutputT>
-      implements WindowedValueMapFnFactory<InputT, OutputT> {
-    private final ValueMapFnFactory<InputT, OutputT> wrapped;
+  private static class ExplodedWindowedValueMapperFactory<InputT, OutputT>
+      implements MapperFactory<InputT, OutputT> {
+    private final WindowedValueMapFnFactory<InputT, OutputT> fnFactory;
 
-    private ValueOnlyWindowedValueMapFnFactory(ValueMapFnFactory<InputT, OutputT> wrapped) {
-      this.wrapped = wrapped;
+    private ExplodedWindowedValueMapperFactory(
+        WindowedValueMapFnFactory<InputT, OutputT> fnFactory) {
+      this.fnFactory = fnFactory;
     }
 
     @Override
-    public ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> forPTransform(
-        String ptransformId, PTransform ptransform) throws IOException {
-      return new WrappingFn<>(wrapped.forPTransform(ptransformId, ptransform));
+    public Mapper<InputT, OutputT> create(
+        String ptransformId, PTransform ptransform, FnDataReceiver<WindowedValue<OutputT>> outputs)
+        throws IOException {
+      ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> fn =
+          fnFactory.forPTransform(ptransformId, ptransform);
+      return input -> outputs.accept(fn.apply(input));
+    }
+  }
+
+  private static class CompressedValueOnlyMapperFactory<InputT, OutputT>
+      implements MapperFactory<InputT, OutputT> {
+    private final ValueMapFnFactory<InputT, OutputT> fnFactory;
+
+    private CompressedValueOnlyMapperFactory(ValueMapFnFactory<InputT, OutputT> fnFactory) {
+      this.fnFactory = fnFactory;
     }
 
-    private static class WrappingFn<InputT, OutputT>
-        implements ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
-      private final ThrowingFunction<InputT, OutputT> fn;
-
-      private WrappingFn(ThrowingFunction<InputT, OutputT> fn) {
-        this.fn = fn;
-      }
-
-      @Override
-      public WindowedValue<OutputT> apply(WindowedValue<InputT> value) throws Exception {
-        return value.withValue(fn.apply(value.getValue()));
-      }
+    @Override
+    public Mapper<InputT, OutputT> create(
+        String ptransformId, PTransform ptransform, FnDataReceiver<WindowedValue<OutputT>> outputs)
+        throws IOException {
+      ThrowingFunction<InputT, OutputT> fn = fnFactory.forPTransform(ptransformId, ptransform);
+      return input -> outputs.accept(input.withValue(fn.apply(input.getValue())));
     }
   }
 }
