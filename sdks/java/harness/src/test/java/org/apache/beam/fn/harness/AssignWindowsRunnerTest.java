@@ -21,19 +21,12 @@
 
 package org.apache.beam.fn.harness;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import org.apache.beam.fn.harness.AssignWindowsRunner.Factory;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
@@ -41,7 +34,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -68,28 +61,26 @@ public class AssignWindowsRunnerTest implements Serializable {
 
   @Test
   public void singleInputSingleOutputSucceeds() throws Exception {
-    Collection<WindowedValue<?>> outputs = new ArrayList<>();
     FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(10L));
 
-    AssignWindowsRunner<Integer, IntervalWindow> runner =
-        AssignWindowsRunner.create(windowFn, ImmutableSet.of(outputs::add));
-
-    runner.assignWindows(WindowedValue.valueInGlobalWindow(1));
-    runner.assignWindows(
-        WindowedValue.of(
-            2,
-            new Instant(-10L),
-            new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L)),
-            PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    AssignWindowsRunner<Integer, IntervalWindow> runner = AssignWindowsRunner.create(windowFn);
 
     assertThat(
-        outputs,
-        containsInAnyOrder(
+        runner.assignWindows(WindowedValue.valueInGlobalWindow(1)),
+        equalTo(
             WindowedValue.of(
                 1,
                 BoundedWindow.TIMESTAMP_MIN_VALUE,
                 windowFn.assignWindow(BoundedWindow.TIMESTAMP_MIN_VALUE),
-                PaneInfo.NO_FIRING),
+                PaneInfo.NO_FIRING)));
+    assertThat(
+        runner.assignWindows(
+            WindowedValue.of(
+                2,
+                new Instant(-10L),
+                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L)),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING)),
+        equalTo(
             WindowedValue.of(
                 2,
                 new Instant(-10L),
@@ -99,12 +90,10 @@ public class AssignWindowsRunnerTest implements Serializable {
 
   @Test
   public void singleInputMultipleOutputSucceeds() throws Exception {
-    Collection<WindowedValue<?>> outputs = new ArrayList<>();
     WindowFn<Object, IntervalWindow> windowFn =
         SlidingWindows.of(Duration.standardMinutes(4L)).every(Duration.standardMinutes(2L));
 
-    AssignWindowsRunner<Integer, IntervalWindow> runner =
-        AssignWindowsRunner.create(windowFn, ImmutableSet.of(outputs::add));
+    AssignWindowsRunner<Integer, IntervalWindow> runner = AssignWindowsRunner.create(windowFn);
 
     IntervalWindow firstWindow =
         new IntervalWindow(
@@ -118,23 +107,24 @@ public class AssignWindowsRunnerTest implements Serializable {
 
     WindowedValue<Integer> firstValue =
         WindowedValue.timestampedValueInGlobalWindow(-3, new Instant(-12));
-    runner.assignWindows(firstValue);
+    assertThat(
+        runner.assignWindows(firstValue),
+        equalTo(
+            WindowedValue.of(
+                -3,
+                new Instant(-12),
+                ImmutableSet.of(firstWindow, secondWindow),
+                firstValue.getPane())));
     WindowedValue<Integer> secondValue =
         WindowedValue.of(
             3,
             new Instant(12),
             new IntervalWindow(new Instant(-12), Duration.standardMinutes(24)),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    runner.assignWindows(secondValue);
 
     assertThat(
-        outputs,
-        containsInAnyOrder(
-            WindowedValue.of(
-                -3,
-                new Instant(-12),
-                ImmutableSet.of(firstWindow, secondWindow),
-                firstValue.getPane()),
+        runner.assignWindows(secondValue),
+        equalTo(
             WindowedValue.of(
                 3,
                 new Instant(12),
@@ -143,46 +133,11 @@ public class AssignWindowsRunnerTest implements Serializable {
   }
 
   @Test
-  public void multipleInputWindowsSingleOutputWindowMultipleOutputs() throws Exception {
-    Collection<WindowedValue<?>> outputs = new ArrayList<>();
-    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(10L));
-
-    AssignWindowsRunner<Integer, IntervalWindow> runner =
-        AssignWindowsRunner.create(windowFn, ImmutableSet.of(outputs::add));
-
-    runner.assignWindows(
-        WindowedValue.of(
-            2,
-            new Instant(-10L),
-            ImmutableList.of(
-                new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
-                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
-            PaneInfo.ON_TIME_AND_ONLY_FIRING));
-
-    IntervalWindow elementWindow = windowFn.assignWindow(new Instant(-10L));
-    assertThat(
-        outputs,
-        containsInAnyOrder(
-            WindowedValue.of(2, new Instant(-10L), elementWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING),
-            WindowedValue.of(
-                2, new Instant(-10L), elementWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING)));
-  }
-
-  @Test
-  public void multipleInputWindowsMultipleOutputWindowsSucceeds() throws Exception {
-    Collection<WindowedValue<?>> outputs = new ArrayList<>();
+  public void multipleInputWindowsThrows() throws Exception {
     WindowFn<Object, IntervalWindow> windowFn =
         SlidingWindows.of(Duration.standardMinutes(4L)).every(Duration.standardMinutes(2L));
 
-    AssignWindowsRunner<Integer, IntervalWindow> runner =
-        AssignWindowsRunner.create(windowFn, ImmutableSet.of(outputs::add));
-
-    IntervalWindow firstWindow =
-        new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(4L)), Duration.standardMinutes(4L));
-    IntervalWindow secondWindow =
-        new IntervalWindow(
-            new Instant(0).minus(Duration.standardMinutes(2L)), Duration.standardMinutes(4L));
+    AssignWindowsRunner<Integer, IntervalWindow> runner = AssignWindowsRunner.create(windowFn);
 
     runner.assignWindows(
         WindowedValue.of(
@@ -192,29 +147,13 @@ public class AssignWindowsRunnerTest implements Serializable {
                 new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING));
-
-    assertThat(
-        outputs,
-        containsInAnyOrder(
-            WindowedValue.of(
-                2,
-                new Instant(-10L),
-                ImmutableSet.of(firstWindow, secondWindow),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
-            WindowedValue.of(
-                2,
-                new Instant(-10L),
-                ImmutableSet.of(firstWindow, secondWindow),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
 
-  private AssignWindowsRunner.Factory factory = new AssignWindowsRunner.Factory();
+  private AssignWindowsRunner.AssignWindowsMapFnFactory<?> factory =
+      new AssignWindowsRunner.AssignWindowsMapFnFactory<>();
 
   @Test
   public void factoryCreatesFromJavaWindowFn() throws Exception {
-    Collection<WindowedValue<?>> output = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("output", output::add);
     PTransform windowPTransform =
         PTransform.newBuilder()
             .putInputs("in", "input")
@@ -231,35 +170,18 @@ public class AssignWindowsRunnerTest implements Serializable {
                             .toByteString())
                     .build())
             .build();
-    new Factory()
-        .createRunnerForPTransform(
-            null,
-            null,
-            null,
-            "window",
-            windowPTransform,
-            null,
-            null,
-            null,
-            null,
-            consumers,
-            null,
-            null);
 
-    Collection<FnDataReceiver<WindowedValue<?>>> inputReceivers = consumers.get("input");
-    assertThat(inputReceivers, hasSize(1));
+    ThrowingFunction<WindowedValue<?>, WindowedValue<?>> fn =
+        (ThrowingFunction) factory.forPTransform("transform", windowPTransform);
 
-    Iterables.getOnlyElement(inputReceivers)
-        .accept(
+    assertThat(
+        fn.apply(
             WindowedValue.of(
                 22L,
                 new Instant(5),
                 new IntervalWindow(new Instant(0L), new Instant(20027L)),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING));
-
-    assertThat(
-        output,
-        containsInAnyOrder(
+                PaneInfo.ON_TIME_AND_ONLY_FIRING)),
+        equalTo(
             WindowedValue.of(
                 22L,
                 new Instant(5),
@@ -269,9 +191,6 @@ public class AssignWindowsRunnerTest implements Serializable {
 
   @Test
   public void factoryCreatesFromKnownWindowFn() throws Exception {
-    Collection<WindowedValue<?>> output = new ArrayList<>();
-    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    consumers.put("output", output::add);
     PTransform windowPTransform =
         PTransform.newBuilder()
             .putInputs("in", "input")
@@ -289,26 +208,10 @@ public class AssignWindowsRunnerTest implements Serializable {
                             .toByteString())
                     .build())
             .build();
-    new Factory()
-        .createRunnerForPTransform(
-            null,
-            null,
-            null,
-            "window",
-            windowPTransform,
-            null,
-            null,
-            null,
-            null,
-            consumers,
-            null,
-            null);
-
-    Collection<FnDataReceiver<WindowedValue<?>>> inputReceivers = consumers.get("input");
-    assertThat(inputReceivers, hasSize(1));
-
-    Iterables.getOnlyElement(inputReceivers)
-        .accept(
+    ThrowingFunction<WindowedValue<?>, WindowedValue<?>> fn =
+        (ThrowingFunction) factory.forPTransform("transform", windowPTransform);
+    WindowedValue<?> output =
+        fn.apply(
             WindowedValue.of(
                 22L,
                 new Instant(5),
@@ -317,7 +220,7 @@ public class AssignWindowsRunnerTest implements Serializable {
 
     assertThat(
         output,
-        containsInAnyOrder(
+        equalTo(
             WindowedValue.of(
                 22L,
                 new Instant(5),
