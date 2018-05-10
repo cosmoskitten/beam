@@ -122,7 +122,7 @@ class TestStreamTest(unittest.TestCase):
         ('last', timestamp.Timestamp(310)),]))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(0, 15): [
             ('a', Timestamp(10)),
             ('b', Timestamp(10)),
@@ -139,9 +139,9 @@ class TestStreamTest(unittest.TestCase):
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
-        label='assert per window', reify_windows=False)
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
+        label='assert per window')
 
     p.run()
 
@@ -176,7 +176,7 @@ class TestStreamTest(unittest.TestCase):
         ('k', ['last'])]))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(15, 30): [
             ('k', ['a', 'b', 'c']),
             ('k', ['late']),
@@ -190,9 +190,9 @@ class TestStreamTest(unittest.TestCase):
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
-        label='assert per window', reify_windows=False)
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
+        label='assert per window')
 
     p.run()
 
@@ -219,7 +219,7 @@ class TestStreamTest(unittest.TestCase):
     # timestamps of the outputted elements once this is implemented.
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(15, 30): [
             ('k', ['a']),
             ('k', []),
@@ -227,9 +227,9 @@ class TestStreamTest(unittest.TestCase):
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
-        label='assert per window', reify_windows=False)
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
+        label='assert per window')
 
     p.run()
 
@@ -265,13 +265,13 @@ class TestStreamTest(unittest.TestCase):
         ('k', ['a'])]))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(15, 30): [('k', ['a'])],
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
         label='assert per window')
 
     p.run()
@@ -300,16 +300,16 @@ class TestStreamTest(unittest.TestCase):
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(0, 15): [
             ('e', Timestamp(10), [2, 1, 4]),
         ],
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
-        label='assert per window', reify_windows=False)
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
+        label='assert per window')
 
     assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 4])]))
     p.run()
@@ -342,16 +342,16 @@ class TestStreamTest(unittest.TestCase):
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(0, 15): [
             ('e', Timestamp(10), [2, 1, 7, 4]),
         ],
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(15),
-        label='assert per window', reify_windows=False)
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(15),
+        label='assert per window')
 
     assert_that(records, equal_to([('e', Timestamp(10), [2, 1, 7, 4])]))
     p.run()
@@ -384,14 +384,14 @@ class TestStreamTest(unittest.TestCase):
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side)))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(2, 3):[('a', Timestamp(2), [2])],
         window.IntervalWindow(4, 5):[('b', Timestamp(4), [4])]
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(1),
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(1),
         label='assert per window')
 
     p.run()
@@ -432,7 +432,7 @@ class TestStreamTest(unittest.TestCase):
                | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream)))
 
     # assert per window
-    expected_dict_window_to_its_elements = {
+    expected_window_to_elements = {
         window.IntervalWindow(9, 10): [
             ('a1', Timestamp(9), ['s1']),
             ('a2', Timestamp(9), ['s1']),
@@ -444,8 +444,8 @@ class TestStreamTest(unittest.TestCase):
     }
     assert_that(
         records,
-        equal_to_per_window(expected_dict_window_to_its_elements),
-        windowing=window.FixedWindows(1),
+        equal_to_per_window(expected_window_to_elements),
+        custom_windowing=window.FixedWindows(1),
         label='assert per window')
 
     p.run()
