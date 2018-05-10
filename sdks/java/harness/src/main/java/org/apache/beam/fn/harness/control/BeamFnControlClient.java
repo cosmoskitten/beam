@@ -41,18 +41,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A client for the Beam Fn Control API. Uses an unbounded internal queue to pull down
- * an unbounded number of requests.
+ * A client for the Beam Fn Control API. Uses an unbounded internal queue to pull down an unbounded
+ * number of requests.
  *
- * <p>Also can delegate to a set of handlers based upon the
- * {@link BeamFnApi.InstructionRequest.RequestCase request type}.
+ * <p>Also can delegate to a set of handlers based upon the {@link
+ * BeamFnApi.InstructionRequest.RequestCase request type}.
  *
- * <p>When the inbound instruction stream finishes successfully, the {@code onFinish} is
- * completed successfully signaling to the caller that this client will not produce any more
- * {@link BeamFnApi.InstructionRequest}s. If the inbound instruction stream
- * errors, the {@code onFinish} is completed exceptionally propagating the failure reason
- * to the caller and signaling that this client will not produce any more
- * {@link BeamFnApi.InstructionRequest}s.
+ * <p>When the inbound instruction stream finishes successfully, the {@code onFinish} is completed
+ * successfully signaling to the caller that this client will not produce any more {@link
+ * BeamFnApi.InstructionRequest}s. If the inbound instruction stream errors, the {@code onFinish} is
+ * completed exceptionally propagating the failure reason to the caller and signaling that this
+ * client will not produce any more {@link BeamFnApi.InstructionRequest}s.
  */
 public class BeamFnControlClient {
   private static final String FAKE_INSTRUCTION_ID = "FAKE_INSTRUCTION_ID";
@@ -62,9 +61,10 @@ public class BeamFnControlClient {
 
   private final StreamObserver<BeamFnApi.InstructionResponse> outboundObserver;
   private final BlockingDeque<BeamFnApi.InstructionRequest> bufferedInstructions;
-  private final EnumMap<BeamFnApi.InstructionRequest.RequestCase,
-                        ThrowingFunction<BeamFnApi.InstructionRequest,
-                                         BeamFnApi.InstructionResponse.Builder>> handlers;
+  private final EnumMap<
+          BeamFnApi.InstructionRequest.RequestCase,
+          ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
+      handlers;
   private final CompletableFuture<Object> onFinish;
 
   public BeamFnControlClient(
@@ -80,9 +80,10 @@ public class BeamFnControlClient {
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
-    this.outboundObserver = streamObserverFactory.apply(
-        BeamFnControlGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::control,
-        new InboundObserver());
+    this.outboundObserver =
+        streamObserverFactory.apply(
+            BeamFnControlGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::control,
+            new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();
   }
@@ -114,11 +115,11 @@ public class BeamFnControlClient {
     }
 
     /**
-     * This method emulates {@link Uninterruptibles#putUninterruptibly} but placing the
-     * element at the front of the queue.
+     * This method emulates {@link Uninterruptibles#putUninterruptibly} but placing the element at
+     * the front of the queue.
      *
-     * <p>We place the poison pill at the front of the queue because if the server shutdown,
-     * any remaining instructions can be discarded.
+     * <p>We place the poison pill at the front of the queue because if the server shutdown, any
+     * remaining instructions can be discarded.
      */
     private void placePoisonPillIntoQueue() {
       while (true) {
@@ -133,8 +134,8 @@ public class BeamFnControlClient {
   }
 
   /**
-   * Note that this method continuously submits work to the supplied executor until the
-   * Beam Fn Control server hangs up or fails exceptionally.
+   * Note that this method continuously submits work to the supplied executor until the Beam Fn
+   * Control server hangs up or fails exceptionally.
    */
   public void processInstructionRequests(Executor executor)
       throws InterruptedException, ExecutionException {
@@ -150,15 +151,28 @@ public class BeamFnControlClient {
   public BeamFnApi.InstructionResponse delegateOnInstructionRequestType(
       BeamFnApi.InstructionRequest value) {
     try {
-      return handlers.getOrDefault(value.getRequestCase(), this::missingHandler)
+      return handlers
+          .getOrDefault(value.getRequestCase(), this::missingHandler)
           .apply(value)
           .setInstructionId(value.getInstructionId())
           .build();
     } catch (Exception e) {
+      LOG.error(
+          "Exception while trying to handle {} {}",
+          BeamFnApi.InstructionRequest.class.getSimpleName(),
+          value.getInstructionId(),
+          e);
       return BeamFnApi.InstructionResponse.newBuilder()
           .setInstructionId(value.getInstructionId())
           .setError(getStackTraceAsString(e))
           .build();
+    } catch (Error e) {
+      LOG.error(
+          "Error thrown when handling {} {}",
+          BeamFnApi.InstructionRequest.class.getSimpleName(),
+          value.getInstructionId(),
+          e);
+      throw e;
     }
   }
 
@@ -169,7 +183,7 @@ public class BeamFnControlClient {
 
   private BeamFnApi.InstructionResponse.Builder missingHandler(
       BeamFnApi.InstructionRequest request) {
-    return BeamFnApi.InstructionResponse.newBuilder().setError(
-        String.format("Unknown InstructionRequest type %s", request.getRequestCase()));
+    return BeamFnApi.InstructionResponse.newBuilder()
+        .setError(String.format("Unknown InstructionRequest type %s", request.getRequestCase()));
   }
 }
