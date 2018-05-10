@@ -45,31 +45,45 @@ import org.apache.beam.sdk.util.WindowedValue;
  * <p>Simple map functions are used in a large number of transforms, especially runner-managed
  * transforms, such as map_windows.
  *
- * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead
- * of using the {@link FnApiDoFnRunner} instance.
+ * <p>TODO: Add support for DoFns which are actually user supplied map/lambda functions instead of
+ * using the {@link FnApiDoFnRunner} instance.
  */
 public class MapFnRunner<InputT, OutputT> {
 
-  public static <InputT, OutputT> PTransformRunnerFactory<?>
-      createMapFnRunnerFactoryWith(
-          CreateMapFunctionForPTransform<InputT, OutputT> fnFactory) {
+  public static <InputT, OutputT> PTransformRunnerFactory<?> forValueMapFnFactory(
+      ValueMapFnFactory<InputT, OutputT> fnFactory) {
+    return forMapFnFactory(new ValueOnlyWindowedValueMapFnFactory<>(fnFactory));
+  }
+
+  public static <InputT, OutputT> PTransformRunnerFactory<?> forMapFnFactory(
+      WindowedValueMapFnFactory<InputT, OutputT> fnFactory) {
     return new Factory<>(fnFactory);
   }
 
   /** A function factory which given a PTransform returns a map function. */
-  public interface CreateMapFunctionForPTransform<InputT, OutputT> {
-    ThrowingFunction<InputT, OutputT> createMapFunctionForPTransform(
-        String ptransformId,
-        PTransform pTransform) throws IOException;
+  public interface ValueMapFnFactory<InputT, OutputT> {
+    ThrowingFunction<InputT, OutputT> forPTransform(String ptransformId, PTransform pTransform)
+        throws IOException;
+  }
+
+  /**
+   * A function factory which given a PTransform returns a map function over the entire {@link
+   * WindowedValue} of input and output elements.
+   *
+   * <p>{@link WindowedValue Windowed Values} will only ever be in a single window.
+   */
+  public interface WindowedValueMapFnFactory<InputT, OutputT> {
+    ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> forPTransform(
+        String ptransformId, PTransform ptransform) throws IOException;
   }
 
   /** A factory for {@link MapFnRunner}s. */
-  static class Factory<InputT, OutputT>
+  private static class Factory<InputT, OutputT>
       implements PTransformRunnerFactory<MapFnRunner<InputT, OutputT>> {
 
-    private final CreateMapFunctionForPTransform<InputT, OutputT> fnFactory;
+    private final WindowedValueMapFnFactory<InputT, OutputT> fnFactory;
 
-    Factory(CreateMapFunctionForPTransform<InputT, OutputT> fnFactory) {
+    private Factory(WindowedValueMapFnFactory<InputT, OutputT> fnFactory) {
       this.fnFactory = fnFactory;
     }
 
@@ -86,15 +100,17 @@ public class MapFnRunner<InputT, OutputT> {
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+        Consumer<ThrowingRunnable> addFinishFunction)
+        throws IOException {
 
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection) pCollectionIdsToConsumers.get(
-              getOnlyElement(pTransform.getOutputsMap().values()));
+          (Collection)
+              pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
 
-      MapFnRunner<InputT, OutputT> runner = new MapFnRunner<>(
-          fnFactory.createMapFunctionForPTransform(pTransformId, pTransform),
-          MultiplexingFnDataReceiver.forConsumers(consumers));
+      MapFnRunner<InputT, OutputT> runner =
+          new MapFnRunner<>(
+              fnFactory.forPTransform(pTransformId, pTransform),
+              MultiplexingFnDataReceiver.forConsumers(consumers));
 
       pCollectionIdsToConsumers.put(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
@@ -103,18 +119,49 @@ public class MapFnRunner<InputT, OutputT> {
     }
   }
 
-  private final ThrowingFunction<InputT, OutputT> mapFunction;
+  private final ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> mapFunction;
   private final FnDataReceiver<WindowedValue<OutputT>> consumer;
 
   MapFnRunner(
-      ThrowingFunction<InputT, OutputT> mapFunction,
+      ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> mapFunction,
       FnDataReceiver<WindowedValue<OutputT>> consumer) {
     this.mapFunction = mapFunction;
     this.consumer = consumer;
   }
 
   public void map(WindowedValue<InputT> element) throws Exception {
-    WindowedValue<OutputT> output = element.withValue(mapFunction.apply(element.getValue()));
-    consumer.accept(output);
+    for (WindowedValue<InputT> explodedElement : element.explodeWindows()) {
+      WindowedValue<OutputT> output = mapFunction.apply(explodedElement);
+      consumer.accept(output);
+    }
+  }
+
+  private static class ValueOnlyWindowedValueMapFnFactory<InputT, OutputT>
+      implements WindowedValueMapFnFactory<InputT, OutputT> {
+    private final ValueMapFnFactory<InputT, OutputT> wrapped;
+
+    private ValueOnlyWindowedValueMapFnFactory(ValueMapFnFactory<InputT, OutputT> wrapped) {
+      this.wrapped = wrapped;
+    }
+
+    @Override
+    public ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> forPTransform(
+        String ptransformId, PTransform ptransform) throws IOException {
+      return new WrappingFn<>(wrapped.forPTransform(ptransformId, ptransform));
+    }
+
+    private static class WrappingFn<InputT, OutputT>
+        implements ThrowingFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
+      private final ThrowingFunction<InputT, OutputT> fn;
+
+      private WrappingFn(ThrowingFunction<InputT, OutputT> fn) {
+        this.fn = fn;
+      }
+
+      @Override
+      public WindowedValue<OutputT> apply(WindowedValue<InputT> value) throws Exception {
+        return value.withValue(fn.apply(value.getValue()));
+      }
+    }
   }
 }
