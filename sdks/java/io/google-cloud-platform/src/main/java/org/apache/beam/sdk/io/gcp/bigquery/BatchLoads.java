@@ -540,8 +540,9 @@ class BatchLoads<DestinationT>
   }
 
   private WriteResult writeResult(Pipeline p) {
-    PCollection<TableRow> empty =
-        p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
+    PCollection<BigQueryInsertError> empty =
+        p.apply(
+            "CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(BigQueryInsertError.class)));
     return WriteResult.in(p, new TupleTag<>("failedInserts"), empty);
   }
 

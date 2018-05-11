@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -28,17 +27,17 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/**
- * The result of a {@link BigQueryIO.Write} transform.
- */
+/** The result of a {@link BigQueryIO.Write} transform. */
 public final class WriteResult implements POutput {
   private final Pipeline pipeline;
-  private final TupleTag<TableRow> failedInsertsTag;
-  private final PCollection<TableRow> failedInserts;
+  private final TupleTag<BigQueryInsertError> failedInsertsTag;
+  private final PCollection<BigQueryInsertError> failedInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
-      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
+      Pipeline pipeline,
+      TupleTag<BigQueryInsertError> failedInsertsTag,
+      PCollection<BigQueryInsertError> failedInserts) {
     return new WriteResult(pipeline, failedInsertsTag, failedInserts);
   }
 
@@ -48,13 +47,15 @@ public final class WriteResult implements POutput {
   }
 
   private WriteResult(
-      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
+      Pipeline pipeline,
+      TupleTag<BigQueryInsertError> failedInsertsTag,
+      PCollection<BigQueryInsertError> failedInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
   }
 
-  public PCollection<TableRow> getFailedInserts() {
+  public PCollection<BigQueryInsertError> getFailedInserts() {
     return failedInserts;
   }
 

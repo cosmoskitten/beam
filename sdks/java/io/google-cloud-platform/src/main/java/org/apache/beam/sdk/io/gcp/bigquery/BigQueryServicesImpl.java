@@ -656,11 +656,15 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
-                   @Nullable List<String> insertIdList,
-                   BackOff backoff, final Sleeper sleeper, InsertRetryPolicy retryPolicy,
-                   List<ValueInSingleWindow<TableRow>> failedInserts)
-        throws IOException, InterruptedException {
+    long insertAll(
+        TableReference ref,
+        List<ValueInSingleWindow<TableRow>> rowList,
+        @Nullable List<String> insertIdList,
+        BackOff backoff,
+        final Sleeper sleeper,
+        InsertRetryPolicy retryPolicy,
+        List<ValueInSingleWindow<BigQueryInsertError>> failedInserts)
+        throws IOException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -760,7 +764,12 @@ class BigQueryServicesImpl implements BigQueryServices {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
               } else {
-                failedInserts.add(rowsToPublish.get(errorIndex));
+                ValueInSingleWindow<TableRow> row = rowsToPublish.get(errorIndex);
+                BigQueryInsertError insertError =
+                    new BigQueryInsertError(row.getValue(), error, ref);
+                failedInserts.add(
+                    ValueInSingleWindow.of(
+                        insertError, row.getTimestamp(), row.getWindow(), row.getPane()));
               }
             }
           }
@@ -801,8 +810,9 @@ class BigQueryServicesImpl implements BigQueryServices {
     public long insertAll(
         TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
-        InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
-        throws IOException, InterruptedException {
+        InsertRetryPolicy retryPolicy,
+        List<ValueInSingleWindow<BigQueryInsertError>> failedInserts)
+        throws IOException {
       return insertAll(
           ref, rowList, insertIdList,
           BackOffAdapter.toGcpBackOff(

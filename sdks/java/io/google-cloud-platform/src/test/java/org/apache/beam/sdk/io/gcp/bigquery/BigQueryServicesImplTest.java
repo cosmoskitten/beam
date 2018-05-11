@@ -649,8 +649,9 @@ public class BigQueryServicesImplTest {
   public void testInsertRetryPolicy() throws InterruptedException, IOException {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
-        wrapTableRow(new TableRow()), wrapTableRow(new TableRow()));
+    List<ValueInSingleWindow<TableRow>> rows =
+        ImmutableList.of(
+            wrapTableRow(new TableRow().set("a", "1")), wrapTableRow(new TableRow().set("a", "2")));
 
     // First time row0 fails with a retryable error, and row1 fails with a persistent error.
     final TableDataInsertAllResponse firstFailure = new TableDataInsertAllResponse()
@@ -683,11 +684,22 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
-    dataService.insertAll(ref, rows, null,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
-        InsertRetryPolicy.retryTransientErrors(), failedInserts);
+    List<ValueInSingleWindow<BigQueryInsertError>> failedInserts = Lists.newArrayList();
+    dataService.insertAll(
+        ref,
+        rows,
+        null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+        new MockSleeper(),
+        InsertRetryPolicy.retryTransientErrors(),
+        failedInserts);
+
     assertEquals(1, failedInserts.size());
+    BigQueryInsertError bqie = failedInserts.get(0).getValue();
+    assertEquals(firstFailure.getInsertErrors().get(1), bqie.getError());
+    assertEquals(rows.get(1).getValue(), bqie.getRow());
+    assertEquals(ref, bqie.getTable());
+
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 

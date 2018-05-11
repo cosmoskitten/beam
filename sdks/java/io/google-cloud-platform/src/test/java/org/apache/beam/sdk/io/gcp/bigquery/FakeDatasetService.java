@@ -217,7 +217,7 @@ class FakeDatasetService implements DatasetService, Serializable {
   public long insertAll(
       TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
       @Nullable List<String> insertIdList,
-      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
+      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<BigQueryInsertError>> failedInserts)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -249,7 +249,12 @@ class FakeDatasetService implements DatasetService, Serializable {
         if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
         } else {
-          failedInserts.add(rowList.get(i));
+          ValueInSingleWindow<TableRow> r = rowList.get(i);
+          BigQueryInsertError insertError =
+              new BigQueryInsertError(r.getValue(), allErrors.get(i), ref);
+          failedInserts.add(
+              ValueInSingleWindow.of(
+                  insertError, r.getTimestamp(), r.getWindow(), r.getPane()));
         }
       }
       return dataSize;
