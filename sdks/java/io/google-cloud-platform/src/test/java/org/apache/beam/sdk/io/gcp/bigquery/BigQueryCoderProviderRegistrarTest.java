@@ -37,4 +37,9 @@ public class BigQueryCoderProviderRegistrarTest {
   public void testTableRowInfoCoderIsRegistered() throws Exception {
     CoderRegistry.createDefault().getCoder(TableRowInfo.class);
   }
+
+  @Test
+  public void testBigQueryInsertErrorCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getCoder(BigQueryInsertError.class);
+  }
 }
