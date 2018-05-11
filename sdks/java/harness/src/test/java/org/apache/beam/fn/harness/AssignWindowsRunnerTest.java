@@ -21,12 +21,20 @@
 
 package org.apache.beam.fn.harness;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.ListMultimap;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import org.apache.beam.fn.harness.AssignWindowsRunner.AssignWindowsMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
@@ -34,6 +42,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -45,6 +54,7 @@ import org.apache.beam.sdk.transforms.windowing.PartitioningWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -133,12 +143,121 @@ public class AssignWindowsRunnerTest implements Serializable {
   }
 
   @Test
+  public void multipleInputWindowsAsMapFnSucceeds() throws Exception {
+    IntervalWindow intervalWindow =
+        new IntervalWindow(new Instant(-500), Duration.standardMinutes(3));
+    WindowFn<Object, BoundedWindow> windowFn =
+        new WindowFn<Object, BoundedWindow>() {
+          @Override
+          public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
+            return ImmutableList.of(GlobalWindow.INSTANCE, intervalWindow);
+          }
+
+          @Override
+          public void mergeWindows(MergeContext c) throws Exception {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public boolean isCompatible(WindowFn<?, ?> other) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public Coder<BoundedWindow> windowCoder() {
+            throw new UnsupportedOperationException();
+          }
+        };
+    Collection<WindowedValue<?>> outputs = new ArrayList<>();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> receivers = ArrayListMultimap.create();
+    receivers.put("output", outputs::add);
+    MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
+        .createRunnerForPTransform(
+            null,
+            null,
+            null,
+            null,
+            PTransform.newBuilder()
+                .putInputs("in", "input")
+                .putOutputs("out", "output")
+                .setSpec(
+                    FunctionSpec.newBuilder()
+                        .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
+                        .setPayload(
+                            WindowIntoPayload.newBuilder()
+                                .setWindowFn(
+                                    WindowingStrategyTranslation.toProto(
+                                        windowFn, SdkComponents.create()))
+                                .build()
+                                .toByteString()))
+                .build(),
+            null,
+            null,
+            null,
+            null,
+            receivers,
+            null,
+            null);
+
+    WindowedValue<Integer> value =
+        WindowedValue.of(
+            2,
+            new Instant(-10L),
+            ImmutableList.of(
+                new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
+                new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    Iterables.getOnlyElement(receivers.get("input")).accept(value);
+    assertThat(
+        outputs,
+        containsInAnyOrder(
+            WindowedValue.of(
+                2, new Instant(-10L), intervalWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValue.of(
+                2, new Instant(-10L), intervalWindow, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValue.of(
+                2, new Instant(-10L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValue.of(
+                2, new Instant(-10L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+  }
+
+  @Test
   public void multipleInputWindowsThrows() throws Exception {
-    WindowFn<Object, IntervalWindow> windowFn =
-        SlidingWindows.of(Duration.standardMinutes(4L)).every(Duration.standardMinutes(2L));
+    WindowFn<Object, BoundedWindow> windowFn =
+        new WindowFn<Object, BoundedWindow>() {
+          @Override
+          public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
+            return Collections.singleton(c.window());
+          }
 
-    AssignWindowsRunner<Integer, IntervalWindow> runner = AssignWindowsRunner.create(windowFn);
+          @Override
+          public void mergeWindows(MergeContext c) throws Exception {
+            throw new UnsupportedOperationException();
+          }
 
+          @Override
+          public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public boolean isCompatible(WindowFn<?, ?> other) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public Coder<BoundedWindow> windowCoder() {
+            throw new UnsupportedOperationException();
+          }
+        };
+    AssignWindowsRunner<Integer, BoundedWindow> runner = AssignWindowsRunner.create(windowFn);
+
+    thrown.expect(IllegalArgumentException.class);
     runner.assignWindows(
         WindowedValue.of(
             2,
