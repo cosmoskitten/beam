@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Struct;
 import io.grpc.Status;
