@@ -20,9 +20,13 @@
 For internal use only. No backwards compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import logging
 import threading
 import weakref
+from builtins import next
+from builtins import object
 from multiprocessing.pool import ThreadPool
 
 
@@ -50,6 +54,9 @@ class ArgumentPlaceholder(object):
     equal to each other.
     """
     return isinstance(other, ArgumentPlaceholder)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 def remove_objects_from_args(args, kwargs, pvalue_classes):
