@@ -75,8 +75,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
@@ -165,7 +167,6 @@ public class BigQueryIOWriteTest implements Serializable {
   public void tearDown() throws IOException {
     testNumFiles(new File(options.getTempLocation()), 0);
   }
-
 
   // Create an intermediate type to ensure that coder inference up the inheritance tree is tested.
   abstract static class StringIntegerDestinations extends DynamicDestinations<String, Integer> {
@@ -455,7 +456,7 @@ public class BigQueryIOWriteTest implements Serializable {
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
 
-    PCollection<TableRow> failedRows =
+    PCollection<BigQueryInsertError> failedRows =
         p.apply(Create.of(row1, row2, row3))
             .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -469,7 +470,17 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation()).getFailedInserts();
     // row2 finally fails with a non-retryable error, so we expect to see it in the collection of
     // failed rows.
-    PAssert.that(failedRows).containsInAnyOrder(row2);
+    PAssert.that(
+            failedRows.apply(
+                ParDo.of(
+                    new DoFn<BigQueryInsertError, TableRow>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element().getRow());
+                      }
+                    })))
+        .containsInAnyOrder(row2);
+
     p.run();
 
     // Only row1 and row3 were successfully inserted.
@@ -1071,7 +1082,6 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       partitions = tester.takeOutputElements(singlePartitionTag);
     }
-
 
     List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
     Map<String, List<String>> filesPerTableResult = Maps.newHashMap();

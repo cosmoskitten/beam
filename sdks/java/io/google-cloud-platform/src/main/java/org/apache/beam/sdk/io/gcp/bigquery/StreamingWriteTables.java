@@ -90,7 +90,7 @@ public class StreamingWriteTables extends PTransform<
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
     TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
-    TupleTag<TableRow> failedInsertsTag = new TupleTag<>("failedInserts");
+    TupleTag<BigQueryInsertError> failedInsertsTag = new TupleTag<>("failedInserts");
     PCollectionTuple tuple =
         tagged
             .apply(Reshuffle.of())
@@ -105,8 +105,8 @@ public class StreamingWriteTables extends PTransform<
                 "StreamingWrite",
                 ParDo.of(new StreamingWriteFn(bigQueryServices, retryPolicy, failedInsertsTag))
                     .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
-    PCollection<TableRow> failedInserts = tuple.get(failedInsertsTag);
-    failedInserts.setCoder(TableRowJsonCoder.of());
+    PCollection<BigQueryInsertError> failedInserts = tuple.get(failedInsertsTag);
+    failedInserts.setCoder(BigQueryInsertErrorCoder.of());
     return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
   }
 }
