@@ -43,9 +43,8 @@ from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
-from apache_beam.runners.portability import artifact_service_client
 from apache_beam.runners.portability import fn_api_runner
-from apache_beam.runners.portability import stager
+from apache_beam.runners.portability import portable_stager
 
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
@@ -192,15 +191,13 @@ class UniversalLocalRunner(runner.PipelineRunner):
     run_response = job_service.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
     if self._stage_resources:
-      with artifact_service_client.ArtifactStagingFileHandler(
+      resource_stager = portable_stager.PortableStager(
           artifact_service_channel=grpc.insecure_channel(
-              prepare_response.artifact_staging_endpoint.url)) as file_handler:
-        resource_stager = stager.Stager(file_handler=file_handler)
-        # TODO(angoenka): Plumb in pipeline options.
-        # Artifact service will decide the staging location.
-        options = pipeline_options.PipelineOptions()
-        resource_stager.stage_job_resources(
-            options=options, staging_location='')
+              prepare_response.artifact_staging_endpoint.url))
+      # TODO(angoenka): Plumb in pipeline options.
+      # Artifact service will decide the staging location.
+      options = pipeline_options.PipelineOptions()
+      resource_stager.stage_job_resources(options=options, staging_location='')
     return PipelineResult(job_service, run_response.job_id)
 
 
