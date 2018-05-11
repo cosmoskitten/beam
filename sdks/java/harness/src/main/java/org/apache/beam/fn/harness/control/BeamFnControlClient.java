@@ -22,6 +22,7 @@ import static com.google.common.base.Throwables.getStackTraceAsString;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
 import java.util.concurrent.BlockingDeque;
@@ -143,7 +144,16 @@ public class BeamFnControlClient {
     while ((request = bufferedInstructions.take()) != POISON_PILL) {
       BeamFnApi.InstructionRequest currentRequest = request;
       executor.execute(
-          () -> sendInstructionResponse(delegateOnInstructionRequestType(currentRequest)));
+          () -> {
+            try {
+              BeamFnApi.InstructionResponse response =
+                  delegateOnInstructionRequestType(currentRequest);
+              sendInstructionResponse(response);
+            } catch (Error e) {
+              sendErrorResponse(e);
+              throw e;
+            }
+          });
     }
     onFinish.get();
   }
@@ -179,6 +189,12 @@ public class BeamFnControlClient {
   public void sendInstructionResponse(BeamFnApi.InstructionResponse value) {
     LOG.debug("Sending InstructionResponse {}", value);
     outboundObserver.onNext(value);
+  }
+
+  private void sendErrorResponse(Error e) {
+    outboundObserver.onError(e);
+    onFinish.completeExceptionally(Status.fromThrowable(e).asException());
+    // TODO: Should this clear out the instruction request queue?
   }
 
   private BeamFnApi.InstructionResponse.Builder missingHandler(
