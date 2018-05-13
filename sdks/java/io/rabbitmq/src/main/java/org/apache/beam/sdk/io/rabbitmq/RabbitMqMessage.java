@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -185,7 +186,7 @@ public class RabbitMqMessage implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(routingKey,
-        body,
+        Arrays.hashCode(body),
         contentType,
         contentEncoding,
         deliveryMode,
