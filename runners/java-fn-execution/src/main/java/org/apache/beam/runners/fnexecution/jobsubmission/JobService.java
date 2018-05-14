@@ -265,6 +265,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
 
   @Override
   public void close() throws Exception {
+    // TODO: refactor this once we have shifted to multi-job artifact staging services
     for (JobPreparation preparation : ImmutableList.copyOf(preparations.values())) {
       try {
         preparation.stagingService().close();
@@ -272,7 +273,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
         LOG.warn("Exception while closing job {}", preparation);
       }
     }
-    // TODO: should we cancel managed jobs when this gets closed?
+    // TODO: throw error if jobs are running
   }
 
   private JobInvocation getInvocation(String invocationId) throws StatusException {
