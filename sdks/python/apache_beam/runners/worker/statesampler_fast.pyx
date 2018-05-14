@@ -98,7 +98,7 @@ cdef class StateSampler(object):
     self.time_since_transition = 0
     self.state_transition_count = 0
     unknown_state = ScopedState(
-        self, CounterName('unknown'), self.current_state_index)
+        self, CounterName('unknown'), None, self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
     pythread.PyThread_release_lock(self.lock)
@@ -156,7 +156,7 @@ cdef class StateSampler(object):
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]
 
-  cpdef _scoped_state(self, counter_name, output_counter,
+  cpdef _scoped_state(self, counter_name, name_context, output_counter,
                       metrics_container=None):
     """Returns a context manager managing transitions for a given state.
     Args:
@@ -171,6 +171,7 @@ cdef class StateSampler(object):
     new_state_index = len(self.scoped_states_by_index)
     scoped_state = ScopedState(self,
                                counter_name,
+                               name_context,
                                new_state_index,
                                output_counter,
                                metrics_container)
@@ -193,11 +194,13 @@ cdef class ScopedState(object):
   cdef readonly int64_t _nsecs
   cdef int32_t old_state_index
   cdef readonly MetricsContainer _metrics_container
+  cdef readonly object name_context
 
   def __init__(
-      self, sampler, name, state_index, counter=None, metrics_container=None):
+      self, sampler, name, step_name_context, state_index, counter=None, metrics_container=None):
     self.sampler = sampler
     self.name = name
+    self.name_context = step_name_context
     self.state_index = state_index
     self.counter = counter
     self._metrics_container = metrics_container
