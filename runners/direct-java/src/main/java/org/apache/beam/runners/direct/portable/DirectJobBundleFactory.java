@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -45,6 +44,8 @@ import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -61,6 +62,8 @@ class DirectJobBundleFactory implements JobBundleFactory {
   private final ConcurrentMap<Environment, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
+  private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
+
   DirectJobBundleFactory(
       EnvironmentFactory environmentFactory,
       GrpcFnServer<GrpcDataService> dataService,
@@ -75,8 +78,6 @@ class DirectJobBundleFactory implements JobBundleFactory {
     return (StageBundleFactory<T>)
         stageBundleFactories.computeIfAbsent(executableStage, this::createBundleFactory);
   }
-
-  private final AtomicLong idgen = new AtomicLong();
 
   private <T> StageBundleFactory<T> createBundleFactory(ExecutableStage stage) {
     RemoteEnvironment remoteEnv =
@@ -96,7 +97,7 @@ class DirectJobBundleFactory implements JobBundleFactory {
     try {
       descriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              Long.toString(idgen.getAndIncrement()), stage, dataService.getApiServiceDescriptor());
+              idGenerator.getId(), stage, dataService.getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
