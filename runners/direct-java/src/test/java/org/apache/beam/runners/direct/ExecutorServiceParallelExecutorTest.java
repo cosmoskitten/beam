@@ -57,7 +57,7 @@ public class ExecutorServiceParallelExecutorTest {
   @Rule public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  //  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void ensureMetricsThreadDoesntLeak() {
     final DirectGraph graph = DirectGraph
         .create(emptyMap(), emptyMap(), LinkedListMultimap.create(), emptySet(), emptyMap());
@@ -83,6 +83,8 @@ public class ExecutorServiceParallelExecutorTest {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     }
+    throw new RuntimeException("fake exception " + metricsExecutorService.showMessages());
+/*
     if (!metricsExecutorService.isTerminated()) {
       if (metricsExecutorService.isTerminating()) {
         throw new RuntimeException(String.format(
@@ -94,10 +96,11 @@ public class ExecutorServiceParallelExecutorTest {
                 metricsExecutorService.showMessages()));
       }
     }
+*/
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+//  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void testNoThreadsLeakInPipelineExecution() {
     pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
