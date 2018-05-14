@@ -24,6 +24,8 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -88,19 +90,12 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       LOG.trace("{} {}", PrepareJobRequest.class.getSimpleName(), request);
       // insert preparation
       String preparationId =
-          String.format("%s_%d", request.getJobName(), ThreadLocalRandom.current().nextInt());
+          String.format("%s_%s", request.getJobName(), UUID.randomUUID().toString());
       GrpcFnServer<ArtifactStagingService> stagingService =
           artifactStagingServiceProvider.forJob(preparationId);
       Struct pipelineOptions = request.getPipelineOptions();
       if (pipelineOptions == null) {
-        LOG.trace("PIPELINE OPTIONS IS NULL");
         throw new NullPointerException("Encountered null pipeline options.");
-            /*
-        LOG.debug("Encountered null pipeline options.  Using default.");
-        pipelineOptions = Struct.getDefaultInstance();
-        */
-      } else {
-        LOG.trace("PIPELINE OPTIONS IS NOT NULL");
       }
       LOG.trace("PIPELINE OPTIONS {} {}", pipelineOptions.getClass(), pipelineOptions);
       JobPreparation preparation =
@@ -113,6 +108,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
               .build();
       JobPreparation previous = preparations.putIfAbsent(preparationId, preparation);
       if (previous != null) {
+        // this should never happen with a UUID
         String errMessage =
             String.format("A job with the preparation ID \"%s\" already exists.", preparationId);
         StatusException exception = Status.NOT_FOUND.withDescription(errMessage).asException();
