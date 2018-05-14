@@ -227,8 +227,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       Function<JobState.Enum, GetJobStateResponse> responseFunction =
           state -> GetJobStateResponse.newBuilder().setState(state).build();
       Consumer<JobState.Enum> stateListener =
-          TransformConsumer.create(
-              responseFunction, StreamObserverConsumer.create(responseObserver));
+          state -> responseObserver.onNext(responseFunction.apply(state));
       invocation.addStateListener(stateListener);
     } catch (Exception e) {
       String errMessage =
@@ -245,24 +244,18 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      // synchronization is necessary since we are multiplexing this stream observer.
-      responseObserver = SynchronizedStreamObserver.wrapping(responseObserver);
-
-      Function<JobState.Enum, JobMessagesResponse> stateResponseFunction =
-          state ->
-              JobMessagesResponse
-                  .newBuilder()
-                  .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
-                  .build();
+      // synchronization is necessary since we use this stream observer in both the state listener
+      // and message listener.
+      StreamObserver<JobMessagesResponse> syncResponseObserver =
+          SynchronizedStreamObserver.wrapping(responseObserver);
       Consumer<JobState.Enum> stateListener =
-          TransformConsumer.create(
-              stateResponseFunction, StreamObserverConsumer.create(responseObserver));
-
-      Function<JobMessage, JobMessagesResponse> messagesResponseFunction =
-          message -> JobMessagesResponse.newBuilder().setMessageResponse(message).build();
+          state -> syncResponseObserver.onNext(
+              JobMessagesResponse.newBuilder().setStateResponse(
+                  GetJobStateResponse.newBuilder().setState(state).build()
+              ).build());
       Consumer<JobMessage> messageListener =
-          TransformConsumer.create(
-              messagesResponseFunction, StreamObserverConsumer.create(responseObserver));
+          message -> syncResponseObserver.onNext(
+              JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
@@ -292,49 +285,5 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       throw Status.NOT_FOUND.asException();
     }
     return invocation;
-  }
-
-  /**
-   * Forward inputs to a StreamObserver.
-   */
-  private static class StreamObserverConsumer<T> implements Consumer<T> {
-    public static <T> StreamObserverConsumer<T> create(StreamObserver<T> sink) {
-      return new StreamObserverConsumer<>(sink);
-    }
-
-    private final StreamObserver<T> sink;
-
-    private StreamObserverConsumer(StreamObserver<T> sink) {
-      this.sink = sink;
-    }
-
-    @Override
-    public void accept(T i) {
-      sink.onNext(i);
-    }
-  }
-
-  /**
-   * Transform inputs from type T1 to type T2 using a transform function before forwarding to a sink
-   * Consumer.
-   */
-  private static class TransformConsumer<T1, T2> implements Consumer<T1> {
-    public static <T1, T2> TransformConsumer<T1, T2> create(
-        Function<T1, T2> transform, Consumer<T2> sink) {
-      return new TransformConsumer<>(transform, sink);
-    }
-
-    private final Function<T1, T2> transform;
-    private final Consumer<T2> sink;
-
-    private TransformConsumer(Function<T1, T2> transform, Consumer<T2> sink) {
-      this.transform = transform;
-      this.sink = sink;
-    }
-
-    @Override
-    public void accept(T1 i) {
-      this.sink.accept(transform.apply(i));
-    }
   }
 }
