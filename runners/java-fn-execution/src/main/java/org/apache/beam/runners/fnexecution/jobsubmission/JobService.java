@@ -113,11 +113,10 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
               .build();
       JobPreparation previous = preparations.putIfAbsent(preparationId, preparation);
       if (previous != null) {
-        // retry recursively in the unlikely case of a name collision.
         String errMessage =
-            String.format("Name collision for preparation ID \"%s\". Retrying.", preparationId);
-        LOG.warn(errMessage);
-        prepare(request, responseObserver);
+            String.format("A job with the preparation ID \"%s\" already exists.", preparationId);
+        StatusException exception = Status.NOT_FOUND.withDescription(errMessage).asException();
+        responseObserver.onError(exception);
         return;
       }
 
