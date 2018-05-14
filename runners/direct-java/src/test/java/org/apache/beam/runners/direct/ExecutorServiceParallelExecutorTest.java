@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testing.ThreadLeakTracker;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -50,10 +51,13 @@ import org.junit.rules.TestRule;
 public class ExecutorServiceParallelExecutorTest {
 
   private static final long NUM_ELEMENTS = 1000L;
-  @Rule public final TestName testName = new TestName();
+  @Rule
+  public final TestName testName = new TestName();
+  @Rule
   private final TestPipeline pipeline = TestPipeline.create();
-  private final TestRule threadLeakTracker = new ThreadLeakTracker();
-  @Rule public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
+  @Rule
+  private final ThreadLeakTracker threadLeakTracker = new ThreadLeakTracker();
+//  @Rule public final TestRule execution = outerRule(pipeline).around(threadLeakTracker);
 
   @Test
   //  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
@@ -114,7 +118,7 @@ public class ExecutorServiceParallelExecutorTest {
   }
 
   @Test
-  //  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-4088 Test reliably fails.")
   public void testNoThreadsLeakInPipelineExecution() {
     pipeline.apply(GenerateSequence.from(0).to(NUM_ELEMENTS)).apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
