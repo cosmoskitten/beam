@@ -153,7 +153,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       }
 
       // create new invocation
-      JobInvocation invocation = invoker.invoke(preparation, request.getStagingToken());
+      JobInvocation invocation =
+          invoker.invoke(preparation.pipeline(), preparation.options(), request.getStagingToken());
       String invocationId = invocation.getId();
       invocation.start();
       invocations.put(invocationId, invocation);
