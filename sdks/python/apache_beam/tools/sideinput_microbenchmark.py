@@ -52,7 +52,6 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
     with state_sampler.scoped_state('step1', 'state'):
       si_counter = opcounters.SideInputReadCounter(
           counter_factory, state_sampler, 'step1', 1)
-      si_counter = opcounters.NoOpTransformIOCounter()
       sources = [
           FakeSource(long_generator(i, input_per_source))
           for i in range(num_sources)]
