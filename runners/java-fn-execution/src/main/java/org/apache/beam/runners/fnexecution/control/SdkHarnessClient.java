@@ -218,6 +218,7 @@ public class SdkHarnessClient implements AutoCloseable {
      * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them
      * to the SDK.
      */
+    @Override
     public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
       return inputReceiver;
     }

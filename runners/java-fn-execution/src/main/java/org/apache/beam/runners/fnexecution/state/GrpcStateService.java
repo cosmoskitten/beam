@@ -19,10 +19,14 @@ package org.apache.beam.runners.fnexecution.state;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
+import com.google.common.base.Throwables;
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
@@ -32,15 +36,31 @@ import org.apache.beam.runners.fnexecution.FnService;
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
   private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
+  private final ConcurrentLinkedQueue<Inbound> clients;
 
   public GrpcStateService()
       throws Exception {
     this.requestHandlers = new ConcurrentHashMap<>();
+    this.clients = new ConcurrentLinkedQueue<>();
   }
 
   @Override
-  public void close() {
-    // TODO: Track multiple clients and disconnect them cleanly instead of forcing termination
+  public void close() throws Exception {
+    Exception thrown = null;
+    for (Inbound inbound : clients) {
+      try {
+        inbound.outboundObserver.onCompleted();
+      } catch (Exception t) {
+        if (thrown == null) {
+          thrown = t;
+        } else {
+          thrown.addSuppressed(t);
+        }
+      }
+    }
+    if (thrown != null) {
+      throw thrown;
+    }
   }
 
   @Override
