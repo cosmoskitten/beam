@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -28,6 +27,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -85,7 +85,6 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class RabbitMqIO {
-
   public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder().setQueueDeclare(false)
         .setMaxReadTime(null).setMaxNumRecords(Long.MAX_VALUE).setUseCorrelationId(false).build();
@@ -102,7 +101,6 @@ public class RabbitMqIO {
           NoSuchAlgorithmException, KeyManagementException {
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri(uri);
-
     connectionFactory.setAutomaticRecoveryEnabled(true);
     connectionFactory.setConnectionTimeout(60000);
     connectionFactory.setNetworkRecoveryInterval(5000);
@@ -110,7 +108,6 @@ public class RabbitMqIO {
     connectionFactory.setTopologyRecoveryEnabled(true);
     connectionFactory.setRequestedChannelMax(0);
     connectionFactory.setRequestedFrameMax(0);
-
     return connectionFactory;
   }
 
@@ -119,14 +116,13 @@ public class RabbitMqIO {
    */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<RabbitMqMessage>> {
-
     @Nullable abstract String uri();
     @Nullable abstract String queue();
     abstract boolean queueDeclare();
     @Nullable abstract String exchange();
     @Nullable abstract String exchangeType();
     @Nullable abstract String routingKey();
-    @Nullable abstract Boolean useCorrelationId();
+    abstract boolean useCorrelationId();
     abstract long maxNumRecords();
     @Nullable abstract Duration maxReadTime();
 
@@ -140,7 +136,7 @@ public class RabbitMqIO {
       abstract Builder setExchange(String exchange);
       abstract Builder setExchangeType(String exchangeType);
       abstract Builder setRoutingKey(String routingKey);
-      abstract Builder setUseCorrelationId(Boolean useCorrelationId);
+      abstract Builder setUseCorrelationId(boolean useCorrelationId);
       abstract Builder setMaxNumRecords(long maxNumRecords);
       abstract Builder setMaxReadTime(Duration maxReadTime);
       abstract Read build();
@@ -176,7 +172,7 @@ public class RabbitMqIO {
 
     /**
      * Instead of consuming messages on a specific queue, you can consume message from a given
-     * exchange. Then you specify the exchange name, type and optionnally routing key where you
+     * exchange. Then you specify the exchange name, type and optionally routing key where you
      * want to consume messages.
      */
     public Read withExchange(String name, String type, String routingKey) {
@@ -214,22 +210,18 @@ public class RabbitMqIO {
 
       PTransform<PBegin, PCollection<RabbitMqMessage>> transform = unbounded;
 
-      if (maxNumRecords() != Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(maxNumRecords());
-      } else if (maxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(maxReadTime());
+      if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
     }
-
   }
 
   static class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpointMark> {
-
     final Read spec;
 
-    public RabbitMQSource(Read spec) {
+    RabbitMQSource(Read spec) {
       this.spec = spec;
     }
 
@@ -250,8 +242,8 @@ public class RabbitMqIO {
     }
 
     @Override
-    public UnboundedReader<RabbitMqMessage> createReader(PipelineOptions options,
-                                                RabbitMQCheckpointMark checkpointMark) {
+    public UnboundedReader<RabbitMqMessage> createReader(
+        PipelineOptions options, RabbitMQCheckpointMark checkpointMark) {
       return new UnboundedRabbitMqReader(this, checkpointMark);
     }
 
@@ -264,12 +256,10 @@ public class RabbitMqIO {
     public boolean requiresDeduping() {
       return spec.useCorrelationId();
     }
-
   }
 
-  static class RabbitMQCheckpointMark
+  private static class RabbitMQCheckpointMark
       implements UnboundedSource.CheckpointMark, Serializable {
-
     transient Channel channel;
     Instant oldestTimestamp;
     final List<Long> sessionIds = new ArrayList<>();
@@ -283,12 +273,10 @@ public class RabbitMqIO {
       oldestTimestamp = Instant.now();
       sessionIds.clear();
     }
-
   }
 
   private static class UnboundedRabbitMqReader
       extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
-
     private final RabbitMQSource source;
 
     private RabbitMqMessage current;
@@ -297,17 +285,12 @@ public class RabbitMqIO {
     private Channel channel;
     private QueueingConsumer consumer;
     private Instant currentTimestamp;
-    private RabbitMQCheckpointMark checkpointMark;
+    private final RabbitMQCheckpointMark checkpointMark;
 
-    public UnboundedRabbitMqReader(RabbitMQSource source,
-                                   RabbitMQCheckpointMark checkpointMark) {
+    UnboundedRabbitMqReader(RabbitMQSource source, RabbitMQCheckpointMark checkpointMark) {
       this.source = source;
       this.current = null;
-      if (checkpointMark != null) {
-        this.checkpointMark = checkpointMark;
-      } else {
-        this.checkpointMark = new RabbitMQCheckpointMark();
-      }
+      this.checkpointMark = checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark();
     }
 
     @Override
@@ -333,7 +316,7 @@ public class RabbitMqIO {
       if (currentRecordId != null) {
         return currentRecordId;
       } else {
-        return "".getBytes();
+        return "".getBytes(StandardCharsets.UTF_8);
       }
     }
 
@@ -355,21 +338,17 @@ public class RabbitMqIO {
 
     @Override
     public boolean start() throws IOException {
-      ConnectionFactory connectionFactory;
       try {
-        connectionFactory = createConnectionFactory(source.spec.uri());
-      } catch (Exception e) {
-        throw new IOException(e);
-      }
-      try {
+        ConnectionFactory connectionFactory = createConnectionFactory(source.spec.uri());
         connection = connectionFactory.newConnection();
         channel = connection.createChannel();
         if (channel == null) {
           throw new IOException("No RabbitMQ channel available");
         }
+
         String queueName = source.spec.queue();
         if (source.spec.queueDeclare()) {
-          // declare the quueue (if not done by another application)
+          // declare the queue (if not done by another application)
           // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
           channel.queueDeclare(queueName, false, false, false, null);
         }
@@ -401,11 +380,12 @@ public class RabbitMqIO {
             throw new IOException("RabbitMqIO.Read uses message correlation ID, but received "
                 + "message has a null correlation ID");
           }
-          currentRecordId = correlationId.getBytes();
+          currentRecordId = correlationId.getBytes(StandardCharsets.UTF_8);
         }
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         checkpointMark.sessionIds.add(deliveryTag);
-        RabbitMqMessage message = new RabbitMqMessage(
+
+        current = new RabbitMqMessage(
             source.spec.routingKey(),
             delivery.getBody(),
             delivery.getProperties().getContentType(),
@@ -423,8 +403,6 @@ public class RabbitMqIO {
             delivery.getProperties().getAppId(),
             delivery.getProperties().getClusterId()
         );
-
-        current = message;
         currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
@@ -456,7 +434,6 @@ public class RabbitMqIO {
    */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<RabbitMqMessage>, PDone> {
-
     @Nullable abstract String uri();
     @Nullable abstract String exchange();
     @Nullable abstract String exchangeType();
@@ -506,13 +483,12 @@ public class RabbitMqIO {
     }
 
     private static class WriteFn extends DoFn<RabbitMqMessage, Void> {
-
       private final Write spec;
 
       private transient Connection connection;
       private transient Channel channel;
 
-      public WriteFn(Write spec) {
+      WriteFn(Write spec) {
         this.spec = spec;
       }
 
@@ -531,14 +507,13 @@ public class RabbitMqIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext) throws IOException {
-        RabbitMqMessage element = processContext.element();
-        AMQP.BasicProperties properties = element.createProperties();
+      public void processElement(ProcessContext c) throws IOException {
+        RabbitMqMessage message = c.element();
         channel.basicPublish(
             spec.exchange(),
-            element.getRoutingKey(),
-            properties,
-            element.getBody());
+            message.getRoutingKey(),
+            message.createProperties(),
+            message.getBody());
       }
 
       @Teardown
@@ -550,9 +525,6 @@ public class RabbitMqIO {
           connection.close();
         }
       }
-
     }
-
   }
-
 }
