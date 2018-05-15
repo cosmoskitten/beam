@@ -18,10 +18,9 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import com.google.protobuf.Struct;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-
 import java.io.IOException;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
  * Factory to create a {@link JobInvocation} instances.
