@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -248,7 +247,8 @@ public class RowTest {
         .put(1, Row.withSchema(nestedType).addValues("one").build())
         .put(2, Row.withSchema(nestedType).addValues("two").build())
         .build();
-    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type().withMapType(TypeName.INT32.type(),
+    Schema type = Stream.of(Schema.Field.of("map", TypeName.MAP.type()
+        .withMapType(TypeName.INT32.type(),
         TypeName.ROW.type().withRowSchema(nestedType)))).collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));

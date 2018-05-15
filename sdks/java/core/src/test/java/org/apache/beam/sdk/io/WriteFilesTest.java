@@ -37,7 +37,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
