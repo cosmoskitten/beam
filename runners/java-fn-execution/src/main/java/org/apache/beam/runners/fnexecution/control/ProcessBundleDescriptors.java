@@ -21,6 +21,7 @@ package org.apache.beam.runners.fnexecution.control;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
@@ -40,12 +41,17 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.KV;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */
 // TODO: Rename to ExecutableStages?
@@ -80,8 +86,14 @@ public class ProcessBundleDescriptors {
       outputTargetCoders.put(targetEncoding.getTarget(), targetEncoding.getCoder());
     }
 
+    Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs =
+        forMultimapSideInputs(stage, components, bundleDescriptorBuilder);
+
     return ExecutableProcessBundleDescriptor.of(
-        bundleDescriptorBuilder.build(), inputDestination, outputTargetCoders);
+        bundleDescriptorBuilder.build(),
+        inputDestination,
+        outputTargetCoders,
+        multimapSideInputSpecs);
   }
 
   private static RemoteInputDestination<WindowedValue<?>> addStageInput(
@@ -146,11 +158,66 @@ public class ProcessBundleDescriptors {
         wireCoder);
   }
 
+  private static Map<String, Map<String, MultimapSideInputSpec>> forMultimapSideInputs(
+      ExecutableStage stage,
+      Components components,
+      ProcessBundleDescriptor.Builder bundleDescriptorBuilder) throws IOException {
+    ImmutableTable.Builder<String, String, MultimapSideInputSpec> idsToSpec =
+        ImmutableTable.builder();
+    for (SideInputReference sideInputReference : stage.getSideInputs()) {
+      // Update the coder specification for side inputs to be length prefixed so that the
+      // SDK and Runner agree on how to encode/decode the key, window, and values for multimap
+      // side inputs.
+      String pCollectionId = sideInputReference.collection().getId();
+      String wireCoderId =
+          addWireCoder(sideInputReference.collection(), components, bundleDescriptorBuilder);
+      bundleDescriptorBuilder.getPcollectionsMap().put(
+          pCollectionId,
+          bundleDescriptorBuilder
+              .getPcollectionsMap()
+              .get(pCollectionId)
+              .toBuilder()
+              .setCoderId(wireCoderId)
+              .build());
+
+      FullWindowedValueCoder<KV<?, ?>> coder =
+          (FullWindowedValueCoder) WireCoders.instantiateRunnerWireCoder(
+              sideInputReference.collection(), components);
+      idsToSpec.put(
+          sideInputReference.transform().getId(),
+          sideInputReference.localName(),
+          MultimapSideInputSpec.of(
+              ((KvCoder<?, ?>) coder.getValueCoder()).getKeyCoder(),
+              ((KvCoder<?, ?>) coder.getValueCoder()).getValueCoder(),
+              coder.getWindowCoder()));
+    }
+    return idsToSpec.build().rowMap();
+  }
+
   @AutoValue
   abstract static class TargetEncoding {
     abstract BeamFnApi.Target getTarget();
 
     abstract Coder<WindowedValue<?>> getCoder();
+  }
+
+  /**
+   * A container type storing references to the key, value, and window coder used when
+   * handling multimap side input state requests.
+   */
+  @AutoValue
+  public abstract static class MultimapSideInputSpec<K, V, W extends BoundedWindow> {
+    static <K, V, W extends BoundedWindow> MultimapSideInputSpec<K, V, W> of(
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Coder<W> windowCoder) {
+      return new AutoValue_ProcessBundleDescriptors_MultimapSideInputSpec(
+          keyCoder, valueCoder, windowCoder);
+    }
+
+    public abstract Coder<K> keyCoder();
+    public abstract Coder<V> valueCoder();
+    public abstract Coder<W> windowCoder();
   }
 
   /**
@@ -179,9 +246,13 @@ public class ProcessBundleDescriptors {
     public static ExecutableProcessBundleDescriptor of(
         ProcessBundleDescriptor descriptor,
         RemoteInputDestination<WindowedValue<?>> inputDestination,
-        Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders) {
+        Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
+        Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs) {
       return new AutoValue_ProcessBundleDescriptors_ExecutableProcessBundleDescriptor(
-          descriptor, inputDestination, Collections.unmodifiableMap(outputTargetCoders));
+          descriptor,
+          inputDestination,
+          Collections.unmodifiableMap(outputTargetCoders),
+          multimapSideInputSpecs);
     }
 
     public abstract ProcessBundleDescriptor getProcessBundleDescriptor();
@@ -197,5 +268,12 @@ public class ProcessBundleDescriptors {
      * java {@link Coder} for the wire format of that {@link BeamFnApi.Target}.
      */
     public abstract Map<BeamFnApi.Target, Coder<WindowedValue<?>>> getOutputTargetCoders();
+
+
+    /**
+     * Get a mapping from PTransform id to multimap side input id to {@link MultimapSideInputSpec
+     * multimap side inputs} that are used during execution.
+     */
+    public abstract Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputSpecs();
   }
 }
