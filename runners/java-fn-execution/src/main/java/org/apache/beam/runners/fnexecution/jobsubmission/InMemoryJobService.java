@@ -47,19 +47,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A JobService that prepares and runs jobs on behalf of a client using a {@link JobInvoker}.
+ * A InMemoryJobService that prepares and runs jobs on behalf of a client using a {@link JobInvoker}.
  *
  * <p>Job management is handled in-memory rather than any persistent storage, running the risk of
- * leaking jobs if the JobService crashes.
+ * leaking jobs if the InMemoryJobService crashes.
  *
  * <p>TODO: replace in-memory job management state with persistent solution.
  */
-public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
-  private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
+public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
+  private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
-  public static JobService create(
+  public static InMemoryJobService create(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
-    return new JobService(stagingServiceDescriptor, invoker);
+    return new InMemoryJobService(stagingServiceDescriptor, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
@@ -67,7 +67,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final JobInvoker invoker;
 
-  private JobService(
+  private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.invoker = invoker;
