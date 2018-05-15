@@ -25,11 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * It contains the message payload, and additional metadata like routing key or attributes.
- */
+/** It contains the message payload, and additional metadata like routing key or attributes. */
 public class RabbitMqMessage implements Serializable {
-
   private final String routingKey;
   private final byte[] body;
   private final String contentType;
@@ -66,22 +63,23 @@ public class RabbitMqMessage implements Serializable {
     clusterId = null;
   }
 
-  public RabbitMqMessage(String routingKey,
-                         byte[] body,
-                         String contentType,
-                         String contentEncoding,
-                         Map<String, Object> headers,
-                         Integer deliveryMode,
-                         Integer priority,
-                         String correlationId,
-                         String replyTo,
-                         String expiration,
-                         String messageId,
-                         Date timestamp,
-                         String type,
-                         String userId,
-                         String appId,
-                         String clusterId) {
+  public RabbitMqMessage(
+      String routingKey,
+      byte[] body,
+      String contentType,
+      String contentEncoding,
+      Map<String, Object> headers,
+      Integer deliveryMode,
+      Integer priority,
+      String correlationId,
+      String replyTo,
+      String expiration,
+      String messageId,
+      Date timestamp,
+      String type,
+      String userId,
+      String appId,
+      String clusterId) {
     this.routingKey = routingKey;
     this.body = body;
     this.contentType = contentType;
@@ -165,8 +163,8 @@ public class RabbitMqMessage implements Serializable {
   }
 
   public AMQP.BasicProperties createProperties() {
-    AMQP.BasicProperties properties = new AMQP.BasicProperties();
-    return properties.builder()
+    return new AMQP.BasicProperties()
+        .builder()
         .contentType(contentType)
         .contentEncoding(contentEncoding)
         .headers(headers)
@@ -180,12 +178,14 @@ public class RabbitMqMessage implements Serializable {
         .type(type)
         .userId(userId)
         .appId(appId)
-        .clusterId(clusterId).build();
+        .clusterId(clusterId)
+        .build();
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(routingKey,
+    return Objects.hash(
+        routingKey,
         Arrays.hashCode(body),
         contentType,
         contentEncoding,
@@ -212,5 +212,4 @@ public class RabbitMqMessage implements Serializable {
     }
     return false;
   }
-
 }

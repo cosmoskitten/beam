@@ -28,12 +28,17 @@
 
   <artifactId>beam-sdks-java-io-rabbitmq</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: RabbitMQ</name>
-  <description>IO to read and write messages on a RabbitMQ broker, or any AMPQ broker.</description>
+  <description>IO to read and write messages on a RabbitMQ broker, or any AMQP broker.</description>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <dependency>
@@ -54,7 +59,7 @@
     <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
-      <version>4.0.0</version>
+      <version>4.6.0</version>
     </dependency>
 
     <!-- compile dependencies -->
