@@ -19,6 +19,19 @@ package org.apache.beam.sdk.extensions.euphoria.executor.local;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -54,20 +67,6 @@ import org.apache.beam.sdk.extensions.euphoria.testing.DatasetAssert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
 

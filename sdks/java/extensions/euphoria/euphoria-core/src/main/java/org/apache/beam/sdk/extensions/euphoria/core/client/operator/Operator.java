@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Datasets;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.executor.graph.DAG;
-
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 

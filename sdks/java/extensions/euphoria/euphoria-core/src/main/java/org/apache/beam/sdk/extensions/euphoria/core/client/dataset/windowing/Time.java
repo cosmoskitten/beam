@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TimeTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import javax.annotation.Nullable;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.singleton;

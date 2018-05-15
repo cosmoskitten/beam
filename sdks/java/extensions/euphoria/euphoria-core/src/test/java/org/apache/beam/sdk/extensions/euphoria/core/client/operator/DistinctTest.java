@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import java.time.Duration;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.junit.Test;
-
-import java.time.Duration;
 
 import static org.junit.Assert.*;
 

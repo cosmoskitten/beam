@@ -18,6 +18,14 @@
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
 import com.google.common.collect.Lists;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
@@ -48,15 +56,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.Snapsh
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

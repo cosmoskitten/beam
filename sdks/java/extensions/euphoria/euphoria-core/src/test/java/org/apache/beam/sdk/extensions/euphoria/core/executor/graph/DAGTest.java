@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.extensions.euphoria.core.executor.graph;
 
 import com.google.common.collect.Iterables;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

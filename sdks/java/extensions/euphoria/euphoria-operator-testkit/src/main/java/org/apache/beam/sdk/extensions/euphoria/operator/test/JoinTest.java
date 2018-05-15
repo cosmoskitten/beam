@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Session;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
@@ -41,13 +47,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.Snapsh
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 

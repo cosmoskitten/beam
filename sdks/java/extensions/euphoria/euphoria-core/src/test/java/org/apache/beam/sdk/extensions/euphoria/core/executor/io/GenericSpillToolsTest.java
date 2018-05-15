@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.io;
 
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.ExternalIterable;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

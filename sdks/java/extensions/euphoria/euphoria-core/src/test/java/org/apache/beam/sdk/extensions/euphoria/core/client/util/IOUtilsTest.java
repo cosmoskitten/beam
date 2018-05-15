@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
-import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.euphoria.core.util.IOUtils;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

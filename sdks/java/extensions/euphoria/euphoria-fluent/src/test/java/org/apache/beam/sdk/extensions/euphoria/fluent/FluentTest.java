@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
+import java.time.Duration;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Count;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.ListDataSink;
@@ -25,10 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.apache.beam.sdk.extensions.euphoria.executor.local.LocalExecutor;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 

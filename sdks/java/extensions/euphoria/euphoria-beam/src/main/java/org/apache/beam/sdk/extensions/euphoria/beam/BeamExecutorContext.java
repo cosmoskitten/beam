@@ -18,6 +18,11 @@
 package org.apache.beam.sdk.extensions.euphoria.beam;
 
 import com.google.common.collect.Iterables;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,12 +48,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
 

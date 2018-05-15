@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

@@ -18,9 +18,8 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
 import com.google.common.collect.Iterables;
-import org.junit.Test;
-
 import java.time.Duration;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 

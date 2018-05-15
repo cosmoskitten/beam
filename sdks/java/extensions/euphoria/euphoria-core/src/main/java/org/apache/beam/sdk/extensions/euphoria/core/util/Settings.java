@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.util;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
+import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 
 import static java.util.Objects.requireNonNull;
 

@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.util;
 
-import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 
 import static java.util.Objects.requireNonNull;
 

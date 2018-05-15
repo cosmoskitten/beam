@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.lib;
 
+import java.util.Optional;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryPredicate;
@@ -24,8 +25,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Filter;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Operator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Util;
 import org.junit.Test;
-
-import java.util.Optional;
 
 import static org.junit.Assert.*;
 

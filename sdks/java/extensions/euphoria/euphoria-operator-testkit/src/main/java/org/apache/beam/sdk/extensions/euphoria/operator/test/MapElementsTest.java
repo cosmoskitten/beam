@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.operator.test;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunctionEnv;
@@ -25,10 +28,6 @@ import org.apache.beam.sdk.extensions.euphoria.operator.test.accumulators.Snapsh
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.AbstractOperatorTest;
 import org.apache.beam.sdk.extensions.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 

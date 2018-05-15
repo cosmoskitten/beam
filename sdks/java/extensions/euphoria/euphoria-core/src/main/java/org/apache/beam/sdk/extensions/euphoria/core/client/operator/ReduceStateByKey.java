@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import com.google.common.collect.Sets;
+import java.util.Objects;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
@@ -33,10 +36,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateM
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeAwareUnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.type.TypeHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
-import javax.annotation.Nullable;
-import java.util.Objects;
-import java.util.Set;
 
 /**
  * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api, but very powerful
