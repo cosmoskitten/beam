@@ -92,7 +92,6 @@ class JsonLogFormatterTest(unittest.TestCase):
     return Record(**kwargs)
 
   def test_basic_record(self):
-    #statesampler.set_current_tracker(None)
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
     record = self.create_log_record(**self.SAMPLE_RECORD)
     self.assertEqual(json.loads(formatter.format(record)), self.SAMPLE_OUTPUT)
