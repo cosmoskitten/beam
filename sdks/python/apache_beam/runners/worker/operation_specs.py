@@ -24,6 +24,7 @@ source, write to a sink, parallel do, etc.
 import collections
 
 from apache_beam import coders
+from apache_beam.runners import common
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -370,10 +371,24 @@ class MapTask(object):
       about a step.
   """
 
-  def __init__(self, operations, stage_name, name_contexts=None):
+  def __init__(self, operations, stage_name,
+               system_names=None,
+               step_names=None,
+               original_names=None,
+               name_contexts=None):
+
     self.operations = operations
     self.stage_name = stage_name
-    self.name_contexts = name_contexts
+    self.name_contexts = name_contexts or self._make_name_contexts(
+        original_names, step_names, system_names)
+
+  @staticmethod
+  def _make_name_contexts(original_names, user_names, system_names):
+    # TODO(BEAM-4028): Remove method once map task relies on name contexts.
+    return [common.DataflowNameContext(step_name, user_name, system_name)
+            for step_name, user_name, system_name in zip(original_names,
+                                                         user_names,
+                                                         system_names)]
 
   @property
   def system_names(self):
