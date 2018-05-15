@@ -47,7 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A InMemoryJobService that prepares and runs jobs on behalf of a client using a {@link JobInvoker}.
+ * A InMemoryJobService that prepares and runs jobs on behalf of a client using a
+ * {@link JobInvoker}.
  *
  * <p>Job management is handled in-memory rather than any persistent storage, running the risk of
  * leaking jobs if the InMemoryJobService crashes.

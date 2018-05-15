@@ -20,8 +20,6 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.Struct;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 
 /** A job that has been prepared, but not invoked. */
 @AutoValue
