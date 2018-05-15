@@ -28,9 +28,6 @@
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
@@ -59,7 +56,7 @@ docker images | grep $TAG
 gcloud docker -- push $CONTAINER
 
 # Virtualenv for the rest of the script to run setup & e2e test
-${LOCAL_PATH}/virtualenv sdks/python/container
+virtualenv sdks/python/container
 . sdks/python/container/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
