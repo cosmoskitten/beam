@@ -46,21 +46,6 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# ensure gcloud is version 186 or above
-TMPDIR=$(mktemp -d)
-gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
-if [[ "$gcloud_ver" < "186" ]]
-then
-  pushd $TMPDIR
-  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
-  tar xf gcloud.tar.gz
-  ./google-cloud-sdk/install.sh --quiet
-  . ./google-cloud-sdk/path.bash.inc
-  popd
-  gcloud components update --quiet || echo 'gcloud components update failed'
-  gcloud -v
-fi
-
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
 CONTAINER=us.gcr.io/$PROJECT/$USER/python
@@ -72,9 +57,6 @@ docker images | grep $TAG
 
 # Push the container
 gcloud docker -- push $CONTAINER
-
-# INFRA does not install virtualenv
-pip install virtualenv --user
 
 # Virtualenv for the rest of the script to run setup & e2e test
 ${LOCAL_PATH}/virtualenv sdks/python/container
@@ -106,8 +88,5 @@ python setup.py nosetests \
 # Delete the container locally and remotely
 docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
 gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-
-# Clean up tempdir
-rm -rf $TMPDIR
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
