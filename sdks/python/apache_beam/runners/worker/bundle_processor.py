@@ -25,6 +25,8 @@ import base64
 import collections
 import json
 import logging
+from builtins import next
+from builtins import object
 
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
@@ -102,7 +104,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               next(consumers.itervalues()),
+                               next(iter(consumers.values())),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
@@ -314,7 +316,7 @@ class BundleProcessor(object):
     # However, if there is exactly one output, we can fix up the name here.
     def fix_only_output_tag(actual_output_tag, mapping):
       if len(mapping) == 1:
-        fake_output_tag, count = only_element(mapping.items())
+        fake_output_tag, count = only_element(list(mapping.items()))
         if fake_output_tag != actual_output_tag:
           del mapping[fake_output_tag]
           mapping[actual_output_tag] = count
@@ -393,7 +395,7 @@ class BeamTransformFactory(object):
     }
 
   def get_only_input_coder(self, transform_proto):
-    return only_element(self.get_input_coders(transform_proto).values())
+    return only_element(list(self.get_input_coders(transform_proto).values()))
 
   # TODO(robertwb): Update all operations to take these in the constructor.
   @staticmethod
@@ -410,7 +412,7 @@ class BeamTransformFactory(object):
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.outputs.keys()))
+      name=only_element(list(transform_proto.outputs.keys())))
   return DataInputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
@@ -427,7 +429,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
-      name=only_element(transform_proto.inputs.keys()))
+      name=only_element(list(transform_proto.inputs.keys())))
   return DataOutputOperation(
       transform_proto.unique_name,
       transform_proto.unique_name,
