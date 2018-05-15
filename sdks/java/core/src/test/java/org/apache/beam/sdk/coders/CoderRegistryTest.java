@@ -268,7 +268,8 @@ public class CoderRegistryTest {
   private static class PTransformOutputingMySerializableGeneric
   extends PTransform<PCollection<String>, PCollection<KV<String, MySerializableGeneric<String>>>> {
 
-    private static class OutputDoFn extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
+    private static class OutputDoFn
+    extends DoFn<String, KV<String, MySerializableGeneric<String>>> {
       @ProcessElement
       public void processElement(ProcessContext c) { }
     }
