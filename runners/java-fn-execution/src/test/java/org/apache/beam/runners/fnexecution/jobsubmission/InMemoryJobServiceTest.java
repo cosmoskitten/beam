@@ -2,6 +2,7 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import com.google.protobuf.Struct;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
@@ -20,8 +21,7 @@ import org.mockito.MockitoAnnotations;
 public class InMemoryJobServiceTest {
   private static final String TEST_JOB_NAME = "test-job";
 
-  @Mock
-  GrpcFnServer<ArtifactStagingService> artifactStagingServer;
+  Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock
   JobInvoker invoker;
 
@@ -31,8 +31,7 @@ public class InMemoryJobServiceTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    ArtifactStagingServiceProvider provider = ignored -> artifactStagingServer;
-    service = InMemoryJobService.create(provider, invoker);
+    service = InMemoryJobService.create(stagingServiceDescriptor, invoker);
     server = GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create());
   }
 
