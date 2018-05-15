@@ -1,6 +1,7 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import com.google.protobuf.Struct;
+import io.grpc.stub.StreamObserver;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -16,39 +17,111 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
+
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsNull.notNullValue;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 /** Tests for {@link InMemoryJobService}. */
 @RunWith(JUnit4.class)
 public class InMemoryJobServiceTest {
   private static final String TEST_JOB_NAME = "test-job";
+  private static final String TEST_JOB_ID = "test-job-id";
+  private static final String TEST_STAGING_TOKEN = "test-staging-token";
+  private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
+  private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
+
 
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock
   JobInvoker invoker;
+  @Mock
+  JobInvocation invocation;
 
   InMemoryJobService service;
-  GrpcFnServer<InMemoryJobService> server;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
+    stagingServiceDescriptor = Endpoints.ApiServiceDescriptor.getDefaultInstance();
     service = InMemoryJobService.create(stagingServiceDescriptor, invoker);
-    server = GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create());
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    server.close();
+    when(invoker.invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_STAGING_TOKEN)).thenReturn(invocation);
+    when(invocation.getId()).thenReturn(TEST_JOB_ID);
   }
 
   @Test
-  public void testJobSubmissionUsesJobInvoker() throws Exception {
+  public void testPrepareIsSuccessful() {
+    JobApi.PrepareJobRequest request =
+        JobApi.PrepareJobRequest
+            .newBuilder()
+            .setJobName(TEST_JOB_NAME)
+            .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
+            .setPipelineOptions(Struct.getDefaultInstance())
+            .build();
+    RecordingObserver<JobApi.PrepareJobResponse> recorder = new RecordingObserver<>();
+    service.prepare(request, recorder);
+    assertThat(recorder.isSuccessful(), is(true));
+    assertThat(recorder.values, hasSize(1));
+    JobApi.PrepareJobResponse response = recorder.values.get(0);
+    assertThat(response.getArtifactStagingEndpoint(), notNullValue());
+    assertThat(response.getPreparationId(), notNullValue());
   }
 
-  private JobApi.PrepareJobRequest createTestJobRequest() {
-    return JobApi.PrepareJobRequest.newBuilder()
-        .setJobName(TEST_JOB_NAME)
-        .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
-        .setPipelineOptions(Struct.getDefaultInstance())
-        .build();
+  @Test
+  public void testJobSubmissionUsesJobInvokerAndIsSuccess() throws Exception {
+    // prepare job
+    JobApi.PrepareJobRequest prepareRequest =
+        JobApi.PrepareJobRequest.newBuilder()
+            .setJobName(TEST_JOB_NAME)
+            .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
+            .setPipelineOptions(Struct.getDefaultInstance())
+            .build();
+    RecordingObserver<JobApi.PrepareJobResponse> prepareRecorder = new RecordingObserver<>();
+    service.prepare(prepareRequest, prepareRecorder);
+    JobApi.PrepareJobResponse prepareResponse = prepareRecorder.values.get(0);
+    // run job
+    JobApi.RunJobRequest runRequest =
+        JobApi.RunJobRequest.newBuilder()
+            .setPreparationId(prepareResponse.getPreparationId())
+            .setStagingToken(TEST_STAGING_TOKEN)
+            .build();
+    RecordingObserver<JobApi.RunJobResponse> runRecorder = new RecordingObserver<>();
+    service.run(runRequest, runRecorder);
+    verify(invoker, times(1)).invoke(TEST_PIPELINE, TEST_OPTIONS, TEST_STAGING_TOKEN);
+    assertThat(runRecorder.isSuccessful(), is(true));
+    assertThat(runRecorder.values, hasSize(1));
+    JobApi.RunJobResponse runResponse = runRecorder.values.get(0);
+    assertThat(runResponse.getJobId(), is(TEST_JOB_ID));
+  }
+
+  private static class RecordingObserver<T> implements StreamObserver<T> {
+    ArrayList<T> values = new ArrayList<>();
+    Throwable error = null;
+    boolean isCompleted = false;
+
+    @Override
+    public void onNext(T t) {
+      values.add(t);
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      error = throwable;
+    }
+
+    @Override
+    public void onCompleted() {
+      isCompleted = true;
+    }
+
+    boolean isSuccessful() {
+      return isCompleted && error == null;
+    }
   }
 }
