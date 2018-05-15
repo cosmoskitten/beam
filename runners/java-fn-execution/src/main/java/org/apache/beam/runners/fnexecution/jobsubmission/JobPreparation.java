@@ -33,14 +33,12 @@ public abstract class JobPreparation {
   public abstract String id();
   public abstract Pipeline pipeline();
   public abstract Struct options();
-  public abstract GrpcFnServer<ArtifactStagingService> stagingService();
 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setId(String id);
     abstract Builder setPipeline(Pipeline pipeline);
     abstract Builder setOptions(Struct options);
-    abstract Builder setStagingService(GrpcFnServer<ArtifactStagingService> stagingService);
     abstract JobPreparation build();
   }
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
-import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Struct;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -41,10 +40,8 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingServiceProvider;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,18 +58,18 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
   private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
 
   public static JobService create(
-      ArtifactStagingServiceProvider artifactStagingServiceProvider, JobInvoker invoker) {
-    return new JobService(artifactStagingServiceProvider, invoker);
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
+    return new JobService(stagingServiceDescriptor, invoker);
   }
 
   private final ConcurrentMap<String, JobPreparation> preparations;
   private final ConcurrentMap<String, JobInvocation> invocations;
-  private final ArtifactStagingServiceProvider artifactStagingServiceProvider;
+  private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final JobInvoker invoker;
 
   private JobService(
-      ArtifactStagingServiceProvider artifactStagingServiceProvider, JobInvoker invoker) {
-    this.artifactStagingServiceProvider = artifactStagingServiceProvider;
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor, JobInvoker invoker) {
+    this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.invoker = invoker;
 
     this.preparations = new ConcurrentHashMap<>();
@@ -88,8 +85,6 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
       // insert preparation
       String preparationId =
           String.format("%s_%s", request.getJobName(), UUID.randomUUID().toString());
-      GrpcFnServer<ArtifactStagingService> stagingService =
-          artifactStagingServiceProvider.forJob(preparationId);
       Struct pipelineOptions = request.getPipelineOptions();
       if (pipelineOptions == null) {
         throw new NullPointerException("Encountered null pipeline options.");
@@ -101,7 +96,6 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
               .setId(preparationId)
               .setPipeline(request.getPipeline())
               .setOptions(pipelineOptions)
-              .setStagingService(stagingService)
               .build();
       JobPreparation previous = preparations.putIfAbsent(preparationId, preparation);
       if (previous != null) {
@@ -118,7 +112,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
           PrepareJobResponse
               .newBuilder()
               .setPreparationId(preparationId)
-              .setArtifactStagingEndpoint(stagingService.getApiServiceDescriptor())
+              .setArtifactStagingEndpoint(stagingServiceDescriptor)
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -256,14 +250,6 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
 
   @Override
   public void close() throws Exception {
-    // TODO: refactor this once we have shifted to multi-job artifact staging services
-    for (JobPreparation preparation : ImmutableList.copyOf(preparations.values())) {
-      try {
-        preparation.stagingService().close();
-      } catch (Exception e) {
-        LOG.warn("Exception while closing job {}", preparation);
-      }
-    }
     // TODO: throw error if jobs are running
   }
 
