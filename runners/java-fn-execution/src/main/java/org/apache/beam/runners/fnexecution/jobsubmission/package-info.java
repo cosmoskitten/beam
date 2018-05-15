@@ -17,6 +17,6 @@
  */
 
 /**
- * Internal job management service implementation of the Beam runner for Apache Flink.
+ * Job management services for use in beam runners.
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
