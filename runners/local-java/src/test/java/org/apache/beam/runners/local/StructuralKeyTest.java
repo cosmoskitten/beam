@@ -55,8 +55,13 @@ public class StructuralKeyTest {
   public void emptyKeysNotEqual() {
     StructuralKey<?> empty = StructuralKey.empty();
 
+<<<<<<< HEAD:runners/local-java/src/test/java/org/apache/beam/runners/local/StructuralKeyTest.java
     Assert.assertThat(empty, Matchers.not(Matchers.equalTo(StructuralKey.empty())));
     Assert.assertThat(empty, Matchers.equalTo(empty));
+=======
+    assertThat(empty, not(equalTo(StructuralKey.empty())));
+    assertThat(empty, equalTo(empty));
+>>>>>>> Avoid fully qualified class names, when there is an existing (static) import:runners/direct-java/src/test/java/org/apache/beam/runners/direct/StructuralKeyTest.java
   }
 
   @Test
