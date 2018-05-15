@@ -17,6 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.executor.greduce;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.Counter;
@@ -42,14 +49,6 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueS
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.TriggerContext;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * An implementation of a RSBK group reducer of an ordered stream of already grouped (by a specific

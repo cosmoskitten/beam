@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing;
 
+import java.io.ObjectStreamException;
+import java.util.Collections;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.NoopTrigger;
 import org.apache.beam.sdk.extensions.euphoria.core.client.triggers.Trigger;
-
-import java.io.ObjectStreamException;
-import java.util.Collections;
 
 /** Windowing with single window across the whole dataset. Suitable for batch processing. */
 @Audience(Audience.Type.CLIENT)

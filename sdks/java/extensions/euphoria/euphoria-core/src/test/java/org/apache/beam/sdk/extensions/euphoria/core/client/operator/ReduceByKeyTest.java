@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
+import static org.junit.Assert.*;
+
+import java.time.Duration;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Time;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.Pair;
 import org.junit.Test;
-
-import java.time.Duration;
-import java.util.stream.StreamSupport;
-
-import static org.junit.Assert.*;
 
 /** Test operator ReduceByKey.  */
 public class ReduceByKeyTest {

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.fluent;
 
+import static java.util.Objects.requireNonNull;
+
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.DataSource;
 import org.apache.beam.sdk.extensions.euphoria.core.util.Settings;
-
-import static java.util.Objects.requireNonNull;
 
 /** TODO: complete javadoc. */
 public class Flow {
