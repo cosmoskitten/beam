@@ -172,10 +172,7 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-
-      JobState.Enum state;
-      state = invocation.getState();
-
+      JobState.Enum state = invocation.getState();
       GetJobStateResponse response = GetJobStateResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -193,11 +190,8 @@ public class JobService extends JobServiceGrpc.JobServiceImplBase implements FnS
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-
-      JobState.Enum state;
       invocation.cancel();
-      state = invocation.getState();
-
+      JobState.Enum state = invocation.getState();
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
