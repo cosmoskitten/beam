@@ -17,16 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.beam.io;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
-import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedDataSource;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * A {@link BoundedSource} created from {@link BoundedDataSource}.
