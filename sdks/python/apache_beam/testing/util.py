@@ -96,7 +96,7 @@ def equal_to_per_window(expected_window_to_elements):
         # For example, in the presence of early triggers.
         if all(elem in sorted_expected for elem in sorted_actual) is False:
           raise BeamAssertException(
-              'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected))
   return matcher
 
 
