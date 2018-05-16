@@ -24,7 +24,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -33,6 +32,8 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,8 +55,7 @@ public class DockerEnvironmentFactoryTest {
       "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
 
   private static final AtomicLong nextId = new AtomicLong(0);
-  private static final Supplier<String> ID_GENERATOR =
-      () -> Long.toString(nextId.getAndIncrement());
+  private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
 
   @Mock private DockerCommand docker;
 
@@ -110,7 +110,7 @@ public class DockerEnvironmentFactoryTest {
   }
 
   private DockerEnvironmentFactory getFactory() {
-    return DockerEnvironmentFactory.forServices(
+    return DockerEnvironmentFactory.forServicesWithDocker(
         docker,
         controlServiceServer,
         loggingServiceServer,
