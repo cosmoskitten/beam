@@ -112,6 +112,7 @@ public class TestPubsubSignal implements TestRule {
     //    integ-test-TestClassName-testMethodName-2018-12-11-23-32-333-<random-long>-result
     String resultTopicPathTmp =
         String.format(TOPIC_FORMAT, pipelineOptions.getProject(), createTopicName(description));
+    System.out.println("      >>> signal topic path:" + resultTopicPathTmp);
 
     pubsub.createTopic(new TopicPath(resultTopicPathTmp));
 
