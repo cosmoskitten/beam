@@ -21,24 +21,32 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
+import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.environment.DockerCommand;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
+import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +59,7 @@ import org.slf4j.LoggerFactory;
 public class DockerJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
 
+  private final ServerFactory serverFactory;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServer;
@@ -60,15 +69,25 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   public static DockerJobBundleFactory create() throws Exception {
     DockerCommand dockerCommand = DockerCommand.forExecutable("docker", Duration.ofSeconds(60));
-    // TODO: Should we create our own services here or have them be provided?
+    // TODO: Use ServerFactory that produces correct service descriptors for docker-on-mac.
+    ServerFactory serverFactory = ServerFactory.createDefault();
+    ControlClientPool clientPool = MapControlClientPool.create();
+
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(null, null);
+        GrpcFnServer.allocatePortAndCreateFor(
+            FnApiControlClientPoolService.offeringClientsToPool(
+                clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            serverFactory);
     GrpcFnServer<GrpcLoggingService> loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(null, null);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+    // TODO: Wire in artifact retrieval service once implemented.
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(null, null);
+        GrpcFnServer.allocatePortAndCreateFor(null, serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
-        GrpcFnServer.allocatePortAndCreateFor(null, null);
+        GrpcFnServer.allocatePortAndCreateFor(
+            StaticGrpcProvisionService.create(ProvisionInfo.newBuilder().build()), serverFactory);
+    // TODO: Wire in IdGenerators when available.
     DockerEnvironmentFactory environmentFactory =
         DockerEnvironmentFactory.forServices(
             dockerCommand,
@@ -76,18 +95,25 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             loggingServer,
             retrievalServer,
             provisioningServer,
-            null,
+            clientPool.getSource(),
             null);
     return new DockerJobBundleFactory(
-        environmentFactory, controlServer, loggingServer, retrievalServer, provisioningServer);
+        environmentFactory,
+        serverFactory,
+        controlServer,
+        loggingServer,
+        retrievalServer,
+        provisioningServer);
   }
 
   private DockerJobBundleFactory(
       DockerEnvironmentFactory environmentFactory,
+      ServerFactory serverFactory,
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServer) {
+    this.serverFactory = serverFactory;
     this.controlServer = controlServer;
     this.loggingServer = loggingServer;
     this.retrievalServer = retrievalServer;
@@ -110,7 +136,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
                   public WrappedSdkHarnessClient load(Environment environment) throws Exception {
                     RemoteEnvironment remoteEnvironment =
                         environmentFactory.createEnvironment(environment);
-                    return WrappedSdkHarnessClient.wrapping(remoteEnvironment);
+                    return WrappedSdkHarnessClient.wrapping(remoteEnvironment, serverFactory);
                   }
                 });
   }
@@ -119,13 +145,24 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   public <T> StageBundleFactory<T> forStage(ExecutableStage executableStage) {
     WrappedSdkHarnessClient wrappedClient =
         environmentCache.getUnchecked(executableStage.getEnvironment());
-    return SimpleStageBundleFactory.create(wrappedClient);
+    ExecutableProcessBundleDescriptor processBundleDescriptor;
+    try {
+      processBundleDescriptor =
+          ProcessBundleDescriptors.fromExecutableStage(
+              "id", executableStage, wrappedClient.getDataServer().getApiServiceDescriptor());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return SimpleStageBundleFactory.create(wrappedClient, processBundleDescriptor);
   }
 
   @Override
   public void close() throws Exception {
+    // Clear the cache. This closes all active environments.
     environmentCache.invalidateAll();
     environmentCache.cleanUp();
+
+    // Tear down common servers.
     controlServer.close();
     loggingServer.close();
     retrievalServer.close();
@@ -136,12 +173,21 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
     private final BundleProcessor<InputT> processor;
 
-    private WrappedSdkHarnessClient wrappedClient;
+    // Store the wrapped client in order to keep a live reference into the cache.
+    @SuppressFBWarnings private WrappedSdkHarnessClient wrappedClient;
 
-    static <InputT> SimpleStageBundleFactory<InputT> create(WrappedSdkHarnessClient wrappedClient) {
+    static <InputT> SimpleStageBundleFactory<InputT> create(
+        WrappedSdkHarnessClient wrappedClient,
+        ExecutableProcessBundleDescriptor processBundleDescriptor) {
+      @SuppressWarnings("unchecked")
       BundleProcessor<InputT> processor =
-          wrappedClient.getClient().getProcessor(null, null, wrappedClient.getStateService());
-      return new SimpleStageBundleFactory<InputT>(processor, wrappedClient);
+          wrappedClient
+              .getClient()
+              .getProcessor(
+                  processBundleDescriptor.getProcessBundleDescriptor(),
+                  (RemoteInputDestination) processBundleDescriptor.getRemoteInputDestination(),
+                  wrappedClient.getStateServer().getService());
+      return new SimpleStageBundleFactory<>(processor, wrappedClient);
     }
 
     SimpleStageBundleFactory(
@@ -156,24 +202,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         throws Exception {
       // TODO: We cannot construct an output receiver map from an output receiver factory. Should
       // newBundle take an OutputReceiverFactory as an argument?
-      ActiveBundle<InputT> bundle = processor.newBundle(null, stateRequestHandler);
-      // TODO: Should ActiveBundle implement RemoteBundle?
-      return new RemoteBundle<InputT>() {
-        @Override
-        public String getId() {
-          return bundle.getId();
-        }
-
-        @Override
-        public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
-          return bundle.getInputReceiver();
-        }
-
-        @Override
-        public void close() throws Exception {
-          bundle.close();
-        }
-      };
+      return processor.newBundle(Collections.emptyMap(), stateRequestHandler);
     }
 
     @Override
@@ -185,27 +214,33 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private static class WrappedSdkHarnessClient implements AutoCloseable {
     private final RemoteEnvironment environment;
+    private final ExecutorService executor;
     // TODO: This data service should probably not live here. It is necessary for now because
     // SdkHarnessClient requires one at construction.
     private final GrpcFnServer<GrpcDataService> dataServer;
     private final GrpcFnServer<GrpcStateService> stateServer;
     private final SdkHarnessClient client;
 
-    static WrappedSdkHarnessClient wrapping(RemoteEnvironment environment) throws Exception {
-      GrpcFnServer<GrpcDataService> dataServer = GrpcFnServer.allocatePortAndCreateFor(null, null);
+    static WrappedSdkHarnessClient wrapping(
+        RemoteEnvironment environment, ServerFactory serverFactory) throws Exception {
+      ExecutorService executor = Executors.newCachedThreadPool();
+      GrpcFnServer<GrpcDataService> dataServer =
+          GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
       GrpcFnServer<GrpcStateService> stateServer =
-          GrpcFnServer.allocatePortAndCreateFor(null, null);
+          GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
       SdkHarnessClient client =
           SdkHarnessClient.usingFnApiClient(
               environment.getInstructionRequestHandler(), dataServer.getService());
-      return new WrappedSdkHarnessClient(environment, dataServer, stateServer, client);
+      return new WrappedSdkHarnessClient(environment, executor, dataServer, stateServer, client);
     }
 
     private WrappedSdkHarnessClient(
         RemoteEnvironment environment,
+        ExecutorService executor,
         GrpcFnServer<GrpcDataService> dataServer,
         GrpcFnServer<GrpcStateService> stateServer,
         SdkHarnessClient client) {
+      this.executor = executor;
       this.environment = environment;
       this.dataServer = dataServer;
       this.stateServer = stateServer;
@@ -216,12 +251,18 @@ public class DockerJobBundleFactory implements JobBundleFactory {
       return client;
     }
 
-    GrpcStateService getStateService() {
-      return stateServer.getService();
+    GrpcFnServer<GrpcStateService> getStateServer() {
+      return stateServer;
+    }
+
+    GrpcFnServer<GrpcDataService> getDataServer() {
+      return dataServer;
     }
 
     @Override
     public void close() throws Exception {
+      executor.shutdown();
+      // TODO: Wait for shutdown?
       environment.close();
       dataServer.close();
       stateServer.close();
