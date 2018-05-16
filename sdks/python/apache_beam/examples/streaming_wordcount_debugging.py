@@ -63,7 +63,7 @@ class AddTimestampFn(beam.DoFn):
   a timestamp of its same value."""
   def process(self, element):
     for elem in element.split(' '):
-      logging.info('Adding timestamp to: %s', element) # mgh !!!
+      logging.info('Adding timestamp to: %s', element)
       yield beam.window.TimestampedValue(elem, int(elem))
 
 
@@ -138,28 +138,26 @@ def run(argv=None):
       actual_elements_in_window, window = elements
       for elm in actual_elements_in_window:
         assert re.match(r'\S+:\s+\d+', elm) is not None
-        # print 'check gbk format:', elements    # mgh
     return matcher
 
   # Check that the format of the output is correct.
   assert_that(
       output,
       check_gbk_format(),
-      custom_windowing=window.FixedWindows(5),
+      use_global_window=False,
       label='Assert word:count format.')
 
   # Check also that elements are ouput in the right window.
   # This expects exactly 1 occurrence of any subset of the elements
-  # 150, 151, 152, 153, 154 in the window [155, 160)
+  # 150, 151, 152, 153, 154 in the window [150, 155)
   # or exactly 1 occurrence of any subset of the elements
-  # 210, 211, 212, 213, 214 in the window [215, 220). That is becuause
-  # after the elements have traversed the GBK, its timestamp will be 215.
+  # 210, 211, 212, 213, 214 in the window [210, 215).
   expected_window_to_elements = {
-      window.IntervalWindow(215, 220): [
-          ('210: 1'), ('211: 1'), ('212: 1'), ('213: 1'), ('214: 1'),
-      ],
-      window.IntervalWindow(155, 160): [
+      window.IntervalWindow(150, 155): [
           ('150: 1'), ('151: 1'), ('152: 1'), ('153: 1'), ('154: 1'),
+      ],
+      window.IntervalWindow(210, 215): [
+          ('210: 1'), ('211: 1'), ('212: 1'), ('213: 1'), ('214: 1'),
       ],
   }
 
@@ -169,8 +167,7 @@ def run(argv=None):
   assert_that(
       output,
       equal_to_per_window(expected_window_to_elements),
-      # use_global_window=False,
-      custom_windowing=window.FixedWindows(5),
+      use_global_window=False,
       label='Assert correct streaming windowing.')
 
   result = p.run()
