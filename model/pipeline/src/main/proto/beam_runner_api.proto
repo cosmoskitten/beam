@@ -245,6 +245,25 @@ message StandardPTransforms {
     COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
     COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
     COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
+
+    // Represents the lifted part of a Combine.perKey() operation. Caches and
+    // adds inputs into accumulators to prepare for grouping.
+    //
+    // Input: KV<KeyType, InputType>
+    // Output: KV<KeyType, Accumulator>
+    COMBINE_PER_KEY_PRECOMBINE = 3 [(beam_urn) = "beam:transform:combine_per_key_precombine:v1"];
+
+    // Represents an operation for merging lists of accumulators together.
+    //
+    // Input: KV<KeyType, Iterable<Accumulator>>
+    // Output: KV<KeyType, Accumulator>
+    COMBINE_PER_KEY_MERGE_ACCUMULATORS = 4 [(beam_urn) = "beam:transform:combine_per_key_merge_accumulators:v1"];
+
+    // Represents an operation for extracting outputs from accumulators.
+    //
+    // Input: KV<KeyType, Accumulator>
+    // Output: KV<KeyType, OutputType>
+    COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
