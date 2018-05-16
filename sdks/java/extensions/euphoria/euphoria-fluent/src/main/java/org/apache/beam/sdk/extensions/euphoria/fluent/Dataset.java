@@ -43,7 +43,9 @@ public class Dataset<T> {
   }
 
   public <OutputT> Dataset<OutputT> apply(
-      UnaryFunction<org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>, Output<OutputT>> output) {
+      UnaryFunction<
+          org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset<T>,
+          Output<OutputT>> output) {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
   }
 

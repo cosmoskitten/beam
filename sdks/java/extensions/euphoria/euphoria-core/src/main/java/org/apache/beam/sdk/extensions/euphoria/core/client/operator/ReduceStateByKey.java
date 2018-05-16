@@ -25,6 +25,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Basic;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow;
@@ -296,8 +297,8 @@ public class ReduceStateByKey<
     }
 
     /**
-     * Specifies the merging function to be utilized when states get merged as part of {@link
-     * org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.MergingWindowing window merging}.
+     * Specifies the merging function to be utilized when states get merged as part of
+     * {@link MergingWindowing window merging}.
      *
      * @param stateMerger a user defined function to merge mutilple states into a specified target
      *     state

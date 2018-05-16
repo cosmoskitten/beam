@@ -59,7 +59,8 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions po) throws IOException {
-    final org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedReader<T> reader = wrap.openReader();
+    final org.apache.beam.sdk.extensions.euphoria.core.client.io.BoundedReader<T> reader =
+        wrap.openReader();
     return new BoundedReader<T>() {
 
       private T current = null;

@@ -264,7 +264,8 @@ public class GroupReducer<WidT extends Window, K, InT> {
     WindowedElement<W, T> create(W window, long timestamp, T element);
   }
 
-  class ElementCollector<T> implements Context, org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector<T> {
+  class ElementCollector<T>
+      implements Context, org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector<T> {
 
     final Collector<WindowedElement<WidT, Pair<K, T>>> out;
     final WidT window;

@@ -35,7 +35,8 @@ public class Flow {
   }
 
   public static Flow create(String name, Settings settings) {
-    return new Flow(org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow.create(name, settings));
+    return new Flow(
+        org.apache.beam.sdk.extensions.euphoria.core.client.flow.Flow.create(name, settings));
   }
 
   public <T> Dataset<T> read(DataSource<T> src) {
