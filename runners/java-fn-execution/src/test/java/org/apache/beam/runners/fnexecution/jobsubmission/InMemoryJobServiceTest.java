@@ -30,6 +30,7 @@ import com.google.protobuf.Struct;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.junit.Before;
@@ -42,12 +43,11 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link InMemoryJobService}. */
 @RunWith(JUnit4.class)
 public class InMemoryJobServiceTest {
-  private static final String TEST_JOB_NAME = "test-job";
-  private static final String TEST_JOB_ID = "test-job-id";
-  private static final String TEST_STAGING_TOKEN = "test-staging-token";
   private static final RunnerApi.Pipeline TEST_PIPELINE = RunnerApi.Pipeline.getDefaultInstance();
+  private static final String TEST_JOB_ID = "test-job-id";
+  private static final String TEST_JOB_NAME = "test-job";
+  private static final String TEST_STAGING_TOKEN = "test-staging-token";
   private static final Struct TEST_OPTIONS = Struct.getDefaultInstance();
-
 
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock
@@ -109,6 +109,43 @@ public class InMemoryJobServiceTest {
     assertThat(runRecorder.values, hasSize(1));
     JobApi.RunJobResponse runResponse = runRecorder.values.get(0);
     assertThat(runResponse.getJobId(), is(TEST_JOB_ID));
+  }
+
+  @Test
+  public void testGetStateForwardsStateFromJobInvocation() throws Exception {
+    // set up mock
+    when(invocation.getState()).thenReturn(JobApi.JobState.Enum.RUNNING);
+    // prepare job
+    JobApi.PrepareJobRequest prepareRequest =
+        JobApi.PrepareJobRequest.newBuilder()
+            .setJobName(TEST_JOB_NAME)
+            .setPipeline(RunnerApi.Pipeline.getDefaultInstance())
+            .setPipelineOptions(Struct.getDefaultInstance())
+            .build();
+    RecordingObserver<JobApi.PrepareJobResponse> prepareRecorder = new RecordingObserver<>();
+    service.prepare(prepareRequest, prepareRecorder);
+    String prepId = prepareRecorder.values.get(0).getPreparationId();
+    // run job
+    JobApi.RunJobRequest runRequest =
+        JobApi.RunJobRequest.newBuilder()
+            .setPreparationId(prepId)
+            .setStagingToken(TEST_STAGING_TOKEN)
+            .build();
+    RecordingObserver<JobApi.RunJobResponse> runRecorder = new RecordingObserver<>();
+    service.run(runRequest, runRecorder);
+    String jobId = runRecorder.values.get(0).getJobId();
+
+    // get state
+    JobApi.GetJobStateRequest stateRequest =
+        JobApi.GetJobStateRequest.newBuilder()
+        .setJobId(jobId)
+        .build();
+    RecordingObserver<JobApi.GetJobStateResponse> stateRecorder = new RecordingObserver<>();
+    service.getState(stateRequest, stateRecorder);
+    verify(invocation, times(1)).getState();
+    assertThat(stateRecorder.isSuccessful(), is(true));
+    assertThat(stateRecorder.values, hasSize(1));
+    assertThat(stateRecorder.values.get(0).getState(), is(Enum.RUNNING));
   }
 
   private static class RecordingObserver<T> implements StreamObserver<T> {
