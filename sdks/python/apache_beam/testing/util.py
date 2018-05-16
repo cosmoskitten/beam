@@ -125,7 +125,7 @@ def is_empty():
   return _empty
 
 
-def assert_that(actual, matcher, custom_windowing=None,
+def assert_that(actual, matcher, use_global_window=True,
                 label='assert_that', reify_windows=False):
   """A PTransform that checks a PCollection has an expected value.
 
@@ -139,7 +139,7 @@ def assert_that(actual, matcher, custom_windowing=None,
       expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
-    custom_windowing: If specified, matcher is passed a dictionary of
+    use_global_windows: If False, matcher is passed a dictionary of
       (k, v) = (window, elements in the window).
     reify_windows: If True, matcher is passed a list of TestWindowedValue.
 
@@ -167,15 +167,17 @@ def assert_that(actual, matcher, custom_windowing=None,
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
 
       keyed_singleton = pcoll.pipeline | Create([(None, None)])
-      keyed_actual = (
-          pcoll
-          | WindowInto(custom_windowing or window.GlobalWindows())
-          | "ToVoidKey" >> Map(lambda v: (None, v)))
+
+      if use_global_window:
+        pcoll = pcoll | WindowInto(window.GlobalWindows())
+
+      keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
+
       plain_actual = ((keyed_singleton, keyed_actual)
                       | "Group" >> CoGroupByKey()
                       | "Unkey" >> Map(lambda k_values: k_values[1][1]))
 
-      if custom_windowing:
+      if not use_global_window:
         plain_actual = plain_actual | "AddWindow" >> ParDo(AddWindow())
 
       plain_actual = plain_actual | "Match" >> Map(matcher)
