@@ -78,39 +78,8 @@ class Stager(object):
   """Stager identifies and copies the appropriate artifacts to the staging
   location."""
 
-  def _copy_file(self, from_path, to_path):
-    """Copies a local file to a GCS file or vice versa."""
-    logging.info('file copy from %s to %s.', from_path, to_path)
-    if from_path.startswith('gs://') or to_path.startswith('gs://'):
-      from apache_beam.io.gcp import gcsio
-      if from_path.startswith('gs://') and to_path.startswith('gs://'):
-        # Both files are GCS files so copy.
-        gcsio.GcsIO().copy(from_path, to_path)
-      elif to_path.startswith('gs://'):
-        # Only target is a GCS file, read local file and upload.
-        with open(from_path, 'rb') as f:
-          with gcsio.GcsIO().open(to_path, mode='wb') as g:
-            pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
-            for chunk in iter(pfun, ''):
-              g.write(chunk)
-      else:
-        # Source is a GCS file but target is local file.
-        with gcsio.GcsIO().open(from_path, mode='rb') as g:
-          with open(to_path, 'wb') as f:
-            pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
-            for chunk in iter(pfun, ''):
-              f.write(chunk)
-    else:
-      # Branch used only for unit tests and integration tests.
-      # In such environments GCS support is not available.
-      if not os.path.isdir(os.path.dirname(to_path)):
-        logging.info(
-            'Created folder (since we have not done yet, and any errors '
-            'will follow): %s ', os.path.dirname(to_path))
-        os.mkdir(os.path.dirname(to_path))
-      shutil.copyfile(from_path, to_path)
-
-  def _download_file(self, from_url, to_path):
+  @staticmethod
+  def _download_file(from_url, to_path):
     """Downloads a file over http/https from a url or copy it from a remote
         path to local path."""
     if from_url.startswith('http://') or from_url.startswith('https://'):
@@ -130,11 +99,35 @@ class Stager(object):
       except Exception:
         logging.info('Failed to download Artifact from %s', from_url)
         raise
+    elif from_url.startswith('gs://') or to_path.startswith('gs://'):
+      from apache_beam.io.gcp import gcsio
+      if from_url.startswith('gs://') and to_path.startswith('gs://'):
+        # Both files are GCS files so copy.
+        gcsio.GcsIO().copy(from_url, to_path)
+      elif to_path.startswith('gs://'):
+        # Only target is a GCS file, read local file and upload.
+        with open(from_url, 'rb') as f:
+          with gcsio.GcsIO().open(to_path, mode='wb') as g:
+            pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
+            for chunk in iter(pfun, ''):
+              g.write(chunk)
+      else:
+        # Source is a GCS file but target is local file.
+        with gcsio.GcsIO().open(from_url, mode='rb') as g:
+          with open(to_path, 'wb') as f:
+            pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
+            for chunk in iter(pfun, ''):
+              f.write(chunk)
     else:
-      # Copy the file from the remote file system to loca files system.
-      self._copy_file(from_url, to_path)
+      if not os.path.isdir(os.path.dirname(to_path)):
+        logging.info(
+            'Created folder (since we have not done yet, and any errors '
+            'will follow): %s ', os.path.dirname(to_path))
+        os.mkdir(os.path.dirname(to_path))
+      shutil.copyfile(from_url, to_path)
 
-  def _is_remote_path(self, path):
+  @staticmethod
+  def _is_remote_path(path):
     return path.find('://') != -1
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
@@ -142,7 +135,7 @@ class Stager(object):
 
       Args:
         extra_packages: Ordered list of local paths to extra packages to be
-          staged.
+          staged. Only packages on localfile system and GCS are supported.
         staging_location: Staging location for the packages.
         temp_dir: Temporary folder where the resource building can happen.
           Caller is responsible for cleaning up this folder after this function
@@ -219,7 +212,8 @@ class Stager(object):
 
     return resources
 
-  def _get_python_executable(self):
+  @staticmethod
+  def _get_python_executable():
     # Allow overriding the python executable to use for downloading and
     # installing dependencies, otherwise use the python executable for
     # the current process.
@@ -228,13 +222,14 @@ class Stager(object):
       raise ValueError('Could not find Python executable.')
     return python_bin
 
-  def _populate_requirements_cache(self, requirements_file, cache_dir):
+  @staticmethod
+  def _populate_requirements_cache(requirements_file, cache_dir):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
     # the requirements file and will not download package dependencies.
     cmd_args = [
-        self._get_python_executable(),
+        Stager._get_python_executable(),
         '-m',
         'pip',
         'download',
@@ -249,13 +244,14 @@ class Stager(object):
     logging.info('Executing command: %s', cmd_args)
     processes.check_call(cmd_args)
 
-  def _build_setup_package(self, setup_file, temp_dir, build_setup_args=None):
+  @staticmethod
+  def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     saved_current_directory = os.getcwd()
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
         build_setup_args = [
-            self._get_python_executable(),
+            Stager._get_python_executable(),
             os.path.basename(setup_file), 'sdist', '--dist-dir', temp_dir
         ]
       logging.info('Executing command: %s', build_setup_args)
@@ -268,7 +264,8 @@ class Stager(object):
     finally:
       os.chdir(saved_current_directory)
 
-  def _desired_sdk_filename_in_staging_location(self, sdk_location):
+  @staticmethod
+  def _desired_sdk_filename_in_staging_location(sdk_location):
     """Returns the name that SDK file should have in the staging location.
       Args:
         sdk_location: Full path to SDK file.
@@ -339,15 +336,15 @@ class Stager(object):
           'The --sdk_location option was used with an unsupported '
           'type of location: %s' % sdk_remote_location)
 
-  def _download_pypi_sdk_package(self,
-                                 temp_dir,
+  @staticmethod
+  def _download_pypi_sdk_package(temp_dir,
                                  fetch_binary=False,
                                  language_version_tag='27',
                                  language_implementation_tag='cp',
                                  abi_tag='cp27mu',
                                  platform_tag='manylinux1_x86_64'):
     """Downloads SDK package from PyPI and returns path to local path."""
-    package_name = self.get_sdk_package_name()
+    package_name = Stager.get_sdk_package_name()
     try:
       version = pkg_resources.get_distribution(package_name).version
     except pkg_resources.DistributionNotFound:
@@ -355,7 +352,7 @@ class Stager(object):
                          'or install a valid {} distribution.'
                          .format(package_name))
     cmd_args = [
-        self._get_python_executable(), '-m', 'pip', 'download', '--dest',
+        Stager._get_python_executable(), '-m', 'pip', 'download', '--dest',
         temp_dir,
         '%s==%s' % (package_name, version), '--no-deps'
     ]
@@ -567,7 +564,8 @@ class Stager(object):
     """Commits manifest through Artifact API."""
     raise NotImplementedError
 
-  def get_sdk_package_name(self):
+  @staticmethod
+  def get_sdk_package_name():
     """For internal use only; no backwards-compatibility guarantees.
       Returns the PyPI package name to be staged."""
     return BEAM_PACKAGE_NAME

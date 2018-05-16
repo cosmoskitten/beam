@@ -308,7 +308,7 @@ class StagerTest(unittest.TestCase):
       staged_resources = self.stager.stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
-      self.assertTrue(len(staged_resources), 2)
+      self.assertEqual(len(staged_resources), 2)
       self.assertEqual(staged_resources[0], names.DATAFLOW_SDK_TARBALL_FILE)
       # Exact name depends on the version of the SDK.
       self.assertTrue(staged_resources[1].endswith('whl'))
@@ -561,12 +561,14 @@ class StagerTest(unittest.TestCase):
 
 class TestStager(stager.Stager):
 
-  def _copy_file(self, from_path, to_path):
+  @staticmethod
+  def _copy_file(from_path, to_path):
     logging.info('File copy from %s to %s.', from_path, to_path)
     shutil.copyfile(from_path, to_path)
 
-  def _download_file(self, from_url, to_path):
-    self._copy_file(from_url, to_path)
+  @staticmethod
+  def _download_file(from_url, to_path):
+    TestStager._copy_file(from_url, to_path)
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     self._copy_file(local_path_to_artifact, artifact_name)
