@@ -392,7 +392,9 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).sdk_location = sdk_location
 
-    with mock.patch('stager_test.TestStager.stage_artifact'):
+    with mock.patch(
+        'apache_beam.runners.portability.stager_test.TestStager.stage_artifact'
+    ):
       with mock.patch(
           'apache_beam.runners.portability.stager.Stager._download_file'):
         self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
@@ -413,7 +415,9 @@ class StagerTest(unittest.TestCase):
     def is_remote_path(path):
       return path.startswith('/tmp/remote/')
 
-    with mock.patch('stager_test.TestStager.stage_artifact'):
+    with mock.patch(
+        'apache_beam.runners.portability.stager_test.TestStager.stage_artifact'
+    ):
       with mock.patch(
           'apache_beam.runners.portability.stager.Stager._download_file'):
         with mock.patch(

@@ -218,7 +218,7 @@ class Stager(object):
         '-r',
         requirements_file,
         '--exists-action',
-        'i'
+        'i',
         # Download from PyPI source distributions.
         '--no-binary',
         ':all:'
