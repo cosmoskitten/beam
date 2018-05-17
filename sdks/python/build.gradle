@@ -230,3 +230,12 @@ task postCommit() {
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitVRTests"
 }
+
+task dependencyupdates() {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "./run_dependency_check.sh"
+    }
+  }
+}
