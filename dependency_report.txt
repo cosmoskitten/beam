@@ -1,0 +1,201 @@
+
+------------------------------------------------------------
+: Project Dependency Updates (report to plain text file)
+------------------------------------------------------------
+
+The following dependencies are using the latest milestone version:
+ - org.apache.activemq:activemq-amqp:5.13.1
+ - org.apache.activemq:activemq-broker:5.13.1
+ - org.apache.activemq:activemq-client:5.13.1
+ - org.apache.activemq:activemq-jaas:5.13.1
+ - org.apache.activemq.tooling:activemq-junit:5.13.1
+ - org.apache.activemq:activemq-kahadb-store:5.13.1
+ - org.apache.activemq:activemq-mqtt:5.13.1
+ - org.apache.rat:apache-rat-tasks:0.12
+ - org.apache.apex:apex-common:3.7.0
+ - org.apache.apex:apex-engine:3.7.0
+ - args4j:args4j:2.33
+ - org.apache.calcite.avatica:avatica-core:1.11.0
+ - org.apache.avro:avro:1.8.2
+ - com.google.cloud.bigtable:bigtable-client-core:1.0.0
+ - com.google.cloud.bigtable:bigtable-protos:1.0.0-pre3
+ - net.bytebuddy:byte-buddy:1.8.11
+ - org.apache.calcite:calcite-core:1.16.0
+ - org.apache.calcite:calcite-linq4j:1.16.0
+ - org.apache.commons:commons-compress:1.16.1
+ - org.apache.commons:commons-csv:1.4
+ - commons-io:commons-io:2.5
+ - commons-lang:commons-lang:2.6
+ - org.apache.commons:commons-lang3:3.6
+ - gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1
+ - com.google.cloud.datastore:datastore-v1-proto-client:1.4.0
+ - com.google.cloud.datastore:datastore-v1-protos:1.3.0
+ - com.github.kstyrc:embedded-redis:0.6
+ - com.google.errorprone:error_prone_annotations:2.0.15
+ - com.google.code.findbugs:findbugs-annotations:3.0.1
+ - com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0
+ - com.google.api:gax-grpc:0.20.0
+ - com.google.cloud.bigdataoss:gcsio:1.4.5
+ - org.apache.gearpump:gearpump-core_2.11:0.8.4
+ - org.apache.gearpump:gearpump-streaming_2.11:0.8.4
+ - org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1
+ - gradle.plugin.com.github.blindpirate:gogradle:0.9
+ - com.google.api-client:google-api-client:1.23.0
+ - com.google.apis:google-api-services-bigquery:v2-rev374-1.23.0
+ - com.google.apis:google-api-services-clouddebugger:v2-rev233-1.23.0
+ - com.google.apis:google-api-services-cloudresourcemanager:v1-rev477-1.23.0
+ - com.google.apis:google-api-services-dataflow:v1b3-rev221-1.23.0
+ - com.google.apis:google-api-services-pubsub:v1-rev382-1.23.0
+ - com.google.apis:google-api-services-storage:v1-rev124-1.23.0
+ - com.google.auth:google-auth-library-credentials:0.7.1
+ - com.google.auth:google-auth-library-oauth2-http:0.7.1
+ - com.google.cloud:google-cloud-core:1.0.2
+ - com.google.cloud:google-cloud-core-grpc:1.2.0
+ - com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304
+ - com.google.cloud:google-cloud-spanner:0.20.0b-beta
+ - com.google.http-client:google-http-client:1.23.0
+ - com.google.http-client:google-http-client-jackson2:1.23.0
+ - gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3
+ - com.github.ben-manes:gradle-versions-plugin:0.17.0
+ - io.grpc:grpc-all:1.2.0
+ - io.grpc:grpc-auth:1.2.0
+ - io.grpc:grpc-core:1.2.0
+ - com.google.api.grpc:grpc-google-cloud-pubsub-v1:0.1.18
+ - io.grpc:grpc-netty:1.2.0
+ - io.grpc:grpc-protobuf:1.2.0
+ - io.grpc:grpc-stub:1.2.0
+ - com.google.guava:guava:20.0
+ - com.google.guava:guava-testlib:20.0
+ - org.apache.hadoop:hadoop-client:2.7.3
+ - org.apache.hadoop:hadoop-common:2.7.3
+ - org.apache.hadoop:hadoop-hdfs:2.7.3
+ - org.apache.hadoop:hadoop-mapreduce-client-core:2.7.3
+ - org.apache.hadoop:hadoop-minicluster:2.7.3
+ - org.hamcrest:hamcrest-core:1.3
+ - org.hamcrest:hamcrest-library:1.3
+ - org.fusesource.hawtbuf:hawtbuf:1.11
+ - com.fasterxml.jackson.core:jackson-annotations:2.8.9
+ - com.fasterxml.jackson.core:jackson-core:2.8.9
+ - com.fasterxml.jackson.core:jackson-databind:2.8.9
+ - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.8.9
+ - com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.9
+ - com.fasterxml.jackson.datatype:jackson-datatype-joda:2.4.0
+ - com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9
+ - ca.coglinc:javacc-gradle-plugin:2.4.0
+ - javax.xml.bind:jaxb-api:2.2.12
+ - redis.clients:jedis:2.9.0
+ - joda-time:joda-time:2.4
+ - com.google.code.findbugs:jsr305:3.0.1
+ - junit:junit:4.12
+ - com.pholser:junit-quickcheck-core:0.8
+ - org.apache.kafka:kafka-clients:1.0.0
+ - org.apache.kafka:kafka_2.11:1.0.0
+ - org.apache.logging.log4j:log4j-api:2.6.2
+ - org.apache.logging.log4j:log4j-core:2.6.2
+ - org.apache.apex:malhar-library:3.4.0
+ - org.mockito:mockito-core:1.9.5
+ - org.fusesource.mqtt-client:mqtt-client:1.14
+ - io.netty:netty-handler:4.1.8.Final
+ - io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26
+ - io.netty:netty-transport-native-epoll:4.1.8.Final
+ - org.postgresql:postgresql:9.4.1212.jre7
+ - com.google.api.grpc:proto-google-cloud-pubsub-v1:0.1.18
+ - com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:0.1.9
+ - com.google.api.grpc:proto-google-common-protos:0.1.9
+ - com.google.protobuf:protobuf-gradle-plugin:0.8.5
+ - com.google.protobuf:protobuf-java:3.2.0
+ - com.google.protobuf:protobuf-java-util:3.2.0
+ - org.slf4j:slf4j-simple:1.7.25
+ - org.xerial.snappy:snappy-java:1.1.4
+ - org.apache.spark:spark-core_2.11:2.3.0
+ - org.apache.spark:spark-network-common_2.11:2.3.0
+ - org.apache.spark:spark-streaming_2.11:2.3.0
+ - org.codehaus.woodstox:stax2-api:3.1.4
+ - com.tdunning:t-digest:3.2
+ - org.apache.tika:tika-core:1.18
+ - org.apache.tika:tika-parsers:1.18
+ - com.google.cloud.bigdataoss:util:1.4.5
+ - cz.malohlava:visteg:1.0.3
+ - org.codehaus.woodstox:woodstox-core-asl:4.4.1
+
+The following dependencies have later milestone versions:
+ - com.amazonaws:amazon-kinesis-client [1.8.8 -> 1.9.1]
+ - com.amazonaws:amazon-kinesis-producer [0.12.8 -> 0.12.9]
+ - org.assertj:assertj-core [2.5.0 -> 3.10.0]
+ - com.google.auto.service:auto-service [1.0-rc2 -> 1.0-rc4]
+ - com.google.auto.value:auto-value [1.5.3 -> 1.6]
+ - com.amazonaws:aws-java-sdk-cloudwatch [1.11.255 -> 1.11.331]
+ - com.amazonaws:aws-java-sdk-core [1.11.319 -> 1.11.331]
+ - com.amazonaws:aws-java-sdk-kinesis [1.11.255 -> 1.11.331]
+ - com.amazonaws:aws-java-sdk-s3 [1.11.319 -> 1.11.331]
+ - com.gradle:build-scan-plugin [1.13.1 -> 1.13.3]
+ - org.apache.cassandra:cassandra-all [3.9 -> 3.11.2]
+ - com.datastax.cassandra:cassandra-driver-core [3.4.0 -> 3.5.0]
+ - com.datastax.cassandra:cassandra-driver-mapping [3.4.0 -> 3.5.0]
+ - commons-cli:commons-cli [1.2 -> 1.4]
+ - commons-codec:commons-codec [1.9 -> 1.11]
+ - org.apache.commons:commons-dbcp2 [2.1.1 -> 2.3.0]
+ - com.typesafe:config [1.3.0 -> 1.3.3]
+ - de.flapdoodle.embed:de.flapdoodle.embed.mongo [1.50.1 -> 2.0.3]
+ - de.flapdoodle.embed:de.flapdoodle.embed.process [1.50.1 -> 2.0.3]
+ - org.apache.derby:derby [10.12.1.1 -> 10.14.2.0]
+ - org.apache.derby:derbyclient [10.12.1.1 -> 10.14.2.0]
+ - org.apache.derby:derbynet [10.12.1.1 -> 10.14.2.0]
+ - org.elasticsearch:elasticsearch [5.6.3 -> 6.2.4]
+ - org.elasticsearch:elasticsearch-hadoop [5.0.0 -> 6.2.4]
+ - org.elasticsearch.client:elasticsearch-rest-client [5.6.3 -> 6.2.4]
+ - com.alibaba:fastjson [1.2.12 -> 1.2.47]
+ - org.apache.flink:flink-clients_2.11 [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-core [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-java [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-metrics-core [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-runtime_2.11 [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-streaming-java_2.11 [1.4.0 -> 1.4.2]
+ - org.apache.flink:flink-test-utils_2.11 [1.4.0 -> 1.4.2]
+ - org.elasticsearch.test:framework [5.6.3 -> 6.2.4]
+ - org.freemarker:freemarker [2.3.25-incubating -> 2.3.28]
+ - net.ltgt.gradle:gradle-apt-plugin [0.13 -> 0.15]
+ - com.commercehub.gradle.plugin:gradle-avro-plugin [0.11.0 -> 0.14.1]
+ - gradle.plugin.com.palantir.gradle.docker:gradle-docker [0.13.0 -> 0.19.2]
+ - net.ltgt.gradle:gradle-errorprone-plugin [0.0.13 -> 0.0.14]
+ - net.researchgate:gradle-release [2.6.0 -> 2.7.0]
+ - org.codehaus.groovy:groovy-all [2.4.13 -> 3.0.0-alpha-2]
+ - org.apache.hbase:hbase-common [1.2.6 -> 2.0.0.3.0.0.3-2]
+ - org.apache.hbase:hbase-hadoop-compat [1.2.6 -> 2.0.0.3.0.0.3-2]
+ - org.apache.hbase:hbase-hadoop2-compat [1.2.6 -> 2.0.0.3.0.0.3-2]
+ - org.apache.hbase:hbase-server [1.2.6 -> 2.0.0.3.0.0.3-2]
+ - org.apache.hbase:hbase-shaded-client [1.2.6 -> 2.0.0.3.0.0.3-2]
+ - org.apache.hbase:hbase-shaded-server [1.2.6 -> 2.0.0-alpha2]
+ - org.apache.hive:hive-cli [2.1.0 -> 3.0.0.3.0.0.3-2]
+ - org.apache.hive:hive-common [2.1.0 -> 3.0.0.3.0.0.3-2]
+ - org.apache.hive:hive-exec [2.1.0 -> 3.0.0.3.0.0.3-2]
+ - org.apache.hive.hcatalog:hive-hcatalog-core [2.1.0 -> 3.0.0.3.0.0.3-2]
+ - org.apache.httpcomponents:httpasyncclient [4.1.2 -> 4.1.3]
+ - org.apache.httpcomponents:httpclient [4.5.2 -> 4.5.5]
+ - org.apache.httpcomponents:httpcore [4.4.5 -> 4.4.9]
+ - org.apache.httpcomponents:httpcore-nio [4.4.5 -> 4.4.9]
+ - net.java.dev.javacc:javacc [4.0 -> 7.0.3]
+ - net.java.dev.jna:jna [4.1.0 -> 4.5.1]
+ - com.esotericsoftware.kryo:kryo [2.21 -> 2.24.0]
+ - io.dropwizard.metrics:metrics-core [3.1.2 -> 4.1.0-rc2]
+ - org.mongodb:mongo-java-driver [3.2.2 -> 3.8.0-beta2]
+ - io.netty:netty-all [4.1.17.Final -> 5.0.0.Alpha2]
+ - io.spring.gradle:propdeps-plugin [0.0.9.RELEASE -> 0.0.10.RELEASE]
+ - com.google.protobuf:protoc [3.2.0 -> 3.5.1-1]
+ - io.grpc:protoc-gen-grpc-java [1.2.0 -> 1.12.0]
+ - org.apache.qpid:proton-j [0.13.1 -> 0.27.1]
+ - com.carrotsearch.randomizedtesting:randomizedtesting-runner [2.5.0 -> 2.6.1]
+ - org.scala-lang:scala-library [2.11.8 -> 2.13.0-M4]
+ - com.github.jengelman.gradle.plugins:shadow [2.0.1 -> 2.0.4]
+ - org.slf4j:slf4j-api [1.7.25 -> 1.8.0-beta2]
+ - org.slf4j:slf4j-jdk14 [1.7.25 -> 1.8.0-beta2]
+ - org.apache.solr:solr-core [5.5.4 -> 7.3.1]
+ - org.apache.solr:solr-solrj [5.5.4 -> 7.3.1]
+ - org.apache.solr:solr-test-framework [5.5.4 -> 7.3.1]
+ - com.diffplug.spotless:spotless-plugin-gradle [3.6.0 -> 3.12.0]
+ - org.springframework:spring-expression [4.3.5.RELEASE -> 5.0.6.RELEASE]
+ - com.clearspring.analytics:stream [2.9.5 -> 2.9.6]
+ - org.elasticsearch.client:transport [5.0.0 -> 6.2.4]
+ - org.elasticsearch.plugin:transport-netty4-client [5.6.3 -> 6.2.4]
+ - org.tukaani:xz [1.5 -> 1.8]
+ - org.apache.zookeeper:zookeeper [3.4.11 -> 3.5.4-beta]
