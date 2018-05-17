@@ -209,7 +209,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			Experiments:       append(jobopts.GetExperiments(), "beam_fn_api"),
 		},
 		Labels: jobLabels,
-		Steps: steps,
+		Steps:  steps,
 	}
 
 	if *numWorkers > 0 {
