@@ -52,6 +52,8 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
@@ -67,6 +69,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
 
   private final ServerFactory serverFactory;
+  private final IdGenerator stageIdGenerator;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServer;
@@ -78,6 +81,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     DockerCommand dockerCommand = DockerCommand.forExecutable("docker", Duration.ofSeconds(60));
     // TODO: Use ServerFactory that produces correct service descriptors for docker-for-mac.
     ServerFactory serverFactory = ServerFactory.createDefault();
+    IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
     ControlClientPool clientPool = MapControlClientPool.create();
 
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
@@ -94,7 +98,6 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(ProvisionInfo.newBuilder().build()), serverFactory);
-    // TODO: Wire in IdGenerators when available: https://github.com/apache/beam/pull/5348
     DockerEnvironmentFactory environmentFactory =
         DockerEnvironmentFactory.forServices(
             dockerCommand,
@@ -103,10 +106,11 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             retrievalServer,
             provisioningServer,
             clientPool.getSource(),
-            null);
+            IdGenerators.incrementingLongs());
     return new DockerJobBundleFactory(
         environmentFactory,
         serverFactory,
+        stageIdGenerator,
         controlServer,
         loggingServer,
         retrievalServer,
@@ -116,11 +120,13 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private DockerJobBundleFactory(
       DockerEnvironmentFactory environmentFactory,
       ServerFactory serverFactory,
+      IdGenerator stageIdGenerator,
       GrpcFnServer<FnApiControlClientPoolService> controlServer,
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServer) {
     this.serverFactory = serverFactory;
+    this.stageIdGenerator = stageIdGenerator;
     this.controlServer = controlServer;
     this.loggingServer = loggingServer;
     this.retrievalServer = retrievalServer;
@@ -154,10 +160,11 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         environmentCache.getUnchecked(executableStage.getEnvironment());
     ExecutableProcessBundleDescriptor processBundleDescriptor;
     try {
-      // TODO: Generate a unique descriptor id scoped to control client.
       processBundleDescriptor =
           ProcessBundleDescriptors.fromExecutableStage(
-              "id", executableStage, wrappedClient.getDataServer().getApiServiceDescriptor());
+              stageIdGenerator.getId(),
+              executableStage,
+              wrappedClient.getDataServer().getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
