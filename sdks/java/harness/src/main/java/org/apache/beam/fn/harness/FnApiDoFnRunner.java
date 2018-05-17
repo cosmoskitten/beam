@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BagUserState;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -62,6 +63,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
@@ -104,6 +107,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
@@ -338,6 +342,10 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final ProcessBundleContext processBundleContext;
   private final FinishBundleContext finishBundleContext;
   private final Collection<ThrowingRunnable> stateFinalizers;
+  @Nullable
+  private final SchemaCoder<InputT> schemaCoder;
+  @Nullable
+  private final FieldAccessDescriptor fieldAccessDescriptor;
 
   /**
    * The lifetime of this member is only valid during {@link #processElement}
@@ -393,6 +401,17 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.processBundleContext = new ProcessBundleContext();
     this.finishBundleContext = new FinishBundleContext();
     this.stateFinalizers = new ArrayList<>();
+    this.schemaCoder = (inputCoder instanceof SchemaCoder)
+        ? (SchemaCoder<InputT>) inputCoder : null;
+    DoFnSignature.ProcessElementMethod processElementMethod =
+        DoFnSignatures.getSignature(doFn.getClass()).processElement();
+    FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
+    if (fieldAccessDescriptor != null) {
+      checkArgument(schemaCoder != null,
+          "Cannot access object as a row if the input PCollection does not have a schema.");
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
+    }
+    this.fieldAccessDescriptor = fieldAccessDescriptor;
   }
 
   @Override
@@ -527,6 +546,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
@@ -615,6 +640,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return element();
+    }
+
+    @Override
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
+      checkState(fieldAccessDescriptor.allFields());
+      return schemaCoder.getToRowFunction().apply(element());
     }
 
     @Override
@@ -804,6 +835,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access element outside of @ProcessElement method.");
+    }
+
+    @Override
+    public Row asRow(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
