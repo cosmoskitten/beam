@@ -217,6 +217,8 @@ class Stager(object):
         cache_dir,
         '-r',
         requirements_file,
+        '--exists-action',
+        'i'
         # Download from PyPI source distributions.
         '--no-binary',
         ':all:'
