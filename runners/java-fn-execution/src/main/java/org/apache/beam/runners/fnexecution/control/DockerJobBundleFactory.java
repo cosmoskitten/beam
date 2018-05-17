@@ -21,13 +21,16 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -35,6 +38,7 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -47,6 +51,9 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,9 +74,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create() throws Exception {
+  public static DockerJobBundleFactory create(ArtifactSource artifactSource) throws Exception {
     DockerCommand dockerCommand = DockerCommand.forExecutable("docker", Duration.ofSeconds(60));
-    // TODO: Use ServerFactory that produces correct service descriptors for docker-on-mac.
+    // TODO: Use ServerFactory that produces correct service descriptors for docker-for-mac.
     ServerFactory serverFactory = ServerFactory.createDefault();
     ControlClientPool clientPool = MapControlClientPool.create();
 
@@ -87,7 +94,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(ProvisionInfo.newBuilder().build()), serverFactory);
-    // TODO: Wire in IdGenerators when available.
+    // TODO: Wire in IdGenerators when available: https://github.com/apache/beam/pull/5348
     DockerEnvironmentFactory environmentFactory =
         DockerEnvironmentFactory.forServices(
             dockerCommand,
@@ -172,6 +179,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private static class SimpleStageBundleFactory<InputT> implements StageBundleFactory<InputT> {
 
     private final BundleProcessor<InputT> processor;
+    private final ExecutableProcessBundleDescriptor processBundleDescriptor;
 
     // Store the wrapped client in order to keep a live reference into the cache.
     @SuppressFBWarnings private WrappedSdkHarnessClient wrappedClient;
@@ -187,11 +195,14 @@ public class DockerJobBundleFactory implements JobBundleFactory {
                   processBundleDescriptor.getProcessBundleDescriptor(),
                   (RemoteInputDestination) processBundleDescriptor.getRemoteInputDestination(),
                   wrappedClient.getStateServer().getService());
-      return new SimpleStageBundleFactory<>(processor, wrappedClient);
+      return new SimpleStageBundleFactory<>(processBundleDescriptor, processor, wrappedClient);
     }
 
     SimpleStageBundleFactory(
-        BundleProcessor<InputT> processor, WrappedSdkHarnessClient wrappedClient) {
+        ExecutableProcessBundleDescriptor processBundleDescriptor,
+        BundleProcessor<InputT> processor,
+        WrappedSdkHarnessClient wrappedClient) {
+      this.processBundleDescriptor = processBundleDescriptor;
       this.processor = processor;
       this.wrappedClient = wrappedClient;
     }
@@ -200,9 +211,26 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     public RemoteBundle<InputT> getBundle(
         OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler)
         throws Exception {
-      // TODO: We cannot construct an output receiver map from an output receiver factory. Should
-      // newBundle take an OutputReceiverFactory as an argument?
-      return processor.newBundle(Collections.emptyMap(), stateRequestHandler);
+      // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
+      // than constructing the receiver map here. Every bundle factory will need this.
+      ImmutableMap.Builder<Target, RemoteOutputReceiver<?>> outputReceivers =
+          ImmutableMap.builder();
+      for (Map.Entry<Target, Coder<WindowedValue<?>>> targetCoder :
+          processBundleDescriptor.getOutputTargetCoders().entrySet()) {
+        Target target = targetCoder.getKey();
+        Coder<WindowedValue<?>> coder = targetCoder.getValue();
+        String bundleOutputPCollection =
+            Iterables.getOnlyElement(
+                processBundleDescriptor
+                    .getProcessBundleDescriptor()
+                    .getTransformsOrThrow(target.getPrimitiveTransformReference())
+                    .getInputsMap()
+                    .values());
+        FnDataReceiver<WindowedValue<?>> outputReceiver =
+            outputReceiverFactory.create(bundleOutputPCollection);
+        outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
+      }
+      return processor.newBundle(outputReceivers.build(), stateRequestHandler);
     }
 
     @Override
