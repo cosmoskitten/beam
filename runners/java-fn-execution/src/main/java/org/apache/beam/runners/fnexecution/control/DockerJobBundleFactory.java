@@ -154,6 +154,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         environmentCache.getUnchecked(executableStage.getEnvironment());
     ExecutableProcessBundleDescriptor processBundleDescriptor;
     try {
+      // TODO: Generate a unique descriptor id scoped to control client.
       processBundleDescriptor =
           ProcessBundleDescriptors.fromExecutableStage(
               "id", executableStage, wrappedClient.getDataServer().getApiServiceDescriptor());
