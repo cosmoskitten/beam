@@ -23,6 +23,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.net.HostAndPort;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.time.Duration;
@@ -68,7 +69,10 @@ import org.slf4j.LoggerFactory;
 public class DockerJobBundleFactory implements JobBundleFactory {
   private static final Logger LOG = LoggerFactory.getLogger(DockerJobBundleFactory.class);
 
-  private final ServerFactory serverFactory;
+  // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
+  // or attempt to document the supported Docker version(s)?
+  private static final String DOCKER_FOR_MAC_HOST = "host.docker.internal";
+
   private final IdGenerator stageIdGenerator;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServer;
@@ -79,8 +83,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   public static DockerJobBundleFactory create(ArtifactSource artifactSource) throws Exception {
     DockerCommand dockerCommand = DockerCommand.forExecutable("docker", Duration.ofSeconds(60));
-    // TODO: Use ServerFactory that produces correct service descriptors for docker-for-mac.
-    ServerFactory serverFactory = ServerFactory.createDefault();
+    ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
     ControlClientPool clientPool = MapControlClientPool.create();
 
@@ -125,7 +128,6 @@ public class DockerJobBundleFactory implements JobBundleFactory {
       GrpcFnServer<GrpcLoggingService> loggingServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServer) {
-    this.serverFactory = serverFactory;
     this.stageIdGenerator = stageIdGenerator;
     this.controlServer = controlServer;
     this.loggingServer = loggingServer;
@@ -182,6 +184,30 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     loggingServer.close();
     retrievalServer.close();
     provisioningServer.close();
+  }
+
+  private static ServerFactory getServerFactory() {
+    switch (getPlatform()) {
+      case LINUX:
+        return ServerFactory.createDefault();
+      case MAC:
+        return ServerFactory.createWithUrlFactory(
+            (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString());
+      default:
+        LOG.warn("Unknown Docker platform. Falling back to default server factory");
+        return ServerFactory.createDefault();
+    }
+  }
+
+  private static Platform getPlatform() {
+    String osName = System.getProperty("os.name").toLowerCase();
+    // TODO: Make this more robust?
+    if (osName.startsWith("mac")) {
+      return Platform.MAC;
+    } else if (osName.startsWith("linux")) {
+      return Platform.LINUX;
+    }
+    return Platform.OTHER;
   }
 
   private static class SimpleStageBundleFactory<InputT> implements StageBundleFactory<InputT> {
@@ -303,5 +329,11 @@ public class DockerJobBundleFactory implements JobBundleFactory {
       dataServer.close();
       stateServer.close();
     }
+  }
+
+  private enum Platform {
+    MAC,
+    LINUX,
+    OTHER,
   }
 }
