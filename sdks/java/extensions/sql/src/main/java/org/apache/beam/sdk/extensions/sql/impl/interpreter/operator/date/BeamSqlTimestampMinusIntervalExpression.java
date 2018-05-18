@@ -21,13 +21,11 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression.INTERVALS_DURATIONS_TYPES;
 
 import java.math.BigDecimal;
-import java.util.Date;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.joda.time.DurationFieldType;
@@ -58,13 +56,11 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord row, BoundedWindow window) {
-    DateTime date = new DateTime(opValueEvaluated(0, row, window));
+  public BeamSqlPrimitive evaluate(Row row, BoundedWindow window) {
+    DateTime date = new DateTime((Object) opValueEvaluated(0, row, window));
     Period period = intervalToPeriod(op(1).evaluate(row, window));
 
-    Date subtractionResult = date.minus(period).toDate();
-
-    return BeamSqlPrimitive.of(outputType, subtractionResult);
+    return BeamSqlPrimitive.of(outputType, date.minus(period));
   }
 
   private Period intervalToPeriod(BeamSqlPrimitive operand) {

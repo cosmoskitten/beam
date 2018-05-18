@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.testing;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -37,11 +35,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
@@ -117,20 +113,6 @@ public class TestPipelineTest implements Serializable {
       assertEquals(
           "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
           pipeline.toString());
-    }
-
-    @Test
-    public void testConvertToArgs() {
-      String[] args = new String[] {"--tempLocation=Test_Location"};
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-      String[] arr = TestPipeline.convertToArgs(options);
-      List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 3);
-      assertThat(
-          lst,
-          containsInAnyOrder("--tempLocation=Test_Location",
-              "--appName=TestPipelineCreationTest",
-              "--optionsId=" + options.getOptionsId()));
     }
 
     @Test
@@ -226,21 +208,21 @@ public class TestPipelineTest implements Serializable {
       @Rule
       public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testNormalFlow() throws Exception {
         addTransform(pCollection(pipeline));
         pipeline.run();
       }
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testMissingRun() throws Exception {
         exception.expect(TestPipeline.PipelineRunMissingException.class);
         addTransform(pCollection(pipeline));
       }
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testMissingRunWithDisabledEnforcement() throws Exception {
         pipeline.enableAbandonedNodeEnforcement(false);
@@ -249,7 +231,7 @@ public class TestPipelineTest implements Serializable {
         // disable abandoned node detection
       }
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testMissingRunAutoAdd() throws Exception {
         pipeline.enableAutoRunIfMissing(true);
@@ -258,7 +240,7 @@ public class TestPipelineTest implements Serializable {
         // have the pipeline.run() auto-added
       }
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testDanglingPTransformValidatesRunner() throws Exception {
         final PCollection<String> pCollection = pCollection(pipeline);
@@ -284,7 +266,7 @@ public class TestPipelineTest implements Serializable {
         addTransform(pCollection);
       }
 
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testDanglingPAssertValidatesRunner() throws Exception {
         final PCollection<String> pCollection = pCollection(pipeline);
@@ -301,7 +283,7 @@ public class TestPipelineTest implements Serializable {
        * Tests that a {@link TestPipeline} rule behaves as expected when there is no pipeline usage
        * within a test that has a {@link ValidatesRunner} annotation.
        */
-      @Category(ValidatesRunner.class)
+      @Category(NeedsRunner.class)
       @Test
       public void testNoTestPipelineUsedValidatesRunner() {}
 
@@ -350,18 +332,11 @@ public class TestPipelineTest implements Serializable {
     @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
     @Test
-    @Category(ValidatesRunner.class)
+    @Category(NeedsRunner.class)
     public void testNewProvider() {
       ValueProvider<String> foo = pipeline.newProvider("foo");
       ValueProvider<String> foobar =
-          ValueProvider.NestedValueProvider.of(
-              foo,
-              new SerializableFunction<String, String>() {
-                @Override
-                public String apply(String input) {
-                  return input + "bar";
-                }
-              });
+          ValueProvider.NestedValueProvider.of(foo, input -> input + "bar");
 
       assertFalse(foo.isAccessible());
       assertFalse(foobar.isAccessible());

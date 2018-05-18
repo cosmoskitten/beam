@@ -101,6 +101,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *     provided, will be called on the discarded instance.</li>
  * </ol>
  *
+ * <p>Note also that calls to {@link DoFn.Teardown} are best effort, and may not be called before a
+ * {@link DoFn} is discarded in the general case. As a result, use of the {@link DoFn.Teardown}
+ * method to perform side effects is not appropriate, because the elements that produced the side
+ * effect will not be replayed in case of failure, and those side effects are permanently lost.
+ *
  * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
@@ -113,19 +118,19 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
  *        {@literal @}ProcessElement
- *         public void processElement(ProcessContext c) {
- *           String line = c.element();
+ *         public void processElement({@literal @}Element String line,
+ *           {@literal @}OutputReceiver<String> r) {
  *           for (String word : line.split("[^a-zA-Z']+")) {
- *             c.output(word);
+ *             r.output(word);
  *           }
  *         }}));
  * PCollection<Integer> wordLengths =
  *     words.apply(ParDo.of(new DoFn<String, Integer>() {
  *        {@literal @}ProcessElement
- *         public void processElement(ProcessContext c) {
- *           String word = c.element();
+ *         public void processElement({@literal @}Element String word,
+ *           {@literal @}OutputReceiver<Integer> r) {
  *           Integer length = word.length();
- *           c.output(length);
+ *           r.output(length);
  *         }}));
  * }</pre>
  *
@@ -216,22 +221,21 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *             final TupleTag<String> specialWordsTag =
  *                 new TupleTag<String>(){};
  *            {@literal @}ProcessElement
- *             public void processElement(ProcessContext c) {
- *               String word = c.element();
+ *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
- *                 c.output(word);
+ *                 r.output(wordsBelowCutOffTag, word);
  *               } else {
  *                 // Emit this long word's length to a specified output.
- *                 c.output(wordLengthsAboveCutOffTag, word.length());
+ *                 r.output(wordLengthsAboveCutOffTag, word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different specified output.
- *                 c.output(markedWordsTag, word);
+ *                 r.output(markedWordsTag, word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed output.
- *                 c.output(specialWordsTag, word);
+ *                 r.output(specialWordsTag, word);
  *               }
  *             }})
  *             // Specify the main and consumed output tags of the
@@ -430,8 +434,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<InputT, OutputT>(
-        fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -580,6 +583,9 @@ public class ParDo {
    */
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+
+    private static final String MAIN_OUTPUT_TAG = "output";
+
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -638,7 +644,7 @@ public class ParDo {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-      TupleTag<OutputT> mainOutput = new TupleTag<>();
+      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
       try {
@@ -687,6 +693,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 
@@ -767,13 +778,14 @@ public class ParDo {
         validateStateApplicableForInput(fn, input);
       }
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-          // TODO
-          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              // TODO
+              Collections.emptyMap(),
+              input.getWindowingStrategy(),
+              input.isBounded());
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
@@ -830,6 +842,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 

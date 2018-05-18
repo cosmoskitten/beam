@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark;
 
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
@@ -121,6 +124,17 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   public static SparkRunner fromOptions(PipelineOptions options) {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+
+    if (sparkOptions.getFilesToStage() == null) {
+      sparkOptions.setFilesToStage(detectClassPathResourcesToStage(
+          SparkRunner.class.getClassLoader()));
+      LOG.info("PipelineOptions.filesToStage was not specified. "
+              + "Defaulting to files from the classpath: will stage {} files. "
+              + "Enable logging at DEBUG level to see which files will be staged.",
+          sparkOptions.getFilesToStage().size());
+      LOG.debug("Classpath elements: {}", sparkOptions.getFilesToStage());
+    }
+
     return new SparkRunner(sparkOptions);
   }
 
@@ -182,13 +196,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       startPipeline =
           executorService.submit(
-              new Runnable() {
-
-                @Override
-                public void run() {
-                  LOG.info("Starting streaming pipeline execution.");
-                  jssc.start();
-                }
+              () -> {
+                LOG.info("Starting streaming pipeline execution.");
+                jssc.start();
               });
       executorService.shutdown();
 
@@ -203,17 +213,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       updateCacheCandidates(pipeline, translator, evaluationContext);
 
       initAccumulators(mOptions, jsc);
-
       startPipeline =
           executorService.submit(
-              new Runnable() {
-
-                @Override
-                public void run() {
-                  pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
-                  evaluationContext.computeOutputs();
-                  LOG.info("Batch pipeline execution complete.");
-                }
+              () -> {
+                pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
+                evaluationContext.computeOutputs();
+                LOG.info("Batch pipeline execution complete.");
               });
       executorService.shutdown();
 
@@ -224,6 +229,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       registerMetricsSource(mOptions.getAppName());
     }
 
+    // it would have been better to create MetricsPusher from runner-core but we need
+    // runner-specific
+    // MetricsContainerStepMap
+    MetricsPusher metricsPusher =
+        new MetricsPusher(MetricsAccumulator.getInstance().value(), mOptions, result);
+    metricsPusher.start();
     return result;
   }
 

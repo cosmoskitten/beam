@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 
 import com.google.api.services.bigquery.model.TableSchema;
@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * <pre>{@code
  * events.apply(BigQueryIO.<UserEvent>write()
  *  .to(new DynamicDestinations<UserEvent, String>() {
- *        public String getDestination(ValueInSingleWindow<String> element) {
+ *        public String getDestination(ValueInSingleWindow<UserEvent> element) {
  *          return element.getValue().getUserId();
  *        }
  *        public TableDestination getTable(String user) {
@@ -78,7 +78,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
   }
 
-  private SideInputAccessor sideInputAccessor;
+  @Nullable private transient SideInputAccessor sideInputAccessor;
 
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -101,23 +101,25 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     return Lists.newArrayList();
   }
 
+
   /**
-   * Returns the value of a given side input. The view must be present in {@link #getSideInputs()}.
+   * Returns the value of a given side input. The view must be present in {@link
+   * #getSideInputs()}.
    */
-  protected <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-    checkArgument(
-        getSideInputs().contains(view),
-        "View %s not declared in getSideInputs() (%s)",
-        view,
-        getSideInputs());
+  protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      checkState(
+          getSideInputs().contains(view),
+          "View %s not declared in getSideInputs() (%s)",
+          view,
+          getSideInputs());
     return sideInputAccessor.sideInput(view);
   }
 
-  void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
+  final void setSideInputAccessor(SideInputAccessor sideInputAccessor) {
     this.sideInputAccessor = sideInputAccessor;
   }
 
-  void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+  final void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
   }
 

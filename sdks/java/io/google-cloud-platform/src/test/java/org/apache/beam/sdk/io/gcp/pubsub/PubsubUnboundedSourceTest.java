@@ -86,12 +86,7 @@ public class PubsubUnboundedSourceTest {
 
   private void setupOneMessage(Iterable<IncomingMessage> incoming) {
     now = new AtomicLong(REQ_TIME);
-    clock = new Clock() {
-      @Override
-      public long currentTimeMillis() {
-        return now.get();
-      }
-    };
+    clock = () -> now.get();
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
@@ -101,8 +96,10 @@ public class PubsubUnboundedSourceTest {
   }
 
   private void setupOneMessage() {
-    setupOneMessage(ImmutableList.of(
-        new IncomingMessage(DATA.getBytes(), null, TIMESTAMP, 0, ACK_ID, RECORD_ID)));
+    setupOneMessage(
+        ImmutableList.of(
+            new IncomingMessage(
+                DATA.getBytes(StandardCharsets.UTF_8), null, TIMESTAMP, 0, ACK_ID, RECORD_ID)));
   }
 
   @After
@@ -119,8 +116,8 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
-  public void checkpointCoderIsSane() throws Exception {
-    setupOneMessage(ImmutableList.<IncomingMessage>of());
+  public void checkpointCoderIsSane() {
+    setupOneMessage(ImmutableList.of());
     CoderProperties.coderSerializable(primSource.getCheckpointMarkCoder());
     // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
     // equals on checkpoints ignore those fields, we'll test serialization and deserialization
@@ -219,7 +216,9 @@ public class PubsubUnboundedSourceTest {
     for (int i = 0; i < 2; i++) {
       String data = String.format("data_%d", i);
       String ackid = String.format("ackid_%d", i);
-      incoming.add(new IncomingMessage(data.getBytes(), null, TIMESTAMP, 0, ackid, RECORD_ID));
+      incoming.add(
+          new IncomingMessage(
+              data.getBytes(StandardCharsets.UTF_8), null, TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
     PubsubReader reader = primSource.createReader(p.getOptions(), null);
@@ -277,8 +276,14 @@ public class PubsubUnboundedSourceTest {
       dataToMessageNum.put(data, messageNum);
       String recid = String.format("recordid_%d", messageNum);
       String ackId = String.format("ackid_%d", messageNum);
-      incoming.add(new IncomingMessage(data.getBytes(), null, messageNumToTimestamp(messageNum), 0,
-                                       ackId, recid));
+      incoming.add(
+          new IncomingMessage(
+              data.getBytes(StandardCharsets.UTF_8),
+              null,
+              messageNumToTimestamp(messageNum),
+              0,
+              ackId,
+              recid));
     }
     setupOneMessage(incoming);
 
@@ -302,7 +307,7 @@ public class PubsubUnboundedSourceTest {
       assertEquals(new Instant(messageNumToTimestamp(messageNum)), reader.getCurrentTimestamp());
       // Preserve record id.
       String recid = String.format("recordid_%d", messageNum);
-      assertArrayEquals(recid.getBytes(), reader.getCurrentRecordId());
+      assertArrayEquals(recid.getBytes(StandardCharsets.UTF_8), reader.getCurrentRecordId());
 
       if (i % 1000 == 999) {
         // Estimated watermark can never get ahead of actual outstanding messages.

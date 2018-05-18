@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import javax.xml.bind.JAXBContext;
@@ -40,6 +41,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileBasedSource;
+import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -72,12 +74,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
-    return new XmlSource<T>(configuration, getMinBundleSize(), metadata, start, end);
+    return new XmlSource<>(configuration, getMinBundleSize(), metadata, start, end);
   }
 
   @Override
   protected FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
-    return new XMLReader<T>(this);
+    return new XMLReader<>(this);
   }
 
   @Override
@@ -128,7 +130,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
     // Byte offset of the current record in the XML file provided when creating the source.
     private long currentByteOffset = 0;
 
-    public XMLReader(XmlSource<T> source) {
+    XMLReader(XmlSource<T> source) {
       super(source);
 
       // Set up a JAXB Unmarshaller that can be used to unmarshall record objects.
@@ -180,7 +182,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
                       + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
                   XML_VERSION, getCurrentSource().configuration.getRootElement()))
-              .getBytes(getCurrentSource().configuration.getCharset());
+              .getBytes(Charset.forName(getCurrentSource().configuration.getCharset()));
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
       // method returns the offset and stores any bytes that should be used when creating the XML

@@ -19,61 +19,45 @@
 # This script will be run by Jenkins as a post commit test. In order to run
 # locally make the following changes:
 #
-# LOCAL_PATH   -> Path of tox and virtualenv if you have them already installed.
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for service jobs.
 #
-# Execute from the root of the repository: sdks/python/run_postcommit.sh
+
+if [ -z "$1" ]; then
+  printf "Usage: \n$> ./run_postcommit.sh <test_type> [gcp_location] [gcp_project]"
+  printf "\n\ttest_type: ValidatesRunner or IT"
+  printf "\n\tgcp_location: A gs:// path to stage artifacts and output results"
+  printf "\n\tgcp_project: A GCP project to run Dataflow pipelines\n"
+  exit 1
+fi
 
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
-# Remove any tox cache from previous workspace
-rm -rf sdks/python/target/.tox
-
-# INFRA does not install virtualenv
-pip install virtualenv --user
-
-# INFRA does not install tox
-pip install tox --user
-
-# Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
-
-# Virtualenv for the rest of the script to run setup & e2e tests
-${LOCAL_PATH}/virtualenv sdks/python
-. sdks/python/bin/activate
-cd sdks/python
-pip install -e .[gcp,test]
-
-# Run wordcount in the Direct Runner and validate output.
-echo ">>> RUNNING DIRECT RUNNER py-wordcount"
-python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
-# TODO: check that output file is generated for Direct Runner.
-
 # Run tests on the service.
 
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${2:-gs://temp-storage-for-end-to-end-tests}
 
-PROJECT=apache-beam-testing
+PROJECT=${3:-apache-beam-testing}
 
 # Create a tarball
 python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
+# Install test dependencies for ValidatesRunner tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+echo "mock" >> postcommit_requirements.txt
+
 # Run integration tests on the Google Cloud Dataflow service
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
-  --attr IT \
+  --attr $1 \
   --nocapture \
   --processes=20 \
-  --process-timeout=900 \
+  --process-timeout=1800 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
@@ -81,5 +65,6 @@ python setup.py nosetests \
     --temp_location=$GCS_LOCATION/temp-it \
     --output=$GCS_LOCATION/py-it-cloud/output \
     --sdk_location=$SDK_LOCATION \
+    --requirements_file=postcommit_requirements.txt \
     --num_workers=1 \
     --sleep_secs=20"

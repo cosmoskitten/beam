@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
-import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -59,7 +59,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReshuffleTest implements Serializable {
 
-  private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
+  private static final ImmutableList<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
         KV.of("k1", 3),
         KV.of("k5", Integer.MAX_VALUE),
         KV.of("k5", Integer.MIN_VALUE),
@@ -69,7 +69,7 @@ public class ReshuffleTest implements Serializable {
         KV.of("k3", 0));
 
   // TODO: test with more than one value per key
-  private static final List<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
+  private static final ImmutableList<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
         KV.of("k1", 3),
         KV.of("k2", 4));
 
@@ -95,8 +95,7 @@ public class ReshuffleTest implements Serializable {
         .apply(Create.of(ARBITRARY_KVS)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+    PCollection<KV<String, Integer>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
@@ -124,40 +123,30 @@ public class ReshuffleTest implements Serializable {
                         TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
             .apply(
-                WithKeys.of(
-                    new SerializableFunction<String, String>() {
-                      @Override
-                      public String apply(String input) {
-                        return input;
-                      }
-                    }))
-            .apply("ReifyOriginalTimestamps", Reify.<String, String>timestampsInValue());
+                WithKeys.<String, String>of(input12 -> input12)
+                    .withKeyType(TypeDescriptors.strings()))
+            .apply("ReifyOriginalTimestamps", Reify.timestampsInValue());
 
     // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner
     // TimestampedValue is the pre-reshuffle timestamp.
     PCollection<TimestampedValue<TimestampedValue<String>>> output =
         input
-            .apply(Reshuffle.<String, TimestampedValue<String>>of())
-            .apply(
-                "ReifyReshuffledTimestamps",
-                Reify.<String, TimestampedValue<String>>timestampsInValue())
-            .apply(Values.<TimestampedValue<TimestampedValue<String>>>create());
+            .apply(Reshuffle.of())
+            .apply("ReifyReshuffledTimestamps", Reify.timestampsInValue())
+            .apply(Values.create());
 
     PAssert.that(output)
         .satisfies(
-            new SerializableFunction<Iterable<TimestampedValue<TimestampedValue<String>>>, Void>() {
-              @Override
-              public Void apply(Iterable<TimestampedValue<TimestampedValue<String>>> input) {
-                for (TimestampedValue<TimestampedValue<String>> elem : input) {
-                  Instant originalTimestamp = elem.getValue().getTimestamp();
-                  Instant afterReshuffleTimestamp = elem.getTimestamp();
-                  assertThat(
-                      "Reshuffle must preserve element timestamps",
-                      afterReshuffleTimestamp,
-                      equalTo(originalTimestamp));
-                }
-                return null;
+            input1 -> {
+              for (TimestampedValue<TimestampedValue<String>> elem : input1) {
+                Instant originalTimestamp = elem.getValue().getTimestamp();
+                Instant afterReshuffleTimestamp = elem.getTimestamp();
+                assertThat(
+                    "Reshuffle must preserve element timestamps",
+                    afterReshuffleTimestamp,
+                    equalTo(originalTimestamp));
               }
+              return null;
             });
 
     pipeline.run();
@@ -167,15 +156,15 @@ public class ReshuffleTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testReshuffleAfterSessionsAndGroupByKey() {
 
-    PCollection<KV<String, Iterable<Integer>>> input = pipeline
-        .apply(Create.of(GBK_TESTABLE_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            Sessions.withGapDuration(Duration.standardMinutes(10))))
-        .apply(GroupByKey.<String, Integer>create());
+    PCollection<KV<String, Iterable<Integer>>> input =
+        pipeline
+            .apply(
+                Create.of(GBK_TESTABLE_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(10))))
+            .apply(GroupByKey.create());
 
-    PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
@@ -190,15 +179,15 @@ public class ReshuffleTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testReshuffleAfterFixedWindowsAndGroupByKey() {
 
-    PCollection<KV<String, Iterable<Integer>>> input = pipeline
-        .apply(Create.of(GBK_TESTABLE_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            FixedWindows.of(Duration.standardMinutes(10L))))
-        .apply(GroupByKey.<String, Integer>create());
+    PCollection<KV<String, Iterable<Integer>>> input =
+        pipeline
+            .apply(
+                Create.of(GBK_TESTABLE_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))))
+            .apply(GroupByKey.create());
 
-    PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
@@ -213,15 +202,15 @@ public class ReshuffleTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testReshuffleAfterSlidingWindowsAndGroupByKey() {
 
-    PCollection<KV<String, Iterable<Integer>>> input = pipeline
-        .apply(Create.of(GBK_TESTABLE_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            FixedWindows.of(Duration.standardMinutes(10L))))
-        .apply(GroupByKey.<String, Integer>create());
+    PCollection<KV<String, Iterable<Integer>>> input =
+        pipeline
+            .apply(
+                Create.of(GBK_TESTABLE_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))))
+            .apply(GroupByKey.create());
 
-    PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).satisfies(new AssertThatHasExpectedContents());
 
@@ -236,14 +225,14 @@ public class ReshuffleTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testReshuffleAfterFixedWindows() {
 
-    PCollection<KV<String, Integer>> input = pipeline
-        .apply(Create.of(ARBITRARY_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            FixedWindows.of(Duration.standardMinutes(10L))));
+    PCollection<KV<String, Integer>> input =
+        pipeline
+            .apply(
+                Create.of(ARBITRARY_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
 
-    PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+    PCollection<KV<String, Integer>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
@@ -259,14 +248,14 @@ public class ReshuffleTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testReshuffleAfterSlidingWindows() {
 
-    PCollection<KV<String, Integer>> input = pipeline
-        .apply(Create.of(ARBITRARY_KVS)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            FixedWindows.of(Duration.standardMinutes(10L))));
+    PCollection<KV<String, Integer>> input =
+        pipeline
+            .apply(
+                Create.of(ARBITRARY_KVS)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
 
-    PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+    PCollection<KV<String, Integer>> output = input.apply(Reshuffle.of());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
@@ -291,12 +280,12 @@ public class ReshuffleTest implements Serializable {
             .advanceWatermarkToInfinity();
     PCollection<KV<String, Long>> input =
         pipeline
-            .apply(stream).apply(WithKeys.<String, Long>of(""))
-            .apply(
-                Window.<KV<String, Long>>into(FixedWindows.of(Duration.standardMinutes(10L))));
+            .apply(stream)
+            .apply(WithKeys.of(""))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
 
-    PCollection<KV<String, Long>> reshuffled = input.apply(Reshuffle.<String, Long>of());
-    PAssert.that(reshuffled.apply(Values.<Long>create())).containsInAnyOrder(0L, 1L, 2L);
+    PCollection<KV<String, Long>> reshuffled = input.apply(Reshuffle.of());
+    PAssert.that(reshuffled.apply(Values.create())).containsInAnyOrder(0L, 1L, 2L);
 
     pipeline.run();
   }

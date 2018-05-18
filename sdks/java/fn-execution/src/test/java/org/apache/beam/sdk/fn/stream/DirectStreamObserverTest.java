@@ -31,8 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.sdk.fn.test.Consumer;
-import org.apache.beam.sdk.fn.test.Supplier;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -55,31 +53,26 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
-                new Consumer<String>() {
-                  @Override
-                  public void accept(String t) {
-                    // Use the atomic boolean to detect if multiple threads are in this
-                    // critical section. Any thread that enters purposefully blocks by sleeping
-                    // to increase the contention between threads artificially.
-                    assertFalse(isCriticalSectionShared.getAndSet(true));
-                    Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
-                    onNextValues.add(t);
-                    assertTrue(isCriticalSectionShared.getAndSet(false));
-                  }
-                }).build());
+                    (String t) -> {
+                      // Use the atomic boolean to detect if multiple threads are in this
+                      // critical section. Any thread that enters purposefully blocks by sleeping
+                      // to increase the contention between threads artificially.
+                      assertFalse(isCriticalSectionShared.getAndSet(true));
+                      Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+                      onNextValues.add(t);
+                      assertTrue(isCriticalSectionShared.getAndSet(false));
+                    })
+                .build());
 
     List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
     List<Callable<String>> tasks = new ArrayList<>();
     for (final String prefix : prefixes) {
       tasks.add(
-          new Callable<String>() {
-            @Override
-            public String call() throws Exception {
-              for (int i = 0; i < 10; i++) {
-                streamObserver.onNext(prefix + i);
-              }
-              return prefix;
+          () -> {
+            for (int i = 0; i < 10; i++) {
+              streamObserver.onNext(prefix + i);
             }
+            return prefix;
           });
     }
     executor.invokeAll(tasks);
@@ -103,39 +96,74 @@ public class DirectStreamObserverTest {
     final DirectStreamObserver<String> streamObserver =
         new DirectStreamObserver<>(
             phaser,
-            TestStreams.withOnNext(
-                new Consumer<String>() {
-                  @Override
-                  public void accept(String t) {
-                    assertTrue(elementsAllowed.get());
-                  }
-                }).withIsReady(new Supplier<Boolean>() {
-              @Override
-              public Boolean get() {
-                return elementsAllowed.get();
-              }
-            }).build());
+            TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
+                .withIsReady(elementsAllowed::get)
+                .build(),
+            0);
 
     // Start all the tasks
     List<Future<String>> results = new ArrayList<>();
     for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
       results.add(
           executor.submit(
-              new Callable<String>() {
-                @Override
-                public String call() throws Exception {
-                  for (int i = 0; i < 10; i++) {
-                    streamObserver.onNext(prefix + i);
-                  }
-                  return prefix;
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
                 }
+                return prefix;
               }));
     }
 
     // Have them wait and then flip that we do allow elements and wake up those awaiting
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
     elementsAllowed.set(true);
     phaser.arrive();
+
+    for (Future<String> result : results) {
+      result.get();
+    }
+    streamObserver.onCompleted();
+  }
+
+  /**
+   * This test specifically covers the case if the outbound observer is being invoked on the same
+   * thread that the inbound observer is. gRPC documentation states:
+   *
+   * <p><i>Note: the onReadyHandler's invocation is serialized on the same thread pool as the
+   * incoming StreamObserver's onNext(), onError(), and onComplete() handlers. Blocking the
+   * onReadyHandler will prevent additional messages from being processed by the incoming
+   * StreamObserver. The onReadyHandler must return in a timely manor or else message processing
+   * throughput will suffer.
+   * </i>
+   */
+  @Test
+  public void testIsReadyCheckDoesntBlockIfPhaserCallbackNeverHappens() throws Exception {
+    // Note that we never advance the phaser in this test.
+    final AtomicBoolean elementsAllowed = new AtomicBoolean();
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
+            new AdvancingPhaser(1),
+            TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
+                .withIsReady(elementsAllowed::get)
+                .build(),
+            0);
+
+    // Start all the tasks
+    List<Future<String>> results = new ArrayList<>();
+    for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
+      results.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
+                }
+                return prefix;
+              }));
+    }
+
+    // Have them wait and then flip that we do allow elements and wake up those awaiting
+    Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+    elementsAllowed.set(true);
 
     for (Future<String> result : results) {
       result.get();

@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -147,6 +148,7 @@ public class PAssert {
    */
   public static class DefaultConcludeTransform
       extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
+    @Override
     public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
       return input.apply(ParDo.of(new DefaultConcludeFn()));
     }
@@ -185,6 +187,24 @@ public class PAssert {
       AssertionError res = new AssertionError(outputMessage);
       res.setStackTrace(creationStackTrace);
       return res;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PAssertionSite that = (PAssertionSite) o;
+      return Objects.equal(message, that.message) && Arrays
+          .equals(creationStackTrace, that.creationStackTrace);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(message, Arrays.asList(creationStackTrace));
     }
   }
 
@@ -395,8 +415,7 @@ public class PAssert {
    */
   public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
     return new PCollectionViewAssert<>(
-        actual, View.<T>asSingleton(), actual.getCoder(), PAssertionSite.capture(reason)
-    );
+        actual, View.asSingleton(), actual.getCoder(), PAssertionSite.capture(reason));
   }
 
   /**
@@ -423,7 +442,7 @@ public class PAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
         actual,
-        View.<K, V>asMultimap(),
+        View.asMultimap(),
         MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())),
         PAssertionSite.capture(reason));
   }
@@ -452,7 +471,7 @@ public class PAssert {
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
         actual,
-        View.<K, V>asMap(),
+        View.asMap(),
         MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()),
         PAssertionSite.capture(reason));
   }
@@ -470,7 +489,7 @@ public class PAssert {
     private final PAssertionSite site;
 
     public PCollectionContentsAssert(PCollection<T> actual, PAssertionSite site) {
-      this(actual, IntoGlobalWindow.of(), PaneExtractors.<T>allPanes(), site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
     }
 
     public PCollectionContentsAssert(
@@ -486,27 +505,27 @@ public class PAssert {
 
     @Override
     public PCollectionContentsAssert<T> inWindow(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>allPanes());
+      return withPane(window, PaneExtractors.allPanes());
     }
 
     @Override
     public PCollectionContentsAssert<T> inFinalPane(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>finalPane());
+      return withPane(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionContentsAssert<T> inOnTimePane(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>onTimePane());
+      return withPane(window, PaneExtractors.onTimePane());
     }
 
     @Override
     public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
-      return withPane(window, PaneExtractors.<T>nonLatePanes());
+      return withPane(window, PaneExtractors.nonLatePanes());
     }
 
     @Override
     public IterableAssert<T> inEarlyGlobalWindowPanes() {
-      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
     }
 
     private PCollectionContentsAssert<T> withPane(
@@ -537,12 +556,12 @@ public class PAssert {
      */
     @Override
     public PCollectionContentsAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
     public PCollectionContentsAssert<T> empty() {
-      containsInAnyOrder(Collections.<T>emptyList());
+      containsInAnyOrder(Collections.emptyList());
       return this;
     }
 
@@ -651,11 +670,7 @@ public class PAssert {
 
     public PCollectionSingletonIterableAssert(
         PCollection<Iterable<T>> actual, PAssertionSite site) {
-      this(
-          actual,
-          IntoGlobalWindow.of(),
-          PaneExtractors.<Iterable<T>>allPanes(),
-          site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
     }
 
     public PCollectionSingletonIterableAssert(
@@ -677,27 +692,27 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> inWindow(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>allPanes());
+      return withPanes(window, PaneExtractors.allPanes());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inFinalPane(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>finalPane());
+      return withPanes(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inOnTimePane(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>onTimePane());
+      return withPanes(window, PaneExtractors.onTimePane());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
-      return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+      return withPanes(window, PaneExtractors.nonLatePanes());
     }
 
     @Override
     public IterableAssert<T> inEarlyGlobalWindowPanes() {
-      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.earlyPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -719,12 +734,12 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> empty() {
-      return containsInAnyOrder(Collections.<T>emptyList());
+      return containsInAnyOrder(Collections.emptyList());
     }
 
     @Override
     public PCollectionSingletonIterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
@@ -763,13 +778,7 @@ public class PAssert {
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         Coder<ViewT> coder,
         PAssertionSite site) {
-      this(
-          actual,
-          view,
-          IntoGlobalWindow.of(),
-          PaneExtractors.<ElemT>allPanes(),
-          coder,
-          site);
+      this(actual, view, IntoGlobalWindow.of(), PaneExtractors.allPanes(), coder, site);
     }
 
     private PCollectionViewAssert(
@@ -789,17 +798,17 @@ public class PAssert {
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inOnlyPane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>onlyPane(site));
+      return inPane(window, PaneExtractors.onlyPane(site));
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inFinalPane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>finalPane());
+      return inPane(window, PaneExtractors.finalPane());
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> inOnTimePane(BoundedWindow window) {
-      return inPane(window, PaneExtractors.<ElemT>onTimePane());
+      return inPane(window, PaneExtractors.onTimePane());
     }
 
     private PCollectionViewAssert<ElemT, ViewT> inPane(
@@ -817,12 +826,12 @@ public class PAssert {
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> isEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertIsEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertIsEqualToRelation<>(), expectedValue);
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> notEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertNotEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertNotEqualToRelation<>(), expectedValue);
     }
 
     @Override
@@ -834,7 +843,7 @@ public class PAssert {
               "PAssert$" + (assertCount++),
               new OneSideInputAssert<>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
-                  rewindowActuals.<Integer>windowDummy(),
+                  rewindowActuals.windowDummy(),
                   checkerFn,
                   site));
       return this;
@@ -912,12 +921,12 @@ public class PAssert {
     public PCollectionView<ActualT> expand(PBegin input) {
       final Coder<T> coder = actual.getCoder();
       return actual
-          .apply("FilterActuals", rewindowActuals.<T>prepareActuals())
-          .apply("GatherPanes", GatherAllPanes.<T>globally())
+          .apply("FilterActuals", rewindowActuals.prepareActuals())
+          .apply("GatherPanes", GatherAllPanes.globally())
           .apply("ExtractPane", MapElements.via(extractPane))
           .setCoder(IterableCoder.of(actual.getCoder()))
-          .apply(Flatten.<T>iterables())
-          .apply("RewindowActuals", rewindowActuals.<T>windowActuals())
+          .apply(Flatten.iterables())
+          .apply("RewindowActuals", rewindowActuals.windowActuals())
           .apply(
               ParDo.of(
                   new DoFn<T, T>() {
@@ -997,14 +1006,10 @@ public class PAssert {
           // TODO: Split the filtering from the rewindowing, and apply filtering before the Gather
           // if the grouping of extra records
           input
-              .apply(rewindowingStrategy.<T>prepareActuals())
-              .apply("GatherAllOutputs", GatherAllPanes.<T>globally())
-              .apply(
-                  "RewindowActuals",
-                  rewindowingStrategy.<Iterable<ValueInSingleWindow<T>>>windowActuals())
-              .apply(
-                  "KeyForDummy",
-                  WithKeys.<Integer, Iterable<ValueInSingleWindow<T>>>of(combinedKey))
+              .apply(rewindowingStrategy.prepareActuals())
+              .apply("GatherAllOutputs", GatherAllPanes.globally())
+              .apply("RewindowActuals", rewindowingStrategy.windowActuals())
+              .apply("KeyForDummy", WithKeys.of(combinedKey))
               .apply("RemoveActualsTriggering", removeTriggering);
 
       // Create another non-empty PCollection that is keyed with a distinct dummy key
@@ -1018,31 +1023,23 @@ public class PAssert {
                               (Iterable<ValueInSingleWindow<T>>)
                                   Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
-              .apply(
-                  "WindowIntoDummy",
-                  rewindowingStrategy.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>windowDummy())
+              .apply("WindowIntoDummy", rewindowingStrategy.windowDummy())
               .apply("RemoveDummyTriggering", removeTriggering);
 
       // Flatten them together and group by the combined key to get a single element
       PCollection<KV<Integer, Iterable<Iterable<ValueInSingleWindow<T>>>>> dummyAndContents =
           PCollectionList.of(groupedContents)
               .and(keyedDummy)
-              .apply(
-                  "FlattenDummyAndContents",
-                  Flatten.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>pCollections())
+              .apply("FlattenDummyAndContents", Flatten.pCollections())
               .apply(
                   "NeverTrigger",
                   Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
                       .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
-              .apply(
-                  "GroupDummyAndContents",
-                  GroupByKey.<Integer, Iterable<ValueInSingleWindow<T>>>create());
+              .apply("GroupDummyAndContents", GroupByKey.create());
 
-      return dummyAndContents
-          .apply(Values.<Iterable<Iterable<ValueInSingleWindow<T>>>>create())
-          .apply(ParDo.of(new ConcatFn<ValueInSingleWindow<T>>()));
+      return dummyAndContents.apply(Values.create()).apply(ParDo.of(new ConcatFn<>()));
     }
   }
 
@@ -1078,7 +1075,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<T> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)))
@@ -1115,7 +1112,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<Iterable<T>> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)))
@@ -1522,6 +1519,7 @@ public class PAssert {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
+    @Override
     public void leaveCompositeTransform(Node node) {
       if (node.isRootNode()) {
         pipelineVisited = true;

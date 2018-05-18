@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -48,8 +49,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryAvroUtilsTest {
-  private List<TableFieldSchema> subFields = Lists.<TableFieldSchema>newArrayList(
-      new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"));
+  private List<TableFieldSchema> subFields =
+      Lists.newArrayList(
+          new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"));
   /*
    * Note that the quality and quantity fields do not have their mode set, so they should default
    * to NULLABLE. This is an important test of BigQuery semantics.
@@ -96,7 +98,7 @@ public class BigQueryAvroUtilsTest {
       // Test type conversion for:
       // INTEGER, FLOAT, TIMESTAMP, BOOLEAN, BYTES, DATE, DATETIME, TIME.
       GenericRecord record = new GenericData.Record(avroSchema);
-      byte[] soundBytes = "chirp,chirp".getBytes();
+      byte[] soundBytes = "chirp,chirp".getBytes(StandardCharsets.UTF_8);
       ByteBuffer soundByteBuffer = ByteBuffer.wrap(soundBytes);
       soundByteBuffer.rewind();
       record.put("number", 5L);
@@ -127,12 +129,12 @@ public class BigQueryAvroUtilsTest {
       nestedRecord.put("species", "other");
       GenericRecord record = new GenericData.Record(avroSchema);
       record.put("number", 5L);
-      record.put("associates", Lists.<GenericRecord>newArrayList(nestedRecord));
+      record.put("associates", Lists.newArrayList(nestedRecord));
       TableRow convertedRow = BigQueryAvroUtils.convertGenericRecordToTableRow(record, tableSchema);
-      TableRow row = new TableRow()
-          .set("associates", Lists.<TableRow>newArrayList(
-              new TableRow().set("species", "other")))
-          .set("number", "5");
+      TableRow row =
+          new TableRow()
+              .set("associates", Lists.newArrayList(new TableRow().set("species", "other")))
+              .set("number", "5");
       assertEquals(row, convertedRow);
     }
   }

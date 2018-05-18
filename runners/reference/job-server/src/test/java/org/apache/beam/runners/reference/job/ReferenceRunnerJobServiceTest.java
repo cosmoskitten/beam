@@ -29,12 +29,10 @@ import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
@@ -42,6 +40,7 @@ import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
+import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.hamcrest.Description;
@@ -72,13 +71,7 @@ public class ReferenceRunnerJobServiceTest {
   public void setup() throws Exception {
     service =
         ReferenceRunnerJobService.create(serverFactory)
-            .withStagingPathSupplier(
-                new Callable<Path>() {
-                  @Override
-                  public Path call() throws Exception {
-                    return runnerTemp.getRoot().toPath();
-                  }
-                });
+            .withStagingPathSupplier(() -> runnerTemp.getRoot().toPath());
     server = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     stub =
         JobServiceGrpc.newBlockingStub(
@@ -106,8 +99,9 @@ public class ReferenceRunnerJobServiceTest {
             InProcessChannelBuilder.forName(stagingEndpoint.getUrl()).build());
     File foo = writeTempFile("foo", "foo, bar, baz".getBytes());
     File bar = writeTempFile("spam", "spam, ham, eggs".getBytes());
-    stager.stage(ImmutableList.<File>of(foo, bar));
-    List<byte[]> tempDirFiles = readFlattendFiles(runnerTemp.getRoot());
+    stager.stage(
+        ImmutableList.of(StagedFile.of(foo, foo.getName()), StagedFile.of(bar, bar.getName())));
+    List<byte[]> tempDirFiles = readFlattenedFiles(runnerTemp.getRoot());
     assertThat(
         tempDirFiles,
         hasItems(
@@ -130,11 +124,11 @@ public class ReferenceRunnerJobServiceTest {
     };
   }
 
-  private List<byte[]> readFlattendFiles(File root) throws Exception {
+  private List<byte[]> readFlattenedFiles(File root) throws Exception {
     if (root.isDirectory()) {
       List<byte[]> children = new ArrayList<>();
       for (File child : root.listFiles()) {
-        children.addAll(readFlattendFiles(child));
+        children.addAll(readFlattenedFiles(child));
       }
       return children;
     } else {

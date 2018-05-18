@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -37,6 +36,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
@@ -85,7 +85,7 @@ public class CoderProperties {
     try {
       coder.verifyDeterministic();
     } catch (NonDeterministicException e) {
-      fail("Expected that the coder is deterministic");
+      throw new AssertionError("Expected that the coder is deterministic", e);
     }
     assertThat("Expected that the passed in values are equal()", value1, equalTo(value2));
     assertThat(
@@ -158,8 +158,7 @@ public class CoderProperties {
       Coder<IterableT> coder, IterableT value)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.<T, IterableT>coderDecodeEncodeContentsInSameOrderInContext(
-          coder, context, value);
+      CoderProperties.coderDecodeEncodeContentsInSameOrderInContext(coder, context, value);
     }
   }
 
@@ -200,7 +199,7 @@ public class CoderProperties {
       Coder<T> coder, T value1, T value2)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.<T>coderConsistentWithEqualsInContext(coder, context, value1, value2);
+      CoderProperties.coderConsistentWithEqualsInContext(coder, context, value1, value2);
     }
   }
 
@@ -227,8 +226,7 @@ public class CoderProperties {
       Coder<T> coder, T value1, T value2)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.<T>structuralValueConsistentWithEqualsInContext(
-          coder, context, value1, value2);
+      CoderProperties.structuralValueConsistentWithEqualsInContext(coder, context, value1, value2);
     }
   }
 
@@ -258,8 +256,7 @@ public class CoderProperties {
           Coder<T> coder, T value)
           throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.<T>structuralValueDecodeEncodeEqualInContext(
-              coder, context, value);
+      CoderProperties.structuralValueDecodeEncodeEqualInContext(coder, context, value);
     }
   }
 
@@ -365,7 +362,7 @@ public class CoderProperties {
     Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     byte[] buffer;
-    if (context == Coder.Context.NESTED) {
+    if (Objects.equals(context, Coder.Context.NESTED)) {
       buffer = new byte[bytes.length + 1];
       System.arraycopy(bytes, 0, buffer, 0, bytes.length);
       buffer[bytes.length] = 1;

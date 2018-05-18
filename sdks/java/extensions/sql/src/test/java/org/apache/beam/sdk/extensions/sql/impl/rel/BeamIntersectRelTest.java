@@ -18,14 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,18 +33,17 @@ import org.junit.Test;
  * Test for {@code BeamIntersectRel}.
  */
 public class BeamIntersectRelTest extends BaseRelTest {
-  static BeamSqlEnv sqlEnv = new BeamSqlEnv();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() {
-    sqlEnv.registerTable("ORDER_DETAILS1",
+    registerTable("ORDER_DETAILS1",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            TypeName.INT64, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,
@@ -54,11 +52,11 @@ public class BeamIntersectRelTest extends BaseRelTest {
         )
     );
 
-    sqlEnv.registerTable("ORDER_DETAILS2",
+    registerTable("ORDER_DETAILS2",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            TypeName.INT64, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0,
@@ -76,12 +74,12 @@ public class BeamIntersectRelTest extends BaseRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            TypeName.INT64, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0
@@ -99,14 +97,14 @@ public class BeamIntersectRelTest extends BaseRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
     PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            TypeName.INT64, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,

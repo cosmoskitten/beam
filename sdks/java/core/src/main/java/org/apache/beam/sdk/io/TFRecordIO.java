@@ -50,6 +50,12 @@ import org.apache.beam.sdk.values.PDone;
 
 /**
  * {@link PTransform}s for reading and writing TensorFlow TFRecord files.
+ *
+ * <p>For reading files, use {@link #read}.
+ *
+ * <p>For simple cases of writing files, use {@link #write}. For more complex cases (such as ability
+ * to write windowed data or writing to multiple destinations) use {@link #sink} in combination with
+ * {@link FileIO#write} or {@link FileIO#writeDynamic}.
  */
 public class TFRecordIO {
   /** The default coder, which returns each record of the input file as a byte array. */
@@ -79,6 +85,14 @@ public class TFRecordIO {
         .setNumShards(0)
         .setCompression(Compression.UNCOMPRESSED)
         .build();
+  }
+
+  /**
+   * Returns a {@link FileIO.Sink} for use with {@link FileIO#write} and {@link
+   * FileIO#writeDynamic}.
+   */
+  public static Sink sink() {
+    return new Sink();
   }
 
   /** Implementation of {@link #read}. */
@@ -366,6 +380,28 @@ public class TFRecordIO {
     }
   }
 
+  /** A {@link FileIO.Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}. */
+  public static class Sink implements FileIO.Sink<byte[]> {
+    @Nullable private transient WritableByteChannel channel;
+    @Nullable private transient TFRecordCodec codec;
+
+    @Override
+    public void open(WritableByteChannel channel) throws IOException {
+      this.channel = channel;
+      this.codec = new TFRecordCodec();
+    }
+
+    @Override
+    public void write(byte[] element) throws IOException {
+      codec.write(channel, element);
+    }
+
+    @Override
+    public void flush() throws IOException {
+      // Nothing to do here.
+    }
+  }
+
   /** @deprecated Use {@link Compression}. */
   @Deprecated
   public enum CompressionType {
@@ -381,7 +417,7 @@ public class TFRecordIO {
     /** @see Compression#DEFLATE */
     ZLIB(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -511,7 +547,7 @@ public class TFRecordIO {
         Compression compression) {
       super(
           outputPrefix,
-          DynamicFileDestinations.<byte[]>constant(
+          DynamicFileDestinations.constant(
               DefaultFilenamePolicy.fromStandardParameters(
                   outputPrefix, shardTemplate, suffix, false)),
           compression);

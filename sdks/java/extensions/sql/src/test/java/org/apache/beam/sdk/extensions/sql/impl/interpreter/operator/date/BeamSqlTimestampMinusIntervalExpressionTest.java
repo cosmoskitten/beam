@@ -27,14 +27,12 @@ import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
@@ -46,11 +44,11 @@ import org.junit.rules.ExpectedException;
  * Unit tests for {@link BeamSqlTimestampMinusIntervalExpression}.
  */
 public class BeamSqlTimestampMinusIntervalExpressionTest {
-  private static final BeamRecord NULL_ROW = null;
+  private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
 
-  private static final Date DATE = new Date(329281L);
-  private static final Date DATE_MINUS_2_SEC = new DateTime(DATE).minusSeconds(2).toDate();
+  private static final DateTime DATE = new DateTime(329281L);
+  private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
 
   private static final BeamSqlPrimitive TIMESTAMP = BeamSqlPrimitive.of(
       SqlTypeName.TIMESTAMP, DATE);

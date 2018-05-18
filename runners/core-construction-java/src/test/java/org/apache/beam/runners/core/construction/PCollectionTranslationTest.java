@@ -76,36 +76,34 @@ public class PCollectionTranslationTest {
     PCollection<Long> longs = pipeline.apply("unbounded longs", GenerateSequence.from(0));
     PCollection<Long> windowedLongs =
         longs.apply(
-            "into fixed windows",
-            Window.<Long>into(FixedWindows.of(Duration.standardMinutes(10L))));
+            "into fixed windows", Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
     PCollection<KV<String, Iterable<String>>> groupedStrings =
         pipeline
             .apply(
                 "kvs", Create.of(KV.of("foo", "spam"), KV.of("bar", "ham"), KV.of("baz", "eggs")))
-            .apply("group", GroupByKey.<String, String>create());
+            .apply("group", GroupByKey.create());
     PCollection<Long> coderLongs =
         pipeline
             .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
-    PCollection<Integer> allCustomInts =
-        pipeline
-            .apply(
-                "intsWithCustomCoder",
-                Create.of(1, 2)
-                    .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
-            .apply(
-                "into custom windows",
-                Window.<Integer>into(new CustomWindows())
-                    .triggering(
-                        AfterWatermark.pastEndOfWindow()
-                            .withEarlyFirings(
-                                AfterFirst.of(
-                                    AfterPane.elementCountAtLeast(5),
-                                    AfterProcessingTime.pastFirstElementInPane()
-                                        .plusDelayOf(Duration.millis(227L)))))
-                    .accumulatingFiredPanes()
-                    .withAllowedLateness(Duration.standardMinutes(12L)));
-    return ImmutableList.<PCollection<?>>of(ints, longs, windowedLongs, coderLongs, groupedStrings);
+    pipeline
+        .apply(
+            "intsWithCustomCoder",
+            Create.of(1, 2)
+                .withCoder(new AutoValue_PCollectionTranslationTest_CustomIntCoder()))
+        .apply(
+            "into custom windows",
+            Window.into(new CustomWindows())
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(
+                            AfterFirst.of(
+                                AfterPane.elementCountAtLeast(5),
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.millis(227L)))))
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(12L)));
+    return ImmutableList.of(ints, longs, windowedLongs, coderLongs, groupedStrings);
   }
 
   @Parameter(0)
@@ -126,11 +124,10 @@ public class PCollectionTranslationTest {
         PCollectionTranslation.fromProto(protoCollection, pipeline, protoComponents);
 
     // Verify
-    assertThat(decodedCollection.getCoder(), Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
+    assertThat(decodedCollection.getCoder(), Matchers.equalTo(testCollection.getCoder()));
     assertThat(
         decodedCollection.getWindowingStrategy(),
-        Matchers.<WindowingStrategy<?, ?>>equalTo(
-            testCollection.getWindowingStrategy().fixDefaults()));
+        Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
   }
 
@@ -146,11 +143,9 @@ public class PCollectionTranslationTest {
         protoComponents.getWindowingStrategy(protoCollection.getWindowingStrategyId());
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
-    assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
+    assertThat(decodedCoder, Matchers.equalTo(testCollection.getCoder()));
     assertThat(
-        decodedStrategy,
-        Matchers.<WindowingStrategy<?, ?>>equalTo(
-            testCollection.getWindowingStrategy().fixDefaults()));
+        decodedStrategy, Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 
@@ -170,7 +165,7 @@ public class PCollectionTranslationTest {
   private static class CustomWindows extends NonMergingWindowFn<Integer, BoundedWindow> {
     @Override
     public Collection<BoundedWindow> assignWindows(final AssignContext c) throws Exception {
-      return Collections.<BoundedWindow>singleton(
+      return Collections.singleton(
           new BoundedWindow() {
             @Override
             public Instant maxTimestamp() {

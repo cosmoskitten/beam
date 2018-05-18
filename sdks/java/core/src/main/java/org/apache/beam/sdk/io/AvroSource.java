@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -134,7 +135,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
   // The default sync interval is 64k.
-  private static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
+  private static final long DEFAULT_MIN_BUNDLE_SIZE = 2L * DataFileConstants.DEFAULT_SYNC_INTERVAL;
 
   // Use cases of AvroSource are:
   // 1) AvroSource<GenericRecord> Reading GenericRecord records with a specified schema.
@@ -223,11 +224,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   public AvroSource<T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
-    return new AvroSource<T>(
-            getFileOrPatternSpecProvider(),
-            emptyMatchTreatment,
-            getMinBundleSize(),
-            mode);
+    return new AvroSource<>(
+        getFileOrPatternSpecProvider(), emptyMatchTreatment, getMinBundleSize(), mode);
   }
 
   /** Reads files containing records that conform to the given schema. */
@@ -422,9 +420,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           byte[] bytes = new byte[valueBuffer.remaining()];
           valueBuffer.get(bytes);
           if (key.equals(DataFileConstants.CODEC)) {
-            codec = new String(bytes, "UTF-8");
+            codec = new String(bytes, StandardCharsets.UTF_8);
           } else if (key.equals(DataFileConstants.SCHEMA)) {
-            schemaString = new String(bytes, "UTF-8");
+            schemaString = new String(bytes, StandardCharsets.UTF_8);
           }
         }
         numRecords = decoder.mapNext();

@@ -25,14 +25,87 @@ For internal use only; no backwards-compatibility guarantees.
 import sys
 import traceback
 
+import six
+
 from apache_beam.internal import util
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
+from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
+
+
+class NameContext(object):
+  """Holds the name information for a step."""
+
+  def __init__(self, step_name):
+    """Creates a new step NameContext.
+
+    Args:
+      step_name: The name of the step.
+    """
+    self.step_name = step_name
+
+  def __eq__(self, other):
+    return self.step_name == other.step_name
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __repr__(self):
+    return 'NameContext(%s)' % self.__dict__
+
+  def __hash__(self):
+    return hash(self.step_name)
+
+  def metrics_name(self):
+    """Returns the step name used for metrics reporting."""
+    return self.step_name
+
+  def logging_name(self):
+    """Returns the step name used for logging."""
+    return self.step_name
+
+
+# TODO(BEAM-4028): Move DataflowNameContext to Dataflow internal code.
+class DataflowNameContext(NameContext):
+  """Holds the name information for a step in Dataflow.
+
+  This includes a step_name (e.g. s2), a user_name (e.g. Foo/Bar/ParDo(Fab)),
+  and a system_name (e.g. s2-shuffle-read34)."""
+
+  def __init__(self, step_name, user_name, system_name):
+    """Creates a new step NameContext.
+
+    Args:
+      step_name: The internal name of the step (e.g. s2).
+      user_name: The full user-given name of the step (e.g. Foo/Bar/ParDo(Far)).
+      system_name: The step name in the optimized graph (e.g. s2-1).
+    """
+    super(DataflowNameContext, self).__init__(step_name)
+    self.user_name = user_name
+    self.system_name = system_name
+
+  def __eq__(self, other):
+    return (self.step_name == other.step_name and
+            self.user_name == other.user_name and
+            self.system_name == other.system_name)
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash((self.step_name, self.user_name, self.system_name))
+
+  def __repr__(self):
+    return 'DataflowNameContext(%s)' % self.__dict__
+
+  def logging_name(self):
+    """Stackdriver logging relies on user-given step names (e.g. Foo/Bar)."""
+    return self.user_name
 
 
 class LoggingContext(object):
@@ -58,23 +131,30 @@ class Receiver(object):
     raise NotImplementedError
 
 
-class DoFnMethodWrapper(object):
+class MethodWrapper(object):
   """For internal use only; no backwards-compatibility guarantees.
 
-  Represents a method of a DoFn object."""
+  Represents a method that can be invoked by `DoFnInvoker`."""
 
-  def __init__(self, do_fn, method_name):
+  def __init__(self, obj_to_invoke, method_name):
     """
-    Initiates a ``DoFnMethodWrapper``.
+    Initiates a ``MethodWrapper``.
 
     Args:
-      do_fn: A DoFn object that contains the method.
+      obj_to_invoke: the object that contains the method. Has to either be a
+                    `DoFn` object or a `RestrictionProvider` object.
       method_name: name of the method as a string.
     """
 
-    args, _, _, defaults = do_fn.get_function_arguments(method_name)
+    if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
+      raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
+                       'a \'RestrictionProvider\'. Received %r instead.',
+                       obj_to_invoke)
+
+    args, _, _, defaults = core.get_function_arguments(
+        obj_to_invoke, method_name)
     defaults = defaults if defaults else []
-    method_value = getattr(do_fn, method_name)
+    method_value = getattr(obj_to_invoke, method_name)
     self.method_value = method_value
     self.args = args
     self.defaults = defaults
@@ -98,10 +178,30 @@ class DoFnSignature(object):
     assert isinstance(do_fn, core.DoFn)
     self.do_fn = do_fn
 
-    self.process_method = DoFnMethodWrapper(do_fn, 'process')
-    self.start_bundle_method = DoFnMethodWrapper(do_fn, 'start_bundle')
-    self.finish_bundle_method = DoFnMethodWrapper(do_fn, 'finish_bundle')
+    self.process_method = MethodWrapper(do_fn, 'process')
+    self.start_bundle_method = MethodWrapper(do_fn, 'start_bundle')
+    self.finish_bundle_method = MethodWrapper(do_fn, 'finish_bundle')
+
+    restriction_provider = self._get_restriction_provider(do_fn)
+    self.initial_restriction_method = (
+        MethodWrapper(restriction_provider, 'initial_restriction')
+        if restriction_provider else None)
+    self.restriction_coder_method = (
+        MethodWrapper(restriction_provider, 'restriction_coder')
+        if restriction_provider else None)
+    self.create_tracker_method = (
+        MethodWrapper(restriction_provider, 'create_tracker')
+        if restriction_provider else None)
+    self.split_method = (
+        MethodWrapper(restriction_provider, 'split')
+        if restriction_provider else None)
+
     self._validate()
+
+  def _get_restriction_provider(self, do_fn):
+    result = _find_param_with_default(self.process_method,
+                                      default_as_type=RestrictionProvider)
+    return result[1] if result else None
 
   def _validate(self):
     self._validate_process()
@@ -120,6 +220,10 @@ class DoFnSignature(object):
     for param in core.DoFn.DoFnParams:
       assert param not in method_wrapper.defaults
 
+  def is_splittable_dofn(self):
+    return any([isinstance(default, RestrictionProvider) for default in
+                self.process_method.defaults])
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
@@ -133,19 +237,33 @@ class DoFnInvoker(object):
 
   @staticmethod
   def create_invoker(
-      output_processor,
-      signature, context, side_inputs, input_args, input_kwargs):
+      signature,
+      output_processor=None,
+      context=None, side_inputs=None, input_args=None, input_kwargs=None,
+      process_invocation=True):
     """ Creates a new DoFnInvoker based on given arguments.
 
     Args:
+        output_processor: an OutputProcessor for receiving elements produced by
+                          invoking functions of the DoFn.
         signature: a DoFnSignature for the DoFn being invoked.
         context: Context to be used when invoking the DoFn (deprecated).
         side_inputs: side inputs to be used when invoking th process method.
-        input_args: arguments to be used when invoking the process method
-        input_kwargs: kwargs to be used when invoking the process method.
+        input_args: arguments to be used when invoking the process method. Some
+                    of the arguments given here might be placeholders (for
+                    example for side inputs) that get filled before invoking the
+                    process method.
+        input_kwargs: keyword arguments to be used when invoking the process
+                      method. Some of the keyword arguments given here might be
+                      placeholders (for example for side inputs) that get filled
+                      before invoking the process method.
+        process_invocation: If True, this function may return an invoker that
+                            performs extra optimizations for invoking process()
+                            method efficiently.
     """
+    side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
-    use_simple_invoker = (
+    use_simple_invoker = not process_invocation or (
         not side_inputs and not input_args and not input_kwargs and
         not default_arg_values)
     if use_simple_invoker:
@@ -155,13 +273,20 @@ class DoFnInvoker(object):
           output_processor,
           signature, context, side_inputs, input_args, input_kwargs)
 
-  def invoke_process(self, windowed_value):
+  def invoke_process(self, windowed_value, restriction_tracker=None,
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
     """Invokes the DoFn.process() function.
 
     Args:
       windowed_value: a WindowedValue object that gives the element for which
                       process() method should be invoked along with the window
                       the element belongs to.
+      output_procesor: if provided given OutputProcessor will be used.
+      additional_args: additional arguments to be passed to the current
+                      `DoFn.process()` invocation, usually as side inputs.
+      additional_kwargs: additional keyword arguments to be passed to the
+                         current `DoFn.process()` invocation.
     """
     raise NotImplementedError
 
@@ -177,6 +302,40 @@ class DoFnInvoker(object):
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
+  def invoke_split(self, element, restriction):
+    return self.signature.split_method.method_value(element, restriction)
+
+  def invoke_initial_restriction(self, element):
+    return self.signature.initial_restriction_method.method_value(element)
+
+  def invoke_restriction_coder(self):
+    return self.signature.restriction_coder_method.method_value()
+
+  def invoke_create_tracker(self, restriction):
+    return self.signature.create_tracker_method.method_value(restriction)
+
+
+def _find_param_with_default(
+    method, default_as_value=None, default_as_type=None):
+  if ((default_as_value and default_as_type) or
+      not (default_as_value or default_as_type)):
+    raise ValueError(
+        'Exactly one of \'default_as_value\' and \'default_as_type\' should be '
+        'provided. Received %r and %r.', default_as_value, default_as_type)
+
+  defaults = method.defaults
+  default_as_value = default_as_value
+  default_as_type = default_as_type
+  ret = None
+  for i, value in enumerate(defaults):
+    if default_as_value and value == default_as_value:
+      ret = (method.args[len(method.args) - len(defaults) + i], value)
+    elif default_as_type and isinstance(value, default_as_type):
+      index = len(method.args) - len(defaults) + i
+      ret = (method.args[index], value)
+
+  return ret
+
 
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
@@ -185,8 +344,12 @@ class SimpleInvoker(DoFnInvoker):
     super(SimpleInvoker, self).__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
-  def invoke_process(self, windowed_value):
-    self.output_processor.process_outputs(
+  def invoke_process(self, windowed_value, restriction_tracker=None,
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
+    if not output_processor:
+      output_processor = self.output_processor
+    output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
 
 
@@ -208,15 +371,12 @@ class PerWindowInvoker(DoFnInvoker):
     # without any additional work. in the process function.
     # Also cache all the placeholders needed in the process function.
 
-    # Fill in sideInputs if they are globally windowed
-    global_window = GlobalWindow()
+    # Flag to cache additional arguments on the first element if all
+    # inputs are within the global window.
+    self.cache_globally_windowed_args = not self.has_windowed_inputs
 
     input_args = input_args if input_args else []
     input_kwargs = input_kwargs if input_kwargs else {}
-
-    if not self.has_windowed_inputs:
-      input_args, input_kwargs = util.insert_values_in_args(
-          input_args, input_kwargs, [si[global_window] for si in side_inputs])
 
     arguments = signature.process_method.args
     defaults = signature.process_method.defaults
@@ -268,24 +428,62 @@ class PerWindowInvoker(DoFnInvoker):
     self.args_for_process = args_with_placeholders
     self.kwargs_for_process = input_kwargs
 
-  def invoke_process(self, windowed_value):
+  def invoke_process(self, windowed_value, restriction_tracker=None,
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
+    if not additional_args:
+      additional_args = []
+    if not additional_kwargs:
+      additional_kwargs = {}
+
+    if not output_processor:
+      output_processor = self.output_processor
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
+
+    if restriction_tracker:
+      restriction_tracker_param = _find_param_with_default(
+          self.signature.process_method,
+          default_as_type=core.RestrictionProvider)[0]
+      if not restriction_tracker_param:
+        raise ValueError(
+            'A RestrictionTracker %r was provided but DoFn does not have a '
+            'RestrictionTrackerParam defined', restriction_tracker)
+      additional_kwargs[restriction_tracker_param] = restriction_tracker
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
-            WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)))
+            WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
+            additional_args, additional_kwargs, output_processor)
     else:
-      self._invoke_per_window(windowed_value)
+      self._invoke_per_window(
+          windowed_value, additional_args, additional_kwargs, output_processor)
 
-  def _invoke_per_window(self, windowed_value):
+  def _invoke_per_window(
+      self, windowed_value, additional_args,
+      additional_kwargs, output_processor):
     if self.has_windowed_inputs:
       window, = windowed_value.windows
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process,
-          [si[window] for si in self.side_inputs])
+          side_inputs)
+    elif self.cache_globally_windowed_args:
+      # Attempt to cache additional args if all inputs are globally
+      # windowed inputs when processing the first element.
+      self.cache_globally_windowed_args = False
+
+      # Fill in sideInputs if they are globally windowed
+      global_window = GlobalWindow()
+      self.args_for_process, self.kwargs_for_process = (
+          util.insert_values_in_args(
+              self.args_for_process, self.kwargs_for_process,
+              [si[global_window] for si in self.side_inputs]))
+      args_for_process, kwargs_for_process = (
+          self.args_for_process, self.kwargs_for_process)
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
@@ -298,12 +496,19 @@ class PerWindowInvoker(DoFnInvoker):
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
 
+    if additional_kwargs:
+      if kwargs_for_process is None:
+        kwargs_for_process = additional_kwargs
+      else:
+        for key in additional_kwargs:
+          kwargs_for_process[key] = additional_kwargs[key]
+
     if kwargs_for_process:
-      self.output_processor.process_outputs(
+      output_processor.process_outputs(
           windowed_value,
           self.process_method(*args_for_process, **kwargs_for_process))
     else:
-      self.output_processor.process_outputs(
+      output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
 
 
@@ -341,6 +546,8 @@ class DoFnRunner(Receiver):
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
 
+    from apache_beam.metrics.execution import ScopedMetricsContainer
+
     self.scoped_metrics_container = (
         scoped_metrics_container or ScopedMetricsContainer())
     self.step_name = step_name
@@ -355,8 +562,8 @@ class DoFnRunner(Receiver):
         windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
-        output_processor, do_fn_signature, self.context,
-        side_inputs, args, kwargs)
+        do_fn_signature, output_processor, self.context, side_inputs, args,
+        kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -408,10 +615,16 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    raise new_exn, None, original_traceback
+    six.reraise(type(new_exn), new_exn, original_traceback)
 
 
-class _OutputProcessor(object):
+class OutputProcessor(object):
+
+  def process_outputs(self, windowed_input_element, results):
+    raise NotImplementedError
+
+
+class _OutputProcessor(OutputProcessor):
   """Processes output produced by DoFn method invocations."""
 
   def __init__(self, window_fn, main_receivers, tagged_receivers):
@@ -439,7 +652,7 @@ class _OutputProcessor(object):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, six.string_types):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -481,7 +694,7 @@ class _OutputProcessor(object):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, six.string_types):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 

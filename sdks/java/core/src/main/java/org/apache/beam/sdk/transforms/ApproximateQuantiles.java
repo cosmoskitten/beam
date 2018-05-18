@@ -342,8 +342,7 @@ public class ApproximateQuantiles {
       }
       b--;
       int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
-      return new ApproximateQuantilesCombineFn<T, ComparatorT>(
-          numQuantiles, compareFn, k, b, maxNumElements);
+      return new ApproximateQuantilesCombineFn<>(numQuantiles, compareFn, k, b, maxNumElements);
     }
 
     @Override
@@ -421,7 +420,8 @@ public class ApproximateQuantiles {
       this.numQuantiles = numQuantiles;
       this.numBuffers = numBuffers;
       this.bufferSize = bufferSize;
-      this.buffers = new PriorityQueue<>(numBuffers + 1);
+      this.buffers = new PriorityQueue<>(numBuffers + 1,
+          (q1, q2) -> Integer.compare(q1.level, q2.level));
       this.min = min;
       this.max = max;
       this.unbufferedElements.addAll(unbufferedElements);
@@ -431,21 +431,21 @@ public class ApproximateQuantiles {
     public static <T, ComparatorT extends Comparator<T> & Serializable>
         QuantileState<T, ComparatorT> empty(
             ComparatorT compareFn, int numQuantiles, int numBuffers, int bufferSize) {
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn,
           numQuantiles,
           null, /* min */
           null, /* max */
           numBuffers,
           bufferSize,
-          Collections.<T>emptyList(),
-          Collections.<QuantileBuffer<T>>emptyList());
+          Collections.emptyList(),
+          Collections.emptyList());
     }
 
     public static <T, ComparatorT extends Comparator<T> & Serializable>
         QuantileState<T, ComparatorT> singleton(
             ComparatorT compareFn, int numQuantiles, T elem, int numBuffers, int bufferSize) {
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn,
           numQuantiles,
           elem, /* min */
@@ -453,7 +453,7 @@ public class ApproximateQuantiles {
           numBuffers,
           bufferSize,
           Collections.singletonList(elem),
-          Collections.<QuantileBuffer<T>>emptyList());
+          Collections.emptyList());
     }
 
     /**
@@ -478,8 +478,8 @@ public class ApproximateQuantiles {
     private void addUnbuffered(T elem) {
       unbufferedElements.add(elem);
       if (unbufferedElements.size() == bufferSize) {
-        Collections.sort(unbufferedElements, compareFn);
-        buffers.add(new QuantileBuffer<T>(unbufferedElements));
+        unbufferedElements.sort(compareFn);
+        buffers.add(new QuantileBuffer<>(unbufferedElements));
         unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
         collapseIfNeeded();
       }
@@ -510,7 +510,7 @@ public class ApproximateQuantiles {
     }
 
     public boolean isEmpty() {
-      return unbufferedElements.size() == 0 && buffers.size() == 0;
+      return unbufferedElements.isEmpty() && buffers.isEmpty();
     }
 
     private void collapseIfNeeded() {
@@ -572,14 +572,8 @@ public class ApproximateQuantiles {
         iterators.add(buffer.sizedIterator());
       }
       // Each of the buffers is already sorted by element.
-      Iterator<WeightedValue<T>> sorted = Iterators.mergeSorted(
-          iterators,
-          new Comparator<WeightedValue<T>>() {
-            @Override
-            public int compare(WeightedValue<T> a, WeightedValue<T> b) {
-              return compareFn.compare(a.getValue(), b.getValue());
-            }
-          });
+      Iterator<WeightedValue<T>> sorted =
+          Iterators.mergeSorted(iterators, (a, b) -> compareFn.compare(a.getValue(), b.getValue()));
 
       List<T> newElements = Lists.newArrayListWithCapacity(count);
       WeightedValue<T> weightedElement = sorted.next();
@@ -612,7 +606,7 @@ public class ApproximateQuantiles {
       }
       List<QuantileBuffer<T>> all = Lists.newArrayList(buffers);
       if (!unbufferedElements.isEmpty()) {
-        Collections.sort(unbufferedElements, compareFn);
+        unbufferedElements.sort(compareFn);
         all.add(new QuantileBuffer<>(unbufferedElements));
       }
       double step = 1.0 * totalCount / (numQuantiles - 1);
@@ -627,7 +621,7 @@ public class ApproximateQuantiles {
   /**
    * A single buffer in the sense of the referenced algorithm.
    */
-  private static class QuantileBuffer<T> implements Comparable<QuantileBuffer<T>> {
+  private static class QuantileBuffer<T> {
     private int level;
     private long weight;
     private List<T> elements;
@@ -640,11 +634,6 @@ public class ApproximateQuantiles {
       this.level = level;
       this.weight = weight;
       this.elements = elements;
-    }
-
-    @Override
-    public int compareTo(QuantileBuffer<T> other) {
-      return this.level - other.level;
     }
 
     @Override
@@ -717,7 +706,7 @@ public class ApproximateQuantiles {
       for (int i = 0; i < numBuffers; i++) {
         buffers.add(decodeBuffer(inStream));
       }
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
     }
 

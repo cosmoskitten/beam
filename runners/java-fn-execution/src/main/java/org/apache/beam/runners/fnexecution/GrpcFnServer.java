@@ -52,12 +52,10 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   private final ServiceT service;
   private final ApiServiceDescriptor apiServiceDescriptor;
 
-  private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor)
-      throws IOException {
+  private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor) {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
-    server.start();
   }
 
   /**

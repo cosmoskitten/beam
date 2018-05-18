@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution;
 
 import io.grpc.BindableService;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.inprocess.InProcessServerBuilder;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,12 +44,16 @@ public class InProcessServerFactory extends ServerFactory {
       throws IOException {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
-    return InProcessServerBuilder.forName(name).addService(service).build();
+    return InProcessServerBuilder.forName(name).addService(service).build().start();
   }
 
   @Override
-  public Server create(
-      BindableService service, ApiServiceDescriptor serviceDescriptor) throws IOException {
-    return InProcessServerBuilder.forName(serviceDescriptor.getUrl()).addService(service).build();
+  public Server create(BindableService service, ApiServiceDescriptor serviceDescriptor)
+      throws IOException {
+    return InProcessServerBuilder.forName(serviceDescriptor.getUrl())
+        .addService(
+            ServerInterceptors.intercept(service, GrpcContextHeaderAccessorProvider.interceptor()))
+        .build()
+        .start();
   }
 }

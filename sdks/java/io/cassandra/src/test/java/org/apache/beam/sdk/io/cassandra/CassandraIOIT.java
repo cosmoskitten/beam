@@ -26,12 +26,10 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -42,7 +40,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -63,9 +60,11 @@ import org.junit.runners.JUnit4;
  * <p>You can run this test directly using Maven with:
  *
  * <pre>{@code
- * mvn -e -Pio-it verify -pl sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
+ * ./gradlew integrationTest -p sdks/java/io/cassandra -DintegrationTestPipelineOptions='[
  * "--cassandraHost=1.2.3.4",
  * "--cassandraPort=9042"]'
+ * --tests org.apache.beam.sdk.io.cassandra.CassandraIOIT
+ * -DintegrationTestRunner=direct
  * }</pre>
  */
 @RunWith(JUnit4.class)
@@ -76,7 +75,7 @@ public class CassandraIOIT implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws Exception {
+  public static void setup() {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
@@ -89,47 +88,43 @@ public class CassandraIOIT implements Serializable {
   }
 
   @Test
-  public void testRead() throws Exception {
+  public void testRead() {
     PCollection<Scientist> output = pipeline.apply(CassandraIO.<Scientist>read()
         .withHosts(Collections.singletonList(options.getCassandraHost()))
         .withPort(options.getCassandraPort())
+        .withMinNumberOfSplits(20)
         .withKeyspace(CassandraTestDataSet.KEYSPACE)
         .withTable(CassandraTestDataSet.TABLE_READ_NAME)
         .withEntity(Scientist.class)
         .withCoder(SerializableCoder.of(Scientist.class)));
 
-    PAssert.thatSingleton(output.apply("Count scientist", Count.<Scientist>globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(output.apply("Count scientist", Count.globally())).isEqualTo(1000L);
 
     PCollection<KV<String, Integer>> mapped =
         output.apply(
             MapElements.via(
                 new SimpleFunction<Scientist, KV<String, Integer>>() {
+                  @Override
                   public KV<String, Integer> apply(Scientist scientist) {
-                    KV<String, Integer> kv = KV.of(scientist.name, scientist.id);
-                    return kv;
+                    return KV.of(scientist.name, scientist.id);
                   }
                 }
             )
         );
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
-                }
-                return null;
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
               }
-            }
-        );
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }
 
   @Test
-  public void testWrite() throws Exception {
+  public void testWrite() {
     IOTestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
 
@@ -137,8 +132,6 @@ public class CassandraIOIT implements Serializable {
         new CassandraMatcher(
             CassandraTestDataSet.getCluster(options),
             CassandraTestDataSet.TABLE_WRITE_NAME));
-
-    TestPipeline.convertToArgs(options);
 
     ArrayList<ScientistForWrite> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
@@ -162,13 +155,13 @@ public class CassandraIOIT implements Serializable {
   /**
    * Simple matcher.
    */
-  public class CassandraMatcher extends TypeSafeMatcher<PipelineResult>
+  static class CassandraMatcher extends TypeSafeMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
 
-    private String tableName;
-    private Cluster cluster;
+    private final String tableName;
+    private final Cluster cluster;
 
-    public CassandraMatcher(Cluster cluster, String tableName) {
+    CassandraMatcher(Cluster cluster, String tableName) {
       this.cluster = cluster;
       this.tableName = tableName;
     }
@@ -201,34 +194,17 @@ public class CassandraIOIT implements Serializable {
    * Simple Cassandra entity representing a scientist. Used for read test.
    */
   @Table(name = CassandraTestDataSet.TABLE_READ_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
-  public static class Scientist implements Serializable {
-
+  static class Scientist implements Serializable {
     @PartitionKey
     @Column(name = "id")
-    private final int id;
+    final int id;
 
     @Column(name = "name")
-    private final String name;
+    final String name;
 
-    public Scientist() {
-      this(0, "");
-    }
-
-    public Scientist(int id) {
-      this(0, "");
-    }
-
-    public Scientist(int id, String name) {
+    Scientist(int id, String name) {
       this.id = id;
       this.name = name;
-    }
-
-    public int getId() {
-      return id;
-    }
-
-    public String getName() {
-      return name;
     }
   }
 
@@ -236,19 +212,17 @@ public class CassandraIOIT implements Serializable {
    * Simple Cassandra entity representing a scientist, used for write test.
    */
   @Table(name = CassandraTestDataSet.TABLE_WRITE_NAME, keyspace = CassandraTestDataSet.KEYSPACE)
-  public class ScientistForWrite implements Serializable {
-
+  static class ScientistForWrite implements Serializable {
     @PartitionKey
     @Column(name = "id")
-    public Integer id;
+    Integer id;
 
     @Column(name = "name")
-    public String name;
+    String name;
 
+    @Override
     public String toString() {
       return id + ":" + name;
     }
-
   }
-
 }

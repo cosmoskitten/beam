@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 
@@ -30,11 +30,6 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
  */
 public interface TableProvider {
   /**
-   * Init the provider.
-   */
-  void init();
-
-  /**
    * Gets the table type this provider handles.
    */
   String getTableType();
@@ -45,17 +40,19 @@ public interface TableProvider {
   void createTable(Table table);
 
   /**
-   * List all tables from this provider.
+   * Drops a table.
+   *
+   * @param tableName
    */
-  List<Table> listTables();
+  void dropTable(String tableName);
+
+  /**
+   * Get all tables from this provider.
+   */
+  Map<String, Table> getTables();
 
   /**
    * Build a {@link BeamSqlTable} using the given table meta info.
    */
   BeamSqlTable buildBeamSqlTable(Table table);
-
-  /**
-   * Close the provider.
-   */
-  void close();
 }

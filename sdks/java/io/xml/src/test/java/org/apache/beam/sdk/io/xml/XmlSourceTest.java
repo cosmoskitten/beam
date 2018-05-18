@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,26 +28,22 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import javax.xml.bind.ValidationEvent;
 import javax.xml.bind.ValidationEventHandler;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -60,7 +55,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests XmlSource.
+ * Tests for {@link XmlSource} in particular - the rest of {@link XmlIO} is tested
+ * in {@link XmlIOTest}.
  */
 @RunWith(JUnit4.class)
 public class XmlSourceTest {
@@ -74,19 +70,19 @@ public class XmlSourceTest {
   @Rule
   public ExpectedException exception = ExpectedException.none();
 
-  String tinyXML =
+  private String tinyXML =
       "<trains><train><name>Thomas</name></train><train><name>Henry</name></train>"
       + "<train><name>James</name></train></trains>";
 
-  String xmlWithMultiByteElementName =
+  private String xmlWithMultiByteElementName =
       "<දුම්රියන්><දුම්රිය><name>Thomas</name></දුම්රිය><දුම්රිය><name>Henry</name></දුම්රිය>"
       + "<දුම්රිය><name>James</name></දුම්රිය></දුම්රියන්>";
 
-  String xmlWithMultiByteChars =
+  private String xmlWithMultiByteChars =
       "<trains><train><name>Thomas¥</name></train><train><name>Hen¶ry</name></train>"
       + "<train><name>Jamßes</name></train></trains>";
 
-  String trainXML =
+  private String trainXML =
       "<trains>"
       + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
       + "<train><name>Henry</name><number>3</number><color>green</color></train>"
@@ -96,7 +92,7 @@ public class XmlSourceTest {
       + "<train><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithEmptyTags =
+  private String trainXMLWithEmptyTags =
       "<trains>"
       + "<train/>"
       + "<train><name>Thomas</name><number>1</number><color>blue</color></train>"
@@ -108,7 +104,7 @@ public class XmlSourceTest {
       + "<train><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithAttributes =
+  private String trainXMLWithAttributes =
       "<trains>"
       + "<train size=\"small\"><name>Thomas</name><number>1</number><color>blue</color></train>"
       + "<train size=\"big\"><name>Henry</name><number>3</number><color>green</color></train>"
@@ -118,7 +114,7 @@ public class XmlSourceTest {
       + "<train size=\"small\"><name>Percy</name><number>6</number><color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithSpaces =
+  private String trainXMLWithSpaces =
       "<trains>"
       + "<train><name>Thomas   </name>   <number>1</number><color>blue</color></train>"
       + "<train><name>Henry</name><number>3</number><color>green</color></train>\n"
@@ -128,7 +124,7 @@ public class XmlSourceTest {
       + "<train>\n<name>Percy</name>   <number>6  </number>   <color>green</color></train>"
       + "</trains>";
 
-  String trainXMLWithAllFeaturesMultiByte =
+  private String trainXMLWithAllFeaturesMultiByte =
       "<දුම්රියන්>"
       + "<දුම්රිය/>"
       + "<දුම්රිය size=\"small\"><name> Thomas¥</name><number>1</number><color>blue</color>"
@@ -143,7 +139,7 @@ public class XmlSourceTest {
       + "</දුම්රිය>"
       + "</දුම්රියන්>";
 
-  String trainXMLWithAllFeaturesSingleByte =
+  private String trainXMLWithAllFeaturesSingleByte =
       "<trains>"
       + "<train/>"
       + "<train size=\"small\"><name> Thomas</name><number>1</number><color>blue</color>"
@@ -158,14 +154,14 @@ public class XmlSourceTest {
       + "</train>"
       + "</trains>";
 
-  String trainXMLWithISO88591 =
+  private String trainXMLWithISO88591 =
       "<trains>"
       + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
       + "</trains>";
 
   @XmlRootElement
   static class TinyTrain {
-    public TinyTrain(String name) {
+    TinyTrain(String name) {
       this.name = name;
     }
 
@@ -286,7 +282,7 @@ public class XmlSourceTest {
 
   private File createRandomTrainXML(String fileName, List<Train> trains) throws IOException {
     File file = tempFolder.newFile(fileName);
-    try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+    try (BufferedWriter writer = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
       writer.write("<trains>");
       writer.newLine();
       for (Train train : trains) {
@@ -503,12 +499,10 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    ValidationEventHandler validationEventHandler = new ValidationEventHandler() {
-      @Override
-      public boolean handleEvent(ValidationEvent event) {
-        throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
-      }
-    };
+    ValidationEventHandler validationEventHandler =
+        event -> {
+          throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
+        };
 
     BoundedSource<WrongTrainType> source =
         XmlIO.<WrongTrainType>read()
@@ -731,27 +725,6 @@ public class XmlSourceTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testReadXMLLargePipeline() throws IOException {
-    String fileName = "temp.xml";
-    List<Train> trains = generateRandomTrainList(100);
-    File file = createRandomTrainXML(fileName, trains);
-
-    PCollection<Train> output =
-        p.apply(
-            "ReadFileData",
-            XmlIO.<Train>read()
-                .from(file.toPath().toString())
-                .withRootElement("trains")
-                .withRecordElement("train")
-                .withRecordClass(Train.class)
-                .withMinBundleSize(1024));
-
-    PAssert.that(output).containsInAnyOrder(trains);
-    p.run();
-  }
-
-  @Test
   public void testSplitWithEmptyBundles() throws Exception {
     String fileName = "temp.xml";
     List<Train> trains = generateRandomTrainList(10);
@@ -881,65 +854,5 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .createSource();
     assertSplitAtFractionExhaustive(source, options);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testReadXMLFilePatternUsingReadAndReadFiles() throws IOException {
-    List<Train> trains1 = generateRandomTrainList(20);
-    File file = createRandomTrainXML("temp1.xml", trains1);
-    List<Train> trains2 = generateRandomTrainList(10);
-    createRandomTrainXML("temp2.xml", trains2);
-    List<Train> trains3 = generateRandomTrainList(15);
-    createRandomTrainXML("temp3.xml", trains3);
-    generateRandomTrainList(8);
-    createRandomTrainXML("otherfile.xml", trains1);
-
-    PCollection<Train> read =
-        p.apply(
-            "Read",
-            XmlIO.<Train>read()
-                .from(file.getParent() + "/" + "temp*.xml")
-                .withRootElement("trains")
-                .withRecordElement("train")
-                .withRecordClass(Train.class)
-                .withMinBundleSize(1024));
-
-    PCollection<Train> readFiles =
-        p.apply(FileIO.match().filepattern(file.getParent() + "/" + "temp*.xml"))
-            .apply(FileIO.readMatches())
-            .apply(
-                "ReadFiles",
-                XmlIO.<Train>readFiles()
-                    .withRootElement("trains")
-                    .withRecordElement("train")
-                    .withRecordClass(Train.class));
-
-    List<Train> expectedResults = new ArrayList<>();
-    expectedResults.addAll(trains1);
-    expectedResults.addAll(trains2);
-    expectedResults.addAll(trains3);
-
-    PAssert.that(read).containsInAnyOrder(expectedResults);
-    PAssert.that(readFiles).containsInAnyOrder(expectedResults);
-    p.run();
-  }
-
-  @Test
-  public void testDisplayData() {
-    DisplayData displayData =
-        DisplayData.from(
-            XmlIO.<Integer>read()
-                .from("foo.xml")
-                .withRootElement("bird")
-                .withRecordElement("cat")
-                .withMinBundleSize(1234)
-                .withRecordClass(Integer.class));
-
-    assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
-    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
-    assertThat(displayData, hasDisplayItem("recordElement", "cat"));
-    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
-    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 }

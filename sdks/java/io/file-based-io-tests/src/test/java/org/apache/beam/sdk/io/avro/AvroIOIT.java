@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.avro;
 
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -49,15 +50,17 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
- *  -Dit.test=org.apache.beam.sdk.io.avro.AvroIOIT
+ *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=output_file_path"
  *  ]'
+ *  --tests org.apache.beam.sdk.io.avro.AvroIOIT
+ *  -DintegrationTestRunner=direct
  * </pre>
  * </p>
- * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ *
+ * <p>Please see 'build_rules.gradle' file for instructions regarding
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
@@ -74,7 +77,7 @@ public class AvroIOIT {
       + "}");
 
   private static String filenamePrefix;
-  private static Long numberOfTextLines;
+  private static Integer numberOfTextLines;
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
@@ -84,25 +87,28 @@ public class AvroIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
   }
 
   @Test
   public void writeThenReadAll() {
 
-    PCollection<String> testFilenames = pipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines",
-            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-        .apply(
-            "Produce Avro records",
-            ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-        .setCoder(AvroCoder.of(AVRO_SCHEMA))
-        .apply(
-            "Write Avro records to files",
-            AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix)
-                .withOutputFilenames().withSuffix(".avro"))
-        .getPerDestinationOutputFilenames().apply(Values.<String>create());
+    PCollection<String> testFilenames =
+        pipeline
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Produce text lines",
+                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+            .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
+            .setCoder(AvroCoder.of(AVRO_SCHEMA))
+            .apply(
+                "Write Avro records to files",
+                AvroIO.writeGenericRecords(AVRO_SCHEMA)
+                    .to(filenamePrefix)
+                    .withOutputFilenames()
+                    .withSuffix(".avro"))
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
@@ -112,15 +118,17 @@ public class AvroIOIT {
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+    testFilenames.apply(
+        "Delete test files",
+        ParDo.of(new DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(
           new GenericRecordBuilder(AVRO_SCHEMA).set("row", c.element()).build()
       );
@@ -129,7 +137,7 @@ public class AvroIOIT {
 
   private static class ParseAvroRecordsFn extends DoFn<GenericRecord, String> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(String.valueOf(c.element().get("row")));
     }
   }

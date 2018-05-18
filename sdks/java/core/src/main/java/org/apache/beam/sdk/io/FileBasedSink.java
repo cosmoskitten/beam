@@ -144,7 +144,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -236,7 +236,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
     }
 
-    @Nullable private SideInputAccessor sideInputAccessor;
+    @Nullable private transient SideInputAccessor sideInputAccessor;
 
     static class SideInputAccessorViaProcessContext implements SideInputAccessor {
       private DoFn<?, ?>.ProcessContext processContext;
@@ -437,6 +437,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
   public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
 
+  @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
   }
@@ -679,9 +680,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       Set<Integer> missingShardNums;
       if (numShards == null) {
         missingShardNums =
-            existingResults.isEmpty()
-                ? ImmutableSet.of(UNKNOWN_SHARDNUM)
-                : ImmutableSet.<Integer>of();
+            existingResults.isEmpty() ? ImmutableSet.of(UNKNOWN_SHARDNUM) : ImmutableSet.of();
       } else {
         missingShardNums = Sets.newHashSet();
         for (int i = 0; i < numShards; ++i) {
@@ -742,6 +741,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     final void moveToOutputFiles(
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
       int numFiles = resultsToFinalFilenames.size();
+
       LOG.debug("Copying {} files.", numFiles);
       List<ResourceId> srcFiles = new ArrayList<>();
       List<ResourceId> dstFiles = new ArrayList<>();
@@ -749,9 +749,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         srcFiles.add(entry.getKey().getTempFilename());
         dstFiles.add(entry.getValue());
         LOG.info(
-            "Will copy temporary file {} to final location {}",
-            entry.getKey().getTempFilename(),
-            entry.getValue());
+            "Will copy temporary file {} to final location {}", entry.getKey(), entry.getValue());
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
@@ -995,17 +993,16 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         closeChannelAndThrow(channel, outputFile, e);
       }
 
-      checkState(
-          channel.isOpen(),
-          "Channel %s to %s should only be closed by its owner: %s",
-          channel,
-          outputFile);
-
-      LOG.debug("Closing channel to {}.", outputFile);
-      try {
-        channel.close();
-      } catch (Exception e) {
-        throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
+      // It is valid for a subclass to either close the channel or not.
+      // They would typically close the channel e.g. if they are wrapping it in another channel
+      // and the wrapper needs to be closed.
+      if (channel.isOpen()) {
+        LOG.debug("Closing channel to {}.", outputFile);
+        try {
+          channel.close();
+        } catch (Exception e) {
+          throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
+        }
       }
       LOG.info("Successfully wrote temporary file {}", outputFile);
     }
@@ -1094,6 +1091,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
     }
 
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(FileResult.class)
           .add("tempFilename", tempFilename)

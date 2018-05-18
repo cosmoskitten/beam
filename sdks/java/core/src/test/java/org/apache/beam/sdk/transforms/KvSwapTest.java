@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -62,8 +63,7 @@ public class KvSwapTest {
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(BigEndianIntegerCoder.of()))));
 
-    PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.<String, Integer>create());
+    PCollection<KV<Integer, String>> output = input.apply(KvSwap.create());
 
     PAssert.that(output).containsInAnyOrder(
         KV.of(1, "one"),
@@ -77,14 +77,13 @@ public class KvSwapTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testKvSwapEmpty() {
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.<String, Integer>create());
+    PCollection<KV<Integer, String>> output = input.apply(KvSwap.create());
 
     PAssert.that(output).empty();
     p.run();

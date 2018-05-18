@@ -19,12 +19,16 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
+import com.google.protobuf.TextFormat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,17 +43,23 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -121,38 +131,21 @@ public class ProcessBundleHandler {
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
-    this.defaultPTransformRunnerFactory = new PTransformRunnerFactory<Object>() {
-      @Override
-      public Object createRunnerForPTransform(
-          PipelineOptions pipelineOptions,
-          BeamFnDataClient beamFnDataClient,
-          BeamFnStateClient beanFnStateClient,
-          String pTransformId,
-          RunnerApi.PTransform pTransform,
-          Supplier<String> processBundleInstructionId,
-          Map<String, RunnerApi.PCollection> pCollections,
-          Map<String, RunnerApi.Coder> coders,
-          Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
-          Consumer<ThrowingRunnable> addStartFunction,
-          Consumer<ThrowingRunnable> addFinishFunction) {
-        throw new IllegalStateException(String.format(
-            "No factory registered for %s, known factories %s",
-            pTransform.getSpec().getUrn(),
-            urnToPTransformRunnerFactoryMap.keySet()));
-      }
-    };
+    this.defaultPTransformRunnerFactory =
+        new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
       String pTransformId,
-      RunnerApi.PTransform pTransform,
+      PTransform pTransform,
       Supplier<String> processBundleInstructionId,
-      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
-      Multimap<String, String> pCollectionIdsToConsumingPTransforms,
-      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+      ProcessBundleDescriptor processBundleDescriptor,
+      SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
+      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+      Consumer<ThrowingRunnable> addFinishFunction)
+      throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
     // Since we are creating the consumers first, we know that the we are building the DAG
@@ -177,6 +170,18 @@ public class ProcessBundleHandler {
       }
     }
 
+    if (!pTransform.hasSpec()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process transform with no spec: %s", TextFormat.printToString(pTransform)));
+    }
+
+    if (pTransform.getSubtransformsCount() > 0) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
+    }
+
     urnToPTransformRunnerFactoryMap.getOrDefault(
         pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
         .createRunnerForPTransform(
@@ -188,6 +193,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor.getPcollectionsMap(),
             processBundleDescriptor.getCodersMap(),
+            processBundleDescriptor.getWindowingStrategiesMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
             addFinishFunction);
@@ -203,10 +209,9 @@ public class ProcessBundleHandler {
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
-    Multimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    Multimap<String,
-        ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers =
-        HashMultimap.create();
+    SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
+    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
+        ArrayListMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
@@ -231,7 +236,9 @@ public class ProcessBundleHandler {
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
+            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
+            && !PTransformTranslation.READ_TRANSFORM_URN.equals(
+                entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
@@ -323,5 +330,35 @@ public class ProcessBundleHandler {
   }
 
   private abstract class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {
+  }
+
+  private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {
+    private final Set<String> knownUrns;
+
+    private UnknownPTransformRunnerFactory(Set<String> knownUrns) {
+      this.knownUrns = knownUrns;
+    }
+
+    @Override
+    public Object createRunnerForPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, PCollection> pCollections,
+        Map<String, Coder> coders,
+        Map<String, WindowingStrategy> windowingStrategies,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Consumer<ThrowingRunnable> addStartFunction,
+        Consumer<ThrowingRunnable> addFinishFunction) {
+      String message =
+          String.format(
+              "No factory registered for %s, known factories %s",
+              pTransform.getSpec().getUrn(), knownUrns);
+      LOG.error(message);
+      throw new IllegalStateException(message);
+    }
   }
 }

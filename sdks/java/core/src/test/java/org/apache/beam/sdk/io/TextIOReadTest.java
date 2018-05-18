@@ -40,16 +40,17 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -385,7 +386,7 @@ public class TextIOReadTest {
       try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
         for (String elem : expected) {
           byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
-          String line = new String(encodedElem);
+          String line = new String(encodedElem, Charsets.UTF_8);
           writer.println(line);
         }
       }
@@ -398,7 +399,7 @@ public class TextIOReadTest {
     }
 
     @Test
-    public void testDelimiterSelfOverlaps(){
+    public void testDelimiterSelfOverlaps() {
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c'}));
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'c', 'a', 'b', 'd', 'a', 'b'}));
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b', 'd'}));
@@ -424,7 +425,7 @@ public class TextIOReadTest {
       File tmpFile = tempFolder.newFile("tmpfile.txt");
       String filename = tmpFile.getPath();
 
-      try (FileWriter writer = new FileWriter(tmpFile)) {
+      try (Writer writer = Files.newBufferedWriter(tmpFile.toPath(), UTF_8)) {
         writer.write(Joiner.on("").join(inputStrings));
       }
 
@@ -561,7 +562,7 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithNoEntries() throws Exception {
-      File file = createZipFile(new ArrayList<String>(), tempFolder, "empty zip file");
+      File file = createZipFile(new ArrayList<>(), tempFolder, "empty zip file");
       assertReadingCompressedFileMatchesExpected(file, ZIP, EMPTY, p);
       p.run();
     }
@@ -593,14 +594,14 @@ public class TextIOReadTest {
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
       File file =
-        createZipFile(
-          new ArrayList<String>(),
-          tempFolder,
-          "complex empty and present entries",
-          new String[] {"cat"},
-          new String[] {},
-          new String[] {},
-          new String[] {"dog"});
+          createZipFile(
+              new ArrayList<>(),
+              tempFolder,
+              "complex empty and present entries",
+              new String[] {"cat"},
+              new String[] {},
+              new String[] {},
+              new String[] {"dog"});
 
       assertReadingCompressedFileMatchesExpected(
         file, ZIP, Arrays.asList("cat", "dog"), p);
@@ -641,7 +642,8 @@ public class TextIOReadTest {
     public void testProgressTextFile() throws IOException {
       String file = "line1\nline2\nline3";
       try (BoundedSource.BoundedReader<String> reader =
-             prepareSource(file.getBytes()).createReader(PipelineOptionsFactory.create())) {
+             prepareSource(file.getBytes(Charsets.UTF_8))
+                 .createReader(PipelineOptionsFactory.create())) {
         // Check preconditions before starting
         assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
         assertEquals(0, reader.getSplitPointsConsumed());
@@ -676,7 +678,7 @@ public class TextIOReadTest {
     @Test
     public void testProgressAfterSplitting() throws IOException {
       String file = "line1\nline2\nline3";
-      BoundedSource<String> source = prepareSource(file.getBytes());
+      BoundedSource<String> source = prepareSource(file.getBytes(Charsets.UTF_8));
       BoundedSource<String> remainder;
 
       // Create the remainder, verifying properties pre- and post-splitting.
@@ -851,7 +853,7 @@ public class TextIOReadTest {
                   .from(basePath.resolve("*").toString())
                   .watchForNewFiles(
                       Duration.millis(100),
-                      Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                      Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();

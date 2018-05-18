@@ -102,15 +102,15 @@ public class BeamFnLoggingClientTest {
         new AtomicReference<>();
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
         TestStreams.withOnNext(
-            (BeamFnApi.LogEntry.List logEntries) -> values.addAll(logEntries.getLogEntriesList()))
-        .withOnCompleted(new Runnable() {
-          @Override
-          public void run() {
-            // Remember that the client told us that this stream completed
-            clientClosedStream.set(true);
-            outboundServerObserver.get().onCompleted();
-          }
-        }).build();
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
+            .withOnCompleted(
+                () -> {
+                  // Remember that the client told us that this stream completed
+                  clientClosedStream.set(true);
+                  outboundServerObserver.get().onCompleted();
+                })
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
@@ -167,7 +167,6 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerFailsThatClientIsAbleToCleanup() throws Exception {
-    AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
@@ -218,7 +217,6 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerHangsUpEarlyThatClientIsAbleCleanup() throws Exception {
-    AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();

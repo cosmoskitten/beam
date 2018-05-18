@@ -30,6 +30,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
     'ProfilingOptions',
@@ -392,6 +393,33 @@ class GoogleCloudOptions(PipelineOptions):
     return errors
 
 
+class HadoopFileSystemOptions(PipelineOptions):
+  """``HadoopFileSystem`` connection options."""
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--hdfs_host',
+        default=None,
+        help=
+        ('Hostname or address of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_port',
+        default=None,
+        help=
+        ('Port of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_user',
+        default=None,
+        help=
+        ('HDFS username to use.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_optional_argument_positive(self, 'port'))
+    return errors
+
+
 # Command line options controlling the worker pool configuration.
 # TODO(silviuc): Update description when autoscaling options are in.
 class WorkerOptions(PipelineOptions):
@@ -621,6 +649,13 @@ class TestOptions(PipelineOptions):
         default=False,
         help=('Used in unit testing runners without submitting the '
               'actual job.'))
+    parser.add_argument(
+        '--wait_until_finish_duration',
+        default=None,
+        type=int,
+        help='The time to wait (in milliseconds) for test pipeline to finish. '
+             'If it is set to None, it will wait indefinitely until the job '
+             'is finished.')
 
   def validate(self, validator):
     errors = []

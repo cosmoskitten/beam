@@ -75,10 +75,10 @@ public class Person implements KnownSize, Serializable {
   public final String name;
 
   @JsonProperty
-  private final String emailAddress;
+  public final String emailAddress;
 
   @JsonProperty
-  private final String creditCard;
+  public final String creditCard;
 
   @JsonProperty
   public final String city;
@@ -91,7 +91,7 @@ public class Person implements KnownSize, Serializable {
 
   /** Additional arbitrary payload for performance testing. */
   @JsonProperty
-  private final String extra;
+  public final String extra;
 
   // For Avro only.
   @SuppressWarnings("unused")
@@ -148,8 +148,8 @@ public class Person implements KnownSize, Serializable {
 
   @Override
   public long sizeInBytes() {
-    return 8 + name.length() + 1 + emailAddress.length() + 1 + creditCard.length() + 1
-        + city.length() + 1 + state.length() + 8 + 1 + extra.length() + 1;
+    return 8L + name.length() + 1L + emailAddress.length() + 1L + creditCard.length() + 1L
+        + city.length() + 1L + state.length() + 8L + 1L + extra.length() + 1L;
   }
 
   @Override

@@ -21,14 +21,13 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Date;
 import java.util.Iterator;
-
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 import org.junit.Test;
 
 /**
@@ -170,24 +169,24 @@ public class BeamSqlDateFunctionsIntegrationTest
         + "CURRENT_TIMESTAMP as c3"
         + " FROM PCOLLECTION"
         ;
-    PCollection<BeamRecord> rows = getTestPCollection().apply(
+    PCollection<Row> rows = getTestPCollection().apply(
         BeamSql.query(sql));
     PAssert.that(rows).satisfies(new Checker());
     pipeline.run();
   }
 
-  private static class Checker implements SerializableFunction<Iterable<BeamRecord>, Void> {
-    @Override public Void apply(Iterable<BeamRecord> input) {
-      Iterator<BeamRecord> iter = input.iterator();
+  private static class Checker implements SerializableFunction<Iterable<Row>, Void> {
+    @Override public Void apply(Iterable<Row> input) {
+      Iterator<Row> iter = input.iterator();
       assertTrue(iter.hasNext());
-      BeamRecord row = iter.next();
+      Row row = iter.next();
         // LOCALTIME
-      Date date = new Date();
-      assertTrue(date.getTime() - row.getGregorianCalendar(0).getTime().getTime() < 1000);
-      assertTrue(date.getTime() - row.getDate(1).getTime() < 1000);
-      assertTrue(date.getTime() - row.getDate(2).getTime() < 1000);
-      assertTrue(date.getTime() - row.getGregorianCalendar(3).getTime().getTime() < 1000);
-      assertTrue(date.getTime() - row.getDate(4).getTime() < 1000);
+      DateTime date = DateTime.now();
+      assertTrue(date.getMillis() - row.getDateTime(0).getMillis() < 1000);
+      assertTrue(date.getMillis() - row.getDateTime(1).getMillis() < 1000);
+      assertTrue(date.getMillis() - row.getDateTime(2).getMillis() < 1000);
+      assertTrue(date.getMillis() - row.getDateTime(3).getMillis() < 1000);
+      assertTrue(date.getMillis() - row.getDateTime(4).getMillis() < 1000);
       assertFalse(iter.hasNext());
       return null;
     }

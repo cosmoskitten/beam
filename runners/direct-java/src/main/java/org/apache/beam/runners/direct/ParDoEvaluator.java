@@ -59,35 +59,32 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
-    return new DoFnRunnerFactory<InputT, OutputT>() {
-      @Override
-      public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
-          PipelineOptions options,
-          DoFn<InputT, OutputT> fn,
-          List<PCollectionView<?>> sideInputs,
-          ReadyCheckingSideInputReader sideInputReader,
-          OutputManager outputManager,
-          TupleTag<OutputT> mainOutputTag,
-          List<TupleTag<?>> additionalOutputTags,
-          DirectStepContext stepContext,
-          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
-        DoFnRunner<InputT, OutputT> underlying =
-            DoFnRunners.simpleRunner(
-                options,
-                fn,
-                sideInputReader,
-                outputManager,
-                mainOutputTag,
-                additionalOutputTags,
-                stepContext,
-                windowingStrategy);
-        return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
-      }
+    return (options,
+        fn,
+        sideInputs,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy) -> {
+      DoFnRunner<InputT, OutputT> underlying =
+          DoFnRunners.simpleRunner(
+              options,
+              fn,
+              sideInputReader,
+              outputManager,
+              mainOutputTag,
+              additionalOutputTags,
+              stepContext,
+              windowingStrategy);
+      return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
 
   public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       EvaluationContext evaluationContext,
+      PipelineOptions options,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
@@ -104,16 +101,17 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
 
-    PushbackSideInputDoFnRunner<InputT, OutputT> runner = runnerFactory.createRunner(
-        evaluationContext.getPipelineOptions(),
-        fn,
-        sideInputs,
-        sideInputReader,
-        outputManager,
-        mainOutputTag,
-        additionalOutputTags,
-        stepContext,
-        windowingStrategy);
+    PushbackSideInputDoFnRunner<InputT, OutputT> runner =
+        runnerFactory.createRunner(
+            options,
+            fn,
+            sideInputs,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            stepContext,
+            windowingStrategy);
 
     return create(runner, stepContext, application, outputManager);
   }
@@ -171,6 +169,14 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
+  }
+
+  public PushbackSideInputDoFnRunner<InputT, ?> getFnRunner() {
+    return fnRunner;
+  }
+
+  public DirectStepContext getStepContext() {
+    return stepContext;
   }
 
   public BundleOutputManager getOutputManager() {

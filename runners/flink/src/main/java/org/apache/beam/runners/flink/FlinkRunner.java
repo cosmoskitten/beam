@@ -17,18 +17,16 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+
 import com.google.common.base.Joiner;
-import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -123,7 +121,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
+      FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
+      // no metricsPusher because metrics are not supported in detached mode
+      return flinkDetachedRunnerResult;
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
@@ -133,8 +133,13 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      FlinkRunnerResult flinkRunnerResult = new FlinkRunnerResult(accumulators,
+          result.getNetRuntime());
+      MetricsPusher metricsPusher =
+          new MetricsPusher(
+              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+      metricsPusher.start();
+      return flinkRunnerResult;
     }
   }
 
@@ -150,36 +155,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     return "FlinkRunner#" + hashCode();
   }
 
-  /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
-   *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @return A list of absolute paths to the resources the class loader uses.
-   * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one
-   *   of the resources the class loader exposes is not a file resource.
-   */
-  protected static List<String> detectClassPathResourcesToStage(
-      ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
-      LOG.error(message);
-      throw new IllegalArgumentException(message);
-    }
 
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        LOG.error(message);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
-  }
 
   /** A set of {@link View}s with non-deterministic key coders. */
   Set<PTransform<?, ?>> ptransformViewsWithNonDeterministicKeyCoders;

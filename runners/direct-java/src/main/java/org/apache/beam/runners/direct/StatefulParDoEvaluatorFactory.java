@@ -40,6 +40,7 @@ import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -64,7 +65,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
-  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext) {
+  StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
     this.delegateFactory =
         new ParDoEvaluatorFactory<>(
             evaluationContext,
@@ -79,7 +80,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                     (StatefulParDo<?, ?, ?>) appliedStatefulParDo.getTransform();
                 return DoFnLifecycleManager.of(statefulParDo.getDoFn());
               }
-            });
+            },
+            options);
     this.cleanupRegistry =
         CacheBuilder.newBuilder()
             .weakValues()
@@ -182,26 +184,21 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
               (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(), window);
 
       Runnable cleanup =
-          new Runnable() {
-            @Override
-            public void run() {
-              for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-                StateTag<?> tag;
-                try {
-                  tag =
-                      StateTags.tagForSpec(
-                          stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(
-                      String.format(
-                          "Error accessing %s for %s",
-                          StateSpec.class.getName(), doFn.getClass().getName()),
-                      e);
-                }
-                stepContext.stateInternals().state(namespace, tag).clear();
+          () -> {
+            for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
+              StateTag<?> tag;
+              try {
+                tag = StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+              } catch (IllegalAccessException e) {
+                throw new RuntimeException(
+                    String.format(
+                        "Error accessing %s for %s",
+                        StateSpec.class.getName(), doFn.getClass().getName()),
+                    e);
               }
-              cleanupRegistry.invalidate(transformOutputWindow);
+              stepContext.stateInternals().state(namespace, tag).clear();
             }
+            cleanupRegistry.invalidate(transformOutputWindow);
           };
 
       evaluationContext.scheduleAfterWindowExpiration(

@@ -70,7 +70,7 @@ public class PipelineTranslationTest {
 
     Pipeline sideInputPipeline = Pipeline.create();
     final PCollectionView<String> singletonView =
-        sideInputPipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+        sideInputPipeline.apply(Create.of("foo")).apply(View.asSingleton());
     sideInputPipeline
         .apply(Create.of("main input"))
         .apply(
@@ -87,7 +87,7 @@ public class PipelineTranslationTest {
     Pipeline complexPipeline = Pipeline.create();
     BigEndianLongCoder customCoder = BigEndianLongCoder.of();
     PCollection<Long> elems = complexPipeline.apply(GenerateSequence.from(0L).to(207L));
-    PCollection<Long> counted = elems.apply(Count.<Long>globally()).setCoder(customCoder);
+    PCollection<Long> counted = elems.apply(Count.globally()).setCoder(customCoder);
     PCollection<Long> windowed =
         counted.apply(
             Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
@@ -97,9 +97,8 @@ public class PipelineTranslationTest {
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
-    PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.<String, Long>of("foo"));
-    PCollection<KV<String, Iterable<Long>>> grouped =
-        keyed.apply(GroupByKey.<String, Long>create());
+    PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.of("foo"));
+    PCollection<KV<String, Iterable<Long>>> grouped = keyed.apply(GroupByKey.create());
 
     return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }
@@ -188,7 +187,7 @@ public class PipelineTranslationTest {
     }
 
     private void addCoders(Coder<?> coder) {
-      coders.add(Equivalence.<Coder<?>>identity().wrap(coder));
+      coders.add(Equivalence.identity().wrap(coder));
       if (CoderTranslation.KNOWN_CODER_URNS.containsKey(coder.getClass())) {
         for (Coder<?> component : ((StructuredCoder<?>) coder).getComponents()) {
           addCoders(component);

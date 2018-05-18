@@ -17,17 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableList;
-import java.net.URI;
-import java.sql.Types;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.Column;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Test;
 
@@ -72,14 +73,16 @@ public class TextTableProviderTest {
     if (format != null) {
       properties.put("format", format);
     }
-    return Table.builder()
+    return Table
+        .builder()
         .name(name)
         .comment(name + " table")
-        .location(URI.create("text://home/admin/" + name))
-        .columns(ImmutableList.of(
-            Column.builder().name("id").type(Types.INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").type(Types.VARCHAR).primaryKey(false).build()
-        ))
+        .location("/home/admin/" + name)
+        .schema(
+            Stream.of(
+                Schema.Field.of("id", TypeName.INT32.type()).withNullable(true),
+                Schema.Field.of("name", RowSqlTypes.VARCHAR).withNullable(true))
+                  .collect(toSchema()))
         .type("text")
         .properties(properties)
         .build();

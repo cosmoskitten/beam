@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
-abstract class PubsubClient implements Closeable {
+public abstract class PubsubClient implements Closeable {
   /**
    * Factory for creating clients.
    */
@@ -119,7 +119,7 @@ abstract class PubsubClient implements Closeable {
   /**
    * Path representing a cloud project id.
    */
-  static class ProjectPath implements Serializable {
+  public static class ProjectPath implements Serializable {
     private final String projectId;
 
     /**
@@ -129,7 +129,7 @@ abstract class PubsubClient implements Closeable {
     ProjectPath(String path) {
       String[] splits = path.split("/");
       checkArgument(
-          splits.length == 2 && splits[0].equals("projects"),
+          splits.length == 2 && "projects".equals(splits[0]),
           "Malformed project path \"%s\": must be of the form \"projects/\" + <project id>",
           path);
       this.projectId = splits[1];
@@ -186,7 +186,7 @@ abstract class PubsubClient implements Closeable {
     SubscriptionPath(String path) {
       String[] splits = path.split("/");
       checkState(
-          splits.length == 4 && splits[0].equals("projects") && splits[2].equals("subscriptions"),
+          splits.length == 4 && "projects".equals(splits[0]) && "subscriptions".equals(splits[2]),
           "Malformed subscription path %s: "
           + "must be of the form \"projects/\" + <project id> + \"subscriptions\"", path);
       this.projectId = splits[1];

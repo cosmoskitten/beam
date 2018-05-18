@@ -159,19 +159,16 @@ public class GcsUtilTest {
       final int currentLatch = i;
       countDownLatches[i] = new CountDownLatch(1);
       executorService.execute(
-          new Runnable() {
-            @Override
-            public void run() {
-              // Wait for latch N and then release latch N - 1
-              try {
-                countDownLatches[currentLatch].await();
-                if (currentLatch > 0) {
-                  countDownLatches[currentLatch - 1].countDown();
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
+          () -> {
+            // Wait for latch N and then release latch N - 1
+            try {
+              countDownLatches[currentLatch].await();
+              if (currentLatch > 0) {
+                countDownLatches[currentLatch - 1].countDown();
               }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
             }
           });
     }
@@ -338,7 +335,7 @@ public class GcsUtilTest {
         mockStorageGet);
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
-    assertEquals(Collections.EMPTY_LIST, gcsUtil.expand(pattern));
+    assertEquals(Collections.emptyList(), gcsUtil.expand(pattern));
   }
 
   // GCSUtil.expand() should fail for other errors such as access denied.
@@ -745,8 +742,8 @@ public class GcsUtilTest {
   @Test
   public void testGCSChannelCloseIdempotent() throws IOException {
     SeekableByteChannel channel =
-        new GoogleCloudStorageReadChannel(null, "dummybucket", "dummyobject", null,
-        new ClientRequestHelper<StorageObject>());
+        new GoogleCloudStorageReadChannel(
+            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>());
     channel.close();
     channel.close();
   }
