@@ -143,6 +143,7 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
   dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
   dependsOn ":beam-examples-java:preCommit"
+  dependsOn ":beam-sdks-java-extensions-sql:preCommit"
 }
 
 task javaPostCommit() {
