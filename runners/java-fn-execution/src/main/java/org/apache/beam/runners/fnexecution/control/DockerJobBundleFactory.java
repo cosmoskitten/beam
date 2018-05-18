@@ -195,6 +195,12 @@ public class DockerJobBundleFactory implements JobBundleFactory {
       case LINUX:
         return ServerFactory.createDefault();
       case MAC:
+        // NOTE: Deployment on Macs is intended for local development. As of 18.03, Docker-for-Mac
+        // does not implement host networking (--networking=host is effectively a no-op). Instead,
+        // we use a special DNS entry that points to the host:
+        // https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
+        // The special hostname has historically changed between versions, so this is subject to
+        // breakages and will likely only support the latest version at any time.
         return ServerFactory.createWithUrlFactory(
             (host, port) -> HostAndPort.fromParts(DOCKER_FOR_MAC_HOST, port).toString());
       default:
