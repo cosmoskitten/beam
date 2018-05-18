@@ -284,10 +284,15 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     }
   }
 
+  /**
+   * Holder for an {@link SdkHarnessClient} along with its associated state and data servers. As of
+   * now, there is a 1:1 relationship between data services and harness clients. The servers are
+   * packaged here to tie server lifetimes to harness client lifetimes.
+   */
   private static class WrappedSdkHarnessClient implements AutoCloseable {
     private final RemoteEnvironment environment;
     private final ExecutorService executor;
-    // TODO: This data service should probably not live here. It is necessary for now because
+    // TODO: How should data server lifetime be scoped? It is necessary here for now because
     // SdkHarnessClient requires one at construction.
     private final GrpcFnServer<GrpcDataService> dataServer;
     private final GrpcFnServer<GrpcStateService> stateServer;
