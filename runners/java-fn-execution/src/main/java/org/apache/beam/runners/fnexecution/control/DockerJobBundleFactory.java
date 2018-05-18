@@ -144,7 +144,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
                   try {
                     notification.getValue().close();
                   } catch (Exception e) {
-                    LOG.warn("Error cleaning up environment", notification.getKey(), e);
+                    LOG.warn(
+                        String.format("Error cleaning up environment %s", notification.getKey()),
+                        e);
                   }
                 }))
             .build(
