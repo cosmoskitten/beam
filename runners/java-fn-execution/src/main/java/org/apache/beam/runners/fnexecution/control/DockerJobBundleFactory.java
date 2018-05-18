@@ -338,11 +338,13 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
     @Override
     public void close() throws Exception {
-      executor.shutdown();
-      // TODO: Wait for shutdown?
-      environment.close();
-      dataServer.close();
-      stateServer.close();
+      try (AutoCloseable stateServerCloser = stateServer;
+          AutoCloseable dataServerCloser = dataServer;
+          AutoCloseable envCloser = environment;
+          AutoCloseable executorCloser = executor::shutdown) {
+        // Wrap resources in try-with-resources to ensure all are cleaned up.
+      }
+      // TODO: Wait for executor shutdown?
     }
   }
 
