@@ -343,4 +343,15 @@ class common_job_properties {
   static String makePathAbsolute(String path) {
     return '"$WORKSPACE/' + path + '"'
   }
+
+  /**
+   * Returns a collection of dependencies which is far behind the latest version:
+   * 1. dependency has major release. e.g org.assertj:assertj-core [2.5.0 -> 3.10.0]
+   * 2. dependency is 2 subversion behind from the newest one. e.g org.tukaani:xz [1.5 -> 1.8]
+   *
+   * @param file the path of the dependency check report to filter on.
+   * */
+//  static def parseDependencyReport(String file){
+//
+//  }
 }
