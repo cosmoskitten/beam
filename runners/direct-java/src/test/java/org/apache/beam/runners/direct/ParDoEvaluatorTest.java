@@ -159,6 +159,7 @@ public class ParDoEvaluatorTest {
         PipelineOptionsFactory.create(),
         stepContext,
         transform,
+        input.getCoder(),
         input.getWindowingStrategy(),
         fn,
         null /* key */,
