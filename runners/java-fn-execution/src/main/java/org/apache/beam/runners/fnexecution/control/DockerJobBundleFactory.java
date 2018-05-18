@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -120,7 +121,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         provisioningServer);
   }
 
-  private DockerJobBundleFactory(
+  @VisibleForTesting
+  DockerJobBundleFactory(
       DockerEnvironmentFactory environmentFactory,
       ServerFactory serverFactory,
       IdGenerator stageIdGenerator,
