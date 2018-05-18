@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+import static org.apache.beam.sdk.io.common.IOITHelper.retry;
 
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.MongoClient;
+
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.Map;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -79,6 +82,9 @@ public class MongoDBIOIT {
 
   private static String collection;
 
+  private static final int retryAttempts = 5;
+  private static final int delay = 20_000;
+
   @Rule
   public final TestPipeline writePipeline = TestPipeline.create();
 
@@ -99,7 +105,11 @@ public class MongoDBIOIT {
   }
 
   @After
-  public void tearDown() {
+  public void tearDown() throws InterruptedException {
+    retry(MongoDBIOIT::dropDatabase, retryAttempts, delay);
+  }
+
+  public static void dropDatabase() throws Exception {
     new MongoClient(host).getDatabase(database).drop();
   }
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.retry;
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
@@ -78,6 +79,8 @@ public class HadoopInputFormatIOIT {
   private static Integer numberOfRows;
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
+  private static final int retryAttempts = 5;
+  private static final int delay = 20_000;
 
   @Rule
   public TestPipeline writePipeline = TestPipeline.create();
@@ -86,7 +89,7 @@ public class HadoopInputFormatIOIT {
   public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setUp() throws SQLException {
+  public static void setUp() throws Exception {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
@@ -95,8 +98,12 @@ public class HadoopInputFormatIOIT {
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
 
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    retry(HadoopInputFormatIOIT::createTable, retryAttempts, delay);
     setupHadoopConfiguration(options);
+  }
+
+  private static void createTable() throws SQLException {
+    DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   private static void setupHadoopConfiguration(IOTestPipelineOptions options) {
@@ -121,7 +128,11 @@ public class HadoopInputFormatIOIT {
   }
 
   @AfterClass
-  public static void tearDown() throws SQLException {
+  public static void tearDown() throws Exception {
+    retry(HadoopInputFormatIOIT::deleteTable, retryAttempts, delay);
+  }
+
+  private static void deleteTable() throws SQLException {
     DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
