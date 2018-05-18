@@ -15,12 +15,21 @@
 # limitations under the License.
 #
 
-"""An example to use assert_that to validate streaming wordcount.
+"""A streaming wordcount example with debugging capabilities.
 
-It includes:
-  - PrintFn (DoFn) to inspect element, window, and timestamp.
-  - AddTimestampFn (DoFn) to modify timestamps.
-  - assert_that via check_gbk_format and equal_to_per_window (matchers).
+It demonstrate the use of logging and assert_that in streaming mode.
+
+This workflow only works with the DirectRunner (BEAM-3377).
+
+Usage:
+python streaming_wordcount_debugging.py
+--input_topic projects/$PROJECT_ID/topics/$PUBSUB_INPUT_TOPIC
+--output_topic projects/$PROJECT_ID/topics/$PUBSUB_OUTPUT_TOPIC
+--streaming
+
+To publish messages:
+gcloud alpha pubsub topics publish $PUBSUB_INPUT_TOPIC --message '210 213 151'
+
 """
 
 from __future__ import absolute_import
@@ -49,9 +58,7 @@ class PrintFn(beam.DoFn):
 
   def process(self, element, timestamp=beam.DoFn.TimestampParam,
               window=beam.DoFn.WindowParam):
-    # Log at INFO level each element processed. When executing this pipeline
-    # using the Dataflow service, these log lines will appear in the Cloud
-    # Logging UI.
+    # Log at INFO level each element processed.
     logging.info('[%s]: %s %s %s', self.label, element, window, timestamp)
     yield element
 
@@ -60,7 +67,11 @@ class AddTimestampFn(beam.DoFn):
   """A DoFn that attaches timestamps to its elements.
 
   It takes a string of integers and it attaches to each of them
-  a timestamp of its same value."""
+  a timestamp of its same value.
+
+  For example, [120, 225, 312] will result in:
+  [(120, Timestamp(120)), (225, Timestamp(225)), (312, Timestamp(312))].
+  """
   def process(self, element):
     for elem in element.split(' '):
       logging.info('Adding timestamp to: %s', element)
@@ -74,10 +85,6 @@ def run(argv=None):
       '--output_topic', required=True,
       help=('Output PubSub topic of the form '
             '"projects/<PROJECT>/topic/<TOPIC>".'))
-  parser.add_argument(
-      '--use_assert_that', action='store_true',
-      help=('See that outputs are of the form '
-            '"word:count".'))
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument(
       '--input_topic',
@@ -115,9 +122,7 @@ def run(argv=None):
                           .with_output_types(six.text_type))
             | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
             | beam.WindowInto(window.FixedWindows(5, 0))
-            | 'AfterWindow' >> ParDo(PrintFn('AfterWindow'))
             | 'GroupByKey' >> beam.GroupByKey()
-            | 'After GroupByKey' >> ParDo(PrintFn('After GroupByKey'))
             | 'CountOnes' >> beam.Map(count_ones))
 
   # Format the counts into a PCollection of strings.
