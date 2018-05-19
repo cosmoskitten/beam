@@ -15,26 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * 'LOWER' operator.
+ * DEFAULT keyword for UDF with optional parameter.
  */
-public class BeamSqlLowerExpression extends BeamSqlStringUnaryExpression {
-  public BeamSqlLowerExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.VARCHAR);
+public class BeamSqlOperatorExpression extends BeamSqlExpression {
+
+  private final BeamSqlOperator operator;
+
+  public BeamSqlOperatorExpression(
+      BeamSqlOperator operator, List<BeamSqlExpression> operands) {
+    super(operands, operator.getOutputType());
+    this.operator = operator;
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
-    return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, str.toLowerCase());
+  @Override
+  public boolean accept() {
+    return operator.accept(operands);
+  }
+
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    List<BeamSqlPrimitive> arguments =
+        operands.stream()
+            .map(operand -> operand.evaluate(inputRow, window))
+            .collect(Collectors.toList());
+
+    return operator.apply(arguments);
   }
 }

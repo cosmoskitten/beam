@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * 'UPPER' operator.
- */
-public class BeamSqlUpperExpression extends BeamSqlStringUnaryExpression {
-  public BeamSqlUpperExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.VARCHAR);
+/** An operator that is applied to already-evaluated arguments */
+public interface BeamSqlBinaryOperator extends BeamSqlOperator {
+  default BeamSqlPrimitive apply(List<BeamSqlPrimitive> arguments) {
+    checkArgument(arguments.size() == 2, "Unary operator %s received more than one argument", this);
+    return apply(arguments.get(0), arguments.get(1));
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
-    return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, str.toUpperCase());
+  default boolean accept(List<BeamSqlExpression> arguments) {
+    return arguments.size() == 2 &&
+        accept(arguments.get(0), arguments.get(1));
   }
+
+  boolean accept(BeamSqlExpression left, BeamSqlExpression right);
+  BeamSqlPrimitive apply(BeamSqlPrimitive left, BeamSqlPrimitive right);
 }

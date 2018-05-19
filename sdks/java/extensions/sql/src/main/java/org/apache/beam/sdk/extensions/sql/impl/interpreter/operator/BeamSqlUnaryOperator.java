@@ -15,26 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/**
- * 'CHAR_LENGTH' operator.
- */
-public class BeamSqlCharLengthExpression extends BeamSqlStringUnaryExpression {
-  public BeamSqlCharLengthExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.INTEGER);
+/** An operator that is applied to already-evaluated arguments */
+public interface BeamSqlUnaryOperator extends BeamSqlOperator {
+
+  default BeamSqlPrimitive apply(List<BeamSqlPrimitive> arguments) {
+    checkArgument(arguments.size() == 1, "Unary operator %s received more than one argument", this);
+    return apply(arguments.get(0));
   }
 
-  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    String str = opValueEvaluated(0, inputRow, window);
-    return BeamSqlPrimitive.of(SqlTypeName.INTEGER, str.length());
+  default boolean accept(List<BeamSqlExpression> arguments) {
+    return arguments.size() == 1 && accept(arguments.get(0));
   }
+
+  boolean accept(BeamSqlExpression argument);
+
+  BeamSqlPrimitive apply(BeamSqlPrimitive argument);
 }
