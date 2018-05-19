@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.examples;
 
+import com.google.common.base.Splitter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -54,7 +55,7 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = c.element().split("[^\\p{L}]+");
+      Iterable<String> words = Splitter.onPattern("[^\\p{L}]+").split(c.element());
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import com.google.common.base.Splitter;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -93,6 +94,7 @@ public class WordCount {
         ExtractWordsFn.class, "lineLenDistro");
 
     @ProcessElement
+    @SuppressWarnings("StringSplitter")
     public void processElement(ProcessContext c) {
       lineLenDist.update(c.element().length());
       if (c.element().trim().isEmpty()) {
@@ -100,7 +102,7 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = c.element().split("[^\\p{L}]+");
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {
