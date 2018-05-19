@@ -20,12 +20,9 @@ package org.apache.beam.runners.spark.io;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+
+import java.util.*;
+
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -90,8 +87,8 @@ import org.joda.time.Instant;
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   private final Duration batchDuration;
-  private final Queue<Iterable<TimestampedValue<T>>> batches = new LinkedList<>();
-  private final Deque<SparkWatermarks> times = new LinkedList<>();
+  private final Queue<Iterable<TimestampedValue<T>>> batches = new ArrayDeque<>();
+  private final Deque<SparkWatermarks> times = new ArrayDeque<>();
   private final Coder<T> coder;
   private Instant initialSystemTime;
   private final boolean forceWatermarkSync;
