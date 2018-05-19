@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -68,7 +69,7 @@ public final class CoderHelpers {
    * @return List of bytes representing serialized objects.
    */
   public static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {
-    List<byte[]> res = new LinkedList<>();
+    List<byte[]> res = new ArrayList<>();
     for (T value : values) {
       res.add(toByteArray(value, coder));
     }

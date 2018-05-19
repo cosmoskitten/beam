@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
+
+import com.google.common.base.Splitter;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -128,7 +130,7 @@ public class SparkUnboundedSource {
 
   private static <T> String getSourceName(Source<T> source, int id) {
     StringBuilder sb = new StringBuilder();
-    for (String s: source.getClass().getSimpleName().replace("$", "").split("(?=[A-Z])")) {
+    for (String s: Splitter.onPattern("(?=[A-Z])").split(source.getClass().getSimpleName().replace("$", ""))) {
       String trimmed = s.trim();
       if (!trimmed.isEmpty()) {
         sb.append(trimmed).append(" ");

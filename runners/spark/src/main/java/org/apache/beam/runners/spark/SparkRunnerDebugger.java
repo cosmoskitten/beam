@@ -83,9 +83,9 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
     TransformTranslator.Translator translator = new TransformTranslator.Translator();
 
     SparkNativePipelineVisitor visitor;
-    if (options.isStreaming()
-        || options instanceof TestSparkPipelineOptions
-        && ((TestSparkPipelineOptions) options).isForceStreaming()) {
+    if (options.isStreaming() ||
+            ((options instanceof TestSparkPipelineOptions)
+        && ((TestSparkPipelineOptions) options).isForceStreaming())) {
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
