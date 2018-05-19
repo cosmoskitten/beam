@@ -140,9 +140,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (RemoteBundle<InputT> bundle =
                  stageBundleFactory.getBundle(
                          new ReceiverFactory(outputManager, outputMap), stateRequestHandler)) {
-      FnDataReceiver<WindowedValue<InputT>> receiver = bundle.getInputReceiver();
       logger.finer(String.format("Sending value: %s", element));
-      receiver.accept(element);
+      bundle.getInputReceiver().accept(element);
     }
 
   }
