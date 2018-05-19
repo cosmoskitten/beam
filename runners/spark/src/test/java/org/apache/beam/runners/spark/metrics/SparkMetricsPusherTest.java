@@ -45,6 +45,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+
 /**
  * A test that verifies that metrics push system works in spark runner.
  */
@@ -108,7 +111,7 @@ public class SparkMetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new UncheckedIOException((IOException) e);
       }
     }
   }
