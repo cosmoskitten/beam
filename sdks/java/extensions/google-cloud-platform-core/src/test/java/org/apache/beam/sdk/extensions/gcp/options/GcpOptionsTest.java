@@ -60,7 +60,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcpOptions}. */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class GcpOptionsTest {
 
   /** Tests for the majority of methods. */

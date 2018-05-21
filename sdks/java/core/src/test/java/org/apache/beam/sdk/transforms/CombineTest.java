@@ -97,7 +97,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for {@link Combine} transforms.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class CombineTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.

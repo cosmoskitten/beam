@@ -35,17 +35,12 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.Suite;
 
 /**
  * Tests for {@link ApexStateInternals}. This is based on the tests for
  * {@code StateInternalsTest}.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ApexStateInternalsTest.StandardStateInternalsTests.class,
-    ApexStateInternalsTest.OtherTests.class
-})
+@RunWith(JUnit4.class)
 public class ApexStateInternalsTest {
 
   private static StateInternals newStateInternals() {

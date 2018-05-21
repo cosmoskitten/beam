@@ -54,7 +54,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataStreams}. */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class DataStreamsTest {
 
   /** Tests for {@link DataStreams.Inbound}. */

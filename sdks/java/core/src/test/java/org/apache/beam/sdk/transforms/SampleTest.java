@@ -59,16 +59,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
 
 /**
  * Tests for Sample transform.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    SampleTest.PickAnyTest.class,
-    SampleTest.MiscTest.class
-})
+@RunWith(JUnit4.class)
 public class SampleTest {
   private static final Integer[] EMPTY = new Integer[] { };
   private static final Integer[] DATA = new Integer[] {1, 2, 3, 4, 5};

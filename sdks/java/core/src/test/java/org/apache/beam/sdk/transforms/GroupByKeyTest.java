@@ -86,7 +86,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for GroupByKey.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */

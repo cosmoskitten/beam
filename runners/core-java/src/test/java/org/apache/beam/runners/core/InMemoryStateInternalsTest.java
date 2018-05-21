@@ -39,11 +39,7 @@ import org.junit.runners.Suite;
 /**
  * Tests for {@link InMemoryStateInternals}. This is based on {@link StateInternalsTest}.
  */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    InMemoryStateInternalsTest.StandardStateInternalsTests.class,
-    InMemoryStateInternalsTest.OtherTests.class
-})
+@RunWith(JUnit4.class)
 public class InMemoryStateInternalsTest {
 
   /**

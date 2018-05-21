@@ -32,7 +32,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link StateFetchingIterators}. */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class StateFetchingIteratorsTest {
   /** Tests for {@link StateFetchingIterators.LazyBlockingStateFetchingIterator}. */
   @RunWith(JUnit4.class)

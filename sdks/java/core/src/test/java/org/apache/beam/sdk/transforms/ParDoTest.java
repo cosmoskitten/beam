@@ -127,7 +127,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for ParDo.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -339,7 +339,9 @@ public class ParDoTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testParDo() {
-
+      if (true) {
+        throw new RuntimeException();
+      }
       List<Integer> inputs = Arrays.asList(3, -42, 666);
 
       PCollection<String> output = pipeline

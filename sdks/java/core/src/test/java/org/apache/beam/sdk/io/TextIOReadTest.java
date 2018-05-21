@@ -97,7 +97,7 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class TextIOReadTest {
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();

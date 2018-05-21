@@ -68,7 +68,7 @@ import org.junit.runners.Parameterized.Parameters;
 /**
  * Tests for {@link CloudObjects}.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class CloudObjectsTest {
   /**
    * Tests that all of the Default Coders are tested.

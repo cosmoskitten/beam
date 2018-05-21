@@ -57,7 +57,7 @@ import org.junit.runners.Parameterized;
 /**
  * Tests for {@link ApproximateQuantiles}.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class ApproximateQuantilesTest {
 
   /** Tests for the overall combiner behavior. */

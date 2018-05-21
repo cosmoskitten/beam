@@ -42,7 +42,7 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineOptionsTranslation}. */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class PipelineOptionsTranslationTest {
   /** Tests that translations can round-trip through the proto format. */
   @RunWith(Parameterized.class)

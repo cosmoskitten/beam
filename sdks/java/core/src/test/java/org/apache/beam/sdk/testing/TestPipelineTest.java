@@ -161,6 +161,7 @@ public class TestPipelineTest implements Serializable {
    * Tests for {@link TestPipeline}'s detection of missing {@link Pipeline#run()}, or abandoned
    * (dangling) {@link PAssert} or {@link org.apache.beam.sdk.transforms.PTransform} nodes.
    */
+  @RunWith(JUnit4.class)
   public static class TestPipelineEnforcementsTest implements Serializable {
 
     private static final List<String> WORDS = Collections.singletonList("hi there");
