@@ -24,7 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-/** A primitive operation for deferencing a correlation variable. */
+/** A primitive operation for dereferencing a correlation variable. */
 public class BeamSqlCorrelVariableExpression extends BeamSqlExpression {
 
   private final int correlationId;
