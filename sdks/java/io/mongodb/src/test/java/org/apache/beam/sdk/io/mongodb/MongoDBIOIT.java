@@ -22,8 +22,6 @@ import static org.apache.beam.sdk.io.common.IOITHelper.retry;
 
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.MongoClient;
-
-import java.sql.SQLException;
 import java.util.Date;
 import java.util.Map;
 import org.apache.beam.sdk.io.GenerateSequence;
