@@ -61,17 +61,13 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 
 /** Tests for {@link ParDoTranslation}. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-  ParDoTranslationTest.TestParDoPayloadTranslation.class,
-  ParDoTranslationTest.TestStateAndTimerTranslation.class
-})
+@RunWith(JUnit4.class)
 public class ParDoTranslationTest {
 
   /**

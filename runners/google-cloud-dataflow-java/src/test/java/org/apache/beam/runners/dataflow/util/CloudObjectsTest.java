@@ -58,7 +58,6 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -68,7 +67,7 @@ import org.junit.runners.Parameterized.Parameters;
 /**
  * Tests for {@link CloudObjects}.
  */
-@RunWith(Enclosed.class)
+@RunWith(JUnit4.class)
 public class CloudObjectsTest {
   /**
    * Tests that all of the Default Coders are tested.
