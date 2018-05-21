@@ -318,7 +318,7 @@ message ExecutableStagePayload {
   // PTransform the ExecutableStagePayload is the payload of.
   string input = 2;
 
-  // The side inputs required for this executable stage. Each Side Input of each PTransform within
+  // The side inputs required for this executable stage. Each side input of each PTransform within
   // this ExecutableStagePayload must be represented within this field.
   repeated SideInputId side_inputs = 3;
 
@@ -334,6 +334,10 @@ message ExecutableStagePayload {
   // in transforms, and the closure of all of the components they recognize.
   Components components = 6;
 
+  // The keyed states required for this executable stage. Each keyed state of each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated KeyedStateId keyed_states = 7;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -341,6 +345,16 @@ message ExecutableStagePayload {
     string transform_id = 1;
 
     // (Required) The local name of this side input from the PTransform that references it.
+    string local_name = 2;
+  }
+
+  // A reference to keyed state. Keyed states are uniquely identified by PTransform id and
+  // local name.
+  message KeyedStateId {
+    // (Required) The id of the PTransform that references this keyed state.
+    string transform_id = 1;
+
+    // (Required) The local name of this keyed state for the PTransform that references it.
     string local_name = 2;
   }
 }

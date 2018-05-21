@@ -80,6 +80,7 @@ public class GreedyStageFuser {
     fusedTransforms.addAll(initialNodes);
 
     Set<SideInputReference> sideInputs = new LinkedHashSet<>();
+    Set<KeyedStateReference> keyedStates = new LinkedHashSet<>();
     Set<PCollectionNode> fusedCollections = new LinkedHashSet<>();
     Set<PCollectionNode> materializedPCollections = new LinkedHashSet<>();
 
@@ -87,6 +88,7 @@ public class GreedyStageFuser {
     for (PTransformNode initialConsumer : initialNodes) {
       fusionCandidates.addAll(pipeline.getOutputPCollections(initialConsumer));
       sideInputs.addAll(pipeline.getSideInputs(initialConsumer));
+      keyedStates.addAll(pipeline.getKeyedStates(initialConsumer));
     }
     while (!fusionCandidates.isEmpty()) {
       PCollectionNode candidate = fusionCandidates.poll();
@@ -130,6 +132,7 @@ public class GreedyStageFuser {
         environment,
         inputPCollection,
         sideInputs,
+        keyedStates,
         fusedTransforms.build(),
         materializedPCollections);
   }

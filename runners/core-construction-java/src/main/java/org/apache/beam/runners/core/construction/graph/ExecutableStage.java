@@ -81,6 +81,11 @@ public interface ExecutableStage {
   Collection<SideInputReference> getSideInputs();
 
   /**
+   * Returns the set of {@link PTransformNode PTransforms} that contain keyed state.
+   */
+  Collection<KeyedStateReference> getKeyedStates();
+
+  /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
    *
    * <p>All of these {@link PCollectionNode PCollections} are consumed by a {@link PTransformNode
@@ -186,6 +191,12 @@ public interface ExecutableStage {
             .stream()
             .map(sideInputId -> SideInputReference.fromSideInputId(sideInputId, components))
             .collect(Collectors.toList());
+    List<KeyedStateReference> keyedStates =
+        payload
+            .getKeyedStatesList()
+            .stream()
+            .map(keyedStateId -> KeyedStateReference.fromKeyedStateId(keyedStateId, components))
+            .collect(Collectors.toList());
     List<PTransformNode> transforms =
         payload
             .getTransformsList()
@@ -199,6 +210,6 @@ public interface ExecutableStage {
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(
-        components, environment, input, sideInputs, transforms, outputs);
+        components, environment, input, sideInputs, keyedStates, transforms, outputs);
   }
 }
