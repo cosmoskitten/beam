@@ -48,19 +48,20 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
-  compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_csv
+  shadow library.java.commons_lang3
+  shadow library.java.jackson_databind
   shadow library.java.joda_time
+  shadow "com.alibaba:fastjson:1.2.12"
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   provided library.java.kafka_clients
-  testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
@@ -114,7 +115,6 @@ shadowJar {
     include(dependency("org.apache.calcite.avatica:.*"))
     include(dependency("org.codehaus.janino:.*"))
     include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
   }
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
   relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
