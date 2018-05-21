@@ -17,12 +17,19 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryError;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.InsertAllRequest;
+import com.google.cloud.bigquery.InsertAllResponse;
+import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +60,8 @@ import org.joda.time.Instant;
  */
 public class Main<OptionT extends NexmarkOptions> {
 
+  private static final String NEXMARK_EXECUTION_ROW_ID = "NexmarkExecution";
+
   /**
    * Entry point.
    */
@@ -74,13 +83,13 @@ public class Main<OptionT extends NexmarkOptions> {
           appendPerf(options.getPerfFilename(), configuration, perf);
           actual.put(configuration, perf);
           // Summarize what we've run so far.
-          saveSummary(null, configurations, actual, baseline, start);
+          saveSummary(null, configurations, actual, baseline, start, options);
         }
       }
     } finally {
       if (options.getMonitorJobs()) {
         // Report overall performance.
-        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start, options);
         saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
       }
     }
@@ -146,13 +155,40 @@ public class Main<OptionT extends NexmarkOptions> {
   private static final String LINE =
       "==========================================================================================";
 
+  /** Send {@code nexmarkPerf} to BigQuery. */
+  private static void writeQueryPerftoBigQuery(int queryNb, NexmarkPerf nexmarkPerf, NexmarkOptions options) {
+    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    String tableName =
+        String.format(
+            "%s_%s_%s_%s", options.getBigQueryTable(), options.getRunner(), options.isStreaming(), queryNb);
+    String dataset = "nexmark";
+    TableId tableId = TableId.of(options.getProject(), dataset, tableName);
+    Map<String, Object> rowContent = new HashMap<>();
+    rowContent.put("Runtime(sec)", nexmarkPerf.runtimeSec);
+    rowContent.put("Events(/sec)", nexmarkPerf.eventsPerSec);
+    rowContent.put("Size of the result collection", nexmarkPerf.numResults);
+    InsertAllResponse response =
+        bigquery.insertAll(
+            InsertAllRequest.newBuilder(tableId)
+                .addRow(NEXMARK_EXECUTION_ROW_ID, rowContent)
+                .build());
+    if (response.hasErrors()) {
+      String mesage = "Eroor writing query execution time to bigQuery: ";
+      for (BigQueryError bigQueryError : response.getInsertErrors().get(NEXMARK_EXECUTION_ROW_ID)){
+        mesage.concat(bigQueryError.toString());
+      }
+      throw new RuntimeException(mesage);
+    }
+  }
+
   /**
    * Print summary  of {@code actual} vs (if non-null) {@code baseline}.
    */
   private static void saveSummary(
       @Nullable String summaryFilename,
       Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) {
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start, NexmarkOptions options) {
+
     List<String> lines = new ArrayList<>();
 
     lines.add("");
@@ -188,6 +224,9 @@ public class Main<OptionT extends NexmarkOptions> {
       if (actualPerf == null) {
         line += "*** not run ***";
       } else {
+        if (options.getExportSummaryToBigQuery()){
+          writeQueryPerftoBigQuery(configuration.query, actualPerf, options);
+        }
         NexmarkPerf baselinePerf = baseline == null ? null : baseline.get(configuration);
         double runtimeSec = actualPerf.runtimeSec;
         line += String.format("%12.1f  ", runtimeSec);
@@ -300,4 +339,6 @@ public class Main<OptionT extends NexmarkOptions> {
     NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
     new Main<>().runAll(options, nexmarkLauncher);
   }
+
+
 }

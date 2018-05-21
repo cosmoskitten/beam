@@ -61,6 +61,12 @@ public interface NexmarkOptions
 
   void setSinkType(NexmarkUtils.SinkType sinkType);
 
+  @Description("Shall we export the summary to BigQuery.")
+  @Nullable
+  Boolean getExportSummaryToBigQuery();
+
+  void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
+
   @Description("Which mode to run in when source is PUBSUB.")
   @Nullable
   NexmarkUtils.PubSubMode getPubSubMode();
