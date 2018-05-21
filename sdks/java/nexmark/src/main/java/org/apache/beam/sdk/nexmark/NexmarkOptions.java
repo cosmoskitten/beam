@@ -431,4 +431,8 @@ public interface NexmarkOptions
   @Description("Same as --maxNumWorkers in DataflowPipelineWorkerPoolOptions.")
   int getMaxNumWorkers();
   void setMaxNumWorkers(int value);
+
+  @Description("Use source API for synthetic generation.")
+  boolean getUseParDoGenerator();
+  void setUseParDoGenerator(boolean value);
 }
