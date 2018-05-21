@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.collection.IsCollectionWithSize.*;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -48,13 +48,11 @@ import org.apache.beam.sdk.fn.stream.DataStreams.ElementDelimitedOutputStream;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataStreams}. */
-@RunWith(Enclosed.class)
 public class DataStreamsTest {
 
   /** Tests for {@link DataStreams.Inbound}. */
@@ -167,6 +165,7 @@ public class DataStreamsTest {
     }
   }
 
+  /** Tests for {@link ElementDelimitedOutputStream}. */
   @RunWith(JUnit4.class)
   public static class ElementDelimitedOutputStreamTest {
     @Test
