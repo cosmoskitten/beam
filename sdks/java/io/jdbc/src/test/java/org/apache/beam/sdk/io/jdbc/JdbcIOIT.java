@@ -99,7 +99,7 @@ public class JdbcIOIT {
   }
 
   private static void deleteTable() throws SQLException {
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
   /**
