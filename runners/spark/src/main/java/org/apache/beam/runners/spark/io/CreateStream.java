@@ -21,7 +21,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.ArrayDeque;
+import java.util.List;
+import java.util.Queue;
 
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.coders.Coder;

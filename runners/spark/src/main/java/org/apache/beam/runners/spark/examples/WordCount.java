@@ -45,6 +45,7 @@ public class WordCount {
    * of-line. This DoFn tokenizes lines of text into individual words; we pass it to a ParDo in the
    * pipeline.
    */
+  @SuppressWarnings("StringSplitter")
   public static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
 
@@ -55,7 +56,7 @@ public class WordCount {
       }
 
       // Split the line into words.
-      Iterable<String> words = Splitter.onPattern("[^\\p{L}]+").split(c.element());
+      String[] words = c.element().split("[^\\p{L}]+");
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {

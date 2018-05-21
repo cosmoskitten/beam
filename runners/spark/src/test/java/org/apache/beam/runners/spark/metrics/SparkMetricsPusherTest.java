@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -44,6 +45,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -52,6 +55,8 @@ import java.io.UncheckedIOException;
  * A test that verifies that metrics push system works in spark runner.
  */
 public class SparkMetricsPusherTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
 
   @Rule
   public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
@@ -111,7 +116,7 @@ public class SparkMetricsPusherTest {
         counter.inc();
         context.output(context.element());
       } catch (Exception e) {
-        throw new UncheckedIOException((IOException) e);
+        LOG.warn("Exception caught" + e);
       }
     }
   }
