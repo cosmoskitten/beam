@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
@@ -178,6 +179,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
               processBundleInstructionId,
               doFnInfo.getDoFn(),
               doFnInfo.getInputCoder(),
+              doFnInfo.getOutputCoders(),
+              doFnInfo.getMainOutput(),
               (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
                   (Collection) tagToOutputMap.get(doFnInfo.getMainOutput()),
               tagToOutputMap,
@@ -217,6 +220,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       TupleTag<OutputT> mainOutputTag;
       Coder<InputT> inputCoder;
       WindowingStrategy<InputT, ?> windowingStrategy;
+      Map<TupleTag<?>, Coder<?>> outputCoders = Maps.newHashMap();
 
       ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap =
           ImmutableMap.builder();
@@ -236,6 +240,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
             mainInput.getCoderId());
         windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
             mainInput.getWindowingStrategyId());
+
+        for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+          TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
+          RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
+          Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
+          outputCoders.put(outputTag, outputCoder);
+        }
 
         // Build the map from tag id to side input specification
         for (Map.Entry<String, RunnerApi.SideInput> entry
@@ -288,6 +299,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           processBundleInstructionId,
           doFn,
           inputCoder,
+          outputCoders,
+          mainOutputTag,
           (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
               tagToConsumer.get(mainOutputTag),
           tagToConsumer,
@@ -330,6 +343,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final Supplier<String> processBundleInstructionId;
   private final DoFn<InputT, OutputT> doFn;
   private final Coder<InputT> inputCoder;
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
   private final Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap;
   private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
@@ -344,6 +358,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final Collection<ThrowingRunnable> stateFinalizers;
   @Nullable
   private final SchemaCoder<InputT> schemaCoder;
+  @Nullable
+  private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   @Nullable
   private final FieldAccessDescriptor fieldAccessDescriptor;
 
@@ -378,6 +394,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       Supplier<String> processBundleInstructionId,
       DoFn<InputT, OutputT> doFn,
       Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      TupleTag<OutputT> mainOutputTag,
       Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers,
       Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap,
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
@@ -388,6 +406,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.processBundleInstructionId = processBundleInstructionId;
     this.doFn = doFn;
     this.inputCoder = inputCoder;
+    this.outputCoders = outputCoders;
     this.mainOutputConsumers = mainOutputConsumers;
     this.outputMap = outputMap;
     this.sideInputSpecMap = sideInputSpecMap;
@@ -403,6 +422,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.stateFinalizers = new ArrayList<>();
     this.schemaCoder = (inputCoder instanceof SchemaCoder)
         ? (SchemaCoder<InputT>) inputCoder : null;
+    if (outputCoders != null) {
+      Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
+      mainOutputSchemaCoder = (outputCoder instanceof SchemaCoder)
+          ? (SchemaCoder<OutputT>) outputCoder : null;
+    } else {
+      mainOutputSchemaCoder = null;
+    }
     DoFnSignature.ProcessElementMethod processElementMethod =
         DoFnSignatures.getSignature(doFn.getClass()).processElement();
     FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
@@ -569,6 +595,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           "Cannot access output receiver outside of @ProcessElement method.");    }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access output receiver outside of @ProcessElement method.");    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access output reveiver outside of @ProcessElement method.");
@@ -665,8 +696,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+    }
+
+    @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
     }
 
     @Override
@@ -859,6 +895,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access output receiver outside of @ProcessElement method.");    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access output receiver outside of @ProcessElement method.");    }
 
