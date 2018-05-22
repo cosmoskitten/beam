@@ -290,8 +290,8 @@ class common_job_properties {
     }
   }
 
-  static String getKubernetesNamespace(def testName) {
-    return "${testName}-${new Date().getTime()}"
+  static String getKubernetesNamespace(def testName, def timestamp) {
+    return "${testName}-${timestamp}"
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
