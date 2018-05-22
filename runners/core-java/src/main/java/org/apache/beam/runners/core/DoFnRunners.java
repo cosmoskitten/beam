@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StatefulDoFnRunner.CleanupTimer;
@@ -63,6 +64,7 @@ public class DoFnRunners {
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       @Nullable Coder<InputT> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleDoFnRunner<>(
         options,
@@ -73,6 +75,7 @@ public class DoFnRunners {
         additionalOutputTags,
         stepContext,
         inputCoder,
+        outputCoders,
         windowingStrategy);
   }
 
@@ -124,6 +127,7 @@ public class DoFnRunners {
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       @Nullable Coder<KeyedWorkItem<String, KV<InputT, RestrictionT>>> inputCoder,
+      Map<TupleTag<?>, Coder<?>> outputCoders,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new ProcessFnRunner<>(
         simpleRunner(
@@ -135,6 +139,7 @@ public class DoFnRunners {
             additionalOutputTags,
             stepContext,
             inputCoder,
+            outputCoders,
             windowingStrategy),
         views,
         sideInputReader);
