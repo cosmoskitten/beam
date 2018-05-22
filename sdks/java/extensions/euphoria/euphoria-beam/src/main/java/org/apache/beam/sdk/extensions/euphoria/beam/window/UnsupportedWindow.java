@@ -15,25 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.euphoria.beam.window;
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+import java.util.Objects;
+import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Window;
 
-ext {
-    kryoVersion = '2.24.0'
+
+/**
+ * Window used as type parameter of {@link BeamWindowing}.
+ */
+final class UnsupportedWindow extends Window<UnsupportedWindow> {
+
+  private UnsupportedWindow(){
+    //Do not instantiate
+  }
+
+  @Override
+  public int compareTo(UnsupportedWindow o) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long maxTimestamp() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public int hashCode() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return Objects.equals(this, obj);
+  }
+
+
 }
-
-dependencies {
-    compileOnly library.java.findbugs_jsr305
-    compile project(':beam-sdks-java-extensions-euphoria-core')
-    compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
-    shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-    shadow 'com.google.code.findbugs:annotations:3.0.1'
-    testCompile project(':beam-sdks-java-extensions-euphoria-operator-testkit')
-    testCompile project(':beam-sdks-java-extensions-euphoria-testing')
-    testCompile project(':beam-runners-direct-java')
-    testCompile library.java.slf4j_api
-    testCompile library.java.hamcrest_core
-}
-
-test.testLogging.showStandardStreams = true
