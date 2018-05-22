@@ -34,6 +34,10 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
   private final SamzaRunner delegate;
 
   public static TestSamzaRunner fromOptions(PipelineOptions options) {
+    return new TestSamzaRunner(createSamzaPipelineOptions(options));
+  }
+
+  public static SamzaPipelineOptions createSamzaPipelineOptions(PipelineOptions options) {
     try {
       final SamzaPipelineOptions samzaOptions = PipelineOptionsValidator
           .validate(SamzaPipelineOptions.class, options);
@@ -43,10 +47,11 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       final Map<String, String> config = configFactory.getConfig(configUri);
       samzaOptions.setSamzaConfig(config);
 
-      return new TestSamzaRunner(samzaOptions);
+      return samzaOptions;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+
   }
 
   public TestSamzaRunner(SamzaPipelineOptions options) {

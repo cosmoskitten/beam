@@ -183,9 +183,23 @@
 
     <dependency>
       <groupId>org.apache.samza</groupId>
+      <artifactId>samza-kv_2.11</artifactId>
+      <version>${samza.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.samza</groupId>
       <artifactId>samza-kv-rocksdb_2.11</artifactId>
       <version>${samza.version}</version>
       <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.samza</groupId>
+      <artifactId>samza-kv-inmemory_2.11</artifactId>
+      <version>${samza.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <!-- Beam -->

@@ -2,16 +2,22 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
-import org.apache.beam.runners.samza.state.CloseableIterator;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -31,6 +37,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.samza.container.SamzaContainerContext;
+import org.apache.samza.metrics.MetricsRegistry;
+import org.apache.samza.storage.kv.Entry;
+import org.apache.samza.storage.kv.KeyValueIterator;
+import org.apache.samza.storage.kv.KeyValueStore;
+import org.apache.samza.storage.kv.KeyValueStoreMetrics;
+import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
+import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStore;
+import org.apache.samza.system.SystemStreamPartition;
 import org.junit.Test;
 
 /**
@@ -51,9 +66,8 @@ public class SamzaStoreStateInternalsTest {
           private final StateSpec<MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
-              Sum.ofIntegers());
+          private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+              StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
@@ -66,14 +80,11 @@ public class SamzaStoreStateInternalsTest {
             count.add(1);
             if (count.read() >= 4) {
               final List<KV<String, Integer>> content = new ArrayList<>();
-              try (CloseableIterator<Map.Entry<String, Integer>> iterator = state.iterator()) {
-                while (iterator.hasNext()) {
-                  Map.Entry<String, Integer> entry = iterator.next();
-                  content.add(KV.of(entry.getKey(), entry.getValue()));
-                  c.output(KV.of(entry.getKey(), entry.getValue()));
-                }
-              } catch (Exception e) {
-                throw new RuntimeException(e);
+              final Iterator<Map.Entry<String, Integer>> iterator = state.readIterator().read();
+              while (iterator.hasNext()) {
+                Map.Entry<String, Integer> entry = iterator.next();
+                content.add(KV.of(entry.getKey(), entry.getValue()));
+                c.output(KV.of(entry.getKey(), entry.getValue()));
               }
 
               assertEquals(content,
@@ -107,9 +118,8 @@ public class SamzaStoreStateInternalsTest {
           private final StateSpec<SetState<Integer>> setState =
               StateSpecs.set(VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
-              Sum.ofIntegers());
+          private final StateSpec<CombiningState<Integer, int[], Integer>> countState =
+              StateSpecs.combiningFromInputInternal(VarIntCoder.of(), Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
@@ -124,15 +134,12 @@ public class SamzaStoreStateInternalsTest {
             count.add(1);
             if (count.read() >= 4) {
               final Set<Integer> content = new HashSet<>();
-              try (CloseableIterator<Integer> iterator = state.iterator()) {
-                while (iterator.hasNext()) {
-                  Integer value = iterator.next();
-                  content.add(value);
-                }
-                c.output(content);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
+              final Iterator<Integer> iterator = state.readIterator().read();
+              while (iterator.hasNext()) {
+                Integer value = iterator.next();
+                content.add(value);
               }
+              c.output(content);
 
               assertEquals(content, Sets.newHashSet(97, 42, 12));
             }
@@ -150,5 +157,120 @@ public class SamzaStoreStateInternalsTest {
     TestSamzaRunner.fromOptions(
         PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
             .create()).run(pipeline);
+  }
+
+  /**
+   * A storage engine to create test stores.
+   */
+  public static class TestStorageEngine extends InMemoryKeyValueStorageEngineFactory {
+
+    @Override
+    public KeyValueStore<byte[], byte[]> getKVStore(String storeName, File storeDir,
+        MetricsRegistry registry, SystemStreamPartition changeLogSystemStreamPartition,
+        SamzaContainerContext containerContext) {
+      KeyValueStoreMetrics metrics = new KeyValueStoreMetrics(storeName, registry);
+      return new TestStore(metrics);
+    }
+  }
+
+  /**
+   * A test store based on InMemoryKeyValueStore.
+   */
+  public static class TestStore extends InMemoryKeyValueStore {
+    static List<TestKeyValueIteraor> iterators = Collections.synchronizedList(new ArrayList<>());
+    private final KeyValueStoreMetrics metrics;
+
+
+    public TestStore(KeyValueStoreMetrics metrics) {
+      super(metrics);
+      this.metrics = metrics;
+    }
+
+    @Override
+    public KeyValueStoreMetrics metrics() {
+      return metrics;
+    }
+
+    @Override
+    public KeyValueIterator<byte[], byte[]> range(byte[] from, byte[] to) {
+      TestKeyValueIteraor iter = new TestKeyValueIteraor(super.range(from, to));
+      iterators.add(iter);
+      return iter;
+    }
+
+    static class TestKeyValueIteraor implements KeyValueIterator<byte[], byte[]> {
+      private final KeyValueIterator<byte[], byte[]> iter;
+      boolean closed = false;
+      TestKeyValueIteraor(KeyValueIterator<byte[], byte[]> iter) {
+        this.iter = iter;
+      }
+
+      @Override
+      public void close() {
+        iter.close();
+        closed = true;
+      }
+
+      @Override public boolean hasNext() {
+        return iter.hasNext();
+      }
+
+      @Override
+      public Entry<byte[], byte[]> next() {
+        return iter.next();
+      }
+    }
+  }
+
+  @Test
+  public void testIteratorClosed() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, Set<Integer>> fn =
+        new DoFn<KV<String, Integer>, Set<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<SetState<Integer>> setState =
+              StateSpecs.set(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<Integer> setState) {
+            SamzaSetState<Integer> state = (SamzaSetState<Integer>) setState;
+            state.add(c.element().getValue());
+
+            // the iterator for size needs to be closed
+            int size = Iterators.size(state.readIterator().read());
+
+            if (size > 1) {
+              final Iterator<Integer> iterator = state.readIterator().read();
+              assertTrue(iterator.hasNext());
+              // this iterator should be closed too
+              iterator.next();
+            }
+          }
+        };
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+        .apply(ParDo.of(fn));
+
+    SamzaPipelineOptions options = TestSamzaRunner.createSamzaPipelineOptions(
+        PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
+            .create());
+    Map<String, String> configs = new HashMap(options.getSamzaConfig());
+    configs.put("stores.foo.factory", TestStorageEngine.class.getName());
+    options.setSamzaConfig(configs);
+
+    new TestSamzaRunner(options).run(pipeline).waitUntilFinish();
+
+    // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
+    // Verify all of them are closed
+    assertEquals(TestStore.iterators.size(), 8);
+    TestStore.iterators.forEach(iter ->
+        assertTrue(iter.closed)
+    );
   }
 }

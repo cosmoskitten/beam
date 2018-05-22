@@ -62,7 +62,13 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
                                    SamzaPipelineOptions options,
                                    Map<PValue, String> idMap) {
     try {
-      final Map<String, String> config = new HashMap<>(options.getSamzaConfig());
+      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
+      pipeline.traverseTopologically(builder);
+      builder.checkFoundSource();
+      final Map<String, String> config = new HashMap<>(builder.getConfig());
+
+      createConfigForSystemStore(config);
+
       config.put(JobConfig.JOB_NAME(), options.getJobName());
       config.put("beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
@@ -70,12 +76,9 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
       config.put(ApplicationConfig.APP_RUN_ID, String.valueOf(System.currentTimeMillis()) + "-"
           // use the most significant bits in UUID (8 digits) to avoid collision
           + UUID.randomUUID().toString().substring(0, 8));
-      createConfigForSystemStore(config);
 
-      final ConfigBuilder builder = new ConfigBuilder(idMap, pipeline);
-      pipeline.traverseTopologically(builder);
-      builder.checkFoundSource();
-      config.putAll(builder.getConfig());
+      // put this in the end to allow user override
+      config.putAll(options.getSamzaConfig());
       return new MapConfig(config);
     } catch (Exception e) {
       throw new RuntimeException(e);

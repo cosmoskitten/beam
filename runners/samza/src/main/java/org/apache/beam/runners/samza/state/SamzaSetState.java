@@ -18,29 +18,26 @@
 
 package org.apache.beam.runners.samza.state;
 
+import java.util.Iterator;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 
 /**
- * Samza's extended SetState.
+ * Samza's extended SetState, allowing extra access methods to the state.
  *
- * <p>NOTE: this is a temporary API until Beam allows the iterable/iterator created
- * from the state to be explicitly closed.
  */
 @Experimental(Experimental.Kind.STATE)
 public interface SamzaSetState<T> extends SetState<T> {
 
   /**
-   * Returns an iterator from the current set state. It MUST be closed after use.
+   * Returns an iterator from the current set state.
    * Note this is different from the iterable implementation in {@link SetState#read()},
-   * where we load the entries into memory and return iterable from that. The reason
-   * is because in read() we are not able to track the iterator created from the store
-   * and close it when it's not in use, so we need to load into memory and let Java GC
-   * clean up the content. To manipulate large state that doesn't fit in memory, we also
-   * need this method so it's possible to iterate on large data set and close the
-   * iterator when not needed.
+   * where we load the entries into memory and return iterable from that. To handle
+   * large state that doesn't fit in memory, we also need this method so it's possible
+   * to iterate on large data set and close the iterator when not needed.
    *
-   * @return a closeable iterator
+   * @return a {@link ReadableState} of an iterator
    */
-  CloseableIterator<T> iterator();
+  ReadableState<Iterator<T>> readIterator();
 }

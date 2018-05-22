@@ -36,11 +36,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.samza.state.CloseableIterator;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -220,6 +220,13 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
       return new SamzaStoreStateInternals<>(stores, key, baos.toByteArray(), batchGetSize);
     }
+  }
+
+  /**
+   * An internal State interface that holds underlying KeyValueIterators.
+   */
+  interface KeyValueIteratorState {
+    void closeIterators();
   }
 
   private abstract class AbstractSamzaState<T> {
@@ -448,8 +455,8 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
   }
 
-  private class SamzaSetStateImpl<T> implements SamzaSetState<T> {
-    private final SamzaMapState<T, Boolean> mapState;
+  private class SamzaSetStateImpl<T> implements SamzaSetState<T>, KeyValueIteratorState {
+    private final SamzaMapStateImpl<T, Boolean> mapState;
 
     private SamzaSetStateImpl(StateNamespace namespace,
                           StateTag<? extends State> address,
@@ -507,35 +514,47 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public CloseableIterator<T> iterator() {
-      final CloseableIterator<Map.Entry<T, Boolean>> iter = mapState.iterator();
-
-      return new CloseableIterator<T>() {
+    public ReadableState<Iterator<T>> readIterator() {
+      final Iterator<Map.Entry<T, Boolean>> iter = mapState.readIterator().read();
+      return new ReadableState<Iterator<T>>() {
+        @Nullable
         @Override
-        public void close() throws Exception {
-          iter.close();
+        public Iterator<T> read() {
+          return new Iterator<T>() {
+            @Override
+            public boolean hasNext() {
+              return iter.hasNext();
+            }
+
+            @Override
+            public T next() {
+              return iter.next().getKey();
+            }
+          };
         }
 
         @Override
-        public boolean hasNext() {
-          return iter.hasNext();
-        }
-
-        @Override
-        public T next() {
-          return iter.next().getKey();
+        public ReadableState<Iterator<T>> readLater() {
+          return this;
         }
       };
     }
+
+    @Override
+    public void closeIterators() {
+      mapState.closeIterators();
+    }
   }
 
-  private class SamzaMapStateImpl<KeyT, ValueT>
-      extends AbstractSamzaState<ValueT> implements SamzaMapState<KeyT, ValueT> {
+  private class SamzaMapStateImpl<KeyT, ValueT> extends AbstractSamzaState<ValueT>
+      implements SamzaMapState<KeyT, ValueT>, KeyValueIteratorState {
 
     private static final int MAX_KEY_SIZE = 100000; //100K bytes
     private final Coder<KeyT> keyCoder;
     private final byte[] maxKey;
     private final int storeKeySize;
+    private final List<KeyValueIterator<byte[], byte[]>> openIterators =
+        Collections.synchronizedList(new ArrayList<>());
 
     protected SamzaMapStateImpl(StateNamespace namespace, StateTag<? extends State> address,
         Coder<KeyT> keyCoder,
@@ -634,26 +653,37 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public CloseableIterator<Map.Entry<KeyT, ValueT>> iterator() {
-      final KeyValueIterator<byte[], byte[]> kvIter =
-          store.range(getEncodedStoreKey(), maxKey);
+    public ReadableState<Iterator<Map.Entry<KeyT, ValueT>>> readIterator() {
+      final KeyValueIterator<byte[], byte[]> kvIter = store.range(getEncodedStoreKey(), maxKey);
+      openIterators.add(kvIter);
 
-      return new CloseableIterator<Map.Entry<KeyT, ValueT>>() {
+      return new ReadableState<Iterator<Map.Entry<KeyT, ValueT>>>() {
+        @Nullable
         @Override
-        public boolean hasNext() {
-          return kvIter.hasNext();
+        public Iterator<Map.Entry<KeyT, ValueT>> read() {
+          return new Iterator<Map.Entry<KeyT, ValueT>>() {
+            @Override
+            public boolean hasNext() {
+              boolean hasNext = kvIter.hasNext();
+              if (!hasNext) {
+                kvIter.close();
+                openIterators.remove(kvIter);
+              }
+              return hasNext;
+            }
+
+            @Override
+            public Map.Entry<KeyT, ValueT> next() {
+              Entry<byte[], byte[]> entry = kvIter.next();
+              return new AbstractMap.SimpleEntry<>(
+                  decodeKey(entry.getKey()), decodeValue(entry.getValue()));
+            }
+          };
         }
 
         @Override
-        public Map.Entry<KeyT, ValueT> next() {
-          Entry<byte[], byte[]> entry = kvIter.next();
-          return new AbstractMap.SimpleEntry<>(
-              decodeKey(entry.getKey()), decodeValue(entry.getValue()));
-        }
-
-        @Override
-        public void close() throws Exception {
-          kvIter.close();
+        public ReadableState<Iterator<Map.Entry<KeyT, ValueT>>> readLater() {
+          return this;
         }
       };
     }
@@ -716,6 +746,12 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @Override
+    public void closeIterators() {
+      openIterators.forEach(KeyValueIterator::close);
+      openIterators.clear();
     }
   }
 

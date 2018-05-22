@@ -18,31 +18,27 @@
 
 package org.apache.beam.runners.samza.state;
 
+import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.MapState;
-
+import org.apache.beam.sdk.state.ReadableState;
 
 /**
- * Samza's extended MapState.
+ * Samza's extended MapState, allowing extra access methods to the state.
  *
- * <p>NOTE: this is a temporary API until Beam allows the iterable/iterator created
- * from the state to be explicitly closed.
  */
 @Experimental(Experimental.Kind.STATE)
 public interface SamzaMapState<KeyT, ValueT> extends MapState<KeyT, ValueT> {
 
   /**
-   * Returns an iterator from the current map state. It MUST be closed after use.
+   * Returns an iterator from the current map state.
    * Note this is different from the iterable implementation in {@link MapState#entries()}},
-   * where we load the entries into memory and return iterable from that. The reason
-   * is because in entries() we are not able to track the iterator created from the store
-   * and close it when it's not in use, so we need to load into memory and let Java GC
-   * clean up the content. To manipulate large state that doesn't fit in memory, we also need
-   * this method so it's possible to iterate on large data set and close the iterator
-   * when not needed.
+   * where we load the entries into memory and return iterable from that. To handle large
+   * state that doesn't fit in memory, we also need this method so it's possible to iterate
+   * on large data set and close the iterator when not needed.
    *
-   * @return a closeable iterator
+   * @return a {@link ReadableState} of an iterator
    */
-  CloseableIterator<Map.Entry<KeyT, ValueT>> iterator();
+  ReadableState<Iterator<Map.Entry<KeyT, ValueT>>> readIterator();
 }
