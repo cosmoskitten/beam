@@ -43,7 +43,7 @@ job('beam_PerformanceTests_HadoopInputFormat') {
             numberOfRecords: '600000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace('hadoopinputformatioit', new Date().getTime())
+    String namespace = common_job_properties.getKubernetesNamespace('hadoopinputformatioit')
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [
