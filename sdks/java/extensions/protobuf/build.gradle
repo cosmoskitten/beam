@@ -27,9 +27,9 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.protobuf_java
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
 }

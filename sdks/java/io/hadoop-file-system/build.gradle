@@ -32,12 +32,12 @@ dependencies {
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs_tests
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.junit
+  shadowTest library.java.hadoop_minicluster
+  shadowTest library.java.hadoop_hdfs_tests
 }

@@ -41,27 +41,19 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.commons_lang3
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hadoop_minicluster
-  testCompile library.java.hadoop_hdfs
-  testCompile library.java.hadoop_common
-  testCompile "org.apache.hbase:hbase-shaded-server:$hbase_version"
-  testCompile("org.apache.hbase:hbase-server:$hbase_version:tests") {
-    // We prevent bringing in unshaded dependencies to not conflict
-    // with hbase-shaded-server and hbase-shaded-client
-    transitive = false
-  }
-  testCompile("org.apache.hbase:hbase-common:$hbase_version:tests") {
-    // We prevent bringing in unshaded dependencies to not conflict
-    // with hbase-shaded-server and hbase-shaded-client
-    transitive = false
-  }
-  testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
-  testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.commons_lang3
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hadoop_minicluster
+  shadowTest library.java.hadoop_hdfs
+  shadowTest library.java.hadoop_common
+  shadowTest "org.apache.hbase:hbase-shaded-server:$hbase_version"
+  shadowTest "org.apache.hbase:hbase-server:$hbase_version:tests"
+  shadowTest "org.apache.hbase:hbase-common:$hbase_version:tests"
+  shadowTest "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
+  shadowTest "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
   testCompileOnly library.java.findbugs_annotations
 }
 
