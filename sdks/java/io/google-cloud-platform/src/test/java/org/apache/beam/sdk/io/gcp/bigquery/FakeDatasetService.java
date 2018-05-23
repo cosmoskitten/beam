@@ -210,14 +210,15 @@ class FakeDatasetService implements DatasetService, Serializable {
       windowedRows.add(ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
           GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
-    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
+    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null);
   }
 
   @Override
-  public long insertAll(
+  public <T> long insertAll(
       TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
       @Nullable List<String> insertIdList,
-      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
+      InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<T>> failedInserts,
+      ErrorContainer<T> errorContainer)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
@@ -249,7 +250,7 @@ class FakeDatasetService implements DatasetService, Serializable {
         if (shouldInsert) {
           dataSize += tableContainer.addRow(row, insertIdList.get(i));
         } else {
-          failedInserts.add(rowList.get(i));
+          errorContainer.add(failedInserts, allErrors.get(i), ref, rowList.get(i));
         }
       }
       return dataSize;
