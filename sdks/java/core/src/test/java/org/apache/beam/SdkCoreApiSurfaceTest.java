@@ -39,6 +39,7 @@ public class SdkCoreApiSurfaceTest {
    */
   public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
     return ApiSurface.ofPackage("org.apache.beam", classLoader)
+        .pruningPrefix("org.apache.beam.repackaged")
         .pruningPattern("org[.]apache[.]beam[.].*Test")
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
