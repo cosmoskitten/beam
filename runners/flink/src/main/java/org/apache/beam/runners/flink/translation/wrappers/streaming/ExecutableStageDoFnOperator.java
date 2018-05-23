@@ -50,10 +50,17 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * ExecutableStageDoFnOperator.
+ * ExecutableStageDoFnOperator basic functional implementation without side inputs and user state.
  * SDK harness interaction code adopted from
  * {@link org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}.
- * TODO: Evaluate {@link DoFnOperator} reuse as side input and user state handling take shape.
+ * TODO: Evaluate reuse
+ * All operators in the non-portable streaming translation are based on {@link DoFnOperator}.
+ * This implies dependency on {@link DoFnRunner}, which is not required for portable pipeline.
+ * TODO: Multiple element bundle execution
+ * The operator (like old non-portable runner) executes every element as separate bundle,
+ * which will be even more expensive with SDK harness container.
+ * Refactor for above should be looked into once streaming side inputs (and push back) take
+ * shape.
  * @param <InputT>
  * @param <OutputT>
  */
@@ -140,9 +147,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (RemoteBundle<InputT> bundle =
                  stageBundleFactory.getBundle(
                          new ReceiverFactory(outputManager, outputMap), stateRequestHandler)) {
-      FnDataReceiver<WindowedValue<InputT>> receiver = bundle.getInputReceiver();
       logger.finer(String.format("Sending value: %s", element));
-      receiver.accept(element);
+      bundle.getInputReceiver().accept(element);
     }
 
   }

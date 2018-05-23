@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.flink.FlinkBatchPortablePipelineTranslator.createOutputMap;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
@@ -45,6 +43,7 @@ import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
@@ -443,7 +442,8 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     RehydratedComponents rehydratedComponents =
             RehydratedComponents.forComponents(components);
 
-    BiMap<String, Integer> outputMap = createOutputMap(outputs.keySet());
+    BiMap<String, Integer> outputMap =
+            FlinkPipelineTranslatorUtils.createOutputMap(outputs.keySet());
     Map<String, Coder<WindowedValue<?>>> outputCoders = Maps.newHashMap();
     for (String localOutputName : new TreeMap<>(outputMap.inverse()).values()) {
       String collectionId = outputs.get(localOutputName);
