@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Created by xumingmingv on 16/06/2017.
- */
+/** Created by xumingmingv on 16/06/2017. */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
