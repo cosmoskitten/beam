@@ -73,7 +73,8 @@ public class DirectRunnerApiSurfaceTest {
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
-            .pruningPattern("java[.]util.*");
+            .pruningPattern("java[.]util.*")
+            .pruningPrefix("org.apache.beam.repackaged");
 
     assertThat(apiSurface, containsOnlyPackages(allowed));
   }
