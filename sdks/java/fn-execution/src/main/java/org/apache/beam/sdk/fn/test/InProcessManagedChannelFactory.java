@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.fn.test;
 
+import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 
@@ -30,7 +32,10 @@ import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 public class InProcessManagedChannelFactory extends ManagedChannelFactory {
 
   @Override
-  public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+  public ManagedChannel forDescriptor(
+      ApiServiceDescriptor apiServiceDescriptor, List<ClientInterceptor> interceptors) {
+    return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl())
+        .intercept(interceptors)
+        .build();
   }
 }
