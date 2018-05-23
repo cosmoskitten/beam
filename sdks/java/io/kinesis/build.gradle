@@ -44,11 +44,11 @@ dependencies {
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
   shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
-  testCompile "org.assertj:assertj-core:2.5.0"
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_jdk14
+  shadowTest "org.assertj:assertj-core:2.5.0"
 }

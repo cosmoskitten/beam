@@ -31,12 +31,12 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
   shadow "org.mongodb:mongo-java-driver:3.2.2"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_core
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
-  testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.hamcrest_core
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
+  shadowTest "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
 }

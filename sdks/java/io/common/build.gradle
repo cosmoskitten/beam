@@ -25,7 +25,7 @@ ext.summary = "Code used by all Beam IOs"
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.postgres
+  shadowTest library.java.junit
+  shadowTest library.java.postgres
   testCompileOnly library.java.findbugs_annotations
 }

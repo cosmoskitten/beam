@@ -26,8 +26,8 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.junit
 }

@@ -30,10 +30,10 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.woodstox_core_asl
   shadowTest library.java.jaxb_api
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_core
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.hamcrest_core
   testCompileOnly library.java.findbugs_annotations
 }

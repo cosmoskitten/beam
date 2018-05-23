@@ -29,13 +29,13 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow "org.apache.qpid:proton-j:0.13.1"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.activemq_broker
-  testCompile library.java.activemq_amqp
-  testCompile library.java.activemq_junit
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.slf4j_api
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.activemq_broker
+  shadowTest library.java.activemq_amqp
+  shadowTest library.java.activemq_junit
   testCompileOnly library.java.findbugs_annotations
 }

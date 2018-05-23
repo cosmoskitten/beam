@@ -31,13 +31,13 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.activemq_broker
-  testCompile library.java.activemq_jaas
-  testCompile library.java.activemq_kahadb_store
-  testCompile library.java.activemq_client
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.activemq_broker
+  shadowTest library.java.activemq_jaas
+  shadowTest library.java.activemq_kahadb_store
+  shadowTest library.java.activemq_client
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_jdk14
   testCompileOnly library.java.findbugs_annotations
 }

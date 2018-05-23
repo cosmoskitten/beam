@@ -26,24 +26,24 @@ def jna_version = "4.1.0"
 def log4j_version = "2.6.2"
 
 dependencies {
-  testCompile library.java.jackson_databind
-  testCompile "org.apache.httpcomponents:httpasyncclient:4.1.2"
-  testCompile "org.apache.httpcomponents:httpcore-nio:4.4.5"
-  testCompile "org.apache.httpcomponents:httpcore:4.4.5"
-  testCompile "org.apache.httpcomponents:httpclient:4.5.2"
+  shadowTest library.java.jackson_databind
+  shadowTest "org.apache.httpcomponents:httpasyncclient:4.1.2"
+  shadowTest "org.apache.httpcomponents:httpcore-nio:4.4.5"
+  shadowTest "org.apache.httpcomponents:httpcore:4.4.5"
+  shadowTest "org.apache.httpcomponents:httpclient:4.5.2"
 
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.commons_io_1x
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.slf4j_api
+  shadowTest "net.java.dev.jna:jna:$jna_version"
+  shadowTest "org.apache.logging.log4j:log4j-api:$log4j_version"
+  shadowTest "org.apache.logging.log4j:log4j-core:$log4j_version"
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.commons_io_1x
+  shadowTest library.java.junit
+  shadowTest "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
   testCompileOnly library.java.findbugs_annotations
 }
