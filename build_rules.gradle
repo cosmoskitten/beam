@@ -321,7 +321,6 @@ ext.getJavaRelocatedPath = { String suffix ->
 
 ext.DEFAULT_SHADOW_CLOSURE = {
   dependencies {
-    exclude(".*")
     include(dependency(library.java.guava))
   }
   relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {

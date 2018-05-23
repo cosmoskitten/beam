@@ -24,7 +24,16 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // jars.
   {
     dependencies {
-      include('**/*.class')
+      //Directly include all depended projects
+      include(project(":beam-model-pipeline"))
+      include(project(":beam-model-fn-execution"))
+      include(project(":beam-sdks-java-core"))
+      include(project(":beam-sdks-java-fn-execution"))
+      include(project(":beam-sdks-java-extensions-google-cloud-platform-core"))
+      include(project(":beam-runners-core-java"))
+      include(project(":beam-runners-core-construction-java"))
+      //Include all dependencies and transitive dependencies
+      include(dependency(".*:.*"))
     }
   })
 
