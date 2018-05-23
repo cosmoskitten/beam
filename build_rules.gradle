@@ -319,17 +319,19 @@ ext.getJavaRelocatedPath = { String suffix ->
           + suffix)
 }
 
-ext.DEFAULT_SHADOW_CLOSURE = {
-  dependencies {
-    exclude(".*")
-    include(dependency(library.java.guava))
-  }
+ext.RELOCATE_SHADOW_CLOSURE = {
   relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
     // com.google.common is too generic, need to exclude guava-testlib
     exclude "com.google.common.collect.testing.**"
     exclude "com.google.common.escape.testing.**"
     exclude "com.google.common.testing.**"
     exclude "com.google.common.util.concurrent.testing.**"
+  }
+}
+ext.DEFAULT_SHADOW_CLOSURE = ext.RELOCATE_SHADOW_CLOSURE << {
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
   }
 }
 
