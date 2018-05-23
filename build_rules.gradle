@@ -554,11 +554,30 @@ ext.applyJavaNature = {
     classifier = "shaded-tests"
     from sourceSets.test.output
     configurations = [project.configurations.testRuntime]
+
+    exclude "META-INF/INDEX.LIST"
+    exclude "META-INF/*.SF"
+    exclude "META-INF/*.DSA"
+    exclude "META-INF/*.RSA"
   } << configuration.shadowClosure)
 
   // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
   artifacts.shadow shadowJar
   artifacts.shadowTest shadowTestJar
+
+  // Ensure that tests are run from shaded jar
+  configurations {
+    testRuntimeClasspath
+  }
+
+  dependencies {
+    testRuntimeClasspath project(path: project.path, configuration: "shadowTest")
+    testRuntimeClasspath project(path: project.path, configuration: "provided")
+  }
+
+  test {
+    classpath = configurations.testRuntimeClasspath
+  }
 
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
