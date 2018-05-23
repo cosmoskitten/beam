@@ -4,18 +4,18 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import org.apache.beam.artifact.local.LocalArtifactSource;
+import org.apache.beam.artifact.local.LocalArtifactStagingLocation;
+import org.apache.beam.artifact.local.LocalFileSystemArtifactRetrievalService;
 import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingServiceProvider;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobService;
+import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -96,7 +96,7 @@ public class FlinkJobServerDriver implements Runnable {
   @Override
   public void run() {
     try {
-      GrpcFnServer<JobService> server = createJobServer();
+      GrpcFnServer<InMemoryJobService> server = createJobServer();
       server.getServer().awaitTermination();
     } catch (InterruptedException e) {
       LOG.warn("Job server interrupted", e);
@@ -105,30 +105,31 @@ public class FlinkJobServerDriver implements Runnable {
     }
   }
 
-  private GrpcFnServer<JobService> createJobServer() throws IOException {
-    JobService service = createJobService();
+  private GrpcFnServer<InMemoryJobService> createJobServer() throws IOException {
+    InMemoryJobService service = createJobService();
     Endpoints.ApiServiceDescriptor descriptor =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(configuration.host).build();
     return GrpcFnServer.create(service, descriptor, serverFactory);
   }
 
-  private JobService createJobService() {
-    ArtifactStagingServiceProvider artifactStagingServiceProvider =
-        createArtifactStagingServiceProvider();
+  private InMemoryJobService createJobService() throws IOException {
+    GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
+        createArtifactStagingService();
     JobInvoker invoker = createJobInvoker();
-    return JobService.create(artifactStagingServiceProvider, invoker);
+    return InMemoryJobService.create(artifactStagingService.getApiServiceDescriptor(), invoker);
   }
 
-  private ArtifactStagingServiceProvider createArtifactStagingServiceProvider() {
-    return jobPreparationId -> {
-      Path location = Paths.get(configuration.artifactStagingPath).resolve(jobPreparationId);
-      ArtifactStagingService service =
-          LocalFileSystemArtifactStagerService.withRootDirectory(location.toFile());
-      return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
-    };
+  private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService()
+      throws IOException {
+    LocalFileSystemArtifactStagerService service =
+        LocalFileSystemArtifactStagerService.withRootDirectory(
+            Paths.get(configuration.artifactStagingPath).toFile());
+    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
-  private JobInvoker createJobInvoker() {
-    return FlinkJobInvoker.create(executor);
+  private JobInvoker createJobInvoker() throws IOException {
+    return FlinkJobInvoker.create(executor, LocalArtifactSource.create(
+        LocalArtifactStagingLocation.forExistingDirectory(
+            Paths.get(configuration.artifactStagingPath).toFile())));
   }
 }

@@ -118,10 +118,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
     }
-    return createPipelineResult(result);
+    return createPipelineResult(result, options);
   }
 
-  static PipelineResult createPipelineResult(JobExecutionResult result) {
+  static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
       FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
