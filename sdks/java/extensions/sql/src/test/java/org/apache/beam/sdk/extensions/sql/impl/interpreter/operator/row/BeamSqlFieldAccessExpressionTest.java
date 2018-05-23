@@ -32,9 +32,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BeamSqlFieldAccessExpression}.
- */
+/** Unit tests for {@link BeamSqlFieldAccessExpression}. */
 public class BeamSqlFieldAccessExpressionTest {
 
   private static final Row NULL_ROW = null;
@@ -45,21 +43,19 @@ public class BeamSqlFieldAccessExpressionTest {
   @Test
   public void testAccessesFieldOfArray() {
     BeamSqlPrimitive<List<String>> targetArray =
-        BeamSqlPrimitive.of(
-            SqlTypeName.ARRAY,
-            Arrays.asList("aaa", "bbb", "ccc"));
+        BeamSqlPrimitive.of(SqlTypeName.ARRAY, Arrays.asList("aaa", "bbb", "ccc"));
 
     BeamSqlFieldAccessExpression arrayExpression =
         new BeamSqlFieldAccessExpression(targetArray, 1, SqlTypeName.VARCHAR);
 
-    assertEquals("bbb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "bbb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test
   public void testAccessesFieldOfRow() {
     Schema schema =
-        RowSqlTypes
-            .builder()
+        RowSqlTypes.builder()
             .withVarcharField("f_string1")
             .withVarcharField("f_string2")
             .withVarcharField("f_string3")
@@ -67,16 +63,13 @@ public class BeamSqlFieldAccessExpressionTest {
 
     BeamSqlPrimitive<Row> targetRow =
         BeamSqlPrimitive.of(
-            SqlTypeName.ROW,
-            Row
-                .withSchema(schema)
-                .addValues("aa", "bb", "cc")
-                .build());
+            SqlTypeName.ROW, Row.withSchema(schema).addValues("aa", "bb", "cc").build());
 
     BeamSqlFieldAccessExpression arrayExpression =
         new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR);
 
-    assertEquals("bb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "bb", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -87,6 +80,7 @@ public class BeamSqlFieldAccessExpressionTest {
     thrown.expectMessage("unsupported type");
 
     new BeamSqlFieldAccessExpression(targetRow, 1, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue();
+        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .getValue();
   }
 }
