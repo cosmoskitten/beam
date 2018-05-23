@@ -21,9 +21,16 @@ import groovy.json.JsonOutput
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 apply plugin: 'ca.coglinc.javacc'
+apply plugin: "com.diffplug.gradle.spotless"
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
+
+spotless {
+  java {
+    googleJavaFormat()
+  }
+}
 
 configurations {
   // Create an fmppTask configuration representing the dependencies
