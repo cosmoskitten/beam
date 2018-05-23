@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+def dependOnProjects = [":beam-model-pipeline", ":beam-model-fn-execution", ":beam-sdks-java-core",
+                        ":beam-sdks-java-fn-execution",
+                        ":beam-sdks-java-extensions-google-cloud-platform-core",
+                        ":beam-runners-core-java", ":beam-runners-core-construction-java"]
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // Create an uber jar without repackaging for the SDK harness
@@ -24,15 +29,11 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
   // jars.
   {
     dependencies {
-      //Directly include all depended projects
-      include(project(":beam-model-pipeline"))
-      include(project(":beam-model-fn-execution"))
-      include(project(":beam-sdks-java-core"))
-      include(project(":beam-sdks-java-fn-execution"))
-      include(project(":beam-sdks-java-extensions-google-cloud-platform-core"))
-      include(project(":beam-runners-core-java"))
-      include(project(":beam-runners-core-construction-java"))
-      //Include all dependencies and transitive dependencies
+      // Directly include all depended projects
+      dependOnProjects.each {
+        include(project(path: it, configuration: "shadow"))
+      }
+      // Include all dependencies and transitive dependencies
       include(dependency(".*:.*"))
     }
   })
@@ -41,13 +42,9 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
-  compile project(path: ":beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
-  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  compile project(path: ":beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  dependOnProjects.each {
+    compile project(path: it, configuration: "shadow")
+  }
   compile library.java.jackson_databind
   compile library.java.findbugs_jsr305
   compile library.java.guava
