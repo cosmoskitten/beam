@@ -53,8 +53,10 @@ import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -326,16 +328,30 @@ public class Create<T> {
     public PCollection<T> expand(PBegin input) {
       Coder<T> coder;
       try {
-        CoderRegistry registry = input.getPipeline().getCoderRegistry();
-        coder =
-            this.coder.isPresent()
-                ? this.coder.get()
-                : typeDescriptor.isPresent()
-                    ? registry.getCoder(typeDescriptor.get())
-                    : getDefaultCreateCoder(registry, elems);
+        CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+        SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+        coder = this.coder.isPresent() ? this.coder.get() : null;
+        if (coder == null) {
+          if (typeDescriptor.isPresent()) {
+            try {
+              coder = SchemaCoder.of(
+                  schemaRegistry.getSchema(typeDescriptor.get()),
+                  schemaRegistry.getToRowFunction(typeDescriptor.get()),
+                  schemaRegistry.getFromRowFunction(typeDescriptor.get()));
+            } catch (NoSuchSchemaException e) {
+              // No schema registered.
+            }
+            if (coder == null) {
+              coder = coderRegistry.getCoder(typeDescriptor.get());
+            }
+          } else {
+            coder = getDefaultCreateCoder(coderRegistry, schemaRegistry, elems);
+          }
+        }
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-            + "Please set a coder by invoking Create.withCoder() explicitly.", e);
+            + "Please set a coder by invoking Create.withCoder() explicitly "
+            + " or a schema by invoking Create.withSchema().", e);
       }
       try {
         CreateSource<T> source = CreateSource.fromIterable(elems, coder);
@@ -583,15 +599,27 @@ public class Create<T> {
     @Override
     public PCollection<T> expand(PBegin input) {
       try {
-        Coder<T> coder;
+        Coder<T> coder = null;
+        CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+        SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
         if (elementCoder.isPresent()) {
           coder = elementCoder.get();
         } else if (typeDescriptor.isPresent()) {
-          coder = input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
+          try {
+            coder = SchemaCoder.of(
+                schemaRegistry.getSchema(typeDescriptor.get()),
+                schemaRegistry.getToRowFunction(typeDescriptor.get()),
+                schemaRegistry.getFromRowFunction(typeDescriptor.get()));
+          } catch (NoSuchSchemaException e) {
+            // No schema registered.
+          }
+          if (coder == null) {
+            coder = coderRegistry.getCoder(typeDescriptor.get());
+          }
         } else {
           Iterable<T> rawElements =
               Iterables.transform(timestampedElements, TimestampedValue::getValue);
-          coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
+          coder = getDefaultCreateCoder(coderRegistry, schemaRegistry, rawElements);
         }
 
         PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
@@ -634,7 +662,8 @@ public class Create<T> {
     }
   }
 
-  private static <T> Coder<T> getDefaultCreateCoder(CoderRegistry registry, Iterable<T> elems)
+  private static <T> Coder<T> getDefaultCreateCoder(
+      CoderRegistry coderRegistry, SchemaRegistry schemaRegistry, Iterable<T> elems)
       throws CannotProvideCoderException {
     checkArgument(
         !Iterables.isEmpty(elems),
@@ -660,18 +689,29 @@ public class Create<T> {
       }
     }
 
+    TypeDescriptor<T> typeDescriptor = (TypeDescriptor<T>) TypeDescriptor.of(elementClazz);
     if (elementClazz.getTypeParameters().length == 0) {
       try {
+        Coder<T> coder = SchemaCoder.of(
+            schemaRegistry.getSchema(typeDescriptor),
+            schemaRegistry.getToRowFunction(typeDescriptor),
+            schemaRegistry.getFromRowFunction(typeDescriptor));
+        return  coder;
+      } catch (NoSuchSchemaException e) {
+        // No schema.
+      }
+
+      try {
         @SuppressWarnings("unchecked") // elementClazz is a wildcard type
-        Coder<T> coder = (Coder<T>) registry.getCoder(TypeDescriptor.of(elementClazz));
+        Coder<T> coder = (Coder<T>) coderRegistry.getCoder(typeDescriptor);
         return coder;
       } catch (CannotProvideCoderException exc) {
-        // Can't get a coder from the class of the elements, try with the elements next
+        // Can't get a coder from the class of the elements, try from elements next.
       }
     }
 
     // If that fails, try to deduce a coder using the elements themselves
-    return (Coder<T>) inferCoderFromObjects(registry, elems);
+    return (Coder<T>) inferCoderFromObjects(coderRegistry, schemaRegistry, elems);
   }
 
   /**
@@ -679,10 +719,11 @@ public class Create<T> {
    * equivalent for all elements.
    */
   private static Coder<?> inferCoderFromObjects(
-      CoderRegistry registry, Iterable<?> elems) throws CannotProvideCoderException {
+      CoderRegistry coderRegistry, SchemaRegistry schemaRegistry, Iterable<?> elems) throws
+      CannotProvideCoderException {
     Optional<Coder<?>> coder = Optional.absent();
     for (Object elem : elems) {
-      Coder<?> c = inferCoderFromObject(registry, elem);
+      Coder<?> c = inferCoderFromObject(coderRegistry, schemaRegistry, elem);
       if (!coder.isPresent()) {
         coder = (Optional) Optional.of(c);
       } else if (!Objects.equals(c, coder.get())) {
@@ -711,31 +752,43 @@ public class Create<T> {
    * <p>TODO: Instead, build a TypeDescriptor so that the {@link CoderRegistry} is invoked
    * for the type instead of hard coding the coders for common types.
    */
-  private static Coder<?> inferCoderFromObject(CoderRegistry registry, Object o)
+  private static Coder<?> inferCoderFromObject(
+      CoderRegistry coderRegistry, SchemaRegistry schemaRegistry, Object o)
       throws CannotProvideCoderException {
+
     if (o == null) {
       return VoidCoder.of();
-    } else if (o instanceof TimestampedValue) {
+    }
+
+    try {
+      return SchemaCoder.of(schemaRegistry.getSchema(o.getClass()),
+          (SerializableFunction) schemaRegistry.getToRowFunction(o.getClass()),
+          schemaRegistry.getFromRowFunction(o.getClass()));
+    } catch (NoSuchSchemaException e) {
+      // No schema.
+    }
+
+    if (o instanceof TimestampedValue) {
       return TimestampedValueCoder.of(
-          inferCoderFromObject(registry, ((TimestampedValue) o).getValue()));
+          inferCoderFromObject(coderRegistry, schemaRegistry, ((TimestampedValue) o).getValue()));
     } else if (o instanceof List) {
-      return ListCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+      return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Set) {
-      return SetCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+      return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Collection) {
-      return CollectionCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+      return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Iterable) {
-      return IterableCoder.of(inferCoderFromObjects(registry, ((Iterable) o)));
+      return IterableCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, ((Iterable) o)));
     } else if (o instanceof Map) {
       return MapCoder.of(
-          inferCoderFromObjects(registry, ((Map) o).keySet()),
-          inferCoderFromObjects(registry, ((Map) o).entrySet()));
+          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Map) o).keySet()),
+          inferCoderFromObjects(coderRegistry, schemaRegistry, ((Map) o).entrySet()));
     } else if (o instanceof KV) {
       return KvCoder.of(
-          inferCoderFromObject(registry, ((KV) o).getKey()),
-          inferCoderFromObject(registry, ((KV) o).getValue()));
+          inferCoderFromObject(coderRegistry, schemaRegistry, ((KV) o).getKey()),
+          inferCoderFromObject(coderRegistry, schemaRegistry, ((KV) o).getValue()));
     } else {
-      return registry.getCoder(o.getClass());
+      return coderRegistry.getCoder(o.getClass());
     }
   }
 }
