@@ -133,6 +133,7 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
               new InProcessManagedChannelFactory(),
               this::createStreamForTest,
@@ -212,6 +213,7 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client =
           new BeamFnControlClient(
+              "",
               apiServiceDescriptor,
               new InProcessManagedChannelFactory(),
               this::createStreamForTest,

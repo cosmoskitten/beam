@@ -74,6 +74,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     return dataServer.getApiServiceDescriptor();
   }
 
+  @Override
   protected void before() throws Exception {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
@@ -93,6 +94,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
     executor.submit(
         () -> {
           FnHarness.main(
+              "id",
               PipelineOptionsFactory.create(),
               loggingServer.getApiServiceDescriptor(),
               controlServer.getApiServiceDescriptor(),
@@ -108,11 +110,12 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
             clientPool.getSource().take("", clientTimeout), dataServer.getService());
   }
 
+  @Override
   protected void after() {
     try (AutoCloseable logs = loggingServer;
         AutoCloseable data = dataServer;
         AutoCloseable ctl = controlServer;
-        AutoCloseable c = client; ) {
+        AutoCloseable c = client) {
       executor.shutdownNow();
     } catch (Exception e) {
       throw new RuntimeException(e);
