@@ -201,7 +201,6 @@ public class ParDoSchemaTest implements Serializable {
         .addInt32Field("integer_field", false)
         .build();
 
-
     pipeline.getSchemaRegistry()
         .registerSchemaForClass(MyPojo.class,
             schema,
@@ -210,7 +209,6 @@ public class ParDoSchemaTest implements Serializable {
 
     List<MyPojo> pojoList = Lists.newArrayList(
         new MyPojo("a", 1), new MyPojo("b", 2), new MyPojo("c", 3));
-
 
     PCollection<String> output = pipeline
         .apply(Create.of(pojoList))
