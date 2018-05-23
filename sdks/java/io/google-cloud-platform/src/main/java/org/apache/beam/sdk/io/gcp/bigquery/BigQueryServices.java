@@ -160,9 +160,9 @@ interface BigQueryServices extends Serializable {
      *
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
-    long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+    <T> long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
                    @Nullable List<String> insertIdList, InsertRetryPolicy retryPolicy,
-                   List<ValueInSingleWindow<TableRow>> failedInserts)
+                   List<ValueInSingleWindow<T>> failedInserts, ErrorContainer<T> errorContainer)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */

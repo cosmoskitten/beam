@@ -41,11 +41,12 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  */
 @SystemDoFnInternal
 @VisibleForTesting
-class StreamingWriteFn
+class StreamingWriteFn<T>
     extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
-  private final TupleTag<TableRow> failedOutputTag;
+  private final TupleTag<T> failedOutputTag;
+  private final ErrorContainer<T> errorContainer;
 
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
@@ -58,10 +59,11 @@ class StreamingWriteFn
   private Counter byteCounter = SinkMetrics.bytesWritten();
 
   StreamingWriteFn(BigQueryServices bqServices, InsertRetryPolicy retryPolicy,
-                   TupleTag<TableRow> failedOutputTag) {
+                   TupleTag<T> failedOutputTag, ErrorContainer<T> errorContainer) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
+    this.errorContainer = errorContainer;
   }
 
   /** Prepares a target BigQuery table. */
@@ -89,7 +91,7 @@ class StreamingWriteFn
   /** Writes the accumulated rows into BigQuery with streaming API. */
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
-    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<T>> failedInserts = Lists.newArrayList();
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
     for (Map.Entry<String, List<ValueInSingleWindow<TableRow>>> entry : tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
@@ -103,7 +105,7 @@ class StreamingWriteFn
     tableRows.clear();
     uniqueIdsForTableRows.clear();
 
-    for (ValueInSingleWindow<TableRow> row : failedInserts) {
+    for (ValueInSingleWindow<T> row : failedInserts) {
       context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
     }
   }
@@ -114,12 +116,12 @@ class StreamingWriteFn
   private void flushRows(TableReference tableReference,
                          List<ValueInSingleWindow<TableRow>> tableRows,
                          List<String> uniqueIds, BigQueryOptions options,
-                         List<ValueInSingleWindow<TableRow>> failedInserts)
+                         List<ValueInSingleWindow<T>> failedInserts)
       throws InterruptedException {
     if (!tableRows.isEmpty()) {
       try {
         long totalBytes = bqServices.getDatasetService(options).insertAll(
-            tableReference, tableRows, uniqueIds, retryPolicy, failedInserts);
+            tableReference, tableRows, uniqueIds, retryPolicy, failedInserts, errorContainer);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);
