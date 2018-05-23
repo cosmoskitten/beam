@@ -50,8 +50,8 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile library.java.guava_testlib
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest library.java.guava_testlib
+  shadowTest library.java.mockito_core
+  shadowTest library.java.slf4j_jdk14
 }

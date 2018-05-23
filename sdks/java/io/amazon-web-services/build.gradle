@@ -37,7 +37,7 @@ dependencies {
   shadow library.java.slf4j_api
   runtime 'commons-codec:commons-codec:1.9'
   runtime "org.apache.httpcomponents:httpclient:4.5.2"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompileOnly library.java.findbugs_annotations
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core

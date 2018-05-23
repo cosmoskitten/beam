@@ -28,10 +28,10 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow "redis.clients:jedis:2.9.0"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_core
-  testCompile "com.github.kstyrc:embedded-redis:0.6"
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.hamcrest_core
+  shadowTest "com.github.kstyrc:embedded-redis:0.6"
   testCompileOnly library.java.findbugs_annotations
 }

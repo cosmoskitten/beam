@@ -36,9 +36,9 @@ dependencies {
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.netty_transport_native_epoll
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
+  shadowTest library.java.mockito_core
+  shadowTest library.java.slf4j_jdk14
 }

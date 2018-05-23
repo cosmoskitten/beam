@@ -30,17 +30,17 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow "org.apache.commons:commons-dbcp2:2.1.1"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.postgres
-  testCompile group: "org.apache.derby", name: "derby", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
-  testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_api
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.postgres
+  shadowTest group: "org.apache.derby", name: "derby", version:"10.12.1.1"
+  shadowTest group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
+  shadowTest group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
   testCompileOnly library.java.findbugs_annotations
 }

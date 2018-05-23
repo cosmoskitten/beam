@@ -33,9 +33,9 @@ dependencies {
   shadow "org.apache.avro:avro:1.8.1"
   shadow "org.apache.hadoop:hadoop-common:2.7.2"
   shadow "org.apache.hadoop:hadoop-client:2.7.2"
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_jdk14
 }

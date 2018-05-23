@@ -33,10 +33,10 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow "org.springframework:spring-expression:4.3.5.RELEASE"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
   testCompileOnly library.java.findbugs_annotations
 }
