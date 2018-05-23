@@ -46,33 +46,22 @@ dependencies {
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile "org.elasticsearch.client:transport:$elastic_search_version"
-  testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
-    // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
-    // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
-    exclude group: "cascading", module: "cascading-local"
-    exclude group: "cascading", module: "cascading-hadoop"
-    exclude group: "org.apache.hive", module: "hive-service"
-    exclude group: "org.apache.pig", module: "pig"
-    exclude group: "org.apache.spark", module: "spark-core_2.10"
-    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
-    exclude group: "org.apache.spark", module: "spark-sql_2.10"
-    exclude group: "org.apache.storm", module: "storm-core"
-  }
-  testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
-  testCompile "org.apache.cassandra:cassandra-all:3.9"
-  testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
-  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
-  testCompile library.java.postgres
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.junit
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  shadowTest "org.elasticsearch.client:transport:$elastic_search_version"
+  shadowTest "io.netty:netty-transport-native-epoll:4.1.0.CR3"
+  shadowTest "org.elasticsearch:elasticsearch:$elastic_search_version"
+  shadowTest ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version")
+  shadowTest "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
+  shadowTest "org.apache.cassandra:cassandra-all:3.9"
+  shadowTest "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
+  shadowTest project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
+  shadowTest library.java.postgres
+  shadowTest "org.apache.logging.log4j:log4j-core:$log4j_version"
+  shadowTest library.java.junit
   shadow library.java.commons_io_2x
 }
 

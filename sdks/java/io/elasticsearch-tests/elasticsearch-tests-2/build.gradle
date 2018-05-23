@@ -29,21 +29,21 @@ def log4j_version = "2.6.2"
 def elastic_search_version = "2.4.1"
 
 dependencies {
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.slf4j_api
-  testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.commons_io_1x
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
-  testCompile library.java.guava
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  shadowTest project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-elasticsearch", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-common", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.slf4j_api
+  shadowTest "net.java.dev.jna:jna:$jna_version"
+  shadowTest "org.apache.logging.log4j:log4j-api:$log4j_version"
+  shadowTest "org.apache.logging.log4j:log4j-core:$log4j_version"
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.commons_io_1x
+  shadowTest library.java.junit
+  shadowTest "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+  shadowTest library.java.guava
+  shadowTest "org.elasticsearch:elasticsearch:$elastic_search_version"
   testCompileOnly library.java.findbugs_annotations
 }

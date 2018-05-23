@@ -24,7 +24,7 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
 }
