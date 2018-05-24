@@ -972,10 +972,12 @@ public class ElasticsearchIO {
         String document = context.element();
         String documentMetadata = getDocumentMetadata(document);
 
-        // index is an insert/upsert and update is a partial update
+        // index is an insert/upsert and update is a partial update (or insert if not existing)
         if (spec.getUsePartialUpdate()) {
           batch.add(
-              String.format("{ \"update\" : %s }%n{ \"doc\" : %s}%n", documentMetadata, document));
+              String.format(
+                  "{ \"update\" : %s }%n{ \"doc\" : %s, \"doc_as_upsert\" : true }%n",
+                  documentMetadata, document));
         } else {
           batch.add(String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document));
         }
