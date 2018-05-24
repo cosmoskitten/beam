@@ -34,7 +34,6 @@ import org.elasticsearch.client.RestClient;
  * store creation rather than every time (which can be more fragile.)
  */
 public class ElasticsearchIOITCommon {
-  private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
 
   /** Enum encapsulating the mode of operation and the index. */
   enum IndexMode {
