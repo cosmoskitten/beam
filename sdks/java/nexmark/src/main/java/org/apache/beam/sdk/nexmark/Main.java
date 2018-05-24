@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.InsertAllRequest;
 import com.google.cloud.bigquery.InsertAllResponse;
 import com.google.cloud.bigquery.TableId;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -60,7 +61,7 @@ import org.joda.time.Instant;
  */
 public class Main<OptionT extends NexmarkOptions> {
 
-  private static final String NEXMARK_EXECUTION_ROW_ID = "NexmarkExecution";
+  private static final String NEXMARK_EXECUTION_ROW_ID = "row";
 
   /**
    * Entry point.
@@ -156,13 +157,17 @@ public class Main<OptionT extends NexmarkOptions> {
       "==========================================================================================";
 
   /** Send {@code nexmarkPerf} to BigQuery. */
-  private static void writeQueryPerftoBigQuery(int queryNb, NexmarkPerf nexmarkPerf, NexmarkOptions options) {
-    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-    String tableName =
-        String.format(
-            "%s_%s_%s_%s", options.getBigQueryTable(), options.getRunner(), options.isStreaming(), queryNb);
-    String dataset = "nexmark";
-    TableId tableId = TableId.of(options.getProject(), dataset, tableName);
+  @VisibleForTesting
+  static void writeQueryPerftoBigQuery(
+      int queryNb, NexmarkPerf nexmarkPerf, NexmarkOptions options) {
+    BigQuery bigquery =
+        BigQueryOptions.getDefaultInstance()
+            .toBuilder()
+            .setProjectId(options.getProject())
+            .build()
+            .getService();
+    String tableName = getTableName(queryNb, options);
+    TableId tableId = TableId.of(options.getProject(), options.getBigQueryDataset(), tableName);
     Map<String, Object> rowContent = new HashMap<>();
     rowContent.put("Runtime(sec)", nexmarkPerf.runtimeSec);
     rowContent.put("Events(/sec)", nexmarkPerf.eventsPerSec);
@@ -173,21 +178,29 @@ public class Main<OptionT extends NexmarkOptions> {
                 .addRow(NEXMARK_EXECUTION_ROW_ID, rowContent)
                 .build());
     if (response.hasErrors()) {
-      String mesage = "Eroor writing query execution time to bigQuery: ";
-      for (BigQueryError bigQueryError : response.getInsertErrors().get(NEXMARK_EXECUTION_ROW_ID)){
-        mesage.concat(bigQueryError.toString());
+      StringBuilder mesage = new StringBuilder("Error writing query execution time to bigQuery: ");
+      for (BigQueryError bigQueryError : response.getInsertErrors().get(0L)){
+        mesage.append(bigQueryError.toString() + " ");
       }
-      throw new RuntimeException(mesage);
+      throw new RuntimeException(mesage.toString());
     }
   }
 
-  /**
-   * Print summary  of {@code actual} vs (if non-null) {@code baseline}.
-   */
+  @VisibleForTesting
+  static String getTableName(int queryNb, NexmarkOptions options) {
+    return String.format(
+        "%s_%s_%s_%s",
+        options.getBigQueryTable(), options.getRunner(), options.isStreaming(), queryNb);
+  }
+
+  /** Print summary of {@code actual} vs (if non-null) {@code baseline}. */
   private static void saveSummary(
       @Nullable String summaryFilename,
-      Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start, NexmarkOptions options) {
+      Iterable<NexmarkConfiguration> configurations,
+      Map<NexmarkConfiguration, NexmarkPerf> actual,
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline,
+      Instant start,
+      NexmarkOptions options) {
 
     List<String> lines = new ArrayList<>();
 
