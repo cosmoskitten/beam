@@ -43,7 +43,7 @@ job('beam_PerformanceTests_JDBC') {
             numberOfRecords: '5000000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace("\${JOB_BASE_NAME}-\${JOB_NAME}", "\${BUILD_ID}")
+    String namespace = common_job_properties.getKubernetesNamespace("\${JOB_BASE_NAME.toLowerCase()}-\${JOB_NAME.toLowerCase()}", "\${BUILD_ID}")
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [
