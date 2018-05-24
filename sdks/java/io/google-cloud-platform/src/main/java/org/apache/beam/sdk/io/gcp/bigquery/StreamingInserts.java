@@ -34,23 +34,25 @@ public class StreamingInserts<DestinationT>
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
+  private boolean extendedErrorInfo;
 
   /** Constructor. */
   public StreamingInserts(CreateDisposition createDisposition,
                    DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this(createDisposition, dynamicDestinations, new BigQueryServicesImpl(),
-        InsertRetryPolicy.alwaysRetry());
+        InsertRetryPolicy.alwaysRetry(), false);
   }
 
   /** Constructor. */
   private StreamingInserts(CreateDisposition createDisposition,
                           DynamicDestinations<?, DestinationT> dynamicDestinations,
                           BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy) {
+                          InsertRetryPolicy retryPolicy, boolean extendedErrorInfo) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
+    this.extendedErrorInfo = extendedErrorInfo;
   }
 
   /**
@@ -58,12 +60,21 @@ public class StreamingInserts<DestinationT>
    */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+  }
+
+  /**
+   * Specify whether to use extended error info or not.
+   */
+  public StreamingInserts<DestinationT> withExtendedErrorInfo(boolean extendedErrorInfo) {
+    return new StreamingInserts<>(createDisposition, dynamicDestinations, bigQueryServices,
+        retryPolicy, extendedErrorInfo);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, extendedErrorInfo);
+  }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
@@ -76,6 +87,7 @@ public class StreamingInserts<DestinationT>
     return writes.apply(
         new StreamingWriteTables()
             .withTestServices(bigQueryServices)
-            .withInsertRetryPolicy(retryPolicy));
+            .withInsertRetryPolicy(retryPolicy)
+            .withExtendedErrorInfo(extendedErrorInfo));
   }
 }
