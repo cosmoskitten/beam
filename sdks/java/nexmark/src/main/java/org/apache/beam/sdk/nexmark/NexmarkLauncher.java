@@ -737,14 +737,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     }
     switch (options.getResourceNameMode()) {
       case VERBATIM:
-        return String.format("%s:nexmark.%s_%s",
-                             options.getProject(), baseTableName, version);
+        return String.format("%s:%s.%s_%s",
+                             options.getProject(), options.getBigQueryDataset(), baseTableName, version);
       case QUERY:
-        return String.format("%s:nexmark.%s_%s_%s",
-                             options.getProject(), baseTableName, queryName, version);
+        return String.format("%s:%s.%s_%s_%s",
+                             options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version);
       case QUERY_AND_SALT:
-        return String.format("%s:nexmark.%s_%s_%s_%d",
-                             options.getProject(), baseTableName, queryName, version, now);
+        return String.format("%s:%s.%s_%s_%s_%d",
+                             options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version, now);
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }

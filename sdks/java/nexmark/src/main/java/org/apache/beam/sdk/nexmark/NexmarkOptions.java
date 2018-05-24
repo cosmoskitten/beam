@@ -62,7 +62,7 @@ public interface NexmarkOptions
   void setSinkType(NexmarkUtils.SinkType sinkType);
 
   @Description("Shall we export the summary to BigQuery.")
-  @Nullable
+  @Default.Boolean(false)
   Boolean getExportSummaryToBigQuery();
 
   void setExportSummaryToBigQuery(Boolean exportSummaryToBigQuery);
@@ -105,6 +105,12 @@ public interface NexmarkOptions
   String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
+
+  @Description("BigQuery dataset")
+  @Default.String("nexmark")
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(String bigQueryDataset);
 
   @Description("Approximate number of events to generate. "
                + "Zero for effectively unlimited in streaming mode.")
