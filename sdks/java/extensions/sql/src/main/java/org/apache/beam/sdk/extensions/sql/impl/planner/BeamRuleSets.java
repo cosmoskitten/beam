@@ -95,8 +95,6 @@ public class BeamRuleSets {
               PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
           // merge projections
           ProjectMergeRule.INSTANCE,
-          // remove identity project
-          ProjectRemoveRule.INSTANCE,
           // reorder sort and projection
           SortProjectTransposeRule.INSTANCE,
           ProjectSortTransposeRule.INSTANCE,
