@@ -159,7 +159,7 @@ public class BeamQueryPlanner {
 
       // optimized logical plan
       beamRelNode = optimizeLogicPlan(root.rel, desiredTraits);
-      System.out.println("OptimizedPlan>\n" + RelOptUtil.toString(beamRelNode));
+      LOG.info("OptimizedPlan>\n" + RelOptUtil.toString(beamRelNode));
     } finally {
       planner.close();
     }
