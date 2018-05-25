@@ -22,6 +22,7 @@ applyJavaNature(failOnWarning: true, enableSpotless: true, shadowClosure: {})
 configurations {
   // Run tests from shaded jar
   shadowTestRuntimeClasspath
+  integrationTest
 }
 
 dependencies {
@@ -33,6 +34,9 @@ dependencies {
   testCompileOnly library.java.findbugs_annotations
   shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
   shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
+  integrationTest sourceSets.test.output
+  integrationTest sourceSets.main.output
+  integrationTest library.java.junit
 }
 
 shadowJar {
@@ -48,4 +52,14 @@ test {
     // Assert everything is in the output or test jar
     assert classpath.size() == 2
   }
+}
+
+task integrationTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
+  group = "Verification"
+
+  systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
+
+  include '**/*IT.class'
+  classpath = configurations.integrationTest
+  useJUnit { }
 }
