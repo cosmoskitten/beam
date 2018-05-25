@@ -17,28 +17,36 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryError;
-import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.InsertAllRequest;
-import com.google.cloud.bigquery.InsertAllResponse;
-import com.google.cloud.bigquery.TableId;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -159,38 +167,63 @@ public class Main<OptionT extends NexmarkOptions> {
   /** Send {@code nexmarkPerf} to BigQuery. */
   @VisibleForTesting
   static void writeQueryPerftoBigQuery(
-      int queryNb, NexmarkPerf nexmarkPerf, NexmarkOptions options) {
-    BigQuery bigquery =
-        BigQueryOptions.getDefaultInstance()
-            .toBuilder()
-            .setProjectId(options.getProject())
-            .build()
-            .getService();
-    String tableName = getTableName(queryNb, options);
-    TableId tableId = TableId.of(options.getProject(), options.getBigQueryDataset(), tableName);
-    Map<String, Object> rowContent = new HashMap<>();
-    rowContent.put("Runtime(sec)", nexmarkPerf.runtimeSec);
-    rowContent.put("Events(/sec)", nexmarkPerf.eventsPerSec);
-    rowContent.put("Size of the result collection", nexmarkPerf.numResults);
-    InsertAllResponse response =
-        bigquery.insertAll(
-            InsertAllRequest.newBuilder(tableId)
-                .addRow(NEXMARK_EXECUTION_ROW_ID, rowContent)
-                .build());
-    if (response.hasErrors()) {
-      StringBuilder mesage = new StringBuilder("Error writing query execution time to bigQuery: ");
-      for (BigQueryError bigQueryError : response.getInsertErrors().get(0L)){
-        mesage.append(bigQueryError.toString() + " ");
-      }
-      throw new RuntimeException(mesage.toString());
-    }
-  }
+      String queryName,
+      NexmarkPerf nexmarkPerf,
+      NexmarkOptions options,
+      BigQueryServices bigQueryServices)
+      throws Exception {
 
-  @VisibleForTesting
-  static String getTableName(int queryNb, NexmarkOptions options) {
-    return String.format(
-        "%s_%s_%s_%s",
-        options.getBigQueryTable(), options.getRunner(), options.isStreaming(), queryNb);
+    InsertRetryPolicy retryPolicy = InsertRetryPolicy.neverRetry();
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    ValueInSingleWindow<TableRow> row =
+        ValueInSingleWindow.of(
+            new TableRow()
+                .set("Runtime(sec)", nexmarkPerf.runtimeSec)
+                .set("Events(/sec)", nexmarkPerf.eventsPerSec)
+                .set("Size of the result collection", nexmarkPerf.numResults),
+            // no need for windowing, just to use BigQueryServices API
+            Instant.now(),
+            GlobalWindow.INSTANCE,
+            PaneInfo.createPane(true, true, PaneInfo.Timing.ON_TIME));
+    rows.add(row);
+    List<String> uniqueIds = new ArrayList<>();
+    uniqueIds.add(NEXMARK_EXECUTION_ROW_ID);
+
+    String tableSpec = NexmarkUtils.tableSpec(options, queryName, 0L, null);
+    TableReference tableReference = BigQueryHelpers.parseTableSpec(tableSpec);
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    BigQueryOptions bigQueryOptions = options.as(BigQueryOptions.class);
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT64"),
+                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT64"),
+                    new TableFieldSchema()
+                        .setName("Size of the result collection")
+                        .setType("INT64")));
+    Table table =
+        new Table()
+            .setTableReference(tableReference)
+            .setSchema(tableSchema)
+            .setDescription("Nexmark query execution time");
+
+    BigQueryServices.DatasetService datasetService =
+        bigQueryServices.getDatasetService(bigQueryOptions);
+    try {
+      datasetService.createTable(table);
+      datasetService.insertAll(tableReference, rows, uniqueIds, retryPolicy, failedInserts);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    if (failedInserts.size() != 0) {
+      StringBuilder message = new StringBuilder();
+      for (ValueInSingleWindow<TableRow> erroredRow : failedInserts) {
+        message.append(erroredRow.getValue().toPrettyString() + "\n");
+      }
+      throw new RuntimeException(message.toString());
+    }
   }
 
   /** Print summary of {@code actual} vs (if non-null) {@code baseline}. */
@@ -238,7 +271,12 @@ public class Main<OptionT extends NexmarkOptions> {
         line += "*** not run ***";
       } else {
         if (options.getExportSummaryToBigQuery()){
-          writeQueryPerftoBigQuery(configuration.query, actualPerf, options);
+          try {
+            writeQueryPerftoBigQuery(
+                "q" + configuration.query, actualPerf, options, new BigQueryServicesImpl());
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
         }
         NexmarkPerf baselinePerf = baseline == null ? null : baseline.get(configuration);
         double runtimeSec = actualPerf.runtimeSec;

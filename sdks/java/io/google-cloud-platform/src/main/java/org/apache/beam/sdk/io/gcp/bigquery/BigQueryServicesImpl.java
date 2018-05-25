@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
-class BigQueryServicesImpl implements BigQueryServices {
+public class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
 

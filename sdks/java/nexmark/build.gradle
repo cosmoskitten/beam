@@ -42,7 +42,6 @@ configurations {
 }
 
 dependencies {
-  compile 'com.google.cloud:google-cloud-bigquery:1.28.0'
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
@@ -65,6 +64,7 @@ dependencies {
   shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
 
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   gradleRun project(path: project.path, configuration: "shadow")
   gradleRun project(path: nexmarkRunnerDependency, configuration: "shadow")
 

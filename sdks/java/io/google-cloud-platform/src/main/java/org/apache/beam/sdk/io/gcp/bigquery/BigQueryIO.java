@@ -1724,8 +1724,7 @@ public class BigQueryIO {
   /**
    * Clear the cached map of created tables. Used for testing.
    */
-  @VisibleForTesting
-  static void clearCreatedTables() {
+  @VisibleForTesting public static void clearCreatedTables() {
     CreateTables.clearCreatedTables();
   }
 
