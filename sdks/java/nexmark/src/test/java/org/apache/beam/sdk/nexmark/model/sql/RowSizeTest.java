@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;

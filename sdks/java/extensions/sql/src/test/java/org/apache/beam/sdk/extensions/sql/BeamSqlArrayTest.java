@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,9 +33,9 @@ import org.junit.rules.ExpectedException;
 public class BeamSqlArrayTest {
 
   private static final Schema INPUT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("f_int")
-          .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+      Schema.builder()
+          .addInt32Field("f_int")
+          .addArrayField("f_stringArr", Schema.FieldType.STRING)
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -47,9 +46,9 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
@@ -69,9 +68,9 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_stringArr", Schema.FieldType.STRING)
             .build();
 
     PCollection<Row> result =
@@ -92,7 +91,7 @@ public class BeamSqlArrayTest {
   public void testAccessArrayElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
@@ -114,7 +113,7 @@ public class BeamSqlArrayTest {
         PBegin.in(pipeline)
             .apply("boundedInput1", Create.of(inputRow).withCoder(INPUT_ROW_TYPE.getRowCoder()));
 
-    Schema resultType = RowSqlTypes.builder().withVarcharField("f_arrElem").build();
+    Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT ELEMENT(f_stringArr) FROM PCOLLECTION"));
@@ -128,7 +127,7 @@ public class BeamSqlArrayTest {
   public void testCardinality() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_size").build();
+    Schema resultType = Schema.builder().addInt32Field("f_size").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
@@ -144,15 +143,15 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectRowsFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
     Schema resultRowType =
-        RowSqlTypes.builder().withArrayField("f_resultArray", elementRowType).build();
+        Schema.builder().addArrayField("f_resultArray", Schema.FieldType.row(elementRowType)).build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementRowType))
             .build();
 
     PCollection<Row> input =
@@ -201,14 +200,14 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectSingleRowFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
     Schema resultRowType = elementRowType;
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementRowType))
             .build();
 
     PCollection<Row> input =
@@ -247,14 +246,14 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectRowFieldFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlTypes.builder().withVarcharField("f_rowString").withIntegerField("f_rowInt").build();
+        Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultRowType = RowSqlTypes.builder().withVarcharField("f_stringField").build();
+    Schema resultRowType = Schema.builder().addStringField("f_stringField").build();
 
     Schema inputType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withArrayField("f_arrayOfRows", elementRowType)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arrayOfRows", Schema.FieldType.row(elementRowType))
             .build();
 
     PCollection<Row> input =

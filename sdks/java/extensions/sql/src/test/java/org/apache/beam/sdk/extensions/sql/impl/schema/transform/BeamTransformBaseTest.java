@@ -18,7 +18,6 @@ package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
 import java.text.ParseException;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;

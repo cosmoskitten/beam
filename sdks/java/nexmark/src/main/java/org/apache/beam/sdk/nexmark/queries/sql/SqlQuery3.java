@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;

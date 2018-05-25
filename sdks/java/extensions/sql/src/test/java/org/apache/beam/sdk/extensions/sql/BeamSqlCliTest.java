@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.BOOLEAN;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.RowSqlTypes.VARCHAR;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ARRAY;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
