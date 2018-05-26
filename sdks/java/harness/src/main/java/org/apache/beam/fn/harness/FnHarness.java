@@ -79,6 +79,7 @@ public class FnHarness {
 
   public static void main(String[] args) throws Exception {
     System.out.format("SDK Fn Harness started%n");
+    System.out.format("Harness ID %s%n", System.getenv(HARNESS_ID));
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
     System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
