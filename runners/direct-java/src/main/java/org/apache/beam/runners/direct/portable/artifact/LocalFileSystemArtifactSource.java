@@ -1,4 +1,4 @@
-package org.apache.beam.artifact.local;
+package org.apache.beam.runners.direct.portable.artifact;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
@@ -13,16 +13,17 @@ import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
 /**
  * An artifact source drawn from a local file system.
  */
-public class LocalArtifactSource implements ArtifactSource {
+public class LocalFileSystemArtifactSource implements ArtifactSource {
   private static final int DEFAULT_CHUNK_SIZE_BYTES = 2 * 1024 * 1024;
 
-  public static LocalArtifactSource create(LocalArtifactStagingLocation location) {
-    return new LocalArtifactSource(location);
+  public static LocalFileSystemArtifactSource create(File location) {
+    return new LocalFileSystemArtifactSource(
+        LocalArtifactStagingLocation.forExistingDirectory(location));
   }
 
   private final LocalArtifactStagingLocation location;
 
-  private LocalArtifactSource(LocalArtifactStagingLocation location) {
+  private LocalFileSystemArtifactSource(LocalArtifactStagingLocation location) {
     this.location = location;
   }
 

@@ -7,10 +7,8 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-import org.apache.beam.artifact.local.LocalArtifactSource;
-import org.apache.beam.artifact.local.LocalArtifactStagingLocation;
-import org.apache.beam.artifact.local.LocalFileSystemArtifactRetrievalService;
-import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
+import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactSource;
+import org.apache.beam.runners.direct.portable.artifact.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -122,14 +120,13 @@ public class FlinkJobServerDriver implements Runnable {
   private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService()
       throws IOException {
     LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.withRootDirectory(
+        LocalFileSystemArtifactStagerService.forRootDirectory(
             Paths.get(configuration.artifactStagingPath).toFile());
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   private JobInvoker createJobInvoker() throws IOException {
-    return FlinkJobInvoker.create(executor, LocalArtifactSource.create(
-        LocalArtifactStagingLocation.forExistingDirectory(
-            Paths.get(configuration.artifactStagingPath).toFile())));
+    return FlinkJobInvoker.create(executor, LocalFileSystemArtifactSource.create(
+        Paths.get(configuration.artifactStagingPath).toFile()));
   }
 }
