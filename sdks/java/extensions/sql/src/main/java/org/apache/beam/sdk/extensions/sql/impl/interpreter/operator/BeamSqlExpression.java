@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
+
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexNode;
@@ -29,15 +31,15 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * {@code BeamSqlExpression} is an equivalent expression in BeamSQL, of {@link RexNode} in Calcite.
  *
  * <p>An implementation of {@link BeamSqlExpression} takes one or more {@code BeamSqlExpression} as
- * its operands, and return a value with type {@link SqlTypeName}.
+ * its operands, and return a value with type {@link Schema.FieldType}.
  */
 public abstract class BeamSqlExpression implements Serializable {
   protected List<BeamSqlExpression> operands;
-  protected SqlTypeName outputType;
+  protected Schema.FieldType outputType;
 
   protected BeamSqlExpression() {}
 
-  public BeamSqlExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+  public BeamSqlExpression(List<BeamSqlExpression> operands, Schema.FieldType outputType) {
     this.operands = operands;
     this.outputType = outputType;
   }
@@ -46,7 +48,7 @@ public abstract class BeamSqlExpression implements Serializable {
     return operands.get(idx);
   }
 
-  public SqlTypeName opType(int idx) {
+  public Schema.FieldType opType(int idx) {
     return op(idx).getOutputType();
   }
 
@@ -69,7 +71,7 @@ public abstract class BeamSqlExpression implements Serializable {
     return operands;
   }
 
-  public SqlTypeName getOutputType() {
+  public Schema.FieldType getOutputType() {
     return outputType;
   }
 

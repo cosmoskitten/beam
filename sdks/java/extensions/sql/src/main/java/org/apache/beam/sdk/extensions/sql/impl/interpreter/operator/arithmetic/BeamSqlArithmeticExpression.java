@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.runtime.SqlFunctions;
@@ -31,16 +32,16 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** Base class for all arithmetic operators. */
 public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
-  private static final List<SqlTypeName> ORDERED_APPROX_TYPES = new ArrayList<>();
+  private static final List<Schema.TypeName> ORDERED_APPROX_TYPES = new ArrayList<>();
 
   static {
-    ORDERED_APPROX_TYPES.add(SqlTypeName.TINYINT);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.SMALLINT);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.INTEGER);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.BIGINT);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.FLOAT);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.DOUBLE);
-    ORDERED_APPROX_TYPES.add(SqlTypeName.DECIMAL);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.BYTE);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.INT16);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.INT32);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.INT64);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.FLOAT);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.DOUBLE);
+    ORDERED_APPROX_TYPES.add(Schema.TypeName.DECIMAL);
   }
 
   protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands) {
@@ -49,7 +50,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
         deduceOutputType(operands.get(0).getOutputType(), operands.get(1).getOutputType()));
   }
 
-  protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+  protected BeamSqlArithmeticExpression(List<BeamSqlExpression> operands, Schema.FieldType outputType) {
     super(operands, outputType);
   }
 
@@ -67,12 +68,12 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
   protected abstract BigDecimal calc(BigDecimal left, BigDecimal right);
 
-  protected static SqlTypeName deduceOutputType(SqlTypeName left, SqlTypeName right) {
-    int leftIndex = ORDERED_APPROX_TYPES.indexOf(left);
-    int rightIndex = ORDERED_APPROX_TYPES.indexOf(right);
-    if ((left == SqlTypeName.FLOAT || right == SqlTypeName.FLOAT)
-        && (left == SqlTypeName.DECIMAL || right == SqlTypeName.DECIMAL)) {
-      return SqlTypeName.DOUBLE;
+  protected static Schema.FieldType deduceOutputType(Schema.FieldType left, Schema.FieldType right) {
+    int leftIndex = ORDERED_APPROX_TYPES.indexOf(left.getTypeName());
+    int rightIndex = ORDERED_APPROX_TYPES.indexOf(right.getTypeName());
+    if ((left.getTypeName() == Schema.TypeName.FLOAT.FLOAT || right.getTypeName() == Schema.TypeName.FLOAT)
+        && (left.getTypeName() == Schema.TypeName.DECIMAL || right.getTypeName() == Schema.TypeName.DECIMAL)) {
+      return Schema.FieldType.DOUBLE;
     }
 
     if (leftIndex < rightIndex) {
@@ -100,17 +101,17 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
   protected BeamSqlPrimitive<? extends Number> getCorrectlyTypedResult(BigDecimal rawResult) {
     Number actualValue;
-    switch (outputType) {
-      case TINYINT:
+    switch (outputType.getTypeName()) {
+      case BYTE:
         actualValue = rawResult.byteValue();
         break;
-      case SMALLINT:
+      case INT16:
         actualValue = rawResult.shortValue();
         break;
-      case INTEGER:
+      case INT32:
         actualValue = rawResult.intValue();
         break;
-      case BIGINT:
+      case INT64:
         actualValue = rawResult.longValue();
         break;
       case FLOAT:

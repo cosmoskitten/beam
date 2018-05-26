@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
+
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -39,7 +41,7 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
     }
 
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      if (opType(i) != SqlTypeName.BOOLEAN) {
+      if (!opType(i).equals(Schema.FieldType.BOOLEAN)) {
         return false;
       } else if (opType(i + 1) != outputType) {
         return false;

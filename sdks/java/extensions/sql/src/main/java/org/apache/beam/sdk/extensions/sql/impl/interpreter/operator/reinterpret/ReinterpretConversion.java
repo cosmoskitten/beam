@@ -88,7 +88,7 @@ public class ReinterpretConversion {
     if (!from.contains(input.getOutputType())) {
       throw new IllegalArgumentException(
           "Unable to convert from "
-              + input.getOutputType().name()
+              + input.getOutputType()
               + " to "
               + to.name()
               + ". This conversion only supports "

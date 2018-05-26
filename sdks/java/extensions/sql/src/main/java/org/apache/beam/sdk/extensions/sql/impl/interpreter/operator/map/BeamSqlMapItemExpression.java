@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -29,7 +30,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /** Implements map key access expression. */
 public class BeamSqlMapItemExpression extends BeamSqlExpression {
 
-  public BeamSqlMapItemExpression(List<BeamSqlExpression> operands, SqlTypeName sqlTypeName) {
+  public BeamSqlMapItemExpression(List<BeamSqlExpression> operands, Schema.FieldType sqlTypeName) {
 
     super(operands, sqlTypeName);
   }

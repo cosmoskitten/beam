@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -37,7 +39,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
 
   private BeamSqlPrimitive() {}
 
-  private BeamSqlPrimitive(T value, SqlTypeName typeName) {
+  private BeamSqlPrimitive(T value, Schema.FieldType typeName) {
     this.outputType = typeName;
     this.value = value;
     if (!accept()) {
@@ -51,11 +53,11 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   }
 
   /** A builder function to create from Type and value directly. */
-  public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
+  public static <T> BeamSqlPrimitive<T> of(Schema.FieldType outputType, T value) {
     return new BeamSqlPrimitive<>(value, outputType);
   }
 
-  public SqlTypeName getOutputType() {
+  public Schema.FieldType getOutputType() {
     return outputType;
   }
 
