@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
-import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,11 +41,11 @@ import org.junit.rules.ExpectedException;
  */
 public class RowSizeTest {
 
-  private static final Schema ROW_TYPE = RowSqlTypes.builder()
-      .withTinyIntField("f_tinyint")
-      .withSmallIntField("f_smallint")
-      .withIntegerField("f_int")
-      .withBigIntField("f_bigint")
+  private static final Schema ROW_TYPE = Schema.builder()
+      .addByteField("f_tinyint")
+      .addInt16Field("f_smallint")
+      .addInt32Field("f_int")
+      .addInt64Field("f_bigint")
       .withFloatField("f_float")
       .withDoubleField("f_double")
       .withDecimalField("f_decimal")

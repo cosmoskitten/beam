@@ -49,22 +49,22 @@ public class BeamSqlDslJoinTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private static final Schema SOURCE_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
+      Schema.builder()
+          .addInt32Field("order_id")
+          .addInt32Field("site_id")
+          .addInt32Field("price")
           .build();
 
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
   private static final Schema RESULT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("order_id")
-          .withIntegerField("site_id")
-          .withIntegerField("price")
-          .withIntegerField("order_id0")
-          .withIntegerField("site_id0")
-          .withIntegerField("price0")
+      Schema.builder()
+          .addInt32Field("order_id")
+          .addInt32Field("site_id")
+          .addInt32Field("price")
+          .addInt32Field("order_id0")
+          .addInt32Field("site_id0")
+          .addInt32Field("price0")
           .build();
 
   private static final RowCoder RESULT_CODER = RESULT_ROW_TYPE.getRowCoder();
@@ -297,11 +297,11 @@ public class BeamSqlDslJoinTest {
     DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
 
     return TestUtils.rowsBuilderOf(
-            RowSqlTypes.builder()
-                .withIntegerField("order_id")
-                .withIntegerField("price")
-                .withIntegerField("site_id")
-                .withTimestampField("timestamp")
+            Schema.builder()
+                .addInt32Field("order_id")
+                .addInt32Field("price")
+                .addInt32Field("site_id")
+                .addDateTimeField("timestamp")
                 .build())
         .addRows(
             1,
