@@ -66,9 +66,6 @@ public class CalciteUtils {
           .put(TypeName.DOUBLE.type(), SqlTypeName.DOUBLE)
           .put(TypeName.DECIMAL.type(), SqlTypeName.DECIMAL)
           .put(TypeName.BOOLEAN.type(), SqlTypeName.BOOLEAN)
-          .put(TypeName.MAP.type(), SqlTypeName.MAP)
-          .put(TypeName.ARRAY.type(), SqlTypeName.ARRAY)
-          .put(TypeName.ROW.type(), SqlTypeName.ROW)
           .put(TypeName.DATETIME.type().withMetadata("DATE"), SqlTypeName.DATE)
           .put(TypeName.DATETIME.type().withMetadata("TIME"), SqlTypeName.TIME)
           .put(
@@ -132,7 +129,10 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
-    FieldType type = toFieldType((calciteType.getSqlTypeName()));
+    switch (calciteType.getSqlTypeName()) {
+      case MAP:
+        return FieldType.map(toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
+    }
     if (calciteType.getComponentType() != null) {
       type = type.withCollectionElementType(toFieldType(calciteType.getComponentType()));
     }
