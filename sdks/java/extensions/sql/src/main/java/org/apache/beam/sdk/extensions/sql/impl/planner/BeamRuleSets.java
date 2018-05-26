@@ -27,7 +27,9 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamProjectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
@@ -71,6 +73,8 @@ public class BeamRuleSets {
           BeamProjectRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamUnionRule.INSTANCE,
+          BeamUncollectRule.INSTANCE,
+          BeamUnnestRule.INSTANCE,
           BeamValuesRule.INSTANCE,
 
           // push a filter into a join
@@ -138,7 +142,9 @@ public class BeamRuleSets {
           BeamProjectRule.INSTANCE,
           BeamSortRule.INSTANCE,
           BeamUnionRule.INSTANCE,
-          BeamValuesRule.INSTANCE)
+          BeamValuesRule.INSTANCE,
+          BeamUncollectRule.INSTANCE,
+          BeamUnnestRule.INSTANCE)
     };
   }
 }
