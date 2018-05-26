@@ -35,6 +35,21 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
+  // The list of field type names used in SQL as Beam field types.
+  public static final FieldType TINY_INT = toFieldType(SqlTypeName.TINYINT);
+  public static final FieldType SMALL_INT = toFieldType(SqlTypeName.SMALLINT);
+  public static final FieldType INTEGER = toFieldType(SqlTypeName.INTEGER);
+  public static final FieldType BIG_INT = toFieldType(SqlTypeName.BIGINT);
+  public static final FieldType FLOAT = toFieldType(SqlTypeName.FLOAT);
+  public static final FieldType DOUBLE = toFieldType(SqlTypeName.DOUBLE);
+  public static final FieldType DECIMAL = toFieldType(SqlTypeName.DECIMAL);
+  public static final FieldType BOOLEAN = toFieldType(SqlTypeName.BOOLEAN);
+  public static final FieldType CHAR = toFieldType(SqlTypeName.CHAR);
+  public static final FieldType VARCHAR = toFieldType(SqlTypeName.VARCHAR);
+  public static final FieldType TIME = toFieldType(SqlTypeName.TIME);
+  public static final FieldType DATE = toFieldType(SqlTypeName.DATE);
+  public static final FieldType TIMESTAMP = toFieldType(SqlTypeName.TIMESTAMP);
+
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
   // Calcite time classes. We do this by storing extra metadata in the FieldType so we
