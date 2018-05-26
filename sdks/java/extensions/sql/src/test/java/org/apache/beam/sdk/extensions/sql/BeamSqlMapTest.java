@@ -34,9 +34,9 @@ import org.junit.rules.ExpectedException;
 public class BeamSqlMapTest {
 
   private static final Schema INPUT_ROW_TYPE =
-      RowSqlTypes.builder()
-          .withIntegerField("f_int")
-          .withMapField("f_intStringMap", SqlTypeName.VARCHAR, SqlTypeName.INTEGER)
+      Schema.builder()
+          .addInt32Field("f_int")
+          .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.INT32)
           .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -47,9 +47,9 @@ public class BeamSqlMapTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withMapField("f_map", SqlTypeName.VARCHAR, SqlTypeName.INTEGER)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addMapField("f_map", Schema.FieldType.STRING, Schema.FieldType.INT32)
             .build();
 
     PCollection<Row> result =
@@ -88,9 +88,9 @@ public class BeamSqlMapTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlTypes.builder()
-            .withIntegerField("f_int")
-            .withMapField("f_intStringMap", SqlTypeName.VARCHAR, SqlTypeName.INTEGER)
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addMapField("f_intStringMap", Schema.FieldType.STRING, Schema.FieldType.INT32)
             .build();
 
     PCollection<Row> result =
@@ -125,7 +125,7 @@ public class BeamSqlMapTest {
   public void testAccessMapElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    Schema resultType = RowSqlTypes.builder().withIntegerField("f_mapElem").build();
+    Schema resultType = Schema.builder().addInt32Field("f_mapElem").build();
 
     PCollection<Row> result =
         input.apply("sqlQuery", BeamSql.query("SELECT f_intStringMap['key11'] FROM PCOLLECTION"));
