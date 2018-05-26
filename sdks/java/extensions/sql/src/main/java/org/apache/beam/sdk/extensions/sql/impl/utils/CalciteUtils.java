@@ -35,6 +35,21 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** Utility methods for Calcite related operations. */
 public class CalciteUtils {
+  // The list of field type names used in SQL as Beam field types.
+  public static final FieldType TINY_INT = toFieldType(SqlTypeName.TINYINT);
+  public static final FieldType SMALL_INT = toFieldType(SqlTypeName.SMALLINT);
+  public static final FieldType INTEGER = toFieldType(SqlTypeName.INTEGER);
+  public static final FieldType BIG_INT = toFieldType(SqlTypeName.BIGINT);
+  public static final FieldType FLOAT = toFieldType(SqlTypeName.FLOAT);
+  public static final FieldType DOUBLE = toFieldType(SqlTypeName.DOUBLE);
+  public static final FieldType DECIMAL = toFieldType(SqlTypeName.DECIMAL);
+  public static final FieldType BOOLEAN = toFieldType(SqlTypeName.BOOLEAN);
+  public static final FieldType CHAR = toFieldType(SqlTypeName.CHAR);
+  public static final FieldType VARCHAR = toFieldType(SqlTypeName.VARCHAR);
+  public static final FieldType TIME = toFieldType(SqlTypeName.TIME);
+  public static final FieldType DATE = toFieldType(SqlTypeName.DATE);
+  public static final FieldType TIMESTAMP = toFieldType(SqlTypeName.TIMESTAMP);
+
   private static final long UNLIMITED_ARRAY_SIZE = -1L;
   // Beam's Schema class has a single DATETIME type, so we need a way to distinguish the different
   // Calcite time classes. We do this by storing extra metadata in the FieldType so we
@@ -66,6 +81,7 @@ public class CalciteUtils {
           .put(TypeName.STRING.type().withMetadata("CHAR"), SqlTypeName.CHAR)
           .put(TypeName.STRING.type().withMetadata("VARCHAR"), SqlTypeName.VARCHAR)
           .build();
+
   private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
       BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
 
@@ -99,7 +115,20 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(SqlTypeName sqlTypeName) {
-    return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getTypeName().type();
+    switch (sqlTypeName) {
+      case MAP:
+      case MULTISET:
+      case ARRAY:
+      case ROW:
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is a type constructor that takes parameters, not a type,"
+                    + "so it cannot be converted to a %s",
+                sqlTypeName, Schema.FieldType.class.getSimpleName()));
+      default:
+        return CALCITE_TO_BEAM_TYPE_MAPPING.get(sqlTypeName).getTypeName().type();
+    }
+
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
