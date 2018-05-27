@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -67,9 +68,9 @@ public class BeamIntersectRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT64, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.DOUBLE, "price")
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DOUBLE, "price")
                 .addRows(1L, 1, 1.0, 2L, 2, 2.0)
                 .getRows());
 
@@ -92,9 +93,9 @@ public class BeamIntersectRelTest extends BaseRelTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                    TypeName.INT64, "order_id",
-                    TypeName.INT32, "site_id",
-                    TypeName.DOUBLE, "price")
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DOUBLE, "price")
                 .addRows(1L, 1, 1.0, 1L, 1, 1.0, 2L, 2, 2.0)
                 .getRows());
 
