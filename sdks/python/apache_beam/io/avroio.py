@@ -52,6 +52,9 @@ from avro import io as avroio
 from avro import datafile
 from avro import schema
 
+from fastavro.read import block_reader
+from fastavro.write import Writer
+
 import apache_beam as beam
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -276,8 +279,8 @@ class _AvroBlock(object):
   def __init__(self, block_bytes, num_records, codec, schema_string,
                offset, size):
     # Decompress data early on (if needed) and thus decrease the number of
-    # parallel copies of the data in memory at any given in time during
-    # block iteration.
+    # parallel copies of the data in memory at any given time during block
+    # iteration.
     self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
     self._schema = schema.parse(schema_string)
@@ -360,8 +363,8 @@ class _AvroSource(filebasedsource.FileBasedSource):
       start_offset = 0
 
     with self.open_file(file_name) as f:
-      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(
-          f)
+      blocks = block_reader(f)
+      sync_marker = blocks._header['sync']
 
       # We have to start at current position if previous bundle ended at the
       # end of a sync marker.
@@ -369,11 +372,12 @@ class _AvroSource(filebasedsource.FileBasedSource):
       f.seek(start_offset)
       _AvroUtils.advance_file_past_next_sync_marker(f, sync_marker)
 
+      next_block_start = f.tell()
+
       while range_tracker.try_claim(f.tell()):
-        block = _AvroUtils.read_block_from_file(f, codec, schema_string,
-                                                sync_marker)
-        next_block_start = block.offset() + block.size()
-        for record in block.records():
+        block = next(blocks)
+        next_block_start = f.tell() + block.size + len(sync_marker)
+        for record in block:
           yield record
 
 
@@ -454,11 +458,14 @@ class _AvroSink(filebasedsink.FileBasedSink):
 
   def open(self, temp_path):
     file_handle = super(_AvroSink, self).open(temp_path)
-    return avro.datafile.DataFileWriter(
-        file_handle, avro.io.DatumWriter(), self._schema, self._codec)
+    return Writer(file_handle, self._schema.to_json(), self._codec)
+
+  def close(self, writer):
+    writer.flush()
+    super(_AvroSink, self).close(writer.fo)
 
   def write_record(self, writer, value):
-    writer.append(value)
+    writer.write(value)
 
   def display_data(self):
     res = super(self.__class__, self).display_data()
