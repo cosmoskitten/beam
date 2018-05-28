@@ -47,11 +47,9 @@ import os
 import zlib
 from functools import partial
 
-import avro
 from avro import io as avroio
 from avro import datafile
 from avro import schema
-
 from fastavro.read import block_reader
 from fastavro.write import Writer
 
