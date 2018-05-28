@@ -133,4 +133,12 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getMongoDBDatabaseName();
 
   void setMongoDBDatabaseName(String name);
+
+  /* HBase */
+  @Description("HBase host")
+  @Default.String("HBase-host")
+  String getHbaseServerName();
+
+  void setHbaseServerName(String host);
+
 }
