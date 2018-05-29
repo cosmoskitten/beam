@@ -14,15 +14,13 @@ When Cython is available, unit tests will test on cythonized module,
 otherwise, test on pure python module
 """
 
-import math
-import sys
 import unittest
 
 from mock import Mock
 
 from apache_beam.transforms import DataflowDistributionCounter
 
-INT64_MAX = math.pow(2, 63) - 1
+INT64_MAX = 2**63 - 1
 
 class DataflowDistributionAccumulatorTest(unittest.TestCase):
   def test_calculate_bucket_index_with_input_0(self):
