@@ -127,8 +127,8 @@ import org.elasticsearch.client.RestClientBuilder;
  * withIndexFn()} or {@code withTypeFn()} to enable per-document routing to the target Elasticsearch
  * index and type.
  *
- * <p>Optionally, you can provide {withUsePartialUpdate()} to issue partial updates to Elasticsearch
- * instead of inserts. When provided {@code withIdFn()} must also be used.
+ * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
+ * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {

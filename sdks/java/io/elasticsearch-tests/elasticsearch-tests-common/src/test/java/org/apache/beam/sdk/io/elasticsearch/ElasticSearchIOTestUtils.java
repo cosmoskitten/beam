@@ -61,8 +61,7 @@ class ElasticSearchIOTestUtils {
     deleteIndex(restClient, connectionConfiguration.getIndex());
   }
 
-  /** Deletes the given index synchronously. */
-  static void deleteIndex(RestClient restClient, String index) throws IOException {
+  private static void deleteIndex(RestClient restClient, String index) throws IOException {
     try {
       restClient.performRequest("DELETE", String.format("/%s", index));
     } catch (IOException e) {
