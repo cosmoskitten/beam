@@ -374,7 +374,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
 
       while range_tracker.try_claim(f.tell()):
         block = next(blocks)
-        next_block_start = f.tell() + block.size + len(sync_marker)
+        next_block_start = f.tell() + block.size
         for record in block:
           yield record
 
