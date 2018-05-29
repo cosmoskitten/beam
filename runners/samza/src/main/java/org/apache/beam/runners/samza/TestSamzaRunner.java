@@ -19,12 +19,14 @@
 package org.apache.beam.runners.samza;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 
 /**
@@ -44,14 +46,15 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
       final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
       final URI configUri = TestSamzaRunner.class.getClassLoader()
           .getResource("samza-conf.properties").toURI();
-      final Map<String, String> config = configFactory.getConfig(configUri);
+      final Map<String, String> config = new HashMap<>(configFactory.getConfig(configUri));
+      final String storeDir = System.getProperty("java.io.tmpdir");
+      config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir);
+      config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir);
       samzaOptions.setSamzaConfig(config);
-
       return samzaOptions;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-
   }
 
   public TestSamzaRunner(SamzaPipelineOptions options) {
