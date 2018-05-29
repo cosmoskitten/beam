@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -34,6 +36,8 @@ import org.apache.beam.sdk.values.Row;
 /**
  * {@code BeamBigQueryTable} represent a BigQuery table as a target. This provider does not
  * currently support being a source.
+ *
+ * <p>New BigQuery table is created if it does not exist.
  */
 @Experimental
 public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
@@ -62,13 +66,14 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
         return input.apply(
             BigQueryIO.<Row>write()
                 .withSchema(BigQueryUtils.toTableSchema(getSchema()))
+                .withCreateDisposition(CREATE_IF_NEEDED)
                 .withFormatFunction(BigQueryUtils.toTableRow())
                 .to(tableSpec));
       }
     };
   }
 
-  public String getTableSpec() {
+  String getTableSpec() {
     return tableSpec;
   }
 }
