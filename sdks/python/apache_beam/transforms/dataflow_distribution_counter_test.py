@@ -22,6 +22,7 @@ from mock import Mock
 
 from apache_beam.transforms import DataflowDistributionCounter
 
+INT64_MAX = math.pow(2, 63) - 1
 
 class DataflowDistributionAccumulatorTest(unittest.TestCase):
   def test_calculate_bucket_index_with_input_0(self):
@@ -33,7 +34,6 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
     counter = DataflowDistributionCounter()
     bucket = 1
     power_of_ten = 1
-    INT64_MAX = math.pow(2, 63) - 1
     while power_of_ten <= INT64_MAX:
       for multiplier in [1, 2, 5]:
         value = multiplier * power_of_ten
@@ -71,7 +71,7 @@ class DataflowDistributionAccumulatorTest(unittest.TestCase):
 
   def test_translate_to_histogram_with_max_input(self):
     counter = DataflowDistributionCounter()
-    counter.add_input(sys.maxint)
+    counter.add_input(INT64_MAX)
     histogram = Mock(firstBucketOffset=None, bucketCounts=None)
     counter.translate_to_histogram(histogram)
     self.assertEquals(histogram.firstBucketOffset, 57)
