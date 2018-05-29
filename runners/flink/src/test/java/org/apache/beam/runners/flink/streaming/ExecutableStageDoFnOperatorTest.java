@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink.streaming;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -52,8 +54,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
@@ -284,6 +288,55 @@ public class ExecutableStageDoFnOperatorTest {
     verifyNoMoreInteractions(stageBundleFactory);
 
     testHarness.close();
+  }
+
+  @Test
+  public void testSerialization() {
+    WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
+            WindowedValue.getValueOnlyCoder(VarIntCoder.of());
+
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    TupleTag<Integer> additionalOutput = new TupleTag<>("additional-output");
+    ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
+            ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
+                    .put(additionalOutput, new OutputTag<>(additionalOutput.getId(),
+                            TypeInformation.of(Integer.class)))
+                    .build();
+    ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
+            ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
+                    .put(mainOutput, (Coder) coder)
+                    .put(additionalOutput, coder)
+                    .build();
+    ImmutableMap<TupleTag<?>, Integer> tagsToIds =
+            ImmutableMap.<TupleTag<?>, Integer>builder()
+                    .put(mainOutput, 0)
+                    .put(additionalOutput, 1)
+                    .build();
+
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+            new DoFnOperator.MultiOutputOutputManagerFactory(
+                    mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+            new ExecutableStageDoFnOperator<>(
+                    "transform",
+                    null,
+                    mainOutput,
+                    ImmutableList.of(additionalOutput),
+                    outputManagerFactory,
+                    WindowingStrategy.globalDefault(),
+                    Collections.emptyMap() /* sideInputTagMapping */,
+                    Collections.emptyList() /* sideInputs */,
+                    PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+                    null,
+                    stagePayload,
+                    jobInfo,
+                    FlinkExecutableStageContext.batchFactory()
+            );
+
+    ExecutableStageDoFnOperator<Integer, Integer> clone = SerializationUtils.clone(operator);
+    assertNotNull(clone);
+    assertNotEquals(operator, clone);
   }
 
   /**
