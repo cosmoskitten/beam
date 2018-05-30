@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Splitter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -370,12 +371,12 @@ public class TriggerExample {
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      String[] values = c.element().getValue().split(",");
+      List<String> values = Splitter.on(",").splitToList(c.element().getValue());
       TableRow row = new TableRow()
           .set("trigger_type", triggerType)
           .set("freeway", c.element().getKey())
-          .set("total_flow", Integer.parseInt(values[0]))
-          .set("number_of_records", Long.parseLong(values[1]))
+          .set("total_flow", Integer.parseInt(values.get(0)))
+          .set("number_of_records", Long.parseLong(values.get(1)))
           .set("window", window.toString())
           .set("isFirst", c.pane().isFirst())
           .set("isLast", c.pane().isLast())
@@ -393,17 +394,17 @@ public class TriggerExample {
   static class ExtractFlowInfo extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      String[] laneInfo = c.element().split(",");
-      if ("timestamp".equals(laneInfo[0])) {
+      List<String> laneInfo = Splitter.on(",").splitToList(c.element());
+      if ("timestamp".equals(laneInfo.get(0))) {
         // Header row
         return;
       }
-      if (laneInfo.length < 48) {
+      if (laneInfo.size() < 50) {
         //Skip the invalid input.
         return;
       }
-      String freeway = laneInfo[2];
-      Integer totalFlow = tryIntegerParse(laneInfo[7]);
+      String freeway = laneInfo.get(2);
+      Integer totalFlow = tryIntegerParse(laneInfo.get(7));
       // Ignore the records with total flow 0 to easily understand the working of triggers.
       // Skip the records with total flow -1 since they are invalid input.
       if (totalFlow == null || totalFlow <= 0) {

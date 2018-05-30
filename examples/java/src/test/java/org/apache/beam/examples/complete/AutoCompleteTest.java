@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -146,8 +147,8 @@ public class AutoCompleteTest implements Serializable {
   private static List<CompletionCandidate> parseList(String... entries) {
     List<CompletionCandidate> all = new ArrayList<>();
     for (String s : entries) {
-      String[] countValue = s.split(":");
-      all.add(new CompletionCandidate(countValue[0], Integer.valueOf(countValue[1])));
+      List<String> countValue = Splitter.on(':').splitToList(s);
+      all.add(new CompletionCandidate(countValue.get(0), Integer.valueOf(countValue.get(1))));
     }
     return all;
   }

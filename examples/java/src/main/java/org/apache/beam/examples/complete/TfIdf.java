@@ -18,6 +18,7 @@
 package org.apache.beam.examples.complete;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -219,7 +220,7 @@ public class TfIdf {
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
                   String line = c.element().getValue();
-                  for (String word : line.split("\\W+")) {
+                  for (String word : Splitter.onPattern("\\W+").split(line)) {
                     // Log INFO messages when the word “love” is found.
                     if ("love".equalsIgnoreCase(word)) {
                       LOG.info("Found {}", word.toLowerCase());

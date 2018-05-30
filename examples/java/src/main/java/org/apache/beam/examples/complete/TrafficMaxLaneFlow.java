@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -148,10 +149,11 @@ public class TrafficMaxLaneFlow {
 
     @ProcessElement
     public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
-      String[] items = c.element().split(",");
-      if (items.length > 0) {
+      List<String> items = Splitter.on(',').splitToList(c.element());
+
+      if (items.size() > 0) {
         try {
-          String timestamp = items[0];
+          String timestamp = items.get(0);
           c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
         } catch (IllegalArgumentException e) {
           // Skip the invalid input.
@@ -171,21 +173,21 @@ public class TrafficMaxLaneFlow {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] items = c.element().split(",");
-      if (items.length < 48) {
+      List<String> items = Splitter.on(',').splitToList(c.element());
+      if (items.size() < 48) {
         // Skip the invalid input.
         return;
       }
       // extract the sensor information for the lanes from the input string fields.
-      String timestamp = items[0];
-      String stationId = items[1];
-      String freeway = items[2];
-      String direction = items[3];
-      Integer totalFlow = tryIntParse(items[7]);
+      String timestamp = items.get(0);
+      String stationId = items.get(1);
+      String freeway = items.get(2);
+      String direction = items.get(3);
+      Integer totalFlow = tryIntParse(items.get(7));
       for (int i = 1; i <= 8; ++i) {
-        Integer laneFlow = tryIntParse(items[6 + 5 * i]);
-        Double laneAvgOccupancy = tryDoubleParse(items[7 + 5 * i]);
-        Double laneAvgSpeed = tryDoubleParse(items[8 + 5 * i]);
+        Integer laneFlow = tryIntParse(items.get(6 + 5 * i));
+        Double laneAvgOccupancy = tryDoubleParse(items.get(7 + 5 * i));
+        Double laneAvgSpeed = tryDoubleParse(items.get(8 + 5 * i));
         if (laneFlow == null || laneAvgOccupancy == null || laneAvgSpeed == null) {
           return;
         }

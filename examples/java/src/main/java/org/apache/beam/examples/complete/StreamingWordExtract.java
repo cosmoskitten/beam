@@ -20,6 +20,8 @@ package org.apache.beam.examples.complete;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
@@ -57,7 +59,9 @@ public class StreamingWordExtract {
   static class ExtractWords extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      Iterable<String> words = Splitter.onPattern(
+          ExampleUtils.TOKENIZER_PATTERN).split(c.element());
+
       for (String word : words) {
         if (!word.isEmpty()) {
           c.output(word);
@@ -87,12 +91,9 @@ public class StreamingWordExtract {
     }
 
     static TableSchema getSchema() {
-      return new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
-            // Compose the list of TableFieldSchema from tableSchema.
-            {
-              add(new TableFieldSchema().setName("string_field").setType("STRING"));
-            }
-      });
+      return new TableSchema().setFields(new ArrayList<>(ImmutableList.of(
+          new TableFieldSchema().setName("string_field").setType("STRING")
+      )));
     }
   }
 

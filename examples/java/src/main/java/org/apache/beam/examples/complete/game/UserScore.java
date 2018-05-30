@@ -17,7 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import com.google.common.base.Splitter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
@@ -129,15 +131,15 @@ public class UserScore {
     @ProcessElement
     public void processElement(ProcessContext c) {
       System.out.println("GOT " + c.element());
-      String[] components = c.element().split(",");
+      List<String> components = Splitter.on(',').splitToList(c.element());
       try {
-        String user = components[0].trim();
-        String team = components[1].trim();
-        Integer score = Integer.parseInt(components[2].trim());
-        Long timestamp = Long.parseLong(components[3].trim());
+        String user = components.get(0).trim();
+        String team = components.get(1).trim();
+        Integer score = Integer.parseInt(components.get(2).trim());
+        Long timestamp = Long.parseLong(components.get(3).trim());
         GameActionInfo gInfo = new GameActionInfo(user, team, score, timestamp);
         c.output(gInfo);
-      } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+      } catch (IndexOutOfBoundsException | NumberFormatException e) {
         numParseErrors.inc();
         LOG.info("Parse error on " + c.element() + ", " + e.getMessage());
       }

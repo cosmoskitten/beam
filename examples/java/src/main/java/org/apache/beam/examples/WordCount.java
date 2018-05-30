@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import com.google.common.base.Splitter;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -100,7 +101,8 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      Iterable<String> words = Splitter.onPattern(
+          ExampleUtils.TOKENIZER_PATTERN).split(c.element());
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {
