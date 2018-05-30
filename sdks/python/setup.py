@@ -117,8 +117,11 @@ REQUIRED_PACKAGES = [
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'pyhamcrest>=1.9,<2.0',
-    'numpy>=1.14.3',
     ]
+
+REQUIRED_PERF_TEST_PACKAGES = [
+    'numpy>=1.14.3',
+]
 
 GCP_REQUIREMENTS = [
     # oauth2client >=4 only works with google-apitools>=0.5.18.
@@ -184,7 +187,8 @@ setuptools.setup(
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
-        'gcp': GCP_REQUIREMENTS
+        'gcp': GCP_REQUIREMENTS,
+        'perftest': REQUIRED_PERF_TEST_PACKAGES,
     },
     zip_safe=False,
     # PyPI package information.
