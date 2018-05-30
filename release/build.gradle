@@ -25,6 +25,7 @@ repositories {
 dependencies {
   compile 'org.codehaus.groovy:groovy-all:2.4.13'
   compile 'commons-cli:commons-cli:1.2'
+  compile 'com.google.cloud:google-cloud-bigquery:1.31.0'
 }
 
 task runJavaExamplesValidationTask {
@@ -37,4 +38,12 @@ task runJavaExamplesValidationTask {
   dependsOn ":beam-runners-flink_2.11:runQuickstartJavaFlinkLocal"
   dependsOn ":beam-runners-direct-java:runMobileGamingJavaDirect"
   dependsOn ":beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow"
+}
+
+
+task runBeamDependencyCheck {
+  group = "Verification"
+  description = "Run Beam Dependency Checks"
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependecyUpdates"
 }
