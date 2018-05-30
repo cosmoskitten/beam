@@ -68,8 +68,10 @@ class SyntheticPipelineTest(unittest.TestCase):
       pcoll = (
           p | beam.io.Read(
               synthetic_pipeline.SyntheticSource(input_spec(300, 5, 15))))
-      pcoll | beam.Map(lambda (k, _): k) | 'key' >> beam.Map(assert_size, 5)
-      pcoll | beam.Map(lambda (_, v): v) | 'value' >> beam.Map(assert_size, 15)
+      (pcoll
+       | beam.Map(lambda elm: elm[0]) | 'key' >> beam.Map(assert_size, 5))
+      (pcoll
+       | beam.Map(lambda elm: elm[1]) | 'value' >> beam.Map(assert_size, 15))
       assert_that(pcoll | beam.combiners.Count.Globally(),
                   equal_to([300]))
 

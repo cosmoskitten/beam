@@ -62,8 +62,9 @@ def div_round_up(a, b):
   return int(math.ceil(float(a) / b))
 
 
-def rotate_key((key, value)):
+def rotate_key(element):
   """Returns a new key-value pair of the same size but with a different key."""
+  (key, value) = element
   return key[-1] + key[:-1], value
 
 
@@ -248,7 +249,8 @@ class ShuffleBarrier(beam.PTransform):
     return (pc
             | beam.Map(rotate_key)
             | beam.GroupByKey()
-            | 'Ungroup' >> beam.FlatMap(lambda (k, vs): [(k, v) for v in vs]))
+            | 'Ungroup' >> beam.FlatMap(
+                lambda elm: [(elm[0], v) for v in elm[1]]))
 
 
 class SideInputBarrier(beam.PTransform):
@@ -271,7 +273,7 @@ def merge_using_gbk(name, pc1, pc2):
       {'pc1': pc1_with_key, 'pc2': pc2_with_key} |
       (name + 'Group') >> beam.CoGroupByKey())
   return (grouped |
-          (name + 'DeDup') >> beam.Map(lambda (k, v): k))  # Ignoring values
+          (name + 'DeDup') >> beam.Map(lambda elm: elm[0]))  # Ignoring values
 
 
 def merge_using_side_input(name, pc1, pc2):
@@ -483,7 +485,7 @@ def run(argv=None):
       # If an output location is provided we format and write output.
       if len(pc_list) == 1:
         (pc_list[0] |
-         'FormatOutput' >> beam.Map(lambda (k, v): (k + v)) |
+         'FormatOutput' >> beam.Map(lambda elm: (elm[0] + elm[1])) |
          'WriteOutput' >> WriteToText(known_args.output))
 
   logging.info('Pipeline run completed.')
