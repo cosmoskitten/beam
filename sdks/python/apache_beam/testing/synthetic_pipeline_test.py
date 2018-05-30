@@ -25,23 +25,23 @@ import time
 import unittest
 
 import apache_beam as beam
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.io import source_test_utils
+from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
 def input_spec(num_records, key_size, value_size,
-    bundle_size_distribution_type='const',
-    bundle_size_distribution_param=0,
-    force_initial_num_bundles=0):
+               bundle_size_distribution_type='const',
+               bundle_size_distribution_param=0,
+               force_initial_num_bundles=0):
   return {
-    'numRecords': num_records,
-    'keySizeBytes': key_size,
-    'valueSizeBytes': value_size,
-    'bundleSizeDistribution': {'type': bundle_size_distribution_type,
-                               'param': bundle_size_distribution_param},
-    'forceNumInitialBundles': force_initial_num_bundles,
+      'numRecords': num_records,
+      'keySizeBytes': key_size,
+      'valueSizeBytes': value_size,
+      'bundleSizeDistribution': {'type': bundle_size_distribution_type,
+                                 'param': bundle_size_distribution_param},
+      'forceNumInitialBundles': force_initial_num_bundles,
   }
 
 
@@ -67,7 +67,7 @@ class SyntheticPipelineTest(unittest.TestCase):
     with beam.Pipeline() as p:
       pcoll = (
           p | beam.io.Read(
-          synthetic_pipeline.SyntheticSource(input_spec(300, 5, 15))))
+              synthetic_pipeline.SyntheticSource(input_spec(300, 5, 15))))
       pcoll | beam.Map(lambda (k, _): k) | 'key' >> beam.Map(assert_size, 5)
       pcoll | beam.Map(lambda (_, v): v) | 'value' >> beam.Map(assert_size, 15)
       assert_that(pcoll | beam.combiners.Count.Globally(),

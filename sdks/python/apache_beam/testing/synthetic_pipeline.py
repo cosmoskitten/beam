@@ -38,14 +38,15 @@ import logging
 import math
 import time
 
+import numpy as np
+
 import apache_beam as beam
+from apache_beam.io import WriteToText
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
-from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-import numpy as np
 
 
 def parse_byte_size(s):
@@ -71,7 +72,7 @@ class SyntheticStep(beam.DoFn):
   """
 
   def __init__(self, per_element_delay_sec=0, per_bundle_delay_sec=0,
-      output_records_per_input_record=1, output_filter_ratio=0):
+               output_records_per_input_record=1, output_filter_ratio=0):
     if per_element_delay_sec and per_element_delay_sec < 1e-3:
       raise ValueError('Per element sleep time must be at least 1e-3. '
                        'Received: %r', per_element_delay_sec)
@@ -129,19 +130,19 @@ class SyntheticSource(iobase.BoundedSource):
         input_spec.get('valueSizeBytes', 1))
     self._total_size = self.element_size * self._num_records
     self._initial_splitting = (
-      input_spec['bundleSizeDistribution']['type']
-      if 'bundleSizeDistribution' in input_spec else 'const')
+        input_spec['bundleSizeDistribution']['type']
+        if 'bundleSizeDistribution' in input_spec else 'const')
     if self._initial_splitting != 'const' and self._initial_splitting != 'zipf':
       raise ValueError(
           'Only const and zipf distributions are supported for determining '
           'sizes of bundles produced by initial splitting. Received: %s',
           self._initial_splitting)
     self._initial_splitting_num_bundles = (
-      input_spec['forceNumInitialBundles']
-      if 'forceNumInitialBundles' in input_spec else 0)
+        input_spec['forceNumInitialBundles']
+        if 'forceNumInitialBundles' in input_spec else 0)
     if self._initial_splitting == 'zipf':
       self._initial_splitting_distribution_parameter = (
-        input_spec['bundleSizeDistribution']['param'])
+          input_spec['bundleSizeDistribution']['param'])
       if self._initial_splitting_distribution_parameter < 1:
         raise ValueError(
             'Parameter for a Zipf distribution must be larger than 1. '
@@ -149,10 +150,10 @@ class SyntheticSource(iobase.BoundedSource):
     else:
       self._initial_splitting_distribution_parameter = 0
     self._dynamic_splitting = (
-      'none' if (
-          'splitPointFrequencyRecords' in input_spec
-          and input_spec['splitPointFrequencyRecords'] == 0)
-      else 'perfect')
+        'none' if (
+            'splitPointFrequencyRecords' in input_spec
+            and input_spec['splitPointFrequencyRecords'] == 0)
+        else 'perfect')
     if 'delayDistribution' in input_spec:
       if input_spec['delayDistribution']['type'] != 'const':
         raise ValueError('SyntheticSource currently only supports delay '
@@ -256,8 +257,8 @@ class SideInputBarrier(beam.PTransform):
     return (pc
             | beam.Map(rotate_key)
             | beam.Map(
-            lambda elem, ignored: elem,
-            beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
+                lambda elem, ignored: elem,
+                beam.pvalue.AsIter(pc | beam.FlatMap(lambda elem: None))))
 
 
 def merge_using_gbk(name, pc1, pc2):
@@ -328,17 +329,17 @@ def _parse_steps(json_str):
   for val in json_data:
     steps = {}
     steps['per_element_delay'] = (
-      (float(val['per_element_delay_msec']) / 1000)
-      if 'per_element_delay_msec' in val else 0)
+        (float(val['per_element_delay_msec']) / 1000)
+        if 'per_element_delay_msec' in val else 0)
     steps['per_bundle_delay'] = (
-      float(val['per_bundle_delay_sec'])
-      if 'per_bundle_delay_sec' in val else 0)
+        float(val['per_bundle_delay_sec'])
+        if 'per_bundle_delay_sec' in val else 0)
     steps['output_records_per_input_record'] = (
-      int(val['output_records_per_input_record'])
-      if 'output_records_per_input_record' in val else 1)
+        int(val['output_records_per_input_record'])
+        if 'output_records_per_input_record' in val else 1)
     steps['output_filter_ratio'] = (
-      float(val['output_filter_ratio'])
-      if 'output_filter_ratio' in val else 0)
+        float(val['output_filter_ratio'])
+        if 'output_filter_ratio' in val else 0)
     all_steps.append(steps)
 
   return all_steps
