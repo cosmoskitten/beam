@@ -212,7 +212,7 @@ task postCommit() {
   dependsOn "validatesRunnerTests"
 }
 
-task dependencyupdates() {
+task dependencyUpdates() {
   doLast {
     exec {
       executable 'sh'
