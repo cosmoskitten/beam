@@ -231,7 +231,7 @@ task postCommit() {
   dependsOn "postCommitVRTests"
 }
 
-task dependencyupdates() {
+task dependencyUpdates() {
   doLast {
     exec {
       executable 'sh'
