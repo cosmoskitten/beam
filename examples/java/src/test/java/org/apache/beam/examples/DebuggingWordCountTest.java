@@ -17,6 +17,8 @@
  */
 package org.apache.beam.examples;
 
+import avro.shaded.com.google.common.collect.Iterables;
+import com.google.common.base.Splitter;
 import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +39,7 @@ public class DebuggingWordCountTest {
 
   private String getFilePath(String filePath) {
       if (filePath.contains(":")) {
-          return filePath.replace("\\", "/").split(":")[1];
+          return Iterables.get(Splitter.on(':').split(filePath.replace("\\", "/")), 1);
       }
       return filePath;
   }

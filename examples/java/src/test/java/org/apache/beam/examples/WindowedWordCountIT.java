@@ -20,6 +20,7 @@ package org.apache.beam.examples;
 import static org.hamcrest.Matchers.equalTo;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -169,7 +170,7 @@ public class WindowedWordCountIT {
     SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
     for (String line :
         inputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff())) {
-      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN);
+      Iterable<String> words = Splitter.onPattern(ExampleUtils.TOKENIZER_PATTERN).split(line);
 
       for (String word : words) {
         if (!word.isEmpty()) {
@@ -215,9 +216,9 @@ public class WindowedWordCountIT {
         // Since the windowing is nondeterministic we only check the sums
         actualCounts = new TreeMap<>();
         for (String line : outputLines) {
-          String[] splits = line.split(": ");
-          String word = splits[0];
-          long count = Long.parseLong(splits[1]);
+          List<String> splits = Splitter.on(": ").splitToList(line);
+          String word = splits.get(0);
+          long count = Long.parseLong(splits.get(1));
           actualCounts.merge(word, count, (a, b) -> a + b);
         }
 
