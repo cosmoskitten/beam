@@ -581,6 +581,20 @@ ext.applyJavaNature = {
   artifacts.shadow shadowJar
   artifacts.shadowTest shadowTestJar
 
+  // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
+  configurations {
+    shadowTestRuntimeClasspath
+  }
+
+  dependencies {
+    shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
+    shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
+  }
+
+  test {
+    classpath = configurations.shadowTestRuntimeClasspath
+  }
+
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
 
@@ -631,21 +645,6 @@ artifactId=${project.name}
       from javadoc.destinationDir
     }
     artifacts.archives javadocJar
-
-    // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
-    configurations {
-      shadowTestRuntimeClasspath
-    }
-
-    dependencies {
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
-      shadowTestRuntimeClasspath project(path: project.path, configuration: "runtime")
-    }
-
-    test {
-      classpath = configurations.shadowTestRuntimeClasspath
-    }
 
     // Only sign artifacts if we are performing a release
     if (isRelease()) {
