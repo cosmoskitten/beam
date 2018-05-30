@@ -17,6 +17,7 @@
  */
 
 import common_job_properties
+import dependency_check_utils
 
 job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
@@ -46,7 +47,9 @@ job('beam_Dependency_Check') {
       ' && bash sdks/python/run_dependency_check.sh')
 
 //    groovyScriptFile(common_job_properties.checkoutDir + '/.test-infra/jenkins/dependency_check_utils.groovy')
-    groovyCommand("src/.test-infra/jenkins/dependency_check_utils.generateDependencyReport()")
+//    groovyCommand("src/.test-infra/jenkins/dependency_check_utils.generateDependencyReport()")
+//    groovyCommand("dependency_check_utils.generateDependencyReport()")
+    shell('ls && cd /x1 && ls && cd jenkins && ls"')
   }
 
   publishers {
@@ -56,7 +59,8 @@ job('beam_Dependency_Check') {
           recipientList('yifanzou@google.com')
           contentType('text/plain')
           subject('Beam Dependency Check Report')
-          content(emailContents)
+          content('''${SCRIPT, template="my-email.template"}''')
+//          content('''${FILE, path="src/build/dependencyUpdates/report.txt"}''')
         }
       }
     }
