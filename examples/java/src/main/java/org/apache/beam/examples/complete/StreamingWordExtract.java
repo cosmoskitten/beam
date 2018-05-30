@@ -57,7 +57,8 @@ public class StreamingWordExtract {
   static class ExtractWords extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN, -1);
+
       for (String word : words) {
         if (!word.isEmpty()) {
           c.output(word);
@@ -87,12 +88,10 @@ public class StreamingWordExtract {
     }
 
     static TableSchema getSchema() {
-      return new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
-            // Compose the list of TableFieldSchema from tableSchema.
-            {
-              add(new TableFieldSchema().setName("string_field").setType("STRING"));
-            }
-      });
+      ArrayList<TableFieldSchema> tableFieldSchemas = new ArrayList<>();
+      tableFieldSchemas.add(new TableFieldSchema().setName("string_field").setType("STRING"));
+
+      return new TableSchema().setFields(tableFieldSchemas);
     }
   }
 
