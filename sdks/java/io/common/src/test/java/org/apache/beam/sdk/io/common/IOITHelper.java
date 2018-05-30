@@ -75,7 +75,7 @@ public class IOITHelper {
         errorList.add(e);
 
         if (attempts == maxAttempts - 1) {
-          for (int i = 0; i < errorList.size() - 1; i++) {
+          for (int i = 0; i < errorList.size(); i++) {
             LOG.error(
                 "Attempt #{} of {} in {} thrown a following exception:",
                 i + 1,
@@ -83,12 +83,7 @@ public class IOITHelper {
                 function.getClass().toString(),
                 errorList.get(i));
           }
-          LOG.error(
-              "Attempt #{} of {} in {} thrown a following exception:",
-              maxAttempts,
-              maxAttempts,
-              function.getClass().toString());
-          throw new Exception(e);
+          throw e;
         } else {
           delay = (long) Math.pow(2, ++attempts) * delay;
           Thread.sleep(delay);
