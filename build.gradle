@@ -65,7 +65,6 @@ buildscript {
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
     classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
-    classpath 'org.owasp:dependency-check-gradle:3.2.1'
   }
 }
 
@@ -170,17 +169,10 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
-apply plugin: 'org.owasp.dependencycheck'
-check.dependsOn dependencyCheckAnalyze
-
-dependencyCheck {
-  format='ALL'
-}
-
-task beamDependencyCheck() {
-  dependsOn ":dependencyUpdates"
-  dependsOn ":beam-sdks-python:dependecyUpdates"
-}
+//task beamDependencyCheck() {
+//  dependsOn ":dependencyUpdates"
+//  dependsOn ":beam-sdks-python:dependecyUpdates"
+//}
 
 apply plugin: 'net.researchgate.release'
 release {
