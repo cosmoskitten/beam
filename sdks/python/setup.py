@@ -117,6 +117,7 @@ REQUIRED_PACKAGES = [
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'pyhamcrest>=1.9,<2.0',
+    'numpy>=1.14.3',
     ]
 
 GCP_REQUIREMENTS = [
