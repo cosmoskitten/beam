@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static org.apache.beam.sdk.io.common.IOITHelper.retry;
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -69,9 +69,6 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-  private static final int retryAttempts = 5;
-  private static final int delay = 20_000;
-
   @Rule
   public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule
@@ -86,7 +83,7 @@ public class JdbcIOIT {
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
-    retry(JdbcIOIT::createTable, retryAttempts, delay);
+    executeWithRetry(()-> createTable());
   }
 
   private static void createTable() throws SQLException {
@@ -95,7 +92,7 @@ public class JdbcIOIT {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    retry(JdbcIOIT::deleteTable, retryAttempts, delay);
+    executeWithRetry(() -> deleteTable());
   }
 
   private static void deleteTable() throws SQLException {

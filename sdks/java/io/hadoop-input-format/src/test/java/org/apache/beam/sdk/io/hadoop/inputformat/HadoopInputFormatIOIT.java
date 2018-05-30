@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
-import static org.apache.beam.sdk.io.common.IOITHelper.retry;
+import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
@@ -79,8 +79,6 @@ public class HadoopInputFormatIOIT {
   private static Integer numberOfRows;
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
-  private static final int retryAttempts = 5;
-  private static final int delay = 20_000;
 
   @Rule
   public TestPipeline writePipeline = TestPipeline.create();
@@ -98,7 +96,7 @@ public class HadoopInputFormatIOIT {
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
 
-    retry(HadoopInputFormatIOIT::createTable, retryAttempts, delay);
+    executeWithRetry(HadoopInputFormatIOIT::createTable);
     setupHadoopConfiguration(options);
   }
 
@@ -129,7 +127,7 @@ public class HadoopInputFormatIOIT {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    retry(HadoopInputFormatIOIT::deleteTable, retryAttempts, delay);
+    executeWithRetry(HadoopInputFormatIOIT::deleteTable);
   }
 
   private static void deleteTable() throws SQLException {
