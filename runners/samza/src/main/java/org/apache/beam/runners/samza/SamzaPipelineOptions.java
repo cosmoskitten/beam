@@ -19,7 +19,6 @@
 package org.apache.beam.runners.samza;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -47,4 +46,9 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   @Default.Integer(1)
   int getMaxSourceParallelism();
   void setMaxSourceParallelism(int maxSourceParallelism);
+
+  @Description("The batch get size limit for the state store")
+  @Default.Integer(10000)
+  int getStoreBatchGetSize();
+  void setStoreBatchGetSize(int storeBatchGetSize);
 }
