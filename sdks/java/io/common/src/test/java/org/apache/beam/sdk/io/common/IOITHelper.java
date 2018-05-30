@@ -77,10 +77,9 @@ public class IOITHelper {
         if (attempts == maxAttempts - 1) {
           for (int i = 0; i < errorList.size(); i++) {
             LOG.error(
-                "Attempt #{} of {} in {} thrown a following exception:",
+                "Attempt #{} of {} thrown a following exception:",
                 i + 1,
                 maxAttempts,
-                function.getClass().toString(),
                 errorList.get(i));
           }
           throw e;
