@@ -1,0 +1,7 @@
+BUILD ${build.result ?: 'SUCCESSFUL'}
+Build URL: ${rooturl}${build.url}
+Project: ${project.name}
+Date of build: ${it.timestampString}
+Build duration: ${build.durationString}
+
+Good Good Good

@@ -17,28 +17,38 @@
  */
 
 // This is the script for Beam dependency check that extracts the raw reports and prioritize updates
+import hudson.model.*
+
+jenkins = Hudson.instance
+for (item in jenkins.items){
+    println jenkins.getRootUrl()+item.getUrl()
+}
+//println "BUILD ${build.result ?: 'SUCCESSFUL'}"
+//println "Build URL: ${rooturl}${build.url}"
+//println "Project: ${project.name}"
+//println "Date of build: ${it.timestampString}"
+//println "Build duration: ${build.durationString}"
 
 /**
  * Returns a boolean that indicates whether the dependency is out-of-date.
  *
  * @param currentVersion the version used by Beam
- * @param latestVersion  the version found in public repositories such as maven central repo and PyPI
+ * @param latestVersion the version found in public repositories such as maven central repo and PyPI
  * */
-private static def compareDependencyVersions(String currentVersion, String latestVersion) {
-    def currentVersionSplit = currentVersion.tokenize('.')
-    def latestVersionSplit = latestVersion.tokenize('.')
-    def minLength = Math.min(currentVersionSplit.size(), latestVersionSplit.size())
-    // compare major versions
-    if (minLength > 0 && currentVersionSplit[0] < latestVersionSplit[0]) {
-        return true
+    private static def compareDependencyVersions(String currentVersion, String latestVersion) {
+        def currentVersionSplit = currentVersion.tokenize('.')
+        def latestVersionSplit = latestVersion.tokenize('.')
+        def minLength = Math.min(currentVersionSplit.size(), latestVersionSplit.size())
+        // compare major versions
+        if (minLength > 0 && currentVersionSplit[0] < latestVersionSplit[0]) {
+            return true
+        }
+        // compare sub versions
+        if (minLength > 1 && latestVersionSplit[1] - currentVersionSplit[0] >= "3") {
+            return true
+        }
+        return false
     }
-    // compare sub versions
-    if (minLength > 1 && latestVersionSplit[1] - currentVersionSplit[0] >= "3") {
-        return true
-    }
-    return false
-}
-
 
 /**
  * Extracts dependency check outputs and analyze deps' versions.
@@ -48,50 +58,46 @@ private static def compareDependencyVersions(String currentVersion, String lates
  *
  * @param file the path of the dependency check report to filter on.
  * */
-private static def parseDependencyResult(String file) {
-    File report = new File(file)
-    List<String> outdatedDeps = new ArrayList<>()
-    if(!report.exists()) {
-        print "Cannot fine dependency check report at ${file}"
-        return outdatedDeps
-    } else {
-        boolean findOutdatedDependency = false
-        report.eachLine { line ->
-            if(line.contains("The following dependencies have later release versions:")) {
-                findOutdatedDependency = true
-            } else if(findOutdatedDependency) {
-                def versions = line.substring(line.indexOf("[")+1, line.indexOf("]")).split()
-                if(compareDependencyVersions(versions[0], versions[2])) {
-                    outdatedDeps.add(line)
+    private static def parseDependencyResult(String file) {
+        File report = new File(file)
+        List<String> outdatedDeps = new ArrayList<>()
+        if (!report.exists()) {
+            print "Cannot fine dependency check report at ${file}"
+            return outdatedDeps
+        } else {
+            boolean findOutdatedDependency = false
+            report.eachLine { line ->
+                if (line.contains("The following dependencies have later release versions:")) {
+                    findOutdatedDependency = true
+                } else if (findOutdatedDependency) {
+                    def versions = line.substring(line.indexOf("[") + 1, line.indexOf("]")).split()
+                    if (compareDependencyVersions(versions[0], versions[2])) {
+                        outdatedDeps.add(line)
+                    }
                 }
             }
         }
+        return outdatedDeps
     }
-    return outdatedDeps
-}
-
 
 /**
  * Returns a string report contains dependencies of Java and Python,
  * which are outdated and need to be taking care of.
  *
  * */
-static def generateDependencyReport() {
-    def resultPath = '../../build/dependencyUpdates/'
-    StringBuilder report = new StringBuilder()
-    def javaOutdated = parseDependencyResult("${resultPath}report.txt")
-    def resultSummary = """
-        -------------------------------------------\n
-        Beam Dependency Check Report\n
-        --------------------------------------------\n\n
-      """
-    report.append(resultSummary)
-            .append("Outdated Java dependencies: \n")
-    javaOutdated.forEach{dep ->
-        report.append(dep).append("\n")
+    static def generateDependencyReport() {
+//        def resultPath = '../../build/dependencyUpdates/'
+//        StringBuilder report = new StringBuilder()
+//        def javaOutdated = parseDependencyResult("${resultPath}report.txt")
+//        def resultSummary = """
+//        -------------------------------------------\n
+//        Beam Dependency Check Report\n
+//        --------------------------------------------\n\n
+//      """
+//        report.append(resultSummary)
+//                .append("Outdated Java dependencies: \n")
+//        javaOutdated.forEach { dep ->
+//            report.append(dep).append("\n")
+//        }
+//        println report.toString()
     }
-    println report.toString()
-}
-
-
-
