@@ -38,3 +38,11 @@ task runJavaExamplesValidationTask {
   dependsOn ":beam-runners-direct-java:runMobileGamingJavaDirect"
   dependsOn ":beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow"
 }
+
+
+task runBeamDependencyCheck {
+  group = "Verification"
+  description = "Run Beam Dependency Checks"
+  dependsOn ":dependencyUpdates"
+//  dependsOn ":beam-sdks-python:dependecyUpdates"
+}
