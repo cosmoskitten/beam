@@ -23,9 +23,15 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
 
 dependencies {
+  compile library.java.joda_time
+  compile library.java.commons_math3
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
   testCompile library.java.guava
   testCompile library.java.junit
   testCompile library.java.postgres
-  testCompileOnly library.java.findbugs_annotations
+  compile library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
 }
