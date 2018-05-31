@@ -83,7 +83,7 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " hello "));
-    Assert.assertEquals(
+    assertEquals(
         "hello",
         new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
   }
