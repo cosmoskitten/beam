@@ -100,7 +100,7 @@ public class PubsubJsonIT implements Serializable {
 
     pipeline.run();
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(120));
+    signal.waitForSuccess(Duration.standardMinutes(2));
   }
 
   @Test
@@ -153,7 +153,7 @@ public class PubsubJsonIT implements Serializable {
 
     pipeline.run();
     eventsTopic.publish(messages);
-    signal.waitForSuccess(Duration.standardSeconds(120));
+    signal.waitForSuccess(Duration.standardMinutes(2));
   }
 
   private static Boolean containsAll(Set<PubsubMessage> set, PubsubMessage... subsetCandidate) {
