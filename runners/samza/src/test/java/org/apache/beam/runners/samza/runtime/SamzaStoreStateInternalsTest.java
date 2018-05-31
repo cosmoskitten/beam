@@ -38,6 +38,7 @@ import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
+import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -278,9 +279,9 @@ public class SamzaStoreStateInternalsTest {
     SamzaPipelineOptions options = TestSamzaRunner.createSamzaPipelineOptions(
         PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
             .create());
-    Map<String, String> configs = new HashMap(options.getSamzaConfig());
+    Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
-    options.setSamzaConfig(configs);
+    options.setConfigOverride(configs);
 
     new TestSamzaRunner(options).run(pipeline).waitUntilFinish();
 

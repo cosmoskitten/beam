@@ -19,10 +19,10 @@
 package org.apache.beam.runners.samza;
 
 import java.io.File;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -30,7 +30,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.config.JobConfig;
-import org.apache.samza.config.factories.PropertiesConfigFactory;
 
 /**
  * Test {@link SamzaRunner}.
@@ -46,10 +45,7 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
     try {
       final SamzaPipelineOptions samzaOptions = PipelineOptionsValidator
           .validate(SamzaPipelineOptions.class, options);
-      final PropertiesConfigFactory configFactory = new PropertiesConfigFactory();
-      final URI configUri = TestSamzaRunner.class.getClassLoader()
-          .getResource("samza-conf.properties").toURI();
-      final Map<String, String> config = new HashMap<>(configFactory.getConfig(configUri));
+      final Map<String, String> config = new HashMap<>(ConfigBuilder.localRunConfig());
       final File storeDir = Paths.get(
           System.getProperty("java.io.tmpdir"), "beam-samza-test").toFile();
       //  Re-create the folder for test stores
@@ -58,7 +54,7 @@ public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
 
       config.put(JobConfig.JOB_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
       config.put(JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR(), storeDir.getAbsolutePath());
-      samzaOptions.setSamzaConfig(config);
+      samzaOptions.setConfigOverride(config);
       return samzaOptions;
     } catch (Exception e) {
       throw new RuntimeException(e);
