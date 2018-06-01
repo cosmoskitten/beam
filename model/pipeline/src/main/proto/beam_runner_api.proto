@@ -260,6 +260,11 @@ message StandardPTransforms {
     // described in the following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.i9i6p8gtl6ku
     COMBINE_PER_KEY_EXTRACT_OUTPUTS = 5 [(beam_urn) = "beam:transform:combine_per_key_extract_outputs:v1"];
+
+    // Represents the Combine Grouped Values transform, as described in the
+    // following document:
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
+    COMBINE_GROUPED_VALUES = 6 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
