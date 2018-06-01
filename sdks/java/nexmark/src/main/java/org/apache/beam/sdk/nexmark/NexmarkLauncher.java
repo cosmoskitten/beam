@@ -727,27 +727,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  /**
-   * Return a BigQuery table spec.
-   */
-  private String tableSpec(long now, String version) {
-    String baseTableName = options.getBigQueryTable();
-    if (Strings.isNullOrEmpty(baseTableName)) {
-      throw new RuntimeException("Missing --bigQueryTable");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return String.format("%s:%s.%s_%s",
-                             options.getProject(), options.getBigQueryDataset(), baseTableName, version);
-      case QUERY:
-        return String.format("%s:%s.%s_%s_%s",
-                             options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version);
-      case QUERY_AND_SALT:
-        return String.format("%s:%s.%s_%s_%s_%d",
-                             options.getProject(), options.getBigQueryDataset(), baseTableName, queryName, version, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
 
   /**
    * Return a directory for logs.
@@ -979,7 +958,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private void sinkResultsToBigQuery(
       PCollection<String> formattedResults, long now,
       String version) {
-    String tableSpec = tableSpec(now, version);
+    String tableSpec = NexmarkUtils.tableSpec(options, queryName, now, version);
     TableSchema tableSchema =
         new TableSchema().setFields(ImmutableList.of(
             new TableFieldSchema().setName("result").setType("STRING"),
