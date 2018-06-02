@@ -45,9 +45,13 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<ReadableInstant> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     return BeamSqlPrimitive.of(
         SqlTypeName.TIMESTAMP,
-        (ReadableInstant) operands.get(0).evaluate(inputRow, window, correlateEnv).getValue());
+        (ReadableInstant)
+            operands.get(0).evaluate(inputRow, window, correlateEnv, localRefEnv).getValue());
   }
 }

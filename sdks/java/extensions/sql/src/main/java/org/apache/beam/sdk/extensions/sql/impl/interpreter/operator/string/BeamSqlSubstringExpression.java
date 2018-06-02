@@ -55,9 +55,12 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
-    int idx = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    int idx = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
     int startIdx = idx;
     if (startIdx > 0) {
       // NOTE: SQL substring is 1 based(rather than 0 based)
@@ -70,7 +73,7 @@ public class BeamSqlSubstringExpression extends BeamSqlExpression {
     }
 
     if (operands.size() == 3) {
-      int length = opValueEvaluated(2, inputRow, window, correlateEnv);
+      int length = opValueEvaluated(2, inputRow, window, correlateEnv, localRefEnv);
       if (length < 0) {
         length = 0;
       }

@@ -39,7 +39,10 @@ public class BeamSqlWindowStartExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<DateTime> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     if (window instanceof IntervalWindow) {
       return BeamSqlPrimitive.of(
           SqlTypeName.TIMESTAMP, new DateTime(((IntervalWindow) window).start()));

@@ -27,16 +27,20 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** {@code BeamSqlExpression} for 'OR' operation. */
 public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
+
   public BeamSqlOrExpression(List<BeamSqlExpression> operands) {
     super(operands);
   }
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv);
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv, localRefEnv);
       result = expOut.getValue();
       if (result) {
         break;

@@ -42,9 +42,12 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Row dynamicRow = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String fieldName = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Row dynamicRow = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    String fieldName = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
     SqlTypeName fieldType = getFieldType(dynamicRow, fieldName);
 
     return BeamSqlPrimitive.of(fieldType, dynamicRow.getValue(fieldName));

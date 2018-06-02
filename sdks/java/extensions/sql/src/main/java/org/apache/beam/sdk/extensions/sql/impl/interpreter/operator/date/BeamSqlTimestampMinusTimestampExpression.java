@@ -70,11 +70,14 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     DateTime timestampStart =
-        new DateTime((Object) opValueEvaluated(1, inputRow, window, correlateEnv));
+        new DateTime((Object) opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv));
     DateTime timestampEnd =
-        new DateTime((Object) opValueEvaluated(0, inputRow, window, correlateEnv));
+        new DateTime((Object) opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
     long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();

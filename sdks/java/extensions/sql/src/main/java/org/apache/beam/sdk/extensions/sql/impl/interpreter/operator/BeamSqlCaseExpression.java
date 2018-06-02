@@ -51,15 +51,19 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window, correlateEnv);
+      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window, correlateEnv, localRefEnv);
       if (wasOpEvaluated != null && wasOpEvaluated) {
         return BeamSqlPrimitive.of(
-            outputType, opValueEvaluated(i + 1, inputRow, window, correlateEnv));
+            outputType, opValueEvaluated(i + 1, inputRow, window, correlateEnv, localRefEnv));
       }
     }
     return BeamSqlPrimitive.of(
-        outputType, opValueEvaluated(operands.size() - 1, inputRow, window, correlateEnv));
+        outputType,
+        opValueEvaluated(operands.size() - 1, inputRow, window, correlateEnv, localRefEnv));
   }
 }

@@ -32,21 +32,25 @@ public class BeamNullExperssionTest extends BeamSqlFnExecutorTestBase {
   public void testIsNull() {
     BeamSqlIsNullExpression exp1 =
         new BeamSqlIsNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
-    Assert.assertEquals(false, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlIsNullExpression exp2 =
         new BeamSqlIsNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
-    Assert.assertEquals(true, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
   public void testIsNotNull() {
     BeamSqlIsNotNullExpression exp1 =
         new BeamSqlIsNotNullExpression(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0));
-    Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlIsNotNullExpression exp2 =
         new BeamSqlIsNotNullExpression(BeamSqlPrimitive.of(SqlTypeName.BIGINT, null));
-    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 }
