@@ -38,8 +38,11 @@ public class BeamSqlNotExpression extends BeamSqlLogicalExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Boolean value = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Boolean value = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
     if (value == null) {
       return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, window);
     } else {

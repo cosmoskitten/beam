@@ -40,12 +40,15 @@ public abstract class BeamSqlMathBinaryExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<? extends Number> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     BeamSqlExpression leftOp = op(0);
     BeamSqlExpression rightOp = op(1);
     return calculate(
-        leftOp.evaluate(inputRow, window, correlateEnv),
-        rightOp.evaluate(inputRow, window, correlateEnv));
+        leftOp.evaluate(inputRow, window, correlateEnv, localRefEnv),
+        rightOp.evaluate(inputRow, window, correlateEnv, localRefEnv));
   }
 
   /**

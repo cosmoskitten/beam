@@ -40,7 +40,7 @@ public class BeamSqlCharLengthExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(
         5,
         new BeamSqlCharLengthExpression(operands)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
             .getValue());
   }
 }

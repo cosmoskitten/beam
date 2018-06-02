@@ -57,15 +57,18 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String replaceStr = opValueEvaluated(1, inputRow, window, correlateEnv);
-    int idx = opValueEvaluated(2, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    String replaceStr = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
+    int idx = opValueEvaluated(2, inputRow, window, correlateEnv, localRefEnv);
     // the index is 1 based.
     idx -= 1;
     int length = replaceStr.length();
     if (operands.size() == 4) {
-      length = opValueEvaluated(3, inputRow, window, correlateEnv);
+      length = opValueEvaluated(3, inputRow, window, correlateEnv, localRefEnv);
     }
 
     StringBuilder result = new StringBuilder(str.length() + replaceStr.length() - length);

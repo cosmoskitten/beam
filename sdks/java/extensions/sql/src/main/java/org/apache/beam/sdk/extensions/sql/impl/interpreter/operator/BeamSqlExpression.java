@@ -51,8 +51,12 @@ public abstract class BeamSqlExpression implements Serializable {
   }
 
   public <T> T opValueEvaluated(
-      int idx, Row row, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    return (T) op(idx).evaluate(row, window, correlateEnv).getValue();
+      int idx,
+      Row row,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    return (T) op(idx).evaluate(row, window, correlateEnv, localRefEnv).getValue();
   }
 
   /** assertion to make sure the input and output are supported in this expression. */
@@ -63,7 +67,10 @@ public abstract class BeamSqlExpression implements Serializable {
    * is wrapped with {@link BeamSqlPrimitive}.
    */
   public abstract BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;

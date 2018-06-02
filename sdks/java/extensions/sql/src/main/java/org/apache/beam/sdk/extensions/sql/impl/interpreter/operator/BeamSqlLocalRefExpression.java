@@ -15,35 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.joda.time.DateTime;
 
-/**
- * {@code BeamSqlExpression} for LOCALTIMESTAMP and CURRENT_TIMESTAMP.
- *
- * <p>Returns the current date and time in the session time zone in a value of datatype TIMESTAMP,
- * with precision digits of precision.
- *
- * <p>NOTE: for simplicity, we will ignore the {@code precision} param.
- */
-public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
-  public BeamSqlCurrentTimestampExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.TIMESTAMP);
+/** A primitive operation for dereferencing a correlation variable. */
+public class BeamSqlLocalRefExpression extends BeamSqlExpression {
+
+  private final int index;
+
+  public BeamSqlLocalRefExpression(SqlTypeName sqlTypeName, int index) {
+    super(null, sqlTypeName);
+    this.index = index;
   }
 
   @Override
   public boolean accept() {
-    int opCount = getOperands().size();
-    return opCount <= 1;
+    return true;
   }
 
   @Override
@@ -52,6 +45,12 @@ public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
       BoundedWindow window,
       ImmutableMap<Integer, Object> correlateEnv,
       ImmutableMap<Integer, Object> localRefEnv) {
-    return BeamSqlPrimitive.of(outputType, DateTime.now());
+
+    Object value = localRefEnv.get(index);
+
+    checkState(
+        value != null, "Local reference %s not found in environment %s", index, correlateEnv);
+
+    return BeamSqlPrimitive.of(getOutputType(), value);
   }
 }

@@ -35,7 +35,7 @@ public class BeamSqlCurrentTimeExpressionTest extends BeamSqlDateExpressionTestB
     assertEquals(
         SqlTypeName.TIME,
         new BeamSqlCurrentTimeExpression(operands)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
             .getOutputType());
   }
 }
