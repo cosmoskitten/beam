@@ -37,12 +37,16 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
     Assert.assertTrue(
-        new BeamSqlAndExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlAndExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
 
     Assert.assertFalse(
-        new BeamSqlAndExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlAndExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -52,11 +56,15 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
 
     Assert.assertFalse(
-        new BeamSqlOrExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOrExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
     Assert.assertTrue(
-        new BeamSqlOrExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOrExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

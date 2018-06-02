@@ -50,9 +50,14 @@ public abstract class BeamSqlCompareExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
-    Object rightValue = operands.get(1).evaluate(inputRow, window, correlateEnv).getValue();
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Object leftValue =
+        operands.get(0).evaluate(inputRow, window, correlateEnv, localRefEnv).getValue();
+    Object rightValue =
+        operands.get(1).evaluate(inputRow, window, correlateEnv, localRefEnv).getValue();
     switch (operands.get(0).getOutputType()) {
       case BIGINT:
       case DECIMAL:

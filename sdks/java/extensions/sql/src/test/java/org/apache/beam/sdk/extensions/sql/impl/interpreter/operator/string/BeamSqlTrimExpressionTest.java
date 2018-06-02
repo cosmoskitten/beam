@@ -63,7 +63,9 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals(
         "__hehe",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.TRAILING));
@@ -71,7 +73,9 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals(
         "hehe__",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
@@ -79,13 +83,17 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "__"));
     assertEquals(
         "__",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " hello "));
     assertEquals(
         "hello",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test

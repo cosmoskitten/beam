@@ -59,15 +59,18 @@ public class BeamSqlTrimExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     if (operands.size() == 1) {
       return BeamSqlPrimitive.of(
           SqlTypeName.VARCHAR,
-          opValueEvaluated(0, inputRow, window, correlateEnv).toString().trim());
+          opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv).toString().trim());
     } else {
-      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window, correlateEnv);
-      String targetStr = opValueEvaluated(1, inputRow, window, correlateEnv);
-      String containingStr = opValueEvaluated(2, inputRow, window, correlateEnv);
+      SqlTrimFunction.Flag type = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+      String targetStr = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
+      String containingStr = opValueEvaluated(2, inputRow, window, correlateEnv, localRefEnv);
 
       switch (type) {
         case LEADING:

@@ -62,6 +62,8 @@ public class BeamSqlConcatExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " world"));
     Assert.assertEquals(
         "hello world",
-        new BeamSqlConcatExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlConcatExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

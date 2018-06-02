@@ -105,7 +105,7 @@ class Timestamp(object):
         dt_args.append(int(s))
       else:
         dt_args.append(0)
-    dt_args += (pytz.utc, )
+    dt_args += (pytz.utc, ImmutableMap.of())
     dt = datetime.datetime(*dt_args)
     return cls.from_utc_datetime(dt)
 

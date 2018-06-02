@@ -39,6 +39,8 @@ public class BeamSqlUpperExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     assertEquals(
         "HELLO",
-        new BeamSqlUpperExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlUpperExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

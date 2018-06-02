@@ -51,7 +51,10 @@ public class BeamSqlDotExpressionTest {
     BeamSqlDotExpression arrayExpression = new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR);
 
     assertEquals(
-        "aaa", arrayExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+        "aaa",
+        arrayExpression
+            .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -68,6 +71,6 @@ public class BeamSqlDotExpressionTest {
     thrown.expectMessage("Cannot find field");
 
     new BeamSqlDotExpression(elements, SqlTypeName.VARCHAR)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of());
+        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of());
   }
 }

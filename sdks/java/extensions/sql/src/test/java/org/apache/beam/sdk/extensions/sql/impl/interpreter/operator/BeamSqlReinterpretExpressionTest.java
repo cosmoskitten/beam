@@ -121,7 +121,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
 
   private static long evaluateReinterpretExpression(BeamSqlExpression operand) {
     return reinterpretExpression(operand)
-        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of())
+        .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
         .getLong();
   }
 
