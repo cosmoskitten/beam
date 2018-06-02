@@ -45,7 +45,7 @@ public class TestExecutorsTest {
             new Statement() {
               @Override
               public void evaluate() throws Throwable {
-                testService.submit(() -> taskRan.set(true));
+                testService.submit(() -> taskRan.set(true)).get();
               }
             },
             null)
@@ -55,6 +55,7 @@ public class TestExecutorsTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testTaskBlocksForeverCausesFailure() throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
     final TestExecutorService testService = TestExecutors.from(service);
@@ -115,6 +116,7 @@ public class TestExecutorsTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testStatementFailurePropagatedWhenExecutorServiceFailingToTerminate()
       throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
