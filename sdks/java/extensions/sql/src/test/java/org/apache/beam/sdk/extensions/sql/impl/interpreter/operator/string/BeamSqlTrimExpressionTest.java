@@ -22,9 +22,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -63,7 +63,9 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals(
         "__hehe",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.TRAILING));
@@ -71,7 +73,9 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hehe__hehe"));
     assertEquals(
         "hehe__",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, SqlTrimFunction.Flag.BOTH));
@@ -79,13 +83,17 @@ public class BeamSqlTrimExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "__"));
     assertEquals(
         "__",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " hello "));
     assertEquals(
         "hello",
-        new BeamSqlTrimExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlTrimExpression(operands)
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
+            .getValue());
   }
 
   @Test
