@@ -48,7 +48,11 @@ public class BeamSqlArrayItemExpressionTest {
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "aaa",
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -61,7 +65,11 @@ public class BeamSqlArrayItemExpressionTest {
     BeamSqlArrayItemExpression expression =
         new BeamSqlArrayItemExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("bbb", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "bbb",
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test

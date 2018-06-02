@@ -95,7 +95,8 @@ public class BeamSqlIntervalMultiplyExpressionTest {
         newMultiplyExpression(SQL_INTERVAL_DAY, SQL_INTEGER_FOUR);
 
     BeamSqlPrimitive multiplicationResult =
-        multiplyExpression.evaluate(NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of());
+        multiplyExpression.evaluate(
+            NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of());
 
     BigDecimal expectedResult =
         DECIMAL_FOUR.multiply(timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY));

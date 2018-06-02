@@ -125,7 +125,7 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
   private static ReadableInstant evalDatetimePlus(
       BeamSqlExpression date, BeamSqlExpression interval) {
     return dateTimePlus(date, interval)
-        .evaluate(NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of())
+        .evaluate(NULL_INPUT_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
         .getDate();
   }
 

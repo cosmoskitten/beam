@@ -33,10 +33,13 @@ public class BeamSqlAndExpression extends BeamSqlLogicalExpression {
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     boolean result = true;
     for (BeamSqlExpression exp : operands) {
-      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv);
+      BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window, correlateEnv, localRefEnv);
       if (!expOut.getValue()) {
         result = false;
         break;

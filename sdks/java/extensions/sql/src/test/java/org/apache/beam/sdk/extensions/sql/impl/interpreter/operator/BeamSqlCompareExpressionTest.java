@@ -41,14 +41,16 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 100L)));
-    Assert.assertEquals(false, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlEqualsExpression exp2 =
         new BeamSqlEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(true, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -58,14 +60,16 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(false, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlGreaterThanExpression exp2 =
         new BeamSqlGreaterThanExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234566L)));
-    Assert.assertEquals(true, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -75,14 +79,16 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlGreaterThanOrEqualsExpression exp2 =
         new BeamSqlGreaterThanOrEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234568L)));
-    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -92,14 +98,16 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
                 BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1)));
-    Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlLessThanExpression exp2 =
         new BeamSqlLessThanExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
                 BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1)));
-    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -109,14 +117,16 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
                 BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.9)));
-    Assert.assertEquals(true, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlLessThanOrEqualsExpression exp2 =
         new BeamSqlLessThanOrEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
                 BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.0)));
-    Assert.assertEquals(false, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   @Test
@@ -126,13 +136,15 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(false, exp1.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        false, exp1.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
 
     BeamSqlNotEqualsExpression exp2 =
         new BeamSqlNotEqualsExpression(
             Arrays.asList(
                 new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
                 BeamSqlPrimitive.of(SqlTypeName.BIGINT, 0L)));
-    Assert.assertEquals(true, exp2.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        true, exp2.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 }

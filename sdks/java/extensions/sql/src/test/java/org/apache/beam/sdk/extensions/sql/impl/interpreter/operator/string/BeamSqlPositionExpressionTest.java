@@ -69,7 +69,9 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "worldhello"));
     assertEquals(
         5,
-        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPositionExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -77,7 +79,9 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     assertEquals(
         5,
-        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPositionExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
@@ -85,6 +89,8 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
     assertEquals(
         -1,
-        new BeamSqlPositionExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlPositionExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

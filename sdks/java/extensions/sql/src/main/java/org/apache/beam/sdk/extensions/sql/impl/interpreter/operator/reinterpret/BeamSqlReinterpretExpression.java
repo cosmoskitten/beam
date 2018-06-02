@@ -52,8 +52,11 @@ public class BeamSqlReinterpretExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     return REINTERPRETER.convert(
-        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, correlateEnv));
+        SqlTypeName.BIGINT, operands.get(0).evaluate(inputRow, window, correlateEnv, localRefEnv));
   }
 }

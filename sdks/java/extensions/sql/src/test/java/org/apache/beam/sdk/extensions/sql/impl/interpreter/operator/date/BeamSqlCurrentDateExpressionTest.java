@@ -31,7 +31,7 @@ public class BeamSqlCurrentDateExpressionTest extends BeamSqlDateExpressionTestB
     Assert.assertEquals(
         SqlTypeName.DATE,
         new BeamSqlCurrentDateExpression()
-            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of())
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of(), ImmutableMap.of())
             .getOutputType());
   }
 }
