@@ -176,7 +176,7 @@ public class ParDoTranslatorTest {
 
     Throwable exc = runExpectingAssertionFailure(pipeline);
     Pattern expectedPattern = Pattern.compile(
-        "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
+        "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, ImmutableMap.of())?){5}\\] in any order");
     // A loose pattern, but should get the job done.
     assertTrue(
         "Expected error message from PAssert with substring matching "

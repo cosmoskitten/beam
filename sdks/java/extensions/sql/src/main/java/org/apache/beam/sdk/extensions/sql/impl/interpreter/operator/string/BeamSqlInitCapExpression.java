@@ -34,8 +34,11 @@ public class BeamSqlInitCapExpression extends BeamSqlStringUnaryExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
 
     StringBuilder ret = new StringBuilder(str);
     boolean isInit = true;

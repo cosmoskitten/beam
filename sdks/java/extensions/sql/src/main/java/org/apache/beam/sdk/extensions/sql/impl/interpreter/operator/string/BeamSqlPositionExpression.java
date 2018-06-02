@@ -56,12 +56,15 @@ public class BeamSqlPositionExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String targetStr = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String containingStr = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String targetStr = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    String containingStr = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
     int from = -1;
     if (operands.size() == 3) {
-      Number tmp = opValueEvaluated(2, inputRow, window, correlateEnv);
+      Number tmp = opValueEvaluated(2, inputRow, window, correlateEnv, localRefEnv);
       from = tmp.intValue();
     }
 

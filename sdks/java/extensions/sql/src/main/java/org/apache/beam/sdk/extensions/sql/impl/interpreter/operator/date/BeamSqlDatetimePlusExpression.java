@@ -74,9 +74,13 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime timestamp = getTimestampOperand(inputRow, window, correlateEnv);
-    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    DateTime timestamp = getTimestampOperand(inputRow, window, correlateEnv, localRefEnv);
+    BeamSqlPrimitive intervalOperandPrimitive =
+        getIntervalOperand(inputRow, window, correlateEnv, localRefEnv);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
     int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
@@ -94,18 +98,24 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
   }
 
   private BeamSqlPrimitive getIntervalOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES)
         .get()
-        .evaluate(inputRow, window, correlateEnv);
+        .evaluate(inputRow, window, correlateEnv, localRefEnv);
   }
 
   private DateTime getTimestampOperand(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     BeamSqlPrimitive timestampOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.TIMESTAMP)
             .get()
-            .evaluate(inputRow, window, correlateEnv);
+            .evaluate(inputRow, window, correlateEnv, localRefEnv);
     return new DateTime(timestampOperandPrimitive.getDate());
   }
 

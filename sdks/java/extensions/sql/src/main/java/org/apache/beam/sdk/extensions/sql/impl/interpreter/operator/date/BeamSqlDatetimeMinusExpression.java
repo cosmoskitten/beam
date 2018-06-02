@@ -95,11 +95,14 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     if (delegateExpression == null) {
       throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
     }
 
-    return delegateExpression.evaluate(inputRow, window, correlateEnv);
+    return delegateExpression.evaluate(inputRow, window, correlateEnv, localRefEnv);
   }
 }

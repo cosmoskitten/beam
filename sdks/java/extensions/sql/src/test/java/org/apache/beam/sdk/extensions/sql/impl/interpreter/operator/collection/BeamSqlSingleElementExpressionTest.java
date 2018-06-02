@@ -47,7 +47,11 @@ public class BeamSqlSingleElementExpressionTest {
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertEquals("aaa", expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertEquals(
+        "aaa",
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test
@@ -58,7 +62,10 @@ public class BeamSqlSingleElementExpressionTest {
     BeamSqlSingleElementExpression expression =
         new BeamSqlSingleElementExpression(input, SqlTypeName.VARCHAR);
 
-    assertNull(expression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of()).getValue());
+    assertNull(
+        expression
+            .evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 
   @Test

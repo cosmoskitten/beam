@@ -47,10 +47,13 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    ReadableInstant date = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    ReadableInstant date = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
     long time = date.getMillis();
-    TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();
+    TimeUnitRange unit = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
 
     long newTime = DateTimeUtils.unixTimestampCeil(unit, time);
     DateTime newDate = new DateTime(newTime, date.getZone());

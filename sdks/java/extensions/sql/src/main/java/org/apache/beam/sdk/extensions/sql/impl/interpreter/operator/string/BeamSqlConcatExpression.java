@@ -54,9 +54,12 @@ public class BeamSqlConcatExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String left = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String right = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String left = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    String right = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
 
     return BeamSqlPrimitive.of(
         SqlTypeName.VARCHAR,

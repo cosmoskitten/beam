@@ -48,8 +48,12 @@ public class BeamSqlFieldAccessExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    BeamSqlPrimitive targetObject = referenceExpression.evaluate(inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    BeamSqlPrimitive targetObject =
+        referenceExpression.evaluate(inputRow, window, correlateEnv, localRefEnv);
     SqlTypeName targetFieldType = targetObject.getOutputType();
 
     Object targetFieldValue;
