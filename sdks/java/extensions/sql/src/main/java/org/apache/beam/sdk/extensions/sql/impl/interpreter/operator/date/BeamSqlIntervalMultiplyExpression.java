@@ -77,17 +77,20 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
    */
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     BeamSqlPrimitive intervalOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES)
             .get()
-            .evaluate(inputRow, window, correlateEnv);
+            .evaluate(inputRow, window, correlateEnv, localRefEnv);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
 
     BeamSqlPrimitive integerOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.INTEGER)
             .get()
-            .evaluate(inputRow, window, correlateEnv);
+            .evaluate(inputRow, window, correlateEnv, localRefEnv);
     BigDecimal integerOperandValue = new BigDecimal(integerOperandPrimitive.getInteger());
 
     BigDecimal multiplicationResult =

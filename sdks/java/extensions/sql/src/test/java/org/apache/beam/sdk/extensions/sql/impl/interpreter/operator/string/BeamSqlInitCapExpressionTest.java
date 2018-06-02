@@ -39,18 +39,24 @@ public class BeamSqlInitCapExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello world"));
     assertEquals(
         "Hello World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlInitCapExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hEllO wOrld"));
     assertEquals(
         "Hello World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlInitCapExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello     world"));
     assertEquals(
         "Hello     World",
-        new BeamSqlInitCapExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlInitCapExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

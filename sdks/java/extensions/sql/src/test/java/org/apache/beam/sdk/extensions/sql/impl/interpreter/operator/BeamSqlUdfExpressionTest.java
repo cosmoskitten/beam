@@ -37,7 +37,8 @@ public class BeamSqlUdfExpressionTest extends BeamSqlFnExecutorTestBase {
         new BeamSqlUdfExpression(
             UdfFn.class.getMethod("negative", Integer.class), operands, SqlTypeName.INTEGER);
 
-    Assert.assertEquals(-10, exp.evaluate(row, null, ImmutableMap.of()).getValue());
+    Assert.assertEquals(
+        -10, exp.evaluate(row, null, ImmutableMap.of(), ImmutableMap.of()).getValue());
   }
 
   /** UDF example. */

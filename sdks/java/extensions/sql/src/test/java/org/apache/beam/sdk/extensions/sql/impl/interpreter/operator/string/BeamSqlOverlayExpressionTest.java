@@ -59,7 +59,9 @@ public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 3));
     Assert.assertEquals(
         "w3resou3rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOverlayExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
@@ -68,7 +70,9 @@ public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4));
     Assert.assertEquals(
         "w3resou33rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOverlayExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
@@ -77,7 +81,9 @@ public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
     Assert.assertEquals(
         "w3resou3rce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOverlayExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "w3333333rce"));
@@ -86,6 +92,8 @@ public class BeamSqlOverlayExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 7));
     Assert.assertEquals(
         "w3resouce",
-        new BeamSqlOverlayExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlOverlayExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

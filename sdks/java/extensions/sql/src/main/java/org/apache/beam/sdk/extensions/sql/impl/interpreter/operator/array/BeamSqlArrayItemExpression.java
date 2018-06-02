@@ -40,9 +40,12 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    List<Object> array = opValueEvaluated(0, inputRow, window, correlateEnv);
-    Integer index = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    List<Object> array = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    Integer index = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
 
     return BeamSqlPrimitive.of(outputType, array.get(index));
   }

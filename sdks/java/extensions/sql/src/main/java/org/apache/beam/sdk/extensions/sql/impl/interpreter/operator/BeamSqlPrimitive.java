@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,7 +31,7 @@ import org.joda.time.ReadableInstant;
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}. It holds the
  * value, and return it directly during {@link BeamSqlExpression#evaluate(Row, BoundedWindow,
- * ImmutableMap)}.
+ * ImmutableMap, ImmutableMap)}.
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private T value;
@@ -161,7 +162,18 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<T> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     return this;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("value", value)
+        .add("outputType", outputType)
+        .toString();
   }
 }

@@ -43,10 +43,13 @@ public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     int numericIdx = 0;
     if (operands.size() == 2) {
-      int rowSeed = opValueEvaluated(0, inputRow, window, correlateEnv);
+      int rowSeed = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
       if (seed == null || seed != rowSeed) {
         rand.setSeed(rowSeed);
       }
@@ -54,6 +57,7 @@ public class BeamSqlRandIntegerExpression extends BeamSqlExpression {
     }
     return BeamSqlPrimitive.of(
         SqlTypeName.INTEGER,
-        rand.nextInt((int) opValueEvaluated(numericIdx, inputRow, window, correlateEnv)));
+        rand.nextInt(
+            (int) opValueEvaluated(numericIdx, inputRow, window, correlateEnv, localRefEnv)));
   }
 }

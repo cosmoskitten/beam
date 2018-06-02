@@ -41,9 +41,12 @@ public class BeamSqlMapItemExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Map<Object, Object> map = opValueEvaluated(0, inputRow, window, correlateEnv);
-    Object key = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Map<Object, Object> map = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
+    Object key = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
     return BeamSqlPrimitive.of(outputType, map.get(key));
   }
 }

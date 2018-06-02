@@ -34,7 +34,10 @@ public interface BeamSqlExpressionExecutor extends Serializable {
 
   /** apply transformation to input record {@link Row} with {@link BoundedWindow}. */
   List<Object> execute(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv);
 
   void close();
 }
