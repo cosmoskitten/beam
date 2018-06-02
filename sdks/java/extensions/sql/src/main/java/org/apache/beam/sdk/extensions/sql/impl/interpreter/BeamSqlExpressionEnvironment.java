@@ -15,27 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-/** 'UPPER' operator. */
-public class BeamSqlUpperExpression extends BeamSqlStringUnaryExpression {
-  public BeamSqlUpperExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.VARCHAR);
-  }
+/**
+ * Environment in which a {@link BeamSqlExpression} is evaluated. This includes bindings of
+ * correlation variables and local references.
+ */
+public interface BeamSqlExpressionEnvironment {
 
-  @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    String str = opValueEvaluated(0, inputRow, window, env);
-    return BeamSqlPrimitive.of(SqlTypeName.VARCHAR, str.toUpperCase());
-  }
+  /** Gets the value for a local variable reference. */
+  BeamSqlPrimitive<?> getLocalRef(int localRefIndex);
+
+  /** Gets the value for a correlation variable. */
+  Row getCorrelVariable(int correlVariableId);
+
+  /**
+   * An environment that shares input row, window, and correlation variables but local refs are
+   * replaced with the given unevaluated expressions.
+   */
+  BeamSqlExpressionEnvironment copyWithLocalRefExprs(List<BeamSqlExpression> localRefExprs);
 }
