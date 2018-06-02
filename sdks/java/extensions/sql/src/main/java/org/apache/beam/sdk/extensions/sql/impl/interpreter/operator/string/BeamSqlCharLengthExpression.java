@@ -34,8 +34,11 @@ public class BeamSqlCharLengthExpression extends BeamSqlStringUnaryExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    String str = opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
     return BeamSqlPrimitive.of(SqlTypeName.INTEGER, str.length());
   }
 }

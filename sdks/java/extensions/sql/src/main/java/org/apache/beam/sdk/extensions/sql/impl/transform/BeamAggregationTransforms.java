@@ -251,7 +251,7 @@ public class BeamAggregationTransforms implements Serializable {
                   .get(idx)
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
-                      exp.evaluate(input, null, ImmutableMap.of()).getValue()));
+                      exp.evaluate(input, null, ImmutableMap.of(), ImmutableMap.of()).getValue()));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           /**
            * If source expression is type of KV pair, we bundle the value of two expressions into KV
@@ -265,8 +265,12 @@ public class BeamAggregationTransforms implements Serializable {
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
                       KV.of(
-                          exp.getKey().evaluate(input, null, ImmutableMap.of()).getValue(),
-                          exp.getValue().evaluate(input, null, ImmutableMap.of()).getValue())));
+                          exp.getKey()
+                              .evaluate(input, null, ImmutableMap.of(), ImmutableMap.of())
+                              .getValue(),
+                          exp.getValue()
+                              .evaluate(input, null, ImmutableMap.of(), ImmutableMap.of())
+                              .getValue())));
         }
       }
       return deltaAcc;

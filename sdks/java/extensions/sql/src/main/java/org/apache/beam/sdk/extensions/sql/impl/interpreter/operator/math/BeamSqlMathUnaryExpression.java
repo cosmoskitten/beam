@@ -48,9 +48,12 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<? extends Number> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     BeamSqlExpression operand = op(0);
-    return calculate(operand.evaluate(inputRow, window, correlateEnv));
+    return calculate(operand.evaluate(inputRow, window, correlateEnv, localRefEnv));
   }
 
   /** For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}. */

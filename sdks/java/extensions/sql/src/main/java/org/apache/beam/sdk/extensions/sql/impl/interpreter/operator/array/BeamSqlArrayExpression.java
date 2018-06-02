@@ -40,11 +40,14 @@ public class BeamSqlArrayExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     List<Object> elements =
         operands
             .stream()
-            .map(op -> op.evaluate(inputRow, window, correlateEnv).getValue())
+            .map(op -> op.evaluate(inputRow, window, correlateEnv, localRefEnv).getValue())
             .collect(Collectors.toList());
 
     return BeamSqlPrimitive.of(outputType, elements);

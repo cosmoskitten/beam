@@ -45,8 +45,12 @@ public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive<Boolean> evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Object leftValue = operands.get(0).evaluate(inputRow, window, correlateEnv).getValue();
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Object leftValue =
+        operands.get(0).evaluate(inputRow, window, correlateEnv, localRefEnv).getValue();
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue != null);
   }
 }

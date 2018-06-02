@@ -45,8 +45,12 @@ public class BeamSqlSingleElementExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    Collection<Object> collection = opValueEvaluated(0, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    Collection<Object> collection =
+        opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv);
 
     if (collection.size() <= 1) {
       return (collection.size() == 0)

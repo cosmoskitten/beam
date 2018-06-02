@@ -35,16 +35,22 @@ public class BeamSqlNotExpressionTest extends BeamSqlFnExecutorTestBase {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
     Assert.assertTrue(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
     Assert.assertFalse(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getBoolean());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getBoolean());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, null));
     Assert.assertNull(
-        new BeamSqlNotExpression(operands).evaluate(row, null, ImmutableMap.of()).getValue());
+        new BeamSqlNotExpression(operands)
+            .evaluate(row, null, ImmutableMap.of(), ImmutableMap.of())
+            .getValue());
   }
 }

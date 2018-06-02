@@ -60,10 +60,16 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    ReadableInstant time = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    ReadableInstant time = opValueEvaluated(1, inputRow, window, correlateEnv, localRefEnv);
 
-    TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
+    TimeUnitRange unit =
+        ((BeamSqlPrimitive<TimeUnitRange>)
+                opValueEvaluated(0, inputRow, window, correlateEnv, localRefEnv))
+            .getValue();
 
     switch (unit) {
       case YEAR:

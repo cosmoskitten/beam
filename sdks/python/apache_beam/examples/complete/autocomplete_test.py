@@ -39,12 +39,12 @@ class AutocompleteTest(unittest.TestCase):
       assert_that(result, equal_to(
           [
               ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
-              ('to', ((3, 'to'), )),
+              ('to', ((3, 'to'), ImmutableMap.of())),
               ('th', ((2, 'this'), (1, 'that'))),
-              ('thi', ((2, 'this'), )),
-              ('this', ((2, 'this'), )),
-              ('tha', ((1, 'that'), )),
-              ('that', ((1, 'that'), )),
+              ('thi', ((2, 'this'), ImmutableMap.of())),
+              ('this', ((2, 'this'), ImmutableMap.of())),
+              ('tha', ((1, 'that'), ImmutableMap.of())),
+              ('that', ((1, 'that'), ImmutableMap.of())),
           ]))
 
 

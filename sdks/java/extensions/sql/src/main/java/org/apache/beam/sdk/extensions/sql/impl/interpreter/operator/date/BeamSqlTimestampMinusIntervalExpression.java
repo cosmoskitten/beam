@@ -58,9 +58,13 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row row, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    DateTime date = new DateTime((Object) opValueEvaluated(0, row, window, correlateEnv));
-    Period period = intervalToPeriod(op(1).evaluate(row, window, correlateEnv));
+      Row row,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
+    DateTime date =
+        new DateTime((Object) opValueEvaluated(0, row, window, correlateEnv, localRefEnv));
+    Period period = intervalToPeriod(op(1).evaluate(row, window, correlateEnv, localRefEnv));
 
     return BeamSqlPrimitive.of(outputType, date.minus(period));
   }

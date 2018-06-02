@@ -40,14 +40,14 @@ public class BeamSqlDateCeilExpressionTest extends BeamSqlDateExpressionTestBase
     Assert.assertEquals(
         str2DateTime("2018-01-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of())
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of(), ImmutableMap.of())
             .getDate());
 
     operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
     Assert.assertEquals(
         str2DateTime("2017-06-01 00:00:00"),
         new BeamSqlDateCeilExpression(operands)
-            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of())
+            .evaluate(BeamSqlFnExecutorTestBase.row, null, ImmutableMap.of(), ImmutableMap.of())
             .getDate());
   }
 }

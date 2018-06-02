@@ -112,7 +112,7 @@ public class BeamSqlDatetimeMinusExpressionTest {
         minusExpression(SqlTypeName.INTERVAL_SECOND, TIMESTAMP, TIMESTAMP_MINUS_2_SEC);
 
     BeamSqlPrimitive subtractionResult =
-        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of());
+        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of());
 
     assertEquals(SqlTypeName.BIGINT, subtractionResult.getOutputType());
     assertEquals(2L * TimeUnit.SECOND.multiplier.longValue(), subtractionResult.getLong());
@@ -124,7 +124,7 @@ public class BeamSqlDatetimeMinusExpressionTest {
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);
 
     BeamSqlPrimitive subtractionResult =
-        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of());
+        minusExpression.evaluate(NULL_ROW, NULL_WINDOW, ImmutableMap.of(), ImmutableMap.of());
 
     assertEquals(SqlTypeName.TIMESTAMP, subtractionResult.getOutputType());
     assertEquals(DATE_MINUS_2_SEC, subtractionResult.getDate());

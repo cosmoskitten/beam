@@ -41,12 +41,18 @@ public class BeamSqlMapExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
+      Row inputRow,
+      BoundedWindow window,
+      ImmutableMap<Integer, Object> correlateEnv,
+      ImmutableMap<Integer, Object> localRefEnv) {
     Map<Object, Object> elements = new HashMap<>();
     for (int idx = 0; idx < operands.size() / 2; ++idx) {
       elements.put(
-          operands.get(idx * 2).evaluate(inputRow, window, correlateEnv).getValue(),
-          operands.get(idx * 2 + 1).evaluate(inputRow, window, correlateEnv).getValue());
+          operands.get(idx * 2).evaluate(inputRow, window, correlateEnv, localRefEnv).getValue(),
+          operands
+              .get(idx * 2 + 1)
+              .evaluate(inputRow, window, correlateEnv, localRefEnv)
+              .getValue());
     }
     return BeamSqlPrimitive.of(outputType, elements);
   }
