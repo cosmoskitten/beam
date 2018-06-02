@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -54,9 +54,9 @@ public class BeamSqlConcatExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String left = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String right = opValueEvaluated(1, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    String left = opValueEvaluated(0, inputRow, window, env);
+    String right = opValueEvaluated(1, inputRow, window, env);
 
     return BeamSqlPrimitive.of(
         SqlTypeName.VARCHAR,
