@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironment;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -57,15 +57,15 @@ public class BeamSqlOverlayExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, ImmutableMap<Integer, Object> correlateEnv) {
-    String str = opValueEvaluated(0, inputRow, window, correlateEnv);
-    String replaceStr = opValueEvaluated(1, inputRow, window, correlateEnv);
-    int idx = opValueEvaluated(2, inputRow, window, correlateEnv);
+      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    String str = opValueEvaluated(0, inputRow, window, env);
+    String replaceStr = opValueEvaluated(1, inputRow, window, env);
+    int idx = opValueEvaluated(2, inputRow, window, env);
     // the index is 1 based.
     idx -= 1;
     int length = replaceStr.length();
     if (operands.size() == 4) {
-      length = opValueEvaluated(3, inputRow, window, correlateEnv);
+      length = opValueEvaluated(3, inputRow, window, env);
     }
 
     StringBuilder result = new StringBuilder(str.length() + replaceStr.length() - length);

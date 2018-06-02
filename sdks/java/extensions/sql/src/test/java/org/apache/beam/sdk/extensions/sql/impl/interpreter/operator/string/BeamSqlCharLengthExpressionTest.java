@@ -20,9 +20,9 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionEnvironments;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -40,7 +40,7 @@ public class BeamSqlCharLengthExpressionTest extends BeamSqlFnExecutorTestBase {
     assertEquals(
         5,
         new BeamSqlCharLengthExpression(operands)
-            .evaluate(row, null, ImmutableMap.of())
+            .evaluate(row, null, BeamSqlExpressionEnvironments.empty())
             .getValue());
   }
 }
