@@ -93,6 +93,8 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -429,15 +431,38 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     } else {
       mainOutputSchemaCoder = null;
     }
+    DoFnSignature doFnSignature = DoFnSignatures.getSignature(doFn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod =
         DoFnSignatures.getSignature(doFn.getClass()).processElement();
-    FieldAccessDescriptor fieldAccessDescriptor = processElementMethod.getFieldAccessDescriptor();
-    if (fieldAccessDescriptor != null) {
+    RowParameter rowParameter = processElementMethod.getRowParameter();
+    FieldAccessDescriptor fieldAccessDescriptor = null;
+    if (rowParameter != null) {
       checkArgument(schemaCoder != null,
-          "Cannot access object as a row if the input PCollection does not have a schema.");
+          "Cannot access object as a row if the input PCollection does not have a schema ."
+              + "DoFn " + doFn.getClass() + " Coder " + inputCoder.getClass());
+      String id = rowParameter.fieldAccessId();
+      if (id == null) {
+        // This is the case where no FieldId is defined, just an @Element Row row. Default to all
+        // fields accessed.
+        fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+      } else {
+        // In this case, we expect to have a FieldAccessDescriptor defined in the class.
+        FieldAccessDeclaration fieldAccessDeclaration =
+            doFnSignature.fieldAccessDeclarations().get(id);
+        checkArgument(fieldAccessDeclaration != null,
+            "No FieldAccessDescriptor defined with id", id);
+        checkArgument(fieldAccessDeclaration.field().getType().equals(FieldAccessDescriptor.class));
+        try {
+          fieldAccessDescriptor = (FieldAccessDescriptor) fieldAccessDeclaration.field().get(doFn);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      // Resolve the FieldAccessDescriptor. This converts all field names into field ids.
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
+
   }
 
   @Override
@@ -572,7 +597,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
@@ -674,7 +699,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       checkState(fieldAccessDescriptor.allFields());
       return schemaCoder.getToRowFunction().apply(element());
     }
@@ -876,7 +901,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public Row asRow(DoFn<InputT, OutputT> doFn) {
+    public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           "Cannot access element outside of @ProcessElement method.");
     }
