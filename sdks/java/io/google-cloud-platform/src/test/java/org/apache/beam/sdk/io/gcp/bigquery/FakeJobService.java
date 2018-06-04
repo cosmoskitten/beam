@@ -78,7 +78,7 @@ import org.joda.time.Duration;
 /**
  * A fake implementation of BigQuery's job service.
  */
-class FakeJobService implements JobService, Serializable {
+public class FakeJobService implements JobService, Serializable {
   private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
   // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,
   // the next 2 will return the job as running, and only then will the job report as done.
@@ -103,7 +103,7 @@ class FakeJobService implements JobService, Serializable {
   private static com.google.common.collect.Table<String, String, JobStatistics>
       dryRunQueryResults;
 
-  FakeJobService() {
+  public FakeJobService() {
     this.datasetService = new FakeDatasetService();
   }
 
