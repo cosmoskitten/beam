@@ -23,6 +23,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -33,6 +35,12 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringDelegateCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
@@ -113,7 +121,22 @@ public class Main<OptionT extends NexmarkOptions> {
       @Nullable FakeBigQueryServices fakeBigQueryServices) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
-        pipeline.apply(Create.of(perfs));
+        pipeline.apply(
+            Create.of(perfs)
+                .withCoder(
+                    KvCoder.of(SerializableCoder.of(NexmarkConfiguration.class), new CustomCoder<NexmarkPerf>() {
+
+                      @Override public void encode(NexmarkPerf value, OutputStream outStream)
+                          throws CoderException, IOException {
+                        StringUtf8Coder.of().encode(value.toString(), outStream);
+                      }
+
+                      @Override public NexmarkPerf decode(InputStream inStream)
+                          throws CoderException, IOException {
+                        String perf = StringUtf8Coder.of().decode(inStream);
+                        return NexmarkPerf.fromString(perf);
+                      }
+                    })));
 
     TableSchema tableSchema =
         new TableSchema()
