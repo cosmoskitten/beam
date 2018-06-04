@@ -30,16 +30,16 @@ import org.apache.beam.sdk.coders.ListCoder;
 /**
  * A fake implementation of BigQuery's query service..
  */
-class FakeBigQueryServices implements BigQueryServices {
+public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
   private FakeDatasetService datasetService;
 
-  FakeBigQueryServices withJobService(JobService jobService) {
+  public FakeBigQueryServices withJobService(JobService jobService) {
     this.jobService = jobService;
     return this;
   }
 
-  FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
+  public FakeBigQueryServices withDatasetService(FakeDatasetService datasetService) {
     this.datasetService = datasetService;
     return this;
   }
