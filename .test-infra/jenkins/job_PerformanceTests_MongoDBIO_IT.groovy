@@ -42,7 +42,7 @@ job('beam_PerformanceTests_MongoDBIO_IT') {
             numberOfRecords: '10000000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace('mongodbioit')
+    String namespace = common_job_properties.getKubernetesNamespace("beam_PerformanceTests_MongoDBIO_IT")
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [
