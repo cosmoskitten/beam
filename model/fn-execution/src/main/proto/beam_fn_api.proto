@@ -277,19 +277,26 @@ message MonitoringInfo {
   string type = 2;
 
   // The Metric or monitored state.
-  oneof monitoring_status {
-    MonitoringTableData monitored_table_data = 3;
+  oneof data {
+    MonitoringTableData monitoring_table_data = 3;
     Metric metric = 4;
   }
 
+
+  enum MonitoringInfoLabels {
+    TRANSFORM = 0;
+    PCOLLECTION = 1;
+    WINDOWING_STRATEGY = 2;
+    CODER = 3;
+    ENVIRONMENT = 4;
+  }
   // A set of key+value labels which define the scope of the metric.
-  // Either a well defined entity id for the keys:
-  // “transform”, “pcollection”, “windowing_strategy”,
-  // “coder”, “environment” or any arbitrary label
+  // Either a well defined entity id for matching the enum names in
+  // the MonitoringInfoLabels enum or any arbitrary label
   // set by a custom metric or user metric.
-  // A monitoring system is expected to be able to aggregate the metric together
+  // A monitoring system is expected to be able to aggregate the metrics together
   // for all updates having the same URN and labels.
-  // Some systems such as Stackdriver will be able to aggregate the metric
+  // Some systems such as Stackdriver will be able to aggregate the metrics
   // using a subset of the provided labels
   map<string, string> labels = 5;
 }
@@ -332,7 +339,7 @@ message DoubleExtremaData {
 }
 
 // Data associated with a distribution metric.
-// This is based off of the current DistributionData metric
+// This is based off of the current DistributionData metric.
 // This is not a stackdriver or dropwizard compatible
 // style of distribution metric.
 message DistributionData {
