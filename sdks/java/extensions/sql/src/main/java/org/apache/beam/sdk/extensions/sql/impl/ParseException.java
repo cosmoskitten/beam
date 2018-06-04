@@ -15,18 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl;
 
-package org.apache.beam.runners.direct.portable;
+/** Exception thrown when Beam SQL is unable to parse the statement. */
+public class ParseException extends RuntimeException {
 
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.runners.local.StructuralKey;
+  public ParseException(Throwable cause) {
+    super(cause);
+  }
 
-/** A provider of {@link StateInternals} and {@link TimerInternals}. */
-interface StateAndTimerProvider {
-  <K> CopyOnAccessInMemoryStateInternals<K> stateInternals(
-      PTransformNode transform, StructuralKey<K> key);
-
-  DirectTimerInternals timerInternals(PTransformNode transform, StructuralKey<?> key);
+  public ParseException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

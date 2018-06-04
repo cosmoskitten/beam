@@ -28,9 +28,9 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.junit.Before;
 import org.junit.Test;
@@ -93,14 +93,14 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_boundedTable() throws Exception {
-    BeamSqlTableProvider tableProvider =
-        new BeamSqlTableProvider(
+    ReadOnlyTableProvider tableProvider =
+        new ReadOnlyTableProvider(
             "test",
             ImmutableMap.of(
                 "test",
                 MockedBoundedTable.of(
-                        TypeName.INT32, "id",
-                        TypeName.STRING, "name")
+                        Schema.FieldType.INT32, "id",
+                        Schema.FieldType.STRING, "name")
                     .addRows(1, "first")));
     CalciteConnection connection = JdbcDriver.connect(tableProvider);
     Statement statement = connection.createStatement();
