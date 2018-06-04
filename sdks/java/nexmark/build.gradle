@@ -63,8 +63,8 @@ dependencies {
   shadow library.java.kafka_clients
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
 
 
   gradleRun project(path: project.path, configuration: "shadow")

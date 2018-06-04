@@ -34,6 +34,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -91,7 +92,7 @@ public class Main<OptionT extends NexmarkOptions> {
         }
       }
       if (options.getExportSummaryToBigQuery()){
-        savePerfsToBigQuery(options, actual);
+        savePerfsToBigQuery(options, actual, null);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -106,8 +107,10 @@ public class Main<OptionT extends NexmarkOptions> {
   }
 
   @VisibleForTesting
-  static void savePerfsToBigQuery(NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs) {
+  static void savePerfsToBigQuery(
+      NexmarkOptions options,
+      Map<NexmarkConfiguration, NexmarkPerf> perfs,
+      @Nullable FakeBigQueryServices fakeBigQueryServices) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
         pipeline.apply(Create.of(perfs));
@@ -127,7 +130,8 @@ public class Main<OptionT extends NexmarkOptions> {
         tableFunction =
             input -> {
               String tableSpec =
-                  NexmarkUtils.tableSpec(options, "q" + input.getValue().getKey().query, 0L, null);
+                  NexmarkUtils.tableSpec(
+                      options, String.valueOf(input.getValue().getKey().query), 0L, null);
               return new TableDestination(tableSpec, "perfkit queries");
             };
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
@@ -145,7 +149,9 @@ public class Main<OptionT extends NexmarkOptions> {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withFormatFunction(rowFunction);
-
+    if (fakeBigQueryServices != null){
+      io = io.withTestServices(fakeBigQueryServices);
+    }
     perfsPCollection.apply("savePerfsToBigQuery", io);
     pipeline.run();
   }
