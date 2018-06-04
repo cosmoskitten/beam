@@ -149,14 +149,15 @@ public class RandomAccessData {
     /**
      * Compare the two sets of bytes starting at the given offset.
      */
+    @SuppressWarnings("ReferenceEquality") // equals overload calls into this compare method
     public int compare(RandomAccessData o1, RandomAccessData o2, int startOffset) {
-      if (Objects.equals(o1, o2)) {
+      if (o1 == o2) {
         return 0;
       }
-      if (Objects.equals(o1, POSITIVE_INFINITY)) {
+      if (o1 == POSITIVE_INFINITY) {
         return 1;
       }
-      if (Objects.equals(o2, POSITIVE_INFINITY)) {
+      if (o2 == POSITIVE_INFINITY) {
         return -1;
       }
 
@@ -323,6 +324,7 @@ public class RandomAccessData {
     if (!(other instanceof RandomAccessData)) {
       return false;
     }
+
     return UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(this, (RandomAccessData) other) == 0;
   }
 
