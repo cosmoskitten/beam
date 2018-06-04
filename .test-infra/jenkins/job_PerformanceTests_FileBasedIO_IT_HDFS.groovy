@@ -21,6 +21,7 @@ import common_job_properties
 def testsConfigurations = [
         [
                 jobName           : 'beam_PerformanceTests_TextIOIT_HDFS',
+                shortJobName      : 'filebased',
                 jobDescription    : 'Runs PerfKit tests for TextIOIT on HDFS',
                 itClass           : 'org.apache.beam.sdk.io.text.TextIOIT',
                 bqTable           : 'beam_performance.textioit_hdfs_pkb_results',
