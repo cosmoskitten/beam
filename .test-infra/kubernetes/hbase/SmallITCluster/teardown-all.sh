@@ -1,3 +1,4 @@
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,22 +13,17 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
+
 # This script terminates HBase cluster and hbase-external service. It checks /etc/hosts file
 # for any unneeded entries and notifies user about them.
-#
-
-#!/bin/sh
 set -e
 
 external_ip="$(kubectl get svc hbase-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-
 hbase_master_pod_name="$(kubectl get pods --selector=name=hbase -o jsonpath='{.items[*].metadata.name}')"
 
 kubectl delete -f hbase-single-node-cluster.yml
-
 kubectl delete -f hbase-single-node-cluster-for-local-dev.yml
 
-if grep "${external_ip}\|${hbase_master_pod_name}" /etc/hosts ; then
+if grep "${external_ip}\\|${hbase_master_pod_name}" /etc/hosts ; then
     echo "Remove entry from /etc/hosts."
 fi
