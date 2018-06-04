@@ -12,14 +12,13 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
+
 # This script creates single node HBase cluster. This means all three services
 # zookeeper, HBase master and regionserver are running on the same kubernetes pod.
 # Service "hbase" allow to reach HBase pod using its FQDN.
 # StatefulSet "hbase" creates one replica of HBase fully configured node. In order
 # to access the cluster from outside of GCP please also run this configuration file with:
 # hbase-single-node-cluster-for-local-dev.yml
-#
 
 apiVersion: v1
 kind: Service
@@ -79,7 +78,7 @@ spec:
     spec:
       containers:
         - name: hbase
-          image: harisekhon/hbase:latest
+          image: harisekhon/hbase:1.2
           ports:
             - name: zookeeper
               containerPort: 2181

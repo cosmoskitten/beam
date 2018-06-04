@@ -1,3 +1,4 @@
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,18 +13,14 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
+
 # This script starts HBase cluster and hbase-external service that allows to reach cluster
 # from developer's machine. Once the cluster is working, scripts waits till
 # external cluster endpoint will be available. It prints out configuration line that
 # should be added to /etc/hosts file in order to work with HBase cluster.
-#
-
-#!/bin/sh
 set -e
 
 kubectl create -f hbase-single-node-cluster.yml
-
 kubectl create -f hbase-single-node-cluster-for-local-dev.yml
 
 external_ip="$(kubectl get svc hbase-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
@@ -40,4 +37,4 @@ hbase_master_pod_name="$(kubectl get pods --selector=name=hbase -o jsonpath='{.i
 hbase_master_namespace="$(kubectl get pods --selector=name=hbase -o jsonpath='{.items[*].metadata.namespace}')"
 
 echo "For local tests please add the following entry to /etc/hosts file"
-echo ${external_ip}$'\t'${hbase_master_pod_name}".hbase.${hbase_master_namespace}.svc.cluster.local"
+printf "%s\\t%s.hbase.%s.svc.cluster.local\n" "${external_ip}" "${hbase_master_pod_name}" "${hbase_master_namespace}"
