@@ -184,7 +184,7 @@ def spark_version = "2.3.0"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.7.0"
 def apex_malhar_version = "3.4.0"
-def postgres_version = "9.4.1212.jre7"
+def postgres_version = "42.2.2"
 def jaxb_api_version = "2.2.12"
 def kafka_version = "1.0.0"
 def quickcheck_version = "0.8"
@@ -344,6 +344,7 @@ class JavaNatureConfiguration {
 
   //TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this default to true?
   boolean enableSpotless = false // Controls whether spotless plugin enforces autoformat
+  boolean testShadowJar = false  // Controls whether tests are run with shadowJar
 
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
@@ -421,7 +422,7 @@ ext.applyJavaNature = {
     if (configuration.enableErrorProne) {
       options.compilerArgs += [
         "-XepDisableWarningsInGeneratedCode",
-        "-XepExcludedPaths:.*/build/generated.*avro-java/.*",
+        "-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*",
         "-Xep:MutableConstantField:OFF" // Guava's immutable collections cannot appear on API surface.
       ]
     }
@@ -580,6 +581,22 @@ ext.applyJavaNature = {
   // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
   artifacts.shadow shadowJar
   artifacts.shadowTest shadowTestJar
+
+  if (configuration.testShadowJar) {
+    // Use a configuration and dependency set which represents the execution classpath using shaded artifacts for tests.
+    configurations {
+      shadowTestRuntimeClasspath
+    }
+
+    dependencies {
+      shadowTestRuntimeClasspath project(path: project.path, configuration: "shadowTest")
+      shadowTestRuntimeClasspath project(path: project.path, configuration: "provided")
+    }
+
+    test {
+      classpath = configurations.shadowTestRuntimeClasspath
+    }
+  }
 
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
@@ -1040,6 +1057,11 @@ ext.provideIntegrationTestingDependencies = {
       if (filesystem?.equalsIgnoreCase('hdfs')) {
         testCompile project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: 'shadowTest')
         shadowTest library.java.hadoop_client
+      }
+
+      /* include dependencies required by AWS S3 */
+      if (filesystem?.equalsIgnoreCase('s3')) {
+        testCompile project(path: ":beam-sdks-java-io-amazon-web-services", configuration: 'shadowTest')
       }
     }
   }

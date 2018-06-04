@@ -15,19 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import com.google.common.collect.ImmutableMap;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.meta.provider.BeamSqlTableProvider;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParseException;
+package org.apache.beam.runners.direct.portable.artifact;
 
-class ParserTestUtils {
-  private static final BeamSqlEnv env =
-      new BeamSqlEnv(new BeamSqlTableProvider("test", ImmutableMap.of()));
+import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 
-  static SqlNode parse(String sql) throws SqlParseException {
-    return env.getPlanner().parse(sql);
+/**
+ * An {@link ArtifactRetrievalService} which has not implemented any methods.
+ *
+ * <p>For use with an in-process SDK harness.
+ */
+public class UnsupportedArtifactRetrievalService
+    extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase
+    implements ArtifactRetrievalService {
+
+  public static ArtifactRetrievalService create() {
+    return new UnsupportedArtifactRetrievalService();
+  }
+
+  private UnsupportedArtifactRetrievalService() {}
+
+  @Override
+  public void close() {
+    // Do nothing.
   }
 }
