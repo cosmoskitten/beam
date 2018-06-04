@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
  */
 public class IOITHelper {
   private static final Logger LOG = LoggerFactory.getLogger(IOITHelper.class);
+  private static final int maxAttempts = 3;
+  private static final long minDelay = 1_000;
 
   private IOITHelper() {
   }
@@ -44,14 +46,13 @@ public class IOITHelper {
   /**
    * Interface for passing method to executeWithRetry method.
    */
+  @FunctionalInterface
   public interface RetryFunction {
     void run() throws Exception;
   }
 
   public static void executeWithRetry(RetryFunction function)
       throws Exception {
-    int maxAttempts = 3;
-    long minDelay = 10_000;
     executeWithRetry(maxAttempts, minDelay, function);
   }
 
@@ -84,8 +85,8 @@ public class IOITHelper {
           }
           throw e;
         } else {
-          delay = (long) Math.pow(2, ++attempts) * delay;
-          Thread.sleep(delay);
+          long nextDelay = (long) Math.pow(2, ++attempts) * delay;
+          Thread.sleep(nextDelay);
         }
       }
     }
