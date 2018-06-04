@@ -32,7 +32,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /** Test class for BigQuery sinks. */
 public class PerfsToBigQueryTest {
@@ -45,6 +47,9 @@ public class PerfsToBigQueryTest {
       new FakeBigQueryServices()
           .withDatasetService(fakeDatasetService)
           .withJobService(fakeJobService);
+  @Rule
+  public transient TemporaryFolder testFolder = new TemporaryFolder();
+
 
   @Before
   public void before() {
@@ -54,6 +59,8 @@ public class PerfsToBigQueryTest {
     options.setRunner(DirectRunner.class);
     options.setStreaming(true);
     options.setProject("nexmark-test");
+    options.setTempLocation(testFolder.getRoot().getAbsolutePath());
+
   }
 
   @Test
