@@ -35,12 +35,12 @@ job('beam_Dependency_Check') {
   steps {
     // gradle task :dependencyUpdates will do Java dependency version check
     // ./gradlew :dependencyUpdates -Drevision=release -DreportfileName=javaDependencyReport
-//    gradle {
-//      rootBuildScriptDir(common_job_properties.checkoutDir)
-//      tasks(':dependencyUpdates')
-//      common_job_properties.setGradleSwitches(delegate)
-//      switches('-Drevision=release')
-//    }
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':dependencyUpdates')
+      common_job_properties.setGradleSwitches(delegate)
+      switches('-Drevision=release')
+    }
 
 //    gradle {
 //      rootBuildScriptDir(common_job_properties.checkoutDir)
@@ -65,7 +65,7 @@ job('beam_Dependency_Check') {
           contentType('text/plain')
           subject('Beam Dependency Check Report')
 //          content('''${SCRIPT, template="my-email.template"}''')
-          content('''${FILE, path="src/build/dependencyUpdates/dependency-check-report.txt"}''')
+          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.txt"}''')
         }
       }
     }
