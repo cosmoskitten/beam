@@ -151,7 +151,7 @@ public class BoundedSourceRunnerTest {
         Collections.emptyMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add, splitListener);
 
     // This is testing a deprecated way of running sources and should be removed
     // once all source definitions are instead propagated along the input edge.
