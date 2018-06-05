@@ -17,7 +17,6 @@
  */
 
 import common_job_properties
-import dependency_check_utils
 
 job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
@@ -42,19 +41,19 @@ job('beam_Dependency_Check') {
 //      switches('-Drevision=release')
 //    }
 
-//    gradle {
-//      rootBuildScriptDir(common_job_properties.checkoutDir)
-//      tasks(':release:runBeamDependencyCheck')
-//      common_job_properties.setGradleSwitches(delegate)
-//    }
-    shell('cd ' + common_job_properties.checkoutDir +
-      ' && bash release/src/main/dependency_check/generate_report.sh')
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':runBeamDependencyCheck')
+      common_job_properties.setGradleSwitches(delegate)
+      switches('-Drevision=release')
+    }
 
-    // The shell script "run_dependency_check" will do version check for Python SDK.
+//    // The shell script "run_dependency_check" will do version check for Python SDK.
 //    shell('cd ' + common_job_properties.checkoutDir +
-//      ' && bash sdks/python/run_dependency_check.sh')
+//      ' && bash sdks/python/scripts/run_dependency_check.sh')
 
-//    groovyScriptFile(common_job_properties.checkoutDir + '/.test-infra/jenkins/dependency_check_utils.groovy')
+    shell('cd ' + common_job_properties.checkoutDir +
+            ' && bash release/src/main/dependency_check/generate_report.sh')
   }
 
   publishers {
@@ -65,7 +64,7 @@ job('beam_Dependency_Check') {
           contentType('text/plain')
           subject('Beam Dependency Check Report')
 //          content('''${SCRIPT, template="my-email.template"}''')
-          content('''${FILE, path="src/build/dependencyUpdates/dependency-check-report.txt"}''')
+          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.txt"}''')
         }
       }
     }
