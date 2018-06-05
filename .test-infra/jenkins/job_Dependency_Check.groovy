@@ -17,7 +17,6 @@
  */
 
 import common_job_properties
-import dependency_check_utils
 
 job('beam_Dependency_Check') {
   description('Runs Beam dependency check.')
@@ -35,18 +34,19 @@ job('beam_Dependency_Check') {
   steps {
     // gradle task :dependencyUpdates will do Java dependency version check
     // ./gradlew :dependencyUpdates -Drevision=release -DreportfileName=javaDependencyReport
-//    gradle {
-//      rootBuildScriptDir(common_job_properties.checkoutDir)
-//      tasks(':dependencyUpdates')
-//      common_job_properties.setGradleSwitches(delegate)
-//      switches('-Drevision=release')
-//    }
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':dependencyUpdates')
+      common_job_properties.setGradleSwitches(delegate)
+      switches('-Drevision=release')
+    }
 
-//    gradle {
-//      rootBuildScriptDir(common_job_properties.checkoutDir)
-//      tasks(':release:runBeamDependencyCheck')
-//      common_job_properties.setGradleSwitches(delegate)
-//    }
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':release:runBeamDependencyCheck')
+      common_job_properties.setGradleSwitches(delegate)
+    }
+
     shell('cd ' + common_job_properties.checkoutDir +
       ' && bash release/src/main/dependency_check/generate_report.sh')
 
@@ -65,7 +65,7 @@ job('beam_Dependency_Check') {
           contentType('text/plain')
           subject('Beam Dependency Check Report')
 //          content('''${SCRIPT, template="my-email.template"}''')
-          content('''${FILE, path="src/build/dependencyUpdates/dependency-check-report.txt"}''')
+          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.txt"}''')
         }
       }
     }
