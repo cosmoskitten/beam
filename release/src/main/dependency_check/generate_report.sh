@@ -27,4 +27,18 @@ pip install --upgrade google-cloud-bigquery
 
 pwd
 
-python release/src/main/dependency_check/generate_dependency_check_report.py
+python release/src/main/dependency_check/generate_dependency_check_report.py \
+build/dependencyUpdates/python_dependency_report.txt \
+Python \
+apache-beam-testing \
+beam_dependency_states \
+python_dependency_states
+
+echo 'aaaaaaaaa'
+
+#python release/src/main/dependency_check/generate_dependency_check_report.py \
+#build/dependencyUpdates/report.txt \
+#Java \
+#apache-beam-testing \
+#beam_dependency_states \
+#java_dependency_states
