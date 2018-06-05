@@ -39,10 +39,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -118,7 +117,7 @@ public class Main<OptionT extends NexmarkOptions> {
   static void savePerfsToBigQuery(
       NexmarkOptions options,
       Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      @Nullable FakeBigQueryServices fakeBigQueryServices) {
+      @Nullable BigQueryServices testBigQueryServices) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
         pipeline.apply(
@@ -172,8 +171,8 @@ public class Main<OptionT extends NexmarkOptions> {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withFormatFunction(rowFunction);
-    if (fakeBigQueryServices != null){
-      io = io.withTestServices(fakeBigQueryServices);
+    if (testBigQueryServices != null){
+      io = io.withTestServices(testBigQueryServices);
     }
     perfsPCollection.apply("savePerfsToBigQuery", io);
     pipeline.run();
