@@ -231,11 +231,11 @@ task postCommit() {
   dependsOn "postCommitVRTests"
 }
 
-task dependencyUpdates() {
+task dependencyUpdates(dependsOn: ':dependencyUpdates') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "./run_dependency_check.sh"
+      args '-c', "./scripts/run_dependency_check.sh"
     }
   }
 }
