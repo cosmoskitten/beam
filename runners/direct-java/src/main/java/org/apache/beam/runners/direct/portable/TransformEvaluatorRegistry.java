@@ -64,6 +64,9 @@ class TransformEvaluatorRegistry {
                 DirectGroupByKey.DIRECT_GABW_URN,
                 new GroupAlsoByWindowEvaluatorFactory(
                     graph, components, bundleFactory, stepStateAndTimers))
+            .put(DirectSDF.DIRECT_FEED_SDF_URN,
+                new FeedSDFEvaluatorFactory(
+                    graph, components, bundleFactory, stepStateAndTimers))
             .put(
                 ExecutableStage.URN,
                 new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
