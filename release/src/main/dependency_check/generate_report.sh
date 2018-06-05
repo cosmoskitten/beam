@@ -20,11 +20,28 @@
 set -e
 set -v
 
+PROJECT_ID='apache-beam-testing'
+DATASET_ID='beam_dependency_states'
+PYTHON_DEP_TABLE_ID='python_dependency_states'
+JAVA_DEP_TABLE_ID='java_dependency_states'
+
 # Virtualenv for the rest of the script to run setup
 /usr/bin/virtualenv dependency/check
 . dependency/check/bin/activate
 pip install --upgrade google-cloud-bigquery
 
-pwd
+rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
-python release/src/main/dependency_check/generate_dependency_check_report.py
+python release/src/main/dependency_check/generate_dependency_check_report.py \
+build/dependencyUpdates/python_dependency_report.txt \
+Python \
+$PROJECT_ID \
+$DATASET_ID \
+$PYTHON_DEP_TABLE_ID
+
+python release/src/main/dependency_check/generate_dependency_check_report.py \
+build/dependencyUpdates/report.txt \
+Java \
+$PROJECT_ID \
+$DATASET_ID \
+$JAVA_DEP_TABLE_ID
