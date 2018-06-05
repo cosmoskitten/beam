@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Struct;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -227,11 +228,12 @@ public class ExecutableStageDoFnOperatorTest {
               }
 
               @Override
-              public void close() throws Exception {
+              public ProcessBundleResponse close() throws Exception {
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create(mainOutput.getId()).accept(three);
                 receiverFactory.create(additionalOutput1.getId()).accept(four);
                 receiverFactory.create(additionalOutput2.getId()).accept(five);
+                return ProcessBundleResponse.getDefaultInstance();
               }
             };
           }

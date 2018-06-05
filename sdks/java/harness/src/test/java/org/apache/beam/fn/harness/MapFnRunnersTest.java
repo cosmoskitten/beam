@@ -82,7 +82,7 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             consumers,
             startFunctions::add,
-            finishFunctions::add);
+            finishFunctions::add, splitListener);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
@@ -116,7 +116,7 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             consumers,
             startFunctions::add,
-            finishFunctions::add);
+            finishFunctions::add, splitListener);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
@@ -150,7 +150,7 @@ public class MapFnRunnersTest {
             Collections.emptyMap(),
             consumers,
             startFunctions::add,
-            finishFunctions::add);
+            finishFunctions::add, splitListener);
 
     assertThat(startFunctions, empty());
     assertThat(finishFunctions, empty());
