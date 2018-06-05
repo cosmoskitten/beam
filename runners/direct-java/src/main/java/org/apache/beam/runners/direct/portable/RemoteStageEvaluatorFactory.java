@@ -18,16 +18,32 @@
 
 package org.apache.beam.runners.direct.portable;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.Iterables;
+import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.direct.ExecutableGraph;
+import org.apache.beam.runners.direct.portable.StepTransformResult.Builder;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.wire.WireCoders;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -35,41 +51,59 @@ import org.apache.beam.sdk.util.WindowedValue;
  * stages which execute on an SDK harness via the Fn Execution APIs.
  */
 class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
+
+  private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
+  private final RehydratedComponents components;
   private final BundleFactory bundleFactory;
 
-  private final JobBundleFactory jobFactory;
+  private final JobBundleFactory jobBundleFactory;
 
-  RemoteStageEvaluatorFactory(BundleFactory bundleFactory, JobBundleFactory jobFactory) {
+  RemoteStageEvaluatorFactory(
+      ExecutableGraph<PTransformNode, PCollectionNode> graph,
+      Components components,
+      BundleFactory bundleFactory,
+      JobBundleFactory jobBundleFactory) {
+    this.graph = graph;
+    this.components = RehydratedComponents.forComponents(components);
     this.bundleFactory = bundleFactory;
-    this.jobFactory = jobFactory;
+    this.jobBundleFactory = jobBundleFactory;
   }
 
   @Nullable
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       PTransformNode application, CommittedBundle<?> inputBundle) throws Exception {
-    return new RemoteStageEvaluator<>(application);
+    return new RemoteStageEvaluator<>(graph, components, application);
   }
 
   @Override
   public void cleanup() throws Exception {
-    jobFactory.close();
+    jobBundleFactory.close();
   }
 
   private class RemoteStageEvaluator<T> implements TransformEvaluator<T> {
+
+    private final ExecutableGraph<PTransformNode, PCollectionNode> graph;
+    private final RehydratedComponents components;
     private final PTransformNode transform;
     private final RemoteBundle<T> bundle;
     private final Collection<UncommittedBundle<?>> outputs;
 
-    private RemoteStageEvaluator(PTransformNode transform) throws Exception {
+    private RemoteStageEvaluator(
+        ExecutableGraph<PTransformNode, PCollectionNode> graph,
+        RehydratedComponents components,
+        PTransformNode transform)
+        throws Exception {
+      this.graph = graph;
+      this.components = components;
       this.transform = transform;
       ExecutableStage stage =
           ExecutableStage.fromPayload(
               ExecutableStagePayload.parseFrom(transform.getTransform().getSpec().getPayload()));
       outputs = new ArrayList<>();
-      StageBundleFactory<T> stageFactory = jobFactory.forStage(stage);
+      StageBundleFactory<T> stageBundleFactory = jobBundleFactory.forStage(stage);
       bundle =
-          stageFactory.getBundle(
+          stageBundleFactory.getBundle(
               BundleFactoryOutputRecieverFactory.create(
                   bundleFactory, stage.getComponents(), outputs::add),
               StateRequestHandler.unsupported());
@@ -82,8 +116,31 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult<T> finishBundle() throws Exception {
-      bundle.close();
-      return StepTransformResult.<T>withoutHold(transform).addOutput(outputs).build();
+      ProcessBundleResponse response = bundle.close();
+      Builder<T> result = StepTransformResult.<T>withoutHold(transform);
+      // TODO: actually it's withHold.
+
+      result.addOutput(outputs);
+      if (response.hasSplit()) {
+        // For now can only happen on the first instruction which is SPLITTABLE_PROCESS_ELEMENTS.
+        // Which means we can use .withUnprocessedElements (modulo delay)
+        // Alternatively we could have a TransformEvaluator for feeding stuff into an
+        // ExecutableStage that starts with an SDF.
+        List<Application> residuals = response.getSplit().getResidualRootsList();
+        checkArgument(residuals.size() == 1, "More than 1 residual is unsupported for now");
+        ByteString residualElement = residuals.get(0).getElement();
+        PCollectionNode inputPCNode =
+            Iterables.getOnlyElement(this.graph.getPerElementInputs(transform));
+        Coder<WindowedValue<T>> coder =
+            WireCoders.instantiateRunnerWireCoder(inputPCNode, components.getComponents());
+        result.addUnprocessedElements(
+            Collections.singletonList(
+                CoderUtils.decodeFromByteArray(coder, residualElement.toByteArray())));
+      }
+      if (response.hasMetrics()) {
+        // TODO
+      }
+      return result.build();
     }
   }
 }

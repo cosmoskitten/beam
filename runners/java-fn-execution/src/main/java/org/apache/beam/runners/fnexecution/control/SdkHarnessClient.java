@@ -28,6 +28,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
@@ -218,8 +219,9 @@ public class SdkHarnessClient implements AutoCloseable {
      * failed.
      */
     @Override
-    public void close() throws Exception {
+    public ProcessBundleResponse close() throws Exception {
       Exception exception = null;
+      ProcessBundleResponse processBundleResponse = null;
       try {
         inputReceiver.close();
       } catch (Exception e) {
@@ -228,7 +230,7 @@ public class SdkHarnessClient implements AutoCloseable {
       try {
         // We don't have to worry about the completion stage.
         if (exception == null) {
-          MoreFutures.get(response);
+          processBundleResponse = MoreFutures.get(response);
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.
           throw new IllegalStateException("Processing bundle failed, "
@@ -273,7 +275,10 @@ public class SdkHarnessClient implements AutoCloseable {
       if (exception != null) {
         throw exception;
       }
-
+      checkState(
+          processBundleResponse != null,
+          "processBundleResponse should be non-null if there was no exception");
+      return processBundleResponse;
     }
   }
 

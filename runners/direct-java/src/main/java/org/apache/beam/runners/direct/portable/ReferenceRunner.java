@@ -102,12 +102,17 @@ public class ReferenceRunner {
   }
 
   private RunnerApi.Pipeline executable(RunnerApi.Pipeline original) {
-    RunnerApi.Pipeline withGbks =
+    RunnerApi.Pipeline p = original;
+    p =
         ProtoOverrides.updateTransform(
-            PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-            original,
-            new PortableGroupByKeyReplacer());
-    return GreedyPipelineFuser.fuse(withGbks).toPipeline();
+            PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+            p,
+            new SplittableProcessKeyedReplacer());
+    p =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, p, new PortableGroupByKeyReplacer());
+    p = GreedyPipelineFuser.fuse(p).toPipeline();
+    return p;
   }
 
   public void execute() throws Exception {
@@ -283,6 +288,108 @@ public class ReferenceRunner {
               .build();
       return MessageWithComponents.newBuilder()
           .setPtransform(gbk.toBuilder().addSubtransforms(gbkoId).addSubtransforms(gabwId).build())
+          .setComponents(newComponents)
+          .build();
+    }
+  }
+
+  @VisibleForTesting
+  static class SplittableProcessKeyedReplacer implements TransformReplacement {
+    @Override
+    public MessageWithComponents getReplacement(String spkId, ComponentsOrBuilder components) {
+      PTransform spk = components.getTransformsOrThrow(spkId);
+      checkArgument(
+          PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN.equals(spk.getSpec().getUrn()),
+          "URN must be %s, got %s",
+          PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
+          spk.getSpec().getUrn());
+      String inputId = getOnlyElement(spk.getInputsMap().values());
+      PCollection input = components.getPcollectionsOrThrow(inputId);
+
+      // This is a Coder<KV<String, KV<ElementT, RestrictionT>>>
+      Coder inputCoder = components.getCodersOrThrow(input.getCoderId());
+      KvCoderComponents kvComponents = ModelCoders.getKvCoderComponents(inputCoder);
+      String windowCoderId =
+          components
+              .getWindowingStrategiesOrThrow(input.getWindowingStrategyId())
+              .getWindowCoderId();
+      // This coder isn't actually required for the pipeline to function properly - the KWIs can be
+      // passed around as pure java objects with no coding of the values, but it approximates a full
+      // pipeline.
+      Coder kwiCoder =
+          Coder.newBuilder()
+              .setSpec(
+                  SdkFunctionSpec.newBuilder()
+                      .setSpec(FunctionSpec.newBuilder().setUrn("beam:direct:keyedworkitem:v1")))
+              .addAllComponentCoderIds(
+                  ImmutableList.of(
+                      kvComponents.keyCoderId(), kvComponents.valueCoderId(), windowCoderId))
+              .build();
+      String kwiCoderId =
+          SyntheticComponents.uniqueId(
+              String.format(
+                  "keyed_work_item(%s:%s)", kvComponents.keyCoderId(), kvComponents.valueCoderId()),
+              components::containsCoders);
+      String feedSDFCoderId = inputCoder.getComponentCoderIds(1);
+
+      String kwiCollectionId =
+          SyntheticComponents.uniqueId(
+              String.format("%s.%s", inputId, "kwi"), components::containsPcollections);
+      PCollection kwiCollection =
+          input.toBuilder().setUniqueName(kwiCollectionId).setCoderId(kwiCoderId).build();
+      String rawGbkId =
+          SyntheticComponents.uniqueId(
+              String.format("%s/RawGBK", spkId), components::containsTransforms);
+      PTransform rawGbk =
+          PTransform.newBuilder()
+              .putAllInputs(spk.getInputsMap())
+              .setSpec(FunctionSpec.newBuilder().setUrn(DirectGroupByKey.DIRECT_GBKO_URN))
+              .putOutputs("output", kwiCollectionId)
+              .build();
+
+      String feedSDFCollectionId = SyntheticComponents.uniqueId(
+          String.format("%s.%s", inputId, "feed"), components::containsPcollections);
+      PCollection feedSDFCollection =
+          input.toBuilder().setUniqueName(feedSDFCollectionId).setCoderId(feedSDFCoderId).build();
+      String feedSDFId =
+          SyntheticComponents.uniqueId(
+              String.format("%s/FeedSDF", spkId), components::containsTransforms);
+      PTransform feedSDF =
+          PTransform.newBuilder()
+              .putInputs("input", kwiCollectionId)
+              .setSpec(FunctionSpec.newBuilder().setUrn(DirectSDF.DIRECT_FEED_SDF_URN))
+              .putOutputs("output", feedSDFCollectionId)
+              .build();
+
+      String runSDFId =
+          SyntheticComponents.uniqueId(
+              String.format("%s/RunSDF", spkId), components::containsTransforms);
+      PTransform runSDF =
+          PTransform.newBuilder()
+              .putInputs("input", feedSDFCollectionId)
+              .setSpec(
+                  FunctionSpec.newBuilder()
+                      .setUrn(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN)
+                      .setPayload(spk.getSpec().getPayload()))
+              .putAllOutputs(spk.getOutputsMap())
+              .build();
+
+      Components newComponents =
+          Components.newBuilder()
+              .putCoders(kwiCoderId, kwiCoder)
+              .putPcollections(kwiCollectionId, kwiCollection)
+              .putPcollections(feedSDFCollectionId, feedSDFCollection)
+              .putTransforms(rawGbkId, rawGbk)
+              .putTransforms(feedSDFId, feedSDF)
+              .putTransforms(runSDFId, runSDF)
+              .build();
+      return MessageWithComponents.newBuilder()
+          .setPtransform(
+              spk.toBuilder()
+                  .addSubtransforms(rawGbkId)
+                  .addSubtransforms(feedSDFId)
+                  .addSubtransforms(runSDFId)
+                  .build())
           .setComponents(newComponents)
           .build();
     }
