@@ -1059,6 +1059,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
   private Set<ExecutableT> refreshWatermarks(ExecutableT toRefresh) {
     TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
+    String before = myWatermarks.toString();
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
       Set<ExecutableT> additionalRefreshes = new HashSet<>();

@@ -85,6 +85,7 @@ public class WireCoders {
       RunnerApi.Components components,
       Predicate<String> idUsed,
       boolean useByteArrayCoder) {
+    String baseCoderId = String.format("fn/wire/%s", pCollectionNode.getId());
     String elementCoderId = pCollectionNode.getPCollection().getCoderId();
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
@@ -93,7 +94,7 @@ public class WireCoders {
         ModelCoders.windowedValueCoder(elementCoderId, windowCoderId);
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =
-        SyntheticComponents.uniqueId(String.format("fn/wire/%s", pCollectionNode.getId()), idUsed);
+        SyntheticComponents.uniqueId(baseCoderId, idUsed);
     return LengthPrefixUnknownCoders.forCoder(
         windowedValueId,
         components.toBuilder().putCoders(windowedValueId, windowedValueCoder).build(),
