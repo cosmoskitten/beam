@@ -180,10 +180,11 @@ task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
 }
 
-//task beamDependencyCheck() {
-//  dependsOn ":dependencyUpdates"
-//  dependsOn ":beam-sdks-python:dependecyUpdates"
-//}
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependecyUpdates"
+  dependsOn ":release:generateDependencyCheckReportTask"
+}
 
 apply plugin: 'net.researchgate.release'
 release {
