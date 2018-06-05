@@ -65,7 +65,7 @@ job('beam_Dependency_Check') {
           contentType('text/plain')
           subject('Beam Dependency Check Report')
 //          content('''${SCRIPT, template="my-email.template"}''')
-          content('''${FILE, path="src/build/dependencyUpdates/dependency-check-report.txt"}''')
+          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.txt"}''')
         }
       }
     }
