@@ -35,7 +35,7 @@ do
   echo $line | while IFS=' ' read dep curr_ver new_ver type
   do
     echo $line
-    echo "- $dep [$curr_ver -> $new_ver]" >> ../../build/dependencyUpdates/pythonDependencyReport.txt
+    echo " - $dep [$curr_ver -> $new_ver]" >> ../../build/dependencyUpdates/pythonDependencyReport.txt
   done
 done
 

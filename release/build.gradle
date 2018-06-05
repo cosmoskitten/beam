@@ -43,6 +43,17 @@ task runJavaExamplesValidationTask {
 task runBeamDependencyCheck {
   group = "Verification"
   description = "Run Beam Dependency Checks"
-  dependsOn ":dependencyUpdates"
-//  dependsOn ":beam-sdks-python:dependecyUpdates"
+//  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependecyUpdates"
+//  dependsOn ":release:generateDependencyCheckReportTask"
+}
+
+task generateDependencyCheckReportTask {
+  description = "Create a report for the dependency check"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "bash dependency_check/generate_report.sh"
+    }
+  }
 }
