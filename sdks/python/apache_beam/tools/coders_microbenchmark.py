@@ -76,10 +76,7 @@ def encode_and_decode(coder, data):
   _ = coder.decode(coder.encode(data))
 
 
-def run_coder_benchmarks(num_runs, input_size, seed=42, print_output=True):
-  print("Number of runs:", num_runs)
-  print("Input size:", input_size)
-  print("Random seed:", seed)
+def run_coder_benchmarks(num_runs, input_size, seed, print_output=True):
   random.seed(seed)
 
   benchmarks = []
@@ -140,4 +137,13 @@ def run_coder_benchmarks(num_runs, input_size, seed=42, print_output=True):
 
 if __name__ == "__main__":
   utils.check_compiled("apache_beam.coders.coder_impl")
-  run_coder_benchmarks(num_runs=10, input_size=10000)
+
+  num_runs = 10
+  input_size = 10000
+  seed = 42 # Fix the seed for better consistency
+
+  print("Number of runs:", num_runs)
+  print("Input size:", input_size)
+  print("Random seed:", seed)
+
+  run_coder_benchmarks(num_runs, input_size, seed)
