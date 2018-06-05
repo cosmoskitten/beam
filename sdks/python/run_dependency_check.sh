@@ -29,13 +29,13 @@ pip install -e .[gcp,test,docs]
 
 # List all outdated dependencies and write results in pythonDependencyReport
 
-echo "The following dependencies have later release versions:" > ../../build/dependencyUpdates/pythonDependencyReport.txt
+echo "The following dependencies have later release versions:" > ../../build/dependencyUpdates/python_dependency_report.txt
 pip list --outdated | sed -n '1,2!p' | while IFS= read -r line
 do
   echo $line | while IFS=' ' read dep curr_ver new_ver type
   do
     echo $line
-    echo "- $dep [$curr_ver -> $new_ver]" >> ../../build/dependencyUpdates/pythonDependencyReport.txt
+    echo " - $dep [$curr_ver -> $new_ver]" >> ../../build/dependencyUpdates/pythonDependencyReport.txt
   done
 done
 
