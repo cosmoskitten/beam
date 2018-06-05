@@ -21,10 +21,19 @@ set -e
 set -v
 
 # Virtualenv for the rest of the script to run setup
-/usr/bin/virtualenv dependency/check
-. dependency/check/bin/activate
-pip install --upgrade google-cloud-bigquery
+/usr/bin/virtualenv sdks/python
+. sdks/python/bin/activate
+pip install -e .[gcp,test,docs]
 
-pwd
+rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt
 
-python release/src/main/dependency_check/generate_dependency_check_report.py
+# List all outdated dependencies and write results in pythonDependencyReport
+echo "The following dependencies have later release versions:" > $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt
+pip list --outdated | sed -n '1,2!p' | while IFS= read -r line
+do
+  echo $line | while IFS=' ' read dep curr_ver new_ver type
+  do
+    echo $line
+    echo " - $dep [$curr_ver -> $new_ver]" >> $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt
+  done
+done
