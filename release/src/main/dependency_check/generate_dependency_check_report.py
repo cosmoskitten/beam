@@ -18,28 +18,17 @@
 import sys
 import os.path
 import re
-from google.cloud import bigquery
 
-# # Instantiates a client
-# bigquery_client = bigquery.Client()
-#
-# # The name for the new dataset
-# dataset_id = 'beam_dependency_states'
-#
-# datasets = list(bigquery_client.list_datasets())
-# project = bigquery_client.project
-# print project
-#
-# if datasets:
-#     print('Datasets in project {}:'.format(project))
-#     for dataset in datasets:  # API request(s)
-#         print('\t{}'.format(dataset.dataset_id))
-# else:
-#     print('{} project does not contain any datasets.'.format(project))
-
-
+from bigquery_client_utils import BigQueryClientUtils
 
 def extract_results(file_path):
+  """
+  Extract the Java/Python dependency reports and return a collection of out-of-date dependencies.
+  Args:
+     file_path: the path of the raw reports
+  Return:
+    outdated_deps: a collection of dependencies who has updates
+  """
   outdated_deps = []
   with open(file_path) as raw_report:
     see_oudated_deps = False
@@ -51,23 +40,33 @@ def extract_results(file_path):
   raw_report.close()
   return outdated_deps
 
-# Extracts and analyze dependency versions and release dates.
-# Returns a collection of dependencies which is "high priority":
-# 1. dependency has major release. e.g org.assertj:assertj-core [2.5.0 -> 3.10.0]
-# 2. dependency is 3 sub-versions behind the newest one. e.g org.tukaani:xz [1.5 -> 1.8]
-# 3. TODO: dependency has not been updated for more than 6 months.
+
 def prioritize_dependencies(deps):
+  """
+  Extracts and analyze dependency versions and release dates.
+  Returns a collection of dependencies which is "high priority":
+    1. dependency has major release. e.g org.assertj:assertj-core [2.5.0 -> 3.10.0]
+    2. dependency is 3 sub-versions behind the newest one. e.g org.tukaani:xz [1.5 -> 1.8]
+    3. TODO: dependency has not been updated for more than 6 months.
+
+  Args:
+    deps: A collection of outdated dependencies.
+  Return:
+    high_priority_deps: A collection of dependencies which need to be taken care of before next release.
+  """
   high_priority_deps = []
+  bigquery_client = BigQueryClientUtils("apache-beam-testing")
   for dep in deps:
-    if compare_dependency_versions(dep):
+    dep_name, curr_ver, latest_ver = extract_single_dep(dep)
+    if compare_dependency_versions(curr_ver, latest_ver):
       high_priority_deps.append(dep)
-    else:
-      #TODO: implement BQ tables to resolve release dates
+    elif compare_dependency_release_dates(bigquery_client, dep_name, curr_ver, latest_ver):
+      high_priority_deps.append(dep)
+
   return high_priority_deps
 
 
-def compare_dependency_versions(dep):
-  curr_ver, latest_ver = extract_versions(dep)
+def compare_dependency_versions(curr_ver, latest_ver):
   if curr_ver is None or latest_ver is None:
     return True
   else:
@@ -78,7 +77,7 @@ def compare_dependency_versions(dep):
     # compare major versions
     if curr_major_ver.isdigit() and latest_major_ver.isdigit() and int(curr_major_ver) != int(latest_major_ver):
       return True
-    #compare minor versions
+    # compare minor versions
     else:
       curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
       latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
@@ -89,17 +88,27 @@ def compare_dependency_versions(dep):
           return True
   return False
 
-def extract_versions(dep):
-  pattern = "[\s\S]*\[([\s\S]*) -> ([\s\S]*)\]"
+
+def extract_single_dep(dep):
+  pattern = " - ([\s\S])*\[([\s\S]*) -> ([\s\S]*)\]"
   match = re.match(pattern, dep)
   if match is None:
-    return None, None
-  return match.group(1), match.group(2)
+    return None, None, None
+  return match.group(1), match.group(2), match.group(3)
+
+
+def compare_dependency_release_dates(bigquery_client, dep_name, curr_ver, latest_ver):
+  #TODO:
+  try:
+    bigquery_client.cleanup_old_states()
+  except:
+    return True
+  return False
 
 
 def generate_report(file_path, sdk_type):
-  #report_name = 'src/build/dependencyUpdates/beam-dependency-check-report.txt'
-  report_name = '../../../../build/dependencyUpdates/beam-dependency-check-report.txt'
+  report_name = 'src/build/dependencyUpdates/beam-dependency-check-report.txt'
+  #report_name = '../../../../build/dependencyUpdates/beam-dependency-check-report.txt'
   if os.path.exists(report_name):
     append_write = 'a'
   else:
@@ -114,16 +123,29 @@ def generate_report(file_path, sdk_type):
     report.close()
     return
 
-  # Prioritize dependencies by comparing versions.
+  # Prioritize dependencies by comparing versions and release dates.
   high_priority_deps = prioritize_dependencies(outdated_deps)
 
   # Write results to a report
+  subtitle = """-------------------------------------------------------------
+  High Priority Dependencies Of Beam {} SDK:
+  -------------------------------------------------------------
+  """.format(sdk_type)
+  report.write(subtitle)
   for dep in high_priority_deps:
     report.write("%s" % dep)
   report.close()
 
 
 def main(args):
+  """
+  Main method.
+  :param args:
+    args[0]: path of the raw report generated by Java/Python dependency check. Typically in build/dependencyUpdates
+    args[1]: type of the check [Java, Python]
+    TODO: args[2]: google cloud project id
+    TODO: args[3]: BQ dataset
+  """
   generate_report(args[0], args[1])
 
 if __name__ == '__main__':
