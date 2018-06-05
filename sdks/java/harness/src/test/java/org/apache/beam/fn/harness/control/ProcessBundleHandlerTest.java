@@ -50,6 +50,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
@@ -115,7 +116,7 @@ public class ProcessBundleHandlerTest {
             windowingStrategies,
             pCollectionIdsToConsumers,
             addStartFunction,
-            addFinishFunction) -> {
+            addFinishFunction, BundleSplitListener splitListener) -> {
           assertThat(processBundleInstructionId.get(), equalTo("999L"));
 
           transformsProcessed.add(pTransform);
@@ -217,7 +218,7 @@ public class ProcessBundleHandlerTest {
                         windowingStrategies,
                         pCollectionIdsToConsumers,
                         addStartFunction,
-                        addFinishFunction) -> {
+                        addFinishFunction, BundleSplitListener splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
                       addStartFunction.accept(ProcessBundleHandlerTest::throwException);
@@ -261,7 +262,7 @@ public class ProcessBundleHandlerTest {
                         windowingStrategies,
                         pCollectionIdsToConsumers,
                         addStartFunction,
-                        addFinishFunction) -> {
+                        addFinishFunction, BundleSplitListener splitListener) -> {
                       thrown.expect(IllegalStateException.class);
                       thrown.expectMessage("TestException");
                       addFinishFunction.accept(ProcessBundleHandlerTest::throwException);
@@ -335,10 +336,11 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, PCollection> pCollections,
               Map<String, Coder> coders,
-              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+              Map<String, WindowingStrategy> windowingStrategies,
               Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+              Consumer<ThrowingRunnable> addFinishFunction,
+              BundleSplitListener splitListener) throws IOException {
             addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
             return null;
           }
@@ -386,10 +388,11 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, PCollection> pCollections,
               Map<String, Coder> coders,
-              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+              Map<String, WindowingStrategy> windowingStrategies,
               Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+              Consumer<ThrowingRunnable> addFinishFunction,
+              BundleSplitListener splitListener) throws IOException {
             addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
             return null;
           }

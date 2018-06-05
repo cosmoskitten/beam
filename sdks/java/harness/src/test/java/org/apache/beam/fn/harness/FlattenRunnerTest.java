@@ -87,7 +87,7 @@ public class FlattenRunnerTest {
         Collections.emptyMap(),
         consumers,
         null /* addStartFunction */,
-        null /* addFinishFunction */);
+        null, /* addFinishFunction */splitListener);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(
@@ -149,7 +149,7 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* addStartFunction */,
-            null /* addFinishFunction */);
+            null, /* addFinishFunction */splitListener);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
