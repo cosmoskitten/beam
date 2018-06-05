@@ -27,4 +27,6 @@ pip install --upgrade google-cloud-bigquery
 
 pwd
 
-python release/src/main/dependency_check/generate_dependency_check_report.py
+python release/src/main/dependency_check/generate_dependency_check_report.py build/dependencyUpdates/python_dependency_report.txt Python
+echo 'aaaaaaaaa'
+python release/src/main/dependency_check/generate_dependency_check_report.py build/dependencyUpdates/report.txt Java

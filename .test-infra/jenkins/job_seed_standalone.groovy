@@ -108,7 +108,8 @@ job('beam_SeedJob_Standalone') {
       external('.test-infra/jenkins/job_*.groovy')
 
       // If a job is removed from the script, disable it (rather than deleting).
-      removeAction('DISABLE')
+//      removeAction('DISABLE')
+      removeAction('IGNORE')
     }
   }
 }
