@@ -39,10 +39,15 @@ task runJavaExamplesValidationTask {
   dependsOn ":beam-runners-google-cloud-dataflow-java:runMobileGamingJavaDataflow"
 }
 
-
-task runBeamDependencyCheck {
-  group = "Verification"
-  description = "Run Beam Dependency Checks"
-  dependsOn ":dependencyUpdates"
-//  dependsOn ":beam-sdks-python:dependecyUpdates"
+task generateDependencyCheckReportTask {
+  description = "Create a report for the dependency check"
+  doLast {
+//    exec {
+//      executable 'sh'
+//      args '-c', "bash ./dependency_check/generate_report.sh"
+//    }
+    exec {
+      commandLine "./dependency_check/generate_report.sh"
+    }
+  }
 }
