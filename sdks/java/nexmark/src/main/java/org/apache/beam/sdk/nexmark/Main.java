@@ -123,19 +123,23 @@ public class Main<OptionT extends NexmarkOptions> {
         pipeline.apply(
             Create.of(perfs)
                 .withCoder(
-                    KvCoder.of(SerializableCoder.of(NexmarkConfiguration.class), new CustomCoder<NexmarkPerf>() {
+                    KvCoder.of(
+                        SerializableCoder.of(NexmarkConfiguration.class),
+                        new CustomCoder<NexmarkPerf>() {
 
-                      @Override public void encode(NexmarkPerf value, OutputStream outStream)
-                          throws CoderException, IOException {
-                        StringUtf8Coder.of().encode(value.toString(), outStream);
-                      }
+                          @Override
+                          public void encode(NexmarkPerf value, OutputStream outStream)
+                              throws CoderException, IOException {
+                            StringUtf8Coder.of().encode(value.toString(), outStream);
+                          }
 
-                      @Override public NexmarkPerf decode(InputStream inStream)
-                          throws CoderException, IOException {
-                        String perf = StringUtf8Coder.of().decode(inStream);
-                        return NexmarkPerf.fromString(perf);
-                      }
-                    })));
+                          @Override
+                          public NexmarkPerf decode(InputStream inStream)
+                              throws CoderException, IOException {
+                            String perf = StringUtf8Coder.of().decode(inStream);
+                            return NexmarkPerf.fromString(perf);
+                          }
+                        })));
 
     TableSchema tableSchema =
         new TableSchema()
