@@ -28,50 +28,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.tools.RuleSet;
 
 /** Convertion for Beam SQL. */
-public enum BeamLogicalConvention implements Convention {
-  INSTANCE;
-
-  @Override
-  public Class getInterface() {
-    return BeamRelNode.class;
-  }
-
-  @Override
-  public String getName() {
-    return "BEAM_LOGICAL";
-  }
-
-  @Override
-  public RelTraitDef getTraitDef() {
-    return ConventionTraitDef.INSTANCE;
-  }
-
-  @Override
-  public boolean satisfies(RelTrait trait) {
-    return this == trait;
-  }
-
-  @Override
-  public void register(RelOptPlanner planner) {
-    for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
-      for (RelOptRule rule : ruleSet) {
-        planner.addRule(rule);
-      }
-    }
-  }
-
-  @Override
-  public String toString() {
-    return getName();
-  }
-
-  @Override
-  public boolean canConvertConvention(Convention toConvention) {
-    return false;
-  }
-
-  @Override
-  public boolean useAbstractConvertersForConversion(RelTraitSet fromTraits, RelTraitSet toTraits) {
-    return false;
-  }
+public class BeamLogicalConvention {
+  public static final Convention INSTANCE = new Convention.Impl("BEAM_LOGICAL", BeamRelNode.class);
 }
