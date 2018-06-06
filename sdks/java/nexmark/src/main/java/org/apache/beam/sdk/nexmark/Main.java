@@ -390,6 +390,4 @@ public class Main<OptionT extends NexmarkOptions> {
     NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
     new Main<>().runAll(options, nexmarkLauncher);
   }
-
-
 }
