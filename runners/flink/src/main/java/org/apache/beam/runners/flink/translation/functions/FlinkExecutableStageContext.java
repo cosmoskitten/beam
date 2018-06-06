@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.functions;
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
+import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
@@ -27,21 +28,29 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** The Flink context required in order to execute {@link ExecutableStage stages}. */
 public class FlinkExecutableStageContext {
+  private final DockerJobBundleFactory dockerJobBundleFactory;
+
+  private FlinkExecutableStageContext(DockerJobBundleFactory dockerJobBundleFactory) {
+    this.dockerJobBundleFactory = dockerJobBundleFactory;
+  }
 
   /**
    * Creates {@link FlinkExecutableStageContext} instances. Serializable so that factories can be
    * defined at translation time and distributed to TaskManagers.
    */
   public interface Factory extends Serializable {
-    FlinkExecutableStageContext get(JobInfo jobInfo);
+    FlinkExecutableStageContext get(JobInfo jobInfo) throws Exception;
   }
 
   public static Factory batchFactory() {
-    return null;
+    return jobInfo -> {
+      DockerJobBundleFactory dockerJobBundleFactory = DockerJobBundleFactory.create(jobInfo);
+      return new FlinkExecutableStageContext(dockerJobBundleFactory);
+    };
   }
 
   public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
-    throw new UnsupportedOperationException();
+    return dockerJobBundleFactory.forStage(executableStage);
   }
 
   public StateRequestHandler getStateRequestHandler(
