@@ -80,7 +80,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create(JobInfo jobInfo, ArtifactSource artifactSource)
+  public static DockerJobBundleFactory create(JobInfo jobInfo)
       throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
