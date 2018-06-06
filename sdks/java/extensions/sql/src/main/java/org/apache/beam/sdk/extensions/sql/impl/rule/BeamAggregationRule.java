@@ -17,14 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rex.RexCall;
@@ -69,18 +72,27 @@ public class BeamAggregationRule extends RelOptRule {
       windowField = AggregateWindowFactory.getWindowFieldAt((RexCall) projNode, groupFieldIndex);
     }
 
-    BeamAggregationRel newAggregator =
-        new BeamAggregationRel(
-            aggregate.getCluster(),
-            aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-            convert(
-                aggregate.getInput(),
-                aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-            aggregate.indicator,
-            aggregate.getGroupSet(),
-            aggregate.getGroupSets(),
-            aggregate.getAggCallList(),
-            windowField);
-    return newAggregator;
+    // rename for AggregateCalls without name
+    List<AggregateCall> renamedAggCalls = new ArrayList<>();
+
+    for (Ord<AggregateCall> ord : Ord.zip(aggregate.getAggCallList())) {
+      if (ord.e.getName() != null) {
+        renamedAggCalls.add(ord.e);
+      } else {
+        renamedAggCalls.add(ord.e.rename("Agg#" + ord.i));
+      }
+    }
+
+    return new BeamAggregationRel(
+        aggregate.getCluster(),
+        aggregate.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        convert(
+            aggregate.getInput(),
+            aggregate.getInput().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        aggregate.indicator,
+        aggregate.getGroupSet(),
+        aggregate.getGroupSets(),
+        renamedAggCalls,
+        windowField);
   }
 }
