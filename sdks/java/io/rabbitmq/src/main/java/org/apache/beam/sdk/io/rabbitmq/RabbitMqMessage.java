@@ -206,8 +206,70 @@ public class RabbitMqMessage implements Serializable {
   public boolean equals(Object obj) {
     if (obj instanceof RabbitMqMessage) {
       RabbitMqMessage other = (RabbitMqMessage) obj;
-      if (messageId != null && other.messageId != null) {
-        return messageId.equals(other.messageId);
+      if (routingKey == null && other.routingKey == null
+              && body == null && other.body == null
+              && contentType == null && other.contentType == null
+              && contentEncoding == null && other.contentEncoding == null
+              && deliveryMode == null && other.deliveryMode == null
+              && priority == null && other.priority == null
+              && correlationId == null && other.correlationId == null
+              && replyTo == null && other.replyTo == null
+              && expiration == null && other.expiration == null
+              && messageId == null && other.messageId == null
+              && timestamp == null && other.timestamp == null
+              && type == null && other.type == null
+              && userId == null && other.userId == null
+              && appId == null && other.appId == null
+              && clusterId == null && other.clusterId == null) {
+        return true;
+      } else {
+        boolean equals = false;
+        if (routingKey != null) {
+          equals = routingKey.equals(other.routingKey);
+        }
+        if (body != null) {
+          equals = Arrays.equals(body, other.body);
+        }
+        if (contentType != null) {
+          equals = contentType.equals(other.contentType);
+        }
+        if (contentEncoding != null) {
+          equals = contentEncoding.equals(other.contentEncoding);
+        }
+        if (deliveryMode != null) {
+          equals = (deliveryMode.equals(other.deliveryMode));
+        }
+        if (priority != null) {
+          equals = (priority.equals(other.priority));
+        }
+        if (correlationId != null) {
+          equals = correlationId.equals(other.correlationId);
+        }
+        if (replyTo != null) {
+          equals = replyTo.equals(other.replyTo);
+        }
+        if (expiration != null) {
+          equals = expiration.equals(other.expiration);
+        }
+        if (messageId != null) {
+          equals = messageId.equals(other.messageId);
+        }
+        if (timestamp != null) {
+          equals = timestamp.equals(other.timestamp);
+        }
+        if (type != null) {
+          equals = type.equals(other.type);
+        }
+        if (userId != null) {
+          equals = userId.equals(other.userId);
+        }
+        if (appId != null) {
+          equals = appId.equals(other.appId);
+        }
+        if (clusterId != null) {
+          equals = clusterId.equals(other.clusterId);
+        }
+        return equals;
       }
     }
     return false;
