@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-var jobName = "beam_PerformanceTests_MongoDBIO_IT"
+String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 job(jobName) {
     // Set default Beam job properties.

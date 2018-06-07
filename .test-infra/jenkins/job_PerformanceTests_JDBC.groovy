@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-var jobName = "beam_PerformanceTests_JDBC"
+String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
     // Set default Beam job properties.

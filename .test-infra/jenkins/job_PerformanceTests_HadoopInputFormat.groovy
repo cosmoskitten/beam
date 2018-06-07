@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-var jobName = "beam_PerformanceTests_HadoopInputFormat"
+String jobName = "beam_PerformanceTests_HadoopInputFormat"
 
 job(jobName) {
     // Set default Beam job properties.
