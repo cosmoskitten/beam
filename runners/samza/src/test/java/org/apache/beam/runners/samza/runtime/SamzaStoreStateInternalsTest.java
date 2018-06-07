@@ -276,14 +276,13 @@ public class SamzaStoreStateInternalsTest {
             KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
         .apply(ParDo.of(fn));
 
-    SamzaPipelineOptions options = TestSamzaRunner.createSamzaPipelineOptions(
-        PipelineOptionsFactory.fromArgs("--runner=org.apache.beam.runners.samza.TestSamzaRunner")
-            .create());
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setRunner(TestSamzaRunner.class);
     Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
     options.setConfigOverride(configs);
 
-    new TestSamzaRunner(options).run(pipeline).waitUntilFinish();
+    TestSamzaRunner.fromOptions(options).run(pipeline).waitUntilFinish();
 
     // The test code creates 7 underlying iterators, and 1 more is created during state.clear()
     // Verify all of them are closed
