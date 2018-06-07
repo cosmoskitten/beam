@@ -21,7 +21,6 @@ import common_job_properties
 def testsConfigurations = [
         [
                 jobName           : 'beam_PerformanceTests_TextIOIT_HDFS',
-                shortJobName      : 'filebased',
                 jobDescription    : 'Runs PerfKit tests for TextIOIT on HDFS',
                 itClass           : 'org.apache.beam.sdk.io.text.TextIOIT',
                 bqTable           : 'beam_performance.textioit_hdfs_pkb_results',
@@ -125,7 +124,7 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
-        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
+        String namespace = common_job_properties.getKubernetesNamespace(testConfiguration.jobName)
         String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
         def argMap = [
