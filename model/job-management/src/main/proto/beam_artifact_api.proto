@@ -81,7 +81,11 @@ message ProxyManifest {
 }
 
 // A request to get the manifest of a Job.
-message GetManifestRequest {}
+message GetManifestRequest {
+    // (Required) An opaque token representing the entirety of the staged artifacts.
+    // Returned in CommitManifestResponse.
+  string staging_token = 1;
+}
 
 // A response containing a job manifest.
 message GetManifestResponse {
