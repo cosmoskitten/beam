@@ -46,6 +46,7 @@ job('beam_PreCommit_TriggerPrototype') {
       allowMembersOfWhitelistedOrgsAsAdmin()
       permitAll()
       triggerPhrase('abracadabra')
+      onlyTriggerPhrase()
 
       extensions {
         commitStatus {
