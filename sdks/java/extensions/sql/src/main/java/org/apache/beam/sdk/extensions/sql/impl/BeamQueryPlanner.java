@@ -123,6 +123,7 @@ class BeamQueryPlanner {
       LOG.info("SQL:\n" + validated);
 
       RelRoot root = planner.rel(validated);
+      root = root.withRel(root.rel.copy(root.rel.getTraitSet().simplify(), root.rel.getInputs()));
       LOG.info("SQLPlan>\n" + RelOptUtil.toString(root.rel));
 
       RelTraitSet desiredTraits =
