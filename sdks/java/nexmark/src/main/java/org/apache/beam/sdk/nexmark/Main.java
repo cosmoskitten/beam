@@ -151,15 +151,14 @@ public class Main<OptionT extends NexmarkOptions> {
                         .setName("Size of the result collection")
                         .setType("INT64")));
 
+    String tableSpec =
+        NexmarkUtils.tableSpec(options, "{query}", 0L, null);
     SerializableFunction<
             ValueInSingleWindow<KV<NexmarkConfiguration, NexmarkPerf>>, TableDestination>
         tableFunction =
-            input -> {
-              String tableSpec =
-                  NexmarkUtils.tableSpec(
-                      options, String.valueOf(input.getValue().getKey().query), 0L, null);
-              return new TableDestination(tableSpec, "perfkit queries");
-            };
+            input -> new TableDestination(
+                tableSpec.replace("{query}", String.valueOf(input.getValue().getKey().query)),
+                "perfkit queries");
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
