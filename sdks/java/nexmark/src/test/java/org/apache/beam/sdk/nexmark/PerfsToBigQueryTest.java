@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
@@ -52,7 +53,7 @@ public class PerfsToBigQueryTest {
 
 
   @Before
-  public void before() {
+  public void before() throws IOException, InterruptedException {
     options = PipelineOptionsFactory.create().as(NexmarkOptions.class);
     options.setBigQueryTable("nexmark");
     options.setBigQueryDataset("nexmark");
@@ -60,7 +61,9 @@ public class PerfsToBigQueryTest {
     options.setStreaming(true);
     options.setProject("nexmark-test");
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
-
+    FakeDatasetService.setUp();
+//    BigQueryIO.clearCreatedTables();
+    fakeDatasetService.createDataset(options.getProject(), options.getBigQueryDataset(), "", "", null);
   }
 
   @Test
