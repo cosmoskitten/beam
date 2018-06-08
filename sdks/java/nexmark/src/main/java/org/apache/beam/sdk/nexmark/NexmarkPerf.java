@@ -181,7 +181,7 @@ public class NexmarkPerf {
     try {
       return NexmarkUtils.MAPPER.readValue(string, NexmarkPerf.class);
     } catch (IOException e) {
-      throw new RuntimeException("Unable to parse nexmark perf: ", e);
+      throw new RuntimeException("Unable to query nexmark perf: ", e);
     }
   }
 

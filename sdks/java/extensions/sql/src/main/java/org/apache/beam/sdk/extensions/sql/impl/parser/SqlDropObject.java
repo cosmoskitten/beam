@@ -33,7 +33,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Base class for parse trees of {@code DROP TABLE}, {@code DROP VIEW} and {@code DROP MATERIALIZED
+ * Base class for query trees of {@code DROP TABLE}, {@code DROP VIEW} and {@code DROP MATERIALIZED
  * VIEW} statements.
  */
 abstract class SqlDropObject extends SqlDrop implements SqlExecutableStatement {

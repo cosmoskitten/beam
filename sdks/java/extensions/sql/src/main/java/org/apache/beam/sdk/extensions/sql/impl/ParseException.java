@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-/** Exception thrown when Beam SQL is unable to parse the statement. */
+/** Exception thrown when Beam SQL is unable to query the statement. */
 public class ParseException extends RuntimeException {
 
   public ParseException(Throwable cause) {

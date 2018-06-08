@@ -35,7 +35,7 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
 
   private static final int index = 0;
   /**
-   * Date and Timestamp formats used to parse {@link SqlTypeName#DATE}, {@link
+   * Date and Timestamp formats used to query {@link SqlTypeName#DATE}, {@link
    * SqlTypeName#TIMESTAMP}.
    */
   private static final DateTimeFormatter dateTimeFormatter =

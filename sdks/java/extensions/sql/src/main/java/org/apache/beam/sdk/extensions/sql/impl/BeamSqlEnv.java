@@ -44,7 +44,7 @@ import org.apache.calcite.tools.ValidationException;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
- * parse/validate/optimize/translate SQL statements.
+ * query/validate/optimize/translate SQL statements.
  */
 @Internal
 @Experimental
@@ -107,7 +107,7 @@ public class BeamSqlEnv {
     try {
       return planner.convertToBeamRel(query).toPTransform();
     } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new ParseException("Unable to parse query", e);
+      throw new ParseException("Unable to query query", e);
     }
   }
 
@@ -115,7 +115,7 @@ public class BeamSqlEnv {
     try {
       return planner.parse(sqlStatement) instanceof SqlExecutableStatement;
     } catch (SqlParseException e) {
-      throw new ParseException("Unable to parse statement", e);
+      throw new ParseException("Unable to query statement", e);
     }
   }
 
@@ -124,7 +124,7 @@ public class BeamSqlEnv {
       SqlExecutableStatement ddl = (SqlExecutableStatement) planner.parse(sqlStatement);
       ddl.execute(getContext());
     } catch (SqlParseException e) {
-      throw new ParseException("Unable to parse DDL statement", e);
+      throw new ParseException("Unable to query DDL statement", e);
     }
   }
 
@@ -136,7 +136,7 @@ public class BeamSqlEnv {
     try {
       return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
     } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new ParseException("Unable to parse statement", e);
+      throw new ParseException("Unable to query statement", e);
     }
   }
 }

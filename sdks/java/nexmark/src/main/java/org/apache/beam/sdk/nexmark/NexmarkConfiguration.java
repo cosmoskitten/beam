@@ -542,7 +542,7 @@ public class NexmarkConfiguration implements Serializable {
     try {
       return NexmarkUtils.MAPPER.readValue(string, NexmarkConfiguration.class);
     } catch (IOException e) {
-      throw new RuntimeException("Unable to parse nexmark configuration: ", e);
+      throw new RuntimeException("Unable to query nexmark configuration: ", e);
     }
   }
 
