@@ -191,7 +191,8 @@ public class FnApiDoFnRunnerTest {
         Collections.emptyMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -357,7 +358,8 @@ public class FnApiDoFnRunnerTest {
         Collections.emptyMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -484,7 +486,7 @@ public class FnApiDoFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new FnApiDoFnRunner.NewFactory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         fakeClient,
@@ -496,7 +498,8 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -589,7 +592,7 @@ public class FnApiDoFnRunnerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    new FnApiDoFnRunner.NewFactory<>().createRunnerForPTransform(
+    new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         null /* beamFnDataClient */,
         fakeClient,
@@ -601,7 +604,8 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();

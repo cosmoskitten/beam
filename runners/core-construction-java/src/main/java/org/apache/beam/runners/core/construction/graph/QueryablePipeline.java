@@ -134,6 +134,9 @@ public class QueryablePipeline {
           PipelineNode.pTransform(transformId, this.components.getTransformsOrThrow(transformId));
       network.addNode(transformNode);
       for (String produced : transform.getOutputsMap().values()) {
+        if (!components.containsPcollections(produced)) {
+          System.out.println("foo");
+        }
         PCollectionNode producedNode =
             PipelineNode.pCollection(produced, components.getPcollectionsOrThrow(produced));
         network.addNode(producedNode);
