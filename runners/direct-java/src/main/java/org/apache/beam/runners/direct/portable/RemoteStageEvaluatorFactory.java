@@ -21,6 +21,7 @@ package org.apache.beam.runners.direct.portable;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -82,7 +83,10 @@ class RemoteStageEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public TransformResult<T> finishBundle() throws Exception {
-      bundle.close();
+      ProcessBundleResponse response = bundle.close();
+      if (response.hasSplit()) {
+        throw new UnsupportedOperationException("Bundle splits not yet supported");
+      }
       return StepTransformResult.<T>withoutHold(transform).addOutput(outputs).build();
     }
   }

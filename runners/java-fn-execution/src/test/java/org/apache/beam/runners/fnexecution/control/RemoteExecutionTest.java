@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.fn.harness.FnHarness;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -212,9 +213,15 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
     // The impulse example
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
+
+    ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers);
+    try {
       bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
+    } finally {
+      ProcessBundleResponse ignored = bundle.close();
+      // Ignore for now.
     }
+
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
@@ -319,7 +326,8 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler)) {
+    ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers, stateRequestHandler);
+    try {
       bundle
           .getInputReceiver()
           .accept(
@@ -330,6 +338,9 @@ public class RemoteExecutionTest implements Serializable {
           .accept(
               WindowedValue.valueInGlobalWindow(
                   CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+    } finally {
+      ProcessBundleResponse ignored = bundle.close();
+      // Ignore response for now.
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(

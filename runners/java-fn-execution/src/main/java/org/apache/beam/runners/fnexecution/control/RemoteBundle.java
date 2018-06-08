@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.fnexecution.control;
 
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  * <p>When a RemoteBundle is closed, it will block until bundle processing is finished on remote
  * resources, and throw an exception if bundle processing has failed.
  */
-public interface RemoteBundle<InputT> extends AutoCloseable {
+public interface RemoteBundle<InputT> {
   /** Get an id used to represent this bundle. */
   String getId();
 
@@ -40,13 +41,10 @@ public interface RemoteBundle<InputT> extends AutoCloseable {
   FnDataReceiver<WindowedValue<InputT>> getInputReceiver();
 
   /**
-   * {@inheritDoc}.
-   *
-   * <p>Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls
-   * to that {@link FnDataReceiver} will throw an exception), and causes the {@link RemoteBundle} to
-   * produce any buffered outputs. The call to {@link #close()} will block until all of the outputs
-   * produced by this bundle have been received.
+   * Closes this bundle and returns its response. This causes the input {@link FnDataReceiver} to be
+   * closed (future calls to that {@link FnDataReceiver} will throw an exception), and causes the
+   * {@link RemoteBundle} to produce any buffered outputs. The call to {@link #close()} will block
+   * until all of the outputs produced by this bundle have been received.
    */
-  @Override
-  void close() throws Exception;
+  ProcessBundleResponse close() throws Exception;
 }

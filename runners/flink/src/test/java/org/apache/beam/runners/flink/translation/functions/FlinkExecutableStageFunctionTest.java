@@ -29,6 +29,7 @@ import com.google.protobuf.Struct;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -127,6 +128,7 @@ public class FlinkExecutableStageFunctionTest {
     @SuppressWarnings("unchecked")
     RemoteBundle<Integer> bundle = Mockito.mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(any(), any())).thenReturn(bundle);
+    when(bundle.close()).thenReturn(ProcessBundleResponse.getDefaultInstance());
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<Integer>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -172,11 +174,12 @@ public class FlinkExecutableStageFunctionTest {
               }
 
               @Override
-              public void close() throws Exception {
+              public ProcessBundleResponse close() throws Exception {
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create("one").accept(three);
                 receiverFactory.create("two").accept(four);
                 receiverFactory.create("three").accept(five);
+                return ProcessBundleResponse.getDefaultInstance();
               }
             };
           }
