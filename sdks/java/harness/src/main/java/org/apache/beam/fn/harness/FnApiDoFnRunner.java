@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BagUserState;
@@ -54,6 +55,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -200,26 +202,65 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {
+      Context<InputT, OutputT> context =
+          new Context<>(
+              pTransform, pCollections, coders, windowingStrategies, pCollectionIdsToConsumers);
 
-      DoFn<InputT, OutputT> doFn;
-      TupleTag<OutputT> mainOutputTag;
-      Coder<InputT> inputCoder;
-      WindowingStrategy<InputT, ?> windowingStrategy;
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      DoFnRunner<InputT, OutputT> runner =
+          new FnApiDoFnRunner<>(
+              pipelineOptions,
+              beamFnStateClient,
+              pTransformId,
+              processBundleInstructionId,
+              context.doFn,
+              (Coder<InputT>) context.inputCoder,
+              (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
+                  (Collection) context.tagToConsumer.get(context.mainOutputTag),
+              context.tagToConsumer,
+              context.tagToSideInputSpecMap,
+              context.windowingStrategy);
+      registerHandlers(
+          runner,
+          pTransform,
+          context.parDoPayload.getSideInputsMap().keySet(),
+          addStartFunction,
+          addFinishFunction,
+          pCollectionIdsToConsumers);
+      return runner;
+    }
+  }
 
-      ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap =
+  static class Context<InputT, OutputT> {
+    final RehydratedComponents rehydratedComponents;
+    final DoFn<InputT, OutputT> doFn;
+    final TupleTag<OutputT> mainOutputTag;
+    final Coder<?> inputCoder;
+    final Coder<? extends BoundedWindow> windowCoder;
+    final WindowingStrategy<InputT, ?> windowingStrategy;
+    final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
+    final ParDoPayload parDoPayload;
+    final ListMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer;
+
+    Context(
+        PTransform pTransform,
+        Map<String, PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers) {
+      ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
           ImmutableMap.builder();
-      ParDoPayload parDoPayload;
       try {
-        RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(
+        rehydratedComponents = RehydratedComponents.forComponents(
             RunnerApi.Components.newBuilder()
                 .putAllCoders(coders).putAllWindowingStrategies(windowingStrategies).build());
         parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
@@ -227,12 +268,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
         String mainInputTag = Iterables.getOnlyElement(Sets.difference(
             pTransform.getInputsMap().keySet(), parDoPayload.getSideInputsMap().keySet()));
-        RunnerApi.PCollection mainInput =
+        PCollection mainInput =
             pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
-        inputCoder = (Coder<InputT>) rehydratedComponents.getCoder(
+        inputCoder = rehydratedComponents.getCoder(
             mainInput.getCoderId());
         windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
             mainInput.getWindowingStrategyId());
+        windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
         // Build the map from tag id to side input specification
         for (Map.Entry<String, RunnerApi.SideInput> entry
@@ -248,12 +290,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
               sideInput.getAccessPattern().getUrn(),
               sideInputTag);
 
-          RunnerApi.PCollection sideInputPCollection =
+          PCollection sideInputPCollection =
               pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
           WindowingStrategy sideInputWindowingStrategy =
               rehydratedComponents.getWindowingStrategy(
                   sideInputPCollection.getWindowingStrategyId());
-          tagToSideInputSpecMap.put(
+          tagToSideInputSpecMapBuilder.put(
               new TupleTag<>(entry.getKey()),
               SideInputSpec.create(
                   rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
@@ -274,35 +316,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         tagToConsumerBuilder.putAll(
             new TupleTag<>(entry.getKey()), pCollectionIdsToConsumers.get(entry.getValue()));
       }
-      ListMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer =
-          tagToConsumerBuilder.build();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<>(
-          pipelineOptions,
-          beamFnStateClient,
-          pTransformId,
-          processBundleInstructionId,
-          doFn,
-          inputCoder,
-          (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
-              tagToConsumer.get(mainOutputTag),
-          tagToConsumer,
-          tagToSideInputSpecMap.build(),
-          windowingStrategy);
-      registerHandlers(
-          runner,
-          pTransform,
-          parDoPayload.getSideInputsMap().keySet(),
-          addStartFunction,
-          addFinishFunction,
-          pCollectionIdsToConsumers);
-      return runner;
+      tagToConsumer = tagToConsumerBuilder.build();
+      tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
     }
   }
 
-  private static <InputT, OutputT> void registerHandlers(
-      DoFnRunner<InputT, OutputT> runner,
+  private static <InputT> void registerHandlers(
+      DoFnRunner<InputT, ?> runner,
       RunnerApi.PTransform pTransform,
       Set<String> sideInputLocalNames,
       Consumer<ThrowingRunnable> addStartFunction,
@@ -329,7 +349,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final Coder<InputT> inputCoder;
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
   private final Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap;
-  private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
+  private final SideInputReader sideInputReader;
   private final Map<StateKey, Object> stateKeyObjectCache;
   private final WindowingStrategy windowingStrategy;
   private final DoFnSignature doFnSignature;
@@ -380,8 +400,14 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     this.inputCoder = inputCoder;
     this.mainOutputConsumers = mainOutputConsumers;
     this.outputMap = outputMap;
-    this.sideInputSpecMap = sideInputSpecMap;
     this.stateKeyObjectCache = new HashMap<>();
+    this.sideInputReader =
+        new SideInputReaderImpl(
+            stateKeyObjectCache,
+            sideInputSpecMap,
+            beamFnStateClient,
+            ptransformId,
+            processBundleInstructionId);
     this.windowingStrategy = windowingStrategy;
     this.doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
     this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
@@ -646,7 +672,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      return bindSideInputView(view.getTagInternal());
+      return sideInputReader.get(view, currentWindow);
     }
 
     @Override
@@ -861,7 +887,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
                 @Override
                 public <T> T sideInput(PCollectionView<T> view) {
-                  return bindSideInputView(view.getTagInternal());
+                  return sideInputReader.get(view, currentWindow);
                 }
 
                 @Override
@@ -977,46 +1003,77 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     abstract WindowMappingFn<W> getWindowMappingFn();
   }
 
-  private <T, K, V> T bindSideInputView(TupleTag<?> view) {
-    SideInputSpec sideInputSpec = sideInputSpecMap.get(view);
-    checkArgument(sideInputSpec != null,
-        "Attempting to access unknown side input %s.",
-        view);
-    KvCoder<K, V> kvCoder = (KvCoder) sideInputSpec.getCoder();
+  static class SideInputReaderImpl implements SideInputReader {
+    private final Map<StateKey, Object> stateKeyObjectCache;
+    private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
+    private final BeamFnStateClient beamFnStateClient;
+    private final String ptransformId;
+    private final Supplier<String> processBundleInstructionId;
 
-    ByteString.Output encodedWindowOut = ByteString.newOutput();
-    try {
-      sideInputSpec.getWindowCoder().encode(
-          sideInputSpec.getWindowMappingFn().getSideInputWindow(currentWindow), encodedWindowOut);
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
+    SideInputReaderImpl(
+        Map<StateKey, Object> stateKeyObjectCache,
+        Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+        BeamFnStateClient beamFnStateClient, String ptransformId,
+        Supplier<String> processBundleInstructionId) {
+      this.stateKeyObjectCache = stateKeyObjectCache;
+      this.sideInputSpecMap = sideInputSpecMap;
+      this.beamFnStateClient = beamFnStateClient;
+      this.ptransformId = ptransformId;
+      this.processBundleInstructionId = processBundleInstructionId;
     }
-    ByteString encodedWindow = encodedWindowOut.toByteString();
 
-    StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
-    cacheKeyBuilder.getMultimapSideInputBuilder()
-        .setPtransformId(ptransformId)
-        .setSideInputId(view.getId())
-        .setWindow(encodedWindow);
-    return (T) stateKeyObjectCache.computeIfAbsent(
-        cacheKeyBuilder.build(),
-        key -> sideInputSpec.getViewFn().apply(createMultimapSideInput(
-            view.getId(), encodedWindow, kvCoder.getKeyCoder(), kvCoder.getValueCoder())));
+    @Nullable
+    @Override
+    public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+      TupleTag<?> tag = view.getTagInternal();
+
+      SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);
+      checkArgument(sideInputSpec != null,
+          "Attempting to access unknown side input %s.",
+          view);
+      KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
+
+      ByteString.Output encodedWindowOut = ByteString.newOutput();
+      try {
+        sideInputSpec.getWindowCoder().encode(
+            sideInputSpec.getWindowMappingFn().getSideInputWindow(window), encodedWindowOut);
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
+      ByteString encodedWindow = encodedWindowOut.toByteString();
+
+      StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
+      cacheKeyBuilder
+          .getMultimapSideInputBuilder()
+          .setPtransformId(ptransformId)
+          .setSideInputId(tag.getId())
+          .setWindow(encodedWindow);
+      return (T)
+          stateKeyObjectCache.computeIfAbsent(
+              cacheKeyBuilder.build(),
+              key ->
+                  sideInputSpec
+                      .getViewFn()
+                      .apply(
+                          new MultimapSideInput<>(
+                              beamFnStateClient,
+                              processBundleInstructionId.get(),
+                              ptransformId,
+                              tag.getId(),
+                              encodedWindow,
+                              kvCoder.getKeyCoder(),
+                              kvCoder.getValueCoder())));
+    }
+
+    @Override
+    public <T> boolean contains(PCollectionView<T> view) {
+      return sideInputSpecMap.containsKey(view.getTagInternal());
+    }
+
+    @Override
+    public boolean isEmpty() {
+      return sideInputSpecMap.isEmpty();
+    }
   }
 
-  private <K, V> MultimapSideInput<K, V> createMultimapSideInput(
-      String sideInputId,
-      ByteString encodedWindow,
-      Coder<K> keyCoder,
-      Coder<V> valueCoder) {
-
-    return new MultimapSideInput<>(
-        beamFnStateClient,
-        processBundleInstructionId.get(),
-        ptransformId,
-        sideInputId,
-        encodedWindow,
-        keyCoder,
-        valueCoder);
-  }
 }

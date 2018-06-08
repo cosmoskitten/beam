@@ -65,8 +65,11 @@ class TransformEvaluatorRegistry {
                 new GroupAlsoByWindowEvaluatorFactory(
                     graph, components, bundleFactory, stepStateAndTimers))
             .put(
+                FeedSDFEvaluatorFactory.URN,
+                new FeedSDFEvaluatorFactory(graph, bundleFactory))
+            .put(
                 ExecutableStage.URN,
-                new RemoteStageEvaluatorFactory(bundleFactory, jobBundleFactory))
+                new RemoteStageEvaluatorFactory(graph, components, bundleFactory, jobBundleFactory))
             .build());
   }
 
