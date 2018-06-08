@@ -27,6 +27,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.coders.Coder;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,8 +81,12 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   public StreamObserver<BeamFnApi.Elements> data(
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
     LOG.info("Beam Fn Data client connected.");
+    // TODO: Consider whether here, too, we need fancier synchronization like that done
+    // by StreamObserverFactory.
+    StreamObserver<Elements> synchronizedObserver =
+        SynchronizedStreamObserver.wrapping(outboundElementObserver);
     BeamFnDataGrpcMultiplexer multiplexer =
-        new BeamFnDataGrpcMultiplexer(null, inboundObserver -> outboundElementObserver);
+        new BeamFnDataGrpcMultiplexer(null, inboundObserver -> synchronizedObserver);
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
       additionalMultiplexers.offer(multiplexer);
