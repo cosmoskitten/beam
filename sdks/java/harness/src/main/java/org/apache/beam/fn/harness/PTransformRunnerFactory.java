@@ -38,7 +38,6 @@ import org.apache.beam.sdk.util.WindowedValue;
  * A factory able to instantiate an appropriate handler for a given PTransform.
  */
 public interface PTransformRunnerFactory<T> {
-
   /**
    * Creates and returns a handler for a given PTransform. Note that the handler must support
    * processing multiple bundles. The handler will be discarded if an error is thrown during element
