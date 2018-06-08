@@ -25,6 +25,7 @@ Run as
 from __future__ import absolute_import
 from __future__ import print_function
 
+import collections
 import random
 import string
 import sys
@@ -35,11 +36,29 @@ from apache_beam.transforms import window
 from apache_beam.utils import windowed_value
 
 
+def coder_benchmark_factory(name, coder, generate_fn):
+  def init(self, size):
+    self.coder_ = coder
+    self.data_ = generate_fn(size)
+
+  def call(self):
+    _ = self.coder_.decode(self.coder_.encode(self.data_))
+
+  benchmark = type(name, (object,), {})
+  benchmark.__init__ = init
+  benchmark.__call__ = call
+  return benchmark
+
+
 def generate_list_of_ints(input_size, lower_bound=0, upper_bound=sys.maxsize):
   values = []
   for _ in range(input_size):
     values.append(random.randint(lower_bound, upper_bound))
   return values
+
+
+def generate_tuple_of_ints(input_size):
+  return tuple(generate_list_of_ints(input_size))
 
 
 def generate_string(length):
@@ -72,67 +91,40 @@ def generate_windowed_int_value():
       ])
 
 
-def encode_and_decode(coder, data):
-  _ = coder.decode(coder.encode(data))
-
-
-def run_coder_benchmarks(num_runs, input_size, seed, print_output=True):
+def run_coder_benchmarks(num_runs, input_size, seed, verbose=True):
   random.seed(seed)
-
-  benchmarks = []
 
   # TODO(BEAM-4441): Pick coders using type hints, for example:
   # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int])
+  benchmarks = [
+      coder_benchmark_factory(
+          "List[int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
+          generate_list_of_ints),
+      coder_benchmark_factory(
+          "Tuple[int, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
+          generate_tuple_of_ints),
+      coder_benchmark_factory(
+          "Dict[int, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
+          generate_dict_int_int),
+      coder_benchmark_factory(
+          "Dict[str, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
+          generate_dict_str_int),
+      coder_benchmark_factory(
+          "List[int], IterableCoder+FastPrimitiveCoder",
+          coders.IterableCoder(coders.FastPrimitivesCoder()),
+          generate_list_of_ints),
+      coder_benchmark_factory(
+          "List[int WV], IterableCoder+WVCoder+FPCoder",
+          coders.IterableCoder(coders.WindowedValueCoder(
+              coders.FastPrimitivesCoder())),
+          generate_windowed_value_list),
+  ]
 
-  benchmarks.append({
-      "name": "List[int], FastPrimitiveCoder",
-      "input_generator": lambda: generate_list_of_ints(input_size),
-      "op_fn": lambda input_: encode_and_decode(
-          coders.FastPrimitivesCoder(), input_),
-      "input_size": input_size
-  })
+  BenchmarkConfig = collections.namedtuple(
+      "BenchmarkConfig", ["benchmark", "size", "num_runs"])
 
-  benchmarks.append({
-      "name": "Dict[str, int], FastPrimitiveCoder",
-      "input_generator": lambda: generate_dict_str_int(input_size),
-      "op_fn": lambda input_: encode_and_decode(
-          coders.FastPrimitivesCoder(), input_),
-      "input_size": input_size
-  })
-
-  benchmarks.append({
-      "name": "Dict[int, int], FastPrimitiveCoder",
-      "input_generator": lambda: generate_dict_int_int(input_size),
-      "op_fn": lambda input_: encode_and_decode(
-          coders.FastPrimitivesCoder(), input_),
-      "input_size": input_size
-  })
-
-  benchmarks.append({
-      "name": "Tuple[int], FastPrimitiveCoder",
-      "input_generator": lambda: tuple(generate_list_of_ints(input_size)),
-      "op_fn": lambda input_: encode_and_decode(
-          coders.FastPrimitivesCoder(), input_),
-      "input_size": input_size
-  })
-
-  benchmarks.append({
-      "name": "List[int WV], IterableCoder+WVCoder+FPCoder",
-      "input_generator": lambda: generate_windowed_value_list(input_size),
-      "op_fn": lambda input_: encode_and_decode(coders.IterableCoder(
-          coders.WindowedValueCoder(coders.FastPrimitivesCoder())), input_),
-      "input_size": input_size
-  })
-
-  benchmarks.append({
-      "name": "List[int], IterableCoder+FastPrimitiveCoder",
-      "input_generator": lambda: generate_list_of_ints(input_size),
-      "op_fn": lambda input_: encode_and_decode(
-          coders.IterableCoder(coders.FastPrimitivesCoder()), input_),
-      "input_size": input_size
-  })
-
-  utils.run_benchmarks(benchmarks, num_runs, print_output=print_output)
+  suite = [BenchmarkConfig(b, input_size, num_runs) for b in benchmarks]
+  utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == "__main__":

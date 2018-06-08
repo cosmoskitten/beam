@@ -42,24 +42,32 @@ def check_compiled(module):
         "'pip install Cython; python setup.py build_ext --inplace'")
 
 
-def run_benchmarks(benchmarks, num_runs, print_output):
+def run_benchmarks(benchmark_suite, verbose=True):
   """Runs benchmarks, and collects execution times.
 
-  A simple instrumentation to run any python function several times
-  on a generated input, collect and print its execution times.
+  A simple instrumentation to run a callable several times, collect and print
+  its execution times.
 
   Args:
-    benchmarks: A list of dictionaries that describe benchmarks.
-      Each dictionary entry should have following key-value pairs:
-      'name': str, name of the benchmark.
-      'input_generator': a function that takes no arguments that creates an
-         input for a benchmark.
-      'input_size': int, a size of the input. Aggregated per-element metrics
-         are counted based on the size of the input.
-      'op_fn': a function that takes one argument, that will be called on the
-         generated input.
+    benchmark_suite: A list of named tuples that describe benchmarks.
+      Each tuple should have following key-value pairs:
+        benchmark: a callable that takes an argument - a size of a benchmark,
+          and returns a callable. A returned callable must run the code being
+          benchmarked on an input of specified size.
+
+          For example, one can implement a benchmark as:
+
+          class MyBenchmark(object):
+            def __init__(self, size):
+              [do necessary initialization]
+
+            def __call__(self):
+              [run the code in question]
+
+        size: int, a size of the input. Aggregated per-element metrics
+           are counted based on the size of the input.
     num_runs: int, number of times to run each benchmark.
-    print_output: Whether to print benchmark results to stdout.
+    verbose: bool, whether to print benchmark results to stdout.
 
   Returns:
     A dictionary of the form str: list of floats. Keys of the dictionary
@@ -67,40 +75,45 @@ def run_benchmarks(benchmarks, num_runs, print_output):
     divided by benchmark input size.
   """
 
-  def run(benchmark):
+  def get_name(benchmark_config):
+    return getattr(benchmark_config.benchmark, '__name__',
+                   str(benchmark_config.benchmark))
+
+  def run(benchmark_fn, size):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.
-    input_ = benchmark["input_generator"]()
-    op = benchmark["op_fn"]
+    benchmark_instance_callable = benchmark_fn(size)
     start = time.time()
-    _ = op(input_)
+    _ = benchmark_instance_callable()
     return time.time() - start
 
-  if print_output:
-    pad_length = max([len(b["name"]) for b in benchmarks])
-
   cost_series = collections.defaultdict(list)
-  for run_id in range(num_runs):
-    for b in benchmarks:
+  for benchmark_config in benchmark_suite:
+    name = get_name(benchmark_config)
+    num_runs = benchmark_config.num_runs
+    size = benchmark_config.size
+    for run_id in range(num_runs):
       # Do a proactive GC before each run to minimize side-effects of different
       # runs.
       gc.collect()
-      time_cost = run(b)
-      cost_series[b["name"]].append(time_cost / b["input_size"])
-
-    if print_output:
-      print("Run %d of %d:" % (run_id+1, num_runs))
-      for benchmark_name in sorted(cost_series):
-        avg_cost = cost_series[benchmark_name][run_id]
-        print("%s: per element time cost: %g sec" % (
-            benchmark_name.ljust(pad_length, " "), avg_cost))
+      time_cost = run(benchmark_config.benchmark, size)
+      cost_series[name].append(time_cost)
+      if verbose:
+        avg_cost = time_cost/size
+        print("%s: run %d of %d, per element time cost: %g sec" % (
+            name, run_id+1, num_runs, avg_cost))
+    if verbose:
       print("")
 
-  if print_output:
+  if verbose:
     print("Median time cost:")
-    for benchmark_name in sorted(cost_series):
-      median_cost = median(cost_series[benchmark_name])
+    pad_length = max([len(get_name(bc)) for bc in benchmark_suite])
+
+    for benchmark_config in benchmark_suite:
+      name = get_name(benchmark_config)
+      median_cost = median(cost_series[name])
+
       print("%s: per element median time cost: %g sec" % (
-          benchmark_name.ljust(pad_length, " "), median_cost))
+          name.ljust(pad_length, " "), median_cost/benchmark_config.size))
 
   return cost_series
