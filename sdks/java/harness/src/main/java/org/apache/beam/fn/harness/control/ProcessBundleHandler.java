@@ -46,8 +46,11 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.Application;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
@@ -144,7 +147,8 @@ public class ProcessBundleHandler {
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
-      Consumer<ThrowingRunnable> addFinishFunction)
+      Consumer<ThrowingRunnable> addFinishFunction,
+      BundleSplitListener splitListener)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -166,7 +170,8 @@ public class ProcessBundleHandler {
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
             addStartFunction,
-            addFinishFunction);
+            addFinishFunction,
+            splitListener);
       }
     }
 
@@ -196,15 +201,12 @@ public class ProcessBundleHandler {
             processBundleDescriptor.getWindowingStrategiesMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
-            addFinishFunction);
+            addFinishFunction,
+            splitListener);
   }
 
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
-    BeamFnApi.InstructionResponse.Builder response =
-        BeamFnApi.InstructionResponse.newBuilder()
-            .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
-
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -223,6 +225,8 @@ public class ProcessBundleHandler {
       }
     }
 
+    ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
+
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
     try (HandleStateCallsForBundle beamFnStateClient =
@@ -230,6 +234,16 @@ public class ProcessBundleHandler {
         ? new BlockTillStateCallsFinish(beamFnStateGrpcClientCache.forApiServiceDescriptor(
             bundleDescriptor.getStateApiServiceDescriptor()))
         : new FailAllStateCallsForBundle(request.getProcessBundle())) {
+      Multimap<String, Application> allPrimaries = HashMultimap.create();
+      Multimap<String, Application> allResiduals = HashMultimap.create();
+      BundleSplitListener splitListener =
+          (String pTransformId, List<Application> primaries, List<Application> residuals) -> {
+            // Reset primaries and accumulate residuals.
+            allPrimaries.removeAll(pTransformId);
+            allPrimaries.putAll(pTransformId, primaries);
+            allResiduals.putAll(pTransformId, residuals);
+          };
+
       // Create a BeamFnStateClient
       for (Map.Entry<String, RunnerApi.PTransform> entry
           : bundleDescriptor.getTransformsMap().entrySet()) {
@@ -251,7 +265,8 @@ public class ProcessBundleHandler {
             pCollectionIdsToConsumingPTransforms,
             pCollectionIdsToConsumers,
             startFunctions::add,
-            finishFunctions::add);
+            finishFunctions::add,
+            splitListener);
       }
 
       // Already in reverse topological order so we don't need to do anything.
@@ -265,9 +280,16 @@ public class ProcessBundleHandler {
         LOG.debug("Finishing function {}", finishFunction);
         finishFunction.run();
       }
+      if (!allPrimaries.isEmpty()) {
+        response.setSplit(
+            BundleSplit.newBuilder()
+                .addAllPrimaryRoots(allPrimaries.values())
+                .addAllResidualRoots(allResiduals.values())
+                .build());
+      }
     }
 
-    return response;
+    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
   /**
@@ -352,7 +374,8 @@ public class ProcessBundleHandler {
         Map<String, WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction) {
+        Consumer<ThrowingRunnable> addFinishFunction,
+        BundleSplitListener splitListener) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",
