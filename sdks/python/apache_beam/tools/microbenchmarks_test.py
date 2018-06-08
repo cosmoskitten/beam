@@ -27,7 +27,7 @@ class MicrobenchmarksTest(unittest.TestCase):
     # Right now, we don't evaluate performance impact, only check that
     # microbenchmark code can successfully run.
     coders_microbenchmark.run_coder_benchmarks(
-        num_runs=1, input_size=10, seed=1, print_output=False)
+        num_runs=1, input_size=10, seed=1, verbose=False)
 
 
 if __name__ == '__main__':
