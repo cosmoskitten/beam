@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -142,13 +143,18 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     checkState(stateRequestHandler != null, "%s not yet prepared",
             StateRequestHandler.class.getName());
 
-    try (RemoteBundle<InputT> bundle =
-                 stageBundleFactory.getBundle(
-                         new ReceiverFactory(outputManager, outputMap), stateRequestHandler)) {
+    RemoteBundle<InputT> bundle =
+        stageBundleFactory.getBundle(
+            new ReceiverFactory(outputManager, outputMap), stateRequestHandler);
+    try {
       logger.finer(String.format("Sending value: %s", element));
       bundle.getInputReceiver().accept(element);
+    } finally {
+      ProcessBundleResponse response = bundle.close();
+      if (response.hasSplit()) {
+        throw new UnsupportedOperationException("Bundle splits not yet supported");
+      }
     }
-
   }
 
   @Override

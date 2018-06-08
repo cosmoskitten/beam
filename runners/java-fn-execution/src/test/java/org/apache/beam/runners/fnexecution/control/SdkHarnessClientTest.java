@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -41,7 +42,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -168,17 +171,23 @@ public class SdkHarnessClientTest {
             descriptor, RemoteInputDestination.of(coder, Target.getDefaultInstance()));
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
-    try (ActiveBundle<String> activeBundle = processor.newBundle(Collections.emptyMap())) {
+    ActiveBundle<String> activeBundle = processor.newBundle(Collections.emptyMap());
+    try {
       // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
       // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
       // the response.
       //
       // Currently there are no fields so there's nothing to check. This test is formulated
       // to match the pattern it should have if/when the response is meaningful.
-      BeamFnApi.ProcessBundleResponse response = BeamFnApi.ProcessBundleResponse
-          .getDefaultInstance();
+      BeamFnApi.ProcessBundleResponse response =
+          BeamFnApi.ProcessBundleResponse.newBuilder()
+              .setMetrics(Metrics.getDefaultInstance())
+              .build();
       processBundleResponseFuture.complete(
           BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
+    } finally {
+      ProcessBundleResponse response = activeBundle.close();
+      assertTrue(response.hasMetrics());
     }
   }
 
@@ -211,18 +220,22 @@ public class SdkHarnessClientTest {
                 sdkGrpcReadTarget));
 
     Collection<WindowedValue<String>> outputs = new ArrayList<>();
-    try (ActiveBundle<String> activeBundle =
+    ActiveBundle<String> activeBundle =
         processor.newBundle(
             Collections.singletonMap(
                 sdkGrpcWriteTarget,
                 RemoteOutputReceiver.of(
                     FullWindowedValueCoder.of(
                         LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
-                    outputs::add)))) {
+                    outputs::add)));
+    try {
       FnDataReceiver<WindowedValue<String>> bundleInputReceiver = activeBundle.getInputReceiver();
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("foo"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("bar"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("baz"));
+    } finally {
+      ProcessBundleResponse ignored = activeBundle.close();
+      // Ignore for now.
     }
 
     // The bundle can be a simple function of some sort, but needs to be complete.
@@ -264,9 +277,13 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
-          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver))) {
+      ActiveBundle<String> activeBundle = processor.newBundle(
+          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver));
+      try {
         // We shouldn't be required to complete the process bundle response future.
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (Exception e) {
@@ -314,10 +331,14 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
+      ActiveBundle<String> activeBundle = processor.newBundle(
           ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-          mockStateHandler)) {
+          mockStateHandler);
+      try {
         // We shouldn't be required to complete the process bundle response future.
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (Exception e) {
@@ -356,9 +377,13 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
-          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver))) {
+      ActiveBundle<String> activeBundle = processor.newBundle(
+          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver));
+      try {
         processBundleResponseFuture.completeExceptionally(testException);
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (ExecutionException e) {
@@ -403,10 +428,14 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
+      ActiveBundle<String> activeBundle = processor.newBundle(
           ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-          mockStateHandler)) {
+          mockStateHandler);
+      try {
         processBundleResponseFuture.completeExceptionally(testException);
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (ExecutionException e) {
@@ -446,8 +475,9 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
-          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver))) {
+      ActiveBundle<String> activeBundle = processor.newBundle(
+          ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver));
+      try {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
         // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
         // the response.
@@ -458,6 +488,9 @@ public class SdkHarnessClientTest {
             .getDefaultInstance();
         processBundleResponseFuture.complete(
             BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (Exception e) {
@@ -500,9 +533,10 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle<String> activeBundle = processor.newBundle(
+      ActiveBundle<String> activeBundle = processor.newBundle(
           ImmutableMap.of(Target.getDefaultInstance(), mockRemoteOutputReceiver),
-          mockStateHandler)) {
+          mockStateHandler);
+      try {
         // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
         // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
         // the response.
@@ -513,6 +547,9 @@ public class SdkHarnessClientTest {
             .getDefaultInstance();
         processBundleResponseFuture.complete(
             BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
+      } finally {
+        ProcessBundleResponse ignored = activeBundle.close();
+        // Ignore for now.
       }
       fail("Exception expected");
     } catch (Exception e) {

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.ArtifactSourcePool;
@@ -111,12 +112,18 @@ public class FlinkExecutableStageFunction<InputT>
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
-    try (RemoteBundle<InputT> bundle =
+    RemoteBundle<InputT> bundle =
         stageBundleFactory.getBundle(
-            new ReceiverFactory(collector, outputMap), stateRequestHandler)) {
+            new ReceiverFactory(collector, outputMap), stateRequestHandler);
+    try {
       FnDataReceiver<WindowedValue<InputT>> receiver = bundle.getInputReceiver();
       for (WindowedValue<InputT> input : iterable) {
         receiver.accept(input);
+      }
+    } finally {
+      ProcessBundleResponse response = bundle.close();
+      if (response.hasSplit()) {
+        throw new UnsupportedOperationException("Bundle splits not yet supported");
       }
     }
     // NOTE: RemoteBundle.close() blocks on completion of all data receivers. This is necessary to
