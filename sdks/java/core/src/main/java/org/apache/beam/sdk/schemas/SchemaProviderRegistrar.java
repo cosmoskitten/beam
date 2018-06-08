@@ -22,6 +22,7 @@ import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * {@link SchemaProvider} creators have the ability to automatically have their
@@ -31,7 +32,7 @@ import org.apache.beam.sdk.annotations.Experimental;
  * <p>It is optional but recommended to use one of the many build time tools such as
  * {@link AutoService} to generate the necessary META-INF files automatically.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public interface SchemaProviderRegistrar {
   /**
    * Returns a list of {@link SchemaProvider schema providers} which
