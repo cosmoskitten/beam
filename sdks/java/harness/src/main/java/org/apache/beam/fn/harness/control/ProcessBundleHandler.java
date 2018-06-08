@@ -237,11 +237,18 @@ public class ProcessBundleHandler {
       Multimap<String, Application> allPrimaries = HashMultimap.create();
       Multimap<String, Application> allResiduals = HashMultimap.create();
       BundleSplitListener splitListener =
-          (String pTransformId, List<Application> primaries, List<Application> residuals) -> {
+          (List<Application> primaries, List<Application> residuals) -> {
             // Reset primaries and accumulate residuals.
-            allPrimaries.removeAll(pTransformId);
-            allPrimaries.putAll(pTransformId, primaries);
-            allResiduals.putAll(pTransformId, residuals);
+            Multimap<String, Application> newPrimaries = HashMultimap.create();
+            for (Application primary : primaries) {
+              newPrimaries.put(primary.getPtransformId(), primary);
+            }
+            allPrimaries.clear();
+            allPrimaries.putAll(newPrimaries);
+
+            for (Application residual : residuals) {
+              allResiduals.put(residual.getPtransformId(), residual);
+            }
           };
 
       // Create a BeamFnStateClient
