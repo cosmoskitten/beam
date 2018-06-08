@@ -191,7 +191,8 @@ public class FnApiDoFnRunnerTest {
         Collections.emptyMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -357,7 +358,8 @@ public class FnApiDoFnRunnerTest {
         Collections.emptyMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -496,7 +498,8 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
@@ -601,7 +604,8 @@ public class FnApiDoFnRunnerTest {
         pProto.getComponents().getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
-        finishFunctions::add);
+        finishFunctions::add,
+        null /* splitListener */);
 
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
