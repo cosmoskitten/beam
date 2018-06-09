@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
-import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 
 /**
  * A pool of {@link ArtifactSource ArtifactSources} that can be used as a single source. At least

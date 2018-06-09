@@ -1253,6 +1253,125 @@ ext.applyGrpcNature = {
 
 /*************************************************************************************************/
 
+ext.applyPortabilityNature = {
+  println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
+  applyJavaNature(enableFindbugs: false, enableErrorProne: false, shadowClosure: {
+    // guava uses the com.google.common and com.google.thirdparty package namespaces
+    relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
+
+    relocate "com.google.protobuf", "org.apache.beam.vendor.protobuf.v3.com.google.protobuf"
+    relocate "com.google.gson", "org.apache.beam.vendor.gson.v2.com.google.gson"
+    relocate "io.grpc", "org.apache.beam.vendor.grpc.v1.io.grpc"
+    relocate "com.google.auth", "org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth"
+    relocate "com.google.api", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.api"
+    relocate "com.google.cloud", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.cloud"
+    relocate "com.google.logging", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.logging"
+    relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
+    relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
+    relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
+    relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_11.io.opencensus"
+
+    // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
+    relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
+    // We have to be careful with these replacements as they must not match any
+    // string in NativeLibraryLoader, else they cause corruption. Note that
+    // this includes concatenation of string literals and constants.
+    relocate 'META-INF/native/libnetty', 'META-INF/native/liborg_apache_beam_vendor_netty_v4_netty'
+    relocate 'META-INF/native/netty', 'META-INF/native/org_apache_beam_vendor_netty_v4_netty'
+
+    // Don't include errorprone, JDK8 annotations, objenesis, junit, and mockito in the bundled jar
+    exclude "com/google/errorprone/**"
+    exclude "com/google/instrumentation/**"
+    exclude "javax/annotation/**"
+    exclude "junit/**"
+    exclude "org/hamcrest/**"
+    exclude "org/junit/**"
+    exclude "org/mockito/**"
+    exclude "org/objenesis/**"
+  })
+
+  // Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
+  // because we would like to have the freedom to choose which versions of dependencies we
+  // are using for the portability APIs separate from what is being used inside other modules such as GCP.
+  configurations.all { config ->
+    config.resolutionStrategy {
+      forcedModules = []
+    }
+  }
+
+  apply plugin: "com.google.protobuf"
+  protobuf {
+    protoc {
+      // The artifact spec for the Protobuf Compiler
+      artifact = "com.google.protobuf:protoc:3.5.1"
+    }
+
+    // Configure the codegen plugins
+    plugins {
+      // An artifact spec for a protoc plugin, with "grpc" as
+      // the identifier, which can be referred to in the "plugins"
+      // container of the "generateProtoTasks" closure.
+      grpc {
+        artifact = "io.grpc:protoc-gen-grpc-java:1.12.0"
+      }
+    }
+
+    generateProtoTasks {
+      ofSourceSet("main")*.plugins {
+        // Apply the "grpc" plugin whose spec is defined above, without
+        // options.  Note the braces cannot be omitted, otherwise the
+        // plugin will not be added. This is because of the implicit way
+        // NamedDomainObjectContainer binds the methods.
+        grpc { }
+      }
+    }
+  }
+
+  dependencies {
+    compile 'com.google.guava:guava:20.0'
+    compile 'com.google.protobuf:protobuf-java:3.5.1'
+    compile 'com.google.protobuf:protobuf-java-util:3.5.1'
+    compile 'com.google.code.gson:gson:2.7'
+    compile 'io.grpc:grpc-auth:1.12.0'
+    compile 'io.grpc:grpc-core:1.12.0'
+    compile 'io.grpc:grpc-context:1.12.0'
+    compile 'io.grpc:grpc-netty:1.12.0'
+    compile 'io.grpc:grpc-protobuf:1.12.0'
+    compile 'io.grpc:grpc-stub:1.12.0'
+    compile 'io.netty:netty-transport-native-epoll:4.1.22.Final'
+    compile 'io.netty:netty-tcnative-boringssl-static:2.0.7.Final'
+    compile 'com.google.auth:google-auth-library-credentials:0.9.1'
+    compile 'io.grpc:grpc-testing:1.12.0'
+    compile 'com.google.api.grpc:proto-google-common-protos:1.0.0'
+    compile 'io.opencensus:opencensus-api:0.11.0'
+    compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.11.0'
+  }
+
+  task validateShadedJarDoesntLeakNonOrgApacheBeamClasses {
+    dependsOn shadowJar
+    dependsOn shadowTestJar
+    inputs.files configurations.shadow.artifacts.files
+    inputs.files configurations.shadowTest.artifacts.files
+    doLast {
+      (configurations.shadow.artifacts.files + configurations.shadowTest.artifacts.files).each {
+        FileTree exposedClasses = zipTree(it).matching {
+          include "**/*.class"
+          exclude "org/apache/beam/**"
+        }
+        if (exposedClasses.files) {
+          throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+        }
+      }
+    }
+  }
+  check.dependsOn validateShadedJarDoesntLeakNonOrgApacheBeamClasses
+
+  // TODO: Integrate intellij support into this.
+}
+
+/*************************************************************************************************/
+
 // TODO: Decide whether this should be inlined into the one project that relies on it
 // or be left here.
 ext.applyAvroNature = {

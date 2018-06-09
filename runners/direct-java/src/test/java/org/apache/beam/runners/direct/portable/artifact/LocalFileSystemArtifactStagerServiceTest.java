@@ -22,11 +22,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.google.protobuf.ByteString;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.internal.ServerImpl;
-import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
@@ -36,6 +31,11 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
+import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -54,7 +54,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
   private ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stub;
 
   private LocalFileSystemArtifactStagerService stager;
-  private ServerImpl server;
+  private Server server;
 
   @Before
   public void setup() throws Exception {
