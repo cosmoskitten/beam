@@ -23,7 +23,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.Struct;
 import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
@@ -73,6 +72,7 @@ import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionServi
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
