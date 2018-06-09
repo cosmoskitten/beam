@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.fnexecution.artifact;
 
-import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 
 /**
  * Makes artifacts available to an ArtifactRetrievalService by

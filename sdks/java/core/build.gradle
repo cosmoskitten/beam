@@ -77,4 +77,5 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+  shadow files("$rootProject.projectDir/model/pipeline/build/libs/beam-model-pipeline-2.6.0-SNAPSHOT-shaded.jar")
 }
