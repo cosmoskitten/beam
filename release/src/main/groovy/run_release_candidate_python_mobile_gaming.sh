@@ -120,6 +120,7 @@ gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
 if [[ "$gcloud_version" < "189" ]]; then
   update_gcloud
 fi
+pip install google-compute-engine
 pip install $BEAM_PYTHON_SDK[gcp]
 
 
