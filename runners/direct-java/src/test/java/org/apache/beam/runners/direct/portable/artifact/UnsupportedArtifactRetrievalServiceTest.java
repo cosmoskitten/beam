@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct.portable.artifact;
 
 import static org.junit.Assert.fail;
 
-import io.grpc.stub.StreamObserver;
 import java.util.Optional;
 import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
@@ -32,6 +31,7 @@ import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
