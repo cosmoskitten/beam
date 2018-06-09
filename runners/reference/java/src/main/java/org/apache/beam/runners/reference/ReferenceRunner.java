@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.reference;
 
-import com.google.protobuf.Struct;
 import java.nio.file.Path;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 
 /**
  * A {@code PipelineRunner} that executes a job via the Beam portability framework.
