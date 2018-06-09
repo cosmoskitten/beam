@@ -27,16 +27,13 @@ the Beam Portability Framework."""
 dependencies {
   compile library.java.guava
   compile library.java.findbugs_jsr305
+  compileOnly library.java.error_prone_annotations
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
-  shadow library.java.grpc_netty
-  shadow library.java.netty_transport_native_epoll
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
