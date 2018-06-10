@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.Pair;
 import org.joda.time.Instant;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform GROUP-BY operation. */
@@ -65,16 +67,10 @@ public class BeamAggregationTransforms implements Serializable {
   /** Merge KV to single record. */
   public static class MergeAggregationRecord extends DoFn<KV<Row, Row>, Row> {
     private Schema outSchema;
-    private List<String> aggFieldNames;
     private int windowStartFieldIdx;
 
-    public MergeAggregationRecord(
-        Schema outSchema, List<AggregateCall> aggList, int windowStartFieldIdx) {
+    public MergeAggregationRecord(Schema outSchema, int windowStartFieldIdx) {
       this.outSchema = outSchema;
-      this.aggFieldNames = new ArrayList<>();
-      for (AggregateCall ac : aggList) {
-        aggFieldNames.add(ac.getName());
-      }
       this.windowStartFieldIdx = windowStartFieldIdx;
     }
 
@@ -138,13 +134,17 @@ public class BeamAggregationTransforms implements Serializable {
     private Schema sourceSchema;
     private Schema finalSchema;
 
-    public AggregationAdaptor(List<AggregateCall> aggregationCalls, Schema sourceSchema) {
+    public AggregationAdaptor(
+        List<Pair<AggregateCall, String>> aggregationCalls, Schema sourceSchema) {
       this.aggregators = new ArrayList<>();
       this.sourceFieldExps = new ArrayList<>();
       this.sourceSchema = sourceSchema;
       ImmutableList.Builder<Schema.Field> fields = ImmutableList.builder();
 
-      for (AggregateCall call : aggregationCalls) {
+      for (Pair<AggregateCall, String> aggCall : aggregationCalls) {
+        AggregateCall call = aggCall.left;
+        String aggName = aggCall.right;
+
         if (call.getArgList().size() == 2) {
           /**
            * handle the case of aggregation function has two parameters and use KV pair to bundle
@@ -172,7 +172,7 @@ public class BeamAggregationTransforms implements Serializable {
         }
 
         FieldType typeDescriptor = CalciteUtils.toFieldType(call.type);
-        fields.add(Schema.Field.of(call.name, typeDescriptor));
+        fields.add(Schema.Field.of(aggName, typeDescriptor));
 
         switch (call.getAggregation().getName()) {
           case "COUNT":
@@ -250,7 +250,7 @@ public class BeamAggregationTransforms implements Serializable {
                   .get(idx)
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
-                      exp.evaluate(input, null).getValue()));
+                      exp.evaluate(input, null, ImmutableMap.of()).getValue()));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           /**
            * If source expression is type of KV pair, we bundle the value of two expressions into KV
@@ -264,8 +264,8 @@ public class BeamAggregationTransforms implements Serializable {
                   .addInput(
                       accumulator.accumulatorElements.get(idx),
                       KV.of(
-                          exp.getKey().evaluate(input, null).getValue(),
-                          exp.getValue().evaluate(input, null).getValue())));
+                          exp.getKey().evaluate(input, null, ImmutableMap.of()).getValue(),
+                          exp.getValue().evaluate(input, null, ImmutableMap.of()).getValue())));
         }
       }
       return deltaAcc;

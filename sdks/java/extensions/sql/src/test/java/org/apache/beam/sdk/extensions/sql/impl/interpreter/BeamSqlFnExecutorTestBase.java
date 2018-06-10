@@ -62,11 +62,12 @@ public class BeamSqlFnExecutorTestBase {
             .add("site_id", SqlTypeName.INTEGER)
             .add("price", SqlTypeName.DOUBLE)
             .add("order_time", SqlTypeName.BIGINT)
+            .add("order_info", SqlTypeName.VARCHAR)
             .build();
 
     row =
         Row.withSchema(CalciteUtils.toBeamSchema(relDataType))
-            .addValues(1234567L, 0, 8.9, 1234567L)
+            .addValues(1234567L, 0, 8.9, 1234567L, "This is an order.")
             .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
@@ -84,6 +85,11 @@ public class BeamSqlFnExecutorTestBase {
             .typeSystem(TYPE_FACTORY.getTypeSystem())
             .build();
 
+    try {
+      Class.forName("org.apache.calcite.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     relBuilder = RelBuilder.create(config);
   }
 }
