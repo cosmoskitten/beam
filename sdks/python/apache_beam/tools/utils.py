@@ -70,9 +70,8 @@ def run_benchmarks(benchmark_suite, verbose=True):
     verbose: bool, whether to print benchmark results to stdout.
 
   Returns:
-    A dictionary of the form str: list of floats. Keys of the dictionary
-    are benchmark names, values are execution times in seconds for each run
-    divided by benchmark input size.
+    A dictionary of the form string -> list of floats. Keys of the dictionary
+    are benchmark names, values are execution times in seconds for each run.
   """
 
   def get_name(benchmark_config):
