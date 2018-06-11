@@ -25,7 +25,7 @@ import gc
 import os
 import time
 
-from numpy import median
+import numpy
 
 
 def check_compiled(module):
@@ -105,14 +105,14 @@ def run_benchmarks(benchmark_suite, verbose=True):
       print("")
 
   if verbose:
-    print("Median time cost:")
     pad_length = max([len(get_name(bc)) for bc in benchmark_suite])
 
     for benchmark_config in benchmark_suite:
       name = get_name(benchmark_config)
-      median_cost = median(cost_series[name])
+      median_cost = numpy.median(cost_series[name])/benchmark_config.size
+      std = numpy.std(cost_series[name])/benchmark_config.size
 
-      print("%s: per element median time cost: %g sec" % (
-          name.ljust(pad_length, " "), median_cost/benchmark_config.size))
+      print("%s: per element median time cost: %g sec, std: %g sec" % (
+          name.ljust(pad_length, " "), median_cost, std))
 
   return cost_series
