@@ -50,8 +50,8 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
   Args:
     benchmark_suite: A list of named tuples that describe benchmarks.
-      Each tuple should have following key-value pairs:
-        benchmark: a callable that takes an argument - a size of a benchmark,
+                     Each tuple should have following key-value pairs:
+        benchmark: a callable that takes an int argument - benchmark size,
           and returns a callable. A returned callable must run the code being
           benchmarked on an input of specified size.
 
