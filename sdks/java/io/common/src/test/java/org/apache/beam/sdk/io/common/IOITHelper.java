@@ -51,24 +51,18 @@ public class IOITHelper {
 
   public static void executeWithRetry(int maxAttempts, long minDelay, RetryFunction function)
       throws Exception {
-    ArrayList<Exception> errorList = new ArrayList<Exception>();
-    int attempts = 0;
+    ArrayList<Exception> errorList = new ArrayList<>();
+    int attempts = 1;
     long delay = minDelay;
 
-    while (attempts < maxAttempts) {
+    while (attempts <= maxAttempts) {
       try {
         function.run();
         return;
       } catch (Exception e) {
-        LOG.error(
-            "Attempt #{} of {} threw an exception: {} after {} ms",
-            attempts + 1,
-            maxAttempts,
-            e.getMessage(),
-            delay);
+        LOG.warn("Attempt #{} of {} failed.", attempts, maxAttempts);
         errorList.add(e);
-
-        if (attempts == maxAttempts - 1) {
+        if (attempts == maxAttempts) {
           for (int i = 0; i < errorList.size(); i++) {
             LOG.error(
                 "Attempt #{} of {} thrown a following exception:",
@@ -78,9 +72,11 @@ public class IOITHelper {
           }
           throw e;
         } else {
-          long nextDelay = (long) Math.pow(2, ++attempts) * delay;
+          long nextDelay = (long) Math.pow(2, attempts) * delay;
+          LOG.warn("Retrying in {} ms.", nextDelay);
           Thread.sleep(nextDelay);
         }
+        attempts++;
       }
     }
   }

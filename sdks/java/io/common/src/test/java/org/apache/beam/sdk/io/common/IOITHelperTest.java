@@ -46,7 +46,7 @@ public class IOITHelperTest {
   @Test
   public void retryHealthyFunction() throws Exception {
     executeWithRetry(IOITHelperTest::validFunction);
-    assertEquals(message, "This is healthy function.");
+    assertEquals("This is healthy function.", message);
   }
 
   @Test
@@ -54,7 +54,7 @@ public class IOITHelperTest {
     exceptionRule.expect(SQLException.class);
     exceptionRule.expectMessage("Problem with connection");
     executeWithRetry(IOITHelperTest::failingFunction);
-    assertEquals(listOfExceptionsThrown.size(), 3);
+    assertEquals(3, listOfExceptionsThrown.size());
   }
 
   @Test
@@ -62,21 +62,21 @@ public class IOITHelperTest {
     exceptionRule.expect(SQLException.class);
     exceptionRule.expectMessage("Problem with connection");
     executeWithRetry(4, 1_000, IOITHelperTest::failingFunction);
-    assertEquals(listOfExceptionsThrown.size(), 4);
+    assertEquals(4, listOfExceptionsThrown.size());
   }
 
   @Test
   public void retryFunctionThatRecovers() throws Exception {
     startTimeMeasure = System.currentTimeMillis();
     executeWithRetry(IOITHelperTest::recoveringFunction);
-    assertEquals(listOfExceptionsThrown.size(), 1);
+    assertEquals(1, listOfExceptionsThrown.size());
   }
 
   @Test
   public void retryFunctionThatRecoversAfterBiggerDelay() throws Exception {
     startTimeMeasure = System.currentTimeMillis();
     executeWithRetry(3, 2_000, IOITHelperTest::recoveringFunctionWithBiggerDelay);
-    assertEquals(listOfExceptionsThrown.size(), 1);
+    assertEquals(1, listOfExceptionsThrown.size());
   }
 
   private static void failingFunction() throws SQLException {
