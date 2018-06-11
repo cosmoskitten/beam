@@ -29,22 +29,17 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
-/**
- * Tests for functions in {@link IOITHelper}.
- */
+/** Tests for functions in {@link IOITHelper}. */
 @RunWith(JUnit4.class)
 public class IOITHelperTest {
   private static long startTimeMeasure;
   private static String message = "";
   private static ArrayList<Exception> listOfExceptionsThrown;
 
-  @Rule
-  public ExpectedException exceptionRule = ExpectedException.none();
+  @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
   @Before
-  public
-  void setup(){
+  public void setup() {
     listOfExceptionsThrown = new ArrayList<>();
   }
 
@@ -73,19 +68,16 @@ public class IOITHelperTest {
   @Test
   public void retryFunctionThatRecovers() throws Exception {
     startTimeMeasure = System.currentTimeMillis();
-    System.out.println(startTimeMeasure);
     executeWithRetry(IOITHelperTest::recoveringFunction);
     assertEquals(listOfExceptionsThrown.size(), 1);
   }
 
   @Test
   public void retryFunctionThatRecoversAfterBiggerDelay() throws Exception {
-    exceptionRule.expect(SQLException.class);
-    exceptionRule.expectMessage("Problem with connection");
+    startTimeMeasure = System.currentTimeMillis();
     executeWithRetry(3, 2_000, IOITHelperTest::recoveringFunctionWithBiggerDelay);
     assertEquals(listOfExceptionsThrown.size(), 1);
   }
-
 
   private static void failingFunction() throws SQLException {
     SQLException e = new SQLException("Problem with connection");
@@ -94,8 +86,7 @@ public class IOITHelperTest {
   }
 
   private static void recoveringFunction() throws SQLException {
-    System.out.println(startTimeMeasure);
-    if (System.currentTimeMillis() - startTimeMeasure < 1_001){
+    if (System.currentTimeMillis() - startTimeMeasure < 1_001) {
       SQLException e = new SQLException("Problem with connection");
       listOfExceptionsThrown.add(e);
       throw e;
@@ -103,8 +94,7 @@ public class IOITHelperTest {
   }
 
   private static void recoveringFunctionWithBiggerDelay() throws SQLException {
-    System.out.println(startTimeMeasure);
-    if (System.currentTimeMillis() - startTimeMeasure < 2_001){
+    if (System.currentTimeMillis() - startTimeMeasure < 2_001) {
       SQLException e = new SQLException("Problem with connection");
       listOfExceptionsThrown.add(e);
       throw e;

@@ -22,37 +22,30 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Methods common to all types of IOITs.
- */
+/** Methods common to all types of IOITs. */
 public class IOITHelper {
   private static final Logger LOG = LoggerFactory.getLogger(IOITHelper.class);
   private static final int maxAttempts = 3;
   private static final long minDelay = 1_000;
 
-  private IOITHelper() {
-  }
+  private IOITHelper() {}
 
   public static String getHashForRecordCount(int recordCount, Map<Integer, String> hashes) {
     String hash = hashes.get(recordCount);
     if (hash == null) {
       throw new UnsupportedOperationException(
-        String.format("No hash for that record count: %s", recordCount)
-      );
+          String.format("No hash for that record count: %s", recordCount));
     }
     return hash;
   }
 
-  /**
-   * Interface for passing method to executeWithRetry method.
-   */
+  /** Interface for passing method to executeWithRetry method. */
   @FunctionalInterface
   public interface RetryFunction {
     void run() throws Exception;
   }
 
-  public static void executeWithRetry(RetryFunction function)
-      throws Exception {
+  public static void executeWithRetry(RetryFunction function) throws Exception {
     executeWithRetry(maxAttempts, minDelay, function);
   }
 
@@ -86,7 +79,6 @@ public class IOITHelper {
           throw e;
         } else {
           long nextDelay = (long) Math.pow(2, ++attempts) * delay;
-          System.out.println(String.format("Next delay %d", nextDelay));
           Thread.sleep(nextDelay);
         }
       }
