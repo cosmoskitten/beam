@@ -59,7 +59,6 @@ public enum BeamLogicalConvention implements Convention {
         planner.addRule(rule);
       }
     }
-    planner.removeRule(CalcRemoveRule.INSTANCE);
   }
 
   @Override
