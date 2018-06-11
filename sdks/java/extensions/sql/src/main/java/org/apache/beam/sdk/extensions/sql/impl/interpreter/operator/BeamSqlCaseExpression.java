@@ -26,6 +26,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /** {@code BeamSqlCaseExpression} represents CASE, NULLIF, COALESCE in SQL. */
 public class BeamSqlCaseExpression extends BeamSqlExpression {
+
   public BeamSqlCaseExpression(List<BeamSqlExpression> operands) {
     // the return type of CASE is the type of the `else` condition
     super(operands, operands.get(operands.size() - 1).getOutputType());
@@ -53,12 +54,13 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
   public BeamSqlPrimitive evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window, env);
+      Boolean wasOpEvaluated = opValueEvaluated(Boolean.class, i, inputRow, window, env);
       if (wasOpEvaluated != null && wasOpEvaluated) {
-        return BeamSqlPrimitive.of(outputType, opValueEvaluated(i + 1, inputRow, window, env));
+        return BeamSqlPrimitive.of(
+            outputType, opValueEvaluated(Object.class, i + 1, inputRow, window, env));
       }
     }
     return BeamSqlPrimitive.of(
-        outputType, opValueEvaluated(operands.size() - 1, inputRow, window, env));
+        outputType, opValueEvaluated(Object.class, operands.size() - 1, inputRow, window, env));
   }
 }

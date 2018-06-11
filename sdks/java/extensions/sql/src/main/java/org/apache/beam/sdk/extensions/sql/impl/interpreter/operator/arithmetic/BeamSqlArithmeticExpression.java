@@ -57,9 +57,9 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
   public BeamSqlPrimitive<? extends Number> evaluate(
       Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
     BigDecimal left =
-        SqlFunctions.toBigDecimal((Object) opValueEvaluated(0, inputRow, window, env));
+        SqlFunctions.toBigDecimal(opValueEvaluated(Object.class, 0, inputRow, window, env));
     BigDecimal right =
-        SqlFunctions.toBigDecimal((Object) opValueEvaluated(1, inputRow, window, env));
+        SqlFunctions.toBigDecimal(opValueEvaluated(Object.class, 1, inputRow, window, env));
 
     BigDecimal result = calc(left, right);
     return getCorrectlyTypedResult(result);
