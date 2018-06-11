@@ -86,6 +86,7 @@ public class IOITHelper {
           throw e;
         } else {
           long nextDelay = (long) Math.pow(2, ++attempts) * delay;
+          System.out.println(String.format("Next delay %d", nextDelay));
           Thread.sleep(nextDelay);
         }
       }
