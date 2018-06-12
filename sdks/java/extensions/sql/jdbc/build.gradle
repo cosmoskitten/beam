@@ -29,6 +29,7 @@ dependencies {
   compile "sqlline:sqlline:1.3.0"
   compile library.java.slf4j_jdk14
   compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   testCompileOnly library.java.findbugs_annotations
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.

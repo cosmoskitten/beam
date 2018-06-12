@@ -120,6 +120,14 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
+  public boolean isLimitOnly() {
+    return fieldIndices.size() == 0;
+  }
+
+  public int getCount() {
+    return count;
+  }
+
   @Override
   public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
     return new Transform();

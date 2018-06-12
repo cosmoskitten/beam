@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -61,6 +62,8 @@ import org.apache.calcite.rel.type.RelDataType;
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
+  private static final ConcurrentHashMap<Long, PipelineResult> pipelineResults =
+      new ConcurrentHashMap<Long, PipelineResult>();
 
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
@@ -95,6 +98,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
       if (node instanceof BeamIOSinkRel) {
         return count(options, node);
+      } else if (node instanceof BeamSortRel && ((BeamSortRel)node).isLimitOnly()) {
+        return limitCollect(options, node);
       }
       return collect(options, node);
     } finally {
@@ -107,6 +112,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Pipeline pipeline = Pipeline.create(options);
     PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
+    pipelineResults.put(options.getOptionsId(), result);
+
     result.waitUntilFinish();
     return result;
   }
@@ -125,6 +132,62 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Collector.globalValues.remove(id);
 
     return Linq4j.asEnumerable(values);
+  }
+
+  private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
+    long id = options.getOptionsId();
+    Queue<Object> values = new ConcurrentLinkedQueue<Object>();
+
+    checkArgument(
+        options
+            .getRunner()
+            .getCanonicalName()
+            .equals("org.apache.beam.runners.direct.DirectRunner"));
+    LimitCounter.globalValues.put(id, values);
+    LimitCounter.globalLimitArguments.put(id, ((BeamSortRel)node).getCount());
+    run(options, node, new LimitCounter());
+    LimitCounter.globalValues.remove(id);
+    LimitCounter.globalLimitArguments.put(id, ((BeamSortRel)node).getCount());
+
+    return Linq4j.asEnumerable(values);
+  }
+
+  private static class LimitCounter extends DoFn<Row, Void> {
+    private static final Map<Long, Integer> globalLimitArguments =
+        new ConcurrentHashMap<Long, Integer>();
+    private static final Map<Long, Queue<Object>> globalValues =
+        new ConcurrentHashMap<Long, Queue<Object>>();
+
+    @Nullable private volatile Queue<Object> values;
+    @Nullable private volatile Integer count;
+    @Nullable private volatile PipelineResult pipelineResult;
+
+
+    @StartBundle
+    public void startBundle(StartBundleContext context) {
+      long id = context.getPipelineOptions().getOptionsId();
+      values = globalValues.get(id);
+      count = globalLimitArguments.get(id);
+      pipelineResult = pipelineResults.get(id);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      Object[] input = context.element().getValues().toArray();
+      if (input.length == 1) {
+        values.add(input[0]);
+      } else {
+        values.add(input);
+      }
+
+      if (values.size() >= count) {
+        try {
+          pipelineResult.cancel();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
   }
 
   private static class Collector extends DoFn<Row, Void> {
