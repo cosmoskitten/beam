@@ -109,7 +109,7 @@ public class FlattenRunnerTest {
   }
 
   /**
-   * Create a Flatten that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget)
+   * Create a Flatten that has 4 inputs (inputATarget1, inputATarget1, inputATarget2, inputATarget2)
    * and one output (mainOutput). Validate that inputs are flattened together and directed to the
    * output.
    */
