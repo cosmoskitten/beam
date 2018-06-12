@@ -145,11 +145,11 @@ public class Main<OptionT extends NexmarkOptions> {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT64"),
-                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT64"),
+                    new TableFieldSchema().setName("Runtime(sec)").setType("FLOAT"),
+                    new TableFieldSchema().setName("Events(/sec)").setType("FLOAT"),
                     new TableFieldSchema()
                         .setName("Size of the result collection")
-                        .setType("INT64")));
+                        .setType("INTEGER")));
 
     String tableSpec =
         NexmarkUtils.tableSpec(options, "{query}", 0L, null);
@@ -162,10 +162,11 @@ public class Main<OptionT extends NexmarkOptions> {
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
-          return new TableRow()
+          TableRow row = new TableRow()
               .set("Runtime(sec)", nexmarkPerf.runtimeSec)
               .set("Events(/sec)", nexmarkPerf.eventsPerSec)
               .set("Size of the result collection", nexmarkPerf.numResults);
+          return row;
         };
     BigQueryIO.Write io =
         BigQueryIO.<KV<NexmarkConfiguration, NexmarkPerf>>write()
