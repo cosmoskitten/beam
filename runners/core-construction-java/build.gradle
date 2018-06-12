@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: false)
+applyJavaNature(failOnWarning: true)
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
