@@ -84,10 +84,15 @@ class DataflowRunner(PipelineRunner):
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
     self._unique_step_id = 0
+    self._unique_side_input_id = 0
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
     return 's%s' % self._unique_step_id
+
+  def _get_unique_side_input_name(self):
+    self._unique_side_input_id += 1
+    return 'side%s' % self._unique_side_input_id
 
   @staticmethod
   def poll_for_job_completion(runner, result, duration):
@@ -587,10 +592,10 @@ class DataflowRunner(PipelineRunner):
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
-    for ix, side_pval in enumerate(transform_node.side_inputs):
+    for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d' % ix
+      si_label = self._get_unique_side_input_name()
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
