@@ -87,7 +87,7 @@ public class HadoopInputFormatIOIT {
   public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setUp() throws SQLException {
+  public static void setUp() throws Exception {
     PostgresIOTestPipelineOptions options = readIOTestPipelineOptions(
       PostgresIOTestPipelineOptions.class);
 

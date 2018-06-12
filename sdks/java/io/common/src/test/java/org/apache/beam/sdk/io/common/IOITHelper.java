@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.common;
 
 import java.util.ArrayList;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Methods common to all types of IOITs. */
 public class IOITHelper {
