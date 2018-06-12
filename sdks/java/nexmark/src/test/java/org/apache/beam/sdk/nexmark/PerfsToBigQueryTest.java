@@ -64,8 +64,9 @@ public class PerfsToBigQueryTest {
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
     options.setResourceNameMode(NexmarkUtils.ResourceNameMode.QUERY_RUNNER_AND_MODE);
     FakeDatasetService.setUp();
-//    BigQueryIO.clearCreatedTables();
-    fakeDatasetService.createDataset(options.getProject(), options.getBigQueryDataset(), "", "", null);
+    //    BigQueryIO.clearCreatedTables();
+    fakeDatasetService.createDataset(
+        options.getProject(), options.getBigQueryDataset(), "", "", null);
   }
 
   @Test
@@ -73,7 +74,7 @@ public class PerfsToBigQueryTest {
     NexmarkConfiguration nexmarkConfiguration1 = new NexmarkConfiguration();
     nexmarkConfiguration1.query = QUERY;
     // just for the 2 configurations to be different to have different keys
-    nexmarkConfiguration1.cpuDelayMs= 100L;
+    nexmarkConfiguration1.cpuDelayMs = 100L;
     NexmarkPerf nexmarkPerf1 = new NexmarkPerf();
     nexmarkPerf1.numResults = 1000L;
     nexmarkPerf1.eventsPerSec = 0.5F;
@@ -82,7 +83,7 @@ public class PerfsToBigQueryTest {
     NexmarkConfiguration nexmarkConfiguration2 = new NexmarkConfiguration();
     nexmarkConfiguration2.query = QUERY;
     // just for the 2 configurations to be different to have different keys
-    nexmarkConfiguration1.cpuDelayMs= 200L;
+    nexmarkConfiguration1.cpuDelayMs = 200L;
     NexmarkPerf nexmarkPerf2 = new NexmarkPerf();
     nexmarkPerf2.numResults = 1001L;
     nexmarkPerf2.eventsPerSec = 1.5F;
@@ -106,13 +107,13 @@ public class PerfsToBigQueryTest {
         .set("Runtime(sec)", nexmarkPerf1.runtimeSec).set("Events(/sec)", nexmarkPerf1.eventsPerSec)
         // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
         // to for bowing into Integer in the expectedRows.
-        .set("Size of the result collection", (int)nexmarkPerf1.numResults);
+        .set("Size of the result collection", (int) nexmarkPerf1.numResults);
     expectedRows.add(row1);
     TableRow row2 = new TableRow()
         .set("Runtime(sec)", nexmarkPerf2.runtimeSec).set("Events(/sec)", nexmarkPerf2.eventsPerSec)
         // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
         // to for bowing into Integer in the expectedRows.
-        .set("Size of the result collection", (int)nexmarkPerf2.numResults);
+        .set("Size of the result collection", (int) nexmarkPerf2.numResults);
     expectedRows.add(row2);
     assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
 
