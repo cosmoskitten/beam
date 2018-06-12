@@ -1257,6 +1257,27 @@ ext.applyGrpcNature = {
 ext.applyPortabilityNature = {
   println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   applyJavaNature(enableFindbugs: false, enableErrorProne: false, shadowClosure: {
+    // The relocation paths below specifically use the major version number of the dependency
+    // since we assume that packages following semantic versioning rules. For packages
+    // with a major version number that is 0 (implying that the dependency is unstable),
+    // we use the full version identifier in the relocated path (e.g. v0_minor_patch).
+    // For stable dependencies, if two or more packages use the same major version number,
+    // we should bias to vendoring the highest version to minimize jar files instead of
+    // vendoring using their minor or patch version numbers. Some packages may be incompatible
+    // across minor or patch versions and in those instances we should either attempt to update our
+    // usage of the dependency so we don't need to vendor both or choose to vendor
+    // both specifying the minor version in the relocation path.
+
+    // To produce the list of necessary relocations, one needs to start with a set of target
+    // packages that one wants to vendor, find all necessary transitive dependencies of that
+    // set and provide relocations for each such that all necessary packages and their
+    // dependencies are relocated. Any optional dependency that doesn't need relocation
+    // must be excluded via an 'exclude' rule. There is additional complexity of libraries that use
+    // JNI or reflection and have to be handled on case by case basis by learning whether
+    // they support relocation and how would one go about doing it by reading any documentation
+    // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
+    // ensures that there are no classes outside of the 'org.apache.beam' namespace.
+
     // guava uses the com.google.common and com.google.thirdparty package namespaces
     relocate "com.google.common", "org.apache.beam.vendor.guava.v20.com.google.common"
     relocate "com.google.thirdparty", "org.apache.beam.vendor.guava.v20.com.google.thirdparty"
@@ -1271,7 +1292,7 @@ ext.applyPortabilityNature = {
     relocate "com.google.longrunning", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.longrunning"
     relocate "com.google.rpc", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.rpc"
     relocate "com.google.type", "org.apache.beam.vendor.proto_google_common_protos.v1.com.google.type"
-    relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_11.io.opencensus"
+    relocate "io.opencensus", "org.apache.beam.vendor.opencensus.v0_11_0.io.opencensus"
 
     // Adapted from https://github.com/grpc/grpc-java/blob/e283f70ad91f99c7fee8b31b605ef12a4f9b1690/netty/shaded/build.gradle#L41
     relocate "io.netty", "org.apache.beam.vendor.netty.v4.io.netty"
@@ -1368,7 +1389,7 @@ ext.applyPortabilityNature = {
   }
   check.dependsOn validateShadedJarDoesntLeakNonOrgApacheBeamClasses
 
-  // TODO: Integrate intellij support into this.
+  // TODO(BEAM-4544): Integrate intellij support into this.
 }
 
 /*************************************************************************************************/
