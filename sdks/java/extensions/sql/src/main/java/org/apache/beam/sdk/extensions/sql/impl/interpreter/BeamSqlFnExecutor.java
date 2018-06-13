@@ -174,6 +174,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         SqlTypeName realType = node.getType().getSqlTypeName();
         Object realValue = value;
+
         if (SqlTypeName.NUMERIC_TYPES.contains(type)) {
           switch (realType) {
             case TINYINT:
