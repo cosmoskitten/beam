@@ -78,7 +78,8 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, obs -> obs), serverFactory);
     controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
     InstructionRequestHandler requestHandler =

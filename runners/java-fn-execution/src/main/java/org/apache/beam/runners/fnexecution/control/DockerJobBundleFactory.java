@@ -301,7 +301,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         RemoteEnvironment environment, ServerFactory serverFactory) throws Exception {
       ExecutorService executor = Executors.newCachedThreadPool();
       GrpcFnServer<GrpcDataService> dataServer =
-          GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcDataService.create(executor, obs -> obs), serverFactory);
       GrpcFnServer<GrpcStateService> stateServer =
           GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
       SdkHarnessClient client =

@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
@@ -53,8 +54,11 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
-  public static GrpcDataService create(ExecutorService executor) {
-    return new GrpcDataService(executor);
+  public static GrpcDataService create(
+      ExecutorService executor,
+      Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
+          streamObserverFactory) {
+    return new GrpcDataService(executor, streamObserverFactory);
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
@@ -68,11 +72,17 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
   private final ExecutorService executor;
+  private final Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
+      streamObserverFactory;
 
-  private GrpcDataService(ExecutorService executor) {
+  private GrpcDataService(
+      ExecutorService executor,
+      Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
+          streamObserverFactory) {
     this.connectedClient = SettableFuture.create();
     this.additionalMultiplexers = new LinkedBlockingQueue<>();
     this.executor = executor;
+    this.streamObserverFactory = streamObserverFactory;
   }
 
   @Override
@@ -80,7 +90,8 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
     LOG.info("Beam Fn Data client connected.");
     BeamFnDataGrpcMultiplexer multiplexer =
-        new BeamFnDataGrpcMultiplexer(null, inboundObserver -> outboundElementObserver);
+        new BeamFnDataGrpcMultiplexer(
+            null, inboundObserver -> streamObserverFactory.apply(outboundElementObserver));
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
       additionalMultiplexers.offer(multiplexer);
