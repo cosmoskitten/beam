@@ -131,7 +131,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // in backward-incompatible Flink changes.
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-    progressHandler = BundleProgressHandler.unsupported();
+    progressHandler = BundleProgressHandler.defaultInstance();
   }
 
   // TODO: currently assumes that every element is a separate bundle,

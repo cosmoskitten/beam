@@ -94,7 +94,7 @@ public class FlinkExecutableStageFunction<InputT>
     // in backward-incompatible Flink changes.
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, runtimeContext);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
-    progressHandler = BundleProgressHandler.unsupported();
+    progressHandler = BundleProgressHandler.defaultInstance();
   }
 
   @Override

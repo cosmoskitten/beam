@@ -34,7 +34,7 @@ public interface BundleProgressHandler {
   void onCompleted(ProcessBundleResponse response);
 
   /** Returns a handler that ignores metrics and throws on splits (as splits can not be ignored). */
-  static BundleProgressHandler unsupported() {
+  static BundleProgressHandler defaultInstance() {
     return new BundleProgressHandler() {
       @Override
       public void onProgress(ProcessBundleProgressResponse progress) {
