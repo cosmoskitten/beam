@@ -42,6 +42,34 @@ def check_compiled(module):
         "'pip install Cython; python setup.py build_ext --inplace'")
 
 
+class BenchmarkConfig(
+    collections.namedtuple(
+        "BenchmarkConfig", ["benchmark", "size", "num_runs"])):
+  """
+  Attributes:
+    benchmark: a callable that takes an int argument - benchmark size,
+      and returns a callable. A returned callable must run the code being
+      benchmarked on an input of specified size.
+
+      For example, one can implement a benchmark as:
+
+      class MyBenchmark(object):
+        def __init__(self, size):
+          [do necessary initialization]
+        def __call__(self):
+          [run the code in question]
+
+    size: int, a size of the input. Aggregated per-element metrics
+      are counted based on the size of the input.
+    num_runs: int, number of times to run each benchmark.
+  """
+
+  def __str__(self):
+    return "%s, %s element(s)" % (
+        getattr(self.benchmark, '__name__', str(self.benchmark)),
+        str(self.size))
+
+
 def run_benchmarks(benchmark_suite, verbose=True):
   """Runs benchmarks, and collects execution times.
 
@@ -49,34 +77,13 @@ def run_benchmarks(benchmark_suite, verbose=True):
   its execution times.
 
   Args:
-    benchmark_suite: A list of named tuples that describe benchmarks.
-                     Each tuple should have following key-value pairs:
-        benchmark: a callable that takes an int argument - benchmark size,
-          and returns a callable. A returned callable must run the code being
-          benchmarked on an input of specified size.
-
-          For example, one can implement a benchmark as:
-
-          class MyBenchmark(object):
-            def __init__(self, size):
-              [do necessary initialization]
-
-            def __call__(self):
-              [run the code in question]
-
-        size: int, a size of the input. Aggregated per-element metrics
-           are counted based on the size of the input.
-    num_runs: int, number of times to run each benchmark.
+    benchmark_suite: A list of BenchmarkConfig.
     verbose: bool, whether to print benchmark results to stdout.
 
   Returns:
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
-
-  def get_name(benchmark_config):
-    return getattr(benchmark_config.benchmark, '__name__',
-                   str(benchmark_config.benchmark))
 
   def run(benchmark_fn, size):
     # Contain each run of a benchmark inside a function so that any temporary
@@ -88,7 +95,7 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
   cost_series = collections.defaultdict(list)
   for benchmark_config in benchmark_suite:
-    name = get_name(benchmark_config)
+    name = str(benchmark_config)
     num_runs = benchmark_config.num_runs
     size = benchmark_config.size
     for run_id in range(num_runs):
@@ -98,21 +105,22 @@ def run_benchmarks(benchmark_suite, verbose=True):
       time_cost = run(benchmark_config.benchmark, size)
       cost_series[name].append(time_cost)
       if verbose:
-        avg_cost = time_cost/size
+        per_element_cost = time_cost/size
         print("%s: run %d of %d, per element time cost: %g sec" % (
-            name, run_id+1, num_runs, avg_cost))
+            name, run_id+1, num_runs, per_element_cost))
     if verbose:
       print("")
 
   if verbose:
-    pad_length = max([len(get_name(bc)) for bc in benchmark_suite])
+    pad_length = max([len(str(bc)) for bc in benchmark_suite])
 
     for benchmark_config in benchmark_suite:
-      name = get_name(benchmark_config)
-      median_cost = numpy.median(cost_series[name])/benchmark_config.size
+      name = str(benchmark_config)
+      per_element_median_cost = (
+          numpy.median(cost_series[name])/benchmark_config.size)
       std = numpy.std(cost_series[name])/benchmark_config.size
 
       print("%s: per element median time cost: %g sec, std: %g sec" % (
-          name.ljust(pad_length, " "), median_cost, std))
+          name.ljust(pad_length, " "), per_element_median_cost, std))
 
   return cost_series

@@ -16,126 +16,129 @@
 """A microbenchmark for measuring performance of coders.
 
 This runs a sequence of encode-decode operations on random inputs
-to collect a per-element performance of various coders.
+to collect performance of various coders.
 
-Run as
+To evaluate coders performance we approximate the behavior
+how the coders are used in PCollections: we encode and decode
+a (large) list of (small) collections. A collection can be a list of ints,
+a tuple of windowed values, etc.
+
+In this suite, an element of a benchmark is a collection with several entries.
+
+Run as:
   python -m apache_beam.tools.coders_microbenchmark
+
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 
-import collections
+import math
 import random
 import string
-import sys
 
 from apache_beam.coders import coders
 from apache_beam.tools import utils
 from apache_beam.transforms import window
 from apache_beam.utils import windowed_value
 
-
-def coder_benchmark_factory(name, coder, generate_fn):
-  def init(self, size):
-    self.coder_ = coder
-    self.data_ = generate_fn(size)
-
-  def call(self):
-    _ = self.coder_.decode(self.coder_.encode(self.data_))
-
-  benchmark = type(name, (object,), {})
-  benchmark.__init__ = init
-  benchmark.__call__ = call
-  return benchmark
+NUM_ENTRIES_PER_COLLECTION = 50
 
 
-def generate_list_of_ints(input_size, lower_bound=0, upper_bound=sys.maxsize):
-  values = []
-  for _ in range(input_size):
-    values.append(random.randint(lower_bound, upper_bound))
-  return values
+def coder_benchmark_factory(coder, generate_fn):
+  """ Creates a benchmark that encodes and decodes a list of collections.
+
+  Args:
+    coder: coder to use to encode individual collections.
+    generate_fn: a callable that generates a collection of a given size.
+  """
+
+  class CoderBenchmark(object):
+    def __init__(self, num_collections_per_benchmark):
+      self._coder = coders.IterableCoder(coder)
+      self._list = [generate_fn(NUM_ENTRIES_PER_COLLECTION)
+                    for _ in range(num_collections_per_benchmark)]
+
+    def __call__(self):
+      _ = self._coder.decode(self._coder.encode(self._list))
+
+  CoderBenchmark.__name__ = "%s(%d entries), %s" % (
+      generate_fn.__name__, NUM_ENTRIES_PER_COLLECTION, str(coder))
+
+  return CoderBenchmark
 
 
-def generate_tuple_of_ints(input_size):
-  return tuple(generate_list_of_ints(input_size))
+def list_of_ints(size, upper_bound=1000000):
+  """Generates a list of numbers with a distribution skewed to small values."""
+  return [int(math.exp(random.random()**3*math.log(upper_bound)))
+          for _ in range(size)]
 
 
-def generate_string(length):
+def tuple_of_ints(size):
+  return tuple(list_of_ints(size))
+
+
+def random_string(length):
   return unicode(''.join(random.choice(
       string.ascii_letters + string.digits) for _ in range(length)))
 
 
-def generate_dict_int_int(input_size):
-  sample_list = generate_list_of_ints(input_size)
-  return {val: val for val in sample_list}
+def dict_int_int(size):
+  return {i: i for i in list_of_ints(size)}
 
 
-def generate_dict_str_int(input_size):
-  sample_list = generate_list_of_ints(input_size)
-  return {generate_string(100): val for val in sample_list}
+def dict_str_int(size):
+  return {random_string(30): i for i in list_of_ints(size)}
 
 
-def generate_windowed_value_list(input_size):
-  return [generate_windowed_int_value() for _ in range(0, input_size)]
+def windowed_value_list(size):
+  return [windowed_int_value() for _ in range(0, size)]
 
 
-def generate_windowed_int_value():
+def windowed_int_value():
   return windowed_value.WindowedValue(
-      value=random.randint(0, sys.maxsize),
+      value=list_of_ints(1)[0],
       timestamp=12345678,
-      windows=[
+      windows=(
           window.IntervalWindow(50, 100),
           window.IntervalWindow(60, 110),
           window.IntervalWindow(70, 120),
-      ])
+      ))
 
 
-def run_coder_benchmarks(num_runs, input_size, seed, verbose=True):
+def run_coder_benchmarks(num_runs, input_size, seed, verbose):
   random.seed(seed)
 
   # TODO(BEAM-4441): Pick coders using type hints, for example:
-  # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int])
+  # tuple_coder = typecoders.registry.get_coder(typehints.Tuple[int, ...])
   benchmarks = [
       coder_benchmark_factory(
-          "List[int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
-          generate_list_of_ints),
+          coders.FastPrimitivesCoder(), list_of_ints),
       coder_benchmark_factory(
-          "Tuple[int, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
-          generate_tuple_of_ints),
-      coder_benchmark_factory(
-          "Dict[int, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
-          generate_dict_int_int),
-      coder_benchmark_factory(
-          "Dict[str, int], FastPrimitiveCoder", coders.FastPrimitivesCoder(),
-          generate_dict_str_int),
-      coder_benchmark_factory(
-          "List[int], IterableCoder+FastPrimitiveCoder",
           coders.IterableCoder(coders.FastPrimitivesCoder()),
-          generate_list_of_ints),
+          list_of_ints),
       coder_benchmark_factory(
-          "List[int WV], IterableCoder+WVCoder+FPCoder",
+          coders.FastPrimitivesCoder(), tuple_of_ints),
+      coder_benchmark_factory(
+          coders.FastPrimitivesCoder(), dict_int_int),
+      coder_benchmark_factory(
+          coders.FastPrimitivesCoder(), dict_str_int),
+      coder_benchmark_factory(
           coders.IterableCoder(coders.WindowedValueCoder(
               coders.FastPrimitivesCoder())),
-          generate_windowed_value_list),
+          windowed_value_list),
   ]
 
-  BenchmarkConfig = collections.namedtuple(
-      "BenchmarkConfig", ["benchmark", "size", "num_runs"])
-
-  suite = [BenchmarkConfig(b, input_size, num_runs) for b in benchmarks]
+  suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks]
   utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == "__main__":
   utils.check_compiled("apache_beam.coders.coder_impl")
 
-  num_runs = 10
-  input_size = 10000
+  num_runs = 20
+  num_collections_per_benchmark = 1000
   seed = 42 # Fix the seed for better consistency
 
-  print("Number of runs:", num_runs)
-  print("Input size:", input_size)
-  print("Random seed:", seed)
-
-  run_coder_benchmarks(num_runs, input_size, seed)
+  run_coder_benchmarks(num_runs, num_collections_per_benchmark, seed,
+                       verbose=True)
