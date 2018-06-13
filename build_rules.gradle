@@ -1263,7 +1263,7 @@ ext.applyGrpcNature = {
 
 ext.applyPortabilityNature = {
   println "applyPortabilityNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
-  applyJavaNature(enableFindbugs: false, enableErrorProne: false, shadowClosure: {
+  applyJavaNature(failOnWarning: true, enableFindbugs: false, shadowClosure: {
     // The relocation paths below specifically use the major version number of the dependency
     // since we assume that packages following semantic versioning rules. For packages
     // with a major version number that is 0 (implying that the dependency is unstable),
