@@ -1089,6 +1089,7 @@ class CombineGlobally(PTransform):
   """
   has_defaults = True
   as_view = False
+  fanout = None
 
   def __init__(self, fn, *args, **kwargs):
     if not (isinstance(fn, CombineFn) or callable(fn)):
@@ -1115,6 +1116,9 @@ class CombineGlobally(PTransform):
     clone.__dict__.update(extra_attributes)
     return clone
 
+  def with_fanout(self, fanout):
+    return self._clone(fanout=fanout)
+
   def with_defaults(self, has_defaults=True):
     return self._clone(has_defaults=has_defaults)
 
@@ -1131,12 +1135,15 @@ class CombineGlobally(PTransform):
         return transform.with_input_types(type_hints.input_types[0][0])
       return transform
 
+    combine_per_key = CombinePerKey(self.fn, *self.args, **self.kwargs)
+    if self.fanout:
+      combine_per_key = combine_per_key.with_hot_key_fanout(fanout)
+
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
                     Map(lambda v: (None, v)).with_output_types(
                         KV[None, pcoll.element_type]))
-                | 'CombinePerKey' >> CombinePerKey(
-                    self.fn, *self.args, **self.kwargs)
+                | 'CombinePerKey' >> combine_per_key
                 | 'UnKey' >> Map(lambda k_v: k_v[1]))
 
     if not self.has_defaults and not self.as_view:
@@ -1191,6 +1198,12 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+  def with_hot_key_fanout(self, fanout):
+    from apache_beam.transforms.combiners import curry_combine_fn
+    return _CombinePerKeyWithHotKeyFanout(
+        curry_combine_fn(self.fn, self.args, self.kwargs),
+        fanout)
+
   def display_data(self):
     return {'combine_fn':
             DisplayDataItem(self.fn.__class__, label='Combine Function'),
@@ -1335,6 +1348,70 @@ class CombineValuesDoFn(DoFn):
       main_output_type = hints.simple_output_type('')
       hints.set_output_types(typehints.Tuple[K, main_output_type])
     return hints
+
+
+class _CombinePerKeyWithHotKeyFanout(PTransform):
+
+  def __init__(self, combine_fn, fanout):
+    self._fanout_fn = (
+        (lambda key: fanout) if isinstance(fanout, int) else fanout)
+    self._combine_fn = combine_fn
+
+  def expand(self, pcoll):
+
+    from apache_beam.transforms.trigger import AccumulationMode
+    combine_fn = self._combine_fn
+    fanout_fn = self._fanout_fn
+
+    class SplitHotCold(DoFn):
+      counter = 0
+      def process(self, element):
+        key, value = element
+        fanout = fanout_fn(key)
+        if not fanout or fanout is 1:
+          # Boolean indicates this is not an accumulator.
+          yield pvalue.TaggedOutput('cold', (key, (False, value)))
+        else:
+          self.counter += 1
+          yield pvalue.TaggedOutput('hot',
+                                    ((self.counter % fanout, key), value))
+
+    class PreCombineFn(CombineFn):
+      create_accumulator = combine_fn.create_accumulator
+      add_input = combine_fn.add_input
+      merge_accumulators = combine_fn.merge_accumulators
+      @staticmethod
+      def extract_output(accumulator):
+        # Boolean indicates this is an accumulator.
+        return (True, accumulator)
+
+    class PostCombineFn(CombineFn):
+      @staticmethod
+      def add_input(accumulator, input):
+        is_accumulator, value = input
+        if is_accumulator:
+          return combine_fn.merge_accumulators([accumulator, value])
+        else:
+          return combine_fn.add_input(accumulator, value)
+      create_accumulator = combine_fn.create_accumulator
+      merge_accumulators = combine_fn.merge_accumulators
+      extract_output = combine_fn.extract_output
+
+    def StripNonce(nonce_key_value):
+      (_, key), value = nonce_key_value
+      return key, value
+
+    hot, cold = pcoll | ParDo(SplitHotCold()).with_outputs('hot', 'cold')
+    # No multi-output type hints.
+    cold.element_type = typehints.Any
+    precombined_hot = (
+        hot
+        | CombinePerKey(PreCombineFn())
+        | Map(StripNonce))
+    return (
+        (cold, precombined_hot)
+        | Flatten()
+        | CombinePerKey(PostCombineFn()))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
