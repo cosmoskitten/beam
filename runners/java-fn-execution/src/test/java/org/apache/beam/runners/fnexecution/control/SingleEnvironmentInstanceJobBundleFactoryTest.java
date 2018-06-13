@@ -76,7 +76,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcDataService.create(executor, obs -> obs), serverFactory);
     stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     factory =
