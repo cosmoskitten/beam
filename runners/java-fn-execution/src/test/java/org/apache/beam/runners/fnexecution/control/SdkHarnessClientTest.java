@@ -170,7 +170,7 @@ public class SdkHarnessClientTest {
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
     try (ActiveBundle<String> activeBundle =
-        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.unsupported())) {
+        processor.newBundle(Collections.emptyMap(), BundleProgressHandler.defaultInstance())) {
       // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
       // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
       // the response.
@@ -221,7 +221,7 @@ public class SdkHarnessClientTest {
                     FullWindowedValueCoder.of(
                         LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
                     outputs::add)),
-            BundleProgressHandler.unsupported())) {
+            BundleProgressHandler.defaultInstance())) {
       FnDataReceiver<WindowedValue<String>> bundleInputReceiver = activeBundle.getInputReceiver();
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("foo"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("bar"));
