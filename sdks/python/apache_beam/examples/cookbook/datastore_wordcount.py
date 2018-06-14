@@ -67,6 +67,7 @@ import argparse
 import logging
 import re
 import uuid
+from builtins import object
 
 from google.cloud.proto.datastore.v1 import entity_pb2
 from google.cloud.proto.datastore.v1 import query_pb2
