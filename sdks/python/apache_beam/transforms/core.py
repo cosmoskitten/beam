@@ -1199,6 +1199,28 @@ class CombinePerKey(PTransformWithSideInputs):
     A PObject holding the result of the combine operation.
   """
   def with_hot_key_fanout(self, fanout):
+    """A per-key combine operation like self but with two levels of aggregation.
+
+    If a given key is produced by too many upstream bundles, the final
+    reduction can become a bottleneck despite partial combining being lifted
+    pre-GroupByKey.  In these cases it can be helpful to perform intermediate
+    partial aggregations in parallel and then re-group to peform a final
+    (per-key) combine.  This is also useful for high-volume keys in streaming
+    where combiners are not generally lifted for latency reasons.
+
+    Note that a fanout greater than 1 requires the data to be sent through
+    two GroupByKeys, and a high fanout can also result in more shuffle data
+    due to less per-bundle combining. Setting the fanout for a key at 1 or less
+    places values on the "cold key" path that skip the intermeidate level of
+    aggregation.
+
+    Args:
+      fanout: either an int, for a constant-degree fanout, or a callable
+          mapping keys to a key-specific degree of fanout
+
+    Returns:
+      A per-key combining PTransform with the specified fanout.
+    """
     from apache_beam.transforms.combiners import curry_combine_fn
     return _CombinePerKeyWithHotKeyFanout(
         curry_combine_fn(self.fn, self.args, self.kwargs),
@@ -1365,25 +1387,26 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     class SplitHotCold(DoFn):
       counter = 0
+
       def process(self, element):
         key, value = element
         fanout = fanout_fn(key)
-        if not fanout or fanout is 1:
+        if fanout <= 1:
           # Boolean indicates this is not an accumulator.
           yield pvalue.TaggedOutput('cold', (key, (False, value)))
         else:
-          self.counter += 1
+          self.counter += 1  # Round-robin should be more even than random.
           yield pvalue.TaggedOutput('hot',
                                     ((self.counter % fanout, key), value))
 
     class PreCombineFn(CombineFn):
-      create_accumulator = combine_fn.create_accumulator
-      add_input = combine_fn.add_input
-      merge_accumulators = combine_fn.merge_accumulators
       @staticmethod
       def extract_output(accumulator):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
+      create_accumulator = combine_fn.create_accumulator
+      add_input = combine_fn.add_input
+      merge_accumulators = combine_fn.merge_accumulators
 
     class PostCombineFn(CombineFn):
       @staticmethod
