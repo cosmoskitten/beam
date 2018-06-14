@@ -138,7 +138,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
-        String pTransformId,
+        String ptransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, PCollection> pCollections,
@@ -170,7 +170,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           new FnApiDoFnRunner<>(
               pipelineOptions,
               beamFnStateClient,
-              pTransformId,
+              ptransformId,
               processBundleInstructionId,
               doFnInfo.getDoFn(),
               doFnInfo.getInputCoder(),
@@ -199,7 +199,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
-        String pTransformId,
+        String ptransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,
         Map<String, RunnerApi.PCollection> pCollections,
@@ -280,7 +280,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<>(
           pipelineOptions,
           beamFnStateClient,
-          pTransformId,
+          ptransformId,
           processBundleInstructionId,
           doFn,
           inputCoder,
@@ -731,7 +731,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      return bindSideInputView(view.getTagInternal());
+      return (T) bindSideInputView(view.getTagInternal());
     }
 
     @Override
@@ -973,18 +973,21 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombining(
+    public <CombineInputT, AccumT, CombineOutputT>
+    CombiningState<CombineInputT, AccumT, CombineOutputT> bindCombining(
         String id,
-        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec, Coder<AccumT> accumCoder,
-        CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
+        StateSpec<CombiningState<CombineInputT, AccumT, CombineOutputT>> spec,
+        Coder<AccumT> accumCoder,
+        CombineFn<CombineInputT, AccumT, CombineOutputT> combineFn) {
+      return (CombiningState<CombineInputT, AccumT, CombineOutputT>) stateKeyObjectCache
+          .computeIfAbsent(
           createBagUserStateKey(id),
           new Function<StateKey, Object>() {
             @Override
             public Object apply(StateKey key) {
               // TODO: Support squashing accumulators depending on whether we know of all
               // remote accumulators and local accumulators or just local accumulators.
-              return new CombiningState<InputT, AccumT, OutputT>() {
+              return new CombiningState<CombineInputT, AccumT, CombineOutputT>() {
                 private final BagUserState<AccumT> impl = createBagUserState(id, accumCoder);
 
                 @Override
@@ -1016,12 +1019,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
                 }
 
                 @Override
-                public CombiningState<InputT, AccumT, OutputT> readLater() {
+                public CombiningState<CombineInputT, AccumT, CombineOutputT> readLater() {
                   return this;
                 }
 
                 @Override
-                public OutputT read() {
+                public CombineOutputT read() {
                   Iterator<AccumT> iterator = impl.get().iterator();
                   if (iterator.hasNext()) {
                     return combineFn.extractOutput(iterator.next());
@@ -1030,7 +1033,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
                 }
 
                 @Override
-                public void add(InputT value) {
+                public void add(CombineInputT value) {
                   AccumT newAccumulator = combineFn.addInput(getAccum(), value);
                   impl.clear();
                   impl.append(newAccumulator);
@@ -1051,13 +1054,15 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
+    public <CombineInputT, AccumT, CombineOutputT>
+    CombiningState<CombineInputT, AccumT, CombineOutputT>
     bindCombiningWithContext(
         String id,
-        StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
+        StateSpec<CombiningState<CombineInputT, AccumT, CombineOutputT>> spec,
         Coder<AccumT> accumCoder,
-        CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateKeyObjectCache.computeIfAbsent(
+        CombineFnWithContext<CombineInputT, AccumT, CombineOutputT> combineFn) {
+      return (CombiningState<CombineInputT, AccumT, CombineOutputT>) stateKeyObjectCache.
+          computeIfAbsent(
           createBagUserStateKey(id),
           key -> bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
               new StateContext<BoundedWindow>() {
@@ -1184,7 +1189,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     abstract WindowMappingFn<W> getWindowMappingFn();
   }
 
-  private <T, K, V> T bindSideInputView(TupleTag<?> view) {
+  private <K, V> Object bindSideInputView(TupleTag<?> view) {
     SideInputSpec sideInputSpec = sideInputSpecMap.get(view);
     checkArgument(sideInputSpec != null,
         "Attempting to access unknown side input %s.",
@@ -1205,7 +1210,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         .setPtransformId(ptransformId)
         .setSideInputId(view.getId())
         .setWindow(encodedWindow);
-    return (T) stateKeyObjectCache.computeIfAbsent(
+    return stateKeyObjectCache.computeIfAbsent(
         cacheKeyBuilder.build(),
         key -> sideInputSpec.getViewFn().apply(createMultimapSideInput(
             view.getId(), encodedWindow, kvCoder.getKeyCoder(), kvCoder.getValueCoder())));
