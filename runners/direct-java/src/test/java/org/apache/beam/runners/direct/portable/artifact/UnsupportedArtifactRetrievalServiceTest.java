@@ -69,7 +69,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -78,7 +78,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.of(t));
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -87,7 +87,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
         });
@@ -113,7 +113,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -122,7 +122,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.of(t));
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
 
@@ -131,7 +131,7 @@ public class UnsupportedArtifactRetrievalServiceTest {
             try {
               thrown.put(Optional.empty());
             } catch (InterruptedException e) {
-              fail();
+              throw new AssertionError(e);
             }
           }
         });
