@@ -81,6 +81,7 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public RemoteEnvironment createEnvironment(Environment container) throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
@@ -105,6 +106,8 @@ public class InProcessEnvironmentFactory implements EnvironmentFactory {
                     InProcessEnvironmentFactory.class.getSimpleName(),
                     e);
                 throw e;
+              } catch (Exception e) {
+                throw new RuntimeException(e);
               }
             });
     executor.submit(
