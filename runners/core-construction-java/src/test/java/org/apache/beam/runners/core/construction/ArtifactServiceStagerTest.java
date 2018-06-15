@@ -89,7 +89,7 @@ public class ArtifactServiceStagerTest {
       contentChannel.write(ByteBuffer.wrap(content));
     }
 
-    stager.stage(Collections.singleton(StagedFile.of(file, file.getName())));
+    stager.stage(stagingSessionToken, Collections.singleton(StagedFile.of(file, file.getName())));
 
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(1));
     byte[] stagedContent = Iterables.getOnlyElement(service.getStagedArtifacts().values());
@@ -125,7 +125,7 @@ public class ArtifactServiceStagerTest {
     }
 
     stager.stage(
-        ImmutableList.of(
+        stagingSessionToken, ImmutableList.of(
             StagedFile.of(file, file.getName()),
             StagedFile.of(otherFile, otherFile.getName()),
             StagedFile.of(thirdFile, thirdFile.getName())));

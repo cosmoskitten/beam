@@ -26,6 +26,8 @@ import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.JsonFormat;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.io.Serializable;
@@ -144,11 +146,13 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
     try {
       return MAPPER.readValue(stagingSessionToken, StagingSessionToken.class);
     } catch (JsonProcessingException e) {
-      LOG.error(
-          "Unable to deserialize staging token {}. Expected format {}. Error {}",
-          stagingSessionToken, "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"}",
-          e.getMessage());
-      throw e;
+      String message =
+          String.format(
+              "Unable to deserialize staging token %s. Expected format: %s. Error: %s",
+              stagingSessionToken,
+              "{\"sessionId\": \"sessionId\", \"basePath\": \"basePath\"}",
+              e.getMessage());
+      throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(message));
     }
   }
 
@@ -269,10 +273,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         String actualMd5 = Base64.encodeBase64String(hasher.hash().asBytes());
         if (!actualMd5.equals(expectedMd5)) {
           outboundObserver.onError(
-              new IllegalArgumentException(
-                  String.format(
-                      "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
-                      metadata.getMetadata().getName(), expectedMd5, actualMd5)));
+              new StatusRuntimeException(
+                  Status.INVALID_ARGUMENT.withDescription(
+                      String.format(
+                          "Artifact %s is corrupt: expected md5 %s, but has md5 %s",
+                          metadata.getMetadata().getName(), expectedMd5, actualMd5))));
           return;
         }
       }

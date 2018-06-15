@@ -100,6 +100,7 @@ public class ReferenceRunnerJobServiceTest {
     File foo = writeTempFile("foo", "foo, bar, baz".getBytes(UTF_8));
     File bar = writeTempFile("spam", "spam, ham, eggs".getBytes(UTF_8));
     stager.stage(
+        stagingSessionToken,
         ImmutableList.of(StagedFile.of(foo, foo.getName()), StagedFile.of(bar, bar.getName())));
     List<byte[]> tempDirFiles = readFlattenedFiles(runnerTemp.getRoot());
     assertThat(

@@ -27,7 +27,6 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
@@ -94,7 +93,8 @@ public class ArtifactServiceStager {
    *
    * @return The artifact staging token returned by the service
    */
-  public String stage(Iterable<StagedFile> files) throws IOException, InterruptedException {
+  public String stage(String stagingSessionToken, Iterable<StagedFile> files)
+      throws InterruptedException {
     final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (StagedFile file : files) {
       futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
@@ -102,10 +102,11 @@ public class ArtifactServiceStager {
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
             .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
-    return stageManifest(stagingResult);
+    return stageManifest(stagingSessionToken, stagingResult);
   }
 
-  private String stageManifest(CompletionStage<StagingResult> stagingFuture)
+  private String stageManifest(
+      String stagingSessionToken, CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
@@ -114,7 +115,10 @@ public class ArtifactServiceStager {
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
         CommitManifestResponse response =
             blockingStub.commitManifest(
-                CommitManifestRequest.newBuilder().setManifest(manifest).build());
+                CommitManifestRequest.newBuilder()
+                    .setStagingSessionToken(stagingSessionToken)
+                    .setManifest(manifest)
+                    .build());
         return response.getRetrievalToken();
       } else {
         RuntimeException failure =
