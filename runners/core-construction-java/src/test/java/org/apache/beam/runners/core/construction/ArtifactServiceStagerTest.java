@@ -128,8 +128,7 @@ public class ArtifactServiceStagerTest {
     }
 
     stager.stage(
-        stagingSessionToken,
-        ImmutableList.of(
+        stagingSessionToken,ImmutableList.of(
             StagedFile.of(file, file.getName()),
             StagedFile.of(otherFile, otherFile.getName()),
             StagedFile.of(thirdFile, thirdFile.getName())));
