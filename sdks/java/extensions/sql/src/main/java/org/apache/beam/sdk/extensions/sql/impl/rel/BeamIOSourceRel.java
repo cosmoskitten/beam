@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
@@ -44,8 +45,8 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   private class Transform extends PTransform<PInput, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PInput inputPCollections) {
-      return sqlTable.buildIOReader(inputPCollections.getPipeline());
+    public PCollection<Row> expand(PInput input) {
+      return sqlTable.buildIOReader((PBegin) input);
     }
   }
 
