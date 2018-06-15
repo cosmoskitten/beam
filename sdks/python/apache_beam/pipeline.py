@@ -50,6 +50,7 @@ import abc
 import collections
 import logging
 import os
+import re
 import shutil
 import tempfile
 from builtins import object
@@ -812,7 +813,7 @@ class AppliedPTransform(object):
     main_inputs = {str(ix): input
                    for ix, input in enumerate(self.inputs)
                    if isinstance(input, pvalue.PCollection)}
-    side_inputs = {'side%s' % ix: si.pvalue
+    side_inputs = {'side%s-%s' % (ix, self.full_label): si.pvalue
                    for ix, si in enumerate(self.side_inputs)}
     return dict(main_inputs, **side_inputs)
 
@@ -849,7 +850,8 @@ class AppliedPTransform(object):
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
     # Ordering is important here.
-    indexed_side_inputs = [(int(tag[4:]), context.pcollections.get_by_id(id))
+    indexed_side_inputs = [(int(re.match('side([0-9]+)-.*', tag).group(1)),
+                            context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
