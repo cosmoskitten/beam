@@ -27,7 +27,6 @@ import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
@@ -95,7 +94,7 @@ public class ArtifactServiceStager {
    * @return The artifact staging token returned by the service
    */
   public String stage(String stagingSessionToken, Iterable<StagedFile> files)
-      throws IOException, InterruptedException {
+      throws InterruptedException {
     final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (StagedFile file : files) {
       futures.put(

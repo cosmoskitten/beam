@@ -60,8 +60,8 @@ public class GrpcContextHeaderAccessorProvider {
 
   private static class GrpcHeaderAccessor implements HeaderAccessor {
 
-    @Override
     /** This method should be called from the request method. */
+    @Override
     public String getSdkWorkerId() {
       // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Some harnesses may not set the worker
       // id header. Remove the null check below once this is fixed.
