@@ -199,7 +199,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
         ArtifactServiceStager.overChannel(
             InProcessChannelBuilder.forName(stagerServer.getApiServiceDescriptor().getUrl())
                 .build());
-    stager.stage(artifactFiles);
+    stager.stage(stagingSessionToken, artifactFiles);
 
     retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(

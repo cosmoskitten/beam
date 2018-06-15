@@ -64,6 +64,7 @@ public class FnHarness {
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
+  private static final String WORKER_ID = "WORKER_ID";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static Endpoints.ApiServiceDescriptor getApiServiceDescriptor(String env)
@@ -79,6 +80,7 @@ public class FnHarness {
     System.out.format("Logging location %s%n", System.getenv(LOGGING_API_SERVICE_DESCRIPTOR));
     System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
+    System.out.format("Worker id %s%n", System.getenv(WORKER_ID));
 
     ObjectMapper objectMapper = new ObjectMapper().registerModules(
         ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
@@ -91,12 +93,15 @@ public class FnHarness {
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
         getApiServiceDescriptor(CONTROL_API_SERVICE_DESCRIPTOR);
 
-    main(options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
+    String workerId = System.getenv(WORKER_ID);
+
+    main(options, loggingApiServiceDescriptor, controlApiServiceDescriptor, workerId);
   }
 
   public static void main(PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      String workerId) throws Exception {
     ManagedChannelFactory channelFactory;
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
