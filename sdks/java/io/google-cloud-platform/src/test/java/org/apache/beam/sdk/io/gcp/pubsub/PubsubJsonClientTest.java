@@ -19,23 +19,34 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
 import com.google.api.services.pubsub.Pubsub;
+import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
+import com.google.api.services.pubsub.Pubsub.Projects.Topics;
+import com.google.api.services.pubsub.model.ListSubscriptionsResponse;
+import com.google.api.services.pubsub.model.ListTopicsResponse;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PublishResponse;
 import com.google.api.services.pubsub.model.PubsubMessage;
 import com.google.api.services.pubsub.model.PullRequest;
 import com.google.api.services.pubsub.model.PullResponse;
 import com.google.api.services.pubsub.model.ReceivedMessage;
+import com.google.api.services.pubsub.model.Subscription;
+import com.google.api.services.pubsub.model.Topic;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.junit.After;
@@ -53,6 +64,7 @@ public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
 
+  private static final ProjectPath PROJECT = PubsubClient.projectPathFromId("testProject");
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");
@@ -96,7 +108,7 @@ public class PubsubJsonClientTest {
                              .setAckId(ACK_ID);
     PullResponse expectedResponse =
         new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
-    Mockito.when((Object) (mockPubsub.projects()
+    when((Object) (mockPubsub.projects()
                                .subscriptions()
                                .pull(expectedSubscription, expectedRequest)
                                .execute()))
@@ -125,7 +137,7 @@ public class PubsubJsonClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
-    Mockito.when((Object) (mockPubsub.projects()
+    when((Object) (mockPubsub.projects()
                                 .topics()
                                 .publish(expectedTopic, expectedRequest)
                                 .execute()))
@@ -151,7 +163,7 @@ public class PubsubJsonClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
-    Mockito.when((Object) (mockPubsub.projects()
+    when((Object) (mockPubsub.projects()
                                 .topics()
                                 .publish(expectedTopic, expectedRequest)
                                 .execute()))
@@ -179,7 +191,7 @@ public class PubsubJsonClientTest {
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
         .setMessageIds(ImmutableList.of(MESSAGE_ID));
-    Mockito.when((Object) (mockPubsub.projects()
+    when((Object) (mockPubsub.projects()
                                 .topics()
                                 .publish(expectedTopic, expectedRequest)
                                 .execute()))
@@ -190,5 +202,53 @@ public class PubsubJsonClientTest {
             DATA.getBytes(StandardCharsets.UTF_8), attrs, MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
+  }
+
+  @Test
+  public void listTopics() throws Exception {
+    ListTopicsResponse expectedResponse1 = new ListTopicsResponse();
+    expectedResponse1.setTopics(
+        IntStream.range(0, 100).mapToObj(i -> buildTopic(i)).collect(Collectors.toList()));
+    expectedResponse1.setNextPageToken("AVgJH3Z7aHxiDBs");
+
+    ListTopicsResponse expectedResponse2 = new ListTopicsResponse();
+    expectedResponse2.setTopics(Collections.singletonList(buildTopic(101)));
+
+    Topics.List request = mockPubsub.projects().topics().list(PROJECT.getPath());
+    when((Object) (request.execute())).thenReturn(expectedResponse1, expectedResponse2);
+
+    List<TopicPath> topicPaths = client.listTopics(PROJECT);
+    assertEquals(101, topicPaths.size());
+  }
+
+  private static Topic buildTopic(int i) {
+    Topic topic = new Topic();
+    topic.setName("projects/testProject/topics/Topic" + i);
+    return topic;
+  }
+
+  @Test
+  public void listSubscriptions() throws Exception {
+    ListSubscriptionsResponse expectedResponse1 = new ListSubscriptionsResponse();
+    expectedResponse1.setSubscriptions(
+        IntStream.range(0, 100).mapToObj(i -> buildSubscription(i)).collect(Collectors.toList()));
+    expectedResponse1.setNextPageToken("AVgJH3Z7aHxiDBs");
+
+    ListSubscriptionsResponse expectedResponse2 = new ListSubscriptionsResponse();
+    expectedResponse2.setSubscriptions(Collections.singletonList(buildSubscription(101)));
+
+    Subscriptions.List request = mockPubsub.projects().subscriptions().list(PROJECT.getPath());
+    when((Object) (request.execute())).thenReturn(expectedResponse1, expectedResponse2);
+
+    final TopicPath topic101 = PubsubClient.topicPathFromName("testProject", "Topic101");
+    List<SubscriptionPath> subscriptionPaths = client.listSubscriptions(PROJECT, topic101);
+    assertEquals(1, subscriptionPaths.size());
+  }
+
+  private static Subscription buildSubscription(int i) {
+    Subscription subscription = new Subscription();
+    subscription.setName("projects/testProject/subscriptions/Subscription" + i);
+    subscription.setTopic("projects/testProject/topics/Topic" + i);
+    return subscription;
   }
 }
