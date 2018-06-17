@@ -51,6 +51,7 @@ dependencies {
   // ApexStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
