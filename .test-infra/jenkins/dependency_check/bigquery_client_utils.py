@@ -36,12 +36,13 @@ class BigQueryClientUtils:
     Return:
       release_date
     """
-    query = """SELECT release_date FROM `{0}.{1}.{2}` 
-    WHERE package_name=\'{3}\' and version=\'{4}\'""".format(self.project_id,
-                                                             self.dataset_id,
-                                                             self.table_id,
-                                                             dep.strip(),
-                                                             version.strip())
+    query = """SELECT release_date 
+      FROM `{0}.{1}.{2}` 
+      WHERE package_name=\'{3}\' and version=\'{4}\'""".format(self.project_id,
+                                                               self.dataset_id,
+                                                               self.table_id,
+                                                               dep.strip(),
+                                                               version.strip())
 
     query_job = self.bigquery_client.query(query)
     rows = list(query_job)
