@@ -30,7 +30,7 @@ job('beam_Dependency_Check') {
     'Beam Dependency Check',
     'Run Dependency Check')
 
-  // This is a post-commit job that runs weekly, not for every push.
+  // This is a job that runs weekly.
   common_job_properties.setPostCommit(
     delegate,
     '0 12 * * 1',
@@ -53,7 +53,7 @@ job('beam_Dependency_Check') {
     extendedEmail {
       triggers {
         always {
-          //recipientList('dev@beam.apache.org')
+//          recipientList('dev@beam.apache.org')
           recipientList('yifanzou@google.com')
           contentType('text/html')
           subject("Beam Dependency Check Report (${date})")
