@@ -25,6 +25,7 @@ set -v
 . sdks/python/bin/activate
 pip install -e .[gcp,test,docs]
 
+mkdir -p $WORKSPACE/src/build/dependencyUpdates
 rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt
 
 # List all outdated dependencies and write results in pythonDependencyReport
