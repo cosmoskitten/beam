@@ -36,12 +36,13 @@ class BigQueryClientUtils:
     Return:
       release_date
     """
-    query = """SELECT release_date FROM `{0}.{1}.{2}` 
-    WHERE package_name=\'{3}\' and version=\'{4}\'""".format(self.project_id,
-                                                             self.dataset_id,
-                                                             self.table_id,
-                                                             dep.strip(),
-                                                             version.strip())
+    query = """SELECT release_date 
+      FROM `{0}.{1}.{2}` 
+      WHERE package_name=\'{3}\' AND version=\'{4}\'""".format(self.project_id,
+                                                               self.dataset_id,
+                                                               self.table_id,
+                                                               dep.strip(),
+                                                               version.strip())
 
     query_job = self.bigquery_client.query(query)
     rows = list(query_job)
@@ -56,8 +57,6 @@ class BigQueryClientUtils:
     Add a dependency with version and release date into bigquery table
     Args:
       dep, version, is_current_using (default False)
-    Return:
-      release_date
     """
     dep_to_insert = [
       (dep, version, release_date, is_current_using)
@@ -65,3 +64,33 @@ class BigQueryClientUtils:
     err = self.bigquery_client.insert_rows(self.table, dep_to_insert)
     if len(err) != 0:
       print "Found errors when inserting {1} to BQ table {2}:\n {3}".format(dep_to_insert[0], self.table_id, err)
+
+
+  def update_dep_to_table(self, dep, version, is_current_using):
+    """
+    Update a dependency states.
+    Args:
+      dep, version, is_current_using
+    """
+    query = """UPDATE `{0}.{1}.{2}`
+    SET is_current_using = \'{3}\'
+    WHERE package_name=\'{4}\' AND version=\'{5}\'""".format(self.project_id,
+                                                             self.dataset_id,
+                                                             self.table_id,
+                                                             is_current_using,
+                                                             dep.strip(),
+                                                             version.strip())
+    self.bigquery_client.query(query)
+
+
+  def clean_stale_records_from_table(self):
+    """
+    TODO: Remove stale records from the table. A record is stale if it is not currently used and the release date is behind 3
+    years.
+    """
+    query = """SELECT release_date 
+      FROM `{0}.{1}.{2}` 
+      WHERE DATE(release_date) < {date}""".format(self.project_id,
+                                                self.dataset_id,
+                                                self.table_id)
+    self.bigquery_client.query(query)
