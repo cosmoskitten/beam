@@ -16,6 +16,7 @@
 #
 
 from google.cloud import bigquery
+import datetime
 
 class BigQueryClientUtils:
 
@@ -34,21 +35,46 @@ class BigQueryClientUtils:
     Args:
       dep, version
     Return:
-      release_date
+      release_date, is_currently_used
     """
-    query = """SELECT release_date FROM `{0}.{1}.{2}` 
-    WHERE package_name=\'{3}\' and version=\'{4}\'""".format(self.project_id,
-                                                             self.dataset_id,
-                                                             self.table_id,
-                                                             dep.strip(),
-                                                             version.strip())
+    query = """SELECT release_date, is_current_using 
+      FROM `{0}.{1}.{2}` 
+      WHERE package_name=\'{3}\' AND version=\'{4}\'""".format(self.project_id,
+                                                               self.dataset_id,
+                                                               self.table_id,
+                                                               dep.strip(),
+                                                               version.strip())
+
+    query_job = self.bigquery_client.query(query)
+    rows = list(query_job)
+    if len(rows) == 0:
+      return None, False
+    assert len(rows) == 1
+    return rows[0]['release_date'], rows[0]['is_current_using']
+
+
+  def query_currently_used_version(self, dep):
+    """
+    Query for the currently used version of a specific dependency
+    Args:
+      dep
+    Return:
+      version
+    """
+    query = """SELECT version 
+      FROM `{0}.{1}.{2}` 
+      WHERE package_name=\'{3}\' AND is_current_using=True""".format(self.project_id,
+                                                                     self.dataset_id,
+                                                                     self.table_id,
+                                                                     dep.strip())
 
     query_job = self.bigquery_client.query(query)
     rows = list(query_job)
     if len(rows) == 0:
       return None
     assert len(rows) == 1
-    return rows[0]['release_date']
+    print "currently_used_version: {0}".format(rows[0]['version'])
+    return rows[0]['version']
 
 
   def add_dep_to_table(self, dep, version, release_date, is_current_using=False):
@@ -56,8 +82,6 @@ class BigQueryClientUtils:
     Add a dependency with version and release date into bigquery table
     Args:
       dep, version, is_current_using (default False)
-    Return:
-      release_date
     """
     dep_to_insert = [
       (dep, version, release_date, is_current_using)
@@ -65,3 +89,35 @@ class BigQueryClientUtils:
     err = self.bigquery_client.insert_rows(self.table, dep_to_insert)
     if len(err) != 0:
       print "Found errors when inserting {1} to BQ table {2}:\n {3}".format(dep_to_insert[0], self.table_id, err)
+
+
+  def update_dep_to_table(self, dep, version, is_current_using=False):
+    """
+    Update a dependency states.
+    Args:
+      dep, version, is_current_using
+    """
+    query = """UPDATE `{0}.{1}.{2}`
+    SET is_current_using = \'{3}\'
+    WHERE package_name=\'{4}\' AND version=\'{5}\'""".format(self.project_id,
+                                                             self.dataset_id,
+                                                             self.table_id,
+                                                             is_current_using,
+                                                             dep.strip(),
+                                                             version.strip())
+    print "Updating dep to table: \n {0}".format(query)
+    self.bigquery_client.query(query)
+
+
+  def clean_stale_records_from_table(self):
+    """
+    Remove stale records from the table. A record is stale if it is not currently used and the release date is behind 3
+    years.
+    """
+    query = """DELETE  
+      FROM `{0}.{1}.{2}` 
+      WHERE release_date < '{3}'""".format(self.project_id,
+                                                self.dataset_id,
+                                                self.table_id,
+                                                datetime.datetime.today().date() - datetime.timedelta(3*365))
+    self.bigquery_client.query(query)
