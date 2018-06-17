@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -81,6 +82,8 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
   for dep in deps:
     dep_name, curr_ver, latest_ver = extract_single_dep(dep)
+    if dep_name is None or curr_ver is None or latest_ver is None:
+      print "Failed to extract the dependency result: {0}".format(dep)
     curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
                                                                             dep_name,
                                                                             curr_ver,
@@ -137,9 +140,9 @@ def compare_dependency_versions(curr_ver, latest_ver):
       curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
       latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
       if curr_minor_ver is not None and latest_minor_ver is not None:
-        if (not curr_minor_ver.isdigit() or not latest_major_ver.isdigit()) and curr_minor_ver != latest_major_ver:
+        if (not curr_minor_ver.isdigit() or not latest_minor_ver.isdigit()) and curr_minor_ver != latest_minor_ver:
           return True
-        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_major_ver):
+        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
           return True
   return False
 

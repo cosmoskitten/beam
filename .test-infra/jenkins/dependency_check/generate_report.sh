@@ -62,14 +62,14 @@ rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
 echo "<html><body>" > build/dependencyUpdates/beam-dependency-check-report.html
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/generate_dependency_check_report.py \
+python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
 build/dependencyUpdates/python_dependency_report.txt \
 Python \
 $PROJECT_ID \
 $DATASET_ID \
 $PYTHON_DEP_TABLE_ID
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/generate_dependency_check_report.py \
+python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
 build/dependencyUpdates/report.txt \
 Java \
 $PROJECT_ID \
