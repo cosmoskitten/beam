@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,15 +19,20 @@
 import sys
 import os.path
 import re
+import traceback
 from datetime import datetime
 from bigquery_client_utils import BigQueryClientUtils
 
 
 _MAX_STALE_DAYS = 360
 _MAX_MINOR_VERSION_DIFF = 3
-_DATE_FORMAT = "%Y-%m-%d"
 _PYPI_URL = "https://pypi.org/project/"
 _MAVEN_CENTRAL_URL = "http://search.maven.org/#search|gav|1|"
+
+class InvalidFormatError(Exception):
+  def __init__(self, message):
+    super(InvalidFormatError, self).__init__(message)
+
 
 def extract_results(file_path):
   """
@@ -37,15 +43,18 @@ def extract_results(file_path):
     outdated_deps: a collection of dependencies who has updates
   """
   outdated_deps = []
-  with open(file_path) as raw_report:
-    see_oudated_deps = False
-    for line in raw_report:
-      if see_oudated_deps:
-        outdated_deps.append(line)
-      if line.startswith('The following dependencies have later '):
-        see_oudated_deps = True
-  raw_report.close()
-  return outdated_deps
+  try:
+    with open(file_path) as raw_report:
+      see_oudated_deps = False
+      for line in raw_report:
+        if see_oudated_deps:
+          outdated_deps.append(line)
+        if line.startswith('The following dependencies have later '):
+          see_oudated_deps = True
+    raw_report.close()
+    return outdated_deps
+  except Exception, e:
+    raise
 
 
 def extract_single_dep(dep):
@@ -59,8 +68,7 @@ def extract_single_dep(dep):
   pattern = " - ([\s\S]*)\[([\s\S]*) -> ([\s\S]*)\]"
   match = re.match(pattern, dep)
   if match is None:
-    print "Failed extracting: {}".format(dep)
-    return None, None, None
+    raise InvalidFormatError("Failed to extract the dependency information: {}".format(dep))
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
 
@@ -79,35 +87,40 @@ def prioritize_dependencies(deps, sdk_type, project_id, dataset_id, table_id):
   """
   high_priority_deps = []
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
-  for dep in deps:
-    dep_name, curr_ver, latest_ver = extract_single_dep(dep)
-    curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
-                                                                            dep_name,
-                                                                            curr_ver,
-                                                                            latest_ver)
-    if sdk_type == 'Java':
-      # extract the groupid and artifactid
-      group_id, artifact_id = dep_name.split(":")
-      dep_details_url = "{0}g:\"{1}\" AND a:\"{2}\"".format(_MAVEN_CENTRAL_URL, group_id, artifact_id)
-    else:
-      dep_details_url = _PYPI_URL + dep_name
 
-    dep_info = """<tr>
-      <td><a href=\'{0}\'>{1}</a></td>
-      <td>{2}</td>
-      <td>{3}</td>
-      <td>{4}</td>
-      <td>{5}</td>
-      </tr>\n""".format(dep_details_url,
-                        dep_name,
-                        curr_ver,
-                        latest_ver,
-                        curr_release_date,
-                        latest_release_date)
-    if compare_dependency_versions(curr_ver, latest_ver):
-      high_priority_deps.append(dep_info)
-    elif compare_dependency_release_dates(curr_release_date, latest_release_date):
-      high_priority_deps.append(dep_info)
+  for dep in deps:
+    try:
+      dep_name, curr_ver, latest_ver = extract_single_dep(dep)
+      curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
+                                                                              dep_name,
+                                                                              curr_ver,
+                                                                              latest_ver)
+      if sdk_type == 'Java':
+        # extract the groupid and artifactid
+        group_id, artifact_id = dep_name.split(":")
+        dep_details_url = "{0}g:\"{1}\" AND a:\"{2}\"".format(_MAVEN_CENTRAL_URL, group_id, artifact_id)
+      else:
+        dep_details_url = _PYPI_URL + dep_name
+
+      dep_info = """<tr>
+        <td><a href=\'{0}\'>{1}</a></td>
+        <td>{2}</td>
+        <td>{3}</td>
+        <td>{4}</td>
+        <td>{5}</td>
+        </tr>\n""".format(dep_details_url,
+                          dep_name,
+                          curr_ver,
+                          latest_ver,
+                          curr_release_date,
+                          latest_release_date)
+      if compare_dependency_versions(curr_ver, latest_ver):
+        high_priority_deps.append(dep_info)
+      elif compare_dependency_release_dates(curr_release_date, latest_release_date):
+        high_priority_deps.append(dep_info)
+    except:
+      traceback.print_exc()
+      continue
 
   return high_priority_deps
 
@@ -137,9 +150,9 @@ def compare_dependency_versions(curr_ver, latest_ver):
       curr_minor_ver = curr_ver_splitted[1] if len(curr_ver_splitted) > 1 else None
       latest_minor_ver = latest_ver_splitted[1] if len(latest_ver_splitted) > 1 else None
       if curr_minor_ver is not None and latest_minor_ver is not None:
-        if (not curr_minor_ver.isdigit() or not latest_major_ver.isdigit()) and curr_minor_ver != latest_major_ver:
+        if (not curr_minor_ver.isdigit() or not latest_minor_ver.isdigit()) and curr_minor_ver != latest_minor_ver:
           return True
-        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_major_ver):
+        elif int(curr_minor_ver) + _MAX_MINOR_VERSION_DIFF <= int(latest_minor_ver):
           return True
   return False
 
@@ -164,9 +177,8 @@ def query_dependency_release_dates(bigquery_client, dep_name, curr_ver, latest_v
     if latest_release_date is None:
       bigquery_client.add_dep_to_table(dep_name, latest_ver, get_date(), is_current_using=False)
       latest_release_date = get_date()
-  except Exception, e:
-    print str(e)
-    return None, None
+  except Exception:
+    raise
   return curr_release_date, latest_release_date
 
 
@@ -206,42 +218,47 @@ def generate_report(file_path, sdk_type, project_id, dataset_id, table_id):
     table_id: the BigQuery table ID.
   """
   report_name = 'build/dependencyUpdates/beam-dependency-check-report.html'
+
   if os.path.exists(report_name):
     append_write = 'a'
   else:
     append_write = 'w'
 
-  # Extract dependency check results from build/dependencyUpdate
-  report = open(report_name, append_write)
-  if os.path.isfile(file_path):
-    outdated_deps = extract_results(file_path)
-  else:
-    report.write("Did not find the raw report of dependency check: {}".format(file_path))
-    report.close()
-    return
+  try:
+    # Extract dependency check results from build/dependencyUpdate
+    report = open(report_name, append_write)
+    if os.path.isfile(file_path):
+      outdated_deps = extract_results(file_path)
+    else:
+      report.write("Did not find the raw report of dependency check: {}".format(file_path))
+      report.close()
+      return
 
-  # Prioritize dependencies by comparing versions and release dates.
-  high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type, project_id, dataset_id, table_id)
+    # Prioritize dependencies by comparing versions and release dates.
+    high_priority_deps = prioritize_dependencies(outdated_deps, sdk_type, project_id, dataset_id, table_id)
 
-  # Write results to a report
-  subtitle = "<h2>High Priority Dependency Updates Of Beam {} SDK:</h2>\n".format(sdk_type)
-  table_fields = """<tr>
-    <td><b>{0}</b></td>
-    <td><b>{1}</b></td>
-    <td><b>{2}</b></td>
-    <td><b>{3}</b></td>
-    <td><b>{4}</b></td>
-    </tr>""".format("Dependency Name",
-                    "Current Version",
-                    "Later Version",
-                    "Current Version Release Date",
-                    "Later Version Release Date")
-  report.write(subtitle)
-  report.write("<table>\n")
-  report.write(table_fields)
-  for dep in high_priority_deps:
-    report.write("%s" % dep)
-  report.write("</table>\n")
+    # Write results to a report
+    subtitle = "<h2>High Priority Dependency Updates Of Beam {} SDK:</h2>\n".format(sdk_type)
+    table_fields = """<tr>
+      <td><b>{0}</b></td>
+      <td><b>{1}</b></td>
+      <td><b>{2}</b></td>
+      <td><b>{3}</b></td>
+      <td><b>{4}</b></td>
+      </tr>""".format("Dependency Name",
+                      "Current Version",
+                      "Later Version",
+                      "Current Version Release Date",
+                      "Later Version Release Date")
+    report.write(subtitle)
+    report.write("<table>\n")
+    report.write(table_fields)
+    for dep in high_priority_deps:
+      report.write("%s" % dep)
+    report.write("</table>\n")
+  except Exception, e:
+    report.write('<p> {0} </p>'.format(str(e)))
+
   report.close()
 
 
@@ -256,6 +273,7 @@ def main(args):
     args[4]: BQ table id
   """
   generate_report(args[0], args[1], args[2], args[3], args[4])
+
 
 if __name__ == '__main__':
   main(sys.argv[1:])
