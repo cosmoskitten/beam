@@ -37,12 +37,12 @@ job('beam_Dependency_Check') {
     false)
 
   steps {
-    gradle {
-      rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runBeamDependencyCheck')
-      common_job_properties.setGradleSwitches(delegate)
-      switches('-Drevision=release')
-    }
+//    gradle {
+//      rootBuildScriptDir(common_job_properties.checkoutDir)
+//      tasks(':runBeamDependencyCheck')
+//      common_job_properties.setGradleSwitches(delegate)
+//      switches('-Drevision=release')
+//    }
 
     shell('cd ' + common_job_properties.checkoutDir +
             ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
