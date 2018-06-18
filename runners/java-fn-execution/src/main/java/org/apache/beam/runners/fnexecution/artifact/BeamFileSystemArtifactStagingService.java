@@ -218,9 +218,11 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           artifactWritableByteChannel = FileSystems.create(artifactId, MimeTypes.BINARY);
           hasher = Hashing.md5().newHasher();
         } catch (Exception e) {
-          LOG.error("Staging failed for artifact {} for staging token {}",
-              encodedFileName(metadata.getMetadata()), metadata.getStagingSessionToken());
-          outboundObserver.onError(e);
+          String message =
+              String.format(
+                  "Failed to begin staging artifact %s", metadata.getMetadata().getName());
+          outboundObserver.onError(
+              new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
       } else {
         try {
@@ -228,9 +230,12 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
           artifactWritableByteChannel.write(data.asReadOnlyByteBuffer());
           hasher.putBytes(data.toByteArray());
         } catch (IOException e) {
-          LOG.error("Staging failed for artifact {} to file {}.", metadata.getMetadata().getName(),
-              artifactId);
-          outboundObserver.onError(e);
+          String message =
+              String.format(
+                  "Failed to write chunk of artifact %s to %s",
+                  metadata.getMetadata().getName(), artifactId);
+          outboundObserver.onError(
+              new StatusRuntimeException(Status.DATA_LOSS.withDescription(message).withCause(e)));
         }
       }
     }
@@ -249,11 +254,17 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
         }
 
       } catch (IOException e) {
-        LOG.error("Unable to save artifact {}", artifactId);
-        outboundObserver.onError(e);
+        outboundObserver.onError(
+            new StatusRuntimeException(
+                Status.DATA_LOSS.withDescription(
+                    String.format("Failed to clean up artifact file %s", artifactId))));
         return;
       }
-      outboundObserver.onCompleted();
+      outboundObserver.onError(
+          new StatusRuntimeException(
+              Status.DATA_LOSS
+                  .withDescription(String.format("Failed to stage artifact %s", artifactId))
+                  .withCause(throwable)));
     }
 
     @Override

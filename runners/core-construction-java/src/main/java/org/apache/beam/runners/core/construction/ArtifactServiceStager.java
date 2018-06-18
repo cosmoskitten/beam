@@ -97,7 +97,9 @@ public class ArtifactServiceStager {
       throws InterruptedException {
     final Map<StagedFile, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (StagedFile file : files) {
-      futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
+      futures.put(
+          file,
+          MoreFutures.supplyAsync(new StagingCallable(stagingSessionToken, file), executorService));
     }
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
@@ -137,9 +139,12 @@ public class ArtifactServiceStager {
   }
 
   private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
+
+    private final String stagingSessionToken;
     private final StagedFile file;
 
-    private StagingCallable(StagedFile file) {
+    private StagingCallable(String stagingSessionToken, StagedFile file) {
+      this.stagingSessionToken = stagingSessionToken;
       this.file = file;
     }
 
@@ -150,9 +155,8 @@ public class ArtifactServiceStager {
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
       ArtifactMetadata metadata =
           ArtifactMetadata.newBuilder().setName(file.getStagingName()).build();
-      // TODO: Pass a valid StagingSessionToken. The token can be obtained in PrepareJob request.
       PutArtifactMetadata putMetadata = PutArtifactMetadata.newBuilder().setMetadata(metadata)
-          .setStagingSessionToken("token").build();
+          .setStagingSessionToken(stagingSessionToken).build();
       requestObserver.onNext(PutArtifactRequest.newBuilder().setMetadata(putMetadata).build());
 
       MessageDigest md5Digest = MessageDigest.getInstance("MD5");

@@ -193,7 +193,6 @@ public class WordCount {
       .as(WordCountOptions.class);
     options.setRunner(PortableRunner.class);
     options.as(PortablePipelineOptions.class).setJobEndpoint("localhost:8099");
-    options.as(PortablePipelineOptions.class).setFilesToStage(Arrays.asList());
     options.setInputFile("gs://apache-beam-samples/shakespeare/*");
     options.setOutput("gs://deft-kirpichov-sandbox-e2e-test/");
 
