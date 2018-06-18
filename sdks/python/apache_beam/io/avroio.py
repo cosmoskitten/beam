@@ -69,7 +69,8 @@ class ReadFromAvro(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading avro
   files."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True, use_fastavro=False):
+  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True,
+               use_fastavro=False):
     """Initializes :class:`ReadFromAvro`.
 
     Uses source :class:`~apache_beam.io._AvroSource` to read a set of Avro
@@ -137,12 +138,12 @@ class ReadFromAvro(PTransform):
     """
     super(ReadFromAvro, self).__init__()
     self._source = \
-      _create_avro_source(
-        file_pattern,
-        min_bundle_size,
-        validate=validate,
-        use_fastavro=use_fastavro
-      )
+        _create_avro_source(
+            file_pattern,
+            min_bundle_size,
+            validate=validate,
+            use_fastavro=use_fastavro
+        )
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -172,9 +173,9 @@ class ReadAllFromAvro(PTransform):
                        splitting the input into bundles.
     """
     source_from_file = partial(
-      _create_avro_source,
-      min_bundle_size=min_bundle_size,
-      use_fastavro=use_fastavro
+        _create_avro_source,
+        min_bundle_size=min_bundle_size,
+        use_fastavro=use_fastavro
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
         True, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
@@ -281,17 +282,17 @@ def _create_avro_source(file_pattern=None,
                         validate=False,
                         use_fastavro=False):
   return \
-    _FastAvroSource(
-      file_pattern=file_pattern,
-      min_bundle_size=min_bundle_size,
-      validate=validate
-    ) \
+      _FastAvroSource(
+          file_pattern=file_pattern,
+          min_bundle_size=min_bundle_size,
+          validate=validate
+      ) \
       if use_fastavro \
       else \
       _AvroSource(
-        file_pattern=file_pattern,
-        min_bundle_size=min_bundle_size,
-        validate=validate
+          file_pattern=file_pattern,
+          min_bundle_size=min_bundle_size,
+          validate=validate
       )
 
 
@@ -493,14 +494,14 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._sink = \
       _create_avro_sink(
-        file_path_prefix,
-        schema,
-        codec,
-        file_name_suffix,
-        num_shards,
-        shard_name_template,
-        mime_type,
-        use_fastavro
+          file_path_prefix,
+          schema,
+          codec,
+          file_name_suffix,
+          num_shards,
+          shard_name_template,
+          mime_type,
+          use_fastavro
       )
 
   def expand(self, pcoll):
@@ -519,27 +520,26 @@ def _create_avro_sink(file_path_prefix,
                       mime_type,
                       use_fastavro):
   return \
-    _FastAvroSink(
-      file_path_prefix,
-      schema,
-      codec,
-      file_name_suffix,
-      num_shards,
-      shard_name_template,
-      mime_type
-    ) \
-    if use_fastavro \
-    else \
-    _AvroSink(
-      file_path_prefix,
-      schema,
-      codec,
-      file_name_suffix,
-      num_shards,
-      shard_name_template,
-      mime_type
-    )
-
+      _FastAvroSink(
+          file_path_prefix,
+          schema,
+          codec,
+          file_name_suffix,
+          num_shards,
+          shard_name_template,
+          mime_type
+      ) \
+      if use_fastavro \
+      else \
+      _AvroSink(
+          file_path_prefix,
+          schema,
+          codec,
+          file_name_suffix,
+          num_shards,
+          shard_name_template,
+          mime_type
+      )
 
 
 class _AvroSink(filebasedsink.FileBasedSink):
@@ -554,22 +554,22 @@ class _AvroSink(filebasedsink.FileBasedSink):
                shard_name_template,
                mime_type):
     super(_AvroSink, self).__init__(
-      file_path_prefix,
-      file_name_suffix=file_name_suffix,
-      num_shards=num_shards,
-      shard_name_template=shard_name_template,
-      coder=None,
-      mime_type=mime_type,
-      # Compression happens at the block level using the supplied codec, and
-      # not at the file level.
-      compression_type=CompressionTypes.UNCOMPRESSED)
+        file_path_prefix,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        coder=None,
+        mime_type=mime_type,
+        # Compression happens at the block level using the supplied codec, and
+        # not at the file level.
+        compression_type=CompressionTypes.UNCOMPRESSED)
     self._schema = schema
     self._codec = codec
 
   def open(self, temp_path):
     file_handle = super(_AvroSink, self).open(temp_path)
     return avro.datafile.DataFileWriter(
-      file_handle, avro.io.DatumWriter(), self._schema, self._codec)
+        file_handle, avro.io.DatumWriter(), self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.append(value)
@@ -583,25 +583,6 @@ class _AvroSink(filebasedsink.FileBasedSink):
 
 class _FastAvroSink(_AvroSink):
   """A sink for avro files that uses the `fastavro` library"""
-
-  def __init__(self,
-               file_path_prefix,
-               schema,
-               codec,
-               file_name_suffix,
-               num_shards,
-               shard_name_template,
-               mime_type):
-    super(_FastAvroSink, self).__init__(
-      file_path_prefix,
-      schema,
-      codec,
-      file_name_suffix,
-      num_shards,
-      shard_name_template,
-      mime_type
-    )
-
   def open(self, temp_path):
     file_handle = super(_AvroSink, self).open(temp_path)
     return Writer(file_handle, self._schema.to_json(), self._codec)

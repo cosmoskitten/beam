@@ -23,9 +23,9 @@ import unittest
 
 import avro.datafile
 import avro.schema
-import hamcrest as hc
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
+import hamcrest as hc
 
 import apache_beam as beam
 from apache_beam import Create
@@ -54,8 +54,8 @@ class TestAvro(unittest.TestCase):
   _temp_files = []
 
   def __init__(self, methodName='runTest'):
-      super(TestAvro, self).__init__(methodName)
-      self.use_fastavro = False
+    super(TestAvro, self).__init__(methodName)
+    self.use_fastavro = False
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
@@ -444,11 +444,10 @@ class TestAvro(unittest.TestCase):
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
 
-
 class TestFastAvro(TestAvro):
-    def __init__(self, methodName='runTest'):
-        super(TestFastAvro, self).__init__(methodName)
-        self.use_fastavro = True
+  def __init__(self, methodName='runTest'):
+    super(TestFastAvro, self).__init__(methodName)
+    self.use_fastavro = True
 
 
 if __name__ == '__main__':
