@@ -38,7 +38,7 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactSource;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -55,6 +55,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
-  public static DockerJobBundleFactory create(JobInfo jobInfo, ArtifactSource artifactSource)
+  public static DockerJobBundleFactory create(JobInfo jobInfo)
       throws Exception {
     ServerFactory serverFactory = getServerFactory();
     IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
@@ -94,10 +95,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    // TODO: Wire in artifact retrieval service once implemented.
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            new UnimplementedArtifactRetrievalService(), serverFactory);
+            BeamFileSystemArtifactRetrievalService.create(), serverFactory);
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
@@ -251,7 +251,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
 
     @Override
     public RemoteBundle<InputT> getBundle(
-        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler)
+        OutputReceiverFactory outputReceiverFactory, StateRequestHandler stateRequestHandler,
+        BundleProgressHandler progressHandler)
         throws Exception {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
@@ -272,7 +273,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
             outputReceiverFactory.create(bundleOutputPCollection);
         outputReceivers.put(target, RemoteOutputReceiver.of(coder, outputReceiver));
       }
-      return processor.newBundle(outputReceivers.build(), stateRequestHandler);
+      return processor.newBundle(outputReceivers.build(), stateRequestHandler, progressHandler);
     }
 
     @Override
@@ -300,7 +301,9 @@ public class DockerJobBundleFactory implements JobBundleFactory {
         RemoteEnvironment environment, ServerFactory serverFactory) throws Exception {
       ExecutorService executor = Executors.newCachedThreadPool();
       GrpcFnServer<GrpcDataService> dataServer =
-          GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+              serverFactory);
       GrpcFnServer<GrpcStateService> stateServer =
           GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
       SdkHarnessClient client =

@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.BOOLEAN
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.INTEGER;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
@@ -115,7 +117,7 @@ public class BeamSqlCliTest {
                 Field.of("age", INTEGER).withDescription("age").withNullable(true),
                 Field.of("tags", Schema.FieldType.map(VARCHAR, VARCHAR)).withNullable(true),
                 Field.of(
-                        "nestedmap",
+                        "nestedMap",
                         Schema.FieldType.map(INTEGER, Schema.FieldType.map(VARCHAR, INTEGER)))
                     .withNullable(true))
             .collect(toSchema()),
@@ -161,14 +163,14 @@ public class BeamSqlCliTest {
                                 .build()))
                     .withNullable(true),
                 Field.of(
-                        "addressangular",
+                        "addressAngular",
                         Schema.FieldType.row(
                             Schema.builder()
                                 .addNullableField("street", Schema.FieldType.STRING)
                                 .addNullableField("country", Schema.FieldType.STRING)
                                 .build()))
                     .withNullable(true),
-                Field.of("isrobot", BOOLEAN).withNullable(true))
+                Field.of("isRobot", BOOLEAN).withNullable(true))
             .collect(toSchema()),
         table.getSchema());
   }
@@ -227,9 +229,10 @@ public class BeamSqlCliTest {
             + "COMMENT '' LOCATION '/home/admin/orders'");
 
     String plan = cli.explainQuery("select * from person");
-    assertEquals(
-        "BeamProjectRel(id=[$0], name=[$1], age=[$2])\n"
-            + "  BeamIOSourceRel(table=[[beam, person]])\n",
-        plan);
+    assertThat(
+        plan,
+        equalTo(
+            "BeamCalcRel(expr#0..2=[{inputs}], proj#0..2=[{exprs}])\n"
+                + "  BeamIOSourceRel(table=[[beam, person]])\n"));
   }
 }
