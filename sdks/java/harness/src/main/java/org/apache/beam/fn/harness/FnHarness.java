@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.TextFormat;
+import io.grpc.ClientInterceptor;
 import java.util.EnumMap;
 import java.util.List;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.channel.WorkerIdInterceptor;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -101,13 +103,14 @@ public class FnHarness {
   public static void main(PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
-      String workerId) throws Exception {
+      String workerId) {
     ManagedChannelFactory channelFactory;
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    ClientInterceptor interceptor = new WorkerIdInterceptor(workerId);
     if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
-      channelFactory = ManagedChannelFactory.createEpoll();
+      channelFactory = ManagedChannelFactory.createEpoll(interceptor);
     } else {
-      channelFactory = ManagedChannelFactory.createDefault();
+      channelFactory = ManagedChannelFactory.createDefault(interceptor);
     }
     OutboundObserverFactory outboundObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
