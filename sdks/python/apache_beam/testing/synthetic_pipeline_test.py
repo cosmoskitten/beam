@@ -24,6 +24,11 @@ import tempfile
 import time
 import unittest
 
+try:
+  import numpy as np
+except ImportError:
+  np = None
+
 import apache_beam as beam
 from apache_beam.io import source_test_utils
 from apache_beam.testing import synthetic_pipeline
@@ -45,6 +50,7 @@ def input_spec(num_records, key_size, value_size,
   }
 
 
+@unittest.skipIf(np is None, 'Synthetic source dependencies are not installed')
 class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
