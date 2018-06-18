@@ -38,8 +38,6 @@ import logging
 import math
 import time
 
-import numpy as np
-
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.io import iobase
@@ -47,6 +45,11 @@ from apache_beam.io import range_trackers
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+
+try:
+  import numpy as np
+except ImportError:
+  np = None
 
 
 def parse_byte_size(s):
