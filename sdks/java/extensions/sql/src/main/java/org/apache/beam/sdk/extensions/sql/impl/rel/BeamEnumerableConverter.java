@@ -67,6 +67,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static final int DaemonThreadSleepIntervalMillis = 1000;
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
+  private static final ConcurrentHashMap<Long, PipelineResult> pipelineResults =
+      new ConcurrentHashMap<Long, PipelineResult>();
 
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
@@ -104,6 +106,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       } else if (isLimitQuery(node)) {
         return limitCollect(options, node);
       }
+
       return collect(options, node);
     } finally {
       Thread.currentThread().setContextClassLoader(originalClassLoader);
@@ -136,7 +139,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Pipeline pipeline = Pipeline.create(options);
     PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
-
     result.waitUntilFinish();
     return result;
   }
