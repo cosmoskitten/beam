@@ -24,16 +24,16 @@ import tempfile
 import time
 import unittest
 
-try:
-  import numpy as np
-except ImportError:
-  np = None
-
 import apache_beam as beam
 from apache_beam.io import source_test_utils
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+try:
+  import numpy as np
+except ImportError:
+  np = None
 
 
 def input_spec(num_records, key_size, value_size,
