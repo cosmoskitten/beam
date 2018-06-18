@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -31,14 +32,14 @@ import org.apache.calcite.rel.RelNode;
 public interface BeamRelNode extends RelNode {
 
   /** Transforms the inputs into a PInput. */
-  default PInput buildPInput(Pipeline pipeline) {
+  default PInput buildPInput(Pipeline pipeline, Map<Integer, PCollection<Row>> cache) {
     List<RelNode> inputs = getInputs();
     if (inputs.size() == 0) {
       return pipeline.begin();
     }
     List<PCollection<Row>> pInputs = new ArrayList(inputs.size());
     for (RelNode input : inputs) {
-      pInputs.add(BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input));
+      pInputs.add(BeamSqlRelUtils.toPCollection(pipeline, (BeamRelNode) input, cache));
     }
     if (pInputs.size() == 1) {
       return pInputs.get(0);
