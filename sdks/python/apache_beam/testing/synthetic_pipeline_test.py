@@ -31,7 +31,6 @@ except ImportError:
 
 import apache_beam as beam
 from apache_beam.io import source_test_utils
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -54,6 +53,10 @@ def input_spec(num_records, key_size, value_size,
 class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
+
+  def setUp(self):
+    global synthetic_pipeline
+    from apache_beam.testing import synthetic_pipeline
 
   def testSyntheticStep(self):
     start = time.time()
