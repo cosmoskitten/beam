@@ -20,12 +20,16 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Counter;
@@ -60,10 +64,9 @@ import org.apache.calcite.rel.type.RelDataType;
 
 /** BeamRelNode to replace a {@code Enumerable} node. */
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
+  private static final int DaemonThreadSleepIntervalMillis = 1000;
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
-  private static final ConcurrentHashMap<Long, PipelineResult> pipelineResults =
-      new ConcurrentHashMap<Long, PipelineResult>();
 
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
@@ -98,7 +101,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       Thread.currentThread().setContextClassLoader(BeamEnumerableConverter.class.getClassLoader());
       if (node instanceof BeamIOSinkRel) {
         return count(options, node);
-      } else if (node instanceof BeamSortRel && ((BeamSortRel)node).isLimitOnly()) {
+      } else if (isLimitQuery(node)) {
         return limitCollect(options, node);
       }
       return collect(options, node);
@@ -107,14 +110,71 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
+  enum LimitState {
+    REACHED,
+    NOT_REACHED
+  }
+
+  private static class LimitStateWrapper implements Serializable {
+    private LimitState state;
+
+    public LimitStateWrapper() {
+      state = LimitState.NOT_REACHED;
+    }
+
+    public void setReached() {
+      state = LimitState.REACHED;
+    }
+
+    public boolean isReached() {
+      return state == LimitState.REACHED;
+    }
+  }
+
   private static PipelineResult run(
       PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
     Pipeline pipeline = Pipeline.create(options);
     PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
-    pipelineResults.put(options.getOptionsId(), result);
 
     result.waitUntilFinish();
+    return result;
+  }
+
+  private static PipelineResult limitRun(
+      PipelineOptions options,
+      BeamRelNode node,
+      DoFn<Row, Void> doFn,
+      LimitStateWrapper stateWrapper) {
+    ExecutorService pool = Executors.newFixedThreadPool(1);
+
+    options.as(DirectOptions.class).setBlockOnRun(false);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
+
+    PipelineResult result = pipeline.run();
+
+    pool.execute(
+        new Runnable() {
+          @Override
+          public void run() {
+            while (!result.getState().isTerminal()) {
+              try {
+                Thread.sleep(DaemonThreadSleepIntervalMillis);
+                if (stateWrapper.isReached()) {
+                  result.cancel();
+                  break;
+                }
+              } catch (IOException e) {
+                e.printStackTrace();
+              } catch (InterruptedException e) {
+                e.printStackTrace();
+              }
+            }
+          }
+        });
+    result.waitUntilFinish();
+    pool.shutdown();
     return result;
   }
 
@@ -143,11 +203,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .getRunner()
             .getCanonicalName()
             .equals("org.apache.beam.runners.direct.DirectRunner"));
+
+    LimitStateWrapper stateWrapper = new LimitStateWrapper();
     LimitCounter.globalValues.put(id, values);
-    LimitCounter.globalLimitArguments.put(id, ((BeamSortRel)node).getCount());
-    run(options, node, new LimitCounter());
+    LimitCounter.globalLimitArguments.put(id, getLimitCount(node));
+    LimitCounter.globalStates.put(id, stateWrapper);
+    limitRun(options, node, new LimitCounter(), stateWrapper);
     LimitCounter.globalValues.remove(id);
-    LimitCounter.globalLimitArguments.put(id, ((BeamSortRel)node).getCount());
+    LimitCounter.globalLimitArguments.remove(id);
+    LimitCounter.globalStates.remove(id);
 
     return Linq4j.asEnumerable(values);
   }
@@ -157,35 +221,35 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         new ConcurrentHashMap<Long, Integer>();
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
+    private static final Map<Long, LimitStateWrapper> globalStates =
+        new ConcurrentHashMap<Long, LimitStateWrapper>();
 
     @Nullable private volatile Queue<Object> values;
     @Nullable private volatile Integer count;
-    @Nullable private volatile PipelineResult pipelineResult;
-
+    @Nullable private volatile LimitStateWrapper stateWrapper;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
       long id = context.getPipelineOptions().getOptionsId();
       values = globalValues.get(id);
       count = globalLimitArguments.get(id);
-      pipelineResult = pipelineResults.get(id);
+      stateWrapper = globalStates.get(id);
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) {
       Object[] input = context.element().getValues().toArray();
-      if (input.length == 1) {
-        values.add(input[0]);
-      } else {
-        values.add(input);
+
+      if (values.size() < count) {
+        if (input.length == 1) {
+          values.add(input[0]);
+        } else {
+          values.add(input);
+        }
       }
 
-      if (values.size() >= count) {
-        try {
-          pipelineResult.cancel();
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
+      if (values.size() >= count && !stateWrapper.isReached()) {
+        stateWrapper.setReached();
       }
     }
   }
@@ -234,5 +298,21 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     public void processElement(ProcessContext context) {
       rows.inc();
     }
+  }
+
+  private static boolean isLimitQuery(BeamRelNode node) {
+    return (node instanceof BeamSortRel && ((BeamSortRel) node).isLimitOnly())
+        || (node instanceof BeamCalcRel && ((BeamCalcRel) node).isInputSortRelAndLimitOnly());
+  }
+
+  private static int getLimitCount(BeamRelNode node) {
+    if (node instanceof BeamSortRel) {
+      return ((BeamSortRel) node).getCount();
+    } else if (node instanceof BeamCalcRel) {
+      return ((BeamCalcRel) node).getLimitCountOfSortRel();
+    }
+
+    throw new RuntimeException(
+        "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
   }
 }
