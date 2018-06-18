@@ -38,7 +38,10 @@ import logging
 import math
 import time
 
-import numpy as np
+try:
+  import numpy as np
+except ImportError:
+  np = None
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
