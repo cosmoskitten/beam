@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.util.Base64;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -34,6 +33,7 @@ import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
@@ -281,7 +281,7 @@ public class BeamFileSystemArtifactStagingService extends ArtifactStagingService
       }
       String expectedMd5 = metadata.getMetadata().getMd5();
       if (expectedMd5 != null && !expectedMd5.isEmpty()) {
-        String actualMd5 = Base64.encodeBase64String(hasher.hash().asBytes());
+        String actualMd5 = Base64.getEncoder().encodeToString(hasher.hash().asBytes());
         if (!actualMd5.equals(expectedMd5)) {
           outboundObserver.onError(
               new StatusRuntimeException(

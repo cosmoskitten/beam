@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.artifact;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.Base64;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -37,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -139,7 +139,7 @@ public class BeamFileSystemArtifactRetrievalService
         }
       }
       if (metadata.getMd5() != null && !metadata.getMd5().isEmpty()) {
-        ByteString expected = ByteString.copyFrom(Base64.decodeBase64(metadata.getMd5()));
+        ByteString expected = ByteString.copyFrom(Base64.getDecoder().decode(metadata.getMd5()));
         ByteString actual = ByteString.copyFrom(hasher.hash().asBytes());
         if (!actual.equals(expected)) {
           throw new StatusRuntimeException(
