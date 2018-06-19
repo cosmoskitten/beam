@@ -23,6 +23,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.plugins.quality.FindBugs
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.bundling.Jar
@@ -694,7 +695,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
 				// Create a task which emulates the maven-archiver plugin in generating a
 				// pom.properties file.
-				project.task(name: 'generatePomPropertiesFileForMavenJavaPublication') {
+				def generatePomPropertiesFileForMavenJavaPublication =
+						project.task(name: 'generatePomPropertiesFileForMavenJavaPublication') {
 					outputs.file "${project.buildDir}/publications/mavenJava/pom.properties"
 					doLast {
 						new File("${project.buildDir}/publications/mavenJava/pom.properties").text =
@@ -707,60 +709,60 @@ artifactId=${project.name}
 
 				// Have the shaded include both the generate pom.xml and its properties file
 				// emulating the behavior of the maven-archiver plugin.
-				shadowJar {
+				project.shadowJar {
 					dependsOn 'generatePomFileForMavenJavaPublication'
 					into("META-INF/maven/${project.group}/${project.name}") { from "${project.buildDir}/publications/mavenJava/pom.xml" }
-					dependsOn 'generatePomPropertiesFileForMavenJavaPublication'
+					dependsOn generatePomPropertiesFileForMavenJavaPublication
 					into("META-INF/maven/${project.group}/${project.name}") { from "${project.buildDir}/publications/mavenJava/pom.properties" }
 				}
 
 				// Only build artifacts for archives if we are publishing
-				artifacts.archives shadowJar
-				artifacts.archives shadowTestJar
+				project.artifacts.archives shadowJar
+				project.artifacts.archives shadowTestJar
 
-				task sourcesJar(type: Jar) {
+				def sourcesJar = project.task(name: 'sourcesJar', type: Jar) {
 					from sourceSets.main.allSource
 					classifier = 'sources'
 				}
-				artifacts.archives sourcesJar
+				project.artifacts.archives sourcesJar
 
-				task testSourcesJar(type: Jar) {
+				def testSourcesJar = project.task(name: 'testSourcesJar', type: Jar) {
 					from sourceSets.test.allSource
 					classifier = 'test-sources'
 				}
-				artifacts.archives testSourcesJar
+				project.artifacts.archives testSourcesJar
 
-				task javadocJar(type: Jar, dependsOn: javadoc) {
+				def javadocJar = project.task(name: 'javadocJar', type: Jar, dependsOn: project.javadoc) {
 					classifier = 'javadoc'
 					from javadoc.destinationDir
 				}
-				artifacts.archives javadocJar
+				project.artifacts.archives javadocJar
 
 				// Only sign artifacts if we are performing a release
-				if (isRelease()) {
-					apply plugin: "signing"
-					signing {
+				if (isRelease(project)) {
+					project.apply plugin: "signing"
+					project.signing {
 						useGpgCmd()
 						// Drop the unshaded jar because we don't want to publish it.
 						// Otherwise the unshaded one is the only one published since they
 						// both have no classifier and the names conflict.
-						def unshaded = configurations.archives.getArtifacts().matching({ artifact ->
+						def unshaded = project.configurations.archives.getArtifacts().matching({ artifact ->
 							artifact.classifier == ""
-						})
-						configurations.archives.getArtifacts().removeAll(unshaded)
-						sign configurations.archives
+						}).toList()
+						project.configurations.archives.getArtifacts().removeAll(unshaded)
+						sign project.configurations.archives
 					}
 
-					model {
+					project.model {
 						tasks.generatePomFileForMavenJavaPublication {
-							destination = file("$buildDir/publications/mavenJava/pom.xml")
+							destination = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
 						}
 						tasks.publishMavenJavaPublicationToMavenLocal { dependsOn project.tasks.signArchives }
 						tasks.publishMavenJavaPublicationToMavenRepository { dependsOn project.tasks.signArchives }
 					}
 				}
 
-				uploadArchives {
+				project.uploadArchives {
 					repositories {
 						mavenDeployer {
 							beforeDeployment { deployment -> isRelease() && signing.signPom(deployment) }
@@ -768,7 +770,7 @@ artifactId=${project.name}
 					}
 				}
 
-				publishing {
+				project.publishing {
 					repositories {
 						maven {
 							url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease()
@@ -807,12 +809,12 @@ artifactId=${project.name}
 
 					publications {
 						mavenJava(MavenPublication) {
-							artifact shadowJar { // Strip the "shaded" classifier.
+							artifact project.shadowJar { // Strip the "shaded" classifier.
 								classifier null }
-							artifact shadowTestJar { classifier "tests" }
-							artifact sourcesJar { classifier "sources" }
-							artifact testSourcesJar { classifier "test-sources" }
-							artifact javadocJar { classifier "javadoc" }
+							artifact project.shadowTestJar, { classifier "tests" }
+							artifact sourcesJar, { classifier "sources" }
+							artifact testSourcesJar, { classifier "testSources" }
+							artifact javadocJar, { classifier "javadoc" }
 
 							pom {
 								name = project.description
@@ -875,7 +877,7 @@ artifactId=${project.name}
 								def root = asNode()
 								def dependenciesNode = root.appendNode('dependencies')
 								def generateDependenciesFromConfiguration = { param ->
-									configurations."${param.configuration}".allDependencies.each {
+									project.configurations."${param.configuration}".allDependencies.each {
 										def dependencyNode = dependenciesNode.appendNode('dependency')
 										dependencyNode.appendNode('groupId', it.group)
 										dependencyNode.appendNode('artifactId', it.name)
@@ -887,7 +889,7 @@ artifactId=${project.name}
 										// Then add all the exclusions that are specific to the dependency (if any
 										// were declared). Finally build the node that represents all exclusions.
 										def exclusions = []
-										exclusions += configurations."${param.configuration}".excludeRules
+										exclusions += project.configurations."${param.configuration}".excludeRules
 										if (it.hasProperty('excludeRules')) {
 											exclusions += it.excludeRules
 										}
@@ -929,7 +931,7 @@ artifactId=${project.name}
 								elem.insertBefore(hdr, elem.getFirstChild())
 
 								// create the sign pom artifact
-								def pomFile = file("${project.buildDir}/publications/mavenJava/pom.xml")
+								def pomFile = project.file("${project.buildDir}/publications/mavenJava/pom.xml")
 								writeTo(pomFile)
 								if (isRelease()) {
 									def pomAscFile = signing.sign(pomFile).signatureFiles[0]
@@ -941,7 +943,7 @@ artifactId=${project.name}
 							}
 
 							// create the signed artifacts
-							if (isRelease()) {
+							if (isRelease(project)) {
 								project.tasks.signArchives.signatureFiles.each {
 									artifact(it) {
 										def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
