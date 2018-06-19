@@ -1910,7 +1910,7 @@ class Impulse(PTransform):
         return Windowing(GlobalWindows())
 
     def infer_output_type(self, unused_input_type):
-        return type(None)
+        return bytes
 
     def to_runner_api_parameter(self, unused_context):
       return common_urns.primitives.IMPULSE.urn, None
