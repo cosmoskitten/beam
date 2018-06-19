@@ -26,8 +26,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -168,8 +166,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       DoFn<Row, KV<String, Row>> collectDoFn,
       DoFn<KV<String, Row>, Void> limitCounterDoFn,
       LimitStateVar limitStateVar) {
-    ExecutorService pool = Executors.newFixedThreadPool(1);
-
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
     PCollectionTuple.empty(pipeline)
@@ -179,35 +175,24 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     PipelineResult result = pipeline.run();
 
-    pool.execute(
-        new Runnable() {
-          @Override
-          public void run() {
-            // wait every one second to check state of PipelineResult. If returned value
-            // is null, or return state is non termination state, it means pipeline is still
-            // running and within loop limit counter state will be checked.
-            State state;
-            while (true) {
-              state = result.waitUntilFinish(Duration.standardSeconds(1));
-              if (state != null && state.isTerminal()) {
-                break;
-              }
-              // If state is null, or state is not null and indicates pipeline is not terminated
-              // yet, check continue checking the limit var.
-              try {
-                if (limitStateVar.isReached()) {
-                  result.cancel();
-                  break;
-                }
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            }
-          }
-        });
-
-    result.waitUntilFinish();
-    pool.shutdown();
+    State state;
+    while (true) {
+      // Check pipeline state in every second
+      state = result.waitUntilFinish(Duration.standardSeconds(1));
+      if (state != null && state.isTerminal()) {
+        break;
+      }
+      // If state is null, or state is not null and indicates pipeline is not terminated
+      // yet, check continue checking the limit var.
+      try {
+        if (limitStateVar.isReached()) {
+          result.cancel();
+          break;
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
     return result;
   }
 
@@ -220,7 +205,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .getRunner()
             .getCanonicalName()
             .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "Only DirectRunner is supported in SQL Shell. " + "Please check your Runner setting.");
+        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
     Collector.globalValues.put(id, values);
     run(options, node, new Collector());
@@ -238,7 +223,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .getRunner()
             .getCanonicalName()
             .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "Only DirectRunner is supported in SQL Shell. " + "Please check your Runner setting.");
+        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
     LimitStateVar limitStateVar = new LimitStateVar();
     int limitCount = getLimitCount(node);
