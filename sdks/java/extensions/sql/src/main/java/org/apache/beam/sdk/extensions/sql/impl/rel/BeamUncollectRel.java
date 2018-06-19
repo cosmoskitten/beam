@@ -85,19 +85,4 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
       }
     }
   }
-
-  public boolean isInputSortRelAndLimitOnly() {
-    return input instanceof BeamSortRel && ((BeamSortRel) input).isLimitOnly();
-  }
-
-  public int getLimitCountOfSortRel() {
-    if (input instanceof BeamSortRel) {
-      return ((BeamSortRel) input).getCount();
-    }
-
-    throw new RuntimeException(
-        "The input of BeamProjectRel is not an instance of BeamSortRel. "
-            + "Therefore it is not allowed to call getLimitCountOfSortRel() on this instance of "
-            + "BeamProjectRel");
-  }
 }

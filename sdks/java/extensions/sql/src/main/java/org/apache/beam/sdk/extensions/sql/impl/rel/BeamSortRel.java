@@ -161,8 +161,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
       PCollection<Row> retStream;
 
-      // There is a need to separate ORDER BY LIMIT and LIMIT, because GroupBy is not allowed
-      // on unbounded data in global window(Top transform uses GroupBy internally).
+      // There is a need to separate ORDER BY LIMIT and LIMIT, because GroupByKey is not allowed
+      // on unbounded data in global window(Top transform uses GroupByKey internally).
       // If it is ORDER BY LIMIT.
       if (fieldIndices.size() > 0) {
         // first find the top (offset + count)
