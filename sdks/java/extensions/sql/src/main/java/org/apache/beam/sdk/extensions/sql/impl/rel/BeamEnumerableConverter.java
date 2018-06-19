@@ -67,8 +67,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static final int DaemonThreadSleepIntervalMillis = 1000;
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
-  private static final ConcurrentHashMap<Long, PipelineResult> pipelineResults =
-      new ConcurrentHashMap<Long, PipelineResult>();
 
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
