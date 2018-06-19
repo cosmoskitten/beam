@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -34,9 +35,13 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
@@ -102,13 +107,35 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     }
   }
 
-  private static PipelineResult run(
+  private static @Nullable PipelineResult run(
       PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
     Pipeline pipeline = Pipeline.create(options);
     PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
+
+    if (containsUnboundedPCollection(pipeline)) {
+      return null;
+    }
+
     result.waitUntilFinish();
     return result;
+  }
+
+  private static boolean containsUnboundedPCollection(Pipeline p) {
+    class BoundednessVisitor extends PipelineVisitor.Defaults {
+      IsBounded boundedness = IsBounded.BOUNDED;
+
+      @Override
+      public void visitValue(PValue value, Node producer) {
+        if (value instanceof PCollection) {
+          boundedness = boundedness.and(((PCollection) value).isBounded());
+        }
+      }
+    }
+
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor.boundedness == IsBounded.UNBOUNDED;
   }
 
   private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
@@ -153,14 +180,17 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
     PipelineResult result = run(options, node, new RowCounter());
-    MetricQueryResults metrics =
-        result
-            .metrics()
-            .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
-                    .build());
-    long count = metrics.getCounters().iterator().next().getAttempted();
+    long count = 0;
+    if (result != null) {
+      MetricQueryResults metrics =
+          result
+              .metrics()
+              .queryMetrics(
+                  MetricsFilter.builder()
+                      .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
+                      .build());
+      count = metrics.getCounters().iterator().next().getAttempted();
+    }
     return Linq4j.singletonEnumerable(count);
   }
 
