@@ -39,6 +39,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
@@ -46,7 +47,6 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -95,10 +95,25 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     final RelDataType rowType = getRowType();
     final PhysType physType =
         PhysTypeImpl.of(implementor.getTypeFactory(), rowType, prefer.preferArray());
-    final Expression options = implementor.stash(this.options, PipelineOptions.class);
     final Expression node = implementor.stash((BeamRelNode) getInput(), BeamRelNode.class);
-    list.add(Expressions.call(BeamEnumerableConverter.class, "toEnumerable", options, node));
+    list.add(Expressions.call(BeamEnumerableConverter.class, "toEnumerable", node));
     return implementor.result(physType, list.toBlock());
+  }
+
+  public static Enumerable<Object> toEnumerable(BeamRelNode node) {
+    final PipelineOptions options = createPipelineOptions(node.getPipelineOptions());
+    return toEnumerable(options, node);
+  }
+
+  public static PipelineOptions createPipelineOptions(Map<String, String> map) {
+    final String[] args = new String[map.size()];
+    int i = 0;
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
+    }
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+    options.as(ApplicationNameOptions.class).setAppName("BeamSql");
+    return options;
   }
 
   public static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {

@@ -44,7 +44,9 @@ import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /** Test for {@link JdbcDriver}. */
 public class JdbcDriverTest {
@@ -61,6 +63,18 @@ public class JdbcDriverTest {
           .addNullableField("description", Schema.FieldType.STRING)
           .addNullableField("nestedRow", Schema.FieldType.row(BASIC_SCHEMA))
           .build();
+
+  private static final ReadOnlyTableProvider BOUNDED_TABLE =
+      new ReadOnlyTableProvider(
+          "test",
+          ImmutableMap.of(
+              "test",
+              MockedBoundedTable.of(
+                      Schema.FieldType.INT32, "id",
+                      Schema.FieldType.STRING, "name")
+                  .addRows(1, "first")));
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void before() throws Exception {
@@ -203,16 +217,7 @@ public class JdbcDriverTest {
 
   @Test
   public void testInternalConnect_boundedTable() throws Exception {
-    ReadOnlyTableProvider tableProvider =
-        new ReadOnlyTableProvider(
-            "test",
-            ImmutableMap.of(
-                "test",
-                MockedBoundedTable.of(
-                        Schema.FieldType.INT32, "id",
-                        Schema.FieldType.STRING, "name")
-                    .addRows(1, "first")));
-    CalciteConnection connection = JdbcDriver.connect(tableProvider);
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
     Statement statement = connection.createStatement();
     ResultSet resultSet = statement.executeQuery("SELECT * FROM test");
     assertTrue(resultSet.next());
@@ -309,5 +314,32 @@ public class JdbcDriverTest {
 
   private Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
+  }
+
+  @Test
+  public void testInternalConnect_setDirectRunner() throws Exception {
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = direct"));
+    assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_setBogusRunner() throws Exception {
+    thrown.expectMessage("Unknown 'runner' specified 'bogus'");
+
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = bogus"));
+    assertTrue(statement.execute("SELECT * FROM test"));
+  }
+
+  @Test
+  public void testInternalConnect_resetAll() throws Exception {
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE);
+    Statement statement = connection.createStatement();
+    assertEquals(0, statement.executeUpdate("SET runner = bogus"));
+    assertEquals(0, statement.executeUpdate("RESET ALL"));
+    assertTrue(statement.execute("SELECT * FROM test"));
   }
 }

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
@@ -107,7 +108,7 @@ public class BeamSqlEnv {
     try {
       return planner.convertToBeamRel(query).toPTransform();
     } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new ParseException("Unable to parse query", e);
+      throw new ParseException(String.format("Unable to parse query %s", query), e);
     }
   }
 
@@ -130,6 +131,10 @@ public class BeamSqlEnv {
 
   public CalcitePrepare.Context getContext() {
     return connection.createPrepareContext();
+  }
+
+  public Map<String, String> getPipelineOptions() {
+    return ((BeamCalciteSchema) CalciteSchema.from(defaultSchema).schema).getPipelineOptions();
   }
 
   public String explain(String sqlString) throws ParseException {
