@@ -1901,7 +1901,7 @@ class Impulse(PTransform):
 
     def expand(self, pbegin):
         assert isinstance(pbegin, pvalue.PBegin), (
-                'Input to Impulse transform must be a PBegin but found %s' % pbegin)
+            'Input to Impulse transform must be a PBegin but found %s' % pbegin)
         return pvalue.PCollection(pbegin.pipeline)
 
     def get_windowing(self, inputs):
@@ -1913,9 +1913,9 @@ class Impulse(PTransform):
     def to_runner_api_parameter(self, context):
       assert isinstance(self, Impulse), \
           "expected instance of Impulse, but got %s" % self.__class__
-      return (common_urns.IMPULSE_TRANSFORM, None)
+      return (common_urns.primitives.IMPULSE.urn, None)
 
-    @PTransform.register_urn(common_urns.IMPULSE_TRANSFORM, None)
+    @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
     def from_runner_api_parameter(unused_parameter, unused_context):
       return Impulse()
 
