@@ -840,6 +840,7 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     from apache_beam.options.pipeline_options import DebugOptions
+    from apache_beam.transforms import util
 
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
@@ -850,7 +851,7 @@ class Read(ptransform.PTransform):
         pbegin
         | core.Impulse()
         | core.ParDo(_SplitSourceFn(self.source))
-        | core.Reshuffle()
+        | util.Reshuffle()
         | core.ParDo(_ReadSplitsFn(self.source)))
     else:
       return pvalue.PCollection(self.pipeline)
