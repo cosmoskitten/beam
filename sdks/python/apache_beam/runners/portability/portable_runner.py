@@ -104,9 +104,21 @@ class PortableRunner(runner.PipelineRunner):
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job', pipeline=proto_pipeline))
+    if prepare_response.staging_session_token:
+      # Must commit an empty manifest.
+      artifact_service = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+        grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url))
+      commit_manifest = artifact_service.CommitManifest(
+          beam_artifact_api_pb2.CommitManifestRequest(
+              manifest=beam_artifact_api_pb2.Manifest(),
+              staging_session_token=prepare_response.staging_session_token))
+      retrieval_token = commit_manifest.retrieval_token
+    else:
+      retrieval_token = None
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
-            preparation_id=prepare_response.preparation_id))
+            preparation_id=prepare_response.preparation_id,
+            retrieval_token=retrieval_token))
     return PipelineResult(job_service, run_response.job_id)
 
 
