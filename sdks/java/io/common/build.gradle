@@ -31,6 +31,8 @@ dependencies {
   testCompile library.java.guava
   testCompile library.java.junit
   testCompile library.java.postgres
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
   compile library.java.findbugs_annotations
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
