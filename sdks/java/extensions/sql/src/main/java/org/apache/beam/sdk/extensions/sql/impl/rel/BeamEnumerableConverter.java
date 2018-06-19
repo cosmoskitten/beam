@@ -150,7 +150,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static PipelineResult limitRun(
       PipelineOptions options,
       BeamRelNode node,
-      DoFn<Row, Row> collectDoFn,
+      DoFn<Row, KV<String, Row>> collectDoFn,
       DoFn<KV<String, Row>, Void> limitCounterDoFn,
       LimitStateVar limitStateVar) {
     ExecutorService pool = Executors.newFixedThreadPool(1);
@@ -160,7 +160,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PCollectionTuple.empty(pipeline)
         .apply(node.toPTransform())
         .apply(ParDo.of(collectDoFn))
-        .apply(WithKeys.of("DummyKey"))
         .apply(ParDo.of(limitCounterDoFn));
 
     PipelineResult result = pipeline.run();
@@ -172,13 +171,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             // wait every one second to check state of PipelineResult. If returned value
             // is null, or return state is non termination state, it means pipeline is still
             // running and within loop limit counter state will be checked.
-            State state = null;
+            State state;
             while (true) {
               state = result.waitUntilFinish(Duration.standardSeconds(1));
               if (state != null && state.isTerminal()) {
                 break;
               }
-
               // If state is null, or state is not null and indicates pipeline is not terminated
               // yet, check continue checking the limit var.
               try {
@@ -232,13 +230,13 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     LimitCanceller.globalLimitArguments.put(id, limitCount);
     LimitCanceller.globalStates.put(id, limitStateVar);
-    LimitCollector.globalValues.put(id, values);
     LimitCollector.globalLimitArguments.put(id, limitCount);
+    LimitCollector.globalValues.put(id, values);
     limitRun(options, node, new LimitCollector(), new LimitCanceller(), limitStateVar);
     LimitCanceller.globalLimitArguments.remove(id);
     LimitCanceller.globalStates.remove(id);
-    LimitCollector.globalValues.remove(id);
     LimitCollector.globalLimitArguments.remove(id);
+    LimitCollector.globalValues.remove(id);
 
     return Linq4j.asEnumerable(values);
   }
@@ -266,17 +264,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     public void processElement(
         ProcessContext context, @StateId("counter") ValueState<Integer> counter) {
       int current = (counter.read() != null ? counter.read() : 0);
+      current += 1;
       if (current >= count && !limitStateVar.isReached()) {
         // if current count reaches the limit count but limitStateVar has not been set, flip
         // the var.
         limitStateVar.setReached();
       }
 
-      counter.write(current + 1);
+      counter.write(current);
     }
   }
 
-  private static class LimitCollector extends DoFn<Row, Row> {
+  private static class LimitCollector extends DoFn<Row, KV<String, Row>> {
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
@@ -303,7 +302,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           values.add(input);
         }
       }
-      context.output(context.element());
+      context.output(KV.of("DummyKey", context.element()));
     }
   }
 

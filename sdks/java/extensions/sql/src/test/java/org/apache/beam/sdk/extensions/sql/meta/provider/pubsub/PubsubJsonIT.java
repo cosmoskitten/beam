@@ -71,6 +71,7 @@ public class PubsubJsonIT implements Serializable {
   private static final String CONNECT_STRING_PREFIX = "jdbc:beam:";
   private static final String BEAM_CALCITE_SCHEMA = "beamCalciteSchema";
   private static final JdbcDriver INSTANCE = new JdbcDriver();
+  private static volatile Boolean checked = false;
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
@@ -228,6 +229,7 @@ public class PubsubJsonIT implements Serializable {
               assertTrue(resultSet.next());
               assertTrue(resultSet.next());
               assertFalse(resultSet.next());
+              checked = true;
             } catch (SQLException e) {
               e.printStackTrace();
             }
@@ -240,6 +242,9 @@ public class PubsubJsonIT implements Serializable {
       eventsTopic.publish(messages);
       // Wait one minute to allow the thread finishes checks.
       Thread.sleep(60 * 1000);
+      // verify if the thread has checked returned value from LIMIT query.
+      assertTrue(checked);
+      pool.shutdown();
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
