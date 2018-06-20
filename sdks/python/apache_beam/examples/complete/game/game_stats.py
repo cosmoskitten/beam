@@ -203,26 +203,50 @@ class CalculateSpammyUsers(beam.PTransform):
   SCORE_WEIGHT = 2.5
 
   def expand(self, user_scores):
+    def display(x):
+      logging.info('mgh/SumUserScores %s', x)
+      print(x)
+      return x
+    def display2(x):
+      logging.info('mgh/AfterValues %s', x)
+      print(x)
+      return x
+    def display3(x):
+      logging.info('mgh/AfterFilter %s', x)
+      print(x)
+      return x
+
     # Get the sum of scores for each user.
     sum_scores = (
         user_scores
-        | 'SumUsersScores' >> beam.CombinePerKey(sum))
+        | 'SumUsersScores' >> beam.CombinePerKey(sum)
+        # | 'SumUsersScores' >> beam.CombinePerKey(sum))
+        | beam.Map(display))
 
     # Extract the score from each element, and use it to find the global mean.
     global_mean_score = (
         sum_scores
         | beam.Values()
+        | beam.Map(display2)
         | beam.CombineGlobally(beam.combiners.MeanCombineFn())\
             .as_singleton_view())
 
+    # logging.info('mgh/global_mean_score %d' % global_mean_score)
+    def filter_spam_users(key_score, global_mean):
+      logging.info('mgh/filter_spam_users %d %d' % (key_score[1], global_mean))
+      return key_score[1] > global_mean * self.SCORE_WEIGHT
     # Filter the user sums using the global mean.
     filtered = (
         sum_scores
         # Use the derived mean total score (global_mean_score) as a side input.
         | 'ProcessAndFilter' >> beam.Filter(
-            lambda key_score, global_mean:\
-                key_score[1] > global_mean * self.SCORE_WEIGHT,
-            global_mean_score))
+            # lambda key_score, global_mean:\
+            #     key_score[1] > global_mean * self.SCORE_WEIGHT,
+            filter_spam_users,
+            global_mean_score)
+        | beam.Map(display3)
+        )
+
     return filtered
 # [END abuse_detect]
 
@@ -241,6 +265,9 @@ def run(argv=None):
                       type=str,
                       required=True,
                       help='Pub/Sub topic to read from')
+  parser.add_argument('--subscription',
+                      type=str,
+                      help='Pub/Sub subscription to read from')
   parser.add_argument('--dataset',
                       type=str,
                       required=True,
@@ -288,10 +315,16 @@ def run(argv=None):
   options.view_as(StandardOptions).streaming = True
 
   with beam.Pipeline(options=options) as p:
+    # Read from PubSub into a PCollection.
+    if args.subscription:
+      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+          subscription=args.subscription)
+    else:
+      scores = p | 'ReadPubSub' >> beam.io.ReadStringsFromPubSub(
+          topic=args.topic)
     # Read events from Pub/Sub using custom timestamps
     raw_events = (
-        p
-        | 'ReadPubSub' >> beam.io.gcp.pubsub.ReadStringsFromPubSub(args.topic)
+        scores
         | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
@@ -317,6 +350,16 @@ def run(argv=None):
         # a side input in calculating the team score sums, below
         | 'CreateSpammersView' >> beam.CombineGlobally(
             beam.combiners.ToDictCombineFn()).as_singleton_view())
+
+    # mgh: I couldn't get this to work, the logging below didn't show up.
+    def debug_print(elm, spammer):
+      logging.info('mgh/after CreateSpammersView %s' % spammer)
+      return elm
+
+    debug = (
+      user_events
+      | beam.Map(debug_print, spammers_view)
+    )
 
     # [START filter_and_calc]
     # Calculate the total score per team over fixed windows, and emit cumulative
