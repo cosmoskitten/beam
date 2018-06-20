@@ -17,6 +17,7 @@
  */
 
 import common_job_properties
+import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 job('beam_PostCommit_Java_Nexmark_Spark') {
@@ -43,17 +44,13 @@ job('beam_PostCommit_Java_Nexmark_Spark') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-spark"' +
               ' -Pnexmark.args="' +
-              '        --bigQueryTable=nexmark\n'+
-              '        --bigQueryDataset=nexmark\n'+
-              '        --project=apache-beam-testing\n'+
-              '        --resourceNameMode=QUERY_RUNNER_AND_MODE\n'+
-              '        --exportSummaryToBigQuery=true\n'+
-              '        --runner=SparkRunner\n' +
-              '        --streaming=false\n' +
-              '        --suite=SMOKE\n' +
-              '        --streamTimeout=60\n'  +
-              '        --manageResources=false\n' +
-              '        --monitorJobs=true')
+              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              '--runner=SparkRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
     }
   }
 }
