@@ -17,6 +17,7 @@
  */
 
 import common_job_properties
+import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Direct runner.
 job('beam_PostCommit_Java_Nexmark_Direct') {
@@ -43,18 +44,14 @@ job('beam_PostCommit_Java_Nexmark_Direct') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-direct-java"' +
               ' -Pnexmark.args="' +
-              '        --bigQueryTable=nexmark\n'+
-              '        --bigQueryDataset=nexmark\n'+
-              '        --project=apache-beam-testing\n'+
-              '        --resourceNameMode=QUERY_RUNNER_AND_MODE\n'+
-              '        --exportSummaryToBigQuery=true\n'+
-              '        --runner=DirectRunner\n' +
-              '        --streaming=false\n' +
-              '        --suite=SMOKE\n' +
-              '        --manageResources=false\n' +
-              '        --monitorJobs=true\n' +
-              '        --enforceEncodability=true\n' +
-              '        --enforceImmutability=true"')
+              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
     }
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING DIRECT RUNNER ***')
     gradle {
@@ -63,18 +60,14 @@ job('beam_PostCommit_Java_Nexmark_Direct') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-direct-java"' +
               ' -Pnexmark.args="' +
-              '        --bigQueryTable=nexmark\n'+
-              '        --bigQueryDataset=nexmark\n'+
-              '        --project=apache-beam-testing\n'+
-              '        --resourceNameMode=QUERY_RUNNER_AND_MODE\n'+
-              '        --exportSummaryToBigQuery=true\n'+
-              '        --runner=DirectRunner\n' +
-              '        --streaming=true\n' +
-              '        --suite=SMOKE\n' +
-              '        --manageResources=false\n' +
-              '        --monitorJobs=true\n' +
-              '        --enforceEncodability=true\n' +
-              '        --enforceImmutability=true"')
+              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              '--runner=DirectRunner',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--enforceEncodability=true',
+              '--enforceImmutability=true"'].join(' '))
     }
   }
 }
