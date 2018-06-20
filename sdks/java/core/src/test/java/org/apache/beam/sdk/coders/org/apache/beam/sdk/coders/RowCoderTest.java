@@ -51,7 +51,7 @@ public class RowCoderTest {
         .addInt32Field("f_int32")
         .addInt64Field("f_int64")
         .addDecimalField("f_decimal")
-        .addFloatField("f_float")
+        .addFloatField("f_floa  t")
         .addDoubleField("f_double")
         .addStringField("f_string")
         .addDateTimeField("f_datetime")
