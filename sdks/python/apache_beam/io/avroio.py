@@ -41,16 +41,19 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+from __future__ import absolute_import
 
-import cStringIO
+import io
 import os
 import zlib
+from builtins import object
 from functools import partial
 
 import avro
 from avro import io as avroio
 from avro import datafile
 from avro import schema
+from future import standard_library
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
@@ -59,6 +62,8 @@ from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
+
+standard_library.install_aliases()
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 
@@ -311,7 +316,7 @@ class _AvroBlock(object):
       # We take care to avoid extra copies of data while slicing large objects
       # by use of a buffer.
       result = snappy.decompress(buffer(data)[:-4])
-      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
+      avroio.BinaryDecoder(io.BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
       raise ValueError('Unknown codec: %r' % codec)
@@ -321,7 +326,7 @@ class _AvroBlock(object):
 
   def records(self):
     decoder = avroio.BinaryDecoder(
-        cStringIO.StringIO(self._decompressed_block_bytes))
+        io.BytesIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 
