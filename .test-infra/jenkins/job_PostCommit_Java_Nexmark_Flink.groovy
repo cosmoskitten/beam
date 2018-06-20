@@ -17,6 +17,7 @@
  */
 
 import common_job_properties
+import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
 job('beam_PostCommit_Java_Nexmark_Flink') {
@@ -43,18 +44,14 @@ job('beam_PostCommit_Java_Nexmark_Flink') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
-              '        --bigQueryTable=nexmark\n'+
-              '        --bigQueryDataset=nexmark\n'+
-              '        --project=apache-beam-testing\n'+
-              '        --resourceNameMode=QUERY_RUNNER_AND_MODE\n'+
-              '        --exportSummaryToBigQuery=true\n'+
-              '        --runner=FlinkRunner\n' +
-              '        --streaming=false\n' +
-              '        --suite=SMOKE\n' +
-              '        --streamTimeout=60\n'  +
-              '        --manageResources=false\n' +
-              '        --monitorJobs=true\n' +
-              '        --flinkMaster=local"')
+              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--flinkMaster=local"'].join(' '))
     }
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
     gradle {
@@ -63,18 +60,14 @@ job('beam_PostCommit_Java_Nexmark_Flink') {
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
-              '        --bigQueryTable=nexmark\n'+
-              '        --bigQueryDataset=nexmark\n'+
-              '        --project=apache-beam-testing\n'+
-              '        --resourceNameMode=QUERY_RUNNER_AND_MODE\n'+
-              '        --exportSummaryToBigQuery=true\n'+
-              '        --runner=FlinkRunner\n' +
-              '        --streaming=true\n' +
-              '        --suite=SMOKE\n' +
-              '        --streamTimeout=60\n'  +
-              '        --manageResources=false\n' +
-              '        --monitorJobs=true\n' +
-              '        --flinkMaster=local"')
+              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--streaming=true',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true',
+              '--flinkMaster=local"'].join(' '))
     }
   }
 }
