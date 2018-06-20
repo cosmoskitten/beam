@@ -46,7 +46,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
@@ -168,8 +167,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       LimitStateVar limitStateVar) {
     options.as(DirectOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
-    PCollectionTuple.empty(pipeline)
-        .apply(node.toPTransform())
+    BeamSqlRelUtils.toPCollection(pipeline, node)
         .apply(ParDo.of(collectDoFn))
         .apply(ParDo.of(limitCounterDoFn));
 
@@ -230,13 +228,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     LimitCanceller.globalLimitArguments.put(id, limitCount);
     LimitCanceller.globalStates.put(id, limitStateVar);
-    LimitCollector.globalLimitArguments.put(id, limitCount);
     LimitCollector.globalValues.put(id, values);
     limitRun(options, node, new LimitCollector(), new LimitCanceller(), limitStateVar);
     LimitCanceller.globalLimitArguments.remove(id);
     LimitCanceller.globalStates.remove(id);
-    LimitCollector.globalLimitArguments.remove(id);
     LimitCollector.globalValues.remove(id);
+
+    // size of values could be larger than limitCount, truncate it here if necessary.
+    while (values.size() > limitCount) {
+      values.remove();
+    }
 
     return Linq4j.asEnumerable(values);
   }
@@ -279,28 +280,22 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     // This will only work on the direct runner.
     private static final Map<Long, Queue<Object>> globalValues =
         new ConcurrentHashMap<Long, Queue<Object>>();
-    private static final Map<Long, Integer> globalLimitArguments =
-        new ConcurrentHashMap<Long, Integer>();
 
     @Nullable private volatile Queue<Object> values;
-    @Nullable private volatile int count;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
       long id = context.getPipelineOptions().getOptionsId();
       values = globalValues.get(id);
-      count = globalLimitArguments.get(id);
     }
 
     @ProcessElement
     public void processElement(ProcessContext context) {
       Object[] input = context.element().getValues().toArray();
-      if (values.size() < count) {
-        if (input.length == 1) {
-          values.add(input[0]);
-        } else {
-          values.add(input);
-        }
+      if (input.length == 1) {
+        values.add(input[0]);
+      } else {
+        values.add(input);
       }
       context.output(KV.of("DummyKey", context.element()));
     }
