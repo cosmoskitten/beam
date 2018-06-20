@@ -23,5 +23,6 @@ class nexmark_bigquery_properties {
                                          '--bigQueryDataset=nexmark',
                                          '--project=apache-beam-testing',
                                          '--resourceNameMode=QUERY_RUNNER_AND_MODE',
-                                         '--exportSummaryToBigQuery=true'].join(' ')
+                                         '--exportSummaryToBigQuery=true',
+                                         '--tempLocation=nexmark-temp'].join(' ')
 }
