@@ -323,7 +323,7 @@ public class RemoteExecutionTest implements Serializable {
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "C"));
     StateRequestHandler stateRequestHandler =
         StateRequestHandlers.forMultimapSideInputHandlerFactory(
-            descriptor,
+            descriptor.getMultimapSideInputSpecs(),
             new MultimapSideInputHandlerFactory() {
               @Override
               public <K, V, W extends BoundedWindow> MultimapSideInputHandler<K, V, W> forSideInput(
