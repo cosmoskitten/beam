@@ -154,7 +154,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static PipelineResult run(
       PipelineOptions options, BeamRelNode node, DoFn<Row, Void> doFn) {
     Pipeline pipeline = Pipeline.create(options);
-    PCollectionTuple.empty(pipeline).apply(node.toPTransform()).apply(ParDo.of(doFn));
+    BeamSqlRelUtils.toPCollection(pipeline, node).apply(ParDo.of(doFn));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     return result;
