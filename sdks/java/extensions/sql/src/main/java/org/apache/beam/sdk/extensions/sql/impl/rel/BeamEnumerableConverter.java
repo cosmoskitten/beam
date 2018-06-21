@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.enumerable.EnumerableRel;
@@ -185,7 +184,9 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
     Pipeline pipeline = Pipeline.create(options);
-    BeamSqlRelUtils.toPCollection(pipeline, node).apply(node.toPTransform()).apply(ParDo.of(new RowCounter()));
+    BeamSqlRelUtils.toPCollection(pipeline, node)
+        .apply(node.toPTransform())
+        .apply(ParDo.of(new RowCounter()));
     PipelineResult result = pipeline.run();
 
     long count = 0;
