@@ -344,7 +344,7 @@ class JavaNatureConfiguration {
   /** Controls whether the errorprone plugin is enabled and configured */
   boolean enableErrorProne = true
   /** Controls whether compiler warnings are treated as errors */
-  boolean failOnWarning = false
+  boolean failOnWarning = true
   /**
    * List of additional lint warnings to disable.
    * In addition, defaultLintSuppressions defined below
@@ -559,6 +559,12 @@ ext.applyJavaNature = {
     apply plugin: 'net.ltgt.errorprone'
     tasks.withType(JavaCompile) {
       options.compilerArgs += "-XepDisableWarningsInGeneratedCode"
+    }
+    dependencies {
+      // These dependencies are needed to avoid warnings on the package-info.java files,
+      // also to include the annotations to supress warnings.
+      compileOnly library.java.findbugs_annotations
+      testCompileOnly library.java.findbugs_annotations
     }
   }
 
