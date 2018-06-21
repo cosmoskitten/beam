@@ -57,10 +57,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Integration tests for querying Pubsub JSON messages with SQL. */
 @RunWith(JUnit4.class)
 public class PubsubJsonIT implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubJsonIT.class);
 
   private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
@@ -176,7 +179,7 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
-  public void testSQLLimit() throws SQLException, IOException {
+  public void testSQLLimit() throws SQLException, IOException, InterruptedException {
     String createTableString =
         "CREATE TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
@@ -231,23 +234,19 @@ public class PubsubJsonIT implements Serializable {
               assertFalse(resultSet.next());
               checked = true;
             } catch (SQLException e) {
-              e.printStackTrace();
+              LOG.warn(e.toString());
             }
           }
         });
 
-    try {
-      // wait one minute to allow subscription creation.
-      Thread.sleep(60 * 1000);
-      eventsTopic.publish(messages);
-      // Wait one minute to allow the thread finishes checks.
-      Thread.sleep(60 * 1000);
-      // verify if the thread has checked returned value from LIMIT query.
-      assertTrue(checked);
-      pool.shutdown();
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+    // wait one minute to allow subscription creation.
+    Thread.sleep(60 * 1000);
+    eventsTopic.publish(messages);
+    // Wait one minute to allow the thread finishes checks.
+    Thread.sleep(60 * 1000);
+    // verify if the thread has checked returned value from LIMIT query.
+    assertTrue(checked);
+    pool.shutdown();
   }
 
   private CalciteConnection connect(TableProvider... tableProviders) throws SQLException {

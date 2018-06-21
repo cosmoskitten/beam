@@ -66,10 +66,12 @@ import org.apache.calcite.rel.convert.ConverterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** BeamRelNode to replace a {@code Enumerable} node. */
 public class BeamEnumerableConverter extends ConverterImpl implements EnumerableRel {
-  private final PipelineOptions options = PipelineOptionsFactory.create();
+  private static final Logger LOG = LoggerFactory.getLogger(BeamEnumerableConverter.class);
 
   public BeamEnumerableConverter(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
@@ -188,7 +190,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           break;
         }
       } catch (IOException e) {
-        e.printStackTrace();
+        LOG.warn(e.toString());
+        break;
       }
     }
     return result;
