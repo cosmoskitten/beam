@@ -185,7 +185,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static Enumerable<Object> count(PipelineOptions options, BeamRelNode node) {
     Pipeline pipeline = Pipeline.create(options);
     BeamSqlRelUtils.toPCollection(pipeline, node)
-        .apply(node.toPTransform())
+        .apply(node.buildPTransform())
         .apply(ParDo.of(new RowCounter()));
     PipelineResult result = pipeline.run();
 
