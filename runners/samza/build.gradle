@@ -60,7 +60,6 @@ dependencies {
   shadow "org.apache.kafka:kafka-clients:0.11.0.2"
   testCompileOnly library.java.findbugs_annotations
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  // FlinkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
   shadowTest library.java.commons_lang3
   shadowTest library.java.hamcrest_core
@@ -93,5 +92,5 @@ task validatesRunner(type: Test) {
   }
 }
 
-// Generates :beam-runners-apex:runQuickstartJavaApex
+// Generates :beam-runners-samza:runQuickstartJavaSamza
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Samza')
