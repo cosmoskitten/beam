@@ -48,6 +48,10 @@ include "beam-runners-gearpump"
 project(":beam-runners-gearpump").dir = file("runners/gearpump")
 include "beam-runners-google-cloud-dataflow-java"
 project(":beam-runners-google-cloud-dataflow-java").dir = file("runners/google-cloud-dataflow-java")
+include "beam-runners-google-cloud-dataflow-java-examples"
+project(":beam-runners-google-cloud-dataflow-java-examples").dir = file("runners/google-cloud-dataflow-java/examples")
+include "beam-runners-google-cloud-dataflow-java-examples-streaming"
+project(":beam-runners-google-cloud-dataflow-java-examples-streaming").dir = file("runners/google-cloud-dataflow-java/examples-streaming")
 include "beam-runners-java-fn-execution"
 project(":beam-runners-java-fn-execution").dir = file("runners/java-fn-execution")
 include "beam-runners-local-java-core"
