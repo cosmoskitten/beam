@@ -234,11 +234,6 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     LimitCanceller.globalStates.remove(id);
     LimitCollector.globalValues.remove(id);
 
-    // size of values could be larger than limitCount, truncate it here if necessary.
-    while (values.size() > limitCount) {
-      values.remove();
-    }
-
     return Linq4j.asEnumerable(values);
   }
 
