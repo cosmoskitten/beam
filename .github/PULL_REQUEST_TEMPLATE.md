@@ -9,7 +9,7 @@ Follow this checklist to help us incorporate your contribution quickly and easil
 
 It will help us expedite review of your Pull Request if you tag someone (e.g. `@username`) to look at it.
 
-Post-Commit Tests Status
+Post-Commit Tests Status (on master branch)
 ------------------------------------------------------------------------------------------------
 
 SDK | Go | Java | Python 
