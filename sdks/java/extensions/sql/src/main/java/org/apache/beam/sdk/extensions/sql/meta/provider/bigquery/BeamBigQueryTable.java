@@ -17,12 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.avro.Schema.Field;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.avro.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -43,7 +52,30 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    throw new UnsupportedOperationException();
+    return begin
+        .apply(
+            BigQueryIO.read(
+                    new SerializableFunction<SchemaAndRecord, Row>() {
+                      @Override
+                      public Row apply(SchemaAndRecord input) {
+                        GenericRecord record = input.getRecord();
+                        checkState(
+                            schema.getFields().size() == record.getSchema().getFields().size(),
+                            "Schema sizes are different.");
+
+                        List<Object> values = new ArrayList();
+                        for (int i = 0; i < record.getSchema().getFields().size(); i++) {
+                          Field avroField = record.getSchema().getFields().get(i);
+                          values.add(
+                              AvroUtils.convertAvroFormat(
+                                  schema.getField(i), record.get(avroField.name())));
+                        }
+
+                        return Row.withSchema(schema).addValues(values).build();
+                      }
+                    })
+                .from(tableSpec))
+        .setCoder(getSchema().getRowCoder());
   }
 
   @Override
