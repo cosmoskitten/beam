@@ -255,6 +255,7 @@ public class RetryHttpRequestInitializerTest {
    * is invoked.
    */
   @Test
+  @SuppressWarnings("AssertionFailureIgnored")
   public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
     FastNanoClockAndSleeper fakeClockAndSleeper = new FastNanoClockAndSleeper();
     // Counts the number of calls to execute the HTTP request.
