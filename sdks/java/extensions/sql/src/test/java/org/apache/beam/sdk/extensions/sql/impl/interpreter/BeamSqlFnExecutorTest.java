@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.DateOperators;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
@@ -35,11 +36,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.B
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
@@ -152,33 +150,6 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     Calendar calendar = Calendar.getInstance();
     calendar.setTimeZone(TimeZone.getTimeZone("GMT"));
     calendar.setTime(new Date());
-
-    // CEIL
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.CEIL,
-            Arrays.asList(
-                rexBuilder.makeDateLiteral(calendar), rexBuilder.makeFlag(TimeUnitRange.MONTH)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlDateCeilExpression);
-
-    // FLOOR
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.FLOOR,
-            Arrays.asList(
-                rexBuilder.makeDateLiteral(calendar), rexBuilder.makeFlag(TimeUnitRange.MONTH)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlDateFloorExpression);
-
-    // EXTRACT == EXTRACT_DATE?
-    rexNode =
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.EXTRACT,
-            Arrays.asList(
-                rexBuilder.makeFlag(TimeUnitRange.MONTH), rexBuilder.makeDateLiteral(calendar)));
-    exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlExtractExpression);
 
     // CURRENT_DATE
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_DATE, Arrays.asList());
