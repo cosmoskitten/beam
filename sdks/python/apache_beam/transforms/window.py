@@ -50,7 +50,11 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from builtins import object
+from builtins import range
+from functools import total_ordering
 
+from future.utils import with_metaclass
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -108,10 +112,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
@@ -177,6 +179,7 @@ class WindowFn(urns.RunnerApiFn):
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_WINDOWFN)
 
 
+@total_ordering
 class BoundedWindow(object):
   """A window for timestamps in range (-infinity, end).
 
@@ -192,10 +195,15 @@ class BoundedWindow(object):
 
   def __cmp__(self, other):
     # Order first by endpoint, then arbitrarily.
-    return cmp(self.end, other.end) or cmp(hash(self), hash(other))
+    end_cmp = (self.end > other.end) - (self.end < other.end)
+    hash_cmp = (hash(self) > hash(other)) - (hash(self) < hash(other))
+    return end_cmp or hash_cmp
 
   def __eq__(self, other):
-    raise NotImplementedError
+    return (self.end == other.end) and (hash(self)==hash(other))
+
+  def __lt__(self, other):
+    return self.end < other.end
 
   def __hash__(self):
     return hash(self.end)
@@ -233,6 +241,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -245,10 +254,14 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
+    return (type(self) == type(other)) and (self.value == other.value) and \
+           (self.timestamp == other.timestamp)
+
+  def __lt__(self, other):
     if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+      return type(self) < type(other)
+    return (self.value, self.timestamp) < (other.value, other.timestamp)
 
 
 class GlobalWindow(BoundedWindow):

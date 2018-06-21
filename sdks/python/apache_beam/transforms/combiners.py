@@ -18,9 +18,12 @@
 """A library of basic combiner PTransform subclasses."""
 
 from __future__ import absolute_import
+from __future__ import division
 
 import operator
 import random
+from builtins import object
+from builtins import zip
 
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
