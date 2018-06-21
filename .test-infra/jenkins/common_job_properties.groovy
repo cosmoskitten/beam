@@ -194,6 +194,7 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
+  // TODO: Remove
   static void setPreCommit(context,
                            String commitStatusName,
                            String prTriggerPhrase = '',
