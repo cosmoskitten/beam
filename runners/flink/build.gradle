@@ -150,6 +150,7 @@ task jobServerShadowJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.S
   append "reference.conf"
   from sourceSets.main.output
   configurations = [project.configurations.runtime]
+
   // Use the same canonical relocations as used in the core shadow jar.
   relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
     // com.google.common is too generic, need to exclude guava-testlib
@@ -157,6 +158,10 @@ task jobServerShadowJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.S
     exclude "com.google.common.escape.testing.**"
     exclude "com.google.common.testing.**"
     exclude "com.google.common.util.concurrent.testing.**"
+  }
+
+  manifest {
+    attributes "Main-Class": "org.apache.beam.runners.flink.FlinkJobServerDriver"
   }
 }
 
