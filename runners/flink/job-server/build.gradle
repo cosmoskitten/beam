@@ -1,0 +1,53 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature(failOnWarning: true)
+
+description = "Apache Beam :: Runners :: Flink :: Job Server"
+
+apply plugin: "application"
+
+mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we reference "sourceSets.shadow.output" directly.
+ */
+evaluationDependsOn(":beam-runners-flink_2.11")
+
+// NOTE: runShadow must be used in order to run the job server. The standard run
+// task will not work because the flink runner classes only exist in the shadow
+// jar.
+runShadow {
+  def jobHost = project.hasProperty("jobHost") ? project.property("jobHost") : "localhost:8099"
+  def artifactsDir = project.hasProperty("artifactsDir") ?  project.property("artifactsDir") : "/tmp/flink-artifacts"
+  args = ["--job-host=${jobHost}", "--artifacts-dir=${artifactsDir}"]
+  // Enable remote debugging.
+  jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
+}
+
+shadowJar {
+  archiveName = "flink-job-server.jar"
+  mergeServiceFiles()
+  append "reference.conf"
+  def flinkProject = project(":beam-runners-flink_2.11")
+  from flinkProject.configurations.runtime
+  from flinkProject.sourceSets.main.output
+}
