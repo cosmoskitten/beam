@@ -185,6 +185,7 @@
       <groupId>org.apache.samza</groupId>
       <artifactId>samza-kv_2.11</artifactId>
       <version>${samza.version}</version>
+      <version>${samza.version}</version>
       <scope>runtime</scope>
     </dependency>
 
