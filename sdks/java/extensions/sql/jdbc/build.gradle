@@ -28,6 +28,7 @@ dependencies {
   compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.3.0"
   compile library.java.slf4j_jdk14
+  compile library.java.guava
   compileOnly library.java.findbugs_annotations
   testCompileOnly library.java.findbugs_annotations
   testCompile library.java.junit
