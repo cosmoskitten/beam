@@ -18,10 +18,13 @@
 
 package org.apache.beam.fn.harness.data;
 
+<<<<<<< HEAD
 import io.grpc.ManagedChannel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+=======
+>>>>>>> cb5d979bbc... [BEAM-4481, BEAM-4484] Start vendoring portability dependencies to not have dependency conflicts
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -40,6 +43,8 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
