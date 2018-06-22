@@ -87,7 +87,7 @@ class BigqueryMatcher(BaseMatcher):
     # Verify result
     return self.checksum == self.expected_checksum
 
-  @retry.with_exponential_backoff(   # mgh: reinstate
+  @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
