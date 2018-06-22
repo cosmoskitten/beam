@@ -194,26 +194,17 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "<", kind="LESS_THAN")
-  @SqlOperatorTest(name = ">", kind="GREATER_THAN")
-  @SqlOperatorTest(name = "<=", kind="LESS_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "<>", kind="NOT_EQUALS")
-  @SqlOperatorTest(name = "=", kind="EQUALS")
-  @SqlOperatorTest(name = ">=", kind="GREATER_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "LIKE", kind="LIKE")
+  @SqlOperatorTest(name = "<", kind = "LESS_THAN")
+  @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
+  @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
+  @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS")
+  @SqlOperatorTest(name = "=", kind = "EQUALS")
+  @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL")
+  @SqlOperatorTest(name = "LIKE", kind = "LIKE")
   public void testComparisonOperatorFunction() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("1 < 2", true)
-            .addExpr("2 < 1", false)
-            .addExpr("'a' < 'b'", true)
-            .addExpr("'b' < 'a'", false)
-            .addExpr("1.0 < 2.0", true)
-            .addExpr("2.0 < 1.0", false)
-            .addExpr("9223372036854775806 < 9223372036854775807", true)
-            .addExpr("9223372036854775807 < 9223372036854775806", false)
-            .addExpr("false < true", true)
-            .addExpr("true < false", false)
             .addExpr("2 < 1", false)
             .addExpr("'a' < 'b'", true)
             .addExpr("'b' < 'a'", false)
