@@ -19,11 +19,11 @@
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.Struct;
-import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.util.JsonFormat;
 
 /** Utilities for going to/from Runner API pipeline options. */
 public class PipelineOptionsTranslation {
