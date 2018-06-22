@@ -59,9 +59,6 @@ class BigqueryMatcher(BaseMatcher):
       checksum: SHA-1 hash generated from a sorted list of lines
         read from expected output.
     """
-    print '--> BQM', query
-    logging.info('!! query: %s', query)
-    print '--> BQM'
     if bigquery is None:
       raise ImportError(
           'Bigquery dependencies are not installed.')
@@ -76,7 +73,6 @@ class BigqueryMatcher(BaseMatcher):
     self.expected_checksum = checksum
 
   def _matches(self, _):
-    print 'why, oh, why?'
     logging.info('Start verify Bigquery data.')
     # Run query
     bigquery_client = bigquery.Client(project=self.project)
@@ -91,9 +87,9 @@ class BigqueryMatcher(BaseMatcher):
     # Verify result
     return self.checksum == self.expected_checksum
 
-  # @retry.with_exponential_backoff(
-  #     num_retries=MAX_RETRIES,
-  #     retry_filter=retry_on_http_and_value_error)
+  @retry.with_exponential_backoff(   # mgh: reinstate
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_http_and_value_error)
   def _query_with_retry(self, bigquery_client):
     """Run Bigquery query with retry if got error http response"""
     query = bigquery_client.run_sync_query(self.query)
