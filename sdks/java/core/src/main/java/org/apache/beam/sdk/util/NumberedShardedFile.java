@@ -135,7 +135,8 @@ public class NumberedShardedFile implements ShardedFile {
     } while(BackOffUtils.next(sleeper, backOff));
     // Failed after max retries
     throw new IOException(
-        String.format("Unable to read file(s) after retrying %d times", MAX_READ_RETRIES),
+        String.format(
+            "Unable to read file(s) '%s' after retrying %d times", filePattern, MAX_READ_RETRIES),
         lastException);
   }
 
