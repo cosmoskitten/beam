@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: true)
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Local Java Core"
 
