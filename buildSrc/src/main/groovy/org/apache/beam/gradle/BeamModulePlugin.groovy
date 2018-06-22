@@ -1388,6 +1388,7 @@ artifactId=${project.name}
         compile 'com.google.api.grpc:proto-google-common-protos:1.0.0'
         compile 'io.opencensus:opencensus-api:0.11.0'
         compile 'io.opencensus:opencensus-contrib-grpc-metrics:0.11.0'
+        shadow 'com.google.errorprone:error_prone_annotations:2.1.2'
       }
 
       project.task('validateShadedJarDoesntLeakNonOrgApacheBeamClasses', dependsOn: ['shadowJar', 'shadowTestJar']) {
