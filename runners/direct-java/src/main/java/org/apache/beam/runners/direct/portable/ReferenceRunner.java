@@ -25,7 +25,6 @@ import static org.apache.beam.runners.core.construction.SyntheticComponents.uniq
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import com.google.protobuf.Struct;
 import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -76,6 +75,7 @@ import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
