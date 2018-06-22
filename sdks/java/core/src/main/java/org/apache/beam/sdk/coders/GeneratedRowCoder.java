@@ -58,6 +58,7 @@ import org.apache.beam.sdk.values.Row;
 /**
  * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to
  * a specific schema. The resulting coder is loaded into the default ClassLoader and returned.
+ *
  */
 public abstract class GeneratedRowCoder {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
@@ -71,7 +72,7 @@ public abstract class GeneratedRowCoder {
   // A map of primitive types -> StackManipulations to create their coders.
   private static final Map<TypeName, StackManipulation> CODER_MAP;
 
-  // Cache for Coder class that are already generated
+  // Cache for Coder class that are already generated.
   private static Map<UUID, Coder<Row>> generatedCoders = Maps.newHashMap();
 
   static {
