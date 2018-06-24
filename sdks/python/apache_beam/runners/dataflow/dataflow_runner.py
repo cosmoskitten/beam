@@ -312,7 +312,12 @@ class DataflowRunner(PipelineRunner):
     if apiclient._use_fnapi(pipeline._options):
       pipeline.visit(self.side_input_visitor())
 
-    # Snapshot the pipeline in a portable proto before mutating it
+    # Performing configured PTransform overrides.  Note that this is currently
+    # done before Runner API serialization, since the new proto needs to contain
+    # any added PTransforms.
+    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
 
@@ -323,9 +328,6 @@ class DataflowRunner(PipelineRunner):
         pcoll.coder_id = self.proto_context.coders.get_id(coder)
     self.proto_context.coders.populate_map(
         self.proto_pipeline.components.coders)
-
-    # Performing configured PTransform overrides.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
@@ -402,8 +404,11 @@ class DataflowRunner(PipelineRunner):
       for the View transforms introduced to produce side inputs to a ParDo.
     """
     return {
-        '@type': input_encoding['@type'],
-        'component_encodings': [input_encoding]
+        '@type': 'kind:stream',
+        'component_encodings': [input_encoding],
+        'is_stream_like': {
+            'value': True
+        },
     }
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
@@ -751,6 +756,10 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
+
+  def apply_Read(self, unused_transform, pbegin):
+    # Always consider Read to be a primitive for dataflow.
+    return beam.pvalue.PCollection(pbegin.pipeline)
 
   def run_Read(self, transform_node):
     transform = transform_node.transform

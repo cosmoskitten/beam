@@ -21,7 +21,7 @@
 // that can be applied to configure a project for certain common
 // tasks.
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
 // Add performanceTest task to this build.gradle file
 // so that running Performance tests using PerfKitBenchmarker is possible.
@@ -32,6 +32,13 @@ createPerformanceTestHarness()
 buildscript {
   repositories {
     maven { url offlineRepositoryRoot }
+
+    if (gradle.hasProperty('extraMavenUrls')) {
+      gradle.ext.extraMavenUrls.each {
+        mavenUrl ->
+          return maven { url mavenUrl }
+      }
+    }
 
     // To run gradle in offline mode, one must first invoke
     // 'updateOfflineRepository' to create an offline repo
@@ -112,6 +119,9 @@ rat {
 
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
+
+    // TODO: [BEAM-4568] Website sources need to have apache headers
+    "website/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior

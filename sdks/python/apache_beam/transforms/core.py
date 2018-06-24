@@ -76,6 +76,7 @@ __all__ = [
     'WindowInto',
     'Flatten',
     'Create',
+    'Impulse',
     ]
 
 
@@ -1120,7 +1121,7 @@ class CombineGlobally(PTransform):
     return clone
 
   def with_fanout(self, fanout):
-    return self._clone(fanout=fanout)
+    return self._clone(fanout=self.fanout)
 
   def with_defaults(self, has_defaults=True):
     return self._clone(has_defaults=has_defaults)
@@ -1391,7 +1392,12 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     class SplitHotCold(DoFn):
 
       def start_bundle(self):
-        self.counter = random.randrange(10000)
+        # Spreading a hot key across all possible sub-keys for all bundles
+        # would defeat the goal of not overwhelming downstream reducers
+        # (as well as making less efficient use of PGBK combining tables).
+        # Instead, each bundle independently makes a consistent choice about
+        # which "shard" of a key to send its intermediate results.
+        self._nonce = int(random.getrandbits(31))
 
       def process(self, element):
         key, value = element
@@ -1400,10 +1406,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           # Boolean indicates this is not an accumulator.
           yield pvalue.TaggedOutput('cold', (key, (False, value)))
         else:
-          # Round-robin should spread things more evenly than random assignment.
-          self.counter += 1.
-          yield pvalue.TaggedOutput('hot',
-                                    ((self.counter % fanout, key), value))
+          yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
     class PreCombineFn(CombineFn):
       @staticmethod
@@ -1894,3 +1897,26 @@ class Create(PTransform):
     from apache_beam.transforms.create_source import _CreateSource
 
     return _CreateSource(serialized_values, coder)
+
+
+class Impulse(PTransform):
+  """Impulse primitive."""
+
+  def expand(self, pbegin):
+    if not isinstance(pbegin, pvalue.PBegin):
+      raise TypeError(
+          'Input to Impulse transform must be a PBegin but found %s' % pbegin)
+    return pvalue.PCollection(pbegin.pipeline)
+
+  def get_windowing(self, inputs):
+    return Windowing(GlobalWindows())
+
+  def infer_output_type(self, unused_input_type):
+    return bytes
+
+  def to_runner_api_parameter(self, unused_context):
+    return common_urns.primitives.IMPULSE.urn, None
+
+  @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
+  def from_runner_api_parameter(unused_parameter, unused_context):
+    return Impulse()

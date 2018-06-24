@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
 
 import java.util.List;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -54,29 +55,41 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      String stageName = BeamSqlRelUtils.getStageName(BeamCalcRel.this);
-
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamCalcRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamCalcRel.this.getProgram());
 
       PCollection<Row> projectStream =
-          upstream.apply(
-              stageName, ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))));
+          upstream.apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))));
       projectStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
       return projectStream;
     }
+  }
+
+  public int getLimitCountOfSortRel() {
+    if (input instanceof BeamSortRel) {
+      return ((BeamSortRel) input).getCount();
+    }
+
+    throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
+  }
+
+  public boolean isInputSortRelAndLimitOnly() {
+    return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
   }
 
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */

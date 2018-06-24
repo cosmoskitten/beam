@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -64,11 +64,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
-    return new Transform();
-  }
-
-  @Override
   public Correlate copy(
       RelTraitSet relTraitSet,
       RelNode left,
@@ -80,14 +75,21 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
         getCluster(), relTraitSet, left, right, correlationId, requiredColumns, joinType);
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      String stageName = BeamSqlRelUtils.getStageName(BeamUnnestRel.this);
+  @Override
+  public List<RelNode> getPCollectionInputs() {
+    return ImmutableList.of(BeamSqlRelUtils.getBeamRelInput(left));
+  }
 
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
       // The set of rows where we run the correlated unnest for each row
-      PCollection<Row> outer =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(left).toPTransform());
+      PCollection<Row> outer = pinput.get(0);
 
       // The correlated subquery
       BeamUncollectRel uncollect = (BeamUncollectRel) BeamSqlRelUtils.getBeamRelInput(right);
@@ -103,7 +105,6 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
 
       return outer
           .apply(
-              stageName,
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
           .setCoder(joinedSchema.getRowCoder());

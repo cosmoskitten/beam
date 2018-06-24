@@ -135,7 +135,6 @@ public class DockerJobBundleFactory implements JobBundleFactory {
     this.provisioningServer = provisioningServer;
     this.environmentCache =
         CacheBuilder.newBuilder()
-            .weakValues()
             .removalListener(
                 ((RemovalNotification<Environment, WrappedSdkHarnessClient> notification) -> {
                   LOG.debug("Cleaning up for environment {}", notification.getKey().getUrl());
@@ -168,7 +167,8 @@ public class DockerJobBundleFactory implements JobBundleFactory {
           ProcessBundleDescriptors.fromExecutableStage(
               stageIdGenerator.getId(),
               executableStage,
-              wrappedClient.getDataServer().getApiServiceDescriptor());
+              wrappedClient.getDataServer().getApiServiceDescriptor(),
+              wrappedClient.getStateServer().getApiServiceDescriptor());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

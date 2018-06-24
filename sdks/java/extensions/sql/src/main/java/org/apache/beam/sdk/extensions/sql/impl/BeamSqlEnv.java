@@ -23,17 +23,15 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
@@ -102,12 +100,11 @@ public class BeamSqlEnv {
     defaultSchema.add(functionName, new UdafImpl(combineFn));
   }
 
-  public PTransform<PCollectionTuple, PCollection<Row>> parseQuery(String query)
-      throws ParseException {
+  public BeamRelNode parseQuery(String query) throws ParseException {
     try {
-      return planner.convertToBeamRel(query).toPTransform();
+      return planner.convertToBeamRel(query);
     } catch (ValidationException | RelConversionException | SqlParseException e) {
-      throw new ParseException("Unable to parse query", e);
+      throw new ParseException(String.format("Unable to parse query %s", query), e);
     }
   }
 
@@ -130,6 +127,10 @@ public class BeamSqlEnv {
 
   public CalcitePrepare.Context getContext() {
     return connection.createPrepareContext();
+  }
+
+  public Map<String, String> getPipelineOptions() {
+    return ((BeamCalciteSchema) CalciteSchema.from(defaultSchema).schema).getPipelineOptions();
   }
 
   public String explain(String sqlString) throws ParseException {

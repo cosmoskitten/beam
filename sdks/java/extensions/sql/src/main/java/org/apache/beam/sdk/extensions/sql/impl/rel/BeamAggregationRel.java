@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
@@ -39,7 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
@@ -73,24 +74,25 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
   }
 
-  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-      RelNode input = getInput();
-      String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
-
-      PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      checkArgument(
+          pinput.size() == 1,
+          "Wrong number of inputs for %s: %s",
+          BeamAggregationRel.class.getSimpleName(),
+          pinput);
+      PCollection<Row> upstream = pinput.get(0);
       if (windowField.isPresent()) {
         upstream =
             upstream
                 .apply(
-                    stageName + "assignEventTimestamp",
+                    "assignEventTimestamp",
                     WithTimestamps.of(
                             new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
                         .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
@@ -99,7 +101,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       PCollection<Row> windowedStream =
           windowField.isPresent()
-              ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
+              ? upstream.apply(Window.into(windowField.get().windowFn()))
               : upstream;
 
       validateWindowIsSupported(windowedStream);
@@ -109,7 +111,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<KV<Row, Row>> exCombineByStream =
           windowedStream
               .apply(
-                  stageName + "exCombineBy",
+                  "exCombineBy",
                   WithKeys.of(
                       new BeamAggregationTransforms.AggregationGroupByKeyFn(
                           keySchema, windowFieldIndex, groupSet)))
@@ -120,7 +122,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       PCollection<KV<Row, Row>> aggregatedStream =
           exCombineByStream
               .apply(
-                  stageName + "combineBy",
+                  "combineBy",
                   Combine.perKey(
                       new BeamAggregationTransforms.AggregationAdaptor(
                           getNamedAggCalls(), CalciteUtils.toBeamSchema(input.getRowType()))))
@@ -128,7 +130,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       PCollection<Row> mergedStream =
           aggregatedStream.apply(
-              stageName + "mergeRecord",
+              "mergeRecord",
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));

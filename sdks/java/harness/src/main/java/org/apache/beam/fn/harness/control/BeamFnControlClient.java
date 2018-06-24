@@ -20,20 +20,21 @@ package org.apache.beam.fn.harness.control;
 
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
+import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
-import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.function.ThrowingFunction;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.slf4j.Logger;
@@ -67,8 +68,9 @@ public class BeamFnControlClient {
   private final CompletableFuture<Object> onFinish;
 
   public BeamFnControlClient(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      String id,
+      ApiServiceDescriptor apiServiceDescriptor,
+      ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory,
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
@@ -77,7 +79,11 @@ public class BeamFnControlClient {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(
-            BeamFnControlGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::control,
+            BeamFnControlGrpc.newStub(
+                    channelFactory
+                        .withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)))
+                        .forDescriptor(apiServiceDescriptor))
+                ::control,
             new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();
@@ -135,7 +141,7 @@ public class BeamFnControlClient {
   public void processInstructionRequests(Executor executor)
       throws InterruptedException, ExecutionException {
     BeamFnApi.InstructionRequest request;
-    while ((request = bufferedInstructions.take()) != POISON_PILL) {
+    while (!Objects.equals((request = bufferedInstructions.take()), POISON_PILL)) {
       BeamFnApi.InstructionRequest currentRequest = request;
       executor.execute(
           () -> {

@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature(failOnWarning: true)
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -63,5 +63,4 @@ dependencies {
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
-  testCompileOnly library.java.findbugs_annotations
 }
