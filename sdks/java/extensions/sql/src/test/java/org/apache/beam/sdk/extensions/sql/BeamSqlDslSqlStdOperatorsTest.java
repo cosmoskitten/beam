@@ -194,6 +194,29 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
+  @SqlOperatorTest(name = "<", kind = "LESS_THAN")
+  @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
+  @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
+  @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS")
+  @SqlOperatorTest(name = "=", kind = "EQUALS")
+  @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL")
+  public void testComparisonOperatorFunction() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("date '2018-01-01' > DATE '2017-12-31' ", true)
+            .addExpr("date '2018-01-01' >= DATE '2017-12-31' ", true)
+            .addExpr("date '2018-01-01' < DATE '2017-12-31' ", false)
+            .addExpr("date '2018-01-01' <= DATE '2017-12-31' ", false)
+            .addExpr("date '2018-06-24' = DATE '2018-06-24' ", true)
+            .addExpr("Date '2018-06-24' <> DATE '2018-06-24' ", false)
+            .addExpr("TIME '20:17:40' < Time '15:05:57' ", false)
+            .addExpr("TIME '00:00:01' >= time '00:00:01' ", true)
+            .addExpr("TIMESTAMP '2017-12-31 23:59:59' < TIMESTAMP '2018-01-01 00:00:00' ", true);
+
+    checker.buildRunAndCheck();
+  }
+
+  @Test
   @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
   @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
