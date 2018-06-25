@@ -33,8 +33,8 @@ from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
-from apache_beam.io.avroio import _create_avro_sink as AvroSink  # For testing
-from apache_beam.io.avroio import _create_avro_source as AvroSource  # For testing
+from apache_beam.io.avroio import _create_avro_sink  # For testing
+from apache_beam.io.avroio import _create_avro_source  # For testing
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -127,7 +127,7 @@ class TestAvro(unittest.TestCase):
 
   def _run_avro_test(self, pattern, desired_bundle_size, perform_splitting,
                      expected_result):
-    source = AvroSource(pattern, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(pattern, use_fastavro=self.use_fastavro)
 
     read_records = []
     if perform_splitting:
@@ -163,7 +163,7 @@ class TestAvro(unittest.TestCase):
   def test_source_display_data(self):
     file_name = 'some_avro_source'
     source = \
-        AvroSource(
+        _create_avro_source(
             file_name,
             validate=False,
             use_fastavro=self.use_fastavro
@@ -193,14 +193,15 @@ class TestAvro(unittest.TestCase):
 
   def test_sink_display_data(self):
     file_name = 'some_avro_sink'
-    sink = AvroSink(file_name,
-                    self.SCHEMA,
-                    'null',
-                    '.end',
-                    0,
-                    None,
-                    'application/x-avro',
-                    use_fastavro=self.use_fastavro)
+    sink = _create_avro_sink(
+        file_name,
+        self.SCHEMA,
+        'null',
+        '.end',
+        0,
+        None,
+        'application/x-avro',
+        use_fastavro=self.use_fastavro)
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
@@ -240,12 +241,12 @@ class TestAvro(unittest.TestCase):
 
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
-    source = AvroSource(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
-    source = AvroSource(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
     splits = [
         split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
@@ -264,7 +265,7 @@ class TestAvro(unittest.TestCase):
 
   def test_split_points(self):
     file_name = self._write_data(count=12000)
-    source = AvroSource(file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
 
     splits = [
         split
@@ -331,7 +332,7 @@ class TestAvro(unittest.TestCase):
     try:
       avro.datafile.SYNC_INTERVAL = 2
       file_name = self._write_data(count=5)
-      source = AvroSource(file_name, use_fastavro=self.use_fastavro)
+      source = _create_avro_source(file_name, use_fastavro=self.use_fastavro)
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]
       assert len(splits) == 1
@@ -354,7 +355,8 @@ class TestAvro(unittest.TestCase):
       f.write(corrupted_data)
       corrupted_file_name = f.name
 
-    source = AvroSource(corrupted_file_name, use_fastavro=self.use_fastavro)
+    source = _create_avro_source(
+        corrupted_file_name, use_fastavro=self.use_fastavro)
     with self.assertRaises(ValueError) as exn:
       source_test_utils.read_from_source(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
