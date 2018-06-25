@@ -30,6 +30,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.slf4j_api
   shadowTest project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  shadowTest library.java.guava
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core

@@ -18,8 +18,6 @@
 
 package org.apache.beam.runners.direct.portable.artifact;
 
-import static org.junit.Assert.fail;
-
 import java.util.Optional;
 import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
