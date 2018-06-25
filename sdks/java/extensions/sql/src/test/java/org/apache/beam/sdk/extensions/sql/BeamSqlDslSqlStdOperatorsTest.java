@@ -211,6 +211,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     }
   }
 
+  @Test
   @SqlOperatorTest(name = "OR", kind = "OR")
   @SqlOperatorTest(name = "NOT", kind = "NOT")
   @SqlOperatorTest(name = "AND", kind = "AND")
@@ -257,6 +258,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     checker.buildRunAndCheck();
   }
 
+  @Test
+  @SqlOperatorTest(name = "<", kind = "LESS_THAN")
+  @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
+  @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
+  @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS")
+  @SqlOperatorTest(name = "=", kind = "EQUALS")
+  @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL")
   @SqlOperatorTest(name = "LIKE", kind = "LIKE")
   @SqlOperatorTest(name = "IS NOT NULL", kind = "IS_NOT_NULL")
   @SqlOperatorTest(name = "IS NULL", kind = "IS_NULL")
@@ -403,7 +411,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("TIME '20:17:40' < Time '15:05:57' ", false)
             .addExpr("TIME '00:00:01' >= time '00:00:01' ", true)
             .addExpr("TIMESTAMP '2017-12-31 23:59:59' < TIMESTAMP '2018-01-01 00:00:00' ", true);
-  
+
     checker.buildRunAndCheck();
   }
 
