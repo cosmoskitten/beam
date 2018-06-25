@@ -71,7 +71,7 @@ public abstract class ManagedChannelFactory {
                   ? EpollDomainSocketChannel.class
                   : EpollSocketChannel.class)
           .eventLoopGroup(new EpollEventLoopGroup())
-          .usePlaintext(true)
+          .usePlaintext()
           // Set the message size to max value here. The actual size is governed by the
           // buffer size in the layers above.
           .maxInboundMessageSize(Integer.MAX_VALUE);
@@ -86,7 +86,7 @@ public abstract class ManagedChannelFactory {
     @Override
     public ManagedChannelBuilder<?> builderFor(ApiServiceDescriptor apiServiceDescriptor) {
       return ManagedChannelBuilder.forTarget(apiServiceDescriptor.getUrl())
-          .usePlaintext(true)
+          .usePlaintext()
           // Set the message size to max value here. The actual size is governed by the
           // buffer size in the layers above.
           .maxInboundMessageSize(Integer.MAX_VALUE);

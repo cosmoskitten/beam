@@ -70,7 +70,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
     stub =
         ArtifactStagingServiceGrpc.newStub(
-            InProcessChannelBuilder.forName("fs_stager").usePlaintext(true).build());
+            InProcessChannelBuilder.forName("fs_stager").usePlaintext().build());
   }
 
   @After
