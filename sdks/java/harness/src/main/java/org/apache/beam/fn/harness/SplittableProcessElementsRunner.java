@@ -145,15 +145,6 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
 
   @Override
   public void startBundle() {
-    this.stateAccessor =
-        new FnApiStateAccessor(
-            context.pipelineOptions,
-            context.ptransformId,
-            context.processBundleInstructionId,
-            context.tagToSideInputSpecMap,
-            context.beamFnStateClient,
-            context.keyCoder,
-            (Coder<BoundedWindow>) context.windowCoder);
     doFnInvoker.invokeStartBundle(startBundleContext);
   }
 
@@ -168,7 +159,6 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
         elem.getWindows().size() == 1,
         "SPLITTABLE_PROCESS_ELEMENTS expects its input to be in 1 window, but got %s windows",
         elem.getWindows().size());
-    this.stateAccessor.setCurrentWindow(elem.getWindows().iterator().next());
     WindowedValue<InputT> element = elem.withValue(elem.getValue().getKey());
     TrackerT tracker = doFnInvoker.invokeNewTracker(elem.getValue().getValue());
     OutputAndTimeBoundedSplittableProcessElementInvoker<
@@ -209,8 +199,22 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
                 10000,
                 Duration.standardSeconds(10));
 
+    BoundedWindow window = elem.getWindows().iterator().next();
+    this.stateAccessor =
+        new FnApiStateAccessor(
+            context.pipelineOptions,
+            context.ptransformId,
+            context.processBundleInstructionId,
+            context.tagToSideInputSpecMap,
+            context.beamFnStateClient,
+            context.keyCoder,
+            (Coder<BoundedWindow>) context.windowCoder,
+            () -> elem,
+            () -> window);
     SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
         processElementInvoker.invokeProcessElement(doFnInvoker, element, tracker);
+    this.stateAccessor = null;
+
     if (result.getContinuation().shouldResume()) {
       WindowedValue<KV<InputT, RestrictionT>> primary =
           element.withValue(KV.of(element.getValue(), tracker.currentRestriction()));
