@@ -16,7 +16,13 @@
 #
 
 """Collect statistics on transactions in a public bitcoin dataset that was
-exported to avro"""
+exported to avro
+
+Usage:
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+python -m apache_beam.examples.bitcoin \
+  --compress --fastavro --output fastavro-compressed
+"""
 
 from __future__ import absolute_import
 
@@ -45,7 +51,7 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     self.txn_amts_dist = Metrics.distribution(self.__class__, 'txn_amts')
 
   def process(self, elem):
-    """Update counters and distributions, and filter and sum somem fields"""
+    """Update counters and distributions, and filter and sum some fields"""
 
     inputs = elem['inputs']
     outputs = elem['outputs']
