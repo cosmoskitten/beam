@@ -18,8 +18,10 @@
 """Utilities for the Nexmark suite.
 
 The Nexmark suite is a series of queries (streaming pipelines) performed
-on a simulation of auction events. This util includes a Command class used
-to terminate the streaming jobs launched in nexmark_launcher.py.
+on a simulation of auction events. This util includes:
+  - A Command class used to terminate the streaming jobs
+    launched in nexmark_launcher.py.
+  - A ParseEventFn DoFn to parse events received from PubSub.
 
 Usage:
 To run a process for a certain duration, define in the code:
@@ -28,48 +30,70 @@ To run a process for a certain duration, define in the code:
 
 To test, run in a shell:
   $ python nexmark_util.py
+
 """
+
 from __future__ import print_function
 
 import logging
 import threading
 import time
-from multiprocessing import Process
 
-
-logging.basicConfig(level=logging.DEBUG,
-                    format='(%(threadName)-10s) %(message)s')
+import apache_beam as beam
+from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
 
 class Command(object):
-  def __init__(self, cmd, args, rc_cb=None):
+  def __init__(self, cmd, args):
     self.cmd = cmd
     self.args = args
     self.process = None
-    self.rc_cb = rc_cb
 
   def run(self, timeout):
     def thread_target():
       logging.debug('Starting thread for %d seconds: %s',
                     timeout, self.cmd.__name__)
 
-      self.process = Process(target=self.cmd, args=self.args)
-      self.process.start()
-      self.process.join()
-
+      self.cmd(*self.args)
       logging.info('%d seconds elapsed. Thread (%s) finished.',
                    timeout, self.cmd.__name__)
 
     thread = threading.Thread(target=thread_target, name='Thread-timeout')
+    thread.daemon = True
     thread.start()
     thread.join(timeout)
-    if thread.is_alive():
-      logging.info('Terminating process...')
-      if self.process.is_alive():
-        self.process.terminate()
-      thread.join()
-    if self.rc_cb:
-      self.rc_cb(self.process.returncode)
+
+class ParseEventFn(beam.DoFn):
+  """Parses the raw event info into a Python objects.
+
+  Each event line has the following format:
+    person: <id starting with 'p'>,name,email,credit_card,city,
+            state,timestamp,extra
+    auction: <id starting with 'a'>,item_name, description,
+            initial_bid,reserve_price,timestamp,expires,seller,category,extra
+    bid: <auction starting with 'b'>,bidder,price,timestamp,extra
+
+  For example:
+    'p12345,maria,maria@maria.com,1234-5678-9012-3456,
+                                          sunnyvale,CA,1528098831536'
+    'a12345,car67,2012 hyundai elantra,15000,20000,
+                                      1528098831536,20180630,maria,vehicle'
+    'b12345,maria,20000,1528098831536'
+  """
+  def process(self, elem):
+    model_dict = {
+        'p': nexmark_model.Person,
+        'a': nexmark_model.Auction,
+        'b': nexmark_model.Bid,
+    }
+    row = elem.split(',')
+    model = model_dict.get(elem[0])
+    if not model:
+      raise ValueError('Invalid event: %s.' % row)
+
+    event = model(*row)
+    logging.debug('Parsed event: %s', event)
+    yield event
 
 
 if __name__ == '__main__':
@@ -77,6 +101,7 @@ if __name__ == '__main__':
     while True:
       print(data)
       time.sleep(1)
+
   command = Command(timed_function, ['.'])
 
   try:
