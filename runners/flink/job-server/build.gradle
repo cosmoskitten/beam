@@ -20,8 +20,6 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
   failOnWarning: true,
   shadowClosure: {
-    archiveName = "flink-job-server.jar"
-    mergeServiceFiles()
     append "reference.conf"
   },
 )
