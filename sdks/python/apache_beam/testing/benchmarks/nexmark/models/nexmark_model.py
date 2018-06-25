@@ -22,9 +22,9 @@ on a simulation of auction events. The model includes the three roles that
 generate events:
   - The person who starts and auction or makes a bid (Person).
   - The auction item (Auction).
-  - The bid on an item for action (Bid).
-"""
+  - The bid on an item for auction (Bid).
 
+"""
 
 class Person(object):
   "Author of an auction or a bid."
@@ -77,5 +77,7 @@ class Bid(object):
     self.extra = extra
 
   def __repr__(self):
-    return 'Bid({auction}, {bidder})'.format(**{'auction': self.auction,
-                                                'bidder': self.bidder})
+    return 'Bid({auction}, {bidder}, {price})'.format(
+        **{'auction': self.auction,
+           'bidder': self.bidder,
+           'price': self.price})
