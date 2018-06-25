@@ -135,15 +135,16 @@ class ReadFromAvro(PTransform):
         splitting the input into bundles.
       validate (bool): flag to verify that the files exist during the pipeline
         creation time.
+      use_fastavro (bool); when set, use the `fastavro` library for IO, which
+        is significantly faster, and will likely become the default
     """
     super(ReadFromAvro, self).__init__()
-    self._source = \
-        _create_avro_source(
-            file_pattern,
-            min_bundle_size,
-            validate=validate,
-            use_fastavro=use_fastavro
-        )
+    self._source = _create_avro_source(
+        file_pattern,
+        min_bundle_size,
+        validate=validate,
+        use_fastavro=use_fastavro
+    )
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -163,7 +164,8 @@ class ReadAllFromAvro(PTransform):
 
   def __init__(self, min_bundle_size=0,
                desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
-               use_fastavro=False):
+               use_fastavro=False,
+               label='ReadAllFiles'):
     """Initializes ``ReadAllFromAvro``.
 
     Args:
@@ -181,8 +183,10 @@ class ReadAllFromAvro(PTransform):
         True, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
         source_from_file)
 
+    self.label = label
+
   def expand(self, pvalue):
-    return pvalue | 'ReadAllFiles' >> self._read_all_files
+    return pvalue | self.label >> self._read_all_files
 
 
 class _AvroUtils(object):
@@ -411,6 +415,9 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
   'filebasedsource' to fully understand how this source implements operations
   common to all file-based sources such as file-pattern expansion and splitting
   into bundles for parallel processing.
+
+  TODO: remove ``_AvroSource`` in favor of using ``_FastAvroSource``
+  everywhere once it has been more widely tested
   """
 
   def read_records(self, file_name, range_tracker):
@@ -488,6 +495,7 @@ class WriteToAvro(beam.transforms.PTransform):
         is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
+      use_fastavro: when set, use the `fastavro` library for IO
 
     Returns:
       A WriteToAvro transform usable for writing.
