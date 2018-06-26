@@ -118,6 +118,6 @@ class PrecommitBuilder {
 
   /** The Jenkins job name to display in GitHub. */
   private String githubUiHint() {
-    "${nameBase} PreCommit (\"${buildTriggerPhrase()}\")"
+    "${nameBase} (\"${buildTriggerPhrase()}\")"
   }
 }
