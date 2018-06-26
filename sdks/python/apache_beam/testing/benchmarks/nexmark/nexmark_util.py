@@ -63,6 +63,7 @@ class Command(object):
     thread.start()
     thread.join(timeout)
 
+
 class ParseEventFn(beam.DoFn):
   """Parses the raw event info into a Python objects.
 
