@@ -67,7 +67,7 @@ class PrecommitJobBuilder {
       '^gradle.bat$',
       '^settings.gradle$'
     ]
-    triggerPathPatterns.addAll(defaultPathTriggers)
+    triggerPathPatterns.addAll defaultPathTriggers
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
@@ -83,7 +83,7 @@ class PrecommitJobBuilder {
   private void definePhraseJob(Closure additionalCustomization) {
     def job = createBaseJob 'Phrase'
     job.with {
-      description buildDescription("on trigger phrase '${buildTriggerPhrase()}.)")
+      description buildDescription("on trigger phrase '${buildTriggerPhrase()}'.")
       concurrentBuild()
       common_job_properties.setPullRequestBuildTrigger delegate, githubUiHint(), buildTriggerPhrase()
     }
@@ -91,11 +91,12 @@ class PrecommitJobBuilder {
   }
 
   private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
+    def allowRemotePoll = !usesRegionFilter
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
       common_job_properties.setTopLevelMainJobProperties(delegate,
       'master',
       timeoutMins,
-      !usesRegionFilter) // needed for included regions PR triggering; see [JENKINS-23606]
+      allowRemotePoll) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(common_job_properties.checkoutDir)
@@ -116,7 +117,6 @@ class PrecommitJobBuilder {
     return "Runs ${nameBase} PreCommit tests ${triggerDescription}"
   }
 
-  /** The Jenkins job name to display in GitHub. */
   private String githubUiHint() {
     "${nameBase} (\"${buildTriggerPhrase()}\")"
   }
