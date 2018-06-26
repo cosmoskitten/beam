@@ -26,7 +26,6 @@ to verify the infrastructure.
 """
 
 import apache_beam as beam
-# from nexmark_util import ParseEventFn
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import ParseEventFn
 
 def load(raw_events):
