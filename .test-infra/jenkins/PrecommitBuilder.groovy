@@ -32,6 +32,9 @@ class PrecommitBuilder {
   /** Overall job timeout. */
   int timeoutMins = 90
 
+  /** If defined, set of path expressions used to trigger the job on commit. */
+  List<String> triggerPathPatterns = []
+
   /**
    * Define a set of pre-commit jobs.
    *
@@ -55,12 +58,24 @@ class PrecommitBuilder {
 
   /** Create a pre-commit job which runs on every commit to a PR. */
   private void defineCommitJob(Closure additionalCustomization) {
-    def job = createBaseJob 'Commit'
+    def job = createBaseJob 'Commit', true
+    def defaultPathTriggers = [
+      '^build.gradle$',
+      '^build_rules.gradle$',
+      '^gradle.properties$',
+      '^gradlew$',
+      '^gradle.bat$',
+      '^settings.gradle$'
+    ]
+    triggerPathPatterns.addAll(defaultPathTriggers)
     job.with {
       description buildDescription('for each commit push.')
       concurrentBuild()
-      common_job_properties.setPullRequestBuildTrigger delegate, githubUiHint()
-      // TODO: Define filters
+      common_job_properties.setPullRequestBuildTrigger(delegate,
+        githubUiHint(),
+        '',
+        false,
+        triggerPathPatterns)
     }
     job.with additionalCustomization
   }
@@ -75,10 +90,12 @@ class PrecommitBuilder {
     job.with additionalCustomization
   }
 
-  private Object createBaseJob(nameSuffix) {
+  private Object createBaseJob(nameSuffix, usesRegionFilter = false) {
     return scope.job("beam_PreCommit_${nameBase}_${nameSuffix}") {
-      // TODO: Update branch
-      common_job_properties.setTopLevelMainJobProperties(delegate, 'master', timeoutMins)
+      common_job_properties.setTopLevelMainJobProperties(delegate,
+      'master',
+      timeoutMins,
+      !usesRegionFilter) // needed for included regions PR triggering; see [JENKINS-23606]
       steps {
         gradle {
           rootBuildScriptDir(common_job_properties.checkoutDir)

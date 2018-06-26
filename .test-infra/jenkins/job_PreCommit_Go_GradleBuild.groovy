@@ -22,6 +22,12 @@ PrecommitBuilder builder = new PrecommitBuilder(
     scope: this,
     nameBase: 'Go',
     gradleTask: ':goPreCommit',
-    timeoutMins: 150
+    timeoutMins: 150,
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/go/.*$',
+      '^runners/.*$',
+      '^release/.*$',
+    ]
 )
 builder.build()
