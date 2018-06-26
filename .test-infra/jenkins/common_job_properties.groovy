@@ -140,13 +140,14 @@ class common_job_properties {
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
         // prTriggerPhrase is the argument which gets set when we want to allow
-        // post-commit builds to run against pending pull requests. This block
-        // overrides the default trigger phrase with the new one. Setting this
-        // will disable automatic invocation of this build; the phrase will be
-        // required to start it.
+        // post-commit builds to run against pending pull requests. This triggerPhrase
+        // field allows specifying a regex, and the below syntax enables case-insensitive
+        // matching.
         if (prTriggerPhrase) {
-          triggerPhrase(prTriggerPhrase)
+          triggerPhrase("(?i:${prTriggerPhrase})")
         }
+        // Setting this will disable automatic invocation of this build; the phrase
+        // will be required to start it.
         if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
