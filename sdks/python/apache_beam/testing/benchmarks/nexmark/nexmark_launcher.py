@@ -72,6 +72,7 @@ from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
 from google.cloud import pubsub
 
+
 class NexmarkLauncher(object):
   def __init__(self):
     self.parse_args()
@@ -233,6 +234,7 @@ class NexmarkLauncher(object):
           logging.error('Query failed with %s', str(exc))
           exit(1)
       logging.info('Queries run: %s', self.args.query)
+
 
 if __name__ == '__main__':
   launcher = NexmarkLauncher()

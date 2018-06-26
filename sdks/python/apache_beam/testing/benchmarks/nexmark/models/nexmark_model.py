@@ -26,6 +26,7 @@ generate events:
 
 """
 
+
 class Person(object):
   "Author of an auction or a bid."
 
