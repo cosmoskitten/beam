@@ -33,11 +33,11 @@ To test, run in a shell:
 
 """
 
+from __future__ import absolute_import
 from __future__ import print_function
 
 import logging
 import threading
-import time
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
@@ -62,6 +62,7 @@ class Command(object):
     thread.daemon = True
     thread.start()
     thread.join(timeout)
+
 
 class ParseEventFn(beam.DoFn):
   """Parses the raw event info into a Python objects.
@@ -94,17 +95,3 @@ class ParseEventFn(beam.DoFn):
     event = model(*row)
     logging.debug('Parsed event: %s', event)
     yield event
-
-
-if __name__ == '__main__':
-  def timed_function(data):
-    while True:
-      print(data)
-      time.sleep(1)
-
-  command = Command(timed_function, ['.'])
-
-  try:
-    command.run(timeout=3)
-  except Exception as exp:
-    print('command failded with', exp)
