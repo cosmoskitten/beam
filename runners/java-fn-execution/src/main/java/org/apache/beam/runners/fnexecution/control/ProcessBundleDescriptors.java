@@ -43,11 +43,13 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
+import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -130,11 +132,15 @@ public class ProcessBundleDescriptors {
         .putAllWindowingStrategies(components.getWindowingStrategiesMap())
         .putAllTransforms(components.getTransformsMap());
 
+    Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs =
+        forBagUserStates(stage, components.build());
+
     return ExecutableProcessBundleDescriptor.of(
         bundleDescriptorBuilder.build(),
         inputDestination,
         outputTargetCoders,
-        multimapSideInputSpecs);
+        multimapSideInputSpecs,
+        bagUserStateSpecs);
   }
 
   private static Map<Target, Coder<WindowedValue<?>>> addStageOutputs(
@@ -245,6 +251,31 @@ public class ProcessBundleDescriptors {
     return idsToSpec.build().rowMap();
   }
 
+  private static Map<String, Map<String, BagUserStateSpec>> forBagUserStates(
+      ExecutableStage stage,
+      Components components) throws IOException {
+    ImmutableTable.Builder<String, String, BagUserStateSpec> idsToSpec = ImmutableTable.builder();
+    for (UserStateReference userStateReference : stage.getUserStates()) {
+      FullWindowedValueCoder<KV<?, ?>> coder =
+          (FullWindowedValueCoder) WireCoders.instantiateRunnerWireCoder(
+              userStateReference.collection(), components);
+      idsToSpec.put(
+          userStateReference.transform().getId(),
+          userStateReference.localName(),
+              BagUserStateSpec.of(
+              userStateReference.transform().getId(),
+              userStateReference.localName(),
+              // We use the ByteString coder to save on encoding and decoding the actual key.
+              ByteStringCoder.of(),
+              // Usage of the ByteStringCoder provides a significant simplification for handling
+              // a logical stream of values by not needing to know where the element boundaries
+              // actually are. See StateRequestHandlers.java for further details.
+              ByteStringCoder.of(),
+              coder.getWindowCoder()));
+    }
+    return idsToSpec.build().rowMap();
+  }
+
   @AutoValue
   abstract static class TargetEncoding {
     abstract BeamFnApi.Target getTarget();
@@ -275,6 +306,29 @@ public class ProcessBundleDescriptors {
     public abstract Coder<W> windowCoder();
   }
 
+  /**
+   * A container type storing references to the key, value, and window {@link Coder} used when
+   * handling bag user state requests.
+   */
+  @AutoValue
+  public abstract static class BagUserStateSpec<K, V, W extends BoundedWindow> {
+    static <K, V, W extends BoundedWindow> BagUserStateSpec<K, V, W> of(
+        String transformId,
+        String userStateId,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        Coder<W> windowCoder) {
+      return new AutoValue_ProcessBundleDescriptors_BagUserStateSpec(
+          transformId, userStateId, keyCoder, valueCoder, windowCoder);
+    }
+
+    public abstract String transformId();
+    public abstract String userStateId();
+    public abstract Coder<K> keyCoder();
+    public abstract Coder<V> valueCoder();
+    public abstract Coder<W> windowCoder();
+  }
+
   /** */
   @AutoValue
   public abstract static class ExecutableProcessBundleDescriptor {
@@ -282,7 +336,8 @@ public class ProcessBundleDescriptors {
         ProcessBundleDescriptor descriptor,
         RemoteInputDestination<WindowedValue<?>> inputDestination,
         Map<BeamFnApi.Target, Coder<WindowedValue<?>>> outputTargetCoders,
-        Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs) {
+        Map<String, Map<String, MultimapSideInputSpec>> multimapSideInputSpecs,
+        Map<String, Map<String, BagUserStateSpec>> bagUserStateSpecs) {
       ImmutableTable.Builder copyOfMultimapSideInputSpecs = ImmutableTable.builder();
       for (Map.Entry<String, Map<String, MultimapSideInputSpec>> outer
           : multimapSideInputSpecs.entrySet()) {
@@ -290,11 +345,19 @@ public class ProcessBundleDescriptors {
           copyOfMultimapSideInputSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
         }
       }
+      ImmutableTable.Builder copyOfBagUserStateSpecs = ImmutableTable.builder();
+      for (Map.Entry<String, Map<String, BagUserStateSpec>> outer
+          : bagUserStateSpecs.entrySet()) {
+        for (Map.Entry<String, BagUserStateSpec> inner : outer.getValue().entrySet()) {
+          copyOfBagUserStateSpecs.put(outer.getKey(), inner.getKey(), inner.getValue());
+        }
+      }
       return new AutoValue_ProcessBundleDescriptors_ExecutableProcessBundleDescriptor(
           descriptor,
           inputDestination,
           Collections.unmodifiableMap(outputTargetCoders),
-          copyOfMultimapSideInputSpecs.build().rowMap());
+          copyOfMultimapSideInputSpecs.build().rowMap(),
+          copyOfBagUserStateSpecs.build().rowMap());
     }
 
     public abstract ProcessBundleDescriptor getProcessBundleDescriptor();
@@ -311,11 +374,16 @@ public class ProcessBundleDescriptors {
      */
     public abstract Map<BeamFnApi.Target, Coder<WindowedValue<?>>> getOutputTargetCoders();
 
-
     /**
      * Get a mapping from PTransform id to multimap side input id to {@link MultimapSideInputSpec
      * multimap side inputs} that are used during execution.
      */
     public abstract Map<String, Map<String, MultimapSideInputSpec>> getMultimapSideInputSpecs();
+
+    /**
+     * Get a mapping from PTransform id to user state input id to {@link BagUserStateSpec
+     * bag user states} that are used during execution.
+     */
+    public abstract Map<String, Map<String, BagUserStateSpec>> getBagUserStateSpecs();
   }
 }
