@@ -61,16 +61,16 @@ import logging
 import sys
 import uuid
 
+from google.cloud import pubsub
+
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
-
 from apache_beam.testing.benchmarks.nexmark.nexmark_util import Command
 from apache_beam.testing.benchmarks.nexmark.queries import query0
-from google.cloud import pubsub
 
 
 class NexmarkLauncher(object):
