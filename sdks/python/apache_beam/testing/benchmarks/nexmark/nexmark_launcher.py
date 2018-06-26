@@ -51,6 +51,8 @@ Usage
           --temp_location=gs://
 
 """
+
+from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
@@ -96,7 +98,8 @@ class NexmarkLauncher(object):
                         help='Pub/Sub topic to read from')
 
     parser.add_argument('--loglevel',
-                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                        choices=['DEBUG', 'INFO', 'WARNING',
+                                 'ERROR', 'CRITICAL'],
                         default='INFO',
                         help='Set logging level to debug')
     parser.add_argument('--input',
@@ -126,7 +129,9 @@ class NexmarkLauncher(object):
       sys.exit(1)
 
     # wait_until_finish ensures that the streaming job is canceled.
-    self.wait_until_finish_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
+    self.wait_until_finish_duration = (
+        self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
+    )
     if self.wait_until_finish_duration is None:
       parser.print_usage()
       print(sys.argv[0] + ': error: argument --wait_until_finish_duration is required') # pylint: disable=line-too-long
@@ -178,8 +183,10 @@ class NexmarkLauncher(object):
       raw_events = self.generate_events()
       query.load(raw_events)
       result = self.pipeline.run()
-      job_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
-      if self.pipeline_options.view_as(StandardOptions).runner == 'DataflowRunner':
+      job_duration = (
+          self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
+      )
+      if self.pipeline_options.view_as(StandardOptions).runner == 'DataflowRunner': # pylint: disable=line-too-long
         result.wait_until_finish(duration=job_duration)
         result.cancel()
       else:
@@ -215,7 +222,7 @@ class NexmarkLauncher(object):
         query_errors = collections.defaultdict(list)
         command = Command(self.run_query, args=[queries[i], query_errors[i]])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
-        command.run(timeout=query_duration / 1000)
+        command.run(timeout=query_duration // 1000)
         if query_errors[i]:
           logging.error('Query failed with %s', ', '.join(query_errors[i]))
           exit(1)
