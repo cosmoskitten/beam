@@ -41,6 +41,8 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 /**
  * Utility methods for BigQuery related operations.
@@ -84,6 +86,7 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, BigDecimal::new)
           .put(TypeName.BOOLEAN, Boolean::valueOf)
           .put(TypeName.STRING, str -> str)
+          .put(TypeName.DATETIME, str -> new DateTime(((long)Double.parseDouble(str)) * 1000))
           .build();
 
   private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
@@ -172,18 +175,26 @@ public class BigQueryUtils {
       Field schemaField = row.getSchema().getField(i);
       TypeName type = schemaField.getType().getTypeName();
 
-      if (TypeName.ARRAY == type) {
-        type = schemaField.getType().getCollectionElementType().getTypeName();
-        if (TypeName.ROW == type) {
-          List<Row> rows = (List<Row>) value;
-          List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
-          for (int j = 0; j < rows.size(); j++) {
-            tableRows.add(toTableRow(rows.get(j)));
+      switch (type) {
+        case ARRAY:
+          type = schemaField.getType().getCollectionElementType().getTypeName();
+          if (TypeName.ROW == type) {
+            List<Row> rows = (List<Row>) value;
+            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            for (int j = 0; j < rows.size(); j++) {
+              tableRows.add(toTableRow(rows.get(j)));
+            }
+            value = tableRows;
           }
-          value = tableRows;
-        }
-      } else if (TypeName.ROW == type) {
-        value = toTableRow((Row) value);
+          break;
+        case ROW:
+          value = toTableRow((Row) value);
+          break;
+        case DATETIME:
+          value = ((Instant) value).toString();
+          break;
+        default:
+          break;
       }
 
       output = output.set(schemaField.getName(), value);
