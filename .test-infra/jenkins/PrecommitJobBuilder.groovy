@@ -18,8 +18,8 @@
 
 import common_job_properties
 
-/** This class defines PreCommitBuilder.build() helper for defining pre-comit jobs. */
-class PrecommitBuilder {
+/** This class defines PrecommitJobBuilder.build() helper for defining pre-comit jobs. */
+class PrecommitJobBuilder {
   /** scope 'this' parameter from top-level script; used for binding Job DSL methods. */
   Object scope
 

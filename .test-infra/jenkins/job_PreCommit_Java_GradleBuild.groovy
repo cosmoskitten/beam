@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import PrecommitBuilder
+import PrecommitJobBuilder
 
-PrecommitBuilder builder = new PrecommitBuilder(
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java',
     gradleTask: ':javaPreCommit',
