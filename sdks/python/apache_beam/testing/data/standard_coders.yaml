@@ -37,7 +37,6 @@
 # If a coder is marked non-deterministic in the coder spec, then only the decoding should be validated.
 
 
-
 coder:
   urn: "beam:coder:bytes:v1"
 nested: false
@@ -150,6 +149,20 @@ coder:
   components: [{urn: "beam:coder:global_window:v1"}]
 examples:
   "\0\0\0\u0001": [""]
+
+---
+
+coder:
+  urn: "beam:coder:timer:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+examples:
+  "\0\0\0\0\0\0\0\0\u0003abc": {timestamp: -9223372036854775808, payload: abc}
+  "\x7fÿÿÿÿÿÿ\x01\u0003abc": {timestamp: -255, payload: abc}
+  "\x7fÿÿÿÿÿÿÿ\u0003abc": {timestamp: -1, payload: abc}
+  "\x80\0\0\0\0\0\0\0\u0003abc": {timestamp: 0, payload: abc}
+  "\x80\0\0\0\0\0\0\x01\u0003abc": {timestamp: 1, payload: abc}
+  "\x80\0\0\0\0\0\x01\0\u0003abc": {timestamp: 256, payload: abc}
+  "ÿÿÿÿÿÿÿÿ\u0003abc": {timestamp: 9223372036854775807, payload: abc}
 
 ---
 
