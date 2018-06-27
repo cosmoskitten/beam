@@ -19,12 +19,18 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature()
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Common"
-ext.summary = "Code used by all Beam IOs"
+description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
+ext.summary = "Generators of Synthetic IO for Testing."
 
 dependencies {
+  compile library.java.joda_time
+  compile library.java.commons_math3
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
   testCompile library.java.guava
   testCompile library.java.junit
-  testCompile library.java.postgres
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadow")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
 }

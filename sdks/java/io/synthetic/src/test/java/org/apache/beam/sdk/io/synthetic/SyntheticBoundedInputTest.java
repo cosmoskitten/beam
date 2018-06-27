@@ -213,11 +213,11 @@ public class SyntheticBoundedInputTest {
     sourceOptions.bundleSizeDistribution = fromRealDistribution(new ConstantRealDistribution(1.0));
     sourceOptions.forceNumInitialBundles = 10;
     SyntheticBoundedSource source = new SyntheticBoundedSource(sourceOptions);
-    List<SyntheticBoundedSource> bundles = source.split(42L, options);
-    for (SyntheticBoundedSource bundle : bundles) {
-      bundle.validate();
-      assertEquals(1, bundle.getEndOffset() - bundle.getStartOffset());
+    List<SyntheticBoundedSource> sources = source.split(42L, options);
+    for (SyntheticBoundedSource recordSource : sources) {
+      recordSource.validate();
+      assertEquals(1, recordSource.getEndOffset() - recordSource.getStartOffset());
     }
-    SourceTestUtils.assertSourcesEqualReferenceSource(source, bundles, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, sources, options);
   }
 }
