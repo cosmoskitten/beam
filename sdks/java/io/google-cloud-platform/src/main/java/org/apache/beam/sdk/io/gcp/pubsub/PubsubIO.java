@@ -309,10 +309,10 @@ public class PubsubIO {
 
   /** Used to build a {@link ValueProvider} for {@link ProjectPath}. */
   private static class ProjectPathTranslator
-      implements SerializableFunction<PubsubTopic, ProjectPath> {
+      implements SerializableFunction<PubsubSubscription, ProjectPath> {
 
     @Override
-    public ProjectPath apply(PubsubTopic from) {
+    public ProjectPath apply(PubsubSubscription from) {
       return PubsubClient.projectPathFromId(from.project);
     }
   }
@@ -693,9 +693,9 @@ public class PubsubIO {
 
       @Nullable
       ValueProvider<ProjectPath> projectPath =
-          getTopicProvider() == null
+          getSubscriptionProvider() == null
               ? null
-              : NestedValueProvider.of(getTopicProvider(), new ProjectPathTranslator());
+              : NestedValueProvider.of(getSubscriptionProvider(), new ProjectPathTranslator());
       @Nullable
       ValueProvider<TopicPath> topicPath =
           getTopicProvider() == null
