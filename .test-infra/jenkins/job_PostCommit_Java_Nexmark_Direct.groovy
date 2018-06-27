@@ -20,20 +20,15 @@ import common_job_properties
 import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Direct runner.
-job('beam_PostCommit_Java_Nexmark_Direct') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Direct', 'Run Direct Nexmark',
+        'Direct Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Direct runner.')
+
+  // Execute concurrent builds if necessary.
+  concurrentBuild()
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Direct Runner Nexmark Tests',
-    'Run Direct Nexmark')
 
   // Gradle goals for this job.
   steps {

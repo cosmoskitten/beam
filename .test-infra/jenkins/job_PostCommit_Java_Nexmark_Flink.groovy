@@ -20,20 +20,15 @@ import common_job_properties
 import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-job('beam_PostCommit_Java_Nexmark_Flink') {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink', 'Run Flink Nexmark',
+        'Flink Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Flink runner.')
+
+  // Execute concurrent builds if necessary.
+  concurrentBuild()
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
-
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Flink Runner Nexmark Tests',
-    'Run Flink Nexmark')
 
   // Gradle goals for this job.
   steps {
