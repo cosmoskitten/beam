@@ -20,6 +20,7 @@
 The nexmark suite is a series of queries (streaming pipelines) performed
 on a simulation of auction events. The model includes the three roles that
 generate events:
+
   - The person who starts and auction or makes a bid (Person).
   - The auction item (Auction).
   - The bid on an item for auction (Bid).
