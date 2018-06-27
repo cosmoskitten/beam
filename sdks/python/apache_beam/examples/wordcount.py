@@ -24,10 +24,12 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam import pvalue
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
@@ -87,7 +89,11 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  pipeline_options.view_as(DebugOptions).experiments = ['beam_fn_api']
+  from apache_beam.runners.portability import portable_runner
+  # TODO put this into PipelineOptions
+  runner = portable_runner.PortableRunner(job_service_address='localhost:8099')
+  p = beam.Pipeline(runner=runner, options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(known_args.input)

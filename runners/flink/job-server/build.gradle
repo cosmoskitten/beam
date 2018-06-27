@@ -31,6 +31,7 @@ mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
 dependencies {
   compile project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  shadow library.java.slf4j_simple
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run

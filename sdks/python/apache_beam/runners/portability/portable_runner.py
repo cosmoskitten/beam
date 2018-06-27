@@ -22,6 +22,7 @@ import threading
 import grpc
 
 from apache_beam import coders
+from apache_beam import metrics
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -51,13 +52,11 @@ class PortableRunner(runner.PipelineRunner):
 
   # TODO(angoenka): Read all init parameters from pipeline_options.
   def __init__(self,
-               runner_api_address=None,
                job_service_address=None,
                docker_image=None):
     super(PortableRunner, self).__init__()
 
     self._subprocess = None
-    self._runner_api_address = runner_api_address
     if not job_service_address:
       raise ValueError(
           'job_service_address should be provided while creating runner.')
@@ -86,12 +85,11 @@ class PortableRunner(runner.PipelineRunner):
     proto_context = pipeline_context.PipelineContext(
         default_environment_url=self._docker_image)
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
-    if self._runner_api_address:
-      for pcoll in proto_pipeline.components.pcollections.values():
-        if pcoll.coder_id not in proto_context.coders:
-          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-          pcoll.coder_id = proto_context.coders.get_id(coder)
-      proto_context.coders.populate_map(proto_pipeline.components.coders)
+    for pcoll in proto_pipeline.components.pcollections.values():
+      if pcoll.coder_id not in proto_context.coders:
+        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
+        pcoll.coder_id = proto_context.coders.get_id(coder)
+    proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
@@ -125,6 +123,14 @@ class PortableRunner(runner.PipelineRunner):
             retrieval_token=retrieval_token))
     return PipelineResult(job_service, run_response.job_id)
 
+class PortableMetrics(metrics.metric.MetricResults):
+  def __init__(self):
+    pass
+
+  def query(self, filter):
+    return {'counters': [],
+            'distributions': [],
+            'gauges': []}
 
 class PipelineResult(runner.PipelineResult):
 
@@ -152,6 +158,9 @@ class PipelineResult(runner.PipelineResult):
   @staticmethod
   def _pipeline_state_to_runner_api_state(pipeline_state):
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
+
+  def metrics(self):
+    return PortableMetrics()
 
   def wait_until_finish(self):
 
