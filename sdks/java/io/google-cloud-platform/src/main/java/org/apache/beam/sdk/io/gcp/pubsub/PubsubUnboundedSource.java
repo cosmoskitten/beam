@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -1415,7 +1416,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
             pubsubClient.createRandomSubscription(
-                project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
+                PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject()),
+                topic.get(),
+                DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",
