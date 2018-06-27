@@ -29,9 +29,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Job Invoker for the {@link FlinkRunner}.
- */
+/** Job Invoker for the {@link FlinkRunner}. */
 public class FlinkJobInvoker implements JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
@@ -51,11 +49,11 @@ public class FlinkJobInvoker implements JobInvoker {
       throws IOException {
     // TODO: How to make Java/Python agree on names of keys and their values?
     LOG.trace("Parsing pipeline options");
-    FlinkPipelineOptions flinkOptions = PipelineOptionsTranslation.fromProto(options)
-        .as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions flinkOptions =
+        PipelineOptionsTranslation.fromProto(options).as(FlinkPipelineOptions.class);
 
-    String invocationId = String.format(
-        "%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
+    String invocationId =
+        String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
     // Set Flink Master to [auto] if no option was specified.
@@ -66,10 +64,6 @@ public class FlinkJobInvoker implements JobInvoker {
     flinkOptions.setRunner(null);
 
     return FlinkJobInvocation.create(
-        invocationId,
-        retrievalToken,
-        executorService,
-        pipeline,
-        flinkOptions);
+        invocationId, retrievalToken, executorService, pipeline, flinkOptions);
   }
 }
