@@ -28,9 +28,6 @@ To run a process for a certain duration, define in the code:
   command = Command(process_to_terminate, args)
   command.run(timeout=duration)
 
-To test, run in a shell:
-  $ python nexmark_util.py
-
 """
 
 from __future__ import absolute_import
