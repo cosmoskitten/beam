@@ -49,7 +49,7 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
-    # Make sure the channel is ready to avoid [BEAM-3261]
+    # Make sure the channel is ready to avoid [BEAM-4649]
     ch = grpc.insecure_channel(log_service_descriptor.url)
     grpc.channel_ready_future(ch).result(timeout=60)
     self._log_channel = grpc.intercept_channel(ch, WorkerIdInterceptor())
