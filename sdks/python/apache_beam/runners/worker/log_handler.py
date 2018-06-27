@@ -103,6 +103,8 @@ class FnApiLogRecordHandler(logging.Handler):
         yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
 
   def _read_log_control_messages(self, log_control_iterator):
+    # Make sure the channel is ready to avoid [BEAM-3261]
+    grpc.channel_ready_future(self._log_channel).result(timeout=30)
     # TODO(vikasrk): Handle control messages.
     for _ in log_control_iterator:
       pass
