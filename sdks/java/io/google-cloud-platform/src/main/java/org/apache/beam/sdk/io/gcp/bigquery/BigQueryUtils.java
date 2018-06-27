@@ -110,8 +110,9 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
-          new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
+      sqlType =
+          BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
+              new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
     }
 
     return sqlType;
