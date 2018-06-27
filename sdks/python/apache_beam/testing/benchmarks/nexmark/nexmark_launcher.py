@@ -40,12 +40,14 @@ Usage
           --query/q <query number> \
           --project <project id> \
           --loglevel=DEBUG (optional) \
+          --streaming
 
   - DataflowRunner
       python nexmark_launcher.py \
           --query/q <query number> \
           --project <project id> \
           --loglevel=DEBUG (optional) \
+          --streaming \
           --sdk_location <apache_beam tar.gz> \
           --staging_location=gs://... \
           --temp_location=gs://
@@ -56,7 +58,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
-import collections
 import logging
 import sys
 import uuid
@@ -178,7 +179,7 @@ class NexmarkLauncher(object):
 
     return raw_events
 
-  def run_query(self, query, query_error):
+  def run_query(self, query, query_errors):
     try:
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       raw_events = self.generate_events()
@@ -193,7 +194,7 @@ class NexmarkLauncher(object):
       else:
         result.wait_until_finish()
     except Exception as exc:
-      query_error.append(str(exc))
+      query_errors.append(str(exc))
       raise
 
   def cleanup(self):
@@ -211,6 +212,7 @@ class NexmarkLauncher(object):
         # TODO(mariagh): Add more queries.
     }
 
+    query_errors = []
     for i in self.args.query:
       logging.info('Running query %d', i)
 
@@ -220,12 +222,11 @@ class NexmarkLauncher(object):
           StandardOptions).runner in [None, 'DirectRunner']
 
       if launch_from_direct_runner:
-        query_errors = collections.defaultdict(list)
-        command = Command(self.run_query, args=[queries[i], query_errors[i]])
+        command = Command(self.run_query, args=[queries[i], query_errors])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
-        if query_errors[i]:
-          logging.error('Query failed with %s', ', '.join(query_errors[i]))
+        if query_errors:
+          logging.error('Query failed with %s', ', '.join(query_errors))
           exit(1)
       else:
         try:
