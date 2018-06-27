@@ -28,7 +28,7 @@ import org.joda.time.Duration;
 /**
  * Utility functions used in {@link org.apache.beam.sdk.io.common.synthetic}.
  */
-public class SyntheticUtils {
+class SyntheticUtils {
   // cpu delay implementation:
 
   private static final long MASK = (1L << 16) - 1L;
@@ -71,7 +71,7 @@ public class SyntheticUtils {
    *                    desired CPU utilization specified by {@code cpuUtilizationInMixedDelay}.
    * @return Millis spent sleeping, does not include time spent spinning.
    */
-  public static long delay(
+  static long delay(
       Duration delay,
       double cpuUtilizationInMixedDelay,
       SyntheticOptions.DelayType delayType,

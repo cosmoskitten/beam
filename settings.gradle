@@ -106,6 +106,8 @@ include "beam-sdks-java-io-cassandra"
 project(":beam-sdks-java-io-cassandra").dir = file("sdks/java/io/cassandra")
 include "beam-sdks-java-io-common"
 project(":beam-sdks-java-io-common").dir = file("sdks/java/io/common")
+include "beam-sdks-java-io-synthetic"
+project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-io-elasticsearch"
 project(":beam-sdks-java-io-elasticsearch").dir = file("sdks/java/io/elasticsearch")
 include "beam-sdks-java-io-elasticsearch-tests-2"

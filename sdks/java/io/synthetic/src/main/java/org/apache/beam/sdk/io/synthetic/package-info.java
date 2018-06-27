@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** Transforms for performing Synthetic Operations in Apache Beam pipelines. */
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
