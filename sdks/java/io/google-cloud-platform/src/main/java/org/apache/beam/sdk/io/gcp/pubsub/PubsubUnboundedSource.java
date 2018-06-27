@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -1201,7 +1202,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
-    checkArgument((topic == null) == (project == null), "Project must be given if topic is given");
     this.clock = clock;
     this.pubsubFactory = checkNotNull(pubsubFactory);
     this.project = project;
@@ -1235,7 +1235,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Get the project path. */
   @Nullable
   public ProjectPath getProject() {
-    return project == null ? null : project.get();
+    return project != null ? null : project.get();
   }
 
   /** Get the topic being read from. */
@@ -1297,7 +1297,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
             pubsubClient.createRandomSubscription(
-                project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
+                project != null
+                    ? project.get()
+                    : PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject()),
+                topic.get(),
+                DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",
