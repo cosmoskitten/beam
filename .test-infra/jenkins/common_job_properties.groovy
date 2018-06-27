@@ -232,7 +232,7 @@ class common_job_properties {
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
                             String notifyAddress = 'commits@beam.apache.org',
-                            boolean emailIndividuals = true) {
+                            boolean emailIndividuals = false) {
 
     // Set build triggers
     context.triggers {
@@ -245,7 +245,7 @@ class common_job_properties {
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
-      mailer(notifyAddress, false, emailIndividuals)
+      mailer(notifyAddress, false, false)
     }
   }
 
