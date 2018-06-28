@@ -470,10 +470,8 @@ public class FileSystems {
     String lowerCaseScheme = scheme.toLowerCase();
     Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
     FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
-    if (rval != null) {
-      return rval;
-    }
-    return schemeToFileSystem.get(DEFAULT_SCHEME);
+    checkNotNull(rval);
+    return rval;
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
