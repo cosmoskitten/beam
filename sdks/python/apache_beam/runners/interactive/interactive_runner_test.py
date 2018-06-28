@@ -15,16 +15,20 @@
 # limitations under the License.
 #
 
-"""Tests for google3.pipeline.dataflow.python.interactive.interactive_runner."""
+"""Tests for google3.pipeline.dataflow.python.interactive.interactive_runner.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import unittest
+
 import apache_beam as beam
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_runner
-import unittest
 
 
 def print_with_message(msg):
@@ -39,14 +43,14 @@ def print_with_message(msg):
 class InteractiveRunnerTest(unittest.TestCase):
 
   def test_basic(self):
-    # TODO(qinyeli, b/80533567) remove explicitly overriding underlying runner
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
             direct_runner.BundleBasedDirectRunner()))
     p.run().wait_until_finish()
     pc0 = (
-        p | 'read' >> beam.Create(range(3))
+        p | 'read' >> beam.Create([1, 2, 3])
         | 'Print1.1' >> beam.Map(print_with_message('Run1.1')))
     pc = pc0 | 'Print1.2' >> beam.Map(print_with_message('Run1.2'))
     p.run().wait_until_finish()
@@ -64,7 +68,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         words = text_line.split()
         return words
 
-    # TODO(qinyeli, b/80533567) remove explicitly overriding underlying runner
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
@@ -77,7 +81,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'split' >> beam.ParDo(WordExtractingDoFn())
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
-        | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+        | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
 
     result = p.run()
     result.wait_until_finish()

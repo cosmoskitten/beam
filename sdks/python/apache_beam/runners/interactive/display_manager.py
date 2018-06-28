@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Manages displaying pipeline graph and execution status on the frontend."""
+"""Manages displaying pipeline graph and execution status on the frontend.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -24,10 +27,10 @@ from __future__ import print_function
 import threading
 import time
 
-from apache_beam.runners.interactive import display_graph
+from apache_beam.runners.interactive import interactive_pipeline_graph
 
 try:
-  import IPython  # pylint: disable=g-import-not-at-top
+  import IPython  # pylint: disable=import-error
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = IPython.display.display
 
@@ -35,7 +38,6 @@ try:
     pp.text(string)
   plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
   plain.for_type(str, _formatter)
-  plain.for_type(unicode, _formatter)
 
 # NameError is added here because get_ipython() throws "not defined" NameError
 # if not started with IPython.
@@ -114,9 +116,10 @@ class DisplayManager(object):
               self._cache_manager.read('sample', cache_label))
           new_stats[pcoll_id] = {'sample': contents}
           if pcoll_id in self._referenced_pcollections:
-            self._text_samples.append(
-                '%s produced %s' % (self._producers[pcoll_id],
-                                    display_graph.format_sample(contents, 5)))
+            self._text_samples.append(str(
+                '%s produced %s' % (
+                    self._producers[pcoll_id],
+                    interactive_pipeline_graph.format_sample(contents, 5))))
       if force or new_stats:
         if IPython:
           IPython.core.display.clear_output(True)
@@ -125,7 +128,7 @@ class DisplayManager(object):
         # TODO(qinyeli): Enable updating pipeline graph instead of constructing
         # everytime, if it worths.
 
-        pipeline_graph = display_graph.PipelineGraph(
+        pipeline_graph = interactive_pipeline_graph.InteractivePipelineGraph(
             self._pipeline_proto,
             required_transforms=self._required_transforms,
             referenced_pcollections=self._referenced_pcollections,
@@ -140,6 +143,7 @@ class DisplayManager(object):
 
   def start_periodic_update(self):
     """Start a thread that periodically updates the display."""
+    self.update_display(True)
     self._periodic_update = True
 
     def _updater():

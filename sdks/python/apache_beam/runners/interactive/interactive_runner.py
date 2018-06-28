@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""A runner that allows running of Beam pipelines interactively."""
+"""A runner that allows running of Beam pipelines interactively.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -35,9 +38,11 @@ from apache_beam import runners
 from apache_beam.io import filesystems
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import display_manager
 from apache_beam.transforms import combiners
 
+# size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
 
@@ -47,28 +52,23 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=None):
-    self._underlying_runner = underlying_runner or runners.DirectRunner()
+  def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
+    # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
+    # once interactive_runner works with FnAPI mode
+    self._underlying_runner = underlying_runner
     self._cache_manager = CacheManager()
 
   def cleanup(self):
     self._cache_manager.cleanup()
 
   def apply(self, transform, pvalueish):
-    # TODO(robertwb): Remove runner interception of apply.
+    # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
     return self._underlying_runner.apply(transform, pvalueish)
 
   def run_pipeline(self, pipeline):
     if not hasattr(self, '_desired_cache_labels'):
       self._desired_cache_labels = set()
     print('Running...')
-
-    # pylint: disable=g-import-not-at-top
-    from apache_beam.pipeline import Pipeline
-
-    # When possible, invoke a round trip through the runner API.
-    pipeline = Pipeline.from_runner_api(pipeline.to_runner_api(),
-                                        pipeline.runner, pipeline._options)  # pylint: disable=protected-access
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(
@@ -107,10 +107,10 @@ class InteractiveRunner(runners.PipelineRunner):
 
     desired_pcollections = self._desired_pcollections(pipeline_info)
 
-    # TODO(robertwb): Preserve composite structure.
+    # TODO(qinyeli): Preserve composite structure.
     required_transforms = collections.OrderedDict()
     for pcoll_id in desired_pcollections:
-      # TODO(robertwb): Collections consumed by no-output transforms.
+      # TODO(qinyeli): Collections consumed by no-output transforms.
       required_transforms.update(_producing_transforms(pcoll_id, True))
 
     referenced_pcollections = self._referenced_pcollections(
@@ -159,14 +159,13 @@ class InteractiveRunner(runners.PipelineRunner):
         cache_manager=self._cache_manager,
         referenced_pcollections=referenced_pcollections,
         required_transforms=required_transforms)
-    display.update_display(True)
     display.start_periodic_update()
     result = pipeline_slice.run()
     result.wait_until_finish()
     display.stop_periodic_update()
 
-    return PipelineResult(result, self, original_context, pipeline_info,
-                          self._cache_manager, pcolls_to_pcoll_id)
+    return PipelineResult(result, self, pipeline_info, self._cache_manager,
+                          pcolls_to_pcoll_id)
 
   def _pcolls_to_pcoll_id(self, pipeline, original_context):
     """Returns a dict mapping PCollections string to PCollection IDs.
@@ -184,7 +183,7 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     pcolls_to_pcoll_id = {}
 
-    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=g-import-not-at-top
+    from apache_beam.pipeline import PipelineVisitor  # pylint: disable=import-error
 
     class PCollVisitor(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
@@ -329,26 +328,36 @@ class PipelineInfo(object):
     return self._producers[pcoll_id]
 
   def derivation(self, pcoll_id):
-    """Returns the Deviation corresponding to the PCollection."""
+    """Returns the Derivation corresponding to the PCollection."""
     if pcoll_id not in self._derivations:
       transform_id, output_tag = self._producers[pcoll_id]
       transform_proto = self._proto.transforms[transform_id]
       self._derivations[pcoll_id] = Derivation({
           input_tag: self.derivation(input_id)
           for input_tag, input_id in transform_proto.inputs.items()
-      }, {
-          'urn': transform_proto.spec.urn,
-          'payload': transform_proto.spec.payload.decode('latin1')
-      }, output_tag)
+      }, transform_proto, output_tag)
     return self._derivations[pcoll_id]
 
 
 class Derivation(object):
-  """Helper for PipelineInfo."""
+  """Records derivation info of a PCollection. Helper for PipelineInfo."""
 
-  def __init__(self, inputs, transform_info, output_tag):
+  def __init__(self, inputs, transform_proto, output_tag):
+    """Constructor of Derivation.
+
+    Args:
+      inputs: (Dict[str, str]) a dict that contains input PCollections to the
+        producing PTransform of the output PCollection. Maps local names to IDs.
+      transform_proto: (Transform proto) the producing PTransform of the output
+        PCollection.
+      output_tag: (str) local name of the output PCollection; this is the
+        PCollection in analysis.
+    """
     self._inputs = inputs
-    self._transform_info = transform_info
+    self._transform_info = {
+        'urn': transform_proto.spec.urn,
+        'payload': transform_proto.spec.payload.decode('latin1')
+    }
     self._output_tag = output_tag
     self._hash = None
 
@@ -365,7 +374,7 @@ class Derivation(object):
     return self._hash
 
   def cache_label(self):
-    # TODO(robertwb): Collision resistance?
+    # TODO(qinyeli): Collision resistance?
     return 'Pcoll-%x' % abs(hash(self))
 
   def json(self):
@@ -380,6 +389,7 @@ class Derivation(object):
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
+  """This class add an quote/unquote step to escape special characters."""
 
   def encode(self, value):
     return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
@@ -398,11 +408,10 @@ def set_proto_map(proto_map, new_value):
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
 
-  def __init__(self, underlying_result, runner, context, pipeline_info,
-               cache_manager, pcolls_to_pcoll_id):
+  def __init__(self, underlying_result, runner, pipeline_info, cache_manager,
+               pcolls_to_pcoll_id):
     super(PipelineResult, self).__init__(underlying_result.state)
     self._runner = runner
-    self._pipeline_context = context
     self._pipeline_info = pipeline_info
     self._cache_manager = cache_manager
     self._pcolls_to_pcoll_id = pcolls_to_pcoll_id
@@ -412,6 +421,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     return self._pipeline_info.derivation(pcoll_id).cache_label()
 
   def wait_until_finish(self):
+    # PipelineResult is not constructed until pipeline execution is finished.
     return
 
   def get(self, pcoll):
