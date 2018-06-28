@@ -399,7 +399,9 @@ class _AvroSource(filebasedsource.FileBasedSource):
       f.seek(start_offset)
       _AvroUtils.advance_file_past_next_sync_marker(f, sync_marker)
 
-      while range_tracker.try_claim(f.tell()):
+      next_block_start = f.tell()
+
+      while range_tracker.try_claim(next_block_start):
         block = _AvroUtils.read_block_from_file(f, codec, schema_string,
                                                 sync_marker)
         next_block_start = block.offset() + block.size()
@@ -452,7 +454,7 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
 
       while range_tracker.try_claim(next_block_start):
         block = next(blocks)
-        next_block_start = f.tell()
+        next_block_start = block.offset + block.size
         for record in block:
           yield record
 
