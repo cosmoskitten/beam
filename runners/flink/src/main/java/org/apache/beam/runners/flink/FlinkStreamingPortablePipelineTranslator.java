@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -88,7 +89,8 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
    * Creates a streaming translation context. The resulting Flink execution dag will live in a new
    * {@link StreamExecutionEnvironment}.
    */
-  public static StreamingTranslationContext createTranslationContext(JobInfo jobInfo) {
+  public static StreamingTranslationContext createTranslationContext(JobInfo jobInfo,
+      List<String> filesToStage) {
     PipelineOptions pipelineOptions;
     try {
       pipelineOptions = PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
@@ -97,7 +99,7 @@ public class FlinkStreamingPortablePipelineTranslator implements FlinkPortablePi
     }
     StreamExecutionEnvironment executionEnvironment =
             FlinkExecutionEnvironments.createStreamExecutionEnvironment(
-                    pipelineOptions.as(FlinkPipelineOptions.class));
+                    pipelineOptions.as(FlinkPipelineOptions.class), filesToStage);
     return new StreamingTranslationContext(jobInfo, pipelineOptions, executionEnvironment);
   }
 

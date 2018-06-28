@@ -65,8 +65,6 @@ public class FlinkJobInvoker implements JobInvoker {
     LOG.info("Invoking job {}", invocationId);
 
     flinkOptions.setFlinkMaster(firstNonNull(flinkOptions.getFlinkMaster(), flinkMasterUrl));
-    flinkOptions
-        .setFilesToStage(detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
 
     flinkOptions.setRunner(null);
 
@@ -75,6 +73,7 @@ public class FlinkJobInvoker implements JobInvoker {
         retrievalToken,
         executorService,
         pipeline,
-        flinkOptions);
+        flinkOptions,
+        detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
   }
 }
