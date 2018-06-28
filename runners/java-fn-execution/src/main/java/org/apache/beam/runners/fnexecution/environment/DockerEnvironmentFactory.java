@@ -122,7 +122,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_directory");
     String semiPersistentDirectory =
         String.format(
-            "/tmp/%s_semi_persistent_dir", new BigInteger(32, new SecureRandom()).toString(64));
+            "/tmp/%s_semi_persistent_dir", new BigInteger(64, new SecureRandom()).toString(32));
     String containerImage = environment.getUrl();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
