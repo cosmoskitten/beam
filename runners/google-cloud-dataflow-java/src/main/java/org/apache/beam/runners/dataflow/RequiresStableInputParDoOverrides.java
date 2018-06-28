@@ -38,10 +38,9 @@ class RequiresStableInputParDoOverrides {
    * Returns a {@link PTransformOverrideFactory} that inserts a {@link Reshuffle.ViaRandomKey}
    * before a {@link ParDo.SingleOutput} that uses the {@link RequiresStableInput} annotation.
    */
-  static <InputT, OutputT> PTransformOverrideFactory<
-      PCollection<InputT>,
-      PCollection<OutputT>,
-      ParDo.SingleOutput<InputT, OutputT>>
+  static <InputT, OutputT>
+      PTransformOverrideFactory<
+              PCollection<InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>>
           singleOutputOverrideFactory() {
     return new SingleOutputOverrideFactory<>();
   }
@@ -50,33 +49,29 @@ class RequiresStableInputParDoOverrides {
    * Returns a {@link PTransformOverrideFactory} that inserts a {@link Reshuffle.ViaRandomKey}
    * before a {@link ParDo.MultiOutput} that uses the {@link RequiresStableInput} annotation.
    */
-  static <InputT, OutputT> PTransformOverrideFactory<
-      PCollection<InputT>,
-      PCollectionTuple,
-      ParDo.MultiOutput<InputT, OutputT>>
+  static <InputT, OutputT>
+      PTransformOverrideFactory<
+              PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
           multiOutputOverrideFactory() {
     return new MultiOutputOverrideFactory<>();
   }
 
   private static class SingleOutputOverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>,
-          PCollection<OutputT>,
-          ParDo.SingleOutput<InputT, OutputT>> {
+          PCollection<InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>> {
 
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
         AppliedPTransform<
-            PCollection<InputT>,
-            PCollection<OutputT>,
-            ParDo.SingleOutput<InputT, OutputT>>
-                appliedTransform) {
+                PCollection<InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>>
+            appliedTransform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(appliedTransform),
           new PTransform<PCollection<InputT>, PCollection<OutputT>>() {
             @Override
             public PCollection<OutputT> expand(PCollection<InputT> input) {
-              return input.apply("Materialize input", Reshuffle.viaRandomKey())
+              return input
+                  .apply("Materialize input", Reshuffle.viaRandomKey())
                   .apply("ParDo with stable input", appliedTransform.getTransform());
             }
           });
@@ -91,23 +86,19 @@ class RequiresStableInputParDoOverrides {
 
   private static class MultiOutputOverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>,
-          PCollectionTuple,
-          ParDo.MultiOutput<InputT, OutputT>> {
+          PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
 
     @Override
     public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
-        AppliedPTransform<
-            PCollection<InputT>,
-            PCollectionTuple,
-            ParDo.MultiOutput<InputT, OutputT>>
-                appliedTransform) {
+        AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
+            appliedTransform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(appliedTransform),
           new PTransform<PCollection<InputT>, PCollectionTuple>() {
             @Override
             public PCollectionTuple expand(PCollection<InputT> input) {
-              return input.apply("Materialize input", Reshuffle.viaRandomKey())
+              return input
+                  .apply("Materialize input", Reshuffle.viaRandomKey())
                   .apply("ParDo with stable input", appliedTransform.getTransform());
             }
           });

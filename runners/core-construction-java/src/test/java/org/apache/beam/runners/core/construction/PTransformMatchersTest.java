@@ -324,19 +324,20 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void parDoRequiresStableInput() {
-    DoFn<Object, Object> doFnRSI = new DoFn<Object, Object>() {
-      @RequiresStableInput
-      @ProcessElement
-      public void process(ProcessContext ctxt) {
-      }
-    };
+    DoFn<Object, Object> doFnRSI =
+        new DoFn<Object, Object>() {
+          @RequiresStableInput
+          @ProcessElement
+          public void process(ProcessContext ctxt) {}
+        };
 
     AppliedPTransform<?, ?, ?> single = getAppliedTransform(ParDo.of(doFn));
     AppliedPTransform<?, ?, ?> singleRSI = getAppliedTransform(ParDo.of(doFnRSI));
-    AppliedPTransform<?, ?, ?> multi = getAppliedTransform(ParDo.of(doFn)
-        .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
-    AppliedPTransform<?, ?, ?> multiRSI = getAppliedTransform(ParDo.of(doFnRSI)
-        .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+    AppliedPTransform<?, ?, ?> multi =
+        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+    AppliedPTransform<?, ?, ?> multiRSI =
+        getAppliedTransform(
+            ParDo.of(doFnRSI).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(single), is(false));
     assertThat(PTransformMatchers.requiresStableInputParDoSingle().matches(singleRSI), is(true));

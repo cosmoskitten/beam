@@ -444,17 +444,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
     // Uses Reshuffle, so has to be before the Reshuffle override
-    overridesBuilder
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.requiresStableInputParDoSingle(),
-                RequiresStableInputParDoOverrides.singleOutputOverrideFactory()));
+    overridesBuilder.add(
+        PTransformOverride.of(
+            PTransformMatchers.requiresStableInputParDoSingle(),
+            RequiresStableInputParDoOverrides.singleOutputOverrideFactory()));
     // Uses Reshuffle, so has to be before the Reshuffle override
-    overridesBuilder
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.requiresStableInputParDoMulti(),
-                RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
+    overridesBuilder.add(
+        PTransformOverride.of(
+            PTransformMatchers.requiresStableInputParDoMulti(),
+            RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
     if (hasExperiment(options, "beam_fn_api")) {
       overridesBuilder.add(
