@@ -40,6 +40,7 @@ Usage
           --query/q <query number> \
           --project <project id> \
           --loglevel=DEBUG (optional) \
+          --wait_until_finish_duration \
           --streaming
 
   - DataflowRunner
@@ -47,6 +48,7 @@ Usage
           --query/q <query number> \
           --project <project id> \
           --loglevel=DEBUG (optional) \
+          --wait_until_finish_duration \
           --streaming \
           --sdk_location <apache_beam tar.gz> \
           --staging_location=gs://... \
@@ -225,15 +227,15 @@ class NexmarkLauncher(object):
         command = Command(self.run_query, args=[queries[i], query_errors])
         query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
         command.run(timeout=query_duration // 1000)
-        if query_errors:
-          logging.error('Query failed with %s', ', '.join(query_errors))
-          exit(1)
       else:
         try:
           self.run_query(queries[i], query_errors=None)
         except Exception as exc:
-          logging.error('Query failed with %s', str(exc))
-          exit(1)
+          query_errors.append(exc)
+
+    if query_errors:
+      logging.error('Query failed with %s', ', '.join(query_errors))
+    else:
       logging.info('Queries run: %s', self.args.query)
 
 
