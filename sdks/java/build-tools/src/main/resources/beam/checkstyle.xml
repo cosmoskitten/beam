@@ -117,7 +117,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <!-- Check that paragraph tags are used correctly in Javadoc. -->
-    <!-- <module name="JavadocParagraph"/> -->
+    <!--
+    TODO(https://issues.apache.org/jira/browse/BEAM-4670): re-enable after fixing after spotless
+    <module name="JavadocParagraph"/> -->
 
     <module name="JavadocType">
       <property name="scope" value="protected"/>
@@ -242,6 +244,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
     -->
 
     <!--
+    TODO(https://issues.apache.org/jira/browse/BEAM-4669): re-enable after fixing after spotless
+
     <module name="LineLength">
       <property name="max" value="100"/>
       <property name="severity" value="error"/>
