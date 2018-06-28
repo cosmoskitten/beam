@@ -450,9 +450,9 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
 
       next_block_start = f.tell()
 
-      while range_tracker.try_claim(f.tell()):
+      while range_tracker.try_claim(next_block_start):
         block = next(blocks)
-        next_block_start = f.tell() + block.size
+        next_block_start = f.tell()
         for record in block:
           yield record
 
