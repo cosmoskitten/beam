@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.environment;
 import com.google.common.collect.ImmutableList;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -114,8 +115,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
-    Path workerPersistentDirectory = Files.createTempDirectory("worker_persistent_directory");
-    Path semiPersistentDirectory = Files.createTempDirectory("semi_persistent_dir");
+    // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
+    Path workerPersistentDirectory =
+        Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_directory");
+    Path semiPersistentDirectory =
+        Files.createTempDirectory(Paths.get("/tmp"), "semi_persistent_dir");
     String containerImage = environment.getUrl();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
@@ -125,9 +129,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
     List<String> volArg =
         ImmutableList.of(
-            "-v",
-            // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
-            String.format("%s:%s", workerPersistentDirectory, semiPersistentDirectory),
+            "--mount",
+            String.format(
+                "type=bind,source=%s,dst=%s", workerPersistentDirectory, semiPersistentDirectory),
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             "--network=host");
 
