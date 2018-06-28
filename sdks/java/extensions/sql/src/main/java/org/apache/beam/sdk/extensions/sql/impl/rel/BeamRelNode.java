@@ -51,13 +51,14 @@ public interface BeamRelNode extends RelNode {
   default double estimateRowSize(RelDataType rowType) {
     List<RelDataTypeField> fieldList = rowType.getFieldList();
 
-    double score = fieldList.stream()
+    double score =
+        fieldList
+            .stream()
             .mapToDouble(typeField -> estimateDataTypeSize(typeField.getType()))
             .sum();
 
     return score;
   }
-
 
   default double estimateDataTypeSize(RelDataType type) {
     switch (type.getSqlTypeName()) {
@@ -81,31 +82,26 @@ public interface BeamRelNode extends RelNode {
         return 1;
       case DECIMAL:
         return 12;
-      //      case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) : 8
-      //      case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) : 4
+        //      case typeName if SqlTypeName.YEAR_INTERVAL_TYPES.contains(typeName) : 8
+        //      case typeName if SqlTypeName.DAY_INTERVAL_TYPES.contains(typeName) : 4
       case TIME:
       case TIMESTAMP:
       case DATE:
         return 12;
       case ROW:
         return estimateRowSize(type);
-      // 16 is an arbitrary estimate
+        // 16 is an arbitrary estimate
       case ARRAY:
         return estimateDataTypeSize(type.getComponentType()) * 16;
       case MAP:
       case MULTISET:
         // 16 is an arbitrary estimate
-        return (estimateDataTypeSize(type.getKeyType()) +
-                estimateDataTypeSize(type.getValueType())) * 16;
+        return (estimateDataTypeSize(type.getKeyType()) + estimateDataTypeSize(type.getValueType()))
+            * 16;
       case ANY:
         return 128; // 128 is an arbitrary estimate
       default:
-        try {
-          throw new Exception("Unsupported data type");
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
+        throw new UnsupportedOperationException("Unsupported data type");
     }
-    return 0;
   }
 }

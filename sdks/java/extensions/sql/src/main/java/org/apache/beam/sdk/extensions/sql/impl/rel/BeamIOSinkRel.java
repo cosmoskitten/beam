@@ -103,11 +103,9 @@ public class BeamIOSinkRel extends TableModify
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    long rowSize = getPCollectionInputs();
+    double rowSize = estimateRowSize(getRowType());
     double rowCnt = mq.getRowCount(this);
-    return planner
-        .getCostFactory()
-        .makeCost(rowCnt, rowCnt, rowCnt * rowSize);
+    return planner.getCostFactory().makeCost(rowCnt, rowCnt, rowCnt * rowSize);
   }
 
   @Override
