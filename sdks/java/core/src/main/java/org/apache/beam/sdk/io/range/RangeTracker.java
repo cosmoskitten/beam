@@ -23,14 +23,14 @@ package org.apache.beam.sdk.io.range;
  *
  * <h3>Usage of the RangeTracker class hierarchy</h3>
  *
- * The abstract {@code RangeTracker} interface should not be used per se - all users should use its
- * subclasses directly. We declare it here because all subclasses have roughly the same interface
- * and the same properties, to centralize the documentation. Currently we provide one implementation
- * - {@link OffsetRangeTracker}.
+ * <p>The abstract {@code RangeTracker} interface should not be used per se - all users should use
+ * its subclasses directly. We declare it here because all subclasses have roughly the same
+ * interface and the same properties, to centralize the documentation. Currently we provide one
+ * implementation - {@link OffsetRangeTracker}.
  *
  * <h3>Position-based sources</h3>
  *
- * A position-based source is one where the source can be described by a range of positions of an
+ * <p>A position-based source is one where the source can be described by a range of positions of an
  * ordered type and the records returned by the reader can be described by positions of the same
  * type.
  *
@@ -46,7 +46,7 @@ package org.apache.beam.sdk.io.range;
  *   <li>Which records should be read by a source with a range {@code [A, B)}.
  * </ul>
  *
- * Moreover, reading a range must be <i>efficient</i>, i.e., the performance of reading a range
+ * <p>Moreover, reading a range must be <i>efficient</i>, i.e., the performance of reading a range
  * should not significantly depend on the location of the range. For example, reading the range
  * {@code [A, B)} should not require reading all data before {@code A}.
  *
@@ -55,7 +55,7 @@ package org.apache.beam.sdk.io.range;
  *
  * <h3>Properties of position-based sources</h3>
  *
- * The main requirement for position-based sources is <i>associativity</i>: reading records from
+ * <p>The main requirement for position-based sources is <i>associativity</i>: reading records from
  * {@code [A, B)} and records from {@code [B, C)} should give the same records as reading from
  * {@code [A, C)}, where {@code A <= B <= C}. This property ensures that no matter how a range of
  * positions is split into arbitrarily many sub-ranges, the total set of records described by them
@@ -72,7 +72,7 @@ package org.apache.beam.sdk.io.range;
  *   <li>Records should not overlap.
  * </ul>
  *
- * Such sources should define "read {@code [A, B)}" as "read from the first record starting at or
+ * <p>Such sources should define "read {@code [A, B)}" as "read from the first record starting at or
  * after A, up to but not including the first record starting at or after B".
  *
  * <p>Some examples of such sources include reading lines or CSV from a text file, reading keys and
@@ -114,13 +114,13 @@ package org.apache.beam.sdk.io.range;
  *   <li>Positions of split points must be unique.
  * </ul>
  *
- * As a result, for any decomposition of the full range of the source into position ranges, the
+ * <p>As a result, for any decomposition of the full range of the source into position ranges, the
  * total set of records will be the full set of records in the source, and each record will be read
  * exactly once.
  *
  * <h3>Consumed positions</h3>
  *
- * As the source is being read, and records read from it are being passed to the downstream
+ * <p>As the source is being read, and records read from it are being passed to the downstream
  * transforms in the pipeline, we say that positions in the source are being <i>consumed</i>. When a
  * reader has read a record (or promised to a caller that a record will be returned), positions up
  * to and including the record's start position are considered <i>consumed</i>.
@@ -132,7 +132,7 @@ package org.apache.beam.sdk.io.range;
  *
  * <h3>Example</h3>
  *
- * The following example uses an {@link OffsetRangeTracker} to support dynamically splitting a
+ * <p>The following example uses an {@link OffsetRangeTracker} to support dynamically splitting a
  * source with integer positions (offsets).
  *
  * <pre>{@code
@@ -166,7 +166,7 @@ package org.apache.beam.sdk.io.range;
  *
  * <h3>Usage with different models of iteration</h3>
  *
- * When using this class to protect a {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader},
+ * <p>When using this class to protect a {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader},
  * follow the pattern described above.
  *
  * <p>When using this class to protect iteration in the {@code hasNext()/next()} model, consider the

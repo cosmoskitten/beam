@@ -71,7 +71,7 @@ import org.slf4j.LoggerFactory;
  *       stress test including concurrency. We strongly recommend to use both.
  * </ul>
  *
- * For example usages, see the unit tests of classes such as {@code AvroSource} or {@code
+ * <p>For example usages, see the unit tests of classes such as {@code AvroSource} or {@code
  * TextSource}.
  *
  * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.

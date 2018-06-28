@@ -409,7 +409,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    *   <li>Addition of PTransforms after the pipeline has already run.
    * </ul>
    *
-   * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
+   * <p>Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
    * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link ValidatesRunner} annotation
    * are detected.
    */

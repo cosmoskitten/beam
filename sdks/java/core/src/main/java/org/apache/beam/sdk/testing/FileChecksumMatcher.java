@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * assertThat(job, new FileChecksumMatcher(checksumString, filePath));
  * }</pre>
  *
- * or
+ * <p>or
  *
  * <pre>{@code
  * assertThat(job, new FileChecksumMatcher(checksumString, filePath, shardTemplate));

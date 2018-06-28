@@ -152,7 +152,8 @@ public class GroupByKey<K, V>
         && input.isBounded() != IsBounded.BOUNDED) {
       throw new IllegalStateException(
           "GroupByKey cannot be applied to non-bounded PCollection in "
-              + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
+              + "the GlobalWindow without a trigger. "
+              + "Use a Window.into or Window.triggering transform "
               + "prior to GroupByKey.");
     }
 

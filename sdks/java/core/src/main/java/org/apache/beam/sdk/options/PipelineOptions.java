@@ -377,7 +377,7 @@ public interface PipelineOptions extends HasDisplayData {
    * product-version    = token
    * </code></pre>
    *
-   * Where a token is a series of characters without a separator.
+   * <p>Where a token is a series of characters without a separator.
    *
    * <p>The string defaults to {@code [name]/[version]} based on the properties of the Apache Beam
    * release.

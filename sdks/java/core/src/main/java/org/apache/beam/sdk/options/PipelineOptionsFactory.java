@@ -1177,8 +1177,9 @@ public class PipelineOptionsFactory {
     StringBuilder errorBuilder =
         new StringBuilder(
             String.format(
-                "All inherited interfaces of [%s] should inherit from the PipelineOptions interface. "
+                "All inherited interfaces of [%s] should inherit from the %s interface. "
                     + "The following inherited interfaces do not:",
+                PipelineOptions.class.getSimpleName(),
                 klass.getName()));
 
     for (Class<?> invalidKlass : nonPipelineOptionsClasses) {
@@ -1213,7 +1214,8 @@ public class PipelineOptionsFactory {
       StringBuilder errorBuilder =
           new StringBuilder(
               String.format(
-                  "Interface [%s] has Methods with multiple definitions with different return types:",
+                  "Interface [%s] has method with multiple definitions "
+                      + "with different return types:",
                   iface.getName()));
       for (MultipleDefinitions errDef : definitions) {
         errorBuilder.append(
@@ -1668,7 +1670,8 @@ public class PipelineOptionsFactory {
       String msg =
           String.format(
               "Empty argument value is only allowed for String, String Array, "
-                  + "Collections of Strings or any of these types in a parameterized ValueProvider, "
+                  + "Collections of Strings or any of these types "
+                  + "in a parameterized ValueProvider, "
                   + "but received: %s",
               genericTypeName);
       throw new IllegalArgumentException(msg);

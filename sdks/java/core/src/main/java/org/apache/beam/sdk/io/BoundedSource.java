@@ -122,8 +122,8 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <h3>Thread safety</h3>
      *
-     * If {@link #splitAtFraction} is implemented, this method can be called concurrently to other
-     * methods (including itself), and it is therefore critical for it to be implemented in a
+     * <p>If {@link #splitAtFraction} is implemented, this method can be called concurrently to
+     * other methods (including itself), and it is therefore critical for it to be implemented in a
      * thread-safe way.
      */
     @Nullable
@@ -184,7 +184,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <h3>Thread safety</h3>
      *
-     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     * <p>See the javadoc on {@link BoundedReader} for information about thread safety.
      *
      * @see #getSplitPointsRemaining()
      */
@@ -237,7 +237,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <h3>Thread safety</h3>
      *
-     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     * <p>See the javadoc on {@link BoundedReader} for information about thread safety.
      *
      * @see #getSplitPointsConsumed()
      */
@@ -333,7 +333,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <h3>Detailed description</h3>
      *
-     * Assuming the following sequence of calls:
+     * <p>Assuming the following sequence of calls:
      *
      * <pre>{@code
      * BoundedSource<T> initial = reader.getCurrentSource();
@@ -351,9 +351,9 @@ public abstract class BoundedSource<T> extends Source<T> {
      *       fraction of the amount of data read by "initial".
      * </ul>
      *
-     * For example, a reader that reads a range of offsets <i>[A, B)</i> in a file might implement
-     * this method by truncating the current range to <i>[A, A + fraction*(B-A))</i> and returning a
-     * Source representing the range <i>[A + fraction*(B-A), B)</i>.
+     * <p>For example, a reader that reads a range of offsets <i>[A, B)</i> in a file might
+     * implement this method by truncating the current range to <i>[A, A + fraction*(B-A))</i> and
+     * returning a Source representing the range <i>[A + fraction*(B-A), B)</i>.
      *
      * <p>This method should return {@code null} if the split cannot be performed for this fraction
      * while satisfying the semantics above. E.g., a reader that reads a range of offsets in a file
@@ -363,14 +363,14 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <h3>Statefulness</h3>
      *
-     * Since this method (if successful) affects the reader's source, in subsequent invocations
+     * <p>Since this method (if successful) affects the reader's source, in subsequent invocations
      * "fraction" should be interpreted relative to the new current source.
      *
      * <h3>Thread safety and blocking</h3>
      *
-     * This method will be called concurrently to other methods (however there will not be multiple
-     * concurrent invocations of this method itself), and it is critical for it to be implemented in
-     * a thread-safe way (otherwise data loss is possible).
+     * <p>This method will be called concurrently to other methods (however there will not be
+     * multiple concurrent invocations of this method itself), and it is critical for it to be
+     * implemented in a thread-safe way (otherwise data loss is possible).
      *
      * <p>It is also very important that this method always completes quickly. In particular, it
      * should not perform or wait on any blocking operations such as I/O, RPCs etc. Violating this

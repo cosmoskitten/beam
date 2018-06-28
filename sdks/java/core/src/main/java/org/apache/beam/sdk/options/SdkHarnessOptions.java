@@ -69,13 +69,19 @@ public interface SdkHarnessOptions extends PipelineOptions {
    */
   @Description(
       "This option controls the log levels for specifically named loggers. "
-          + "The expected format is {\"Name\":\"LogLevel\",...}. The SDK harness supports a logging "
-          + "hierarchy based off of names that are '.' separated. For example, by specifying the value "
-          + "{\"a.b.c.Foo\":\"DEBUG\"}, the logger for the class 'a.b.c.Foo' will be configured to "
-          + "output logs at the DEBUG level. Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, "
-          + "all loggers underneath the 'a.b.c' package will be configured to output logs at the WARN "
-          + "level. System.out and System.err levels are configured via loggers of the corresponding "
-          + "name. Also, note that when multiple overrides are specified, the exact name followed by "
+          + "The expected format is {\"Name\":\"LogLevel\",...}. "
+          + "The SDK harness supports a logging "
+          + "hierarchy based off of names that are '.' separated. "
+          + "For example, by specifying the value "
+          + "{\"a.b.c.Foo\":\"DEBUG\"}, "
+          + "the logger for the class 'a.b.c.Foo' will be configured to "
+          + "output logs at the DEBUG level. "
+          + "Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, "
+          + "all loggers underneath the 'a.b.c' package will be configured "
+          + "to output logs at the WARN "
+          + "level. System.out and System.err levels are configured "
+          + "via loggers of the corresponding name. "
+          + "Also, note that when multiple overrides are specified, the exact name followed by "
           + "the closest parent takes precedence.")
   SdkHarnessLogLevelOverrides getSdkHarnessLogLevelOverrides();
 
