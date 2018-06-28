@@ -76,7 +76,8 @@ class RequiresStableInputParDoOverrides {
           new PTransform<PCollection<InputT>, PCollection<OutputT>>() {
             @Override
             public PCollection<OutputT> expand(PCollection<InputT> input) {
-              return input.apply(Reshuffle.viaRandomKey()).apply(appliedTransform.getTransform());
+              return input.apply("Materialize input", Reshuffle.viaRandomKey())
+                  .apply("ParDo with stable input", appliedTransform.getTransform());
             }
           });
     }
@@ -106,7 +107,8 @@ class RequiresStableInputParDoOverrides {
           new PTransform<PCollection<InputT>, PCollectionTuple>() {
             @Override
             public PCollectionTuple expand(PCollection<InputT> input) {
-              return input.apply(Reshuffle.viaRandomKey()).apply(appliedTransform.getTransform());
+              return input.apply("Materialize input", Reshuffle.viaRandomKey())
+                  .apply("ParDo with stable input", appliedTransform.getTransform());
             }
           });
     }
