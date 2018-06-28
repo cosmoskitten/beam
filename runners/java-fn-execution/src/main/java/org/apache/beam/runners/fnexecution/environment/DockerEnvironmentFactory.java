@@ -18,9 +18,11 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.collect.ImmutableList;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -118,8 +120,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
     Path workerPersistentDirectory =
         Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_directory");
-    Path semiPersistentDirectory =
-        Files.createTempDirectory(Paths.get("/tmp"), "semi_persistent_dir");
+    String semiPersistentDirectory =
+        String.format(
+            "/tmp/%s_semi_persistent_dir", new BigInteger(32, new SecureRandom()).toString(64));
     String containerImage = environment.getUrl();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
