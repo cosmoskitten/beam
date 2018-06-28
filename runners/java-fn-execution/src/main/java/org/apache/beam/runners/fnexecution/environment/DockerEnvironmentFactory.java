@@ -18,11 +18,9 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.collect.ImmutableList;
-import java.math.BigInteger;
-import java.nio.file.Files;
+import com.google.common.io.BaseEncoding;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -57,6 +55,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
+      Path workerTempDir,
       IdGenerator idGenerator) {
     return forServicesWithDocker(
         DockerCommand.getDefault(),
@@ -65,6 +64,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         retrievalServiceServer,
         provisioningServiceServer,
         clientSource,
+        workerTempDir,
         idGenerator);
   }
 
@@ -75,6 +75,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
+      Path workerTempDir,
       IdGenerator idGenerator) {
     return new DockerEnvironmentFactory(
         docker,
@@ -82,8 +83,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         loggingServiceServer,
         retrievalServiceServer,
         provisioningServiceServer,
-        idGenerator,
-        clientSource);
+        clientSource,
+        workerTempDir,
+        idGenerator);
   }
 
   private final DockerCommand docker;
@@ -91,8 +93,9 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
-  private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
+  private final Path workerTempDir;
+  private final IdGenerator idGenerator;
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
@@ -100,15 +103,17 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
-      IdGenerator idGenerator,
-      ControlClientPool.Source clientSource) {
+      ControlClientPool.Source clientSource,
+      Path workerTempDir,
+      IdGenerator idGenerator) {
     this.docker = docker;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
-    this.idGenerator = idGenerator;
     this.clientSource = clientSource;
+    this.workerTempDir = workerTempDir;
+    this.idGenerator = idGenerator;
   }
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
@@ -117,12 +122,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
-    // TODO: Mac only allows temporary mounts under /tmp by default (as of 17.12).
-    Path workerPersistentDirectory =
-        Files.createTempDirectory(Paths.get("/tmp"), "worker_persistent_directory");
-    String semiPersistentDirectory =
-        String.format(
-            "/tmp/%s_semi_persistent_dir", new BigInteger(64, new SecureRandom()).toString(32));
+    String pathSafeWorkerId =
+        BaseEncoding.base64Url().encode(workerId.getBytes(StandardCharsets.UTF_8));
+    Path workerPersistentDirectory = workerTempDir.resolve(pathSafeWorkerId);
+    String semiPersistentDirectory = "/var/opt/apache/beam/semi_persistent_dir";
     String containerImage = environment.getUrl();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
@@ -135,7 +138,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         ImmutableList.of(
             "--mount",
             String.format(
-                "type=bind,source=%s,dst=%s", workerPersistentDirectory, semiPersistentDirectory),
+                "type=bind,src=%s,dst=%s", workerPersistentDirectory, semiPersistentDirectory),
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             "--network=host");
 
