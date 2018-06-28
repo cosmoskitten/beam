@@ -47,7 +47,8 @@ public class StreamingInserts<DestinationT>
   private StreamingInserts(CreateDisposition createDisposition,
                           DynamicDestinations<?, DestinationT> dynamicDestinations,
                           BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy, boolean extendedErrorInfo) {
+                          InsertRetryPolicy retryPolicy,
+                          boolean extendedErrorInfo) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
