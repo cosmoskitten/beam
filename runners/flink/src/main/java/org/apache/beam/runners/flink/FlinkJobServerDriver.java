@@ -35,7 +35,6 @@ import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /** Driver program that starts a job server. */
 public class FlinkJobServerDriver implements Runnable {
 
@@ -46,18 +45,14 @@ public class FlinkJobServerDriver implements Runnable {
   private final ServerFactory serverFactory;
 
   private static class ServerConfiguration {
-    @Option(
-        name = "--job-host",
-        required = true,
-        usage = "The job server host string"
-    )
+    @Option(name = "--job-host", required = true, usage = "The job server host string")
     private String host = "";
 
-    @Option(
-        name = "--artifacts-dir",
-        usage = "The location to store staged artifact files"
-    )
+    @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
+
+    @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
+    private String flinkMasterUrl = "[auto]";
   }
 
   public static void main(String[] args) {
@@ -76,8 +71,7 @@ public class FlinkJobServerDriver implements Runnable {
 
   private static void printUsage(CmdLineParser parser) {
     System.err.println(
-        String.format(
-            "Usage: java %s arguments...", FlinkJobServerDriver.class.getSimpleName()));
+        String.format("Usage: java %s arguments...", FlinkJobServerDriver.class.getSimpleName()));
     parser.printUsage(System.err);
     System.err.println();
   }
@@ -145,12 +139,11 @@ public class FlinkJobServerDriver implements Runnable {
 
   private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws IOException {
-    BeamFileSystemArtifactStagingService service =
-        new BeamFileSystemArtifactStagingService();
+    BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
     return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   private JobInvoker createJobInvoker() throws IOException {
-    return FlinkJobInvoker.create(executor);
+    return FlinkJobInvoker.create(executor, configuration.flinkMasterUrl);
   }
 }

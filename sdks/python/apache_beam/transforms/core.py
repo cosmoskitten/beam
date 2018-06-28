@@ -649,10 +649,14 @@ class CallableWrapperCombineFn(CombineFn):
     return self._fn(union(), *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
+    filter_fn = lambda x: x is not self._EMPTY
+
+    class ReiterableNonEmptyAccumulators(object):
+      def __iter__(self):
+        return itertools.ifilter(filter_fn, accumulators)
+
     # It's (weakly) assumed that self._fn is associative.
-    return self._fn(
-        itertools.ifilter(lambda x: x is not self._EMPTY, accumulators),
-        *args, **kwargs)
+    return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
 
   def extract_output(self, accumulator, *args, **kwargs):
     return self._fn(()) if accumulator is self._EMPTY else accumulator
