@@ -21,15 +21,16 @@ import threading
 
 import grpc
 
+from apache_beam import coders
 from apache_beam import metrics
+from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
+from apache_beam.runners.portability import portable_stager
 
 __all__ = ['PortableRunner']
 
@@ -51,8 +52,8 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
 
-  def __init__(self):
-    pass
+  def __init__(self, is_embedded_fnapi_runner=False):
+    self.is_embedded_fnapi_runner = is_embedded_fnapi_runner
 
   @staticmethod
   def default_docker_image():
@@ -77,6 +78,19 @@ class PortableRunner(runner.PipelineRunner):
         default_environment_url=docker_image)
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
 
+    if not self.is_embedded_fnapi_runner:
+      # Java has different expectations about coders
+      # (windowed in Fn API, but *un*windowed in runner API), whereas the
+      # embedded FnApiRunner treats them consistently, so we must guard this
+      # for now, until FnApiRunner is fixed.
+      # See also BEAM-2717.
+      for pcoll in proto_pipeline.components.pcollections.values():
+        if pcoll.coder_id not in proto_context.coders:
+          # This is not really a coder id, but a pickled coder.
+          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
+          pcoll.coder_id = proto_context.coders.get_id(coder)
+      proto_context.coders.populate_map(proto_pipeline.components.coders)
+
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
     for _, transform_proto in list(
@@ -92,16 +106,12 @@ class PortableRunner(runner.PipelineRunner):
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job', pipeline=proto_pipeline))
     if prepare_response.artifact_staging_endpoint.url:
-      # Must commit something to get a retrieval token,
-      # committing empty manifest for now.
-      # TODO(BEAM-3883): Actually stage required files.
-      artifact_service = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url))
-      commit_manifest = artifact_service.CommitManifest(
-          beam_artifact_api_pb2.CommitManifestRequest(
-              manifest=beam_artifact_api_pb2.Manifest(),
-              staging_session_token=prepare_response.staging_session_token))
-      retrieval_token = commit_manifest.retrieval_token
+      stager = portable_stager.PortableStager(
+          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
+          prepare_response.staging_session_token)
+      retrieval_token, _ = stager.stage_job_resources(
+          pipeline._options,
+          staging_location='')
     else:
       retrieval_token = None
     run_response = job_service.Run(
