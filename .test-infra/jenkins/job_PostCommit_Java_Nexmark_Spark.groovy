@@ -20,7 +20,7 @@ import common_job_properties
 import nexmark_bigquery_properties
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Spark', 'Run Spark Nexmark',
+NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Spark',
         'Spark Runner Nexmark Tests', this) {
   description('Runs the Nexmark suite on the Spark runner.')
 
@@ -39,7 +39,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Spark', 'Run Sp
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pnexmark.runner=":beam-runners-spark"' +
               ' -Pnexmark.args="' +
-              [nexmark_bigquery_properties.newmarkBigQueryArgs,
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',
               '--streaming=false',
               '--suite=SMOKE',

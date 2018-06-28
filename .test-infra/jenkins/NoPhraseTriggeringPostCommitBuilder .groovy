@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-// contains Big query related properties for Nexmark runs
-class NexmarkBigqueryProperties {
+import common_job_properties as cjp
 
-    static String nexmarkBigQueryArgs = ['--bigQueryTable=nexmark',
-                                         '--bigQueryDataset=nexmark',
-                                         '--project=apache-beam-testing',
-                                         '--resourceNameMode=QUERY_RUNNER_AND_MODE',
-                                         '--exportSummaryToBigQuery=true',
-                                         '--tempLocation=gs://temp-storage-for-perf-tests/'].join(' ')
+/**
+ * This class is an extension of PostCommitBuilder that disables github phrase triggering.
+ */
+class NoPhraseTriggeringPostCommitBuilder extends PostCommitBuilder{
+  static void postCommitJob(nameBase,
+                            githubUiHint,
+                            scope,
+                            jobDefinition = {}) {
+    PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
+    jb.defineAutoPostCommitJob(nameBase)
+  }
 }
