@@ -20,6 +20,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(
   shadowClosure: {
     append "reference.conf"
+    zip64 true
   },
 )
 
@@ -32,6 +33,8 @@ mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 dependencies {
   compile project(path: ":beam-runners-flink_2.11", configuration: "shadow")
   compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-io-amazon-web-services", configuration: "shadow")
+//  TODO: Enable HDPS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
