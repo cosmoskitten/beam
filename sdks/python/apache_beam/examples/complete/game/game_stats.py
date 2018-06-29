@@ -242,7 +242,6 @@ def run(argv=None):
                       help='Pub/Sub topic to read from')
   parser.add_argument('--subscription',
                       type=str,
-                      required=True,
                       help='Pub/Sub subscription to read from')
   parser.add_argument('--dataset',
                       type=str,
@@ -270,6 +269,10 @@ def run(argv=None):
                            'user session duration, in minutes')
 
   args, pipeline_args = parser.parse_known_args(argv)
+
+  if args.topic is None and args.subscription is None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: one of --topic or --subscription is required')
 
   options = PipelineOptions(pipeline_args)
 
