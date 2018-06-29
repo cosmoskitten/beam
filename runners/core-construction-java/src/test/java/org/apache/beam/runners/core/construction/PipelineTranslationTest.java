@@ -109,14 +109,6 @@ public class PipelineTranslationTest {
     pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
   }
 
-  @Test
-  public void testProtoAgainstRehydrated() throws Exception {
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    Pipeline rehydrated = PipelineTranslation.fromProto(pipelineProto);
-
-    rehydrated.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto));
-  }
-
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {
 
     private final RunnerApi.Pipeline pipelineProto;

@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nonnull;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -86,18 +85,6 @@ public class CombineTranslation {
       }
     }
 
-    @Override
-    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      checkArgument(
-          protoTransform.getSpec() != null,
-          "%s received transform with null spec",
-          getClass().getSimpleName());
-      checkArgument(protoTransform.getSpec().getUrn().equals(COMBINE_TRANSFORM_URN));
-      return new RawCombine<>(protoTransform, rehydratedComponents);
-    }
-
     /** Registers {@link CombinePayloadTranslator}. */
     @AutoService(TransformPayloadTranslatorRegistrar.class)
     public static class Registrar implements TransformPayloadTranslatorRegistrar {
@@ -105,11 +92,6 @@ public class CombineTranslation {
       public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
           getTransformPayloadTranslators() {
         return Collections.singletonMap(Combine.PerKey.class, new CombinePayloadTranslator());
-      }
-
-      @Override
-      public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
-        return Collections.singletonMap(COMBINE_TRANSFORM_URN, new CombinePayloadTranslator());
       }
     }
   }
@@ -170,68 +152,6 @@ public class CombineTranslation {
           }
         },
         components);
-  }
-
-  private static class RawCombine<K, InputT, AccumT, OutputT>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>
-      implements CombineLike {
-
-    private final RunnerApi.PTransform protoTransform;
-    private final transient RehydratedComponents rehydratedComponents;
-    private final FunctionSpec spec;
-    private final CombinePayload payload;
-    private final Coder<AccumT> accumulatorCoder;
-
-    private RawCombine(
-        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
-        throws IOException {
-      this.protoTransform = protoTransform;
-      this.rehydratedComponents = rehydratedComponents;
-      this.spec = protoTransform.getSpec();
-      this.payload = CombinePayload.parseFrom(spec.getPayload());
-
-      // Eagerly extract the coder to throw a good exception here
-      try {
-        this.accumulatorCoder =
-            (Coder<AccumT>) rehydratedComponents.getCoder(payload.getAccumulatorCoderId());
-      } catch (IOException exc) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Failure extracting accumulator coder with id '%s' for %s",
-                payload.getAccumulatorCoderId(), Combine.class.getSimpleName()),
-            exc);
-      }
-    }
-
-    @Override
-    public String getUrn() {
-      return COMBINE_TRANSFORM_URN;
-    }
-
-    @Nonnull
-    @Override
-    public FunctionSpec getSpec() {
-      return spec;
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec migrate(SdkComponents sdkComponents) throws IOException {
-      return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(COMBINE_TRANSFORM_URN)
-          .setPayload(payloadForCombineLike(this, sdkComponents).toByteString())
-          .build();
-    }
-
-    @Override
-    public SdkFunctionSpec getCombineFn() {
-      return payload.getCombineFn();
-    }
-
-    @Override
-    public Coder<?> getAccumulatorCoder() {
-      return accumulatorCoder;
-    }
   }
 
   @VisibleForTesting
