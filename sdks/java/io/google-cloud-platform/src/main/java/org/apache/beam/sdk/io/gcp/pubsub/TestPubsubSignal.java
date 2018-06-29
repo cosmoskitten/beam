@@ -195,7 +195,7 @@ public class TestPubsubSignal implements TestRule {
             resultSubscriptionPath, result.stream().map(m -> m.ackId).collect(toList()));
         break;
       } catch (StatusRuntimeException e) {
-        LOG.warn("Error while polling for result: %s", e.getStatus());
+        LOG.warn("Error while polling for result: {}", e.getStatus());
         sleep(500);
       }
     } while (DateTime.now().isBefore(endPolling));
@@ -277,7 +277,10 @@ public class TestPubsubSignal implements TestRule {
       // check if all elements seen so far satisfy the success predicate
       try {
         if (successPredicate.apply(eventsSoFar)) {
+          LOG.warn("Predicate TRUE for elements {}", eventsSoFar);
           context.output("SUCCESS");
+        } else {
+          LOG.warn("Predicate FALSE for elements {}", eventsSoFar);
         }
       } catch (Throwable e) {
         context.output("FAILURE: " + e.getMessage());
