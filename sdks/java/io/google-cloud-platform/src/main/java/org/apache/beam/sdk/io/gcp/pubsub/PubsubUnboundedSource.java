@@ -1310,7 +1310,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         return subscriptionPath;
       }
     } catch (Exception e) {
-      throw new RuntimeException("Failed to create subscription: ", e);
+      throw new RuntimeException(
+          String.format("Failed to create subscription: %s", e.getMessage()), e);
     }
   }
 }
