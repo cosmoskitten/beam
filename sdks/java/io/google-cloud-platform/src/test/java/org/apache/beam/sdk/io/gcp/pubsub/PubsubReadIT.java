@@ -46,9 +46,10 @@ public class PubsubReadIT {
     messages.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(messages.getCoder(), anyMessage -> true));
 
+    // The pipeline has been observed to take 11 minutes on Dataflow
     Duration timeout =
         pipeline.getOptions().getRunner().getSimpleName().endsWith("DataflowRunner")
-            ? Duration.standardMinutes(5)
+            ? Duration.standardMinutes(15)
             : Duration.standardSeconds(30);
     pipeline.run();
 
