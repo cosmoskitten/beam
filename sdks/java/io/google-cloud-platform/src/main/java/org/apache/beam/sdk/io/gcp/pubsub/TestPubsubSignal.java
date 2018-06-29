@@ -235,6 +235,7 @@ public class TestPubsubSignal implements TestRule {
         resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
+    LOG.info("Received test completion signal {}", result);
 
     if (!RESULT_SUCCESS_MESSAGE.equals(result)) {
       throw new AssertionError(result);
