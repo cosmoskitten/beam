@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -109,12 +112,29 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     return toEnumerable(options, node);
   }
 
+  /**
+   * HACK: we need an objectmapper to turn pipelineoptions back into args. We need to use
+   * ReflectHelpers to get the extra PipelineOptions.
+   */
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+
   public static PipelineOptions createPipelineOptions(Map<String, String> map) {
     final String[] args = new String[map.size()];
     int i = 0;
+    LOG.warn("PipelineOptions: {}", map.toString());
+    LOG.warn("PipelineOptions entry set: {}", map.entrySet().toString());
     for (Map.Entry<String, String> entry : map.entrySet()) {
-      args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
+      LOG.warn("Options classes {} := {}", entry.getKey().getClass(), entry.getValue().getClass());
+      LOG.warn("Options values {} := {}", entry.getKey().toString(), entry.getValue().toString());
+      try {
+        args[i++] = "--" + entry.getKey() + "=" + MAPPER.writeValueAsString(entry.getValue());
+      } catch (JsonProcessingException exc) {
+        throw new RuntimeException(exc);
+      }
     }
+    LOG.warn("AND THATS ALL THE OPTIONS IN {}", map.toString());
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
     return options;
