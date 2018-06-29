@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.core.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -42,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A test that verifies that metrics push system works. */
+@Category({UsesMetricsPusher.class})
 @RunWith(JUnit4.class)
 public class MetricsPusherTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);
