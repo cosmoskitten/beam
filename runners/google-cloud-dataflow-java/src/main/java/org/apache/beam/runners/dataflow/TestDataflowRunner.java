@@ -166,10 +166,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Getting the final state may have timed out; it may not indicate a failure.
     // This cancellation may be the second
     if (finalState == null || !finalState.isTerminal()) {
+      if (finalState == null) {
       LOG.info(
           "Dataflow job {} took longer than {} seconds to complete, cancelling.",
           job.getJobId(),
           options.getTestTimeoutSeconds());
+      } else if (!finalState.isTerminal()) {
+        LOG.info("Dataflow job {} terminated in non-final state {}.", job.getJobId(), finalState);
+      }
       try {
         job.cancel();
       } catch (IOException e) {
@@ -177,7 +181,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
-      return finalState == State.DONE && !messageHandler.hasSeenError();
+      return finalState != State.FAILED && finalState != State.RUNNING && !messageHandler.hasSeenError();
     }
   }
 
