@@ -151,6 +151,9 @@ public class SchemaRegistryTest {
     }
   }
 
+  /**
+   * A @link SchemaProviderRegistrar} for testing.
+   */
   @AutoService(SchemaProviderRegistrar.class)
   public static class TestSchemaProviderRegistrar implements SchemaProviderRegistrar {
     @Override
