@@ -195,7 +195,7 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
-          .apply(ParDo.of(new ReadKeywsWithPattern(connectionConfiguration())))
+          .apply(ParDo.of(new ReadKeysWithPattern(connectionConfiguration())))
           .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
     }
   }
@@ -254,12 +254,12 @@ public class RedisIO {
     }
   }
 
-  private abstract static class BaseReadFn<T> extends DoFn<String, T> {
+  abstract static class BaseReadFn<T> extends DoFn<String, T> {
     protected final RedisConnectionConfiguration connectionConfiguration;
 
-    protected transient Jedis jedis;
+    transient Jedis jedis;
 
-    public BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
     }
 
@@ -274,9 +274,9 @@ public class RedisIO {
     }
   }
 
-  private static class ReadKeywsWithPattern extends BaseReadFn<String> {
+  private static class ReadKeysWithPattern extends BaseReadFn<String> {
 
-    ReadKeywsWithPattern(RedisConnectionConfiguration connectionConfiguration) {
+    ReadKeysWithPattern(RedisConnectionConfiguration connectionConfiguration) {
       super(connectionConfiguration);
     }
 
