@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental(Kind.SCHEMAS)
 public class SchemaRegistry {
   private static List<SchemaProvider> REGISTERED_SCHEMA_PROVIDERS;
+
   private static class SchemaEntry<T> {
     private final Schema schema;
     private final SerializableFunction<T, Row> toRow;
@@ -169,8 +170,9 @@ public class SchemaRegistry {
   static {
     List<SchemaProvider> providersToRegister = Lists.newArrayList();
     Set<SchemaProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
-    registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(SchemaProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+    registrars.addAll(
+        Lists.newArrayList(
+            ServiceLoader.load(SchemaProviderRegistrar.class, ReflectHelpers.findClassLoader())));
     providersToRegister.addAll(
         new DefaultSchema.DefaultSchemaProviderRegistrar().getSchemaProviders());
     for (SchemaProviderRegistrar registrar : registrars) {

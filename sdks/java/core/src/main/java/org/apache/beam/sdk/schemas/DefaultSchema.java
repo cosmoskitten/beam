@@ -51,8 +51,9 @@ public @interface DefaultSchema {
     Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
 
     @Nullable
-    private SchemaProvider getSchemaProvider(TypeDescriptor<?> typeDescriptor)  {
-      return cachedProviders.computeIfAbsent(typeDescriptor,
+    private SchemaProvider getSchemaProvider(TypeDescriptor<?> typeDescriptor) {
+      return cachedProviders.computeIfAbsent(
+          typeDescriptor,
           type -> {
             Class<?> clazz = type.getRawType();
             DefaultSchema annotation = clazz.getAnnotation(DefaultSchema.class);
@@ -60,31 +61,41 @@ public @interface DefaultSchema {
               return null;
             }
             Class<? extends SchemaProvider> providerClass = annotation.value();
-            checkArgument(providerClass != null,
-                "Type " + type + " has a @DefaultSchemaProvider annotation "
+            checkArgument(
+                providerClass != null,
+                "Type "
+                    + type
+                    + " has a @DefaultSchemaProvider annotation "
                     + " with a null argument.");
 
             try {
               return providerClass.getDeclaredConstructor().newInstance();
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException
+            } catch (NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
                 | InvocationTargetException e) {
-              throw new IllegalStateException("Failed to create SchemaProvider "
-                  + providerClass.getSimpleName() + " which was"
-                  + " specified as the default SchemaProvider for type " + type + ". Make "
-                  + " sure that this class has a default constructor.", e);
+              throw new IllegalStateException(
+                  "Failed to create SchemaProvider "
+                      + providerClass.getSimpleName()
+                      + " which was"
+                      + " specified as the default SchemaProvider for type "
+                      + type
+                      + ". Make "
+                      + " sure that this class has a default constructor.",
+                  e);
             }
           });
     }
 
     @Override
-    public  <T>  Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       SchemaProvider schemaProvider = getSchemaProvider(typeDescriptor);
       return (schemaProvider != null) ? schemaProvider.schemaFor(typeDescriptor) : null;
     }
 
     /**
-     * Given a type, return a function that converts that type to a {@link Row} object
-     * If no schema exists, returns null.
+     * Given a type, return a function that converts that type to a {@link Row} object If no schema
+     * exists, returns null.
      */
     @Override
     public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
@@ -93,8 +104,8 @@ public @interface DefaultSchema {
     }
 
     /**
-     * Given a type, returns a function that converts from a {@link Row} object to that type.
-     * If no schema exists, returns null.
+     * Given a type, returns a function that converts from a {@link Row} object to that type. If no
+     * schema exists, returns null.
      */
     @Override
     public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
