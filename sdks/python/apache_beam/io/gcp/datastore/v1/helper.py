@@ -49,6 +49,12 @@ except ImportError:
 
 # pylint: enable=ungrouped-imports
 
+try:
+    cmp             # Python 2
+except NameError:
+    def cmp(x, y):  # Python 3
+        return (x > y) - (x < y)
+
 
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.

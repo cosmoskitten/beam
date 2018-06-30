@@ -37,6 +37,12 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
 
+try:
+    cmp             # Python 2
+except NameError:
+    def cmp(x, y):  # Python 3
+        return (x > y) - (x < y)
+
 # Note: mixing \n and \r\n to verify both behaviors.
 _SAMPLE_HEADER_LINES = [
     '##fileformat=VCFv4.2\n',
