@@ -29,11 +29,13 @@ Dependencies:
   'sudo apt-get install python-beautifulsoup4'.
 
 """
+from __future__ import print_function
 
 import fnmatch
 import os
 import re
 from bs4 import BeautifulSoup
+from six import text_type
 
 # Original link match. Matches any string which starts with '/' and doesn't
 # have a file extension.
@@ -56,10 +58,10 @@ for root, dirnames, filenames in os.walk('content'):
     if 'javadoc' not in root:
       matches.append(os.path.join(root, filename))
 
-print 'Matches: ' + str(len(matches))
+print('Matches: ' + str(len(matches)))
 # Iterates over each matched file looking for link matches.
 for match in matches:
-  print 'Fixing links in: ' + match
+  print('Fixing links in: ' + match)
   mf = open(match)
   soup = BeautifulSoup(mf)
   # Iterates over every <a>
@@ -83,10 +85,10 @@ for match in matches:
           a['href'] = hr + '/index.html'
         mf.close()
 
-        html = unicode(soup).encode('utf-8')
+        html = text_type(soup).encode('utf-8')
         # Write back to the file.
         with open(match, "wb") as f:
-          print 'Replacing ' + hr + ' with: ' + a['href']
+          print('Replacing ' + hr + ' with: ' + a['href'])
           f.write(html)
     except KeyError as e:
       # Some <a> tags don't have an href.
