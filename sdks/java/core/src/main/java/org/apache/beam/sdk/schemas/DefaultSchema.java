@@ -64,8 +64,8 @@ public @interface DefaultSchema {
   Class<? extends SchemaProvider> value();
 
   /**
-   * {@link SchemaProvider} for default schemas. Looks up the provider annotated for a type,
-   * and delegates to that provider.
+   * {@link SchemaProvider} for default schemas. Looks up the provider annotated for a type, and
+   * delegates to that provider.
    */
   class DefaultSchemaProvider extends SchemaProvider {
     Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
@@ -134,9 +134,7 @@ public @interface DefaultSchema {
     }
   }
 
-  /**
-   * Registrar for default schemas.
-   */
+  /** Registrar for default schemas. */
   class DefaultSchemaProviderRegistrar implements SchemaProviderRegistrar {
     @Override
     public List<SchemaProvider> getSchemaProviders() {
