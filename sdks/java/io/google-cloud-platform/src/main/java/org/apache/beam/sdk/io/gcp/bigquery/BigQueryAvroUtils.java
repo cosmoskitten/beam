@@ -198,8 +198,10 @@ class BigQueryAvroUtils {
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
       case "NUMERIC":
-        verify(v instanceof CharSequence || v instanceof BigDecimal,
-            "Expected CharSequence (String) or BigDecimal, got %s", v.getClass());
+        verify(
+            v instanceof CharSequence || v instanceof BigDecimal,
+            "Expected CharSequence (String) or BigDecimal, got %s",
+            v.getClass());
         return v.toString();
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
