@@ -28,6 +28,8 @@ from socket import error as SocketError
 
 import six
 
+from past.bulitins import cmp
+
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
@@ -46,7 +48,6 @@ try:
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
-
 # pylint: enable=ungrouped-imports
 
 

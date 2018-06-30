@@ -23,6 +23,8 @@ import unittest
 from itertools import chain
 from itertools import permutations
 
+from past.bulitins import cmp
+
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam.io.vcfio import _VcfSource as VcfSource
 from apache_beam.io.vcfio import DEFAULT_PHASESET_VALUE
