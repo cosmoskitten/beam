@@ -49,7 +49,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental(Kind.SCHEMAS)
 public class SchemaRegistry {
-  private static List<SchemaProvider> REGISTERED_SCHEMA_PROVIDERS;
+  private static final List<SchemaProvider> REGISTERED_SCHEMA_PROVIDERS;
 
   private static class SchemaEntry<T> {
     private final Schema schema;
@@ -168,11 +168,15 @@ public class SchemaRegistry {
   }
 
   static {
+    // find all statically-registered SchemaProviders.
     List<SchemaProvider> providersToRegister = Lists.newArrayList();
     Set<SchemaProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    // Find all SchemaProviderRegistrar classes that are registered as service loaders
+    // (usually using the @AutoService annotation).
     registrars.addAll(
         Lists.newArrayList(
             ServiceLoader.load(SchemaProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+    // Load all SchemaProviders that are registered using the @DefaultSchema annotation.
     providersToRegister.addAll(
         new DefaultSchema.DefaultSchemaProviderRegistrar().getSchemaProviders());
     for (SchemaProviderRegistrar registrar : registrars) {
