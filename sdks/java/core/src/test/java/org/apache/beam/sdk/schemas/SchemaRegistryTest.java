@@ -124,6 +124,7 @@ public class SchemaRegistryTest {
   }
 
   static class TestSchemaClass {}
+
   static final class TestAutoProvider extends SchemaProvider {
     @Override
     public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
@@ -134,7 +135,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
-    public  <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
         return v -> Row.withSchema(EMPTY_SCHEMA).build();
       }
@@ -142,7 +143,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
-    public  <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();
       }
@@ -177,7 +178,7 @@ public class SchemaRegistryTest {
     }
 
     @Override
-    public  <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
         return v -> Row.withSchema(EMPTY_SCHEMA).build();
       }
@@ -185,14 +186,14 @@ public class SchemaRegistryTest {
     }
 
     @Override
-    public  <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
       if (typeDescriptor.equals(TypeDescriptor.of(TestDefaultSchemaClass.class))) {
         return r -> (T) new TestSchemaClass();
       }
       return null;
     }
   }
-  
+
   @Test
   public void testDefaultSchemaProvider() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
