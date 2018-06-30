@@ -39,6 +39,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -146,8 +147,7 @@ public class CombineTranslation {
           @Override
           public SdkFunctionSpec getCombineFn() {
             return SdkFunctionSpec.newBuilder()
-                .setEnvironmentId(
-                    components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+                .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
                 .setSpec(
                     FunctionSpec.newBuilder()
                         .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -240,7 +240,7 @@ public class CombineTranslation {
       throws IOException {
     checkArgument(
         combine.getTransform().getSideInputs().isEmpty(),
-        "CombineTranslation.toProto cannot translate Combines with side inputs.");
+        "CombineTranslation.toMessageProto cannot translate Combines with side inputs.");
     GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
     try {
       Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
@@ -275,7 +275,7 @@ public class CombineTranslation {
   public static SdkFunctionSpec toProto(
       GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
+        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -293,6 +293,9 @@ public class CombineTranslation {
   public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(Environments.createEnvironment(
+        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
     String id =
         getCombinePayload(transform, sdkComponents)
             .map(CombinePayload::getAccumulatorCoderId)
@@ -325,7 +328,11 @@ public class CombineTranslation {
 
   private static Optional<CombinePayload> getCombinePayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    return getCombinePayload(transform, SdkComponents.create());
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createEnvironment(
+        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
+            .getWorkerDockerImage()));
+    return getCombinePayload(transform, components);
   }
 
   private static Optional<CombinePayload> getCombinePayload(

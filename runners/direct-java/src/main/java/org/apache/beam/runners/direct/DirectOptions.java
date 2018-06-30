@@ -81,7 +81,7 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
 
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   @Default.Boolean(false)
-  @Description("Control whether toProto/fromProto translations are applied to original Pipeline")
+  @Description("Control whether toMessageProto/fromProto translations are applied to original Pipeline")
   boolean isProtoTranslation();
 
   void setProtoTranslation(boolean b);
