@@ -38,6 +38,22 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/**
+ * The {@link DefaultSchema} annotation specifies a {@link SchemaProvider} class to handle obtaining
+ * a schema and row for the specified class.
+ *
+ * <p>For example, if your class is JavaBean, the JavaBeanSchema provider class knows how to vend
+ * schemas for this class. You can annotate it as follows:
+ *
+ * <pre><code>
+ *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *   class MyClass {
+ *     public String getFoo();
+ *     void setFoo(String foo);
+ *           ....
+ *   }
+ * </code></pre>
+ */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
@@ -47,7 +63,11 @@ public @interface DefaultSchema {
   @CheckForNull
   Class<? extends SchemaProvider> value();
 
-  static class DefaultSchemaProvider extends SchemaProvider {
+  /**
+   * {@link SchemaProvider} for default schemas. Looks up the provider annotated for a type,
+   * and delegates to that provider.
+   */
+  class DefaultSchemaProvider extends SchemaProvider {
     Map<TypeDescriptor, SchemaProvider> cachedProviders = Maps.newConcurrentMap();
 
     @Nullable
@@ -114,6 +134,9 @@ public @interface DefaultSchema {
     }
   }
 
+  /**
+   * Registrar for default schemas.
+   */
   class DefaultSchemaProviderRegistrar implements SchemaProviderRegistrar {
     @Override
     public List<SchemaProvider> getSchemaProviders() {
