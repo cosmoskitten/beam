@@ -45,8 +45,12 @@ try:
   from googledatastore.connection import RPCError
 except ImportError:
   pass
-# pylint: enable=wrong-import-order, wrong-import-position
 
+try:
+  cmp
+except NameError:
+  from past.bulitins import cmp
+# pylint: enable=wrong-import-order, wrong-import-position
 # pylint: enable=ungrouped-imports
 
 

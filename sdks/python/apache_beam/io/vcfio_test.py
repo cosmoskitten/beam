@@ -37,6 +37,14 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
 
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  cmp
+except NameError:
+  from past.bulitins import cmp
+# pylint: enable=wrong-import-order, wrong-import-position
+
 # Note: mixing \n and \r\n to verify both behaviors.
 _SAMPLE_HEADER_LINES = [
     '##fileformat=VCFv4.2\n',
