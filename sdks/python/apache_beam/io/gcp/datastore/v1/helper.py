@@ -49,11 +49,7 @@ except ImportError:
 
 # pylint: enable=ungrouped-imports
 
-try:
-    cmp             # Python 2
-except NameError:
-    def cmp(x, y):  # Python 3
-        return (x > y) - (x < y)
+from past.bulitins import cmp
 
 
 def key_comparator(k1, k2):
