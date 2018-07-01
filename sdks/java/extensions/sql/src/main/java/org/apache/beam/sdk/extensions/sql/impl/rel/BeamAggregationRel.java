@@ -136,6 +136,14 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
       mergedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
+      // If this aggration includes a window field, like GROUP BY TUMBLE(<ts>, <dur>), then
+      // the resulting rows are globally windowed.
+      // However, if it is not present, then this may be a per-window SQL operation on a
+      // PCollection in which case we carry along the upstream windowingStrategy
+      if (windowField.isPresent()) {
+        mergedStream = mergedStream.apply(Window.into(new GlobalWindows()));
+      }
+
       return mergedStream;
     }
 
