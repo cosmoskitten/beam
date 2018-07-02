@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+from glob import glob
 import os
 import shutil
 
@@ -295,10 +296,11 @@ class LocalFileSystem(FileSystem):
 
     exceptions = {}
     for path in paths:
-      try:
-        _delete_path(path)
-      except Exception as e:  # pylint: disable=broad-except
-        exceptions[path] = e
+      for p in glob(path):
+        try:
+          _delete_path(p)
+        except Exception as e:  # pylint: disable=broad-except
+          exceptions[p] = e
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
