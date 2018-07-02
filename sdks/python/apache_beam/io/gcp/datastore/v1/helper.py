@@ -27,7 +27,6 @@ import time
 from socket import error as SocketError
 
 import six
-from past.bulitins import cmp
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
@@ -46,8 +45,12 @@ try:
   from googledatastore.connection import RPCError
 except ImportError:
   pass
+  
+try:
+  cmp
+except NameError:
+  from past.bulitins import cmp
 # pylint: enable=wrong-import-order, wrong-import-position
-
 # pylint: enable=ungrouped-imports
 
 

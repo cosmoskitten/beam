@@ -23,8 +23,6 @@ import unittest
 from itertools import chain
 from itertools import permutations
 
-from past.bulitins import cmp
-
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam.io.vcfio import _VcfSource as VcfSource
 from apache_beam.io.vcfio import DEFAULT_PHASESET_VALUE
@@ -38,6 +36,14 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  cmp
+except NameError:
+  from past.bulitins import cmp
+# pylint: enable=wrong-import-order, wrong-import-position
 
 # Note: mixing \n and \r\n to verify both behaviors.
 _SAMPLE_HEADER_LINES = [
