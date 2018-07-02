@@ -45,7 +45,7 @@ try:
   from googledatastore.connection import RPCError
 except ImportError:
   pass
-  
+
 try:
   cmp
 except NameError:
