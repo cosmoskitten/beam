@@ -1411,7 +1411,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         fanout = fanout_fn(key)
         if fanout <= 1:
           # Boolean indicates this is not an accumulator.
-          yield pvalue.TaggedOutput('cold', (key, (False, value)))
+          yield (key, (False, value)) # cold
         else:
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
@@ -1440,7 +1440,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       (_, key), value = nonce_key_value
       return key, value
 
-    hot, cold = pcoll | ParDo(SplitHotCold()).with_outputs('hot', 'cold')
+    cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     # No multi-output type hints.
     cold.element_type = typehints.Any
     precombined_hot = (
