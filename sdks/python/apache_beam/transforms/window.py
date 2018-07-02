@@ -69,7 +69,6 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
-
 __all__ = [
     'TimestampCombiner',
     'WindowFn',
