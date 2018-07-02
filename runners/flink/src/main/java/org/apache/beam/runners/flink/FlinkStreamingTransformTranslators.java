@@ -838,7 +838,7 @@ class FlinkStreamingTransformTranslators {
               inputKvCoder.getKeyCoder(),
               keySelector);
 
-      // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
+      // our operator expects WindowedValue<KeyedWorkItem> while our input stream
       // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
       @SuppressWarnings("unchecked")
       SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream =
@@ -941,7 +941,7 @@ class FlinkStreamingTransformTranslators {
                 inputKvCoder.getKeyCoder(),
                 keySelector);
 
-        // our operator excepts WindowedValue<KeyedWorkItem> while our input stream
+        // our operator expects WindowedValue<KeyedWorkItem> while our input stream
         // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
         @SuppressWarnings("unchecked")
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =

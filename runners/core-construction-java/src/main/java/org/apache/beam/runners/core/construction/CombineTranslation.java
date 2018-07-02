@@ -120,7 +120,7 @@ public class CombineTranslation {
                   .build())
           .build();
     } catch (CannotProvideCoderException e) {
-      throw new IllegalStateException(e);
+      throw new IllegalArgumentException(e);
     }
   }
 
@@ -139,7 +139,7 @@ public class CombineTranslation {
           .setCombineFn(toProto(combineFn, sdkComponents))
           .build();
     } catch (CannotProvideCoderException e) {
-      throw new IllegalStateException(e);
+      throw new IllegalArgumentException(e);
     }
   }
 
