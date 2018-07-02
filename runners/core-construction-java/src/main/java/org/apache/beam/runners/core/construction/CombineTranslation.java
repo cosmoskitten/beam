@@ -293,9 +293,13 @@ public class CombineTranslation {
   public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    sdkComponents.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     String id =
         getCombinePayload(transform, sdkComponents)
             .map(CombinePayload::getAccumulatorCoderId)
@@ -329,9 +333,13 @@ public class CombineTranslation {
   private static Optional<CombinePayload> getCombinePayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createEnvironment(
-        transform.getPipeline().getOptions().as(PortablePipelineOptions.class)
-            .getWorkerDockerImage()));
+    components.registerEnvironment(
+        Environments.createEnvironment(
+            transform
+                .getPipeline()
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getWorkerDockerImage()));
     return getCombinePayload(transform, components);
   }
 
