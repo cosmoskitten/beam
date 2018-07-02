@@ -34,6 +34,7 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,8 @@ import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.ReadableInstant;
+import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -196,6 +199,33 @@ public class JdbcDriverTest {
             .collect(Collectors.toList());
 
     assertThat(resultRows, containsInAnyOrder(row(1L, "aaa"), row(2L, "bbb")));
+  }
+
+  @Test
+  public void testTimestamp() throws Exception {
+    TestTableProvider tableProvider = new TestTableProvider();
+    Connection connection = JdbcDriver.connect(tableProvider);
+
+    // A table with one TIMESTAMP column
+    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    connection.createStatement().executeUpdate("CREATE TABLE test (ts TIMESTAMP) TYPE 'test'");
+
+    ReadableInstant july1 =
+        ISODateTimeFormat.dateTimeParser().parseDateTime("2018-07-01T01:02:03Z");
+    tableProvider.addRows("test", Row.withSchema(schema).addValue(july1).build());
+
+    ResultSet selectResult =
+        connection.createStatement().executeQuery(String.format("SELECT ts FROM test"));
+    selectResult.next();
+    Timestamp ts = selectResult.getTimestamp(1);
+
+    assertThat(
+        String.format(
+            "%s = %s",
+            ISODateTimeFormat.basicDateTime().print(july1),
+            ISODateTimeFormat.basicDateTime().print(ts.getTime())),
+        ts.getTime(),
+        equalTo(july1.getMillis()));
   }
 
   @Test
