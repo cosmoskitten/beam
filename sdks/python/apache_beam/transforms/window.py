@@ -53,6 +53,7 @@ import abc
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
+from past.bulitins import cmp
 
 from apache_beam.coders import coders
 from apache_beam.portability import common_urns
@@ -68,7 +69,6 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
-from past.bulitins import cmp
 
 __all__ = [
     'TimestampCombiner',
