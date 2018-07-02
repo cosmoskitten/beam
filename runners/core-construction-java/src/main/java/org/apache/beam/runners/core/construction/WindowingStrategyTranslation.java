@@ -210,7 +210,7 @@ public class WindowingStrategyTranslation implements Serializable {
     ByteString serializedFn = ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn));
     if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
-          .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+          .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(FunctionSpec.newBuilder().setUrn(getUrn(GlobalWindowsPayload.Enum.PROPERTIES)))
           .build();
     } else if (windowFn instanceof FixedWindows) {
@@ -220,7 +220,7 @@ public class WindowingStrategyTranslation implements Serializable {
               .setOffset(Timestamps.fromMillis(((FixedWindows) windowFn).getOffset().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
-          .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+          .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(getUrn(FixedWindowsPayload.Enum.PROPERTIES))
@@ -234,7 +234,7 @@ public class WindowingStrategyTranslation implements Serializable {
               .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
-          .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+          .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(getUrn(SlidingWindowsPayload.Enum.PROPERTIES))
@@ -246,7 +246,7 @@ public class WindowingStrategyTranslation implements Serializable {
               .setGapSize(Durations.fromMillis(((Sessions) windowFn).getGapDuration().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
-          .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+          .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(getUrn(SessionsPayload.Enum.PROPERTIES))
@@ -254,7 +254,7 @@ public class WindowingStrategyTranslation implements Serializable {
           .build();
     } else {
       return SdkFunctionSpec.newBuilder()
-          .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+          .setEnvironmentId(components.getOnlyEnvironmentId())
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)

@@ -147,7 +147,7 @@ public class CombineTranslation {
           @Override
           public SdkFunctionSpec getCombineFn() {
             return SdkFunctionSpec.newBuilder()
-                .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+                .setEnvironmentId(components.getOnlyEnvironmentId())
                 .setSpec(
                     FunctionSpec.newBuilder()
                         .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -240,7 +240,7 @@ public class CombineTranslation {
       throws IOException {
     checkArgument(
         combine.getTransform().getSideInputs().isEmpty(),
-        "CombineTranslation.toMessageProto cannot translate Combines with side inputs.");
+        "CombineTranslation.toProto cannot translate Combines with side inputs.");
     GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
     try {
       Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
@@ -275,7 +275,7 @@ public class CombineTranslation {
   public static SdkFunctionSpec toProto(
       GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -299,7 +299,7 @@ public class CombineTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     String id =
         getCombinePayload(transform, sdkComponents)
             .map(CombinePayload::getAccumulatorCoderId)
@@ -339,7 +339,7 @@ public class CombineTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     return getCombinePayload(transform, components);
   }
 

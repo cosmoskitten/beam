@@ -269,7 +269,7 @@ public class ParDoTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform protoTransform = PTransformTranslation.toProto(application, components);
 
     ParDoPayload payload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
@@ -299,7 +299,7 @@ public class ParDoTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform parDoProto = PTransformTranslation.toProto(application, sdkComponents);
     ParDoPayload payload = ParDoPayload.parseFrom(parDoProto.getSpec().getPayload());
 
@@ -468,7 +468,7 @@ public class ParDoTranslation {
   public static SdkFunctionSpec translateDoFn(
       DoFn<?, ?> fn, TupleTag<?> tag, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_DO_FN_URN)
@@ -546,7 +546,7 @@ public class ParDoTranslation {
 
   public static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_VIEW_FN_URN)
@@ -564,7 +564,7 @@ public class ParDoTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform parDoPTransform =
         PTransformTranslation.toProto(transform, Collections.emptyList(), components);
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
@@ -583,7 +583,7 @@ public class ParDoTranslation {
   public static SdkFunctionSpec translateWindowMappingFn(
       WindowMappingFn<?> windowMappingFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(Iterables.getOnlyElement(components.getEnvironmentIds()))
+        .setEnvironmentId(components.getOnlyEnvironmentId())
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_WINDOW_MAPPING_FN_URN)

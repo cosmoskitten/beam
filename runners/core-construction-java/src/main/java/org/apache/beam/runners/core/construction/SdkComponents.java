@@ -25,6 +25,7 @@ import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -204,8 +205,9 @@ public class SdkComponents {
     return name;
   }
 
-  public Collection<String> getEnvironmentIds() {
-    return ImmutableSet.copyOf(componentsBuilder.getEnvironmentsMap().keySet());
+  public String getOnlyEnvironmentId() {
+    return Iterables
+        .getOnlyElement(ImmutableSet.copyOf(componentsBuilder.getEnvironmentsMap().keySet()));
   }
 
   private String uniqify(String baseName, Set<String> existing) {
