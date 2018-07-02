@@ -36,13 +36,29 @@ job('beam_Release_Gradle_NightlySnapshot') {
       'dev@beam.apache.org')
 
 
-  // Allows triggering this build against pull requests.
+  // Allows triggering this publish command against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
       './gradlew publish',
       'Run Gradle Publish')
 
+  // Allows triggering this build command against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      './gradlew clean build',
+      'Run Gradle Build')
+
   steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks('clean')
+    }
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks('build')
+      common_job_properties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+    }
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks('publish')
