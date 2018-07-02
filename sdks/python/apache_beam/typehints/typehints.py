@@ -66,7 +66,6 @@ In addition, type-hints can be used to implement run-time type-checking via the
 import collections
 import copy
 import sys
-import types
 
 import six
 
