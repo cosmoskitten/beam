@@ -55,7 +55,10 @@ public class PipelineTranslation {
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
         Environments.createEnvironment(
-            pipeline.getOptions().as(PortablePipelineOptions.class).getWorkerDockerImage()));
+            pipeline
+                .getOptions()
+                .as(PortablePipelineOptions.class)
+                .getDefaultJavaEnvironmentUrl()));
     return toProto(pipeline, components);
   }
 

@@ -150,7 +150,7 @@ public class TestStreamTranslation {
                 .getPipeline()
                 .getOptions()
                 .as(PortablePipelineOptions.class)
-                .getWorkerDockerImage()));
+                .getDefaultJavaEnvironmentUrl()));
     RunnerApi.PTransform transformProto = PTransformTranslation.toProto(application, sdkComponents);
     checkArgument(
         TEST_STREAM_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),
