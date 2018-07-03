@@ -69,18 +69,58 @@ type ctxKey string
 const bundleKey ctxKey = "beam:bundle"
 const ptransformKey ctxKey = "beam:ptransform"
 
+// context is a caching context since reads & writes are expensive.
+type beamCtx struct {
+	context.Context
+	bundleID, ptransformID string
+}
+
+// Lift the keys value for faster lookups when not available.
+func (ctx *beamCtx) Value(key interface{}) interface{} {
+	switch key {
+	case bundleKey:
+		if ctx.bundleID == "" {
+			if id := ctx.Value(key); id != nil {
+				ctx.bundleID = id.(string)
+			}
+		}
+		return ctx.bundleID
+	case ptransformKey:
+		if ctx.ptransformID == "" {
+			if id := ctx.Value(key); id != nil {
+				ctx.ptransformID = id.(string)
+			}
+		}
+		return ctx.ptransformID
+	}
+	return ctx.Context.Value(key)
+}
+
 // SetBundleID sets the id of the current Bundle.
 func SetBundleID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, bundleKey, id)
+	var ptransformID string
+	if bctx, ok := ctx.(*beamCtx); ok {
+		ptransformID = bctx.ptransformID
+	}
+	return &beamCtx{Context: ctx, bundleID: id, ptransformID: ptransformID}
 }
 
 // SetPTransformID sets the id of the current PTransform.
 func SetPTransformID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, ptransformKey, id)
+	var bundleID string
+	if bctx, ok := ctx.(*beamCtx); ok {
+		bundleID = bctx.bundleID
+	}
+	return &beamCtx{Context: ctx, bundleID: bundleID, ptransformID: id}
 }
 
 func getContextKey(ctx context.Context, n name) key {
 	key := key{name: n, bundle: "(bundle id unset)", ptransform: "(ptransform id unset)"}
+	if bctx, ok := ctx.(*beamCtx); ok {
+		key.bundle = bctx.bundleID
+		key.ptransform = bctx.ptransformID
+		return key
+	}
 	if id := ctx.Value(bundleKey); id != nil {
 		key.bundle = id.(string)
 	}
