@@ -35,7 +35,11 @@ import fnmatch
 import os
 import re
 from bs4 import BeautifulSoup
-from six import text_type
+
+try:
+  unicode          # pylint: disable=unicode-builtin
+except NameError:
+  unicode = str
 
 # Original link match. Matches any string which starts with '/' and doesn't
 # have a file extension.
@@ -85,7 +89,7 @@ for match in matches:
           a['href'] = hr + '/index.html'
         mf.close()
 
-        html = text_type(soup).encode('utf-8')
+        html = unicode(soup).encode('utf-8')
         # Write back to the file.
         with open(match, "wb") as f:
           print('Replacing ' + hr + ' with: ' + a['href'])
