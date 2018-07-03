@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -31,11 +31,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,12 +59,12 @@ import org.slf4j.LoggerFactory;
  * The record {@code KV<byte[], byte[]>} is generated deterministically based on the record's
  * position in the source, which enables repeatable execution for debugging.
  * The SyntheticBoundedInput configurable parameters are defined in {@link
- * SyntheticBoundedInput.SourceOptions}.
+ * SyntheticBoundedInput.SyntheticSourceOptions}.
  *
  * <p>To read a {@link PCollection} of {@code KV<byte[], byte[]>} from {@link
  * SyntheticBoundedInput}, use {@link SyntheticBoundedInput#readFrom} to construct the synthetic
  * source with synthetic source options.
- * See {@link SyntheticBoundedInput.SourceOptions} for how to construct an instance.
+ * See {@link SyntheticBoundedInput.SyntheticSourceOptions} for how to construct an instance.
  * An example is below:
  * <pre> {@code
  * Pipeline p = ...;
@@ -76,9 +78,8 @@ public class SyntheticBoundedInput {
   /**
    * Read from the synthetic source options.
    */
-  public static Read.Bounded<KV<byte[], byte[]>> readFrom(SourceOptions options) {
+  public static Read.Bounded<KV<byte[], byte[]>> readFrom(SyntheticSourceOptions options) {
     checkNotNull(options, "Input synthetic source options should not be null.");
-    options.validate();
     return Read.from(new SyntheticBoundedSource(options));
   }
 
@@ -89,13 +90,13 @@ public class SyntheticBoundedInput {
     private static final long serialVersionUID = 0;
     private static final Logger LOG = LoggerFactory.getLogger(SyntheticBoundedSource.class);
 
-    private final SourceOptions sourceOptions;
+    private final SyntheticSourceOptions sourceOptions;
 
-    public SyntheticBoundedSource(SourceOptions sourceOptions) {
+    public SyntheticBoundedSource(SyntheticSourceOptions sourceOptions) {
       this(0, sourceOptions.numRecords, sourceOptions);
     }
 
-    public SyntheticBoundedSource(long startOffset, long endOffset, SourceOptions sourceOptions) {
+    public SyntheticBoundedSource(long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
       super(startOffset, endOffset, 1);
       this.sourceOptions = sourceOptions;
       LOG.debug("Constructing {}", toString());
@@ -126,7 +127,7 @@ public class SyntheticBoundedInput {
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("options", sourceOptions)
-          .add("indexRange", "[" + getStartOffset() + ", " + getEndOffset() + ")")
+          .add("offsetRange", "[" + getStartOffset() + ", " + getEndOffset() + ")")
           .toString();
     }
 
@@ -158,14 +159,22 @@ public class SyntheticBoundedInput {
     @Override
     public List<SyntheticBoundedSource> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      List<SyntheticBoundedSource> res = new ArrayList<>();
-
       // Choose number of bundles either based on explicit parameter,
       // or based on size and hints.
       int desiredNumBundles =
           (sourceOptions.forceNumInitialBundles == null)
               ? ((int) Math.ceil(1.0 * getEstimatedSizeBytes(options) / desiredBundleSizeBytes))
               : sourceOptions.forceNumInitialBundles;
+
+      List<SyntheticBoundedSource> res = generateBundleSizes(desiredNumBundles).stream()
+          .map(offsetRange -> createSourceForSubrange(offsetRange.getFrom(), offsetRange.getTo()))
+          .collect(Collectors.toList());
+      LOG.info("Split into {} bundles of sizes: {}", res.size(), res);
+      return res;
+    }
+
+    protected List<OffsetRange> generateBundleSizes(int desiredNumBundles) {
+      List<OffsetRange> result = new ArrayList<>();
 
       // Generate relative bundle sizes using the given distribution.
       double[] relativeSizes = new double[desiredNumBundles];
@@ -174,9 +183,9 @@ public class SyntheticBoundedInput {
             sourceOptions.bundleSizeDistribution.sample(
                 sourceOptions.hashFunction.hashInt(i).asLong());
       }
-      double s = sum(relativeSizes);
 
       // Generate offset ranges proportional to the relative sizes.
+      double s = sum(relativeSizes);
       long[] sizes = new long[relativeSizes.length];
       long startOffset = getStartOffset();
       double sizeSoFar = 0;
@@ -187,14 +196,14 @@ public class SyntheticBoundedInput {
                 ? getEndOffset()
                 : (long) (getStartOffset() + sizeSoFar * (getEndOffset() - getStartOffset()) / s);
         if (startOffset != endOffset) {
-          res.add(createSourceForSubrange(startOffset, endOffset));
+          result.add(new OffsetRange(startOffset, endOffset));
         }
         sizes[i] = endOffset - startOffset;
         startOffset = endOffset;
       }
-      LOG.info("Split into {} bundles of sizes: {}", sizes.length, Arrays.toString(sizes));
-      return res;
+      return result;
     }
+
   }
 
   /**
@@ -215,10 +224,10 @@ public class SyntheticBoundedInput {
   /**
    * Synthetic bounded source options.
    * These options are all JSON, see documentations of individual fields for details.
-   * {@code SourceOptions} uses jackson annotations
+   * {@code SyntheticSourceOptions} uses jackson annotations
    * which PipelineOptionsFactory can use to parse and construct an instance.
    */
-  public static class SourceOptions extends SyntheticOptions {
+  public static class SyntheticSourceOptions extends SyntheticOptions {
     private static final long serialVersionUID = 0;
 
     /** Total number of generated records. */
@@ -245,23 +254,6 @@ public class SyntheticBoundedInput {
      * of 3.0 this ratio will be about 5x-50x; with 2.5, 5x-100x (i.e. 1 bundle can be as large as
      * all others combined).
      *
-     * <p>Python code that can be run to experiment with the implications of various parameters:
-     * <pre>
-     *   from numpy.random import zipf
-     *   from numpy import median
-     *
-     *   def spread(alpha, n):
-     *     x = zipf(alpha, n)
-     *     return max(x)/median(x)
-     *
-     *   def margins(x): return (int(percentile(x, 5)), int(percentile(x, 95)))
-     *
-     *   # For every combination of alpha and n, perform 100 experiments and measure
-     *   # how big is the spread. Return the 5% and 95% quantiles of that experiment.
-     *   [(alpha, n, margins([zipf_spread(alpha, n) for i in range(1,100)]))
-     *    for alpha in [2.5, 3, 3.5, 4]
-     *    for n in [100, 1000, 10000]]
-     * </pre>
      */
     @JsonDeserialize(using = SamplerDeserializer.class)
     public Sampler bundleSizeDistribution = fromRealDistribution(new ConstantRealDistribution(1));
@@ -344,7 +336,7 @@ public class SyntheticBoundedInput {
    * from the synthetic source.
    *
    * <p>The random but deterministic record at position "i" in the range [A, B)
-   * is generated by using {@link SourceOptions#genRecord}.
+   * is generated by using {@link SyntheticSourceOptions#genRecord}.
    * Reading each record sleeps according to the sleep time distribution
    * in {@code SyntheticOptions}.
    */
@@ -353,7 +345,7 @@ public class SyntheticBoundedInput {
     private final long splitPointFrequencyRecords;
 
     private KV<byte[], byte[]> currentKvPair;
-    private long index;
+    private long currentOffset;
     private boolean isAtSplitPoint;
 
     public SyntheticSourceReader(SyntheticBoundedSource source) {
@@ -369,7 +361,7 @@ public class SyntheticBoundedInput {
 
     @Override
     protected long getCurrentOffset() throws IllegalStateException {
-      return index;
+      return currentOffset;
     }
 
     @Override
@@ -390,30 +382,30 @@ public class SyntheticBoundedInput {
 
     @Override
     protected final boolean startImpl() throws IOException {
-      this.index = getCurrentSource().getStartOffset();
+      this.currentOffset = getCurrentSource().getStartOffset();
       if (splitPointFrequencyRecords > 0) {
-        while (index % splitPointFrequencyRecords != 0) {
-          ++index;
+        while (currentOffset % splitPointFrequencyRecords != 0) {
+          ++currentOffset;
         }
       }
 
-      SourceOptions options = getCurrentSource().sourceOptions;
-      SyntheticUtils.delay(options.nextInitializeDelay(this.index),
-          options.cpuUtilizationInMixedDelay, options.delayType, new Random(this.index));
+      SyntheticSourceOptions options = getCurrentSource().sourceOptions;
+      SyntheticUtils.delay(options.nextInitializeDelay(this.currentOffset),
+          options.cpuUtilizationInMixedDelay, options.delayType, new Random(this.currentOffset));
 
       isAtSplitPoint = true;
-      --index;
+      --currentOffset;
       return advanceImpl();
     }
 
     @Override
     protected boolean advanceImpl() throws IOException {
-      index++;
+      currentOffset++;
       isAtSplitPoint =
-          (splitPointFrequencyRecords == 0) || (index % splitPointFrequencyRecords == 0);
+          (splitPointFrequencyRecords == 0) || (currentOffset % splitPointFrequencyRecords == 0);
 
-      SourceOptions options = getCurrentSource().sourceOptions;
-      SourceOptions.Record record = options.genRecord(index);
+      SyntheticSourceOptions options = getCurrentSource().sourceOptions;
+      SyntheticSourceOptions.Record record = options.genRecord(currentOffset);
       currentKvPair = record.kv;
       // TODO: add a separate distribution for the sleep time of reading the first record
       // (e.g.,"open" the files).
