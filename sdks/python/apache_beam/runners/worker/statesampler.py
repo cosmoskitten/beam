@@ -21,7 +21,6 @@ from collections import namedtuple
 
 from apache_beam.runners import common
 from apache_beam.utils.counters import Counter
-from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -64,7 +63,7 @@ class StateSampler(statesampler_impl.StateSampler):
                sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self.states_by_name = {}
     self._prefix = prefix
-    self._counter_factory = counter_factory or CounterFactory()
+    self._counter_factory = counter_factory
     self._states_by_name = {}
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread = None

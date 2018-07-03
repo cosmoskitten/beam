@@ -529,7 +529,7 @@ class DoFnRunner(Receiver):
       windowing: windowing properties of the output PCollection(s)
       tagged_receivers: a dict of tag name to Receiver objects
       step_name: the name of this step
-      logging_context: DEPRECATED
+      logging_context: DEPRECATED [BEAM-4728]
       state: handle for accessing DoFn state
       scoped_metrics_container: DEPRECATED
     """
