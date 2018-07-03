@@ -28,7 +28,23 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End-to-end tests of BigQueryTornadoes. */
+/**
+ * An end-to-end tests of {@link org.apache.beam.examples.cookbook.BigQueryTornadoes}.
+ *
+ * <p>This test uses the data from an external source defined in {@link
+ * org.apache.beam.examples.cookbook.BigQueryTornadoes}. The test requires a created dataset named
+ * 'BigQueryTornadoesIT' in a temporary location. Pass a temporary location in PipelineOptions:
+ *
+ * <pre>
+ *  ./gradlew integrationTest -p examples/java/ -DintegrationTestPipelineOptions='[
+ *  "--tempLocation=gs://your-location/"]'
+ *  --tests org.apache.beam.examples.cookbook.BigQueryTornadoesIT
+ *  -DintegrationTestRunner=direct
+ * </pre>
+ *
+ * Check {@link org.apache.beam.examples.cookbook.BigQueryTornadoes} form more configuration options
+ * via PipelineOptions.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryTornadoesIT {
 
@@ -40,7 +56,7 @@ public class BigQueryTornadoesIT {
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(TestPipelineOptions.class);
+    PipelineOptionsFactory.register(BigQueryTornadoesITOptions.class);
   }
 
   @Test
