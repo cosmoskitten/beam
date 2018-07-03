@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Manages displaying pipeline graph and execution status on the frontend."""
+"""Manages displaying pipeline graph and execution status on the frontend.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division

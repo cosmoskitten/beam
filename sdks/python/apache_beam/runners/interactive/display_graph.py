@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Helper to render pipeline graph in IPython when running interactively."""
+"""Helper to render pipeline graph in IPython when running interactively.
+
+This module is experimental. No backwards-compatibility guarantees.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
