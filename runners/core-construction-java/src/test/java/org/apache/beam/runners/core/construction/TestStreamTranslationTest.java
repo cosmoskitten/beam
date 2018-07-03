@@ -24,9 +24,11 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -67,6 +69,7 @@ public class TestStreamTranslationTest {
   @Test
   public void testEncodedProto() throws Exception {
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     RunnerApi.TestStreamPayload payload =
         TestStreamTranslation.payloadForTestStream(testStream, components);
 
@@ -82,6 +85,7 @@ public class TestStreamTranslationTest {
         AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
     SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
     RunnerApi.FunctionSpec spec =
         PTransformTranslation.toProto(appliedTestStream, components).getSpec();
 

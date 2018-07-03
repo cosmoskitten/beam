@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -192,7 +193,7 @@ public class PipelineTranslationTest {
 
   private static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    SdkComponents sdkComponents = SdkComponents.create();
+    SdkComponents sdkComponents = SdkComponents.create(transform.getPipeline().getOptions());
     String id =
         getCombinePayload(transform, sdkComponents)
             .map(CombinePayload::getAccumulatorCoderId)
