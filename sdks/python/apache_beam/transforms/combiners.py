@@ -38,7 +38,6 @@ from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 
-
 __all__ = [
     'Count',
     'Mean',

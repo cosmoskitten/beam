@@ -19,7 +19,8 @@
 
 from __future__ import absolute_import
 
-from past.builtins import long, unicode
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.options.value_provider import ValueProvider
 

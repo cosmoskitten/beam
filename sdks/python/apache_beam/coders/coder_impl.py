@@ -37,7 +37,8 @@ from __future__ import division
 from builtins import chr
 from builtins import object
 
-from past.builtins import long, unicode
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value

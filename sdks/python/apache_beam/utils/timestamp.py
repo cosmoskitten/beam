@@ -28,9 +28,8 @@ import functools
 import re
 from builtins import object
 
-from past.builtins import long
-
 import pytz
+from past.builtins import long
 
 
 @functools.total_ordering
