@@ -44,8 +44,8 @@ import org.apache.commons.math3.distribution.UniformRealDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 
 /**
- * This {@link SyntheticOptions} class provides common parameterizable synthetic options
- * that are used by {@link SyntheticBoundedInput}.
+ * This {@link SyntheticOptions} class provides common parameterizable synthetic options that are
+ * used by {@link SyntheticBoundedInput}.
  */
 public class SyntheticOptions implements Serializable {
   private static final long serialVersionUID = 0;
@@ -53,7 +53,7 @@ public class SyntheticOptions implements Serializable {
   /**
    * The type of Delay that will be produced.
    *
-   * <p>CPU delay produces a CPU-busy delay. SLEEP delay makes the process sleep.</p>
+   * <p>CPU delay produces a CPU-busy delay. SLEEP delay makes the process sleep.
    */
   public enum DelayType {
     SLEEP,
@@ -65,9 +65,9 @@ public class SyntheticOptions implements Serializable {
   public static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
-   * Wrapper over a distribution. Unfortunately commons-math does not provide a common
-   * interface over both RealDistribution and IntegerDistribution, and we sometimes
-   * need one and sometimes the other.
+   * Wrapper over a distribution. Unfortunately commons-math does not provide a common interface
+   * over both RealDistribution and IntegerDistribution, and we sometimes need one and sometimes the
+   * other.
    */
   public interface Sampler extends Serializable {
     double sample(long seed);
@@ -129,12 +129,12 @@ public class SyntheticOptions implements Serializable {
   /** The key size in bytes. */
   @JsonProperty public long keySizeBytes = 1;
 
-  /** The value size in bytes.*/
+  /** The value size in bytes. */
   @JsonProperty public long valueSizeBytes = 1;
 
   /**
-   * The size of a single record used for size estimation in bytes.
-   * If less than zero, keySizeBytes + valueSizeBytes is used.
+   * The size of a single record used for size estimation in bytes. If less than zero, keySizeBytes
+   * + valueSizeBytes is used.
    */
   @JsonProperty public long bytesPerRecord = -1;
 
@@ -142,8 +142,8 @@ public class SyntheticOptions implements Serializable {
   @JsonProperty public long numHotKeys;
 
   /**
-   * The fraction of records associated with "hot" keys,
-   * which are uniformly distributed over a fixed number of hot keys.
+   * The fraction of records associated with "hot" keys, which are uniformly distributed over a
+   * fixed number of hot keys.
    */
   @JsonProperty public double hotKeyFraction;
 
@@ -153,49 +153,45 @@ public class SyntheticOptions implements Serializable {
   /** The size of large keys. */
   @JsonProperty public double largeKeySizeBytes = 1000;
 
-  /**
-   * The seed is used for generating a hash function implementing
-   * the 128-bit murmur3 algorithm.
-   */
+  /** The seed is used for generating a hash function implementing the 128-bit murmur3 algorithm. */
   @JsonIgnore public int seed;
 
   /**
-   * The hash function is used to generate seeds
-   * that are fed into the random number generators and the sleep time distributions.
+   * The hash function is used to generate seeds that are fed into the random number generators and
+   * the sleep time distributions.
    */
   @JsonIgnore public transient HashFunction hashFunction;
 
   /**
    * SyntheticOptions supports several delay distributions including uniform, normal, exponential,
    * and constant delay per record. The delay is either sleep or CPU spinning for the duration.
+   *
    * <ul>
    *   <li>The uniform delay distribution is specified through
-   *   "delayDistribution":{"type":"uniform","lower":lower_bound,"upper":upper_bound},
-   *   where lower_bound and upper_bound are non-negative numbers
-   *   representing the delay range in milliseconds.
+   *       "delayDistribution":{"type":"uniform","lower":lower_bound,"upper":upper_bound}, where
+   *       lower_bound and upper_bound are non-negative numbers representing the delay range in
+   *       milliseconds.
    *   <li>The normal delay distribution is specified through
-   *   "delayDistribution":{"type":"normal","mean":mean,"stddev":stddev},
-   *   where mean is a non-negative number representing
-   *   the mean of this normal distributed delay in milliseconds
-   *   and stddev is a positive number representing its standard deviation.
+   *       "delayDistribution":{"type":"normal","mean":mean,"stddev":stddev}, where mean is a
+   *       non-negative number representing the mean of this normal distributed delay in
+   *       milliseconds and stddev is a positive number representing its standard deviation.
    *   <li>The exponential delay distribution is specified through
-   *   "delayDistribution":{"type":"exp","mean":mean}, where mean is a positive number
-   *   representing the mean of this exponentially distributed delay in milliseconds.
+   *       "delayDistribution":{"type":"exp","mean":mean}, where mean is a positive number
+   *       representing the mean of this exponentially distributed delay in milliseconds.
    *   <li>The zipf distribution is specified through
-   *   "delayDistribution":{"type":"zipf","param":param,"multiplier":multiplier},
-   *   where param is a number > 1 and multiplier just scales the output of the distribution.
-   *   By default, the multiplier is 1.
-   *   Parameters closer to 1 produce dramatically more skewed results. E.g. given 100 samples,
-   *   the min will almost always be 1, while max with param 3 will usually be below 10;
-   *   with param 2 max will usually be between several dozen and several hundred;
-   *   with param 1.5, thousands to millions.
+   *       "delayDistribution":{"type":"zipf","param":param,"multiplier":multiplier}, where param is
+   *       a number > 1 and multiplier just scales the output of the distribution. By default, the
+   *       multiplier is 1. Parameters closer to 1 produce dramatically more skewed results. E.g.
+   *       given 100 samples, the min will almost always be 1, while max with param 3 will usually
+   *       be below 10; with param 2 max will usually be between several dozen and several hundred;
+   *       with param 1.5, thousands to millions.
    *   <li>The constant sleep time per record is specified through
-   *   "delayDistribution":{"type":"const","const":const} where const is a non-negative number
-   *   representing the constant sleep time in milliseconds.
+   *       "delayDistribution":{"type":"const","const":const} where const is a non-negative number
+   *       representing the constant sleep time in milliseconds.
    * </ul>
    *
-   * <p>The field delayDistribution is not used in the synthetic unbounded source.
-   * The synthetic unbounded source uses RateLimiter to control QPS.
+   * <p>The field delayDistribution is not used in the synthetic unbounded source. The synthetic
+   * unbounded source uses RateLimiter to control QPS.
    */
   @JsonDeserialize(using = SamplerDeserializer.class)
   public Sampler delayDistribution = fromRealDistribution(new ConstantRealDistribution(0));
@@ -217,7 +213,6 @@ public class SyntheticOptions implements Serializable {
   public void setSeed(int seed) {
     this.seed = seed;
     this.hashFunction = Hashing.murmur3_128(seed);
-
   }
 
   static class SamplerDeserializer extends JsonDeserializer<Sampler> {
@@ -227,60 +222,60 @@ public class SyntheticOptions implements Serializable {
       String type = node.get("type").asText();
       switch (type) {
         case "uniform":
-        {
-          double lowerBound = node.get("lower").asDouble();
-          double upperBound = node.get("upper").asDouble();
-          checkArgument(
-              lowerBound >= 0,
-              "The lower bound of uniform distribution should be a non-negative number, "
-                  + "but found %s.",
-              lowerBound);
-          return fromRealDistribution(new UniformRealDistribution(lowerBound, upperBound));
-        }
+          {
+            double lowerBound = node.get("lower").asDouble();
+            double upperBound = node.get("upper").asDouble();
+            checkArgument(
+                lowerBound >= 0,
+                "The lower bound of uniform distribution should be a non-negative number, "
+                    + "but found %s.",
+                lowerBound);
+            return fromRealDistribution(new UniformRealDistribution(lowerBound, upperBound));
+          }
         case "exp":
-        {
-          double mean = node.get("mean").asDouble();
-          return fromRealDistribution(new ExponentialDistribution(mean));
-        }
+          {
+            double mean = node.get("mean").asDouble();
+            return fromRealDistribution(new ExponentialDistribution(mean));
+          }
         case "normal":
-        {
-          double mean = node.get("mean").asDouble();
-          double stddev = node.get("stddev").asDouble();
-          checkArgument(
-              mean >= 0,
-              "The mean of normal distribution should be a non-negative number, but found %s.",
-              mean);
-          return fromRealDistribution(new NormalDistribution(mean, stddev));
-        }
+          {
+            double mean = node.get("mean").asDouble();
+            double stddev = node.get("stddev").asDouble();
+            checkArgument(
+                mean >= 0,
+                "The mean of normal distribution should be a non-negative number, but found %s.",
+                mean);
+            return fromRealDistribution(new NormalDistribution(mean, stddev));
+          }
         case "const":
-        {
-          double constant = node.get("const").asDouble();
-          checkArgument(
-              constant >= 0,
-              "The value of constant distribution should be a non-negative number, but found %s.",
-              constant);
-          return fromRealDistribution(new ConstantRealDistribution(constant));
-        }
+          {
+            double constant = node.get("const").asDouble();
+            checkArgument(
+                constant >= 0,
+                "The value of constant distribution should be a non-negative number, but found %s.",
+                constant);
+            return fromRealDistribution(new ConstantRealDistribution(constant));
+          }
         case "zipf":
-        {
-          double param = node.get("param").asDouble();
-          final double multiplier =
-              node.has("multiplier") ? node.get("multiplier").asDouble() : 1.0;
-          checkArgument(
-              param > 1,
-              "The parameter of the Zipf distribution should be > 1, but found %s.",
-              param);
-          checkArgument(
-              multiplier >= 0,
-              "The multiplier of the Zipf distribution should be >= 0, but found %s.",
-              multiplier);
-          final ZipfDistribution dist = new ZipfDistribution(100, param);
-          return scaledSampler(fromIntegerDistribution(dist), multiplier);
-        }
+          {
+            double param = node.get("param").asDouble();
+            final double multiplier =
+                node.has("multiplier") ? node.get("multiplier").asDouble() : 1.0;
+            checkArgument(
+                param > 1,
+                "The parameter of the Zipf distribution should be > 1, but found %s.",
+                param);
+            checkArgument(
+                multiplier >= 0,
+                "The multiplier of the Zipf distribution should be >= 0, but found %s.",
+                multiplier);
+            final ZipfDistribution dist = new ZipfDistribution(100, param);
+            return scaledSampler(fromIntegerDistribution(dist), multiplier);
+          }
         default:
-        {
-          throw new IllegalArgumentException("Unknown distribution type: " + type);
-        }
+          {
+            throw new IllegalArgumentException("Unknown distribution type: " + type);
+          }
       }
     }
   }
