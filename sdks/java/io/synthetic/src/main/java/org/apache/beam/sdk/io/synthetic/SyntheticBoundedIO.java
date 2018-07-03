@@ -47,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This {@link SyntheticBoundedInput} class provides a parameterizable batch custom source that is
+ * This {@link SyntheticBoundedIO} class provides a parameterizable batch custom source that is
  * deterministic.
  *
  * <p>The {@link SyntheticBoundedSource} generates a {@link PCollection} of
@@ -59,12 +59,12 @@ import org.slf4j.LoggerFactory;
  * The record {@code KV<byte[], byte[]>} is generated deterministically based on the record's
  * position in the source, which enables repeatable execution for debugging.
  * The SyntheticBoundedInput configurable parameters are defined in {@link
- * SyntheticBoundedInput.SyntheticSourceOptions}.
+ * SyntheticBoundedIO.SyntheticSourceOptions}.
  *
  * <p>To read a {@link PCollection} of {@code KV<byte[], byte[]>} from {@link
- * SyntheticBoundedInput}, use {@link SyntheticBoundedInput#readFrom} to construct the synthetic
+ * SyntheticBoundedIO}, use {@link SyntheticBoundedIO#readFrom} to construct the synthetic
  * source with synthetic source options.
- * See {@link SyntheticBoundedInput.SyntheticSourceOptions} for how to construct an instance.
+ * See {@link SyntheticBoundedIO.SyntheticSourceOptions} for how to construct an instance.
  * An example is below:
  * <pre> {@code
  * Pipeline p = ...;
@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * PCollection<KV<byte[], byte[]>> input = p.apply(SyntheticBoundedInput.readFrom(sso));
  * } </pre>
  */
-public class SyntheticBoundedInput {
+public class SyntheticBoundedIO {
   /**
    * Read from the synthetic source options.
    */
