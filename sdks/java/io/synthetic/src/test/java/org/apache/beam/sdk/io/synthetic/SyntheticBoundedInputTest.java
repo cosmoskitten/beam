@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.sdk.io.common.synthetic.SyntheticOptions.fromIntegerDistribution;
-import static org.apache.beam.sdk.io.common.synthetic.SyntheticOptions.fromRealDistribution;
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromIntegerDistribution;
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromRealDistribution;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -28,8 +28,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.synthetic.SyntheticBoundedInput.SourceOptions;
-import org.apache.beam.sdk.io.common.synthetic.SyntheticBoundedInput.SyntheticBoundedSource;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedInput.SyntheticBoundedSource;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedInput.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -48,7 +48,7 @@ import org.junit.runners.JUnit4;
 public class SyntheticBoundedInputTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
-  private SourceOptions testSourceOptions = new SourceOptions();
+  private SyntheticSourceOptions testSourceOptions = new SyntheticSourceOptions();
 
   @Before
   public void setUp() {
@@ -64,9 +64,9 @@ public class SyntheticBoundedInputTest {
     testSourceOptions.forceNumInitialBundles = null;
   }
 
-  private SourceOptions fromString(String jsonString) throws IOException {
+  private SyntheticSourceOptions fromString(String jsonString) throws IOException {
     ObjectMapper mapper = new ObjectMapper();
-    SourceOptions result = mapper.readValue(jsonString, SourceOptions.class);
+    SyntheticSourceOptions result = mapper.readValue(jsonString, SyntheticSourceOptions.class);
     result.validate();
     return result;
   }
@@ -87,7 +87,7 @@ public class SyntheticBoundedInputTest {
             + "\"bundleSizeDistribution\":{\"type\":\"const\",\"const\":42},"
             + "\"forceNumInitialBundles\":10,\"progressShape\":\"LINEAR_REGRESSING\""
             + "}";
-    SourceOptions sourceOptions = fromString(syntheticSourceOptions);
+    SyntheticSourceOptions sourceOptions = fromString(syntheticSourceOptions);
     assertEquals(100, sourceOptions.numRecords);
     assertEquals(10, sourceOptions.splitPointFrequencyRecords);
     assertEquals(10, sourceOptions.keySizeBytes);
@@ -207,7 +207,7 @@ public class SyntheticBoundedInputTest {
   @Test
   public void testSplitIntoSingleRecordBundles() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    SourceOptions sourceOptions = new SourceOptions();
+    SyntheticSourceOptions sourceOptions = new SyntheticSourceOptions();
     sourceOptions.numRecords = 10;
     sourceOptions.setSeed(123456);
     sourceOptions.bundleSizeDistribution = fromRealDistribution(new ConstantRealDistribution(1.0));

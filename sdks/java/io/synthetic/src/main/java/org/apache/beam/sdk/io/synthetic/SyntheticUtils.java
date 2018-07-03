@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
