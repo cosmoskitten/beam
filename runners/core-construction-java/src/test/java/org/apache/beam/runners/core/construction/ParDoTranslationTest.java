@@ -20,18 +20,24 @@ package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoTranslator;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.BagState;
@@ -49,6 +55,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -59,12 +67,14 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
+@RunWith(Enclosed.class)
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -100,6 +110,8 @@ public class ParDoTranslationTest {
                   new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})),
           ParDo.of(new SplittableDropElementsFn())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+          ParDo.of(new StateTimerDropElementsFn())
               .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     }
 
@@ -107,9 +119,23 @@ public class ParDoTranslationTest {
     public ParDo.MultiOutput<KV<Long, String>, Void> parDo;
 
     @Test
-    public void testToAndFromProto() throws Exception {
+    public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
+      RunnerApi.PTransform pTransform =
+          ParDoTranslator.create()
+              .translate(
+                  AppliedPTransform.of(
+                      parDo.getName(),
+                      ImmutableMap.<TupleTag<?>, PValue>builder()
+                          .put(new TupleTag("MAIN_INPUT"), mainInput)
+                          .putAll(parDo.getAdditionalInputs())
+                          .build(),
+                      Collections.emptyMap(),
+                      parDo,
+                      p),
+                  Collections.emptyList(),
+                  components);
+      ParDoPayload payload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
@@ -119,7 +145,7 @@ public class ParDoTranslationTest {
     }
 
     @Test
-    public void toAndFromTransformProto() throws Exception {
+    public void toTransformProto() throws Exception {
       Map<TupleTag<?>, PValue> inputs = new HashMap<>();
       inputs.put(new TupleTag<KV<Long, String>>() {}, mainInput);
       inputs.putAll(parDo.getAdditionalInputs());
@@ -160,6 +186,35 @@ public class ParDoTranslationTest {
       assertThat(
           ParDoTranslation.getMainInput(protoTransform, components),
           equalTo(components.getPcollectionsOrThrow(mainInputId)));
+
+      // Validate that the timer PCollections are added correctly.
+      DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
+
+      for (String localTimerName : signature.timerDeclarations().keySet()) {
+        RunnerApi.PCollection timerPCollection =
+            components.getPcollectionsOrThrow(String.format("foo.%s", localTimerName));
+        assertEquals(
+            components.getPcollectionsOrThrow(mainInputId).getIsBounded(),
+            timerPCollection.getIsBounded());
+        assertEquals(
+            components.getPcollectionsOrThrow(mainInputId).getWindowingStrategyId(),
+            timerPCollection.getWindowingStrategyId());
+        ModelCoders.KvCoderComponents timerKvCoderComponents =
+            ModelCoders.getKvCoderComponents(
+                components.getCodersOrThrow(timerPCollection.getCoderId()));
+        Coder<?> timerKeyCoder =
+            CoderTranslation.fromProto(
+                components.getCodersOrThrow(timerKvCoderComponents.keyCoderId()),
+                rehydratedComponents);
+        assertEquals(VarLongCoder.of(), timerKeyCoder);
+        Coder<?> timerValueCoder =
+            CoderTranslation.fromProto(
+                components.getCodersOrThrow(timerKvCoderComponents.valueCoderId()),
+                rehydratedComponents);
+        assertEquals(
+            org.apache.beam.runners.core.construction.Timer.Coder.of(VoidCoder.of()),
+            timerValueCoder);
+      }
     }
   }
 
