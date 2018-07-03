@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.fn.harness;
 
-import java.util.Map;
-import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.transforms.PTransform;
+/** An interface that groups inputs to an accumulator and flushes the output. */
+public interface GroupingTable<K, InputT, AccumT> {
 
-/** A registrar of TransformPayloadTranslator. */
-public interface TransformPayloadTranslatorRegistrar {
-  Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-      getTransformPayloadTranslators();
+  /** Abstract interface of things that accept inputs one at a time via process(). */
+  interface Receiver {
+    /** Processes the element. */
+    void process(Object outputElem) throws Exception;
+  }
+
+  /** Adds a pair to this table, possibly flushing some entries to output if the table is full. */
+  void put(Object pair, Receiver receiver) throws Exception;
+
+  /** Flushes all entries in this table to output. */
+  void flush(Receiver output) throws Exception;
 }
