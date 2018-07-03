@@ -25,8 +25,6 @@ import base64
 from builtins import object
 
 import google.protobuf
-from google.protobuf import wrappers_pb2
-
 from future.moves import pickle
 
 from apache_beam.coders import coder_impl
@@ -273,7 +271,7 @@ class Coder(object):
   def to_runner_api_parameter(self, context):
     return (
         python_urns.PICKLED_CODER,
-        wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod
