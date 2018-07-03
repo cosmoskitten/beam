@@ -98,8 +98,7 @@ public class SyntheticBoundedIOTest {
     assertEquals(123456, sourceOptions.seed);
     assertEquals(42, sourceOptions.bundleSizeDistribution.sample(123), 0.0);
     assertEquals(10, sourceOptions.forceNumInitialBundles.intValue());
-    assertEquals(
-        SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
+    assertEquals(SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
   }
 
   @Test
@@ -110,9 +109,7 @@ public class SyntheticBoundedIOTest {
     testSourceOptions.validate();
   }
 
-  /**
-   * Test the reader and the source produces the same records.
-   */
+  /** Test the reader and the source produces the same records. */
   @Test
   public void testSourceAndReadersWork() throws Exception {
     testSourceAndReadersWorkP(1);
@@ -156,9 +153,7 @@ public class SyntheticBoundedIOTest {
     testSourceOptions.forceNumInitialBundles = 37;
     assertEquals(
         37,
-        new SyntheticBoundedIO.SyntheticBoundedSource(testSourceOptions)
-            .split(42, options)
-            .size());
+        new SyntheticBoundedIO.SyntheticBoundedSource(testSourceOptions).split(42, options).size());
   }
 
   private void testSplitIntoBundlesP(long splitPointFrequency) throws Exception {
@@ -166,12 +161,9 @@ public class SyntheticBoundedIOTest {
     testSourceOptions.splitPointFrequencyRecords = splitPointFrequency;
     testSourceOptions.numRecords = 100;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(10, options), options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(40, options), options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(100, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(10, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(40, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(100, options), options);
   }
 
   @Test
