@@ -130,12 +130,12 @@ func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, e
 	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
 }
 
-// invoker is a container class for hot path invocations of DoFns, to avoid
+// invoker is a container struct for hot path invocations of DoFns, to avoid
 // repeating fixed set up per element.
 type invoker struct {
 	fn   *funcx.Fn
 	args []interface{}
-	// replace with a slice of functions to run over the args slice? Profile and find out!
+	// TODO(lostluck):  2018/07/06 consider replacing with a slice of functions to run over the args slice, as an improvement.
 	ctxIdx, wndIdx, etIdx int   // specialized input indexes
 	outEtIdx, errIdx      int   // specialized output indexes
 	in, out               []int // general indexes
@@ -143,30 +143,26 @@ type invoker struct {
 
 func newInvoker(fn *funcx.Fn) *invoker {
 	n := &invoker{
-		fn:       fn,
-		args:     make([]interface{}, len(fn.Param)),
-		ctxIdx:   -1,
-		wndIdx:   -1,
-		etIdx:    -1,
-		outEtIdx: -1,
-		errIdx:   -1,
-		in:       fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit),
-		out:      fn.Returns(funcx.RetValue),
+		fn:   fn,
+		args: make([]interface{}, len(fn.Param)),
+		in:   fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit),
+		out:  fn.Returns(funcx.RetValue),
 	}
-	if index, ok := fn.Context(); ok {
-		n.ctxIdx = index
+	var ok bool
+	if n.ctxIdx, ok = fn.Context(); !ok {
+		n.ctxIdx = -1
 	}
-	if index, ok := fn.Window(); ok {
-		n.wndIdx = index
+	if n.wndIdx, ok = fn.Window(); !ok {
+		n.wndIdx = -1
 	}
-	if index, ok := fn.EventTime(); ok {
-		n.etIdx = index
+	if n.etIdx, ok = fn.EventTime(); !ok {
+		n.etIdx = -1
 	}
-	if index, ok := fn.OutEventTime(); ok {
-		n.outEtIdx = index
+	if n.outEtIdx, ok = fn.OutEventTime(); !ok {
+		n.outEtIdx = -1
 	}
-	if index, ok := fn.Error(); ok {
-		n.errIdx = index
+	if n.errIdx, ok = fn.Error(); !ok {
+		n.errIdx = -1
 	}
 	return n
 }
