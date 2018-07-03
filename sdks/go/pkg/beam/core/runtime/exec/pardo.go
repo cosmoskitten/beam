@@ -148,6 +148,7 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 	n.status = Up
+	n.inv.ClearArgs()
 
 	if _, err := n.invokeDataFn(n.ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
