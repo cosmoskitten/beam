@@ -99,12 +99,11 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 	}
 
 	ctx = metrics.SetPTransformID(ctx, n.PID)
-	fn := n.Fn.ProcessElementFn()
 
 	// If the function observes windows, we must invoke it for each window. The expected fast path
 	// is that either there is a single window or the function doesn't observes windows.
 
-	if !mustExplodeWindows(fn, elm) {
+	if !mustExplodeWindows(n.inv.fn, elm) {
 		val, err := n.invokeProcessFn(ctx, elm.Windows, elm.Timestamp, &MainInput{Key: elm, Values: values})
 		if err != nil {
 			return n.fail(err)
