@@ -27,6 +27,7 @@ import threading
 import unittest
 from builtins import object
 
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import statesampler
 
@@ -132,7 +133,7 @@ class JsonLogFormatterTest(unittest.TestCase):
 
   def test_record_with_per_thread_info(self):
     self.maxDiff = None
-    tracker = statesampler.StateSampler('stage', None)
+    tracker = statesampler.StateSampler('stage', CounterFactory())
     statesampler.set_current_tracker(tracker)
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
     with logger.PerThreadLoggingContext(work_item_id='workitem'):
@@ -147,7 +148,7 @@ class JsonLogFormatterTest(unittest.TestCase):
 
   def test_nested_with_per_thread_info(self):
     self.maxDiff = None
-    tracker = statesampler.StateSampler('stage', None)
+    tracker = statesampler.StateSampler('stage', CounterFactory())
     statesampler.set_current_tracker(tracker)
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
     with logger.PerThreadLoggingContext(work_item_id='workitem'):
