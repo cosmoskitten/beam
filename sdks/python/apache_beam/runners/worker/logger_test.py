@@ -25,9 +25,9 @@ import sys
 import threading
 import unittest
 
-from apache_beam.utils.counters import CounterFactory
 from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import statesampler
+from apache_beam.utils.counters import CounterFactory
 
 
 class PerThreadLoggingContextTest(unittest.TestCase):
