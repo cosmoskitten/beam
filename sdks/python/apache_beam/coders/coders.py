@@ -25,8 +25,8 @@ import base64
 from builtins import object
 
 import google.protobuf
-from google.protobuf import wrappers_pb2
 from future.moves import pickle
+from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability import common_urns
