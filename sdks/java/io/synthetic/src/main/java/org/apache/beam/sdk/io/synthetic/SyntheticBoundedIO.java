@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
@@ -96,7 +95,8 @@ public class SyntheticBoundedIO {
       this(0, sourceOptions.numRecords, sourceOptions);
     }
 
-    public SyntheticBoundedSource(long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
+    public SyntheticBoundedSource(
+        long startOffset, long endOffset, SyntheticSourceOptions sourceOptions) {
       super(startOffset, endOffset, 1);
       this.sourceOptions = sourceOptions;
       LOG.debug("Constructing {}", toString());
@@ -186,7 +186,6 @@ public class SyntheticBoundedIO {
 
       // Generate offset ranges proportional to the relative sizes.
       double s = sum(relativeSizes);
-      long[] sizes = new long[relativeSizes.length];
       long startOffset = getStartOffset();
       double sizeSoFar = 0;
       for (int i = 0; i < relativeSizes.length; ++i) {
@@ -198,7 +197,6 @@ public class SyntheticBoundedIO {
         if (startOffset != endOffset) {
           result.add(new OffsetRange(startOffset, endOffset));
         }
-        sizes[i] = endOffset - startOffset;
         startOffset = endOffset;
       }
       return result;
