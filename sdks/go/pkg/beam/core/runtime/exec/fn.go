@@ -125,8 +125,146 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 	return nil, nil
 }
 
+// InvokeWithoutEventTime runs the given function at time 0 in the global window.
 func InvokeWithoutEventTime(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
 	return Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, fn, opt, extra...)
+}
+
+// invoker is a container class for hot path invocations of DoFns, to avoid
+// repeating fixed set up per element.
+type invoker struct {
+	fn   *funcx.Fn
+	args []interface{}
+	// replace with a slice of functions to run over the args slice? Profile and find out!
+	ctxIdx, wndIdx, etIdx int   // specialized input indexes
+	outEtIdx, errIdx      int   // specialized output indexes
+	in, out               []int // general indexes
+}
+
+func newInvoker(fn *funcx.Fn) *invoker {
+	n := &invoker{
+		fn:       fn,
+		args:     make([]interface{}, len(fn.Param)),
+		ctxIdx:   -1,
+		wndIdx:   -1,
+		etIdx:    -1,
+		outEtIdx: -1,
+		errIdx:   -1,
+		in:       fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit),
+		out:      fn.Returns(funcx.RetValue),
+	}
+	if index, ok := fn.Context(); ok {
+		n.ctxIdx = index
+	}
+	if index, ok := fn.Window(); ok {
+		n.wndIdx = index
+	}
+	if index, ok := fn.EventTime(); ok {
+		n.etIdx = index
+	}
+	if index, ok := fn.OutEventTime(); ok {
+		n.outEtIdx = index
+	}
+	if index, ok := fn.Error(); ok {
+		n.errIdx = index
+	}
+	return n
+}
+
+// ClearArgs zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
+func (n *invoker) ClearArgs() {
+	for i := range n.args {
+		n.args[i] = nil
+	}
+}
+
+// Invoke invokes the fn with the given values. The extra values must match the non-main
+// side input and emitters. It returns the direct output, if any.
+func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	// (1) Populate contexts
+	// extract these to make things easier to read.
+	args := n.args
+	fn := n.fn
+	in := n.in
+
+	if n.ctxIdx >= 0 {
+		args[n.ctxIdx] = ctx
+	}
+	if n.wndIdx >= 0 {
+		if len(ws) != 1 {
+			return nil, fmt.Errorf("DoFns that observe windows must be invoked with single window: %v", opt.Key.Windows)
+		}
+		args[n.wndIdx] = ws[0]
+	}
+	if n.etIdx >= 0 {
+		args[n.etIdx] = ts
+	}
+
+	// (2) Main input from value, if any.
+	i := 0
+	if opt != nil {
+		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
+		i++
+		if opt.Key.Elm2 != nil {
+			args[in[i]] = Convert(opt.Key.Elm2, fn.Param[in[i]].T)
+			i++
+		}
+
+		for _, iter := range opt.Values {
+			param := fn.Param[in[i]]
+
+			if param.Kind != funcx.FnIter {
+				return nil, fmt.Errorf("GBK/CoGBK result values must be iterable: %v", param)
+			}
+
+			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
+
+			it := makeIter(param.T, iter)
+			it.Init()
+			args[in[i]] = it.Value()
+			i++
+		}
+	}
+
+	// (3) Precomputed side input and emitters (or other output).
+
+	for _, arg := range extra {
+		args[in[i]] = arg
+		i++
+	}
+
+	// (4) Invoke
+	ret, err := reflectx.CallNoPanic(fn.Fn, args)
+	if err != nil {
+		return nil, err
+	}
+	if n.errIdx >= 0 && ret[n.errIdx] != nil {
+		return nil, ret[n.errIdx].(error)
+	}
+
+	// (5) Return direct output, if any. Input timestamp and windows are implicitly
+	// propagated.
+
+	out := n.out
+	if len(out) > 0 {
+		value := &FullValue{Windows: ws, Timestamp: ts}
+		if n.outEtIdx >= 0 {
+			value.Timestamp = ret[n.outEtIdx].(typex.EventTime)
+		}
+		// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
+
+		value.Elm = ret[out[0]]
+		if len(out) > 1 {
+			value.Elm2 = ret[out[1]]
+		}
+		return value, nil
+	}
+
+	return nil, nil
+}
+
+func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, extra ...interface{}) (*FullValue, error) {
+	return n.Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, extra...)
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {
