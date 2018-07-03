@@ -356,3 +356,39 @@ func TestClearBundleData(t *testing.T) {
 		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newOP: %v", otherBundleID, pt, got, want, newOP)
 	}
 }
+
+// Run on @lostluck's desktop:
+//
+// BenchmarkMetrics/counter_inplace-12         	10000000	       226 ns/op	      80 B/op	       2 allocs/op
+// BenchmarkMetrics/distribution_inplace-12    	10000000	       231 ns/op	     112 B/op	       2 allocs/op
+// BenchmarkMetrics/gauge_inplace-12           	 5000000	       252 ns/op	     112 B/op	       2 allocs/op
+// BenchmarkMetrics/counter_predeclared-12     	10000000	       222 ns/op	      80 B/op	       2 allocs/op
+// BenchmarkMetrics/distribution_predeclared-12         	10000000	       228 ns/op	     112 B/op	       2 allocs/op
+// BenchmarkMetrics/gauge_predeclared-12                	 5000000	       247 ns/op	     112 B/op	       2 allocs/op
+func BenchmarkMetrics(b *testing.B) {
+	Clear()
+	pt, c, d, g := "bench.bundle.data", "counter", "distribution", "gauge"
+	aBundleID := "benchBID"
+	ctx := ctxWith(aBundleID, pt)
+	count := NewCounter(pt, c)
+	dist := NewDistribution(pt, d)
+	gauge := NewGauge(pt, g)
+	tests := []struct {
+		name string
+		call func()
+	}{
+		{"counter_inplace", func() { NewCounter(pt, c).Inc(ctx, 1) }},
+		{"distribution_inplace", func() { NewDistribution(pt, d).Update(ctx, 1) }},
+		{"gauge_inplace", func() { NewGauge(pt, g).Set(ctx, 1) }},
+		{"counter_predeclared", func() { count.Inc(ctx, 1) }},
+		{"distribution_predeclared", func() { dist.Update(ctx, 1) }},
+		{"gauge_predeclared", func() { gauge.Set(ctx, 1) }},
+	}
+	for _, test := range tests {
+		b.Run(test.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				test.call()
+			}
+		})
+	}
+}
