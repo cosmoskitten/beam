@@ -110,7 +110,8 @@ class PortableRunner(runner.PipelineRunner):
         grpc.insecure_channel(job_endpoint))
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
-            job_name='job', pipeline=proto_pipeline, pipeline_options=job_utils.dict_to_struct(options)))
+            job_name='job', pipeline=proto_pipeline,
+            pipeline_options=job_utils.dict_to_struct(options)))
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
