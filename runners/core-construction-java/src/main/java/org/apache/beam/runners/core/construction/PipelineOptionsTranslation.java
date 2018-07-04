@@ -53,7 +53,7 @@ public class PipelineOptionsTranslation {
       TreeNode treeNode = MAPPER.valueToTree(options);
       TreeNode rootOptions = treeNode.get("options");
       Iterator<String> optionsKeys = rootOptions.fieldNames();
-      Map<String, TreeNode> optionsUsingUrns = new HashMap<String, TreeNode>();
+      Map<String, TreeNode> optionsUsingUrns = new HashMap<>();
       while (optionsKeys.hasNext()) {
         String optionKey = optionsKeys.next();
         TreeNode optionValue = rootOptions.get(optionKey);
@@ -73,13 +73,17 @@ public class PipelineOptionsTranslation {
 
   /** Converts the provided {@link Struct} into {@link PipelineOptions}. */
   public static PipelineOptions fromProto(Struct protoOptions) throws IOException {
-    Map<String, TreeNode> mapWithoutUrns = new HashMap<String, TreeNode>();
+    Map<String, TreeNode> mapWithoutUrns = new HashMap<>();
     TreeNode rootOptions = MAPPER.readTree(
         JsonFormat.printer().print(protoOptions));
     Iterator<String> optionsKeys = rootOptions.fieldNames();
     while (optionsKeys.hasNext()) {
       String optionKey = optionsKeys.next();
       TreeNode optionValue = rootOptions.get(optionKey);
+      if (!optionKey.startsWith("beam:option:")) {
+        // ignore null value mapping
+        continue;
+      }
       mapWithoutUrns.put(
           CaseFormat.LOWER_UNDERSCORE.to(
               CaseFormat.LOWER_CAMEL,
