@@ -21,7 +21,7 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.core.testing.UsesMetricsPusher;
+import org.apache.beam.sdk.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
