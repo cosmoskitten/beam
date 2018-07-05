@@ -92,7 +92,11 @@ public class PerfsToBigQueryTest {
     HashMap<NexmarkConfiguration, NexmarkPerf> perfs = new HashMap<>(2);
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
-    Instant start = Instant.now();
+    // when read using TableRowJsonCoder the timstamp field is boxed into an Integer, cast it to int
+    // to have same types between expected and actual rows. To avoid averflow on int capacity,
+    // set the instant to a fixed date, Beam incubation date :)
+    java.time.Instant start = java.time.Instant.ofEpochSecond(1454284800L);
+    int startSeconds = (int) start.getEpochSecond();
     Main.savePerfsToBigQuery(options, perfs, fakeBqServices, start);
 
     String tableSpec = NexmarkUtils.tableSpec(options, String.valueOf(QUERY), 0L, null);
@@ -105,20 +109,20 @@ public class PerfsToBigQueryTest {
     List<TableRow> expectedRows = new ArrayList<>();
     TableRow row1 =
         new TableRow()
-            .set("timestamp", start.getMillis())
+            .set("timestamp", startSeconds)
             .set("runtimeSec", nexmarkPerf1.runtimeSec)
             .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
-            // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-            // to for bowing into Integer in the expectedRows.
+            // when read using TableRowJsonCoder the numResults field is boxed into an Integer, cast it to int
+            // to have same types between expected and actual rows
             .set("numResults", (int) nexmarkPerf1.numResults);
     expectedRows.add(row1);
     TableRow row2 =
         new TableRow()
-            .set("timestamp", start.getMillis())
+            .set("timestamp", startSeconds)
             .set("runtimeSec", nexmarkPerf2.runtimeSec)
             .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
-            // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
-            // to for bowing into Integer in the expectedRows.
+            // when read using TableRowJsonCoder the numResults field is boxed into an Integer, cast it to int
+            // to have same types between expected and actual rows
             .set("numResults", (int) nexmarkPerf2.numResults);
     expectedRows.add(row2);
     assertThat(actualRows, containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
