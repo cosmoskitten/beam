@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Defines utilities for unit testing Runners.
- */
+/** Defines utilities for unit testing Runners.*/
+
 package org.apache.beam.runners.core.testing;
