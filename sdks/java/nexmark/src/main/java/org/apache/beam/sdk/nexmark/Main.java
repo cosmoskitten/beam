@@ -162,9 +162,10 @@ public class Main<OptionT extends NexmarkOptions> {
     SerializableFunction<KV<NexmarkConfiguration, NexmarkPerf>, TableRow> rowFunction =
         input -> {
           NexmarkPerf nexmarkPerf = input.getValue();
+          long startSeconds = start.getMillis() / 1000;
           TableRow row =
               new TableRow()
-                  .set("timestamp", start.getMillis())
+                  .set("timestamp", startSeconds)
                   .set("runtimeSec", nexmarkPerf.runtimeSec)
                   .set("eventsPerSec", nexmarkPerf.eventsPerSec)
                   .set("numResults", nexmarkPerf.numResults);

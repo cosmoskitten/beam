@@ -103,9 +103,10 @@ public class PerfsToBigQueryTest {
             BigQueryHelpers.parseTableSpec(tableSpec).getTableId());
     assertEquals("Wrong number of rows inserted", 2, actualRows.size());
     List<TableRow> expectedRows = new ArrayList<>();
+    long startSeconds = start.getMillis() / 1000;
     TableRow row1 =
         new TableRow()
-            .set("timestamp", start.getMillis())
+            .set("timestamp", startSeconds)
             .set("runtimeSec", nexmarkPerf1.runtimeSec)
             .set("eventsPerSec", nexmarkPerf1.eventsPerSec)
             // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
@@ -114,7 +115,7 @@ public class PerfsToBigQueryTest {
     expectedRows.add(row1);
     TableRow row2 =
         new TableRow()
-            .set("timestamp", start.getMillis())
+            .set("timestamp", startSeconds)
             .set("runtimeSec", nexmarkPerf2.runtimeSec)
             .set("eventsPerSec", nexmarkPerf2.eventsPerSec)
             // when read using TableRowJsonCoder the row field is boxed into an Integer, cast it to int
