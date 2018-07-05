@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
