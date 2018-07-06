@@ -93,6 +93,7 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
+  private final boolean ignoreUnknownValues;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -190,7 +191,8 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
-      @Nullable ValueProvider<String> loadJobProjectId) {
+      @Nullable ValueProvider<String> loadJobProjectId,
+      boolean ignoreUnknownValues) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -201,6 +203,7 @@ class WriteTables<DestinationT>
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
     this.loadJobProjectId = loadJobProjectId;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   @Override
@@ -253,7 +256,8 @@ class WriteTables<DestinationT>
             .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON");
+            .setSourceFormat("NEWLINE_DELIMITED_JSON")
+            .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }
