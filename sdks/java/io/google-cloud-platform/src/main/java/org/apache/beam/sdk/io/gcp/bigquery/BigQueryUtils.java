@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.sdk.values.Row.toRow;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -41,6 +43,11 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
+import org.joda.time.chrono.ISOChronology;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 
 /**
  * Utility methods for BigQuery related operations.
@@ -65,7 +72,7 @@ public class BigQueryUtils {
           .put(TypeName.INT64, StandardSQLTypeName.INT64)
           .put(TypeName.FLOAT, StandardSQLTypeName.FLOAT64)
           .put(TypeName.DOUBLE, StandardSQLTypeName.FLOAT64)
-          .put(TypeName.DECIMAL, StandardSQLTypeName.FLOAT64)
+          .put(TypeName.DECIMAL, StandardSQLTypeName.NUMERIC)
           .put(TypeName.BOOLEAN, StandardSQLTypeName.BOOL)
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
@@ -84,15 +91,20 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, BigDecimal::new)
           .put(TypeName.BOOLEAN, Boolean::valueOf)
           .put(TypeName.STRING, str -> str)
+          .put(
+              TypeName.DATETIME,
+              str ->
+                  new DateTime(
+                      (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC()))
           .build();
 
-  private static final Map<byte[], StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
-      ImmutableMap.<byte[], StandardSQLTypeName>builder()
-          .put("DATE".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.DATE)
-          .put("TIME".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TIME_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIME)
-          .put("TS".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
-          .put("TS_WITH_LOCAL_TZ".getBytes(StandardCharsets.UTF_8), StandardSQLTypeName.TIMESTAMP)
+  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_METADATA_MAPPING =
+      ImmutableMap.<String, StandardSQLTypeName>builder()
+          .put("DATE", StandardSQLTypeName.DATE)
+          .put("TIME", StandardSQLTypeName.TIME)
+          .put("TIME_WITH_LOCAL_TZ", StandardSQLTypeName.TIME)
+          .put("TS", StandardSQLTypeName.TIMESTAMP)
+          .put("TS_WITH_LOCAL_TZ", StandardSQLTypeName.TIMESTAMP)
           .build();
 
   /**
@@ -103,7 +115,9 @@ public class BigQueryUtils {
     StandardSQLTypeName sqlType = BEAM_TO_BIGQUERY_TYPE_MAPPING.get(fieldType.getTypeName());
 
     if (sqlType == StandardSQLTypeName.TIMESTAMP && fieldType.getMetadata() != null) {
-      sqlType = BEAM_TO_BIGQUERY_METADATA_MAPPING.get(fieldType.getMetadata());
+      sqlType =
+          BEAM_TO_BIGQUERY_METADATA_MAPPING.get(
+              new String(fieldType.getMetadata(), StandardCharsets.UTF_8));
     }
 
     return sqlType;
@@ -155,12 +169,45 @@ public class BigQueryUtils {
     return TO_TABLE_ROW;
   }
 
+  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
+  public static SerializableFunction<SchemaAndRecord, Row> toBeamRow(Schema schema) {
+    return new ToBeamRow(schema);
+  }
+
   /** Convert a Beam {@link Row} to a BigQuery {@link TableRow}. */
   private static class ToTableRow implements SerializableFunction<Row, TableRow> {
     @Override
     public TableRow apply(Row input) {
       return toTableRow(input);
     }
+  }
+
+  /** Convert {@link SchemaAndRecord} to a Beam {@link Row}. */
+  private static class ToBeamRow implements SerializableFunction<SchemaAndRecord, Row> {
+    private Schema schema;
+
+    public ToBeamRow(Schema schema) {
+      this.schema = schema;
+    }
+
+    @Override
+    public Row apply(SchemaAndRecord input) {
+      GenericRecord record = input.getRecord();
+      checkState(
+          schema.getFields().size() == record.getSchema().getFields().size(),
+          "Schema sizes are different.");
+      return toBeamRow(record, schema);
+    }
+  }
+
+  public static Row toBeamRow(GenericRecord record, Schema schema) {
+    List<Object> values = new ArrayList();
+    for (int i = 0; i < record.getSchema().getFields().size(); i++) {
+      org.apache.avro.Schema.Field avroField = record.getSchema().getFields().get(i);
+      values.add(AvroUtils.convertAvroFormat(schema.getField(i), record.get(avroField.name())));
+    }
+
+    return Row.withSchema(schema).addValues(values).build();
   }
 
   public static TableRow toTableRow(Row row) {
@@ -171,18 +218,31 @@ public class BigQueryUtils {
       Field schemaField = row.getSchema().getField(i);
       TypeName type = schemaField.getType().getTypeName();
 
-      if (TypeName.ARRAY == type) {
-        type = schemaField.getType().getCollectionElementType().getTypeName();
-        if (TypeName.ROW == type) {
-          List<Row> rows = (List<Row>) value;
-          List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
-          for (int j = 0; j < rows.size(); j++) {
-            tableRows.add(toTableRow(rows.get(j)));
+      switch (type) {
+        case ARRAY:
+          type = schemaField.getType().getCollectionElementType().getTypeName();
+          if (TypeName.ROW == type) {
+            List<Row> rows = (List<Row>) value;
+            List<TableRow> tableRows = new ArrayList<TableRow>(rows.size());
+            for (int j = 0; j < rows.size(); j++) {
+              tableRows.add(toTableRow(rows.get(j)));
+            }
+            value = tableRows;
           }
-          value = tableRows;
-        }
-      } else if (TypeName.ROW == type) {
-        value = toTableRow((Row) value);
+          break;
+        case ROW:
+          value = toTableRow((Row) value);
+          break;
+        case DATETIME:
+          DateTimeFormatter patternFormat =
+              new DateTimeFormatterBuilder()
+                  .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
+                  .toFormatter();
+          value = ((Instant) value).toDateTime().toString(patternFormat);
+          break;
+        default:
+          value = row.getValue(i);
+          break;
       }
 
       output = output.set(schemaField.getName(), value);

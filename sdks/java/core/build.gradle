@@ -17,7 +17,7 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(failOnWarning: false, shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.byte_buddy))
@@ -53,7 +53,6 @@ test {
 dependencies {
   compile library.java.guava
   compile library.java.protobuf_java
-  compile library.java.findbugs_jsr305
   compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3

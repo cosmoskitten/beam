@@ -17,27 +17,26 @@
  */
 
 import common_job_properties
+import PostcommitJobBuilder
 
-// This is the Go precommit which runs a gradle build, and the current set
-// of precommit tests.
-job('beam_PreCommit_Go_GradleBuild') {
-  description('Runs Go PreCommit tests for the current GitHub Pull Request.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+// This job runs the suite of ValidatesRunner tests against the Samza runner.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza_Gradle',
+  'Run Samza ValidatesRunner', 'Apache Samza Runner ValidatesRunner Tests', this) {
+  description('Runs the ValidatesRunner suite on the Samza runner.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    150)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :goPreCommit', 'Run Go PreCommit')
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  // Gradle goals for this job.
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':goPreCommit')
+      tasks(':beam-runners-samza:validatesRunner')
       common_job_properties.setGradleSwitches(delegate)
     }
   }

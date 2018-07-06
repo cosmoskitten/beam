@@ -33,13 +33,6 @@ buildscript {
   repositories {
     maven { url offlineRepositoryRoot }
 
-    if (gradle.hasProperty('extraMavenUrls')) {
-      gradle.ext.extraMavenUrls.each {
-        mavenUrl ->
-          return maven { url mavenUrl }
-      }
-    }
-
     // To run gradle in offline mode, one must first invoke
     // 'updateOfflineRepository' to create an offline repo
     // inside the root project directory. See the application
@@ -57,7 +50,6 @@ buildscript {
   }
   dependencies {
     classpath 'net.researchgate:gradle-release:2.6.0'                                                   // Enable gradle-based release management
-    classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
@@ -71,6 +63,12 @@ buildscript {
     classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
     classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
     classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"                                         // Enable errorprone Java static analysis
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.17.0"                                      // Enable dependency checks
+
+    // Plugins which require online access should not be enabled when running in offline mode.
+    if (!gradle.startParameter.isOffline()) {
+      classpath "com.gradle:build-scan-plugin:1.13.1"                                                   // Enable publishing build scans
+    }
   }
 }
 
@@ -79,7 +77,12 @@ buildscript {
 
 apply plugin: "base"
 
-apply plugin: "com.gradle.build-scan"
+// Plugins which require online access should not be enabled when running in offline mode.
+if (!gradle.startParameter.isOffline()) {
+  apply plugin: "com.gradle.build-scan"
+}
+
+apply plugin: 'com.github.ben-manes.versions'
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
@@ -120,8 +123,16 @@ rat {
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
 
-    // TODO: [BEAM-4568] Website sources need to have apache headers
-    "website/**/*",
+    // Ruby build files
+    "**/Gemfile.lock",
+    "**/Rakefile",
+    "**/_config.yml",
+    "**/_config_test.yml",
+    "**/.htaccess",
+    "website/src/_sass/_bootstrap.scss",
+    "website/src/_sass/bootstrap/**/*",
+    "website/src/js/bootstrap*.js",
+    "website/src/js/bootstrap/**/*",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -130,7 +141,6 @@ rat {
   def gitIgnore = project(':').file('.gitignore')
   if (gitIgnore.exists()) {
     def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
-    println "Adding ${gitIgnoreExcludes.size()} .gitignore exclusions to Apache Rat"
     exclusions.addAll(gitIgnoreExcludes)
   }
 
@@ -156,6 +166,7 @@ task javaPreCommit() {
 task javaPostCommit() {
   dependsOn ":javaPreCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+  dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
 }
 
@@ -197,6 +208,11 @@ task pythonPreCommit() {
 
 task pythonPostCommit() {
   dependsOn ":beam-sdks-python:postCommit"
+}
+
+task runBeamDependencyCheck() {
+  dependsOn ":dependencyUpdates"
+  dependsOn ":beam-sdks-python:dependencyUpdates"
 }
 
 apply plugin: 'net.researchgate.release'

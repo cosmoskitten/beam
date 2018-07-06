@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import itertools
 import random
 import re
 import types
@@ -653,8 +654,14 @@ class CallableWrapperCombineFn(CombineFn):
     return self._fn(union(), *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
+    filter_fn = lambda x: x is not self._EMPTY
+
+    class ReiterableNonEmptyAccumulators(object):
+      def __iter__(self):
+        return itertools.ifilter(filter_fn, accumulators)
+
     # It's (weakly) assumed that self._fn is associative.
-    return self._fn(accumulators, *args, **kwargs)
+    return self._fn(ReiterableNonEmptyAccumulators(), *args, **kwargs)
 
   def extract_output(self, accumulator, *args, **kwargs):
     return self._fn(()) if accumulator is self._EMPTY else accumulator
@@ -1127,7 +1134,7 @@ class CombineGlobally(PTransform):
     return clone
 
   def with_fanout(self, fanout):
-    return self._clone(fanout=self.fanout)
+    return self._clone(fanout=fanout)
 
   def with_defaults(self, has_defaults=True):
     return self._clone(has_defaults=has_defaults)
@@ -1147,7 +1154,7 @@ class CombineGlobally(PTransform):
 
     combine_per_key = CombinePerKey(self.fn, *self.args, **self.kwargs)
     if self.fanout:
-      combine_per_key = combine_per_key.with_hot_key_fanout(fanout)
+      combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
@@ -1318,11 +1325,11 @@ class CombineValues(PTransformWithSideInputs):
     else:
       combine_fn = self.fn
     return (
-        common_urns.composites.COMBINE_GROUPED_VALUES.urn,
+        common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
         _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
-      common_urns.composites.COMBINE_GROUPED_VALUES.urn,
+      common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
   def from_runner_api_parameter(combine_payload, context):
     return CombineValues(
@@ -1410,7 +1417,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         fanout = fanout_fn(key)
         if fanout <= 1:
           # Boolean indicates this is not an accumulator.
-          yield pvalue.TaggedOutput('cold', (key, (False, value)))
+          yield (key, (False, value))  # cold
         else:
           yield pvalue.TaggedOutput('hot', ((self._nonce % fanout, key), value))
 
@@ -1425,8 +1432,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     class PostCombineFn(CombineFn):
       @staticmethod
-      def add_input(accumulator, input):
-        is_accumulator, value = input
+      def add_input(accumulator, element):
+        is_accumulator, value = element
         if is_accumulator:
           return combine_fn.merge_accumulators([accumulator, value])
         else:
@@ -1439,9 +1446,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       (_, key), value = nonce_key_value
       return key, value
 
-    hot, cold = pcoll | ParDo(SplitHotCold()).with_outputs('hot', 'cold')
-    # No multi-output type hints.
-    cold.element_type = typehints.Any
+    cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
+    cold.element_type = typehints.Any  # No multi-output type hints.
     precombined_hot = (
         hot
         # Avoid double counting that may happen with stacked accumulating mode.

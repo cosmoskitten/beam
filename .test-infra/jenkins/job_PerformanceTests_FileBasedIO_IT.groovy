@@ -112,12 +112,9 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 
         // Run job in postcommit every 6 hours, don't trigger every push, and
         // don't email individual committers.
-        common_job_properties.setPostCommit(
+        common_job_properties.setAutoJob(
                 delegate,
-                'H */6 * * *',
-                false,
-                'commits@beam.apache.org',
-                false)
+                'H */6 * * *')
 
         def pipelineOptions = [
                 project        : 'apache-beam-testing',
@@ -129,16 +126,15 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         }
 
         def argMap = [
-                benchmarks               : 'beam_integration_benchmark',
-                beam_it_timeout          : '1200',
-                beam_it_profile          : 'io-it',
-                beam_prebuilt            : 'false',
-                beam_sdk                 : 'java',
-                beam_it_module           : 'sdks/java/io/file-based-io-tests',
-                beam_it_class            : testConfiguration.itClass,
-                beam_it_options          : common_job_properties.joinPipelineOptions(pipelineOptions),
-                beam_extra_mvn_properties: '["filesystem=gcs"]',
-                bigquery_table           : testConfiguration.bqTable,
+                benchmarks           : 'beam_integration_benchmark',
+                beam_it_timeout      : '1200',
+                beam_prebuilt        : 'false',
+                beam_sdk             : 'java',
+                beam_it_module       : 'sdks/java/io/file-based-io-tests',
+                beam_it_class        : testConfiguration.itClass,
+                beam_it_options      : common_job_properties.joinPipelineOptions(pipelineOptions),
+                beam_extra_properties: '["filesystem=gcs"]',
+                bigquery_table       : testConfiguration.bqTable,
         ]
         common_job_properties.buildPerformanceTest(delegate, argMap)
     }

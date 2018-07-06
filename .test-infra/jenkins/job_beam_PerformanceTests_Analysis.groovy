@@ -54,12 +54,9 @@ job(testConfiguration.jobName) {
 
     // Run job in postcommit every 24 hours, don't trigger every push, and
     // don't email individual committers.
-    common_job_properties.setPostCommit(
+    common_job_properties.setAutoJob(
             delegate,
-            '30 */24 * * *',
-            false,
-            'commits@beam.apache.org',
-            false)
+            '30 */24 * * *')
 
 
     steps {

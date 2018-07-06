@@ -17,33 +17,36 @@
  */
 
 import common_job_properties
+import NexmarkBigqueryProperties
+import NoPhraseTriggeringPostCommitBuilder
 
-// This is the Java precommit which runs a Gradle build, and the current set
-// of precommit tests.
-job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
+// This job runs the suite of ValidatesRunner tests against the Spark runner.
+NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Spark',
+        'Spark Runner Nexmark Tests', this) {
+  description('Runs the Nexmark suite on the Spark runner.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(
-    delegate,
-    'master',
-    90)
+  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew :javaPreCommit', 'Run Java PreCommit')
+  // Gradle goals for this job.
   steps {
+    shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***')
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':javaPreCommit')
+      tasks(':beam-sdks-java-nexmark:run')
       common_job_properties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":beam-runners-spark"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=SparkRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
     }
   }
 }
