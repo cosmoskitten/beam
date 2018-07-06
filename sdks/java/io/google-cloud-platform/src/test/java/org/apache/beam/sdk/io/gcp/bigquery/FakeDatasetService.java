@@ -197,6 +197,16 @@ public class FakeDatasetService implements DatasetService, Serializable {
   public long insertAll(
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
       throws IOException, InterruptedException {
+    return insertAll(ref, rowList, insertIdList, false, false);
+  }
+
+  public long insertAll(
+      TableReference ref,
+      List<TableRow> rowList,
+      @Nullable List<String> insertIdList,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues)
+      throws IOException, InterruptedException {
     List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
     for (TableRow row : rowList) {
       windowedRows.add(
@@ -206,7 +216,14 @@ public class FakeDatasetService implements DatasetService, Serializable {
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
-    return insertAll(ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null);
+    return insertAll(
+        ref,
+        windowedRows,
+        insertIdList,
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        skipInvalidRows,
+        ignoreUnknownValues);
   }
 
   @Override
@@ -215,7 +232,9 @@ public class FakeDatasetService implements DatasetService, Serializable {
       List<ValueInSingleWindow<TableRow>> rowList,
       @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy,
-      List<ValueInSingleWindow<TableRow>> failedInserts)
+      List<ValueInSingleWindow<TableRow>> failedInserts,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {

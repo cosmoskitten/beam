@@ -1052,6 +1052,8 @@ public class BigQueryIO {
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
+        .setSkipInvalidRows(false)
+        .setIgnoreUnknownValues(false)
         .build();
   }
 
@@ -1158,6 +1160,10 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getCustomGcsTempLocation();
 
+    abstract Boolean getSkipInvalidRows();
+
+    abstract Boolean getIgnoreUnknownValues();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1202,6 +1208,10 @@ public class BigQueryIO {
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
       abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
+
+      abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
+
+      abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
 
       abstract Write<T> build();
     }
@@ -1482,6 +1492,23 @@ public class BigQueryIO {
       return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
     }
 
+    /**
+     * Insert all valid rows of a request, even if invalid rows exist. This is only applicable when
+     * the write method is set to {@link Method#STREAMING_INSERTS}. The default value is false,
+     * which causes the entire request to fail if any invalid rows exist.
+     */
+    public Write<T> skipInvalidRows() {
+      return toBuilder().setSkipInvalidRows(true).build();
+    }
+
+    /**
+     * Accept rows that contain values that do not match the schema. The unknown values are ignored.
+     * Default is false, which treats unknown values as errors.
+     */
+    public Write<T> ignoreUnknownValues() {
+      return toBuilder().setIgnoreUnknownValues(true).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -1666,7 +1693,9 @@ public class BigQueryIO {
         StreamingInserts<DestinationT> streamingInserts =
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
                 .withInsertRetryPolicy(retryPolicy)
-                .withTestServices((getBigQueryServices()));
+                .withTestServices((getBigQueryServices()))
+                .withSkipInvalidRows(getSkipInvalidRows())
+                .withIgnoreUnknownValues(getIgnoreUnknownValues());
         return rowsWithDestination.apply(streamingInserts);
       } else {
         checkArgument(
@@ -1681,7 +1710,8 @@ public class BigQueryIO {
                 dynamicDestinations,
                 destinationCoder,
                 getCustomGcsTempLocation(),
-                getLoadJobProjectId());
+                getLoadJobProjectId(),
+                getIgnoreUnknownValues());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());

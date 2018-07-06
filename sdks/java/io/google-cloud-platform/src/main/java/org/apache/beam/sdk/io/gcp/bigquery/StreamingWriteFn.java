@@ -43,6 +43,8 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
   private final TupleTag<TableRow> failedOutputTag;
+  private final boolean skipInvalidRows;
+  private final boolean ignoreUnknownValues;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<ValueInSingleWindow<TableRow>>> tableRows;
@@ -56,10 +58,21 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
   StreamingWriteFn(
       BigQueryServices bqServices,
       InsertRetryPolicy retryPolicy,
-      TupleTag<TableRow> failedOutputTag) {
+      TupleTag<TableRow> failedOutputTag,
+      boolean skipInvalidRows,
+      boolean ignoreUnknownValues) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
     this.failedOutputTag = failedOutputTag;
+    this.skipInvalidRows = skipInvalidRows;
+    this.ignoreUnknownValues = ignoreUnknownValues;
+  }
+
+  StreamingWriteFn(
+      BigQueryServices bqServices,
+      InsertRetryPolicy retryPolicy,
+      TupleTag<TableRow> failedOutputTag) {
+    this(bqServices, retryPolicy, failedOutputTag, false, false);
   }
 
   /** Prepares a target BigQuery table. */
@@ -119,7 +132,14 @@ class StreamingWriteFn extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> 
         long totalBytes =
             bqServices
                 .getDatasetService(options)
-                .insertAll(tableReference, tableRows, uniqueIds, retryPolicy, failedInserts);
+                .insertAll(
+                    tableReference,
+                    tableRows,
+                    uniqueIds,
+                    retryPolicy,
+                    failedInserts,
+                    skipInvalidRows,
+                    ignoreUnknownValues);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);

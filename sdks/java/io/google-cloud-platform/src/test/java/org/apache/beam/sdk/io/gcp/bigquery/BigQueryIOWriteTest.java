@@ -1189,7 +1189,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             sideInputs,
             new IdentityDynamicTables(),
-            null);
+            null,
+            false);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);

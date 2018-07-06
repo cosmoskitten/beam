@@ -662,7 +662,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         BackOff backoff,
         final Sleeper sleeper,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<TableRow>> failedInserts,
+        boolean skipInvalidRows,
+        boolean ignoreUnkownValues)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -707,6 +709,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
             content.setRows(rows);
+            content.setSkipInvalidRows(skipInvalidRows);
+            content.setIgnoreUnknownValues(ignoreUnkownValues);
 
             final Bigquery.Tabledata.InsertAll insert =
                 client
@@ -808,7 +812,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
-        List<ValueInSingleWindow<TableRow>> failedInserts)
+        List<ValueInSingleWindow<TableRow>> failedInserts,
+        boolean skipInvalidRows,
+        boolean ignoreUnknownValues)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -817,7 +823,9 @@ class BigQueryServicesImpl implements BigQueryServices {
           BackOffAdapter.toGcpBackOff(INSERT_BACKOFF_FACTORY.backoff()),
           Sleeper.DEFAULT,
           retryPolicy,
-          failedInserts);
+          failedInserts,
+          skipInvalidRows,
+          ignoreUnknownValues);
     }
 
     @Override
