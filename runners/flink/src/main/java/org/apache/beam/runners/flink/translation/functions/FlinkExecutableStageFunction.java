@@ -20,9 +20,11 @@ package org.apache.beam.runners.flink.translation.functions;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.protobuf.Struct;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -31,6 +33,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
@@ -80,6 +83,10 @@ public class FlinkExecutableStageFunction<InputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
+    // Register standard file systems.
+    // TODO Use actual pipeline options.
+    FileSystems.setDefaultPipelineOptions(
+        PipelineOptionsTranslation.fromProto(Struct.newBuilder().build()));
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
     // TODO: Wire this into the distributed cache and make it pluggable.
