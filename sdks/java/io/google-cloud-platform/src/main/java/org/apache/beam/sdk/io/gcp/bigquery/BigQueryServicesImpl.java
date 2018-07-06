@@ -663,7 +663,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         final Sleeper sleeper,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
-        ErrorContainer<T> errorContainer)
+        ErrorContainer<T> errorContainer,
+        boolean skipInvalidRows,
+        boolean ignoreUnkownValues)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -708,6 +710,8 @@ class BigQueryServicesImpl implements BigQueryServices {
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
             content.setRows(rows);
+            content.setSkipInvalidRows(skipInvalidRows);
+            content.setIgnoreUnknownValues(ignoreUnkownValues);
 
             final Bigquery.Tabledata.InsertAll insert =
                 client
@@ -810,7 +814,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
-        ErrorContainer<T> errorContainer)
+        ErrorContainer<T> errorContainer,
+        boolean skipInvalidRows,
+        boolean ignoreUnknownValues)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -820,7 +826,9 @@ class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           retryPolicy,
           failedInserts,
-          errorContainer);
+          errorContainer,
+          skipInvalidRows,
+          ignoreUnknownValues);
     }
 
     @Override
