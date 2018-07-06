@@ -117,6 +117,7 @@ class BatchLoads<DestinationT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  private final boolean ignoreUnknownValues;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
   private final boolean singletonTable;
@@ -136,7 +137,8 @@ class BatchLoads<DestinationT>
       DynamicDestinations<?, DestinationT> dynamicDestinations,
       Coder<DestinationT> destinationCoder,
       ValueProvider<String> customGcsTempLocation,
-      @Nullable ValueProvider<String> loadJobProjectId) {
+      @Nullable ValueProvider<String> loadJobProjectId,
+      boolean ignoreUnknownValues) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -149,6 +151,7 @@ class BatchLoads<DestinationT>
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -513,7 +516,8 @@ class BatchLoads<DestinationT>
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
                 dynamicDestinations,
-                loadJobProjectId));
+                loadJobProjectId,
+                ignoreUnknownValues));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -543,7 +547,8 @@ class BatchLoads<DestinationT>
                 createDisposition,
                 sideInputs,
                 dynamicDestinations,
-                loadJobProjectId));
+                loadJobProjectId,
+                ignoreUnknownValues));
   }
 
   private WriteResult writeResult(Pipeline p) {
