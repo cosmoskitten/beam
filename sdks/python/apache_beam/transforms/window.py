@@ -178,7 +178,6 @@ class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
 
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_WINDOWFN)
 
-
 class BoundedWindow(object):
   """A window for timestamps in range (-infinity, end).
 
@@ -217,16 +216,7 @@ class BoundedWindow(object):
     return self.cmp(other) >= 0
 
   def __hash__(self):
-    return hash(self)
-
-  # def __lt__(self, other):
-  #   if self.end == other.end:
-  #     return hash(self) < hash(other)
-  #   else:
-  #     return self.end < other.end
-
-  def __hash__(self):
-    return hash(self)
+    return hash(self.end)
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -275,8 +265,10 @@ class TimestampedValue(object):
     self.timestamp = Timestamp.of(timestamp)
 
   def __eq__(self, other):
-    return (type(self) == type(other)) and (self.value == other.value) and \
-           (self.timestamp == other.timestamp)
+    type_eq = type(self) == type(other)
+    value_eq = self.value == other.value
+    timestamp_eq = self.timestamp == other.timestamp
+    return type_eq and value_eq and timestamp_eq
 
   def __hash__(self):
     return hash((type(self), self.value, self.timestamp))

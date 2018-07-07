@@ -29,6 +29,8 @@ from builtins import map
 from builtins import object
 from builtins import range
 
+from past.builtins import unicode
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -80,11 +82,6 @@ __all__ = [
     'Create',
     'Impulse',
     ]
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 # Type variables
 T = typehints.TypeVariable('T')
