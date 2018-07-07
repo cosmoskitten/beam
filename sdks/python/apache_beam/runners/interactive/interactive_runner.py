@@ -41,6 +41,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.interactive import display_manager
 from apache_beam.transforms import combiners
 
+# size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
 
@@ -66,11 +67,8 @@ class InteractiveRunner(runners.PipelineRunner):
       self._desired_cache_labels = set()
     print('Running...')
 
-    # pylint: disable=import-error
-    from apache_beam.pipeline import Pipeline
-
     # When possible, invoke a round trip through the runner API.
-    pipeline = Pipeline.from_runner_api(pipeline.to_runner_api(),
+    pipeline = beam.pipeline.Pipeline.from_runner_api(pipeline.to_runner_api(),
                                         pipeline.runner, pipeline._options)  # pylint: disable=protected-access
 
     # Snapshot the pipeline in a portable proto before mutating it.

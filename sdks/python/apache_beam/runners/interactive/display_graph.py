@@ -28,7 +28,8 @@ import collections
 import re
 import threading
 
-import graphviz
+# import graphviz
+import pydot
 
 
 def nice_str(o):
@@ -62,12 +63,24 @@ def construct_digraph(vertex_dict, edge_dict):
   Returns:
     (graphviz.Digraph)
   """
-  digraph = graphviz.Digraph()
-  for vertex, vertex_attributes in vertex_dict.items():
-    digraph.node(vertex, **vertex_attributes)
-  for edge, edge_attributes in edge_dict.items():
-    digraph.edge(edge[0], edge[1], **edge_attributes)
+  # digraph = graphviz.Digraph()
+  # for vertex, vertex_attributes in vertex_dict.items():
+  #   digraph.node(vertex, **vertex_attributes)
+  # for edge, edge_attributes in edge_dict.items():
+  #   digraph.edge(edge[0], edge[1], **edge_attributes)
+  # return digraph
+  digraph = pydot.Dot()
+  for vertex, vertex_attrs in vertex_dict.items():
+    digraph.add_node(pydot.Node(vertex, **vertex_attrs))
+  for edge, edge_attrs in edge_dict.items():
+    digraph.add_edge(pydot.Edge(edge[0], edge[1], **edge_attrs))
   return digraph
+
+
+class PipelineGraph(object):
+  """Creates a DOT graph representation of a pipeline. Thread-safe."""
+
+  def __init__(self, pipeline_proto)
 
 
 class PipelineGraph(object):
@@ -116,7 +129,7 @@ class PipelineGraph(object):
     """Displays graph via IPython or prints DOT if not possible."""
     try:
       from IPython.core import display  # pylint: disable=import-error
-      display.display(display.HTML(self._get_graph()._repr_svg_()))  # pylint: disable=protected-access
+      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
     except ImportError:
       print(str(self._get_graph()))
 
@@ -144,11 +157,11 @@ class PipelineGraph(object):
     def is_top_level_transform(transform):
       return transform.unique_name and '/' not in transform.unique_name
 
-    def leaf_transforms(parent_id):
+    def leaf_transform_ids(parent_id):
       parent = transforms[parent_id]
       if parent.subtransforms:
         for child in parent.subtransforms:
-          for leaf in leaf_transforms(child):
+          for leaf in leaf_transform_ids(child):
             yield leaf
       else:
         yield parent_id
@@ -171,7 +184,7 @@ class PipelineGraph(object):
           'required':
               all(
                   leaf in self._required_transforms
-                  for leaf in leaf_transforms(transform_id))
+                  for leaf in leaf_transform_ids(transform_id))
       }
 
       for pcollection_id in transform.outputs.values():
