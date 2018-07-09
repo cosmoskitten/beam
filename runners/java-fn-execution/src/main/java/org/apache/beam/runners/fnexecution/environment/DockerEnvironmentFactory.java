@@ -131,8 +131,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     Path workerPersistentDirectory = workerTempDir.resolve(pathSafeWorkerId);
     String semiPersistentDirectory = "/var/opt/apache/beam/semi_persistent_dir";
     String containerImage = environment.getUrl();
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
-    // work for Docker for Mac.
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
