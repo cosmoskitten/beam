@@ -27,7 +27,7 @@ from __future__ import print_function
 import threading
 import time
 
-from apache_beam.runners.interactive import display_graph
+from apache_beam.runners.interactive import interactive_pipeline_graph
 
 try:
   import IPython  # pylint: disable=import-error
@@ -119,7 +119,7 @@ class DisplayManager(object):
           if pcoll_id in self._referenced_pcollections:
             self._text_samples.append(
                 '%s produced %s' % (self._producers[pcoll_id],
-                                    display_graph.format_sample(contents, 5)))
+                                    interactive_pipeline_graph.format_sample(contents, 5)))
       if force or new_stats:
         if IPython:
           IPython.core.display.clear_output(True)
@@ -128,7 +128,7 @@ class DisplayManager(object):
         # TODO(qinyeli): Enable updating pipeline graph instead of constructing
         # everytime, if it worths.
 
-        pipeline_graph = display_graph.PipelineGraph(
+        pipeline_graph = interactive_pipeline_graph.InteractivePipelineGraph(
             self._pipeline_proto,
             required_transforms=self._required_transforms,
             referenced_pcollections=self._referenced_pcollections,
