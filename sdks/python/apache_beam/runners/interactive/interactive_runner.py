@@ -68,8 +68,9 @@ class InteractiveRunner(runners.PipelineRunner):
     print('Running...')
 
     # When possible, invoke a round trip through the runner API.
-    pipeline = beam.pipeline.Pipeline.from_runner_api(pipeline.to_runner_api(),
-                                        pipeline.runner, pipeline._options)  # pylint: disable=protected-access
+    pipeline = beam.pipeline.Pipeline.from_runner_api(
+        pipeline.to_runner_api(),
+        pipeline.runner, pipeline._options)  # pylint: disable=protected-access
 
     # Snapshot the pipeline in a portable proto before mutating it.
     pipeline_proto, original_context = pipeline.to_runner_api(

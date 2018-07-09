@@ -25,8 +25,9 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import pydot
 import threading
+
+import pydot
 
 
 class PipelineGraph(object):
@@ -70,7 +71,8 @@ class PipelineGraph(object):
     return str(self._get_graph())
 
   def _is_top_level_transform(self, transform):
-    return transform.unique_name and '/' not in transform.unique_name and not transform.unique_name.startswith('ref_')
+    return transform.unique_name and '/' not in transform.unique_name \
+        and not transform.unique_name.startswith('ref_')
 
   def _generate_graph_dicts(self):
     """From pipeline_proto and other info, generate the graph.
@@ -88,7 +90,7 @@ class PipelineGraph(object):
     # IDs defining the PCollection) to its attributes.
     edge_dict = collections.defaultdict(dict)
 
-    for transform_id, transform in transforms.items():
+    for _, transform in transforms.items():
       if not self._is_top_level_transform(transform):
         continue
 
@@ -122,7 +124,8 @@ class PipelineGraph(object):
     with self._lock:
       return self._graph
 
-  def _construct_graph(self, vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs):
+  def _construct_graph(self, vertex_dict, edge_dict,
+                       default_vertex_attrs, default_edge_attrs):
     """Constructs the pydot.Dot object for the pipeline graph.
 
     Args:
@@ -153,7 +156,7 @@ class PipelineGraph(object):
         self._edge_refs[edge] = edge_ref
         self._graph.add_edge(edge_ref)
 
-  def _update_graph(self, vertex_dict = None, edge_dict = None):
+  def _update_graph(self, vertex_dict=None, edge_dict=None):
     """Updates the pydot.Dot object with the given attribute update
 
     Args:

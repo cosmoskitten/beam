@@ -25,6 +25,7 @@ from __future__ import division
 from __future__ import print_function
 
 import re
+
 from apache_beam.runners.interactive import pipeline_graph
 
 
@@ -80,9 +81,9 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
     self._pcollection_stats = pcollection_stats or {}
 
     super(InteractivePipelineGraph, self).__init__(
-      pipeline_proto=pipeline_proto,
-      default_vertex_attrs={'color': 'gray', 'fontcolor': 'gray'},
-      default_edge_attrs={'color': 'gray'}
+        pipeline_proto=pipeline_proto,
+        default_vertex_attrs={'color': 'gray', 'fontcolor': 'gray'},
+        default_edge_attrs={'color': 'gray'}
     )
 
     transform_updates, pcollection_updates = self._generate_graph_update_dicts()
@@ -112,7 +113,8 @@ class InteractivePipelineGraph(pipeline_graph.PipelineGraph):
         yield parent_id
 
     for transform_id, transform in transforms.items():
-      if not super(InteractivePipelineGraph, self)._is_top_level_transform(transform):
+      if not super(
+          InteractivePipelineGraph, self)._is_top_level_transform(transform):
         continue
 
       transform_dict[transform.unique_name] = {

@@ -118,8 +118,9 @@ class DisplayManager(object):
           new_stats[pcoll_id] = {'sample': contents}
           if pcoll_id in self._referenced_pcollections:
             self._text_samples.append(
-                '%s produced %s' % (self._producers[pcoll_id],
-                                    interactive_pipeline_graph.format_sample(contents, 5)))
+                '%s produced %s' % (
+                    self._producers[pcoll_id],
+                    interactive_pipeline_graph.format_sample(contents, 5)))
       if force or new_stats:
         if IPython:
           IPython.core.display.clear_output(True)
