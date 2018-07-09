@@ -22,7 +22,9 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.BaseEncoding;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -142,9 +144,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             .add(
                 "--mount",
                 String.format(
-                  "type=bind,source=%s,dst=%s",
-                  workerPersistentDirectory,
-                  semiPersistentDirectory)),
+                    "type=bind,source=%s,dst=%s",
+                    workerPersistentDirectory, semiPersistentDirectory))
             // NOTE: Host networking does not work on Mac, but the command line flag is accepted.
             .add("--network=host")
             .build();
