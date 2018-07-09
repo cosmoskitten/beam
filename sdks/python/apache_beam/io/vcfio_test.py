@@ -46,18 +46,18 @@ _SAMPLE_HEADER_LINES = [
     '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n',
     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\r\n',
     '##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">\n',
-    '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample1    Sample2\r\n',
+    '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample1	Sample2\r\n',
 ]
 
 _SAMPLE_TEXT_LINES = [
-    '20    14370    .    G    A    29    PASS    AF=0.5    GT:GQ    0|0:48 1|0:48\n',
-    '20    17330    .    T    A    3    q10    AF=0.017    GT:GQ    0|0:49    0|1:3\n',
-    '20    1110696    .    A    G,T    67    PASS    AF=0.3,0.7    GT:GQ    1|2:21    2|1:2\n',
-    '20    1230237    .    T    .    47    PASS    .    GT:GQ    0|0:54    0|0:48\n',
-    '19    1234567    .    GTCT    G,GTACT    50    PASS    .    GT:GQ    0/1:35    0/2:17\n',
-    '20    1234    rs123    C    A,T    50    PASS    AF=0.5    GT:GQ    0/0:48    1/0:20\n',
-    '19    123    rs1234    GTC    .    40    q10;s50    NS=2    GT:GQ    1|0:48    0/1:.\n',
-    '19    12    .    C    <SYMBOLIC>    49    q10    AF=0.5    GT:GQ    0|1:45 .:.\n'
+    '20	14370	.	G	A	29	PASS	AF=0.5	GT:GQ	0|0:48 1|0:48\n',
+    '20	17330	.	T	A	3	q10	AF=0.017	GT:GQ	0|0:49	0|1:3\n',
+    '20	1110696	.	A	G,T	67	PASS	AF=0.3,0.7	GT:GQ	1|2:21	2|1:2\n',
+    '20	1230237	.	T	.	47	PASS	.	GT:GQ	0|0:54	0|0:48\n',
+    '19	1234567	.	GTCT	G,GTACT	50	PASS	.	GT:GQ	0/1:35	0/2:17\n',
+    '20	1234	rs123	C	A,T	50	PASS	AF=0.5	GT:GQ	0/0:48	1/0:20\n',
+    '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n',
+    '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n'
 ]
 
 
@@ -122,8 +122,8 @@ class VcfSourceTest(unittest.TestCase):
       not phased
       multiple names
     """
-    vcf_line = ('20    1234    rs123;rs2    C    A,T    50    PASS    AF=0.5,0.1;NS=1    '
-                'GT:GQ    0/0:48    1/0:20\n')
+    vcf_line = ('20	1234	rs123;rs2	C	A,T	50	PASS	AF=0.5,0.1;NS=1	'
+                'GT:GQ	0/0:48	1/0:20\n')
     variant = Variant(
         reference_name='20', start=1233, end=1234, reference_bases='C',
         alternate_bases=['A', 'T'], names=['rs123', 'rs2'], quality=50,
@@ -147,7 +147,7 @@ class VcfSourceTest(unittest.TestCase):
       missing format field
     """
     vcf_line = (
-        '19    123    rs1234    GTC    .    40    q10;s50    NS=2    GT:GQ    1|0:48    0/1:.\n')
+        '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n')
     variant = Variant(
         reference_name='19', start=122, end=125, reference_bases='GTC',
         alternate_bases=[], names=['rs1234'], quality=40,
@@ -169,7 +169,7 @@ class VcfSourceTest(unittest.TestCase):
       no calls for sample 2
     """
     vcf_line = (
-        '19    12    .    C    <SYMBOLIC>    49    q10    AF=0.5    GT:GQ    0|1:45 .:.\n')
+        '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n')
     variant = Variant(
         reference_name='19', start=11, end=12, reference_bases='C',
         alternate_bases=['<SYMBOLIC>'], quality=49, filters=['q10'],
@@ -194,20 +194,20 @@ class VcfSourceTest(unittest.TestCase):
     malformed_vcf_records = [
         # Malfromed record.
         [
-            '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
             '1    1  '
         ],
         # GT is not an integer.
         [
-            '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample\n',
-            '19    123    rs12345    T    C    50    q10    AF=0.2;NS=2    GT    A|0'
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	A|0'
         ],
         # POS should be an integer.
         [
             '##FILTER=<ID=PASS,Description="All filters passed">\n',
             '##FILTER=<ID=q10,Description="Quality is less than 10.">\n',
-            '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample\n',
-            '19    abc    rs12345    T    C    9    q10    AF=0.2;NS=2    GT:GQ    1|0:48\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	abc	rs12345	T	C	9	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
         ]
     ]
     malformed_header_lines = [
@@ -215,14 +215,14 @@ class VcfSourceTest(unittest.TestCase):
         [
             '##FILTER=<ID=PASS,Description="All filters passed">\n',
             '##FILTER=<ID=LowQual,Descri\n',
-            '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample\n',
-            '19    123    rs12345    T    C    50    q10    AF=0.2;NS=2    GT:GQ    1|0:48',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48',
         ],
         # Invalid Number value for INFO.
         [
             '##INFO=<ID=G,Number=U,Type=String,Description="InvalidNumber">\n',
-            '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO    FORMAT    Sample\n',
-            '19    123    rs12345    T    C    50    q10    AF=0.2;NS=2    GT:GQ    1|0:48\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
         ]
     ]
 
@@ -366,8 +366,8 @@ class VcfSourceTest(unittest.TestCase):
                            allow_malformed_records=True)
 
   def test_no_samples(self):
-    header_line = '#CHROM    POS    ID    REF    ALT    QUAL    FILTER    INFO\n'
-    record_line = '19    123    .    G    A    .    PASS    AF=0.2'
+    header_line = '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n'
+    record_line = '19	123	.	G	A	.	PASS	AF=0.2'
     expected_variant = Variant(
         reference_name='19', start=122, end=123, reference_bases='G',
         alternate_bases=['A'], filters=['PASS'],
@@ -378,7 +378,7 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(expected_variant, read_data[0])
 
   def test_no_info(self):
-    record_line = 'chr19    123    .    .    .    .    .    .    GT    .    .'
+    record_line = 'chr19	123	.	.	.	.	.	.	GT	.	.'
     expected_variant = Variant(reference_name='chr19', start=122, end=123)
     expected_variant.calls.append(
         VariantCall(name='Sample1', genotype=[MISSING_GENOTYPE_VALUE]))
@@ -397,8 +397,8 @@ class VcfSourceTest(unittest.TestCase):
         '##INFO=<ID=HF,Number=0,Type=Flag,Description="FlagInfo">\n',
         '##INFO=<ID=HU,Number=.,Type=Float,Description="FloatInfo_variable">\n']
     record_lines = [
-        '19    2    .    A    T,C    .    .    HA=a1,a2;HG=1,2,3;HR=a,b,c;HF;HU=0.1    GT    1/0    0/1\n',
-        '19    124    .    A    T    .    .    HG=3,4,5;HR=d,e;HU=1.1,1.2    GT    0/0    0/1']
+        '19	2	.	A	T,C	.	.	HA=a1,a2;HG=1,2,3;HR=a,b,c;HF;HU=0.1	GT	1/0	0/1\n',
+        '19	124	.	A	T	.	.	HG=3,4,5;HR=d,e;HU=1.1,1.2	GT	0/0	0/1']
     variant_1 = Variant(
         reference_name='19', start=1, end=2, reference_bases='A',
         alternate_bases=['T', 'C'],
@@ -425,8 +425,8 @@ class VcfSourceTest(unittest.TestCase):
   def test_end_info_key(self):
     phaseset_header_line = (
         '##INFO=<ID=END,Number=1,Type=Integer,Description="End of record.">\n')
-    record_lines = ['19    123    .    A    .    .    .    END=1111    GT    1/0    0/1\n',
-                    '19    123    .    A    .    .    .    .    GT    0/1    1/1\n']
+    record_lines = ['19	123	.	A	.	.	.	END=1111	GT	1/0	0/1\n',
+                    '19	123	.	A	.	.	.	.	GT	0/1	1/1\n']
     variant_1 = Variant(
         reference_name='19', start=122, end=1111, reference_bases='A')
     variant_1.calls.append(VariantCall(name='Sample1', genotype=[1, 0]))
@@ -443,8 +443,8 @@ class VcfSourceTest(unittest.TestCase):
   def test_custom_phaseset(self):
     phaseset_header_line = (
         '##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phaseset">\n')
-    record_lines = ['19    123    .    A    T    .    .    .    GT:PS    1|0:1111    0/1:.\n',
-                    '19    121    .    A    T    .    .    .    GT:PS    1|0:2222    0/1:2222\n']
+    record_lines = ['19	123	.	A	T	.	.	.	GT:PS	1|0:1111	0/1:.\n',
+                    '19	121	.	A	T	.	.	.	GT:PS	1|0:2222	0/1:2222\n']
     variant_1 = Variant(
         reference_name='19', start=122, end=123, reference_bases='A',
         alternate_bases=['T'])
@@ -469,7 +469,7 @@ class VcfSourceTest(unittest.TestCase):
         '##FORMAT=<ID=F1,Number=1,Type=Integer,Description="Format_one">\n',
         '##FORMAT=<ID=F2,Number=2,Type=Character,Description="Format_two">\n']
     record_lines = [
-        '19    2    .    A    T,C    .    .    .    GT:FU:F1:F2    1/0:a1:3:a,b    0/1:a2,a3:4:b,c\n']
+        '19	2	.	A	T,C	.	.	.	GT:FU:F1:F2	1/0:a1:3:a,b	0/1:a2,a3:4:b,c\n']
     expected_variant = Variant(
         reference_name='19', start=1, end=2, reference_bases='A',
         alternate_bases=['T', 'C'])
