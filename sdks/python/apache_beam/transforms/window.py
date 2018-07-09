@@ -51,10 +51,9 @@ from __future__ import absolute_import
 
 import abc
 
-from past.bulitins import cmp
-
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
+from past.bulitins import cmp
 
 from apache_beam.coders import coders
 from apache_beam.portability import common_urns

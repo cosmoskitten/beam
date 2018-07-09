@@ -30,8 +30,6 @@ from socket import error as SocketError
 from future.builtins import next
 from past.builtins import unicode
 
-from past.bulitins import cmp
-
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
@@ -50,6 +48,7 @@ try:
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
+
 # pylint: enable=ungrouped-imports
 
 
