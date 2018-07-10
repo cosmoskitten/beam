@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.Hashing;
@@ -25,19 +25,15 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 
-/**
- * Utility functions used in {@link org.apache.beam.sdk.io.common.synthetic}.
- */
-public class SyntheticUtils {
+/** Utility functions used in {@link org.apache.beam.sdk.io.common.synthetic}. */
+class SyntheticUtils {
   // cpu delay implementation:
 
   private static final long MASK = (1L << 16) - 1L;
   private static final long HASH = 0x243F6A8885A308D3L;
   private static final long INIT_PLAINTEXT = 50000L;
 
-  /**
-   * Keep cpu busy for {@code delayMillis} by calculating lots of hashes.
-   */
+  /** Keep cpu busy for {@code delayMillis} by calculating lots of hashes. */
   private static void cpuDelay(long delayMillis) {
     // Note that the delay is enforced in terms of walltime. That implies this thread may not
     // keep CPU busy if it gets preempted by other threads. There is more of chance of this
@@ -64,14 +60,14 @@ public class SyntheticUtils {
   }
 
   /**
-   * Implements a mechanism to delay a thread in various fashions.
-   *   * {@code CPU}: Burn CPU while waiting.
-   *   * {@code SLEEP}: Sleep uninterruptibly while waiting.
-   *   * {@code MIXED}: Switch between burning CPU and sleeping every millisecond to emulate a
-   *                    desired CPU utilization specified by {@code cpuUtilizationInMixedDelay}.
+   * Implements a mechanism to delay a thread in various fashions. * {@code CPU}: Burn CPU while
+   * waiting. * {@code SLEEP}: Sleep uninterruptibly while waiting. * {@code MIXED}: Switch between
+   * burning CPU and sleeping every millisecond to emulate a desired CPU utilization specified by
+   * {@code cpuUtilizationInMixedDelay}.
+   *
    * @return Millis spent sleeping, does not include time spent spinning.
    */
-  public static long delay(
+  static long delay(
       Duration delay,
       double cpuUtilizationInMixedDelay,
       SyntheticOptions.DelayType delayType,
@@ -101,5 +97,4 @@ public class SyntheticUtils {
         throw new IllegalArgumentException("Unknown delay type " + delayType);
     }
   }
-
 }

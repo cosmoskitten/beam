@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io.common.synthetic;
+package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.sdk.io.common.synthetic.SyntheticOptions.fromIntegerDistribution;
-import static org.apache.beam.sdk.io.common.synthetic.SyntheticOptions.fromRealDistribution;
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromIntegerDistribution;
+import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromRealDistribution;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -28,8 +28,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.synthetic.SyntheticBoundedInput.SourceOptions;
-import org.apache.beam.sdk.io.common.synthetic.SyntheticBoundedInput.SyntheticBoundedSource;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticBoundedSource;
+import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -43,12 +43,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link SyntheticBoundedInput}. */
+/** Unit tests for {@link SyntheticBoundedIO}. */
 @RunWith(JUnit4.class)
-public class SyntheticBoundedInputTest {
+public class SyntheticBoundedIOTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
-  private SourceOptions testSourceOptions = new SourceOptions();
+  private SyntheticSourceOptions testSourceOptions = new SyntheticSourceOptions();
 
   @Before
   public void setUp() {
@@ -64,9 +64,9 @@ public class SyntheticBoundedInputTest {
     testSourceOptions.forceNumInitialBundles = null;
   }
 
-  private SourceOptions fromString(String jsonString) throws IOException {
+  private SyntheticSourceOptions fromString(String jsonString) throws IOException {
     ObjectMapper mapper = new ObjectMapper();
-    SourceOptions result = mapper.readValue(jsonString, SourceOptions.class);
+    SyntheticSourceOptions result = mapper.readValue(jsonString, SyntheticSourceOptions.class);
     result.validate();
     return result;
   }
@@ -87,7 +87,7 @@ public class SyntheticBoundedInputTest {
             + "\"bundleSizeDistribution\":{\"type\":\"const\",\"const\":42},"
             + "\"forceNumInitialBundles\":10,\"progressShape\":\"LINEAR_REGRESSING\""
             + "}";
-    SourceOptions sourceOptions = fromString(syntheticSourceOptions);
+    SyntheticSourceOptions sourceOptions = fromString(syntheticSourceOptions);
     assertEquals(100, sourceOptions.numRecords);
     assertEquals(10, sourceOptions.splitPointFrequencyRecords);
     assertEquals(10, sourceOptions.keySizeBytes);
@@ -98,8 +98,7 @@ public class SyntheticBoundedInputTest {
     assertEquals(123456, sourceOptions.seed);
     assertEquals(42, sourceOptions.bundleSizeDistribution.sample(123), 0.0);
     assertEquals(10, sourceOptions.forceNumInitialBundles.intValue());
-    assertEquals(
-        SyntheticBoundedInput.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
+    assertEquals(SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING, sourceOptions.progressShape);
   }
 
   @Test
@@ -110,9 +109,7 @@ public class SyntheticBoundedInputTest {
     testSourceOptions.validate();
   }
 
-  /**
-   * Test the reader and the source produces the same records.
-   */
+  /** Test the reader and the source produces the same records. */
   @Test
   public void testSourceAndReadersWork() throws Exception {
     testSourceAndReadersWorkP(1);
@@ -156,9 +153,7 @@ public class SyntheticBoundedInputTest {
     testSourceOptions.forceNumInitialBundles = 37;
     assertEquals(
         37,
-        new SyntheticBoundedInput.SyntheticBoundedSource(testSourceOptions)
-            .split(42, options)
-            .size());
+        new SyntheticBoundedIO.SyntheticBoundedSource(testSourceOptions).split(42, options).size());
   }
 
   private void testSplitIntoBundlesP(long splitPointFrequency) throws Exception {
@@ -166,18 +161,15 @@ public class SyntheticBoundedInputTest {
     testSourceOptions.splitPointFrequencyRecords = splitPointFrequency;
     testSourceOptions.numRecords = 100;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(10, options), options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(40, options), options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.split(100, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(10, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(40, options), options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, source.split(100, options), options);
   }
 
   @Test
   public void testIncreasingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedInput.ProgressShape.LINEAR;
+    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     // Reader starts at 0.0 progress.
@@ -194,7 +186,7 @@ public class SyntheticBoundedInputTest {
   @Test
   public void testRegressingProgress() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    testSourceOptions.progressShape = SyntheticBoundedInput.ProgressShape.LINEAR_REGRESSING;
+    testSourceOptions.progressShape = SyntheticBoundedIO.ProgressShape.LINEAR_REGRESSING;
     SyntheticBoundedSource source = new SyntheticBoundedSource(testSourceOptions);
     BoundedSource.BoundedReader<KV<byte[], byte[]>> reader = source.createReader(options);
     double lastFractionConsumed = reader.getFractionConsumed();
@@ -207,17 +199,17 @@ public class SyntheticBoundedInputTest {
   @Test
   public void testSplitIntoSingleRecordBundles() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    SourceOptions sourceOptions = new SourceOptions();
+    SyntheticSourceOptions sourceOptions = new SyntheticSourceOptions();
     sourceOptions.numRecords = 10;
     sourceOptions.setSeed(123456);
     sourceOptions.bundleSizeDistribution = fromRealDistribution(new ConstantRealDistribution(1.0));
     sourceOptions.forceNumInitialBundles = 10;
     SyntheticBoundedSource source = new SyntheticBoundedSource(sourceOptions);
-    List<SyntheticBoundedSource> bundles = source.split(42L, options);
-    for (SyntheticBoundedSource bundle : bundles) {
-      bundle.validate();
-      assertEquals(1, bundle.getEndOffset() - bundle.getStartOffset());
+    List<SyntheticBoundedSource> sources = source.split(42L, options);
+    for (SyntheticBoundedSource recordSource : sources) {
+      recordSource.validate();
+      assertEquals(1, recordSource.getEndOffset() - recordSource.getStartOffset());
     }
-    SourceTestUtils.assertSourcesEqualReferenceSource(source, bundles, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, sources, options);
   }
 }
