@@ -29,6 +29,8 @@ from builtins import object
 from collections import namedtuple
 
 from future.utils import iteritems
+from past.builtins import unicode
+from past.builtins import long
 
 import vcf
 
@@ -38,13 +40,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
-
-try:
-  unicode  # pylint: disable=unicode-builtin
-  int        # Python 2
-except NameError:
-  unicode = str
-  long = int  # Python 3
 
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
@@ -128,6 +123,9 @@ class Variant(object):
   def __eq__(self, other):
     return (isinstance(other, Variant) and
             vars(self) == vars(other))
+
+  def __hash__(self):
+    return hash((type(self), vars(self)))
 
   def __repr__(self):
     return ', '.join(
@@ -220,6 +218,9 @@ class VariantCall(object):
   def __eq__(self, other):
     return ((self.name, self.genotype, self.phaseset, self.info) ==
             (other.name, other.genotype, other.phaseset, other.info))
+
+  def __hash__(self):
+    return hash((self.name, self.genotype, self.phaseset, self.info))
 
   def __repr__(self):
     return ', '.join(
@@ -413,7 +414,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, int, str, unicode, bool))):
+              isinstance(data, (int, float, long, str, unicode, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)

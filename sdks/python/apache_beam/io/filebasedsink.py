@@ -28,6 +28,7 @@ from builtins import range
 from builtins import zip
 
 from future.utils import iteritems
+from past.builtins import unicode
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
@@ -42,11 +43,6 @@ from apache_beam.transforms.display import DisplayDataItem
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
 __all__ = ['FileBasedSink']
-
-try:
-  unicode           # pylint: disable=unicode-builtin
-except NameError:
-  unicode = str
 
 
 class FileBasedSink(iobase.Sink):
@@ -376,6 +372,9 @@ class FileBasedSink(iobase.Sink):
     # TODO: Clean up workitem_test which uses this.
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
+
+  def __hash__(self):
+    return hash((type(self), self.__dict__))
 
 
 class FileBasedSinkWriter(iobase.Writer):
