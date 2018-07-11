@@ -18,6 +18,7 @@
 """Utility functions for all microbenchmarks."""
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import collections
@@ -105,9 +106,9 @@ def run_benchmarks(benchmark_suite, verbose=True):
       time_cost = run(benchmark_config.benchmark, size)
       cost_series[name].append(time_cost)
       if verbose:
-        per_element_cost = time_cost/size
+        per_element_cost = time_cost / size
         print("%s: run %d of %d, per element time cost: %g sec" % (
-            name, run_id+1, num_runs, per_element_cost))
+            name, run_id + 1, num_runs, per_element_cost))
     if verbose:
       print("")
 
@@ -117,8 +118,8 @@ def run_benchmarks(benchmark_suite, verbose=True):
     for benchmark_config in benchmark_suite:
       name = str(benchmark_config)
       per_element_median_cost = (
-          numpy.median(cost_series[name])/benchmark_config.size)
-      std = numpy.std(cost_series[name])/benchmark_config.size
+          numpy.median(cost_series[name]) / benchmark_config.size)
+      std = numpy.std(cost_series[name]) / benchmark_config.size
 
       print("%s: per element median time cost: %g sec, std: %g sec" % (
           name.ljust(pad_length, " "), per_element_median_cost, std))
