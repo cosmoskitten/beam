@@ -125,6 +125,104 @@ func TestInvoke(t *testing.T) {
 	}
 }
 
+// TestInvokeCache verifies the the various forms of input to Invoke are handled correctly.
+func TestInvokeCache(t *testing.T) {
+	tests := []struct {
+		Fn       interface{}
+		Opt      *MainInput
+		Args     []interface{}
+		Expected interface{}
+	}{
+		{
+			// Void function
+			Fn: func() {},
+		},
+		{
+			// Contexts and errors are allowed and handled.
+			Fn: func(ctx context.Context) error { return nil },
+		},
+		{
+			// Sum
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Args:     []interface{}{1, 2, 3},
+			Expected: 6,
+		},
+		{
+			// Concat
+			Fn:       func(a, b, c string) string { return a + b + c },
+			Args:     []interface{}{"a", "b", "c"},
+			Expected: "abc",
+		},
+		{
+			// Length (slice type)
+			Fn:       func(list []int) (int, error) { return len(list), nil },
+			Args:     []interface{}{[]int{1, 2, 3}},
+			Expected: 3,
+		},
+		{
+			// Emitter
+			Fn:   func(emit func(int)) { emit(1) },
+			Args: []interface{}{func(int) {}},
+		},
+		{
+			// Side input
+			Fn: func(a int, get func(*int) bool) int {
+				var ret int
+				if !get(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []interface{}{1, func(out *int) bool { *out = 2; return true }},
+			Expected: 2,
+		},
+		{
+			// Sum as Main
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Args:     []interface{}{2, 3},
+			Expected: 6,
+		},
+		{
+			// Sum as Main KV
+			Fn:       func(a, b, c int) int { return a + b + c },
+			Opt:      &MainInput{Key: FullValue{Elm: 1, Elm2: 2}},
+			Args:     []interface{}{3},
+			Expected: 6,
+		},
+		{
+			// EventTime
+			Fn:       func(ts typex.EventTime, a int) int { return int(ts.Milliseconds()) + a },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Expected: 3,
+		},
+		{
+			// Window
+			Fn:       func(w typex.Window, a int) int64 { return w.MaxTimestamp().Milliseconds() },
+			Opt:      &MainInput{Key: FullValue{Elm: 1}},
+			Expected: mtime.EndOfGlobalWindowTime.Milliseconds(),
+		},
+	}
+
+	for _, test := range tests {
+		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
+		if err != nil {
+			t.Fatalf("function not valid: %v", err)
+		}
+		inv := newInvoker(fn)
+
+		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
+
+		val, err := inv.Invoke(context.Background(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+		if err != nil {
+			t.Fatalf("invoker{%v}.Invoke(%v) failed: %v", fn.Fn.Name(), test.Args, err)
+		}
+		if val != nil && val.Elm != test.Expected {
+			t.Errorf("invoker{%v}.Invoke(%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm, test.Expected)
+		}
+	}
+}
+
 // Benchmarks
 
 // NOTE(herohde) 12/19/2017: example run on a laptop
@@ -150,7 +248,6 @@ func BenchmarkDirectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = inc(n)
 	}
-	b.Log(n)
 }
 
 func BenchmarkIndirectCall(b *testing.B) {
@@ -163,7 +260,6 @@ func BenchmarkIndirectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn(n)
 	}
-	b.Log(n)
 }
 
 func BenchmarkReflectedAndBackCall(b *testing.B) {
@@ -172,7 +268,6 @@ func BenchmarkReflectedAndBackCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn(n)
 	}
-	b.Log(n)
 }
 
 func BenchmarkReflectCall(b *testing.B) {
@@ -181,7 +276,6 @@ func BenchmarkReflectCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
-	b.Log(n.Interface())
 }
 
 func BenchmarkReflectCallNewArgs(b *testing.B) {
@@ -192,7 +286,6 @@ func BenchmarkReflectCallNewArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
-	b.Log(n.Interface())
 }
 
 func BenchmarkReflectCallReuseArgs(b *testing.B) {
@@ -203,7 +296,6 @@ func BenchmarkReflectCallReuseArgs(b *testing.B) {
 		args[0] = n
 		n = fn.Call(args)[0]
 	}
-	b.Log(n.Interface())
 }
 
 func BenchmarkInvokeCall(b *testing.B) {
@@ -214,7 +306,6 @@ func BenchmarkInvokeCall(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
-	b.Log(n)
 }
 
 func BenchmarkInvokeCallExtra(b *testing.B) {
@@ -225,7 +316,6 @@ func BenchmarkInvokeCallExtra(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
-	b.Log(n)
 }
 
 // The below take the additional overhead of MakeFunc.
@@ -240,7 +330,6 @@ func BenchmarkReflectFnCall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n = fn.Call([]reflect.Value{n})[0]
 	}
-	b.Log(n.Interface())
 }
 
 func BenchmarkInvokeFnCall(b *testing.B) {
@@ -251,7 +340,6 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
 		n = ret.Elm.(int)
 	}
-	b.Log(n)
 }
 
 func BenchmarkInvokeFnCallExtra(b *testing.B) {
@@ -262,5 +350,4 @@ func BenchmarkInvokeFnCallExtra(b *testing.B) {
 		ret, _ := InvokeWithoutEventTime(ctx, fn, nil, n)
 		n = ret.Elm.(int)
 	}
-	b.Log(n)
 }

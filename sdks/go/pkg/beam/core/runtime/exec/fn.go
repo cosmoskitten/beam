@@ -167,8 +167,8 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	return n
 }
 
-// ClearArgs zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
-func (n *invoker) ClearArgs() {
+// Reset zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
+func (n *invoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}
@@ -223,7 +223,8 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	// (3) Precomputed side input and emitters (or other output).
-
+	// TODO(lostluck): 2018/07/10 extras (emitters and side inputs), are constant so we could
+	// initialize them once at construction time, and not clear them in Reset.
 	for _, arg := range extra {
 		args[in[i]] = arg
 		i++
@@ -257,10 +258,6 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	return nil, nil
-}
-
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, extra ...interface{}) (*FullValue, error) {
-	return n.Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, extra...)
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {
