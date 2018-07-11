@@ -40,89 +40,8 @@ func Invoke(ctx context.Context, ws []typex.Window, ts typex.EventTime, fn *func
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
-
-	// (1) Populate contexts
-
-	args := make([]interface{}, len(fn.Param))
-
-	if index, ok := fn.Context(); ok {
-		args[index] = ctx
-	}
-	if index, ok := fn.Window(); ok {
-		if len(ws) != 1 {
-			return nil, fmt.Errorf("DoFns that observe windows must be invoked with single window: %v", opt.Key.Windows)
-		}
-		args[index] = ws[0]
-	}
-	if index, ok := fn.EventTime(); ok {
-		args[index] = ts
-	}
-
-	// (2) Main input from value, if any.
-
-	in := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter | funcx.FnEmit)
-	i := 0
-
-	if opt != nil {
-		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
-		i++
-		if opt.Key.Elm2 != nil {
-			args[in[i]] = Convert(opt.Key.Elm2, fn.Param[in[i]].T)
-			i++
-		}
-
-		for _, iter := range opt.Values {
-			param := fn.Param[in[i]]
-
-			if param.Kind != funcx.FnIter {
-				return nil, fmt.Errorf("GBK/CoGBK result values must be iterable: %v", param)
-			}
-
-			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
-
-			it := makeIter(param.T, iter)
-			it.Init()
-			args[in[i]] = it.Value()
-			i++
-		}
-	}
-
-	// (3) Precomputed side input and emitters (or other output).
-
-	for _, arg := range extra {
-		args[in[i]] = arg
-		i++
-	}
-
-	// (4) Invoke
-
-	ret, err := reflectx.CallNoPanic(fn.Fn, args)
-	if err != nil {
-		return nil, err
-	}
-	if index, ok := fn.Error(); ok && ret[index] != nil {
-		return nil, ret[index].(error)
-	}
-
-	// (5) Return direct output, if any. Input timestamp and windows are implicitly
-	// propagated.
-
-	out := fn.Returns(funcx.RetValue)
-	if len(out) > 0 {
-		value := &FullValue{Windows: ws, Timestamp: ts}
-		if index, ok := fn.OutEventTime(); ok {
-			value.Timestamp = ret[index].(typex.EventTime)
-		}
-		// TODO(herohde) 4/16/2018: apply windowing function to elements with explicit timestamp?
-
-		value.Elm = ret[out[0]]
-		if len(out) > 1 {
-			value.Elm2 = ret[out[1]]
-		}
-		return value, nil
-	}
-
-	return nil, nil
+	inv := newInvoker(fn)
+	return inv.Invoke(ctx, ws, ts, opt, extra...)
 }
 
 // InvokeWithoutEventTime runs the given function at time 0 in the global window.
@@ -167,8 +86,8 @@ func newInvoker(fn *funcx.Fn) *invoker {
 	return n
 }
 
-// ClearArgs zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
-func (n *invoker) ClearArgs() {
+// Reset zeroes argument entries in the cached slice to allow values to be garbage collected after the bundle ends.
+func (n *invoker) Reset() {
 	for i := range n.args {
 		n.args[i] = nil
 	}
@@ -223,7 +142,8 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	// (3) Precomputed side input and emitters (or other output).
-
+	// TODO(lostluck): 2018/07/10 extras (emitters and side inputs), are constant so we could
+	// initialize them once at construction time, and not clear them in Reset.
 	for _, arg := range extra {
 		args[in[i]] = arg
 		i++
@@ -257,10 +177,6 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 	}
 
 	return nil, nil
-}
-
-func (n *invoker) InvokeWithoutEventTime(ctx context.Context, opt *MainInput, extra ...interface{}) (*FullValue, error) {
-	return n.Invoke(ctx, window.SingleGlobalWindow, mtime.ZeroTimestamp, opt, extra...)
 }
 
 func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]ReusableInput, error) {
