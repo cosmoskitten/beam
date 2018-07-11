@@ -93,7 +93,7 @@ public class LeaderBoard extends HourlyTeamScore {
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
   /** Options supported by {@link LeaderBoard}. */
-  public interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
+  public interface Options extends ExampleOptions, StreamingOptions {
 
     @Description("BigQuery Dataset to write tables to. Must already exist.")
     @Validation.Required
@@ -303,8 +303,7 @@ public class LeaderBoard extends HourlyTeamScore {
                   .triggering(
                       Repeatedly.forever(
                           AfterProcessingTime.pastFirstElementInPane().plusDelayOf(TEN_MINUTES)))
-                  .accumulatingFiredPanes()
-                  .withAllowedLateness(allowedLateness))
+                  .accumulatingFiredPanes())
           // Extract and sum username/score pairs from the event data.
           .apply("ExtractUserScore", new ExtractAndSumScore("user"));
     }
