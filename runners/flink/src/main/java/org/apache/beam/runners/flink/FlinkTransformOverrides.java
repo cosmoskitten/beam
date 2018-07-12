@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -36,8 +37,12 @@ public class FlinkTransformOverrides {
                   new FlinkStreamingPipelineTranslator.SplittableParDoOverrideFactory()))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
+                  PTransformMatchers.splittableProcessKeyedUnbounded(),
                   new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableProcessKeyedBounded(),
+                  new SplittableParDoNaiveBounded.OverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),

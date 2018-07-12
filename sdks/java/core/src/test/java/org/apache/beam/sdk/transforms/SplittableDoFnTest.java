@@ -71,6 +71,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SplittableDoFnTest implements Serializable {
 
+  @BoundedPerElement
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
     public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {

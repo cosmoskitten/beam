@@ -71,6 +71,7 @@ import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
@@ -415,6 +416,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)));
+      overridesBuilder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDo(),
+                  new SplittableParDoOverrides.SplittableParDoOverrideFactory<>()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableProcessKeyedBounded(),
+                  new SplittableParDoNaiveBounded.OverrideFactory()));
       if (!hasExperiment(options, "beam_fn_api")) {
         overridesBuilder
             .add(
