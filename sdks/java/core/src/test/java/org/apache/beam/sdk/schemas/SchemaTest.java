@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -155,5 +156,34 @@ public class SchemaTest {
     assertEquals(FieldType.INT32, schema.getField(0).getType());
     assertEquals("f_string", schema.getField(1).getName());
     assertEquals(FieldType.STRING, schema.getField(1).getType());
+  }
+
+  @Test
+  public void testEquivalent() {
+    final Schema expectedNested1 =
+        Schema.builder().addStringField("yard1").addInt64Field("yard2").build();
+
+    final Schema expectedSchema1 =
+        Schema.builder()
+            .addStringField("field1")
+            .addInt64Field("field2")
+            .addRowField("field3", expectedNested1)
+            .addArrayField("field4", FieldType.row(expectedNested1))
+            .addMapField("field5", FieldType.STRING, FieldType.row(expectedNested1))
+            .build();
+
+    final Schema expectedNested2 =
+        Schema.builder().addInt64Field("yard2").addStringField("yard1").build();
+
+    final Schema expectedSchema2 =
+        Schema.builder()
+            .addMapField("field5", FieldType.STRING, FieldType.row(expectedNested2))
+            .addArrayField("field4", FieldType.row(expectedNested2))
+            .addRowField("field3", expectedNested2)
+            .addInt64Field("field2")
+            .addStringField("field1")
+            .build();
+
+    assertTrue(expectedSchema1.equivalent(expectedSchema2));
   }
 }

@@ -42,7 +42,7 @@ public class Convert {
    * the same schema as the iput.
    */
   public static <InputT> PTransform<PCollection<InputT>, PCollection<Row>> toRows() {
-    return convert(Row.class);
+    return to(Row.class);
   }
 
   /**
@@ -53,7 +53,7 @@ public class Convert {
    */
   public static <OutputT> PTransform<PCollection<Row>, PCollection<OutputT>> fromRows(
       Class<OutputT> clazz) {
-    return convert(clazz);
+    return to(clazz);
   }
 
   /**
@@ -64,7 +64,7 @@ public class Convert {
    */
   public static <OutputT> PTransform<PCollection<Row>, PCollection<OutputT>> fromRows(
       TypeDescriptor<OutputT> typeDescriptor) {
-    return convert(typeDescriptor);
+    return to(typeDescriptor);
   }
 
   /**
@@ -74,9 +74,9 @@ public class Convert {
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
    * have fields with the same names, but possibly different orders.
    */
-  public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> convert(
+  public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> to(
       Class<OutputT> clazz) {
-    return convert(TypeDescriptor.of(clazz));
+    return to(TypeDescriptor.of(clazz));
   }
 
   /**
@@ -86,7 +86,7 @@ public class Convert {
    * <i>compatible</i> schemas. Two schemas are said to be <i>compatible</i> if they recursively
    * have fields with the same names, but possibly different orders.
    */
-  public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> convert(
+  public static <InputT, OutputT> PTransform<PCollection<InputT>, PCollection<OutputT>> to(
       TypeDescriptor<OutputT> typeDescriptor) {
     return new ConvertTransform<>(typeDescriptor);
   }
@@ -133,7 +133,11 @@ public class Convert {
           // assert matches input schema.
           if (!outputSchemaCoder.getSchema().equivalent(input.getSchema())) {
             throw new RuntimeException(
-                "Cannot convert between types that don't have equivalent " + "schemas.");
+                "Cannot convert between types that don't have equivalent schemas."
+                    + " input schema: "
+                    + input.getSchema()
+                    + " output schema: "
+                    + outputSchemaCoder.getSchema());
           }
         } catch (NoSuchSchemaException e) {
           throw new RuntimeException("No schema registered for " + outputTypeDescriptor);

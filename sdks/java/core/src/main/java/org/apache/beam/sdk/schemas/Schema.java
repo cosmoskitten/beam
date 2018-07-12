@@ -432,18 +432,25 @@ public class Schema implements Serializable {
       if (!other.getTypeName().equals(getTypeName())) {
         return false;
       }
-      if (TypeName.ROW.equals(getTypeName()) && !other.getRowSchema().equivalent(getRowSchema())) {
-        return false;
-      } else if (TypeName.ARRAY.equals(getTypeName())
-          && !other.getCollectionElementType().equivalent(getCollectionElementType())) {
-        return false;
-      } else if (TypeName.MAP.equals(getTypeName())) {
-        if (!other.getMapKeyType().equivalent(getMapKeyType())
-            || !other.getMapValueType().equivalent(getMapValueType())) {
-          return false;
-        }
-      } else {
-        return other.equals(this);
+      switch (getTypeName()) {
+        case ROW:
+          if (!other.getRowSchema().equivalent(getRowSchema())) {
+            return false;
+          }
+          break;
+        case ARRAY:
+          if (!other.getCollectionElementType().equivalent(getCollectionElementType())) {
+            return false;
+          }
+          break;
+        case MAP:
+          if (!other.getMapKeyType().equivalent(getMapKeyType())
+              || !other.getMapValueType().equivalent(getMapValueType())) {
+            return false;
+          }
+          break;
+        default:
+          return other.equals(this);
       }
       return true;
     }
