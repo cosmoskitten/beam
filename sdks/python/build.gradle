@@ -250,6 +250,19 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+task flinkCompatibilityMatrix2(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      flinkJobServerJar = '/Users/robertwb/Work/beam/incubator-beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.6.0-SNAPSHOT-shaded.jar'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.flink_runner_test ${flinkJobServerJar}"
+    }
+  }
+  dependencies {
+    flinkJobServer ':beam-runners-flink_2.11-job-server:jar'
+  }
+}
+
 task postCommit() {
   dependsOn "preCommit"
   dependsOn "localWordCount"
