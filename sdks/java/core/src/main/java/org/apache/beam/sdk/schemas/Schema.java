@@ -186,6 +186,10 @@ public class Schema implements Serializable {
 
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
+    if (other.getFieldCount() != getFieldCount()) {
+      return false;
+    }
+
     List<Field> otherFields =
         other
             .getFields()
@@ -197,9 +201,6 @@ public class Schema implements Serializable {
             .stream()
             .sorted(Comparator.comparing(Field::getName))
             .collect(Collectors.toList());
-    if (otherFields.size() != actualFields.size()) {
-      return false;
-    }
 
     for (int i = 0; i < otherFields.size(); ++i) {
       Field otherField = otherFields.get(i);

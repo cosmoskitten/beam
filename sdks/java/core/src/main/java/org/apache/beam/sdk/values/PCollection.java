@@ -310,7 +310,10 @@ public class PCollection<T> extends PValueBase implements PValue {
   /** Returns the attached schema, or null if there is none. */
   @Experimental(Kind.SCHEMAS)
   public Schema getSchema() {
-    return hasSchema() ? ((SchemaCoder) getCoder()).getSchema() : null;
+    if (!hasSchema()) {
+      throw new IllegalStateException("Cannot call getSchema when there is no schema");
+    }
+    return ((SchemaCoder) getCoder()).getSchema();
   }
 
   /**

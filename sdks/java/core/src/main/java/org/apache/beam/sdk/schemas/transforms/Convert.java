@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.schemas.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
@@ -93,8 +92,7 @@ public class Convert {
 
   private static class ConvertTransform<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
-    @Nullable TypeDescriptor<OutputT> outputTypeDescriptor = null;
-    SchemaCoder<OutputT> outputSchemaCoder;
+    TypeDescriptor<OutputT> outputTypeDescriptor;
 
     ConvertTransform(Class<OutputT> outputClass) {
       this(TypeDescriptor.of(outputClass));
@@ -111,6 +109,7 @@ public class Convert {
         throw new RuntimeException("Convert requires a schema on the input.");
       }
 
+      final SchemaCoder<OutputT> outputSchemaCoder;
       boolean toRow = outputTypeDescriptor.equals(TypeDescriptor.of(Row.class));
       if (toRow) {
         // If the output is of type Row, then just forward the schema of the input type to the
