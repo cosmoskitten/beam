@@ -27,7 +27,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
 
 
 if __name__ == '__main__':
@@ -47,10 +46,10 @@ if __name__ == '__main__':
     @classmethod
     def _subprocess_command(cls, port):
       return [
-        'java',
-        '-jar', flinkJobServerJar,
-        '--artifacts-dir', '/tmp/flink',
-        '--job-host', 'localhost:%s' % port,
+          'java',
+          '-jar', flinkJobServerJar,
+          '--artifacts-dir', '/tmp/flink',
+          '--job-host', 'localhost:%s' % port,
       ]
 
     @classmethod

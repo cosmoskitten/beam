@@ -198,11 +198,11 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   @classmethod
   def _subprocess_command(cls, port):
     return [
-      sys.executable,
-      '-m', 'apache_beam.runners.portability.local_job_service_main',
-      '-p', str(port),
-      '--worker_command_line',
-      '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
+        sys.executable,
+        '-m', 'apache_beam.runners.portability.local_job_service_main',
+        '-p', str(port),
+        '--worker_command_line',
+        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
     ]
 
 
