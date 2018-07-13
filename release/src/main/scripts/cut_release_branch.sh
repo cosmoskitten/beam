@@ -19,18 +19,40 @@
 # This script will update apache beam master branch with next release version
 # and cut release branch for current development version.
 
-MASTER_BRANCH=master
-RELEASE=2.6.0
-DEV=2.6.0.dev
-NEXT_VERSION_IN_BASE_BRANCH=2.7.0
-RELEASE_BRANCH=release-${RELEASE}
-GITHUB_REPO_URL=https://github.com/apache/beam.git
-BEAM_ROOT_DIR=beam
+# Parse parameters passing into the script
+if [[ $# -eq 1 && $1 = "-h" ]]; then
+	echo "This script will update apache beam master branch with next release version and cut release branch for current development version."
+	echo "There are two params required:"
+	echo "--release=\${CURRENT_RELEASE_VERSION}"
+	echo "--next_release=\${NEXT_RELEASE_VERSION}"
+	exit
+else
+	for param in "$@"
+	do
+		if [[ $param =~ --release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+			RELEASE=${BASH_REMATCH[1]}
+		fi
+		if [[ $param =~ --next_release\=([0-9]\.[0-9]\.[0-9]) ]]; then
+			NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}
+		fi
+	done
+fi
+if [[ -z "$RELEASE" || -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
+	echo "This sricpt needs to be ran with params, please run with -h to get more instructions."
+	exit
+fi
 
-# Enforce Release Manager input github credentials every time
-git config --global --unset credential.helper
+
+MASTER_BRANCH=master
+DEV=${RELEASE}.dev
+RELEASE_BRANCH=release-${RELEASE}
+GITHUB_REPO_URL=https://gitbox.apache.org/repos/asf/beam.git
+BEAM_ROOT_DIR=beam
+LOCAL_CLONE_DIR=beam_release_${RELEASE}
 
 cd ~
+mkdir ${LOCAL_CLONE_DIR}
+cd ${LOCAL_CLONE_DIR}
 git clone ${GITHUB_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 
@@ -56,6 +78,7 @@ git push origin ${MASTER_BRANCH}
 # Checkout and update release branch
 git checkout ${RELEASE_BRANCH}
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
+# TODO: [BEAM-4767]
 sed -i -e "s/beam-master-.*/beam-${RELEASE}/g" runners/google-cloud-dataflow-java/build.gradle
 
 echo "Update release branch as following: "
