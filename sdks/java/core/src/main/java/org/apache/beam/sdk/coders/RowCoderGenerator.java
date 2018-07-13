@@ -120,9 +120,6 @@ public abstract class RowCoderGenerator {
 
   @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema, UUID coderId) {
-    if (schema.getFieldCount() == 0) {
-      throw new RuntimeException("Cannot generate coder for empty schema.");
-    }
     return generatedCoders.computeIfAbsent(
         coderId,
         h -> {
