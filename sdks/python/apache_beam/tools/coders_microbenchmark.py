@@ -44,7 +44,7 @@ from apache_beam.utils import windowed_value
 
 
 def coder_benchmark_factory(coder, generate_fn):
-  """ Creates a benchmark that encodes and decodes a list of elements.
+  """Creates a benchmark that encodes and decodes a list of elements.
 
   Args:
     coder: coder to use to encode an element.
@@ -58,6 +58,8 @@ def coder_benchmark_factory(coder, generate_fn):
                     for _ in range(num_elements_per_benchmark)]
 
     def __call__(self):
+      # Calling coder operations on a single element at a time may incur
+      # unrelevant overhead. To compensate, we use a list elements.
       _ = self._coder.decode(self._coder.encode(self._list))
 
   CoderBenchmark.__name__ = "%s, %s" % (
