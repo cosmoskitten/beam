@@ -342,7 +342,8 @@ public final class TransformTranslator {
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         Accumulator<MetricsContainerStepMap> metricsAccum = MetricsAccumulator.getInstance();
-
+        Coder<InputT> inputCoder = (Coder<InputT>) context.getInput(transform).getCoder();
+        Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all;
 
         DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
@@ -357,6 +358,8 @@ public final class TransformTranslator {
                 context.getSerializableOptions(),
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
+                inputCoder,
+                outputCoders,
                 TranslationUtils.getSideInputs(transform.getSideInputs(), context),
                 windowingStrategy,
                 stateful);
