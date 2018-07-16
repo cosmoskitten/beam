@@ -143,7 +143,7 @@ public class PortableExecutionTest implements Serializable {
 
   @Before
   public void setup() {
-    DockerJobBundleFactory.factory = this::createJobBundleFactory;
+    DockerJobBundleFactory.FACTORY.set(this::createJobBundleFactory);
   }
 
   @After

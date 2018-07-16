@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -75,7 +76,14 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   }
   // TODO: a hacky way to override the factory for testing.
   // Should be replaced with mechanism that let's users configure their own factory
-  public static JobBundleFactoryFactory factory = (jobInfo) -> new DockerJobBundleFactory(jobInfo);
+  public static final AtomicReference<JobBundleFactoryFactory> FACTORY =
+      new AtomicReference(
+          new JobBundleFactoryFactory() {
+            @Override
+            public DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
+              return new DockerJobBundleFactory(jobInfo);
+            }
+          });
 
   // TODO: This host name seems to change with every other Docker release. Do we attempt to keep up
   // or attempt to document the supported Docker version(s)?
@@ -90,7 +98,7 @@ public class DockerJobBundleFactory implements JobBundleFactory {
   private final LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache;
 
   public static DockerJobBundleFactory create(JobInfo jobInfo) throws Exception {
-    return factory.create(jobInfo);
+    return FACTORY.get().create(jobInfo);
   }
 
   protected DockerJobBundleFactory(JobInfo jobInfo) throws Exception {
