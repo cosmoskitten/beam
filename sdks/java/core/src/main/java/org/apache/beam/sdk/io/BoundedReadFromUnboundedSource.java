@@ -132,8 +132,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
         .include("source", source);
   }
 
-  private static class SplitFn<T>
-      extends DoFn<Shard<T>, Shard<T>> {
+  private static class SplitFn<T> extends DoFn<Shard<T>, Shard<T>> {
     /**
      * Divide the given number of records into {@code numSplits} approximately equal parts that sum
      * to {@code numRecords}.
@@ -167,7 +166,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       long[] numRecords = splitNumRecords(shard.getMaxNumRecords(), numSplits);
       for (int i = 0; i < numSplits; i++) {
         out.output(
-            shard.toBuilder()
+            shard
+                .toBuilder()
                 .setSource(splits.get(i))
                 .setMaxNumRecords(numRecords[i])
                 .setMaxReadTime(shard.getMaxReadTime())
@@ -179,9 +179,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   private static class ReadFn<T> extends DoFn<Shard<T>, ValueWithRecordId<T>> {
     @ProcessElement
     public void process(
-        @Element Shard<T> shard,
-        OutputReceiver<ValueWithRecordId<T>> out,
-        PipelineOptions options) throws Exception {
+        @Element Shard<T> shard, OutputReceiver<ValueWithRecordId<T>> out, PipelineOptions options)
+        throws Exception {
       Instant endTime =
           shard.getMaxReadTime() == null ? null : Instant.now().plus(shard.getMaxReadTime());
       if (shard.getMaxNumRecords() <= 0
@@ -204,8 +203,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       }
     }
 
-    private boolean advanceWithBackoff(
-        UnboundedReader<T> reader, Instant endTime) throws IOException {
+    private boolean advanceWithBackoff(UnboundedReader<T> reader, Instant endTime)
+        throws IOException {
       // Try reading from the source with exponential backoff
       BackOff backoff = BACKOFF_FACTORY.backoff();
       long nextSleep = backoff.nextBackOffMillis();
