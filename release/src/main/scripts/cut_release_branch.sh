@@ -20,6 +20,19 @@
 # and cut release branch for current development version.
 
 # Parse parameters passing into the script
+
+set -e
+
+function clean_up(){
+  echo "Do you want to clean local clone repo? [y|N]"
+  read confirmation
+  if [[ $confirmation = "y" ]]; then
+    cd ~
+    rm -rf ${LOCAL_CLONE_DIR}
+    echo "Clean up local repo."
+  fi
+}
+
 if [[ $# -eq 1 && $1 = "-h" ]]; then
 	echo "This script will update apache beam master branch with next release version and cut release branch for current development version."
 	echo "There are two params required:"
@@ -50,6 +63,14 @@ GITHUB_REPO_URL=https://gitbox.apache.org/repos/asf/beam.git
 BEAM_ROOT_DIR=beam
 LOCAL_CLONE_DIR=beam_release_${RELEASE}
 
+echo "=====================Environment Variables====================="
+echo "version: ${RELEASE}"
+echo "next_release: ${NEXT_VERSION_IN_BASE_BRANCH}"
+echo "working master branch: ${MASTER_BRANCH}"
+echo "working release branch: ${RELEASE_BRANCH}"
+echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
+echo "==============================================================="
+
 cd ~
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
@@ -61,30 +82,64 @@ git branch ${RELEASE_BRANCH}
 
 git checkout ${MASTER_BRANCH}
 
+echo "====================Current working branch====================="
+echo ${MASTER_BRANCH}
+echo "==============================================================="
+
 # Update master branch
 sed -i -e "s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
 sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" gradle.properties
 sed -i -e "s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g" sdks/python/apache_beam/version.py
 
-echo "Update master branches as following: "
+echo "==============Update master branch as following================"
 git diff
+echo "==============================================================="
+
+echo "Please make sure all changes above are expected. Do you confirm to commit?: [y|N]"
+read confirmation
+if [[ $confirmation != "y" ]]; then
+  echo "Exit without committing any changes on master branch."
+  clean_up
+  exit
+fi
 
 git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
 git add gradle.properties
 git add sdks/python/apache_beam/version.py
 git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
-git push origin ${MASTER_BRANCH}
+if git push origin ${MASTER_BRANCH}; then
+  break
+else
+  clean_up
+  exit
+fi
 
 # Checkout and update release branch
 git checkout ${RELEASE_BRANCH}
+
+echo "==================Current working branch======================="
+echo ${RELEASE_BRANCH}
+echo "==============================================================="
+
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
 # TODO: [BEAM-4767]
 sed -i -e "s/beam-master-.*/beam-${RELEASE}/g" runners/google-cloud-dataflow-java/build.gradle
 
-echo "Update release branch as following: "
+echo "===============Update release branch as following=============="
 git diff
+echo "==============================================================="
+
+echo "Please make sure all changes above are expected. Do you confirm to commit?: [y|N]"
+read confirmation
+if [[ $confirmation != "y" ]]; then
+  echo "Exit without committing any changes on release branch."
+  clean_up
+  exit
+fi
 
 git add sdks/python/apache_beam/version.py
 git add runners/google-cloud-dataflow-java/build.gradle
-git commit -m "Create release branch for version ${RELEASE}."
+git commit -f -m "Create release branch for version ${RELEASE}."
 git push --set-upstream origin ${RELEASE_BRANCH}
+
+clean_up
