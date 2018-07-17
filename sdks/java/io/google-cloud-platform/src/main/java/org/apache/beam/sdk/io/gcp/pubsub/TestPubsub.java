@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -152,6 +154,11 @@ public class TestPubsub implements TestRule {
   /** Topic path where events will be published to. */
   public TopicPath topicPath() {
     return eventsTopicPath;
+  }
+
+  public List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
+      throws IOException {
+    return pubsub.listSubscriptions(projectPath, topicPath);
   }
 
   /** Publish messages to {@link #topicPath()}. */
