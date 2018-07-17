@@ -183,19 +183,23 @@ public class Schema implements Serializable {
         && Objects.equals(getFields(), other.getFields());
   }
 
-  enum EquivalenceNullablePolicy { SAME, WEAKEN, IGNORE };
+  enum EquivalenceNullablePolicy {
+    SAME,
+    WEAKEN,
+    IGNORE
+  };
 
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.SAME);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema. **/
+  /** Returns true if this Schema can be assigned to another Schema. * */
   public boolean assignableTo(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. **/
+  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
   public boolean assignableToIgnoreNullable(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.IGNORE);
   }
@@ -576,8 +580,7 @@ public class Schema implements Serializable {
           return false;
         }
       }
-      return otherField.getName().equals(getName())
-          && getType().equivalent(otherField.getType());
+      return otherField.getName().equals(getName()) && getType().equivalent(otherField.getType());
     }
 
     @Override
