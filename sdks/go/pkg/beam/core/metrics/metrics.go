@@ -69,13 +69,14 @@ type ctxKey string
 const bundleKey ctxKey = "beam:bundle"
 const ptransformKey ctxKey = "beam:ptransform"
 
-// context is a caching context since reads & writes are expensive.
+// beamCtx is a caching context for necessary IDs. Allocating contexts and searching
+// for PTransformIDs for every element is expensive, so we avoid it where possible.
 type beamCtx struct {
 	context.Context
 	bundleID, ptransformID string
 }
 
-// Lift the keys value for faster lookups when not available.
+// Value lifts the beam contLift the keys value for faster lookups when not available.
 func (ctx *beamCtx) Value(key interface{}) interface{} {
 	switch key {
 	case bundleKey:
@@ -98,20 +99,19 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 
 // SetBundleID sets the id of the current Bundle.
 func SetBundleID(ctx context.Context, id string) context.Context {
-	var ptransformID string
 	if bctx, ok := ctx.(*beamCtx); ok {
-		ptransformID = bctx.ptransformID
+		return &beamCtx{Context: bctx, bundleID: id, ptransformID:  bctx.ptransformID}
 	}
-	return &beamCtx{Context: ctx, bundleID: id, ptransformID: ptransformID}
+	return &beamCtx{Context: ctx, bundleID: id}
 }
 
 // SetPTransformID sets the id of the current PTransform.
 func SetPTransformID(ctx context.Context, id string) context.Context {
 	var bundleID string
 	if bctx, ok := ctx.(*beamCtx); ok {
-		bundleID = bctx.bundleID
+		return &beamCtx{Context: bctx, bundleID: bctx.bundleId, ptransformID:  id}
 	}
-	return &beamCtx{Context: ctx, bundleID: bundleID, ptransformID: id}
+	return &beamCtx{Context: ctx, ptransformID: id}
 }
 
 func getContextKey(ctx context.Context, n name) key {
