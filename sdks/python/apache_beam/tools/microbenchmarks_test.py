@@ -15,7 +15,22 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK version information and utilities."""
+"""Unit tests for microbenchmarks code."""
+
+from __future__ import absolute_import
+
+import unittest
+
+from apache_beam.tools import coders_microbenchmark
 
 
-__version__ = '2.7.0.dev'
+class MicrobenchmarksTest(unittest.TestCase):
+  def test_coders_microbenchmark(self):
+    # Right now, we don't evaluate performance impact, only check that
+    # microbenchmark code can successfully run.
+    coders_microbenchmark.run_coder_benchmarks(
+        num_runs=1, input_size=10, seed=1, verbose=False)
+
+
+if __name__ == '__main__':
+  unittest.main()

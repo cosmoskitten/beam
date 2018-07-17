@@ -197,7 +197,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.6.0'
+    project.version = '2.7.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -612,6 +612,9 @@ class BeamModulePlugin implements Plugin<Project> {
         maxErrors = 0
       }
       project.checkstyle { toolVersion = "8.7" }
+
+      // Ensure check runs javadoc
+      project.check.dependsOn project.javadoc
 
       // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
       // connects the apt-eclipse plugin to update the eclipse project files
