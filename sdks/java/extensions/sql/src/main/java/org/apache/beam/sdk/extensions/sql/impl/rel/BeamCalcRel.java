@@ -77,12 +77,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       PCollection<Row> projectStream =
           upstream
               .apply(ParDo.of(new CalcFn(executor, CalciteUtils.toBeamSchema(rowType))))
-              .setSchema(
-                  schema, SerializableFunctions.identity(), SerializableFunctions.identity());
-      projectStream.setSchema(
-          CalciteUtils.toBeamSchema(getRowType()),
-          SerializableFunctions.identity(),
-          SerializableFunctions.identity());
+              .setRowSchema(schema);
+      projectStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
       return projectStream;
     }

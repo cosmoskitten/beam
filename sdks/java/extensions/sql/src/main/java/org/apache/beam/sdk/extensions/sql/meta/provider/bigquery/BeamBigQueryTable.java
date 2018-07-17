@@ -47,7 +47,7 @@ public class BeamBigQueryTable extends BaseBeamTable implements Serializable {
     // TODO: make this more generic.
     return begin
         .apply(BigQueryIO.read(BigQueryUtils.toBeamRow(schema)).from(tableSpec))
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
   }
 
   @Override

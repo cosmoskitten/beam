@@ -145,7 +145,7 @@ abstract class PubsubIOJsonTable implements BeamSqlTable, Serializable {
             .apply("parseMessageToRow", createParserParDo());
     rowsWithDlq
         .get(MAIN_TAG)
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
 
     if (useDlq()) {
       rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());

@@ -69,8 +69,7 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
       PCollection<Row> uncollected =
           upstream
               .apply(ParDo.of(new UncollectDoFn(outputSchema)))
-              .setSchema(
-                  outputSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+              .setRowSchema(outputSchema);
 
       return uncollected;
     }

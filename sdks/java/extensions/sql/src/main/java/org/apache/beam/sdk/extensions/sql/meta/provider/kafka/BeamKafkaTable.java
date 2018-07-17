@@ -100,7 +100,7 @@ public abstract class BeamKafkaTable extends BaseBeamTable {
     return begin
         .apply("read", kafkaRead.withoutMetadata())
         .apply("in_format", getPTransformForInput())
-        .setSchema(getSchema(), SerializableFunctions.identity(), SerializableFunctions.identity());
+        .setRowSchema(getSchema());
   }
 
   @Override

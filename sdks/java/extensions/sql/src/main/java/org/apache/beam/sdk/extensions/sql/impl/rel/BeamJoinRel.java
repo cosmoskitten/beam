@@ -147,10 +147,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       if (isSideInputJoin()) {
         checkArgument(pinput.size() == 1, "More than one input received for side input join");
         return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
-            .setSchema(
-                CalciteUtils.toBeamSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
       }
 
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
@@ -292,10 +289,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         joinedRows
             .apply(
                 "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-            .setSchema(
-                CalciteUtils.toBeamSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
     return ret;
   }
 
@@ -334,10 +328,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                         new BeamJoinTransforms.SideInputJoinDoFn(
                             joinType, rightNullRow, rowsView, swapped))
                     .withSideInputs(rowsView))
-            .setSchema(
-                CalciteUtils.toBeamSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
     return ret;
   }

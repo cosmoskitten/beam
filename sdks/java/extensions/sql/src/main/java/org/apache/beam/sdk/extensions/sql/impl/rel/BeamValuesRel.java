@@ -87,7 +87,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
           .getPipeline()
           .begin()
           .apply(Create.of(rows))
-          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(schema);
     }
   }
 

@@ -331,19 +331,11 @@ public class BeamSqlDslJoinTest {
             "ORDER_DETAILS1",
                 ORDER_DETAILS1
                     .buildIOReader(pipeline.begin())
-                    .setSchema(
-                        SOURCE_ROW_TYPE,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()),
+                    .setRowSchema(SOURCE_ROW_TYPE),
             "ORDER_DETAILS2",
                 ORDER_DETAILS2
                     .buildIOReader(pipeline.begin())
-                    .setSchema(
-                        SOURCE_ROW_TYPE,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()))
-        .apply("join", SqlTransform.query(sql))
-        .setSchema(
-            RESULT_ROW_TYPE, SerializableFunctions.identity(), SerializableFunctions.identity());
+                    .setRowSchema(SOURCE_ROW_TYPE)
+        .setRowSchema(RESULT_ROW_TYPE);
   }
 }

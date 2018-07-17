@@ -135,10 +135,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
               ParDo.of(
                   new BeamAggregationTransforms.MergeAggregationRecord(
                       CalciteUtils.toBeamSchema(getRowType()), windowFieldIndex)));
-      mergedStream.setSchema(
-          CalciteUtils.toBeamSchema(getRowType()),
-          SerializableFunctions.identity(),
-          SerializableFunctions.identity());
+      mergedStream.setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
 
       return mergedStream;
     }

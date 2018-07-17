@@ -82,7 +82,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
                       }
                     }
                   }))
-          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(schema);
     }
   }
 
