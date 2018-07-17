@@ -15,40 +15,86 @@
 # limitations under the License.
 #
 
+import logging
+from datetime import datetime
 from jira_client import JiraClient
 
 _JIRA_PROJECT_NAME = 'BEAM'
+_JIRA_COMPONENT = 'dependencies'
 
 class JiraManager:
 
-  def __init__(self, jira_url, jira_username, jira_password):
+  def __init__(self, jira_url, jira_username, jira_password, sdk_type):
     options = {
       'server': jira_url
     }
     basic_auth = (jira_username, jira_password)
     self.jira = JiraClient(options, basic_auth, _JIRA_PROJECT_NAME)
+    #TODO read yamls into map base on sdk type
+    logging.getLogger().setLevel(logging.INFO)
 
 
-  def _create_issue(self):
+  def _create_issue(self, dep_name, dep_latest_version, is_subtask=False, parent_key=None):
+    """
+    Create a new issue or subtask
+    Args:
+      dep_name
+      dep_latest_version
+      is_subtask
+      parent_key - only required if the 'is_subtask'is true.
+    """
+    logging.info("Creating a new JIRA issue to track {0} upgrade process").format(dep_name)
+    assignee, owners = self._find_assignees(dep_name)
+    summary = 'Beam Dependency Update Request: ' + dep_name
+    description = """\n\n {0} \n
+        Please review and upgrade the {1} to the latest version {2} \n 
+        cc: """.format(
+        datetime.today(),
+        dep_name,
+        dep_latest_version
+    )
+    for owner in owners:
+      description.append("[~{0}],".format(owner))
+    try:
+      if not is_subtask:
+        self.jira.create_issue(summary, _JIRA_COMPONENT, description=description, assignee=assignee)
+      else:
+        self.jira.create_issue(summary, _JIRA_COMPONENT, description=description, assignee=assignee, parent_key=parent_key)
+    except Exception as e:
+      logging.error("Error while creating issue: "+ str(e))
+
+
+  def _search_issues(self, dep_name):
+
     pass
 
 
-  def _search_issues(self):
-    pass
+  def _append_descriptions(self, issue, dep_name, dep_latest_version):
+    logging.info("Updating JIRA issue to {0} track {1} upgrade process").format(
+        issue.key['name'],
+        dep_name)
+    description = issue.description + """\n\n {0} \n
+        Please review and upgrade the {1} to the latest version {2} \n 
+        cc: """.format(
+        datetime.today(),
+        dep_name,
+        dep_latest_version
+    )
+    _, owners = self._find_assignees(dep_name)
+    for owner in owners:
+      description.append("[~{0}],".format(owner))
+    try:
+      self.jira.update_issue(issue, description=description)
+    except Exception as e:
+      logging.error("Error while updating issue: "+ str(e))
 
 
-  def _reopen_issue(self):
-    pass
+
+  def _find_owners(self, dep_name):
+    # return the primary owner and a list of other owners
+    return None, None
 
 
-  def _append_descriptions(self):
-    pass
-
-
-  def _find_assignees(self):
-    pass
-
-
-  def manage_issues(self, dep_name, dep_latest_version, group_id=None, artifact_id=None):
+  def run(self, dep_name, dep_latest_version, group_id=None, artifact_id=None):
 
     pass
