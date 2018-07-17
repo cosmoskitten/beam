@@ -293,7 +293,8 @@ public class PCollection<T> extends PValueBase implements PValue {
     return this;
   }
 
-  /** Sets a {@link Schema} on this {@link PCollection}.
+  /**
+   * Sets a {@link Schema} on this {@link PCollection}.
    *
    * <p>Can only be called on a {@link PCollection<Row>}.
    */
@@ -303,7 +304,8 @@ public class PCollection<T> extends PValueBase implements PValue {
       checkState(getTypeDescriptor().equals(TypeDescriptor.of(Row.class)));
     }
 
-    return setSchema(schema,
+    return setSchema(
+        schema,
         (SerializableFunction<T, Row>) SerializableFunctions.<Row>identity(),
         (SerializableFunction<Row, T>) SerializableFunctions.<Row>identity());
   }
