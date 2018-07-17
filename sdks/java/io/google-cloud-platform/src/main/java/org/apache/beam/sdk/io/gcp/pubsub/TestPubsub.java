@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -154,11 +157,45 @@ public class TestPubsub implements TestRule {
     return eventsTopicPath;
   }
 
+  public List<SubscriptionPath> listSubscriptions(ProjectPath projectPath, TopicPath topicPath)
+      throws IOException {
+    return pubsub.listSubscriptions(projectPath, topicPath);
+  }
+
   /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) throws IOException {
     List<PubsubClient.OutgoingMessage> outgoingMessages =
         messages.stream().map(this::toOutgoingMessage).collect(toList());
     pubsub.publish(eventsTopicPath, outgoingMessages);
+  }
+
+  /**
+   * Check if topic exists {@param attempts} times. There is 1 sec wait time between two attempts.
+   *
+   * @param attempts number of attempts. Has to be a value > 0
+   */
+  public void checkIfTopicExists(String project, int attempts)
+      throws InterruptedException, IllegalArgumentException, IOException {
+    if (attempts <= 0) {
+      throw new IllegalArgumentException(
+          String.format("Set %d attempts, which should be > 0", attempts));
+    }
+
+    while (attempts > 0) {
+      List<SubscriptionPath> topics =
+          pubsub.listSubscriptions(
+              projectPathFromPath(String.format("projects/%s", project)), topicPath());
+      if (topics.size() > 0) {
+        return;
+      }
+
+      attempts--;
+      // Sleep 1 sec
+      Thread.sleep(1000);
+    }
+
+    throw new RuntimeException(
+        String.format("Failed to create subscription within %d attempts", attempts));
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
