@@ -335,7 +335,8 @@ public class BeamSqlDslJoinTest {
             "ORDER_DETAILS2",
                 ORDER_DETAILS2
                     .buildIOReader(pipeline.begin())
-                    .setRowSchema(SOURCE_ROW_TYPE)
+                    .setRowSchema(SOURCE_ROW_TYPE))
+        .apply("join", SqlTransform.query(sql))
         .setRowSchema(RESULT_ROW_TYPE);
   }
 }
