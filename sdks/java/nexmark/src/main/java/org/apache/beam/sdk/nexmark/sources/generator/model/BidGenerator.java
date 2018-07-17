@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerat
 import java.util.Random;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
-import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Generates bids. */
