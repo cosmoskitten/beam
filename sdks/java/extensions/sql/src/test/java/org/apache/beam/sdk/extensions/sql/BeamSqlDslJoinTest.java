@@ -27,7 +27,6 @@ import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -329,13 +328,10 @@ public class BeamSqlDslJoinTest {
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
             "ORDER_DETAILS1",
-                ORDER_DETAILS1
-                    .buildIOReader(pipeline.begin())
-                    .setRowSchema(SOURCE_ROW_TYPE),
+                ORDER_DETAILS1.buildIOReader(pipeline.begin()).setRowSchema(SOURCE_ROW_TYPE),
             "ORDER_DETAILS2",
-                ORDER_DETAILS2
-                    .buildIOReader(pipeline.begin())
-                    .setRowSchema(SOURCE_ROW_TYPE)
+                ORDER_DETAILS2.buildIOReader(pipeline.begin()).setRowSchema(SOURCE_ROW_TYPE))
+        .apply("join", SqlTransform.query(sql))
         .setRowSchema(RESULT_ROW_TYPE);
   }
 }
