@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.extensions.sql.impl.JdbcDriver.CONNECT_STRING_
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -32,7 +33,11 @@ public class BeamSqlLine {
   private static final String NICKNAME = "BeamSQL";
 
   public static void main(String[] args) throws IOException {
+    List<String> wrappedArgList = mainUtil(args);
+    SqlLine.main(wrappedArgList.toArray(new String[wrappedArgList.size()]));
+  }
 
+  private static List<String> mainUtil(String[] args) {
     // Until we learn otherwise, we expect to add -nn <nickname> -u <url>
     @Nullable String databaseUrl = null;
     @Nullable String nickname = null;
@@ -53,7 +58,14 @@ public class BeamSqlLine {
     if (nickname == null) {
       wrappedArgs.add("-nn").add(NICKNAME);
     }
-    List<String> wrappedArgList = wrappedArgs.build();
-    SqlLine.main(wrappedArgList.toArray(new String[wrappedArgList.size()]));
+
+    return wrappedArgs.build();
+  }
+
+  public static void testMain(String[] args, PrintStream outputStream) throws IOException {
+    List<String> wrappedArgList = mainUtil(args);
+    SqlLine sqlLine = new SqlLine();
+    sqlLine.setOutputStream(outputStream);
+    sqlLine.begin(wrappedArgList.toArray(new String[wrappedArgList.size()]), null, true);
   }
 }
