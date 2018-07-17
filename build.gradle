@@ -151,6 +151,7 @@ rat {
   excludes = exclusions
 }
 check.dependsOn rat
+check.dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 
 // Define root pre/post commit tasks simplifying what is needed
 // to be specified on the commandline when executing locally.
@@ -167,6 +168,7 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-core:buildDependents"
   dependsOn ":beam-examples-java:preCommit"
   dependsOn ":beam-sdks-java-extensions-sql-jdbc:preCommit"
+  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 }
 
 task javaPostCommit() {
@@ -174,6 +176,7 @@ task javaPostCommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
   dependsOn ":beam-sdks-java-io-google-cloud-platform:postCommit"
   dependsOn ":beam-sdks-java-extensions-sql:postCommit"
+  dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 }
 
 task goPreCommit() {
