@@ -78,7 +78,7 @@ public class AuctionGenerator {
         desc,
         initialBid,
         reserve,
-        new DateTime(timestamp),
+        new Instant(timestamp),
         new Instant(expires),
         seller,
         category,
