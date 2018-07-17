@@ -108,8 +108,7 @@ public class BeamUnnestRel extends Correlate implements BeamRelNode {
           .apply(
               ParDo.of(
                   new UnnestFn(correlationId.getId(), expr, joinedSchema, innerSchema.getField(0))))
-          .setSchema(
-              joinedSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(joinedSchema);
     }
   }
 

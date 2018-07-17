@@ -222,8 +222,7 @@ public class BeamJoinTransforms {
                       return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
                     }
                   }))
-          .setSchema(
-              joinSubsetType, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(joinSubsetType);
     }
   }
 }

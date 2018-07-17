@@ -358,7 +358,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               "string_true_test",
               "string_false_test")
           .buildIOReader(pipeline.begin())
-          .setSchema(type, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(type);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

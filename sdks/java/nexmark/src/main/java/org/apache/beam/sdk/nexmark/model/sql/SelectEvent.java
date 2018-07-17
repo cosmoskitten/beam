@@ -64,9 +64,6 @@ public class SelectEvent extends PTransform<PCollection<Event>, PCollection<Row>
                     o.output(row.getRow(index));
                   }
                 }))
-        .setSchema(
-            input.getSchema().getField(index).getType().getRowSchema(),
-            SerializableFunctions.identity(),
-            SerializableFunctions.identity());
+        .setRowSchema(input.getSchema().getField(index).getType().getRowSchema());
   }
 }

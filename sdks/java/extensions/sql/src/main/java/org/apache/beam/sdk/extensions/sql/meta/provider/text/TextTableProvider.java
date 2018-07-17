@@ -138,7 +138,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
               "linesToRows",
               MapElements.into(TypeDescriptors.rows())
                   .via(s -> Row.withSchema(SCHEMA).addValue(s).build()))
-          .setSchema(SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(SCHEMA);
     }
   }
 
@@ -191,7 +191,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
               "csvToRow",
               FlatMapElements.into(TypeDescriptors.rows())
                   .via(s -> csvLines2BeamRows(csvFormat, s, schema)))
-          .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+          .setRowSchema(schema);
     }
   }
 }
