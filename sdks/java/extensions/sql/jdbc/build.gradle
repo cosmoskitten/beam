@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -29,9 +31,11 @@ dependencies {
   compile "sqlline:sqlline:1.4.0"
   compile library.java.slf4j_jdk14
   compile library.java.guava
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  shadowTest project(path: ":beam-sdks-java-extensions-sql", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
@@ -51,13 +55,6 @@ shadowJar {
   }
 }
 
-test {
-  doFirst {
-    // Assert everything is in the output or test jar
-    assert classpath.size() == 2
-  }
-}
-
 task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:shadowJar") {
   group = "Verification"
 
@@ -71,7 +68,23 @@ task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:s
   useJUnit { }
 }
 
+task endToEndTest(type: Test) {
+  group = "Verification"
+
+  include '**/*IT.class'
+  classpath = project(":beam-sdks-java-extensions-sql-jdbc").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":beam-sdks-java-extensions-sql-jdbc").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 /* Define a common precommit task which depends on all the individual precommits. */
 task preCommit() {
   dependsOn "shadowJarTest"
+}
+
+/* Define a postcommit task which depends on integration tests. */
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn endToEndTest
 }
