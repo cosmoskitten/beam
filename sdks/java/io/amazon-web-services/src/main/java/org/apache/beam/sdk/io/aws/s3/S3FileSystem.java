@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
@@ -53,6 +49,14 @@ import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.util.MoreFutures;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
@@ -71,13 +75,10 @@ import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.aws.options.S3Options;
-import org.apache.beam.sdk.io.fs.CreateOptions;
-import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.util.MoreFutures;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
@@ -118,6 +119,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private static AmazonS3 buildAmazonS3Client(S3Options options) {
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard().withCredentials(options.getAwsCredentialsProvider());
+
+    if (options.getClientConfiguration() != null) {
+      builder = builder.withClientConfiguration(options.getClientConfiguration());
+    }
+
     if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
       builder = builder.withRegion(options.getAwsRegion());
     } else {
