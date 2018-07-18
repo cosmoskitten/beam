@@ -151,7 +151,6 @@ rat {
   excludes = exclusions
 }
 check.dependsOn rat
-check.dependsOn ":beam-sdks-java-javadoc:allJavadoc"
 
 // Define root pre/post commit tasks simplifying what is needed
 // to be specified on the commandline when executing locally.
