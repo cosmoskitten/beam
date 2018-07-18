@@ -16,6 +16,7 @@
 #
 
 import logging
+import yaml
 from datetime import datetime
 from jira_client import JiraClient
 
@@ -24,13 +25,15 @@ _JIRA_COMPONENT = 'dependencies'
 
 class JiraManager:
 
-  def __init__(self, jira_url, jira_username, jira_password, sdk_type):
+  def __init__(self, jira_url, jira_username, jira_password, owners_file, sdk_type='Java'):
     options = {
       'server': jira_url
     }
     basic_auth = (jira_username, jira_password)
     self.jira = JiraClient(options, basic_auth, _JIRA_PROJECT_NAME)
-    #TODO read yamls into map base on sdk type
+    with open(owners_file) as f:
+      owners = yaml.load(f)
+    self.owners_map = owners['deps']
     logging.getLogger().setLevel(logging.INFO)
 
 
@@ -91,8 +94,24 @@ class JiraManager:
 
 
   def _find_owners(self, dep_name):
-    # return the primary owner and a list of other owners
-    return None, None
+    try:
+      dep_info = self.owners_map[dep_name]
+      owners = dep_info['owners']
+      if not owners:
+        logging.info("Could not find owners for " + dep_name)
+        return None, []
+    except KeyError:
+      logging.info("Could not find {0} in the ownership configurations.".format(dep_name))
+      return None, []
+    except Exception as e:
+      logging.error("Error while finding dependency owners: "+ str(e))
+      return None, None
+
+    logging.info("Found owners of {0}: {1}".format(dep_name, owners))
+    owners = owners.split(',')
+    primary = owners[0]
+    del owners[0]
+    return primary, owners
 
 
   def run(self, dep_name, dep_latest_version, group_id=None, artifact_id=None):
