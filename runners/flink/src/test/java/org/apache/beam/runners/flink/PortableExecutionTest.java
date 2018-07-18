@@ -22,33 +22,24 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import org.apache.beam.fn.harness.FnHarness;
-import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
-import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
+import org.apache.beam.runners.fnexecution.environment.InProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
@@ -57,7 +48,6 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -88,8 +78,6 @@ public class PortableExecutionTest implements Serializable {
 
   @Parameter public boolean isStreaming;
 
-  private transient ExecutorService sdkHarnessExecutor;
-  private transient Future<?> sdkHarnessExecutorFuture;
   private transient ListeningExecutorService flinkJobExecutor;
 
   private DockerJobBundleFactory createJobBundleFactory(JobInfo jobInfo) throws Exception {
@@ -97,9 +85,7 @@ public class PortableExecutionTest implements Serializable {
 
       @Override
       protected ServerFactory getServerFactory() {
-        return ServerFactory.createWithUrlFactory(
-            (host, port) -> HostAndPort.fromParts("localhost", port).toString());
-        //return InProcessServerFactory.create();
+        return InProcessServerFactory.create();
       }
 
       @Override
@@ -110,34 +96,8 @@ public class PortableExecutionTest implements Serializable {
           GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
           Source clientSource,
           IdGenerator idGenerator) {
-        String workerId = "fakeWorkerId";
-        ThreadFactory threadFactory = new ThreadFactoryBuilder().setDaemon(true).build();
-        // Create the SDK harness, and wait until it connects
-        sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
-        sdkHarnessExecutorFuture =
-            sdkHarnessExecutor.submit(
-                () -> {
-                  try {
-                    FnHarness.main(
-                        workerId,
-                        PipelineOptionsFactory.create(),
-                        loggingServer.getApiServiceDescriptor(),
-                        controlServer.getApiServiceDescriptor(),
-                        ManagedChannelFactory.createDefault(),
-                        //InProcessManagedChannelFactory.create(),
-                        HarnessStreamObserverFactories.fromOptions(
-                            PipelineOptionsFactory.create()));
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                });
-        try {
-          InstructionRequestHandler controlClient =
-              clientSource.take(workerId, Duration.ofSeconds(2));
-          return (container) -> RemoteEnvironment.forHandler(container, controlClient);
-        } catch (Exception ex) {
-          throw new RuntimeException(ex);
-        }
+        return InProcessEnvironmentFactory.create(
+            PipelineOptionsFactory.create(), loggingServer, controlServer, clientSource);
       }
     };
   }
@@ -149,18 +109,7 @@ public class PortableExecutionTest implements Serializable {
   }
 
   @After
-  public void tearDown() throws Exception {
-    sdkHarnessExecutor.shutdownNow();
-    try {
-      sdkHarnessExecutorFuture.get();
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof RuntimeException
-          && e.getCause().getCause() instanceof InterruptedException) {
-        // expected
-      } else {
-        throw e;
-      }
-    }
+  public void tearDown() {
     flinkJobExecutor.shutdown();
   }
 
