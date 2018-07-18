@@ -49,7 +49,6 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -264,16 +263,16 @@ public class AwsModule extends SimpleModule {
     // all the child objects of ClientConfiguration, or to ignore them like below,
     // or to just whitelist the desired properties as above.
 
-//    @JsonIgnore
-//    RetryPolicy getRetryPolicy();
-//
-//    @JsonIgnore
-//    DnsResolver getDnsResolver();
-//
-//    @JsonIgnore
-//    SecureRandom getSecureRandom();
-//
-//    @JsonIgnore
-//    Integer getMaxErrorRetry();
+    //    @JsonIgnore
+    //    RetryPolicy getRetryPolicy();
+    //
+    //    @JsonIgnore
+    //    DnsResolver getDnsResolver();
+    //
+    //    @JsonIgnore
+    //    SecureRandom getSecureRandom();
+    //
+    //    @JsonIgnore
+    //    Integer getMaxErrorRetry();
   }
 }

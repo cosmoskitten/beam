@@ -78,10 +78,11 @@ public interface AwsOptions extends PipelineOptions {
   }
 
   /**
-   * The client configuration instance that should be used to configure AWS service clients.
-   * Please note that the configuration deserialization only allows one to specify proxy settings.
-   * <p>For example, to specify the proxy host, port, username and password, specify
-   * the following: <code>
+   * The client configuration instance that should be used to configure AWS service clients. Please
+   * note that the configuration deserialization only allows one to specify proxy settings.
+   *
+   * <p>For example, to specify the proxy host, port, username and password, specify the following:
+   * <code>
    * {
    *   "proxyHost":"hostname",
    *   "proxyPort":1234,
@@ -89,14 +90,15 @@ public interface AwsOptions extends PipelineOptions {
    *   "proxyPassword":"password"
    * }
    * </code>
-   * </p>
+   *
    * @return
    */
-  @Description("The client configuration instance that should be used to configure AWS service "
-      + "clients. Please note that the configuration deserialization only allows one to specify "
-      + "proxy settings. For example, to specify the proxy host, port, username and password, "
-      + "specify the following: {\"proxyHost\":\"hostname\",\"proxyPort\":1234,"
-      + "\"proxyUsername\":\"username\",\"proxyPassword\":\"password\"}")
+  @Description(
+      "The client configuration instance that should be used to configure AWS service "
+          + "clients. Please note that the configuration deserialization only allows one to specify "
+          + "proxy settings. For example, to specify the proxy host, port, username and password, "
+          + "specify the following: {\"proxyHost\":\"hostname\",\"proxyPort\":1234,"
+          + "\"proxyUsername\":\"username\",\"proxyPassword\":\"password\"}")
   @Default.InstanceFactory(ClientConfigurationFactory.class)
   ClientConfiguration getClientConfiguration();
 
