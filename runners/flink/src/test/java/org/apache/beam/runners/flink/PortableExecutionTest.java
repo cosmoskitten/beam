@@ -90,6 +90,7 @@ public class PortableExecutionTest implements Serializable {
 
   private transient ExecutorService sdkHarnessExecutor;
   private transient Future<?> sdkHarnessExecutorFuture;
+  private transient ListeningExecutorService flinkJobExecutor;
 
   private DockerJobBundleFactory createJobBundleFactory(JobInfo jobInfo) throws Exception {
     return new DockerJobBundleFactory(jobInfo) {
@@ -144,6 +145,7 @@ public class PortableExecutionTest implements Serializable {
   @Before
   public void setup() {
     DockerJobBundleFactory.FACTORY.set(this::createJobBundleFactory);
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
   }
 
   @After
@@ -159,6 +161,7 @@ public class PortableExecutionTest implements Serializable {
         throw e;
       }
     }
+    flinkJobExecutor.shutdown();
   }
 
   private static ArrayList<KV<String, Iterable<Long>>> outputValues = new ArrayList<>();
@@ -206,8 +209,6 @@ public class PortableExecutionTest implements Serializable {
 
     outputValues.clear();
     // execute the pipeline
-    ListeningExecutorService executor =
-        MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setFlinkMaster("[local]");
     options.setStreaming(isStreaming);
@@ -215,7 +216,7 @@ public class PortableExecutionTest implements Serializable {
         FlinkJobInvocation.create(
             "fakeId",
             "fakeRetrievalToken",
-            executor,
+            flinkJobExecutor,
             pipelineProto,
             options,
             Collections.EMPTY_LIST);
@@ -225,7 +226,6 @@ public class PortableExecutionTest implements Serializable {
       Thread.sleep(1000);
     }
     assertEquals("job state", Enum.DONE, jobInvocation.getState());
-    executor.shutdown();
 
     assertEquals(1, outputValues.size());
     assertEquals("foo", outputValues.get(0).getKey());
