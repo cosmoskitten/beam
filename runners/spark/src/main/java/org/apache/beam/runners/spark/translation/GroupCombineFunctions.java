@@ -52,13 +52,11 @@ public class GroupCombineFunctions {
             .map(WindowingHelpers.unwindowFunction())
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-    // use a default parallelism HashPartitioner.
-    Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
 
     // using mapPartitions allows to preserve the partitioner
     // and avoid unnecessary shuffle downstream.
     return pairRDD
-        .groupByKey(partitioner)
+        .groupByKey()
         .mapPartitionsToPair(
             TranslationUtils.pairFunctionToPairFlatMapFunction(
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
