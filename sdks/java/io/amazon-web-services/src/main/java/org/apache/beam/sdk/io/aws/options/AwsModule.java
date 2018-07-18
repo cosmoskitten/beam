@@ -257,22 +257,5 @@ public class AwsModule extends SimpleModule {
 
     @JsonProperty
     String getProxyPassword();
-
-    // todo: remove this commented out code after the review conversation
-    // need to decide whether to put in a lot of effort to properly ser/deserialize
-    // all the child objects of ClientConfiguration, or to ignore them like below,
-    // or to just whitelist the desired properties as above.
-
-    //    @JsonIgnore
-    //    RetryPolicy getRetryPolicy();
-    //
-    //    @JsonIgnore
-    //    DnsResolver getDnsResolver();
-    //
-    //    @JsonIgnore
-    //    SecureRandom getSecureRandom();
-    //
-    //    @JsonIgnore
-    //    Integer getMaxErrorRetry();
   }
 }
