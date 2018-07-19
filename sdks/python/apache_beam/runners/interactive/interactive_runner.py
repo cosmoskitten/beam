@@ -32,6 +32,8 @@ import shutil
 import tempfile
 import urllib
 
+from absl import logging
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import runners
@@ -51,11 +53,40 @@ class InteractiveRunner(runners.PipelineRunner):
   Allows interactively building and running Beam Python pipelines.
   """
 
-  def __init__(self, underlying_runner=direct_runner.BundleBasedDirectRunner()):
+  def __init__(self,
+               underlying_runner=direct_runner.BundleBasedDirectRunner(),
+               keep_alive=False):
     # TODO(qinyeli, BEAM-4755) remove explicitly overriding underlying runner
     # once interactive_runner works with FnAPI mode
     self._underlying_runner = underlying_runner
     self._cache_manager = CacheManager()
+
+    self._in_session = False
+    if keep_alive:
+      self.start_session()
+
+  def __del__(self):
+    self.end_session()
+
+  def start_session():
+    if self._in_session:
+      return
+
+    if hasattr(self._underlying_runner, '__enter__'):
+      logging.info('Starting session.')
+      self._in_session = True
+      self._underlying_runner.__enter__()
+    else:
+      logging.error('Keep alive not supported.')
+
+  def end_session():
+    if not self._in_session:
+      return
+
+    if hasattr(self._underlying_runner, '__exit__'):
+      self._in_session = False
+      logging.info('Ending session.')
+      self.underlying_runner.__exit__()
 
   def cleanup(self):
     self._cache_manager.cleanup()

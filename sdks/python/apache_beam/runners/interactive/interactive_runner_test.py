@@ -99,6 +99,23 @@ class InteractiveRunnerTest(unittest.TestCase):
             'question': 1
         })
 
+    def test_session(self):
+        class MockPipelineRunner(object):
+            def __init__():
+                self._in_session = False
+
+            def __enter__():
+                self._in_session = True
+
+            def __exit__():
+                self._in_session = False
+
+        underlying_runner = MockPipelineRunner()
+        runner = interactive_runner.InteractiveRunner(underlying_runner,
+                                                      keep_alive=True)
+        self.assertTrue(underlying_runner._in_session)
+        runner.end_session()
+        self.assertFalse(underlying_runner._in_session)
 
 if __name__ == '__main__':
   unittest.main()
