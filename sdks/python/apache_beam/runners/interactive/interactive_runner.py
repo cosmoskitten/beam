@@ -27,6 +27,7 @@ from __future__ import print_function
 import collections
 import copy
 import glob
+import logging
 import os
 import shutil
 import tempfile
@@ -56,6 +57,25 @@ class InteractiveRunner(runners.PipelineRunner):
     # once interactive_runner works with FnAPI mode
     self._underlying_runner = underlying_runner
     self._cache_manager = CacheManager()
+    self._in_session = False
+
+  def start_session(self):
+    if self._in_session:
+      return
+    if hasattr(self._underlying_runner, '__enter__'):
+      logging.info('Starting session.')
+      self._in_session = True
+      self._underlying_runner.__enter__()
+    else:
+      logging.error('Keep alive not supported.')
+
+  def end_session(self):
+    if not self._in_session:
+      return
+    if hasattr(self._underlying_runner, '__exit__'):
+      self._in_session = False
+      logging.info('Ending session.')
+      self.underlying_runner.__exit__(None, None, None)
 
   def cleanup(self):
     self._cache_manager.cleanup()
