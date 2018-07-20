@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.bu
 import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.toLines;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
@@ -41,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.hamcrest.collection.IsIn;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,12 +51,15 @@ public class BeamSqlLineIT implements Serializable {
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
 
-  private static final Integer numberOfThreads = 2;
+  private static final Integer numberOfThreads = 4;
   private static String createPubsubTableStatement;
   private static String readFromPubsub;
   private static String filterForSouthManhattan;
+  private static String slidingWindowQuery;
+  private static String fixedWindowQuery;
   private static PubsubMessageJSONStringConstructor constructor;
   private static ExecutorService pool;
+  private static final String publicTopic = "projects/pubsub-public-data/topics/taxirides-realtime";
 
   @BeforeClass
   public static void setUp() {
@@ -91,6 +94,35 @@ public class BeamSqlLineIT implements Serializable {
             + "         AND taxi_rides.payload.latitude > 40.699\n"
             + "         AND taxi_rides.payload.latitude < 40.720 LIMIT 2;";
 
+    fixedWindowQuery =
+        "WITH geo_cells AS (\n"
+            + "         SELECT FLOOR(taxi_rides.payload.latitude / 0.05) * 0.05 AS reduced_lat,\n"
+            + "                FLOOR(taxi_rides.payload.longitude / 0.05) * 0.05 AS reduced_lon,\n"
+            + "                taxi_rides.event_timestamp\n"
+            + "         FROM taxi_rides)\n"
+            + "       SELECT COUNT(*) as num_events,\n"
+            + "              geo_cells.reduced_lat,\n"
+            + "              geo_cells.reduced_lon, \n"
+            + "              TUMBLE_START(geo_cells.event_timestamp, INTERVAL '1' SECOND)\n"
+            + "       FROM geo_cells    \n"
+            + "       GROUP BY geo_cells.reduced_lat,\n"
+            + "                geo_cells.reduced_lon,\n"
+            + "                TUMBLE(geo_cells.event_timestamp, INTERVAL '1' SECOND)\n"
+            + "       LIMIT 2;";
+
+    slidingWindowQuery =
+        "SELECT COUNT(*) AS num_events,\n"
+            + "              SUM(taxi_rides.payload.meter_increment) as revenue,\n"
+            + "              HOP_END(\n"
+            + "                 taxi_rides.event_timestamp, \n"
+            + "                 INTERVAL '1' SECOND, \n"
+            + "                 INTERVAL '2' SECOND) as minute_end\n"
+            + "              FROM taxi_rides\n"
+            + "              GROUP BY HOP(\n"
+            + "                 taxi_rides.event_timestamp,\n"
+            + "                 INTERVAL '1' SECOND, \n"
+            + "                 INTERVAL '2' SECOND) LIMIT 2";
+
     constructor =
         new PubsubMessageJSONStringConstructor(
             "ride_id",
@@ -101,11 +133,6 @@ public class BeamSqlLineIT implements Serializable {
             "meter_increment",
             "ride_status",
             "passenger_count");
-  }
-
-  @AfterClass
-  public static void tearDown() {
-    pool.shutdown();
   }
 
   @Test
@@ -188,6 +215,49 @@ public class BeamSqlLineIT implements Serializable {
             Arrays.asList("2018-07-01 21:25:20", "enroute", "40.701", "-74.001"),
             Arrays.asList("2018-07-01 21:26:06", "enroute", "40.702", "-74.002")),
         everyItem(IsIn.isOneOf(expectedResult.get(30, TimeUnit.SECONDS).toArray())));
+  }
+
+  @Test
+  public void testFixedWindow() throws Exception {
+    Future<List<List<String>>> expectedResult =
+        pool.submit(
+            (Callable)
+                () -> {
+                  String[] args =
+                      buildArgs(
+                          String.format(createPubsubTableStatement, publicTopic), fixedWindowQuery);
+                  ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                  BeamSqlLine.runSqlLine(args, null, outputStream, null);
+                  return toLines(outputStream);
+                });
+
+    // Wait 10 sec to allow creating a subscription.
+    Thread.sleep(10 * 1000);
+
+    // LIMIT 2 is supposed to be parsed into 6 lines.
+    assertTrue(expectedResult.get().size() == 6);
+  }
+
+  @Test
+  public void testSlidingWindow() throws Exception {
+    Future<List<List<String>>> expectedResult =
+        pool.submit(
+            (Callable)
+                () -> {
+                  String[] args =
+                      buildArgs(
+                          String.format(createPubsubTableStatement, publicTopic),
+                          slidingWindowQuery);
+                  ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                  BeamSqlLine.runSqlLine(args, null, outputStream, null);
+                  return toLines(outputStream);
+                });
+
+    // Wait 10 sec to allow creating a subscription.
+    Thread.sleep(10 * 1000);
+
+    // LIMIT 2 is supposed to be parsed into 6 lines.
+    assertTrue(expectedResult.get().size() == 6);
   }
 
   private long convertTimestampToMillis(String timestamp) throws ParseException {
