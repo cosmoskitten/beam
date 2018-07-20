@@ -327,10 +327,13 @@ class CommonJobProperties {
 
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install Perfkit benchmark requirements.
-        shell('pip install -r PerfKitBenchmarker/requirements.txt')
+
         // Install job requirements for Python SDK.
         shell('pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
+
+        // Install Perfkit benchmark requirements.
+        shell('pip install -r PerfKitBenchmarker/requirements.txt')
+
         // Launch performance test.
 
         shell('cmd=$(pip show numpy) && echo $cmd')
