@@ -315,28 +315,21 @@ class CommonJobProperties {
         // create new VirtualEnv, inherit already existing packages
         shell('virtualenv .env --system-site-packages')
 
-        shell('cmd=$("pip show numpy) && echo $cmd')
-        shell('cmd=$(which python) && echo $cmd')
-
         shell('source .env/bin/activate')
-        shell('cmd=$(pip show numpy) && echo $cmd')
-        shell('cmd=$(which python) && echo $cmd')
 
         // update setuptools and pip
-        shell('pip install --upgrade setuptools pip')
+        shell('pip install --upgrade setuptools pip --user')
 
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
 
         // Install job requirements for Python SDK.
-        shell('pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell('pip install -e ' + CommonJobProperties.checkoutDir + '/sdks/python/[gcp,test] --user')
 
         // Install Perfkit benchmark requirements.
-        shell('pip install -r PerfKitBenchmarker/requirements.txt')
+        shell('pip install -r PerfKitBenchmarker/requirements.txt --user')
 
         // Launch performance test.
-
-        shell('cmd=$(pip show numpy) && echo $cmd')
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
