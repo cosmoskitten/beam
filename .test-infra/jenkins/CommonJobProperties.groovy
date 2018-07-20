@@ -315,12 +315,7 @@ class CommonJobProperties {
         // create new VirtualEnv, inherit already existing packages
         shell('virtualenv .env --system-site-packages')
 
-        shell('cmd=$("pip show numpy) && echo $cmd')
-        shell('cmd=$(which python) && echo $cmd')
-
         shell('source .env/bin/activate')
-        shell('cmd=$(pip show numpy) && echo $cmd')
-        shell('cmd=$(which python) && echo $cmd')
 
         // update setuptools and pip
         shell('pip install --upgrade setuptools pip')
@@ -335,8 +330,6 @@ class CommonJobProperties {
         shell('pip install -r PerfKitBenchmarker/requirements.txt')
 
         // Launch performance test.
-
-        shell('cmd=$(pip show numpy) && echo $cmd')
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
