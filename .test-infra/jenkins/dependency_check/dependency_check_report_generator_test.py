@@ -19,7 +19,6 @@
 #   This script performs testing of scenarios from verify_performance_test_results.py
 #
 
-from __future__ import print_function
 import unittest, mock
 from mock import patch
 from datetime import datetime
@@ -36,26 +35,26 @@ _LP_CURR_VERSION_DATE = datetime.strptime('2000-01-01', '%Y-%m-%d')
 _LATEST_VERSION_DATE = datetime.strptime('2000-01-02', '%Y-%m-%d')
 _HP_CURR_VERSION_DATE = datetime.strptime('1999-01-01', '%Y-%m-%d')
 
+@patch('google.cloud.bigquery.Client')
+@patch('jira_utils.jira_manager.JiraManager')
 class DependencyCheckReportGeneratorTest(unittest.TestCase):
   """Tests for `dependency_check_report_generator.py`."""
 
   def setUp(self):
-    print("Test name:", self._testMethodName)
+    print "\n\nTest : " + self._testMethodName
 
 
-  @patch('google.cloud.bigquery.Client')
-  @patch('bigquery_client_utils.BigQueryClientUtils')
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils')
   def test_empty_dep_input(self, *args):
     """
     Test on empty outdated dependencies.
     Except: empty report
     """
-    report = prioritize_dependencies([], _SDK_TYPE, _PROJECT_ID, _DATASET_ID, _TABLE_ID)
+    report = prioritize_dependencies([], _SDK_TYPE)
     self.assertEqual(len(report), 0)
 
 
-  @patch('google.cloud.bigquery.Client')
-  @patch('bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
          side_effect = [(_LP_CURR_VERSION_DATE, True), (_LATEST_VERSION_DATE, False),
                         (_LP_CURR_VERSION_DATE, True), (_LATEST_VERSION_DATE, False),
                         (_HP_CURR_VERSION_DATE, True), (_LATEST_VERSION_DATE, False),
@@ -71,15 +70,14 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       " - group3:artifact3 [1.0.0 -> 1.1.0]",
       " - group4:artifact4 [1.0.0 -> 1.1.0]"
     ]
-    report = prioritize_dependencies(deps, _SDK_TYPE, _PROJECT_ID, _DATASET_ID, _TABLE_ID)
+    report = prioritize_dependencies(deps, _SDK_TYPE)
     self.assertEqual(len(report), 3)
     self.assertIn('group1:artifact1', report[0])
     self.assertIn('group2:artifact2', report[1])
     self.assertIn('group3:artifact3', report[2])
 
 
-  @patch('google.cloud.bigquery.Client')
-  @patch('bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
          side_effect = [(_LP_CURR_VERSION_DATE, True),
                         (_LATEST_VERSION_DATE, False),])
   def test_dep_with_nondigit_major_versions(self, *args):
@@ -88,13 +86,12 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Except: group1:artifact1
     """
     deps = [" - group1:artifact1 [Release1-123 -> Release2-456]"]
-    report = prioritize_dependencies(deps, _SDK_TYPE, _PROJECT_ID, _DATASET_ID, _TABLE_ID)
+    report = prioritize_dependencies(deps, _SDK_TYPE)
     self.assertEqual(len(report), 1)
     self.assertIn('group1:artifact1', report[0])
 
 
-  @patch('google.cloud.bigquery.Client')
-  @patch('bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
          side_effect = [(_LP_CURR_VERSION_DATE, True),
                         (_LATEST_VERSION_DATE, False),])
   def test_dep_with_nondigit_minor_versions(self, *args):
@@ -103,16 +100,15 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Except: group1:artifact1
     """
     deps = [" - group1:artifact1 [0.rc1.0 -> 0.rc2.0]"]
-    report = prioritize_dependencies(deps, _SDK_TYPE, _PROJECT_ID, _DATASET_ID, _TABLE_ID)
+    report = prioritize_dependencies(deps, _SDK_TYPE)
     self.assertEqual(len(report), 1)
     self.assertIn('group1:artifact1', report[0])
 
 
-  @patch('google.cloud.bigquery.Client')
-  @patch('bigquery_client_utils.BigQueryClientUtils.insert_dep_to_table')
-  @patch('bigquery_client_utils.BigQueryClientUtils.delete_dep_from_table')
-  @patch('bigquery_client_utils.BigQueryClientUtils.query_currently_used_dep_info_in_db', side_effect = [(None, None)])
-  @patch('bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.insert_dep_to_table')
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.delete_dep_from_table')
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_currently_used_dep_info_in_db', side_effect = [(None, None)])
+  @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
          side_effect = [(_HP_CURR_VERSION_DATE, True), (_LATEST_VERSION_DATE, False),])
   def test_invalid_dep_input(self, *args):
     """
@@ -123,7 +119,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       "- group1:artifact1 (1.0.0, 2.0.0)",
       " - group2:artifact2 [1.0.0 -> 2.0.0]"
     ]
-    report = prioritize_dependencies(deps, _SDK_TYPE, _PROJECT_ID, _DATASET_ID, _TABLE_ID)
+    report = prioritize_dependencies(deps, _SDK_TYPE)
     self.assertEqual(len(report), 1)
     self.assertIn('group2:artifact2', report[0])
 

@@ -20,10 +20,6 @@
 set -e
 set -v
 
-PROJECT_ID='apache-beam-testing'
-DATASET_ID='beam_dependency_states'
-PYTHON_DEP_TABLE_ID='python_dependency_states'
-JAVA_DEP_TABLE_ID='java_dependency_states'
 REPORT_DESCRIPTION="
 <h4> A dependency update is high priority if it satisfies one of following criteria: </h4>
 <ul>
@@ -46,27 +42,18 @@ REPORT_DESCRIPTION="
 /usr/bin/virtualenv dependency/check
 . dependency/check/bin/activate
 pip install --upgrade google-cloud-bigquery
-
-# Run the unit tests of the report generator
-pip install mock
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator_test.py \
-
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
+
+# Insall packages and run the unit tests of the report generator and the jira manager
+pip install mock jira
+cd $WORKSPACE/src/.test-infra/jenkins
+python -m dependency_check.dependency_check_report_generator_test
+python -m jira_utils.jira_manager_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
-build/dependencyUpdates/python_dependency_report.txt \
-Python \
-$PROJECT_ID \
-$DATASET_ID \
-$PYTHON_DEP_TABLE_ID
+python -m dependency_check/dependency_check_report_generator Python
 
-python $WORKSPACE/src/.test-infra/jenkins/dependency_check/dependency_check_report_generator.py \
-build/dependencyUpdates/report.txt \
-Java \
-$PROJECT_ID \
-$DATASET_ID \
-$JAVA_DEP_TABLE_ID
+python -m dependency_check.dependency_check_report_generator Java
 
 echo "$REPORT_DESCRIPTION </body></html>" >> $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
