@@ -198,6 +198,26 @@ public class BeamFileSystemArtifactServicesTest {
         "{\"sessionId\":\"abc123\",\"basePath\":\"" + basePath + "\"}", stagingToken);
   }
 
+  void checkCleanup(String stagingSessionToken, String stagingSession) throws Exception {
+    Assert.assertTrue(
+        Files.exists(
+            Paths.get(
+                stagingDir.toAbsolutePath().toString(),
+                stagingSession
+            )
+        )
+    );
+    stagingService.removeArtifacts(stagingSessionToken);
+    Assert.assertFalse(
+        Files.exists(
+            Paths.get(
+                stagingDir.toAbsolutePath().toString(),
+                stagingSession
+            )
+        )
+    );
+  }
+
   @Test
   public void putArtifactsSingleSmallFileTest() throws Exception {
     String fileName = "file1";
@@ -212,6 +232,7 @@ public class BeamFileSystemArtifactServicesTest {
         commitManifest(
             stagingSessionToken,
             Collections.singletonList(ArtifactMetadata.newBuilder().setName(fileName).build()));
+    System.out.println("token: " + stagingToken + " session: " + stagingSession + " dir: " + stagingDir + " session token: " + stagingSessionToken);
     Assert.assertEquals(
         Paths.get(
             stagingDir.toAbsolutePath().toString(),
@@ -219,6 +240,7 @@ public class BeamFileSystemArtifactServicesTest {
             BeamFileSystemArtifactStagingService.MANIFEST),
         Paths.get(stagingToken));
     assertFiles(Collections.singleton(fileName), stagingToken);
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -272,6 +294,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -332,6 +356,8 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession, "MANIFEST").toString(),
         retrievalToken);
     assertFiles(files.keySet(), retrievalToken);
+
+    checkCleanup(stagingSessionToken, stagingSession);
   }
 
   @Test
@@ -418,6 +444,9 @@ public class BeamFileSystemArtifactServicesTest {
         retrievalToken2);
     assertFiles(files1.keySet(), retrievalToken1);
     assertFiles(files2.keySet(), retrievalToken2);
+
+    checkCleanup(stagingSessionToken1, stagingSession1);
+    checkCleanup(stagingSessionToken2, stagingSession2);
   }
 
   private void assertFiles(Set<String> files, String retrievalToken) throws Exception {
