@@ -32,15 +32,14 @@ dependencies {
   compile library.java.slf4j_jdk14
   compile library.java.guava
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
-  integrationTest library.java.junit
-  integrationTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
 }
 
 processResources {
@@ -52,13 +51,6 @@ processResources {
 shadowJar {
   manifest {
     attributes "Main-Class": "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
-  }
-}
-
-test {
-  doFirst {
-    // Assert everything is in the output or test jar
-    assert classpath.size() == 2
   }
 }
 
@@ -75,7 +67,7 @@ task shadowJarTest(type: Test, dependsOn: ":beam-sdks-java-extensions-sql-jdbc:s
   useJUnit { }
 }
 
-task integrationTest(type: Test) {
+task endToEndTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -105,5 +97,5 @@ task preCommit() {
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
-  dependsOn integrationTest
+  dependsOn endToEndTest
 }
