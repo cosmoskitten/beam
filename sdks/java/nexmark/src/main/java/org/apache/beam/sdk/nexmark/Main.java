@@ -20,7 +20,6 @@ package org.apache.beam.sdk.nexmark;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +40,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -99,7 +97,7 @@ public class Main<OptionT extends NexmarkOptions> {
         }
       }
       if (options.getExportSummaryToBigQuery()) {
-        savePerfsToBigQuery(options, actual, null, start);
+        savePerfsToBigQuery(options, actual, start);
       }
     } finally {
       if (options.getMonitorJobs()) {
@@ -113,12 +111,8 @@ public class Main<OptionT extends NexmarkOptions> {
     }
   }
 
-  @VisibleForTesting
   static void savePerfsToBigQuery(
-      NexmarkOptions options,
-      Map<NexmarkConfiguration, NexmarkPerf> perfs,
-      @Nullable BigQueryServices testBigQueryServices,
-      Instant start) {
+      NexmarkOptions options, Map<NexmarkConfiguration, NexmarkPerf> perfs, Instant start) {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<KV<NexmarkConfiguration, NexmarkPerf>> perfsPCollection =
         pipeline.apply(
@@ -181,9 +175,6 @@ public class Main<OptionT extends NexmarkOptions> {
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withFormatFunction(rowFunction);
-    if (testBigQueryServices != null) {
-      io = io.withTestServices(testBigQueryServices);
-    }
     perfsPCollection.apply("savePerfsToBigQuery", io);
     pipeline.run();
   }
