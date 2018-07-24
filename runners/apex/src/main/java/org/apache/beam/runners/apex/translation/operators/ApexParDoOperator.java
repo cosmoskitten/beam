@@ -188,9 +188,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.usesState()) {
         checkArgument(
-            windowedInputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+            inputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
         @SuppressWarnings("rawtypes")
-        Coder<?> keyCoder = ((KvCoder) windowedInputCoder).getKeyCoder();
+        Coder<?> keyCoder = ((KvCoder) inputCoder).getKeyCoder();
         this.currentKeyStateInternals =
             new StateInternalsProxy<>(stateBackend.newStateInternalsFactory(keyCoder));
       }
