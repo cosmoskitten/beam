@@ -173,7 +173,7 @@ class CommonJobProperties {
     }
   }
 
-  static void setGradleSwitches(context, maxWorkers = Runtime.getRuntime().availableProcessors()) {
+  static void setGradleSwitches(context, maxWorkers = 16) {
     def defaultSwitches = [
       // Gradle log verbosity enough to diagnose basic build issues
       "--info",
