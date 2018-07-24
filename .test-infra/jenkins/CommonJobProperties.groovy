@@ -173,7 +173,7 @@ class CommonJobProperties {
     }
   }
 
-  // maxWorkers set to 12 to avoid jvm oom as in [BEAM-4847].
+  // Default maxWorkers is 12 to avoid jvm oom as in [BEAM-4847].
   static void setGradleSwitches(context, maxWorkers = 12) {
     def defaultSwitches = [
       // Gradle log verbosity enough to diagnose basic build issues
