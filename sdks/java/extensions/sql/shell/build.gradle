@@ -37,3 +37,7 @@ processResources {
 }
 
 mainClassName = "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+
+run {
+  standardInput System.in
+}
