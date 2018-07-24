@@ -49,7 +49,7 @@ nums.each {
     }
 
     steps {
-      shell('./gradlew --stop')
+      shell('cd ' + commonJobProperties.checkoutDir + ' && ./gradlew --stop')
       shell('ls /home/jenkins/tools')
       shell('ls /home/jenkins/tools/*')
       shell('python --version || echo "python not found"')
