@@ -37,8 +37,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     final SqsConfiguration sqsConfiguration = source.getSqsConfiguration();
     sqs =
         AmazonSQSClientBuilder.standard()
-            .withRegion(sqsConfiguration.getAwsRegion())
+            .withClientConfiguration(sqsConfiguration.getClientConfiguration())
             .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
+            .withRegion(sqsConfiguration.getAwsRegion())
             .build();
   }
 

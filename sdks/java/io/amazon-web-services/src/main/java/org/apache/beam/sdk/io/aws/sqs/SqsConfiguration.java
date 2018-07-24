@@ -1,5 +1,6 @@
 package org.apache.beam.sdk.io.aws.sqs;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +13,7 @@ class SqsConfiguration implements Serializable {
 
   private String awsRegion;
   private String awsCredentialsProviderString;
+  private String awsClientConfigurationString;
 
   public SqsConfiguration(AwsOptions awsOptions) {
     ObjectMapper om = new ObjectMapper();
@@ -22,6 +24,13 @@ class SqsConfiguration implements Serializable {
     } catch (JsonProcessingException e) {
       this.awsCredentialsProviderString = null;
     }
+
+    try {
+      this.awsClientConfigurationString = om.writeValueAsString(awsOptions.getClientConfiguration());
+    } catch (JsonProcessingException e) {
+      this.awsClientConfigurationString = null;
+    }
+
     this.awsRegion = awsOptions.getAwsRegion();
   }
 
@@ -30,6 +39,16 @@ class SqsConfiguration implements Serializable {
     om.registerModule(new AwsModule());
     try {
       return om.readValue(awsCredentialsProviderString, AWSCredentialsProvider.class);
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  public ClientConfiguration getClientConfiguration() {
+    ObjectMapper om = new ObjectMapper();
+    om.registerModule(new AwsModule());
+    try {
+      return om.readValue(awsClientConfigurationString, ClientConfiguration.class);
     } catch (IOException e) {
       return null;
     }
