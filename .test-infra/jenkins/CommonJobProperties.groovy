@@ -179,6 +179,8 @@ class CommonJobProperties {
       "--info",
       // Continue the build even if there is a failure to show as many potential failures as possible.
       '--continue',
+      // Avoid the daemon to see if it helps [BEAM-4847]
+      '--no-daemon',
     ]
 
     for (String gradle_switch : defaultSwitches) {
