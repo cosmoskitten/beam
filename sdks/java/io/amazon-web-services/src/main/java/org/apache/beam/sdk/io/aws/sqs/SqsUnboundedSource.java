@@ -50,8 +50,7 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
   @Override
   public UnboundedReader<Message> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
-    //todo need to add the ability to resume from a checkpoint
-    return new SqsUnboundedReader(this);
+    return new SqsUnboundedReader(this, checkpointMark);
   }
 
   @Override

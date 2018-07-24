@@ -46,4 +46,8 @@ class SqsCheckpointMark implements UnboundedSource.CheckpointMark {
       reader.delete(receiptHandle);
     }
   }
+
+  List<String> getReceiptHandlesToDelete() {
+    return receiptHandlesToDelete;
+  }
 }
