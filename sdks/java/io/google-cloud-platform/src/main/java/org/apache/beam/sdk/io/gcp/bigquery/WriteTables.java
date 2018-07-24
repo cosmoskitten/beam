@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -93,6 +94,7 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
+  private int maxRetryJobs;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -190,7 +192,8 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations,
-      @Nullable ValueProvider<String> loadJobProjectId) {
+      @Nullable ValueProvider<String> loadJobProjectId,
+      int maxRetryJobs) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -201,6 +204,7 @@ class WriteTables<DestinationT>
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
     this.loadJobProjectId = loadJobProjectId;
+    this.maxRetryJobs = maxRetryJobs;
   }
 
   @Override
@@ -261,16 +265,23 @@ class WriteTables<DestinationT>
     Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
-    for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
-      String jobId = jobIdPrefix + "-" + i;
-
+    // First attempt is always jobIdPrefix-0.
+    String jobId = jobIdPrefix + "-0";
+    for (int i = 0; i < maxRetryJobs; ++i) {
       JobReference jobRef =
           new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
 
-      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
-      jobService.startLoadJob(jobRef, loadConfig);
-      LOG.info("Load job {} started", jobRef);
 
+      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
+      try {
+      jobService.startLoadJob(jobRef, loadConfig);
+      } catch (IOException e) {
+        LOG.warn("Load job {} failed with {}", jobRef, e);
+        jobId = getRetryJobId(jobIdPrefix, projectId, bqLocation, jobService);
+        continue;
+      }
+      LOG.info("Load job {} started", jobRef);
+      // Try to wait until the job is done (succeeded or failed).
       Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
 
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
@@ -284,18 +295,22 @@ class WriteTables<DestinationT>
           }
           return;
         case UNKNOWN:
-          LOG.info("Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
-          throw new RuntimeException(
-              String.format(
-                  "UNKNOWN status of load job [%s]: %s.",
-                  jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
+          // This usually means that BigQuery hasn't received the load job. Retry with the same
+          // job id.
+          LOG.info("Load job {} finished in unknown state: {}: {}",
+              jobRef,
+              loadJob.getStatus(),
+              (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
+          lastFailedLoadJob = loadJob;
+          continue;
         case FAILED:
           LOG.info(
               "Load job {} failed, {}: {}",
               jobRef,
-              (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
+              (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
               loadJob.getStatus());
           lastFailedLoadJob = loadJob;
+          jobId = getRetryJobId(jobId, projectId, bqLocation, jobService);
           continue;
         default:
           throw new IllegalStateException(
@@ -309,8 +324,45 @@ class WriteTables<DestinationT>
             "Failed to create load job with id prefix %s, "
                 + "reached max retries: %d, last failed load job: %s.",
             jobIdPrefix,
-            BatchLoads.MAX_RETRY_JOBS,
+            maxRetryJobs,
             BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+  }
+
+  private String getRetryJobId(String currentJobId, String projectId, String bqLocation,
+                                JobService jobService) throws InterruptedException {
+    // Job ids should always be of the form <job_id_prefix>-<retry_count>
+    int dashIndex = currentJobId.lastIndexOf('-');
+    String jobIdPrefix = currentJobId.substring(0, dashIndex);
+    int currentRetry = Integer.parseInt(currentJobId.substring(
+        dashIndex + 1, currentJobId.length()));
+    for (int retryIndex = currentRetry + 1;;retryIndex++) {
+      String jobId = jobIdPrefix + "-" + retryIndex;
+      JobReference jobRef =
+          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+      try {
+        Job loadJob = jobService.getJob(jobRef);
+        if (loadJob == null) {
+          // Assume this means that the job was never properly issued. Try again with the original
+          // job id.
+          return  jobId;
+       }
+        JobStatus jobStatus = loadJob.getStatus();
+        if (jobStatus == null) {
+          return jobId;
+
+        }
+        // Wait.
+          if ("PENDING".equals(jobStatus.getState())) {
+            return "";
+          }
+        if (jobStatus.getErrors() == null || jobStatus.getErrors().isEmpty()) {
+          // Import succeeded. No retry needed.
+          return "";
+        }
+      } catch (IOException e) {
+        return jobId;
+      }
+    }
   }
 
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {
