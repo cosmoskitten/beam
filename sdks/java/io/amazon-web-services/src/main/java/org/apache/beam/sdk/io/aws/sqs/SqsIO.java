@@ -23,6 +23,7 @@ import com.amazonaws.services.sqs.model.Message;
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,52 +41,34 @@ public class SqsIO {
   /** A {@link PTransform} to read/receive messages from SQS. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
-    @Nullable
-    abstract String region();
-
-    // todo figure out how to serialize this so it can be used in a pipeline
-    //@Nullable
-    //abstract AWSCredentialsProvider awsCredentialsProvider();
 
     @Nullable
     abstract String queueUrl();
 
-    abstract Builder builder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setRegion(String region);
-
-      //abstract Builder setAwsCredentialsProvider(AWSCredentialsProvider awsCredentialsProvider);
-
       abstract Builder setQueueUrl(String queueUrl);
 
       abstract Read build();
     }
 
-    /** The aws region. */
-    public Read withRegion(String region) {
-      return builder().setRegion(region).build();
-    }
-
-
-    // todo figure out how to serialize this so it can be used in a pipeline
-    //    public Read withAwsCredentialsProvider(AWSCredentialsProvider awsCredentialsProvider) {
-    //      return builder().setAwsCredentialsProvider(awsCredentialsProvider).build();
-    //    }
-
     /** Define the queueUrl used by the {@link Read} to receive messages from SQS. */
     public Read withQueueUrl(String queueUrl) {
       checkArgument(queueUrl != null, "queueUrl can not be null");
       checkArgument(!queueUrl.isEmpty(), "queueUrl can not be empty");
-      return builder().setQueueUrl(queueUrl).build();
+      return toBuilder().setQueueUrl(queueUrl).build();
     }
 
     @Override
     public PCollection<Message> expand(PBegin input) {
 
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
-          org.apache.beam.sdk.io.Read.from(new SqsUnboundedSource(this));
+          org.apache.beam.sdk.io.Read.from(
+              new SqsUnboundedSource(
+                  this,
+                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class))));
 
       PTransform<PBegin, PCollection<Message>> transform = unbounded;
 

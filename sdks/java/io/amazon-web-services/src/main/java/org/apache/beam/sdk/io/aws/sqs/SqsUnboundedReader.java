@@ -19,9 +19,10 @@ import org.joda.time.Instant;
 
 class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
+  public static final int MAX_NUMBER_OF_MESSAGES = 10;
   private final SqsUnboundedSource source;
+  private final AmazonSQS sqs;
 
-  private AmazonSQS sqs;
   private Message current;
   private final Queue<Message> messagesNotYetRead;
   private Set<String> receiptHandlesToDelete;
@@ -32,6 +33,13 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
     this.messagesNotYetRead = new ArrayDeque<>();
     receiptHandlesToDelete = new HashSet<>();
+
+    final SqsConfiguration sqsConfiguration = source.getSqsConfiguration();
+    sqs =
+        AmazonSQSClientBuilder.standard()
+            .withRegion(sqsConfiguration.getAwsRegion())
+            .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
+            .build();
   }
 
   @Override
@@ -68,13 +76,6 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
   @Override
   public boolean start() {
-    sqs =
-        AmazonSQSClientBuilder.standard()
-            .withRegion(source.getSpec().region())
-            //.withCredentials(source.getSpec().awsCredentialsProvider()) // todo figure out how to ser/deserialzie this so we can use it in a pipeline
-            //.withClientConfiguration(awsOptions.getClientConfiguration()) //todo uncomment this once BEAM-4814 gets merged into master
-            .build();
-
     return advance();
   }
 
@@ -97,14 +98,14 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
   public void close() {}
 
   void delete(String receiptHandle) {
-    sqs.deleteMessage(source.getSpec().queueUrl(), receiptHandle);
+    sqs.deleteMessage(source.getRead().queueUrl(), receiptHandle);
     receiptHandlesToDelete.remove(receiptHandle);
   }
 
   private void pull() {
     final ReceiveMessageRequest receiveMessageRequest =
-        new ReceiveMessageRequest(source.getSpec().queueUrl());
-    receiveMessageRequest.setMaxNumberOfMessages(10);
+        new ReceiveMessageRequest(source.getRead().queueUrl());
+    receiveMessageRequest.setMaxNumberOfMessages(MAX_NUMBER_OF_MESSAGES);
     final ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResult.getMessages();
