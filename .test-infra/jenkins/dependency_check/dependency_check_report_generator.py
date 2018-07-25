@@ -22,9 +22,9 @@ import re
 import traceback
 import logging
 from datetime import datetime
-from bigquery_client_utils import BigQueryClientUtils
+from dependency_check.bigquery_client_utils import BigQueryClientUtils
 from jira_utils.jira_manager import JiraManager
-from report_generator_config import ReportGeneratorConfig
+from dependency_check.report_generator_config import ReportGeneratorConfig
 
 
 _MAX_STALE_DAYS = 360
@@ -66,7 +66,7 @@ def extract_single_dep(dep):
   """
   Extract a single dependency check record from Java and Python reports.
   Args:
-    dep: e.g "- org.assertj:assertj-core [2.5.0 -> 3.10.0]".
+    dep: e.g " - org.assertj:assertj-core [2.5.0 -> 3.10.0]".
   Return:
     dependency name, current version, latest version.
   """
@@ -77,7 +77,7 @@ def extract_single_dep(dep):
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
 
-def prioritize_dependencies(deps, sdk_type, password):
+def prioritize_dependencies(deps, sdk_type):
   """
   Extracts and analyze dependency versions and release dates.
   Returns a collection of dependencies which is "high priority" in html format:
@@ -90,24 +90,28 @@ def prioritize_dependencies(deps, sdk_type, password):
   Return:
     high_priority_deps: A collection of dependencies which need to be taken care of before next release.
   """
-
+  logging.info("BEAM_JIRA_BOT_USERNAME: " + ReportGeneratorConfig.BEAM_JIRA_BOT_USRENAME)
   project_id = ReportGeneratorConfig.GCLOUD_PROJECT_ID
   dataset_id = ReportGeneratorConfig.DATASET_ID
   table_id = ReportGeneratorConfig.get_bigquery_table_id(sdk_type)
   high_priority_deps = []
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
   jira_manager = JiraManager(ReportGeneratorConfig.BEAM_JIRA_HOST,
-                             ReportGeneratorConfig.BEAM_JIRA_BOT,
-                             password,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_USRENAME,
+                             ReportGeneratorConfig.BEAM_JIRA_BOT_PASSWORD,
                              ReportGeneratorConfig.get_owners_file(sdk_type))
+  logging.info("I am here!!!!")
+  if not deps:
+    logging.error("deps is None or empty")
   for dep in deps:
     try:
-      logging.info("Start processing: %s", dep)
+      logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
       curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
                                                                               dep_name,
                                                                               curr_ver,
                                                                               latest_ver)
+      group_id = None
       if sdk_type == 'Java':
         # extract the groupid and artifactid
         group_id, artifact_id = dep_name.split(":")
@@ -129,8 +133,10 @@ def prioritize_dependencies(deps, sdk_type, password):
                           latest_release_date)
       if compare_dependency_versions(curr_ver, latest_ver):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
       elif compare_dependency_release_dates(curr_release_date, latest_release_date):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
     except:
       traceback.print_exc()
       continue
@@ -218,8 +224,8 @@ def compare_dependency_release_dates(curr_release_date, latest_release_date):
   Return:
     boolean
   """
-  if curr_release_date is None or latest_release_date is None:
-    return True
+  if not curr_release_date or not latest_release_date:
+    return False
   else:
     if (latest_release_date - curr_release_date).days >= _MAX_STALE_DAYS:
       return True
