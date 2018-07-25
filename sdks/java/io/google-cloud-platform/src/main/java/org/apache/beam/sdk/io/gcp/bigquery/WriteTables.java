@@ -234,7 +234,7 @@ class WriteTables<DestinationT>
     return writeTablesOutputs.get(mainOutputTag);
   }
 
-  private void load(
+  private BigQueryWriteResult load(
       JobService jobService,
       DatasetService datasetService,
       String jobIdPrefix,
@@ -258,7 +258,6 @@ class WriteTables<DestinationT>
       loadConfig.setTimePartitioning(timePartitioning);
     }
     String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
-    Job lastFailedLoadJob = null;
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
@@ -282,35 +281,22 @@ class WriteTables<DestinationT>
                 ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                 tableDescription);
           }
-          return;
+          return new BigQueryWriteResult(Status.SUCCEEDED, BigQueryHelpers.toJsonString(ref));
         case UNKNOWN:
           LOG.info("Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
-          throw new RuntimeException(
-              String.format(
-                  "UNKNOWN status of load job [%s]: %s.",
-                  jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
+          return new BigQueryWriteResult(Status.UNKNOWN, BigQueryHelpers.toJsonString(ref));
         case FAILED:
           LOG.info(
               "Load job {} failed, {}: {}",
               jobRef,
               (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
               loadJob.getStatus());
-          lastFailedLoadJob = loadJob;
           continue;
         default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unexpected status [%s] of load job: %s.",
-                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
+          return new BigQueryWriteResult(jobStatus, BigQueryHelpers.toJsonString(ref));
       }
     }
-    throw new RuntimeException(
-        String.format(
-            "Failed to create load job with id prefix %s, "
-                + "reached max retries: %d, last failed load job: %s.",
-            jobIdPrefix,
-            BatchLoads.MAX_RETRY_JOBS,
-            BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+    return new BigQueryWriteResult(Status.FAILED, BigQueryHelpers.toJsonString(ref));
   }
 
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {
