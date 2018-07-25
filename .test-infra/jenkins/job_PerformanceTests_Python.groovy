@@ -55,5 +55,5 @@ job('beam_PerformanceTests_Python'){
   commonJobProperties.buildPerformanceTest(delegate, argMap)
 
   // [BEAM-3809] Python performance tests are failing.
-  disabled()
+//  disabled()
 }
