@@ -26,19 +26,21 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
+import org.apache.beam.sdk.io.aws.sqs.SqsIO.Write.Builder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Duration;
 
 /** An unbounded source for Amazon Simple Queue Service (SQS). */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SqsIO {
 
   public static Read read() {
-    return new AutoValue_SqsIO_Read.Builder().build();
+    return new AutoValue_SqsIO_Read.Builder().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
   public static Write write() {
@@ -54,13 +56,39 @@ public class SqsIO {
     @Nullable
     abstract String queueUrl();
 
+    abstract long maxNumRecords();
+
+    @Nullable
+    abstract Duration maxReadTime();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setQueueUrl(String queueUrl);
 
+      abstract Builder setMaxNumRecords(long maxNumRecords);
+
+      abstract Builder setMaxReadTime(Duration maxReadTime);
+
       abstract Read build();
+    }
+
+    /**
+     * Define the max number of records received by the {@link Read}. When the max number of records
+     * is lower than {@code Long.MAX_VALUE}, the {@link Read} will provide a bounded {@link
+     * PCollection}.
+     */
+    public Read withMaxNumRecords(long maxNumRecords) {
+      return toBuilder().setMaxNumRecords(maxNumRecords).build();
+    }
+
+    /**
+     * Define the max read time (duration) while the {@link Read} will receive messages. When this
+     * max read time is not null, the {@link Read} will provide a bounded {@link PCollection}.
+     */
+    public Read withMaxReadTime(Duration maxReadTime) {
+      return toBuilder().setMaxReadTime(maxReadTime).build();
     }
 
     /** Define the queueUrl used by the {@link Read} to receive messages from SQS. */
@@ -81,10 +109,15 @@ public class SqsIO {
 
       PTransform<PBegin, PCollection<Message>> transform = unbounded;
 
+      if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
+      }
+
       return input.getPipeline().apply(transform);
     }
   }
 
+  /** A {@link PTransform} to send messages to SQS. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
     @Nullable
@@ -108,8 +141,11 @@ public class SqsIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      input.apply(ParDo.of(new SqsWriteFn(new SqsConfiguration(
-          input.getPipeline().getOptions().as(AwsOptions.class)), queueUrl())));
+      input.apply(
+          ParDo.of(
+              new SqsWriteFn(
+                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class)),
+                  queueUrl())));
       return PDone.in(input.getPipeline());
     }
   }

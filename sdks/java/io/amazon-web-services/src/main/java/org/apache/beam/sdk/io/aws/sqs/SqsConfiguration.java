@@ -43,7 +43,8 @@ class SqsConfiguration implements Serializable {
     }
 
     try {
-      this.awsClientConfigurationString = om.writeValueAsString(awsOptions.getClientConfiguration());
+      this.awsClientConfigurationString =
+          om.writeValueAsString(awsOptions.getClientConfiguration());
     } catch (JsonProcessingException e) {
       this.awsClientConfigurationString = null;
     }

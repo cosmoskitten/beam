@@ -60,7 +60,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
             .build();
 
     if (sqsCheckpointMark != null) {
-      if(sqsCheckpointMark.getReceiptHandlesToDelete() != null) {
+      if (sqsCheckpointMark.getReceiptHandlesToDelete() != null) {
         receiptHandlesToDelete.addAll(sqsCheckpointMark.getReceiptHandlesToDelete());
       }
     }
