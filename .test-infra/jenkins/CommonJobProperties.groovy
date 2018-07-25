@@ -189,9 +189,9 @@ class CommonJobProperties {
 
     // Ensure that parallel workers don't exceed total available memory.
 
-    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (3g/8g).
+    // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (3g/4g).
     context.switches("-Dorg.gradle.jvmargs=-Xms3g")
-    context.switches("-Dorg.gradle.jvmargs=-Xmx8g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
   }
 
   // Sets common config for PreCommit jobs.
