@@ -36,32 +36,37 @@ job('beam_Dependency_Check') {
     '0 12 * * 1')
 
   steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runBeamDependencyCheck')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-Drevision=release')
-    }
+//    gradle {
+//      rootBuildScriptDir(commonJobProperties.checkoutDir)
+//      tasks(':runBeamDependencyCheck')
+//      commonJobProperties.setGradleSwitches(delegate)
+//      switches('-Drevision=release')
+//    }
+
+//    shell('cd ' + commonJobProperties.checkoutDir +
+//            ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
 
     shell('cd ' + commonJobProperties.checkoutDir +
+            ' && bash .test-infra/jenkins/artificial_data/generate_artificial_data.sh' +
             ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
   }
 
   def date = new Date().format('yyyy-MM-dd')
-  publishers {
-    extendedEmail {
-      triggers {
-        always {
-          recipientList('dev@beam.apache.org')
-          contentType('text/html')
-          subject("Beam Dependency Check Report (${date})")
-          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
-        }
-      }
-    }
-    archiveArtifacts {
-      pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
-      onlyIfSuccessful()
-    }
-  }
+//  publishers {
+//    extendedEmail {
+//      triggers {
+//        always {
+////          recipientList('dev@beam.apache.org')
+//          recipientList('yifanzou@google.com')
+//          contentType('text/html')
+//          subject("Beam Dependency Check Report (${date})")
+//          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
+//        }
+//      }
+//    }
+////    archiveArtifacts {
+////      pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
+////      onlyIfSuccessful()
+////    }
+//  }
 }
