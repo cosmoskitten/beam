@@ -35,7 +35,7 @@ REPORT_DESCRIPTION="
      In the future, issues will be filed and tracked for these automatically,
      but in the meantime you can search for existing issues or open a new one.
 </h4>
-<h4> For more information: <a href=\"https://docs.google.com/document/d/15m1MziZ5TNd9rh_XN0YYBJfYkt0Oj-Ou9g0KFDPL2aA/edit#\"> Beam Dependency Update Policy </a></h4>"
+<h4> For more information: <a href=\"https://beam.apache.org/contribute/dependencies/\"> Beam Dependency Guide </a></h4>"
 
 
 # Virtualenv for the rest of the script to run setup
@@ -45,14 +45,14 @@ pip install --upgrade google-cloud-bigquery
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
 # Insall packages and run the unit tests of the report generator and the jira manager
-pip install mock jira
+pip install mock jira pyyaml
 cd $WORKSPACE/src/.test-infra/jenkins
 python -m dependency_check.dependency_check_report_generator_test
 python -m jira_utils.jira_manager_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 
-python -m dependency_check/dependency_check_report_generator Python
+#python -m dependency_check/dependency_check_report_generator Python
 
 python -m dependency_check.dependency_check_report_generator Java
 
