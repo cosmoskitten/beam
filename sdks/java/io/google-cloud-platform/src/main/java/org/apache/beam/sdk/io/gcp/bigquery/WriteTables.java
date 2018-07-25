@@ -45,6 +45,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.PollJobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -282,7 +283,9 @@ class WriteTables<DestinationT>
       }
       LOG.info("Load job {} started", jobRef);
       // Try to wait until the job is done (succeeded or failed).
-      Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+      Job loadJob = jobService.pollJob(jobRef,
+          PollJobType.WAIT_FOR_JOB_FINISH,
+          BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
 
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
@@ -344,17 +347,16 @@ class WriteTables<DestinationT>
         if (loadJob == null) {
           // Assume this means that the job was never properly issued. Try again with the original
           // job id.
-          return  jobId;
+          return jobId;
        }
         JobStatus jobStatus = loadJob.getStatus();
         if (jobStatus == null) {
           return jobId;
-
         }
         // Wait.
-          if ("PENDING".equals(jobStatus.getState())) {
-            return "";
-          }
+        if ("PENDING".equals(jobStatus.getState())) {
+          return "";
+        }
         if (jobStatus.getErrors() == null || jobStatus.getErrors().isEmpty()) {
           // Import succeeded. No retry needed.
           return "";

@@ -236,7 +236,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException {
+    public Job pollJob(JobReference jobRef, PollJobType type, int maxAttempts)
+        throws  InterruptedException {
       BackOff backoff =
           BackOffAdapter.toGcpBackOff(
               FluentBackoff.DEFAULT
@@ -244,11 +245,12 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
                   .withMaxBackoff(Duration.standardMinutes(1))
                   .backoff());
-      return pollJob(jobRef, Sleeper.DEFAULT, backoff);
+      return pollJob(jobRef, type, Sleeper.DEFAULT, backoff);
     }
 
     @VisibleForTesting
-    Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    Job pollJob(JobReference jobRef, PollJobType type, Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
       do {
         try {
           Job job =
@@ -257,8 +259,22 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .get(jobRef.getProjectId(), jobRef.getJobId())
                   .setLocation(jobRef.getLocation())
                   .execute();
+          if (job == null) {
+            LOG.info("Still waiting for BigQuery job {} to start", jobRef);
+            continue;
+          }
           JobStatus status = job.getStatus();
-          if (status != null && "DONE".equals(status.getState())) {
+          if (status == null) {
+            LOG.info("Still waiting for BigQuery job {} to enter pending state", jobRef);
+            continue;
+          }
+
+
+          if (type.equals(PollJobType.WAIT_FOR_JOB_START)) {
+            LOG.info("BigQuery job {} started", jobRef);
+            return job;
+          }
+          if ("DONE".equals(status.getState())) {
             LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }
