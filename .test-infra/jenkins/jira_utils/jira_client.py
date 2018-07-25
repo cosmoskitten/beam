@@ -31,7 +31,7 @@ class JiraClient:
     Args:
       summary
     Return:
-      a list of issues
+      A list of issues
     """
     try:
       issues = self.jira.search_issues("project={0} AND summary ~ '{1}'".format(self.project, summary))

@@ -34,7 +34,8 @@ class ReportGeneratorConfig:
 
   # Constants for JIRA automation
   BEAM_JIRA_HOST        = 'https://issues.apache.org/jira/'
-  BEAM_JIRA_BOT         = 'BeamJiraBot'
+  BEAM_JIRA_BOT_USRENAME= os.environ['BEAM_JIRA_BOT_USERNAME']
+  BEAM_JIRA_BOT_PASSWORD= os.environ['BEAM_JIRA_BOT_PASSWORD']
 
   # Dependency Owners
   JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/ownership/JAVA_DEPENDENCY_OWNERS.yaml'

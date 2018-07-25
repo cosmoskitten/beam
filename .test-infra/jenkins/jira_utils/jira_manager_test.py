@@ -46,6 +46,10 @@ class JiraManagerTest(unittest.TestCase):
 
 
   def test_find_owners_with_single_owner(self, *args):
+    """
+    Test on _find_owners with single owner
+    Expect: the primary owner is 'owner0', an empty list of other owners.
+    """
     owners_yaml = """
                   deps:
                     dep0:
@@ -59,6 +63,10 @@ class JiraManagerTest(unittest.TestCase):
 
 
   def test_find_owners_with_multi_owners(self, *args):
+    """
+    Test on _find_owners with multiple owners.
+    Expect: the primary owner is 'owner0', a list contains 'owner1' and 'owner2'.
+    """
     owners_yaml = """
                   deps:
                     dep0:
@@ -74,6 +82,10 @@ class JiraManagerTest(unittest.TestCase):
 
 
   def test_find_owners_with_no_owners_defined(self, *args):
+    """
+    Test on _find_owners without owner.
+    Expect: the primary owner is None, an empty list of other owners.
+    """
     owners_yaml = """
                   deps:
                     dep0:
@@ -87,6 +99,10 @@ class JiraManagerTest(unittest.TestCase):
 
 
   def test_find_owners_with_no_dep_defined(self, *args):
+    """
+    Test on _find_owners with non-defined dep.
+    Expect: through out KeyErrors. The primary owner is None, an empty list of other owners.
+    """
     owners_yaml = """
                   deps:
                     dep0:
@@ -101,6 +117,10 @@ class JiraManagerTest(unittest.TestCase):
 
   @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
   def test_run_with_creating_new_issue(self, *args):
+    """
+    Test JiraManager.run on creating a new issue.
+    Expect: jira.create_issue is called once with certain parameters.
+    """
     owners_yaml = """
                   deps:
                     dep0:
@@ -117,6 +137,10 @@ class JiraManagerTest(unittest.TestCase):
 
   @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
   def test_run_with_updating_existing_task(self, *args):
+    """
+    Test JiraManager.run on updating an existing issue.
+    Expect: jira.update_issue is called once.
+    """
     dep_name = 'dep0'
     dep_latest_version = '1.0'
     owners_yaml = """
@@ -137,6 +161,10 @@ class JiraManagerTest(unittest.TestCase):
 
   @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
   def test_run_with_creating_new_subtask(self, *args):
+    """
+    Test JiraManager.run on creating a new sub-task.
+    Expect: jira.create_issue is called once with certain parameters.
+    """
     dep_name = 'group0:artifact0'
     dep_latest_version = '1.0'
     owners_yaml = """
@@ -166,6 +194,10 @@ class JiraManagerTest(unittest.TestCase):
   @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
   @patch('jira_utils.jira_manager.JiraClient.create_issue', side_effect = [MockedJiraIssue('BEAM-2000', 'summary', 'description', 'Open')])
   def test_run_with_reopening_existing_parent_issue(self, *args):
+    """
+    Test JiraManager.run on reopening a parent issue.
+    Expect: jira.reopen_issue is called once.
+    """
     dep_name = 'group0:artifact0'
     dep_latest_version = '1.0'
     owners_yaml = """
