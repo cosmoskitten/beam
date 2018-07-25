@@ -191,7 +191,7 @@ class CommonJobProperties {
 
     // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (3g/8g).
     context.switches("-Dorg.gradle.jvmargs=-Xms3g")
-    context.switches("-Dorg.gradle.jvmargs=-Xmx8g")
+    context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
   }
 
   // Sets common config for PreCommit jobs.
