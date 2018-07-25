@@ -215,6 +215,17 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
+   * {@inheritDoc}
+   *
+   * <p>All iterable like coders are consistent with equals if and only if the element coder is
+   * consistent with equals.
+   */
+  @Override
+  public boolean consistentWithEquals() {
+    return getElemCoder().consistentWithEquals();
+  }
+
+  /**
    * An observer that gets notified when an observable iterator returns a new value. This observer
    * just notifies an outerObserver about this event. Additionally, the outerObserver is notified
    * about additional separators that are transparently added by this coder.

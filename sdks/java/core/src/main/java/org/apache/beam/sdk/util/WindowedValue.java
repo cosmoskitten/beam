@@ -565,6 +565,29 @@ public abstract class WindowedValue<T> {
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p>This coder is consistent with equals if the window and value coders are consistent with
+     * equals.
+     */
+    @Override
+    public boolean consistentWithEquals() {
+      return windowsCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+    }
+
+    @Override
+    public Object structuralValue(WindowedValue<T> value) {
+      if (value != null && consistentWithEquals()) {
+        return value;
+      }
+      return ImmutableList.of(
+          value.getTimestamp(),
+          valueCoder.structuralValue(value.getValue()),
+          windowsCoder.structuralValue(value.getWindows()),
+          value.getPane());
+    }
+
+    /**
      * {@inheritDoc}.
      *
      * @return a singleton list containing the {@code valueCoder} of this {@link
