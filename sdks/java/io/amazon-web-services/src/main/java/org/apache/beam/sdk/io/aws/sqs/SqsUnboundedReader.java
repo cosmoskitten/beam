@@ -119,9 +119,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
   }
 
   @Override
-  public void close() {
-    sqs.shutdown();
-  }
+  public void close() { }
 
   void delete(String receiptHandle) {
     sqs.deleteMessage(source.getRead().queueUrl(), receiptHandle);
