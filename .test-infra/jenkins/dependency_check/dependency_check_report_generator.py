@@ -77,7 +77,7 @@ def extract_single_dep(dep):
   return match.group(1).strip(), match.group(2).strip(), match.group(3).strip()
 
 
-def prioritize_dependencies(deps, sdk_type, password):
+def prioritize_dependencies(deps, sdk_type):
   """
   Extracts and analyze dependency versions and release dates.
   Returns a collection of dependencies which is "high priority" in html format:
@@ -98,16 +98,17 @@ def prioritize_dependencies(deps, sdk_type, password):
   bigquery_client = BigQueryClientUtils(project_id, dataset_id, table_id)
   jira_manager = JiraManager(ReportGeneratorConfig.BEAM_JIRA_HOST,
                              ReportGeneratorConfig.BEAM_JIRA_BOT,
-                             password,
+                             'goBeamgo', # TODO insert password
                              ReportGeneratorConfig.get_owners_file(sdk_type))
   for dep in deps:
     try:
-      logging.info("Start processing: %s", dep)
+      logging.info("\n\nStart processing: " + dep)
       dep_name, curr_ver, latest_ver = extract_single_dep(dep)
       curr_release_date, latest_release_date = query_dependency_release_dates(bigquery_client,
                                                                               dep_name,
                                                                               curr_ver,
                                                                               latest_ver)
+      group_id = None
       if sdk_type == 'Java':
         # extract the groupid and artifactid
         group_id, artifact_id = dep_name.split(":")
@@ -129,8 +130,10 @@ def prioritize_dependencies(deps, sdk_type, password):
                           latest_release_date)
       if compare_dependency_versions(curr_ver, latest_ver):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
       elif compare_dependency_release_dates(curr_release_date, latest_release_date):
         high_priority_deps.append(dep_info)
+        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
     except:
       traceback.print_exc()
       continue
