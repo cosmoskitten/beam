@@ -27,18 +27,25 @@ class ReportGeneratorConfig:
   GCLOUD_PROJECT_ID     = 'apache-beam-testing'
   DATASET_ID            = 'beam_dependency_states'
   PYTHON_DEP_TABLE_ID   = 'python_dependency_states'
-  JAVA_DEP_TABLE_ID     = 'java_dependency_states'
+  # JAVA_DEP_TABLE_ID     = 'java_dependency_states'
   PYTHON_DEP_RAW_REPORT = WORKING_SPACE + '/src/build/dependencyUpdates/python_dependency_report.txt'
-  JAVA_DEP_RAW_REPORT   = WORKING_SPACE + '/src/build/dependencyUpdates/report.txt'
+  # JAVA_DEP_RAW_REPORT   = WORKING_SPACE + '/src/build/dependencyUpdates/report.txt'
   FINAL_REPORT          = WORKING_SPACE + '/src/build/dependencyUpdates/beam-dependency-check-report.html'
 
   # Constants for JIRA automation
   BEAM_JIRA_HOST        = 'https://issues.apache.org/jira/'
-  BEAM_JIRA_BOT         = 'BeamJiraBot'
+  BEAM_JIRA_BOT_USRENAME= os.environ['BEAM_JIRA_BOT_USERNAME']
+  BEAM_JIRA_BOT_PASSWORD= os.environ['BEAM_JIRA_BOT_PASSWORD']
 
   # Dependency Owners
-  JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/ownership/JAVA_DEPENDENCY_OWNERS.yaml'
+  # JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/ownership/JAVA_DEPENDENCY_OWNERS.yaml'
   PYTHON_DEP_OWNERS     = WORKING_SPACE + '/src/ownership/PYTHON_DEPENDENCY_OWNERS.yaml'
+
+
+  # Fake Data. TODO remove it after testing...
+  JAVA_DEP_TABLE_ID     = 'test_auto_jira_table'
+  JAVA_DEP_RAW_REPORT   = WORKING_SPACE + '/src/build/dependencyUpdates/test_java_report.txt'
+  JAVA_DEP_OWNERS       = WORKING_SPACE + '/src/.test-infra/jenkins/artificial_data/test_owners.yaml'
 
 
   @classmethod

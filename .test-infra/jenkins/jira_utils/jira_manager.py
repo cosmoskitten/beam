@@ -40,6 +40,14 @@ class JiraManager:
 
 
   def run(self, dep_name, dep_latest_version, sdk_type, group_id=None):
+    """
+    Manage the jira issue for a dependency
+    Args:
+      dep_name,
+      dep_latest_version,
+      sdk_type: Java, Python
+      group_id (optional): only required for Java dependencies
+    """
     logging.info("Start handling the JIRA issues for {0} dependency: {1} {2}".format(
         sdk_type, dep_name, dep_latest_version))
     try:
@@ -100,10 +108,10 @@ class JiraManager:
     """
     Create a new issue or subtask
     Args:
-      dep_name
-      dep_latest_version
-      is_subtask
-      parent_key - only required if the 'is_subtask'is true.
+      dep_name,
+      dep_latest_version,
+      is_subtask,
+      parent_key: only required if the 'is_subtask'is true.
     """
     logging.info("Creating a new JIRA issue to track {0} upgrade process".format(dep_name))
     assignee, owners = self._find_owners(dep_name)
@@ -131,6 +139,13 @@ class JiraManager:
 
 
   def _search_issues(self, summary):
+    """
+    Search issues by using issues' summary.
+    Args:
+      summary: a string
+    Return:
+      A list of issues
+    """
     try:
       issues = self.jira.get_issues_by_summary(summary)
     except Exception as e:
@@ -140,6 +155,13 @@ class JiraManager:
 
 
   def _append_descriptions(self, issue, dep_name, dep_latest_version):
+    """
+    Add descriptions on an existing issue.
+    Args:
+      issue: Jira issue
+      dep_name
+      dep_latest_version
+    """
     logging.info("Updating JIRA issue {0} to track {1} upgrade process".format(
         issue.key,
         dep_name))
@@ -161,6 +183,14 @@ class JiraManager:
 
 
   def _find_owners(self, dep_name):
+    """
+    Find owners for a dependency/
+    Args:
+      dep_name
+    Return:
+      primary: The primary owner of the dep. The Jira issue will be assigned to the primary owner.
+      others: A list of other owners of the dep. Owners will be cc'ed in the description.
+    """
     try:
       dep_info = self.owners_map[dep_name]
       owners = dep_info['owners']
