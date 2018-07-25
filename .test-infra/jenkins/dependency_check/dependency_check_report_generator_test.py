@@ -20,7 +20,7 @@
 #
 
 import unittest, mock
-from mock import patch
+from mock import patch, mock_open
 from datetime import datetime
 from dependency_check_report_generator import prioritize_dependencies
 
@@ -34,9 +34,12 @@ _SDK_TYPE = 'JAVA'
 _LP_CURR_VERSION_DATE = datetime.strptime('2000-01-01', '%Y-%m-%d')
 _LATEST_VERSION_DATE = datetime.strptime('2000-01-02', '%Y-%m-%d')
 _HP_CURR_VERSION_DATE = datetime.strptime('1999-01-01', '%Y-%m-%d')
+_MOCKED_OWNERS_FILE = "deps: "
 
 @patch('google.cloud.bigquery.Client')
 @patch('jira_utils.jira_manager.JiraManager')
+@patch('jira_utils.jira_manager.JiraClient')
+@patch('jira_utils.jira_manager.JiraManager.run')
 class DependencyCheckReportGeneratorTest(unittest.TestCase):
   """Tests for `dependency_check_report_generator.py`."""
 
@@ -50,8 +53,9 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Test on empty outdated dependencies.
     Except: empty report
     """
-    report = prioritize_dependencies([], _SDK_TYPE)
-    self.assertEqual(len(report), 0)
+    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+      report = prioritize_dependencies([], _SDK_TYPE)
+      self.assertEqual(len(report), 0)
 
 
   @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
@@ -70,11 +74,12 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       " - group3:artifact3 [1.0.0 -> 1.1.0]",
       " - group4:artifact4 [1.0.0 -> 1.1.0]"
     ]
-    report = prioritize_dependencies(deps, _SDK_TYPE)
-    self.assertEqual(len(report), 3)
-    self.assertIn('group1:artifact1', report[0])
-    self.assertIn('group2:artifact2', report[1])
-    self.assertIn('group3:artifact3', report[2])
+    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+      report = prioritize_dependencies(deps, _SDK_TYPE)
+      self.assertEqual(len(report), 3)
+      self.assertIn('group1:artifact1', report[0])
+      self.assertIn('group2:artifact2', report[1])
+      self.assertIn('group3:artifact3', report[2])
 
 
   @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
@@ -86,9 +91,10 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Except: group1:artifact1
     """
     deps = [" - group1:artifact1 [Release1-123 -> Release2-456]"]
-    report = prioritize_dependencies(deps, _SDK_TYPE)
-    self.assertEqual(len(report), 1)
-    self.assertIn('group1:artifact1', report[0])
+    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+      report = prioritize_dependencies(deps, _SDK_TYPE)
+      self.assertEqual(len(report), 1)
+      self.assertIn('group1:artifact1', report[0])
 
 
   @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.query_dep_info_by_version',
@@ -100,9 +106,10 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Except: group1:artifact1
     """
     deps = [" - group1:artifact1 [0.rc1.0 -> 0.rc2.0]"]
-    report = prioritize_dependencies(deps, _SDK_TYPE)
-    self.assertEqual(len(report), 1)
-    self.assertIn('group1:artifact1', report[0])
+    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+      report = prioritize_dependencies(deps, _SDK_TYPE)
+      self.assertEqual(len(report), 1)
+      self.assertIn('group1:artifact1', report[0])
 
 
   @patch('dependency_check.bigquery_client_utils.BigQueryClientUtils.insert_dep_to_table')
@@ -119,9 +126,10 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       "- group1:artifact1 (1.0.0, 2.0.0)",
       " - group2:artifact2 [1.0.0 -> 2.0.0]"
     ]
-    report = prioritize_dependencies(deps, _SDK_TYPE)
-    self.assertEqual(len(report), 1)
-    self.assertIn('group2:artifact2', report[0])
+    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+      report = prioritize_dependencies(deps, _SDK_TYPE)
+      self.assertEqual(len(report), 1)
+      self.assertIn('group2:artifact2', report[0])
 
 
 if __name__ == '__main__':
