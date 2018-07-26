@@ -79,7 +79,7 @@ class PubsubMessage(object):
         self.attributes == other.attributes)
 
   def __hash__(self):
-    return hash((type(self), self.payload, self.attributes))
+    return hash(self.data)
 
   def __repr__(self):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
