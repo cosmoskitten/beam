@@ -91,6 +91,7 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-java-fn-execution", configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
   validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesPortableRunner project(path: project.path, configuration: "shadow")
