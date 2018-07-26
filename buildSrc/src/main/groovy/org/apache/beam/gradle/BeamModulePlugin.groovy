@@ -19,6 +19,7 @@
 package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import groovy.json.JsonOutput
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -191,6 +192,18 @@ class BeamModulePlugin implements Plugin<Project> {
     String root = null // Sets the docker repository root (optional).
     String name = null // Sets the short container image name, such as "go" (required).
     String tag = null // Sets the image tag (optional).
+  }
+
+  // A class defining the configuration for PortableValidatesRunner.
+  class PortableValidatesRunnerConfig {
+    // Task name for validate runner case.
+    String name
+    // Fully qualified JobServerClass name to use.
+    String jobServerDriver
+    // A string representing the jobServer Configuration.
+    String jobServerConfig
+    // Flag to include tests for streaming or batch.
+    boolean streaming
   }
 
   def isRelease(Project project) {
@@ -1392,6 +1405,47 @@ artifactId=${project.name}
         main = "${config.type}-java-${config.runner}".toLowerCase()
         classpath = project.project(':release').sourceSets.main.runtimeClasspath
         args argsNeeded
+      }
+    }
+
+
+    /** ***********************************************************************************************/
+
+    // Method to create the PortableValidatesRunnerTask.
+    project.ext.createPortableValidatesRunnerTask = {
+      def config = it ? it as PortableValidatesRunnerConfig : new PortableValidatesRunnerConfig()
+      project.tasks.create(name: config.name, type: Test) {
+        group = "Verification"
+        description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+          "--jobServerDriver=${config.jobServerDriver}",
+          config.jobServerConfig ? "--jobServerConfig=${config.jobServerConfig}" : "",
+        ])
+        classpath = project.configurations.validatesPortableRunner
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        maxParallelForks 1
+        if (config.streaming) {
+          useJUnit {
+            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          }
+        } else {
+          useJUnit {
+            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          }
+        }
       }
     }
   }

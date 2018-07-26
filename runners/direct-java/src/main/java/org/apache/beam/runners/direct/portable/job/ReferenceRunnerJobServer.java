@@ -18,15 +18,26 @@
 package org.apache.beam.runners.direct.portable.job;
 
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A program that runs a {@link ReferenceRunnerJobService}. */
 public class ReferenceRunnerJobServer {
+  private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobServer.class);
+  private final ServerConfiguration configuration;
+  private GrpcFnServer<ReferenceRunnerJobService> server;
+
+  public ReferenceRunnerJobServer(ServerConfiguration configuration) {
+
+    this.configuration = configuration;
+  }
 
   public static void main(String[] args) throws Exception {
     ServerConfiguration configuration = new ServerConfiguration();
@@ -62,6 +73,39 @@ public class ReferenceRunnerJobServer {
       server.getServer().awaitTermination();
     }
     System.out.println("Server shut down, exiting");
+  }
+
+  public static ReferenceRunnerJobServer fromParams(String[] args) {
+    ServerConfiguration configuration = new ServerConfiguration();
+    CmdLineParser parser = new CmdLineParser(configuration);
+    try {
+      parser.parseArgument(args);
+    } catch (CmdLineException e) {
+      e.printStackTrace(System.err);
+      printUsage(parser);
+      throw new IllegalArgumentException(
+          "Unable to parse command line arguments " + Arrays.asList(args), e);
+    }
+
+    return new ReferenceRunnerJobServer(configuration);
+  }
+
+  public String start() throws Exception {
+    ServerFactory serverFactory = ServerFactory.createDefault();
+    server =
+        createServer(configuration, serverFactory, ReferenceRunnerJobService.create(serverFactory));
+
+    return server.getApiServiceDescriptor().getUrl();
+  }
+
+  public void stop() {
+    if (server != null) {
+      try {
+        server.close();
+      } catch (Exception e) {
+        LOG.error("Unable to stop job server.", e);
+      }
+    }
   }
 
   private static GrpcFnServer<ReferenceRunnerJobService> createServer(
