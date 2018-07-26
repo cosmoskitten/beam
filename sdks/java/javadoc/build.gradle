@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+/* Aggregate Javadoca will not be published into Maven Central. Each subproject has its own javadoc.jar.
+Run ./gradlew :beam-sdks-java-javadoc:aggregateJavadoc to generate aggregated javadocs.
+Generated files locates under beam/sdks/java/javadoc/build/docs/javadoc, which is used to update beam-site source tree.
+ */
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 apply plugin: 'java'
 
@@ -91,7 +95,7 @@ task aggregateJavadoc(type: Javadoc) {
 
   options.with {
     failOnError false
-    title "Apache Beam 2.5.0"
+    title "Apache Beam " + project.version
     overview 'overview.html'
     addStringOption('Xdoclint:all', '-quiet')
     addStringOption('Xdoclint:-missing', '-quiet')
