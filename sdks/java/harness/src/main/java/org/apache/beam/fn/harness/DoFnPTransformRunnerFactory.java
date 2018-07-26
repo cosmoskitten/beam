@@ -46,6 +46,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -125,7 +126,9 @@ abstract class DoFnPTransformRunnerFactory<
     final DoFn<InputT, OutputT> doFn;
     final TupleTag<OutputT> mainOutputTag;
     final Coder<?> inputCoder;
+    final SchemaCoder<InputT> schemaCoder;
     final Coder<?> keyCoder;
+    final SchemaCoder<OutputT> mainOutputSchemaCoder;
     final Coder<? extends BoundedWindow> windowCoder;
     final WindowingStrategy<InputT, ?> windowingStrategy;
     final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
@@ -179,6 +182,17 @@ abstract class DoFnPTransformRunnerFactory<
         } else {
           this.keyCoder = null;
         }
+        if (inputCoder instanceof SchemaCoder
+            // TODO: Stop passing windowed value coders within PCollections.
+            || (inputCoder instanceof WindowedValue.WindowedValueCoder
+                && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof SchemaCoder))) {
+          this.schemaCoder =
+              inputCoder instanceof WindowedValueCoder
+                  ? (SchemaCoder<InputT>) ((WindowedValueCoder) inputCoder).getValueCoder()
+                  : ((SchemaCoder<InputT>) inputCoder);
+        } else {
+          this.schemaCoder = null;
+        }
 
         windowingStrategy =
             (WindowingStrategy)
@@ -190,8 +204,14 @@ abstract class DoFnPTransformRunnerFactory<
           TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
           RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
           Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
+          if (outputCoder instanceof WindowedValueCoder) {
+            outputCoder = ((WindowedValueCoder) outputCoder).getValueCoder();
+          }
           outputCoders.put(outputTag, outputCoder);
         }
+        Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
+        mainOutputSchemaCoder =
+            (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
 
         // Build the map from tag id to side input specification
         for (Map.Entry<String, RunnerApi.SideInput> entry :
