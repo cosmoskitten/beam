@@ -54,6 +54,7 @@ evaluationDependsOn(":beam-sdks-java-core")
 configurations {
   needsRunner
   validatesRunner
+  validatesPortableRunner
 }
 
 dependencies {
@@ -65,6 +66,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.slf4j_api
+  shadow library.java.slf4j_simple
   shadow library.java.args4j
   provided library.java.hamcrest_core
   provided library.java.junit
@@ -88,6 +90,13 @@ dependencies {
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-core-construction-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-java-fn-execution", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-runners-reference-java", configuration: "shadowTest")
+  validatesPortableRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesPortableRunner project(path: project.path, configuration: "shadow")
+  validatesPortableRunner project(path: project.path, configuration: "shadowTest")
 }
 
 task needsRunnerTests(type: Test) {
@@ -147,3 +156,5 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", testClasspathConfiguration: configurations.validatesPortableRunner)
