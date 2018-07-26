@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -39,6 +40,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -54,6 +56,61 @@ public class BigQueryHelpers {
       "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
           + " an earlier stage of the pipeline, this validation can be disabled using"
           + " #withoutValidation.";
+
+  // Given a potential failure and a current job-id, return the next job-id to be used on retry.
+  // Algorithm is as follows (given input of job_id_prefix-N)
+  //   If BigQuery has no status for job_id_prefix-n, we should retry with the same id.
+  //   If job-id-prefix-n is in the PENDING or successful states, no retry is needed.
+  //   Otherwise (job-id-prefix-n completed with errors), try again with job-id-prefix-(n+1)
+  //
+  // We continue to loop through these job ids until we find one that has either succeed, or that
+  // has not been issued yet.
+  public static class RetryJobIdResult {
+    public final String jobId;
+    public final boolean shouldRetry;
+
+    public RetryJobIdResult(String jobId, boolean shouldRetry) {
+      this.jobId = jobId;
+      this.shouldRetry = shouldRetry;
+    }
+  }
+
+  static RetryJobIdResult getRetryJobId(
+      String currentJobId, String projectId, String bqLocation, JobService jobService)
+      throws InterruptedException {
+    // Job ids should always be of the form <job_id_prefix>-<retry_count>
+    int dashIndex = currentJobId.lastIndexOf('-');
+    String jobIdPrefix = currentJobId.substring(0, dashIndex);
+    int currentRetry =
+        Integer.parseInt(currentJobId.substring(dashIndex + 1, currentJobId.length()));
+    for (int retryIndex = currentRetry; ; retryIndex++) {
+      String jobId = jobIdPrefix + "-" + retryIndex;
+      JobReference jobRef =
+          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+      try {
+        Job loadJob = jobService.getJob(jobRef);
+        if (loadJob == null) {
+          // Assume this means that the job was never properly issued. Try again with the original
+          // job id.
+          return new RetryJobIdResult(jobId, true);
+        }
+        JobStatus jobStatus = loadJob.getStatus();
+        if (jobStatus == null) {
+          return new RetryJobIdResult(jobId, false);
+        }
+        // Wait.
+        if ("PENDING".equals(jobStatus.getState())) {
+          return new RetryJobIdResult(jobId, false);
+        }
+        if (jobStatus.getErrors() == null || jobStatus.getErrors().isEmpty()) {
+          // Import succeeded. No retry needed.
+          return new RetryJobIdResult(jobId, false);
+        }
+      } catch (IOException e) {
+        return new RetryJobIdResult(jobId, true);
+      }
+    }
+  }
 
   /** Status of a BigQuery job or request. */
   enum Status {

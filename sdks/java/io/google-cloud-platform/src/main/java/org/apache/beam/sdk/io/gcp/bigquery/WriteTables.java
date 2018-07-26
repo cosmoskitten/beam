@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
-import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -40,12 +39,12 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobIdResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.PollJobType;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -95,7 +94,7 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
   private final ValueProvider<String> loadJobProjectId;
-  private int maxRetryJobs;
+  private final int maxRetryJobs;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -272,20 +271,28 @@ class WriteTables<DestinationT>
       JobReference jobRef =
           new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
 
-
       LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       try {
-      jobService.startLoadJob(jobRef, loadConfig);
+        jobService.startLoadJob(jobRef, loadConfig);
       } catch (IOException e) {
         LOG.warn("Load job {} failed with {}", jobRef, e);
-        jobId = getRetryJobId(jobIdPrefix, projectId, bqLocation, jobService);
-        continue;
+        // It's possible that the job actually made it to BQ even though we got a failure here.
+        // For example, the response from BQ may have timed out returning. getRetryJobId will
+        // return the correct job id to use on retry, or a job id to continue polling (if it turns
+        // out the the job has not actually failed yet).
+        RetryJobIdResult result =
+            BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService);
+        jobId = result.jobId;
+        if (result.shouldRetry) {
+          // Try the load again with the new job id.
+          continue;
+        }
+        // Otherwise,the job has reached BigQuery and is in either the PENDING state or has
+        // completed successfully.
       }
       LOG.info("Load job {} started", jobRef);
       // Try to wait until the job is done (succeeded or failed).
-      Job loadJob = jobService.pollJob(jobRef,
-          PollJobType.WAIT_FOR_JOB_FINISH,
-          BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+      Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
 
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
@@ -298,9 +305,10 @@ class WriteTables<DestinationT>
           }
           return;
         case UNKNOWN:
-          // This usually means that BigQuery hasn't received the load job. Retry with the same
+          // This might happen if BigQuery's job listing is slow. Retry with the same
           // job id.
-          LOG.info("Load job {} finished in unknown state: {}: {}",
+          LOG.info(
+              "Load job {} finished in unknown state: {}: {}",
               jobRef,
               loadJob.getStatus(),
               (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
@@ -313,7 +321,7 @@ class WriteTables<DestinationT>
               (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
               loadJob.getStatus());
           lastFailedLoadJob = loadJob;
-          jobId = getRetryJobId(jobId, projectId, bqLocation, jobService);
+          jobId = BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService).jobId;
           continue;
         default:
           throw new IllegalStateException(
@@ -326,45 +334,7 @@ class WriteTables<DestinationT>
         String.format(
             "Failed to create load job with id prefix %s, "
                 + "reached max retries: %d, last failed load job: %s.",
-            jobIdPrefix,
-            maxRetryJobs,
-            BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
-  }
-
-  private String getRetryJobId(String currentJobId, String projectId, String bqLocation,
-                                JobService jobService) throws InterruptedException {
-    // Job ids should always be of the form <job_id_prefix>-<retry_count>
-    int dashIndex = currentJobId.lastIndexOf('-');
-    String jobIdPrefix = currentJobId.substring(0, dashIndex);
-    int currentRetry = Integer.parseInt(currentJobId.substring(
-        dashIndex + 1, currentJobId.length()));
-    for (int retryIndex = currentRetry + 1;;retryIndex++) {
-      String jobId = jobIdPrefix + "-" + retryIndex;
-      JobReference jobRef =
-          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
-      try {
-        Job loadJob = jobService.getJob(jobRef);
-        if (loadJob == null) {
-          // Assume this means that the job was never properly issued. Try again with the original
-          // job id.
-          return jobId;
-       }
-        JobStatus jobStatus = loadJob.getStatus();
-        if (jobStatus == null) {
-          return jobId;
-        }
-        // Wait.
-        if ("PENDING".equals(jobStatus.getState())) {
-          return "";
-        }
-        if (jobStatus.getErrors() == null || jobStatus.getErrors().isEmpty()) {
-          // Import succeeded. No retry needed.
-          return "";
-        }
-      } catch (IOException e) {
-        return jobId;
-      }
-    }
+            jobIdPrefix, maxRetryJobs, BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
   }
 
   static void removeTemporaryFiles(Iterable<String> files) throws IOException {

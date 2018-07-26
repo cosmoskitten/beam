@@ -45,11 +45,6 @@ public interface BigQueryServices extends Serializable {
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
-  enum PollJobType {
-    WAIT_FOR_JOB_START,
-    WAIT_FOR_JOB_FINISH
-  };
-
   /** An interface for the Cloud BigQuery load service. */
   interface JobService {
     /** Start a BigQuery load job. */
@@ -72,7 +67,7 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
      */
-    Job pollJob(JobReference jobRef, PollJobType type, int maxAttempts) throws InterruptedException;
+    Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException;
 
     /** Dry runs the query in the given project. */
     JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)

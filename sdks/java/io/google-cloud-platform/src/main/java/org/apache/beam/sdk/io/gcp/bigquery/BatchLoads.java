@@ -297,7 +297,11 @@ class BatchLoads<DestinationT>
             "WriteRenameTriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -353,7 +357,11 @@ class BatchLoads<DestinationT>
             "WriteRenameUntriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);

@@ -1189,7 +1189,8 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             sideInputs,
             new IdentityDynamicTables(),
-            null);
+            null,
+            3);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1270,7 +1271,8 @@ public class BigQueryIOWriteTest implements Serializable {
             fakeBqServices,
             jobIdTokenView,
             BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-            BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED);
+            BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
+            3);
 
     DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
