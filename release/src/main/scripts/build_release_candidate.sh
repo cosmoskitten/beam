@@ -173,9 +173,11 @@ GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DI
 
 echo "----------------------Building Java Doc----------------------"
 cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
-wget https://github.com/apache/beam/archive/release-${RELEASE}.zip
-unzip release-${RELEASE}.zip
-GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/beam-release-${RELEASE}/sdks/java/javadoc
+git clone ${GIT_REPO_URL}
+cd ${BEAM_ROOT_DIR}
+git checkout ${RELEASE_BRANCH}
+./gradlew :beam-sdks-java-javadoc:aggregateJavadoc
+GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
 echo "------------------Updating Beam Website---------------------"
 cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}
