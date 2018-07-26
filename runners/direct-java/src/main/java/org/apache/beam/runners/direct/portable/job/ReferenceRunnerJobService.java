@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,6 +69,8 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private final ConcurrentMap<String, ReferenceRunner> runningJobs;
   private final ConcurrentMap<String, JobState.Enum> jobStates;
   private final ExecutorService executor;
+  private final ConcurrentLinkedQueue<GrpcFnServer<LocalFileSystemArtifactStagerService>>
+      artifactStagingServices;
 
   private ReferenceRunnerJobService(
       ServerFactory serverFactory, Callable<Path> stagingPathCallable) {
@@ -82,6 +85,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
                 .setDaemon(false)
                 .setNameFormat("reference-runner-pipeline-%s")
                 .build());
+    artifactStagingServices = new ConcurrentLinkedQueue<>();
   }
 
   public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
@@ -99,6 +103,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       Path tempDir = stagingPathCallable.call();
       GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
           createArtifactStagingService(tempDir);
+      artifactStagingServices.add(artifactStagingService);
       PreparingJob previous =
           unpreparedJobs.putIfAbsent(
               preparationId,
@@ -188,8 +193,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   public void getState(
       GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
-    responseObserver.onNext(GetJobStateResponse.newBuilder()
-        .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED)).build());
+    responseObserver.onNext(
+        GetJobStateResponse.newBuilder()
+            .setState(jobStates.getOrDefault(request.getJobId(), Enum.UNRECOGNIZED))
+            .build());
     responseObserver.onCompleted();
   }
 
@@ -211,5 +218,17 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
         LOG.warn("Exception while closing preparing job {}", preparingJob);
       }
     }
+    while (!artifactStagingServices.isEmpty()) {
+      GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
+          artifactStagingServices.remove();
+      try {
+        artifactStagingService.close();
+      } catch (Exception e) {
+        LOG.error(
+            "Unable to close staging sevice started on %s",
+            artifactStagingService.getApiServiceDescriptor().getUrl(), e);
+      }
+    }
+    ;
   }
 }
