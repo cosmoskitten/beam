@@ -65,7 +65,7 @@ public class BigQueryHelpers {
   //
   // We continue to loop through these job ids until we find one that has either succeed, or that
   // has not been issued yet.
-  public static class RetryJobIdResult {
+  static class RetryJobIdResult {
     public final String jobId;
     public final boolean shouldRetry;
 
