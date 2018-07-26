@@ -34,12 +34,18 @@ public class ReferenceRunnerJobServer {
   private final ServerConfiguration configuration;
   private GrpcFnServer<ReferenceRunnerJobService> server;
 
-  public ReferenceRunnerJobServer(ServerConfiguration configuration) {
-
+  private ReferenceRunnerJobServer(ServerConfiguration configuration) {
     this.configuration = configuration;
   }
 
   public static void main(String[] args) throws Exception {
+    try {
+      runServer(parseConfiguration(args));
+    } catch (CmdLineException ignored) {
+    }
+  }
+
+  private static ServerConfiguration parseConfiguration(String[] args) throws CmdLineException {
     ServerConfiguration configuration = new ServerConfiguration();
     CmdLineParser parser = new CmdLineParser(configuration);
     try {
@@ -47,9 +53,9 @@ public class ReferenceRunnerJobServer {
     } catch (CmdLineException e) {
       e.printStackTrace(System.err);
       printUsage(parser);
-      return;
+      throw e;
     }
-    runServer(configuration);
+    return configuration;
   }
 
   private static void printUsage(CmdLineParser parser) {
@@ -76,18 +82,12 @@ public class ReferenceRunnerJobServer {
   }
 
   public static ReferenceRunnerJobServer fromParams(String[] args) {
-    ServerConfiguration configuration = new ServerConfiguration();
-    CmdLineParser parser = new CmdLineParser(configuration);
     try {
-      parser.parseArgument(args);
+      return new ReferenceRunnerJobServer(parseConfiguration(args));
     } catch (CmdLineException e) {
-      e.printStackTrace(System.err);
-      printUsage(parser);
       throw new IllegalArgumentException(
           "Unable to parse command line arguments " + Arrays.asList(args), e);
     }
-
-    return new ReferenceRunnerJobServer(configuration);
   }
 
   public String start() throws Exception {
