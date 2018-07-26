@@ -17,6 +17,10 @@
 #
 
 # This script will create a Release Candidate, includes:
+# 1. Build and stage java artifacts
+# 2. Stage source release on dist.apache.org
+# 3. Stage python binaries
+# 4. Create a PR to update beam-site
 
 set -e
 
