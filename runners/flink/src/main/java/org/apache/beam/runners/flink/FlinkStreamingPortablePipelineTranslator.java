@@ -433,12 +433,16 @@ public class FlinkStreamingPortablePipelineTranslator
       throw new RuntimeException(e);
     }
 
-    String inputPCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
+    String inputPCollectionId = stagePayload.getInput();
+    // TODO: BEAM-2930
+    if (stagePayload.getSideInputsCount() > 0) {
+      throw new UnsupportedOperationException("streaming translator does not support side inputs: " + transform);
+    }
 
     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
     Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders = Maps.newLinkedHashMap();
     // TODO: does it matter which output we designate as "main"
-    TupleTag<OutputT> mainOutputTag;
+    final TupleTag<OutputT> mainOutputTag;
     if (!outputs.isEmpty()) {
       mainOutputTag = new TupleTag(outputs.keySet().iterator().next());
     } else {
