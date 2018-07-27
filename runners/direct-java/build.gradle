@@ -156,4 +156,9 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
 
-createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", jobServerConfig: "", streaming: false)
+createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", testCategories: {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+})

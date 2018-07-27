@@ -229,6 +229,5 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
             artifactStagingService.getApiServiceDescriptor().getUrl(), e);
       }
     }
-    ;
   }
 }

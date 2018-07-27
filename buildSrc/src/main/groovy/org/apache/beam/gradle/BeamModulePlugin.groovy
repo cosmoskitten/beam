@@ -202,8 +202,8 @@ class BeamModulePlugin implements Plugin<Project> {
     String jobServerDriver
     // A string representing the jobServer Configuration.
     String jobServerConfig
-    // Flag to include tests for streaming or batch.
-    boolean streaming
+    // Categories for tests to run
+    Closure testCategories
   }
 
   def isRelease(Project project) {
@@ -1414,7 +1414,9 @@ artifactId=${project.name}
     // Method to create the PortableValidatesRunnerTask.
     project.ext.createPortableValidatesRunnerTask = {
       def config = it ? it as PortableValidatesRunnerConfig : new PortableValidatesRunnerConfig()
-      project.tasks.create(name: config.name, type: Test) {
+      def name = config.name ? config.name : "validatesPortableRunner"
+      def testCategories = config.testCategories ? config.testCategories : { includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner' }
+      project.tasks.create(name: name, type: Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -1425,27 +1427,7 @@ artifactId=${project.name}
         classpath = project.configurations.validatesPortableRunner
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks 1
-        if (config.streaming) {
-          useJUnit {
-            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-          }
-        } else {
-          useJUnit {
-            includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-            excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-          }
-        }
+        useJUnit(testCategories)
       }
     }
   }
