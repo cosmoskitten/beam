@@ -1180,6 +1180,7 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
+    fakeJobService.setNumFailuresExpected(3);
     WriteTables<String> writeTables =
         new WriteTables<>(
             false,
@@ -1190,7 +1191,7 @@ public class BigQueryIOWriteTest implements Serializable {
             sideInputs,
             new IdentityDynamicTables(),
             null,
-            3);
+            4);
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);

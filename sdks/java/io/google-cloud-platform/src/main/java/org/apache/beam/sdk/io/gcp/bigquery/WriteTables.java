@@ -315,13 +315,14 @@ class WriteTables<DestinationT>
           lastFailedLoadJob = loadJob;
           continue;
         case FAILED:
-          LOG.info(
-              "Load job {} failed, {}: {}",
-              jobRef,
-              (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
-              loadJob.getStatus());
           lastFailedLoadJob = loadJob;
           jobId = BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService).jobId;
+          LOG.info(
+              "Load job {} failed, {}: {}. Next job id {}",
+              jobRef,
+              (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
+              loadJob.getStatus(),
+              jobId);
           continue;
         default:
           throw new IllegalStateException(

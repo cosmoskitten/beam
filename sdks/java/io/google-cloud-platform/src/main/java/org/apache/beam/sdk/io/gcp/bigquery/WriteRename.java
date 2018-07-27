@@ -176,10 +176,15 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
           }
           return;
         case UNKNOWN:
-          throw new RuntimeException(
-              String.format(
-                  "UNKNOWN status of copy job [%s]: %s.",
-                  jobId, BigQueryHelpers.jobToPrettyString(copyJob)));
+          // This might happen if BigQuery's job listing is slow. Retry with the same
+          // job id.
+          LOG.info(
+              "Copy job {} finished in unknown state: {}: {}",
+              jobRef,
+              copyJob.getStatus(),
+              (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
+          lastFailedCopyJob = copyJob;
+          continue;
         case FAILED:
           lastFailedCopyJob = copyJob;
           jobId = BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService).jobId;
