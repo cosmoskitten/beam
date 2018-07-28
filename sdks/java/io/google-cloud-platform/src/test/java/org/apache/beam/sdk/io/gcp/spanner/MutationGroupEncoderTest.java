@@ -529,8 +529,7 @@ public class MutationGroupEncoderTest {
   }
 
   @Test
-  // Test for Jira issue BEAM-4862
-  public void decodeTimestampMutationGroup() {
+  public void decodeBasicTimestampMutationGroup() {
     SpannerSchema spannerSchemaTimestamp =
         SpannerSchema.builder().addColumn("timestampTest", "timestamp", "TIMESTAMP").build();
     Timestamp timestamp1 = Timestamp.now();
@@ -542,16 +541,21 @@ public class MutationGroupEncoderTest {
     Mutation mutation2 =
         Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp2).build();
     encodeAndVerify(g(mutation2), spannerSchemaTimestamp);
+  }
 
-    Timestamp timestamp3 = Timestamp.MIN_VALUE;
-    Mutation mutation3 =
-        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp3).build();
-    encodeAndVerify(g(mutation3), spannerSchemaTimestamp);
+  @Test
+  public void decodeMinAndMaxTimestampMutationGroup() {
+    SpannerSchema spannerSchemaTimestamp =
+        SpannerSchema.builder().addColumn("timestampTest", "timestamp", "TIMESTAMP").build();
+    Timestamp timestamp1 = Timestamp.MIN_VALUE;
+    Mutation mutation1 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp1).build();
+    encodeAndVerify(g(mutation1), spannerSchemaTimestamp);
 
-    Timestamp timestamp4 = Timestamp.MAX_VALUE;
-    Mutation mutation4 =
-        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp4).build();
-    encodeAndVerify(g(mutation4), spannerSchemaTimestamp);
+    Timestamp timestamp2 = Timestamp.MAX_VALUE;
+    Mutation mutation2 =
+        Mutation.newInsertOrUpdateBuilder("timestampTest").set("timestamp").to(timestamp2).build();
+    encodeAndVerify(g(mutation2), spannerSchemaTimestamp);
   }
 
   @Test
