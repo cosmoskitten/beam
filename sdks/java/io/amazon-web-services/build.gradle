@@ -1,3 +1,5 @@
+import groovy.json.JsonOutput
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -44,4 +46,11 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.slf4j_jdk14
   shadowTest group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.12', version: '0.14.1'
+}
+
+test {
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+      '--awsRegion=us-west-2',
+      '--awsCredentialsProvider={"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value","awsSecretKey" : "secret_value"}'
+  ])
 }
