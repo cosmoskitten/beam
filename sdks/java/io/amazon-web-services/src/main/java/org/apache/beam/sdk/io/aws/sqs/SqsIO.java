@@ -26,7 +26,6 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
-import org.apache.beam.sdk.io.aws.sqs.SqsIO.Write.Builder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,7 +34,58 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 
-/** An unbounded source for Amazon Simple Queue Service (SQS). */
+/**
+ * An unbounded source for Amazon Simple Queue Service (SQS).
+ *
+ * <h3>Reading from an SQS queue</h3>
+ *
+ * <p>The {@link SqsIO} {@link Read} returns an unbounded {@link PCollection} of {@link
+ * com.amazonaws.services.sqs.model.Message} containing the received messages.
+ *
+ * <p>To configure an SQS source, you have to provide the queueUrl to connect to. The following
+ * example illustrates how to configure the source:
+ *
+ * <pre>{@code
+ * pipeline.apply(SqsIO.read().withQueueUrl(queueUrl))
+ * }</pre>
+ *
+ * <p>Additional configuration can be provided via {@link AwsOptions} from command line args or in
+ * code. For example, if you wanted to provide a secret access key via code:
+ *
+ * <pre>{@code
+ * PipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+ * final AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
+ * final BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
+ * awsOptions.setAwsCredentialsProvider(new AWSStaticCredentialsProvider(awsCreds));
+ * final Pipeline pipeline = Pipeline.create(options);
+ * }</pre>
+ *
+ * <p>For more information on the available options see {@link AwsOptions}.
+ *
+ * <h3>writing to an SQS queue</h3>
+ *
+ * <p>To configure an SQS sink, you have to provide the queueUrl to connect to. The following
+ * example illustrates how to configure the sink:
+ *
+ * <pre>{@code
+ * pipeline
+ *   .apply(...) // returns PCollection<String>
+ *   .apply(SqsIO.write().withQueueUrl(queueUrl))
+ * }</pre>
+ *
+ * <p>Additional configuration can be provided via {@link AwsOptions} from command line args or in
+ * code. For example, if you wanted to provide a secret access key via code:
+ *
+ * <pre>{@code
+ * PipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+ * final AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
+ * final BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
+ * awsOptions.setAwsCredentialsProvider(new AWSStaticCredentialsProvider(awsCreds));
+ * final Pipeline pipeline = Pipeline.create(options);
+ * }</pre>
+ *
+ * <p>For more information on the available options see {@link AwsOptions}.
+ */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SqsIO {
 
@@ -49,7 +99,10 @@ public class SqsIO {
 
   private SqsIO() {}
 
-  /** A {@link PTransform} to read/receive messages from SQS. */
+  /**
+   * A {@link PTransform} to read/receive messages from SQS. See {@link SqsIO} for more information
+   * on usage and configuration.
+   */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Message>> {
 
@@ -117,7 +170,10 @@ public class SqsIO {
     }
   }
 
-  /** A {@link PTransform} to send messages to SQS. */
+  /**
+   * A {@link PTransform} to send messages to SQS. See {@link SqsIO} for more information on usage
+   * and configuration.
+   */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
     @Nullable
