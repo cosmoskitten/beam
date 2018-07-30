@@ -63,9 +63,4 @@ runShadow {
   jvmArgs = ["-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"]
 }
 
-createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver", testCategories: {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-})
+createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver")

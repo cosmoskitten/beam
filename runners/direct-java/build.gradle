@@ -66,6 +66,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.slf4j_api
+  shadow library.java.slf4j_simple
   shadow library.java.args4j
   provided library.java.hamcrest_core
   provided library.java.junit
@@ -156,9 +157,4 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
 
-createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", testCategories: {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-})
+createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer")
