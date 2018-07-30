@@ -48,7 +48,7 @@ echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
 read RELEASE
 RELEASE_BRANCH=release-${RELEASE}
-echo "Which release candidate number(1-3) are you going to create: "
+echo "Which release candidate number(e.g. 1) are you going to create: "
 read RC_NUM
 echo "Please enter your repo URL forked from apache/beam-site"
 read USER_REMOTE_URL
