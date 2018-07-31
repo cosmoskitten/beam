@@ -23,6 +23,7 @@ import groovy.json.JsonOutput
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.plugins.quality.FindBugs
@@ -195,15 +196,17 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the configuration for PortableValidatesRunner.
-  class PortableValidatesRunnerConfig {
+  class PortableValidatesRunnerConfiguration {
     // Task name for validate runner case.
     String name
     // Fully qualified JobServerClass name to use.
     String jobServerDriver
     // A string representing the jobServer Configuration.
     String jobServerConfig
-    // Categories for tests to run
+    // Categories for tests to run.
     Closure testCategories
+    // Configuration for the classpath when running the test.
+    Configuration testClasspathConfiguration
   }
 
   def isRelease(Project project) {
@@ -1413,8 +1416,15 @@ artifactId=${project.name}
 
     // Method to create the PortableValidatesRunnerTask.
     project.ext.createPortableValidatesRunnerTask = {
-      def config = it ? it as PortableValidatesRunnerConfig : new PortableValidatesRunnerConfig()
+      def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name ? config.name : "validatesPortableRunner"
+      def beamTestPipelineOptions = [
+        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--jobServerDriver=${config.jobServerDriver}",
+      ]
+      if(config.jobServerConfig){
+        beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
+      }
       def testCategories = {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -1430,11 +1440,7 @@ artifactId=${project.name}
       project.tasks.create(name: name, type: Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
-        systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
-          "--jobServerDriver=${config.jobServerDriver}",
-          config.jobServerConfig ? "--jobServerConfig=${config.jobServerConfig}" : "",
-        ])
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = project.configurations.validatesPortableRunner
         testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
         maxParallelForks 1

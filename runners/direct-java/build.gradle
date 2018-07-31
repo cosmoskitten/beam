@@ -157,4 +157,4 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
 
-createPortableValidatesRunnerTask(name: "validatesPortableRunner", jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer")
+createPortableValidatesRunnerTask(jobServerDriver: "org.apache.beam.runners.direct.portable.job.ReferenceRunnerJobServer", testClasspathConfiguration: configurations.validatesPortableRunner)
