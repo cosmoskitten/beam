@@ -23,8 +23,6 @@ import WebsiteShared as websiteShared
 job('beam_PreCommit_Website_Merge') {
   description('Runs website tests for mergebot.')
 
-  out.println(websiteShared.install_ruby_and_gems_bash)
-
   // Set common parameters.
   commonJobProperties.setTopLevelWebsiteJobProperties(delegate, 'mergebot')
 
