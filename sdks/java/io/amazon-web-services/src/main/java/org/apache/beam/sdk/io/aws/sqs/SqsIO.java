@@ -49,20 +49,7 @@ import org.joda.time.Duration;
  * pipeline.apply(SqsIO.read().withQueueUrl(queueUrl))
  * }</pre>
  *
- * <p>Additional configuration can be provided via {@link AwsOptions} from command line args or in
- * code. For example, if you wanted to provide a secret access key via code:
- *
- * <pre>{@code
- * PipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).withValidation().create();
- * final AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
- * final BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
- * awsOptions.setAwsCredentialsProvider(new AWSStaticCredentialsProvider(awsCreds));
- * final Pipeline pipeline = Pipeline.create(options);
- * }</pre>
- *
- * <p>For more information on the available options see {@link AwsOptions}.
- *
- * <h3>writing to an SQS queue</h3>
+ * <h3>Writing to an SQS queue</h3>
  *
  * <p>To configure an SQS sink, you have to provide the queueUrl to connect to. The following
  * example illustrates how to configure the sink:
@@ -73,15 +60,17 @@ import org.joda.time.Duration;
  *   .apply(SqsIO.write().withQueueUrl(queueUrl))
  * }</pre>
  *
+ * <h3>Additional Configuration</h3>
+ *
  * <p>Additional configuration can be provided via {@link AwsOptions} from command line args or in
  * code. For example, if you wanted to provide a secret access key via code:
  *
  * <pre>{@code
  * PipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).withValidation().create();
- * final AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
- * final BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
+ * AwsOptions awsOptions = pipelineOptions.as(AwsOptions.class);
+ * BasicAWSCredentials awsCreds = new BasicAWSCredentials("accesskey", "secretkey");
  * awsOptions.setAwsCredentialsProvider(new AWSStaticCredentialsProvider(awsCreds));
- * final Pipeline pipeline = Pipeline.create(options);
+ * Pipeline pipeline = Pipeline.create(options);
  * }</pre>
  *
  * <p>For more information on the available options see {@link AwsOptions}.
