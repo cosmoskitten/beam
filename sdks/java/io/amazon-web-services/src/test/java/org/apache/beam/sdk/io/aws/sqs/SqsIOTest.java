@@ -90,8 +90,8 @@ public class SqsIOTest {
       }
     }
     assertEquals(100, received.size());
-    for (String s : received) {
-      assertTrue(s.startsWith("This is a test "));
+    for (int i = 0; i < 100; i++) {
+      received.contains("This is a test " + i);
     }
   }
 
