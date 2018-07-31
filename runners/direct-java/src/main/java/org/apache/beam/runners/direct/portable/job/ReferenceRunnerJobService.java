@@ -58,6 +58,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
   public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    LOG.info("Starting {}", ReferenceRunnerJobService.class);
     return new ReferenceRunnerJobService(
         serverFactory, () -> Files.createTempDirectory("reference-runner-staging"));
   }
