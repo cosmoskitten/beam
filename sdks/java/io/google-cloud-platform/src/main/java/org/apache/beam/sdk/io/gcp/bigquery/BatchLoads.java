@@ -111,8 +111,7 @@ class BatchLoads<DestinationT>
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
   static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
-  // The maximum number of retry jobs.
-  static final int MAX_RETRY_JOBS = 3;
+  static final int DEFAULT_MAX_RETRY_JOBS = 3;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
@@ -129,6 +128,9 @@ class BatchLoads<DestinationT>
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
+
+  // The maximum number of times to retry failed load or copy jobs.
+  private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
 
   BatchLoads(
       WriteDisposition writeDisposition,
@@ -170,6 +172,14 @@ class BatchLoads<DestinationT>
 
   public void setTriggeringFrequency(Duration triggeringFrequency) {
     this.triggeringFrequency = triggeringFrequency;
+  }
+
+  public int getMaxRetryJobs() {
+    return maxRetryJobs;
+  }
+
+  public void setMaxRetryJobs(int maxRetryJobs) {
+    this.maxRetryJobs = maxRetryJobs;
   }
 
   public void setNumFileShards(int numFileShards) {
@@ -290,7 +300,11 @@ class BatchLoads<DestinationT>
             "WriteRenameTriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -346,7 +360,11 @@ class BatchLoads<DestinationT>
             "WriteRenameUntriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -517,6 +535,7 @@ class BatchLoads<DestinationT>
                 sideInputs,
                 dynamicDestinations,
                 loadJobProjectId,
+                maxRetryJobs,
                 ignoreUnknownValues));
   }
 
@@ -548,6 +567,7 @@ class BatchLoads<DestinationT>
                 sideInputs,
                 dynamicDestinations,
                 loadJobProjectId,
+                maxRetryJobs,
                 ignoreUnknownValues));
   }
 
