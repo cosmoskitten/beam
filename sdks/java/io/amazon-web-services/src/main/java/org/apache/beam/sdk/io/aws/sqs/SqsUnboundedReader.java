@@ -20,55 +20,63 @@ package org.apache.beam.sdk.io.aws.sqs;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.MessageSystemAttributeName;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.Set;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
-class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
+class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implements Serializable {
 
   public static final int MAX_NUMBER_OF_MESSAGES = 10;
   private final SqsUnboundedSource source;
-  private final AmazonSQS sqs;
+  private Supplier<AmazonSQS> sqs;
 
   private Message current;
   private final Queue<Message> messagesNotYetRead;
-  private Set<String> receiptHandlesToDelete;
+  private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private SqsCheckpointMark sqsCheckpointMark;
 
   public SqsUnboundedReader(SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark) {
     this.source = source;
     this.current = null;
 
     this.messagesNotYetRead = new ArrayDeque<>();
-    receiptHandlesToDelete = new HashSet<>();
-
-    final SqsConfiguration sqsConfiguration = source.getSqsConfiguration();
-    sqs =
-        AmazonSQSClientBuilder.standard()
-            .withClientConfiguration(sqsConfiguration.getClientConfiguration())
-            .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
-            .withRegion(sqsConfiguration.getAwsRegion())
-            .build();
 
     if (sqsCheckpointMark != null) {
-      if (sqsCheckpointMark.getReceiptHandlesToDelete() != null) {
-        receiptHandlesToDelete.addAll(sqsCheckpointMark.getReceiptHandlesToDelete());
-      }
+      this.sqsCheckpointMark = sqsCheckpointMark;
+    } else {
+      this.sqsCheckpointMark = new SqsCheckpointMark(this, Lists.newArrayList());
     }
+
+    sqs =
+        Suppliers.memoize(
+            (Supplier<AmazonSQS> & Serializable)
+                () -> {
+                  final SqsConfiguration sqsConfiguration = source.getSqsConfiguration();
+                  return AmazonSQSClientBuilder.standard()
+                      .withClientConfiguration(sqsConfiguration.getClientConfiguration())
+                      .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
+                      .withRegion(sqsConfiguration.getAwsRegion())
+                      .build();
+                });
   }
 
   @Override
   public Instant getWatermark() {
-    return Instant.now();
+    return oldestPendingTimestamp;
   }
 
   @Override
@@ -76,7 +84,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return Instant.parse(current.getAttributes().get("Timestamp"));
+
+    return getTimestamp(current);
   }
 
   @Override
@@ -89,8 +98,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
   @Override
   public CheckpointMark getCheckpointMark() {
-    List<String> snapshotReceiptHandlesToDelete = Lists.newArrayList(receiptHandlesToDelete);
-    return new SqsCheckpointMark(this, snapshotReceiptHandlesToDelete);
+    return sqsCheckpointMark;
   }
 
   @Override
@@ -114,23 +122,35 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
       return false;
     }
 
-    receiptHandlesToDelete.add(current.getReceiptHandle());
+    sqsCheckpointMark.getMessagesToDelete().add(current);
+
+    Instant currentMessageTimestamp = getCurrentTimestamp();
+    if (getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
+      oldestPendingTimestamp = currentMessageTimestamp;
+    }
+
     return true;
   }
 
   @Override
   public void close() {}
 
-  void delete(String receiptHandle) {
-    sqs.deleteMessage(source.getRead().queueUrl(), receiptHandle);
-    receiptHandlesToDelete.remove(receiptHandle);
+  void delete(final Message message) {
+    sqs.get().deleteMessage(source.getRead().queueUrl(), message.getReceiptHandle());
+    Instant currentMessageTimestamp = getTimestamp(message);
+    if (currentMessageTimestamp.isAfter(oldestPendingTimestamp)) {
+      oldestPendingTimestamp = currentMessageTimestamp;
+    }
   }
 
   private void pull() {
     final ReceiveMessageRequest receiveMessageRequest =
         new ReceiveMessageRequest(source.getRead().queueUrl());
     receiveMessageRequest.setMaxNumberOfMessages(MAX_NUMBER_OF_MESSAGES);
-    final ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(receiveMessageRequest);
+    receiveMessageRequest.setAttributeNames(
+        Arrays.asList(MessageSystemAttributeName.SentTimestamp.toString()));
+    final ReceiveMessageResult receiveMessageResult =
+        sqs.get().receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResult.getMessages();
 
@@ -139,9 +159,14 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     }
 
     for (Message message : messages) {
-      message.addAttributesEntry("Timestamp", Instant.now().toString());
       messagesNotYetRead.add(message);
     }
+  }
+
+  private Instant getTimestamp(final Message message) {
+    return new Instant(
+        Long.parseLong(
+            message.getAttributes().get(MessageSystemAttributeName.SentTimestamp.toString())));
   }
 
   @Override

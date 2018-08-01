@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
+import com.amazonaws.services.sqs.model.Message;
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,27 +26,28 @@ import org.apache.beam.sdk.io.UnboundedSource;
 
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-  private List<String> receiptHandlesToDelete;
-  private transient SqsUnboundedReader reader;
+  private List<Message> messagesToDelete;
+  private SqsUnboundedReader reader;
 
   private SqsCheckpointMark() {
-    this.receiptHandlesToDelete = new ArrayList<>();
+    this.messagesToDelete = new ArrayList<>();
   }
 
-  public SqsCheckpointMark(SqsUnboundedReader reader, List<String> snapshotReceiptHandlesToDelete) {
-
+  public SqsCheckpointMark(SqsUnboundedReader reader, List<Message> messagesToDelete) {
     this.reader = reader;
-    this.receiptHandlesToDelete = snapshotReceiptHandlesToDelete;
+    this.messagesToDelete = messagesToDelete;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    for (String receiptHandle : receiptHandlesToDelete) {
-      reader.delete(receiptHandle);
+    final ArrayList<Message> snapshot = Lists.newArrayList(messagesToDelete);
+    for (Message message : snapshot) {
+      reader.delete(message);
     }
+    messagesToDelete.removeAll(snapshot);
   }
 
-  List<String> getReceiptHandlesToDelete() {
-    return receiptHandlesToDelete;
+  List<Message> getMessagesToDelete() {
+    return messagesToDelete;
   }
 }
