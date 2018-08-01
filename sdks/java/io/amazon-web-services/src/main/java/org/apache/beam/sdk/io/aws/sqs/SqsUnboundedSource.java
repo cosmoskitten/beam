@@ -21,7 +21,6 @@ import com.amazonaws.services.sqs.model.Message;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -55,7 +54,7 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   @Override
   public Coder<SqsCheckpointMark> getCheckpointMarkCoder() {
-    return AvroCoder.of(SqsCheckpointMark.class);
+    return SerializableCoder.of(SqsCheckpointMark.class);
   }
 
   @Override
