@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -150,6 +152,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       }
 
       Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
+      Schema rightSchema = CalciteUtils.toBeamSchema(right.getRowType());
+
       assert pinput.size() == 2;
       PCollection<Row> leftRows = pinput.get(0);
       PCollection<Row> rightRows = pinput.get(1);
@@ -186,10 +190,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                   MapElements.via(new BeamJoinTransforms.ExtractJoinFields(false, pairs)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
-      // prepare the NullRows
-      Row leftNullRow = buildNullRow(leftRelNode);
-      Row rightNullRow = buildNullRow(rightRelNode);
-
       // a regular join
       if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
               && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
@@ -201,7 +201,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
               "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
         }
 
-        return standardJoin(extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
+        return standardJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
       } else if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
               && rightRows.isBounded() == UNBOUNDED)
           || (leftRows.isBounded() == UNBOUNDED
@@ -224,7 +224,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
               "LEFT side of an OUTER JOIN must be Unbounded table.");
         }
 
-        return sideInputJoin(extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
+        return sideInputJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
       } else {
         throw new UnsupportedOperationException(
             "The inputs to the JOIN have un-joinnable windowFns: " + leftWinFn + ", " + rightWinFn);
@@ -257,25 +257,52 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private PCollection<Row> standardJoin(
       PCollection<KV<Row, Row>> extractedLeftRows,
       PCollection<KV<Row, Row>> extractedRightRows,
-      Row leftNullRow,
-      Row rightNullRow) {
+      Schema leftSchema,
+      Schema rightSchema) {
     PCollection<KV<Row, KV<Row, Row>>> joinedRows = null;
+
     switch (joinType) {
       case LEFT:
-        joinedRows =
-            org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
-                extractedLeftRows, extractedRightRows, rightNullRow);
-        break;
+        {
+          Schema rigthNullSchema = buildNullSchema(rightSchema);
+          Row rightNullRow = Row.nullRow(rigthNullSchema);
+
+          setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
+
+          joinedRows =
+              org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
+                  extractedLeftRows, extractedRightRows, rightNullRow);
+
+          break;
+        }
       case RIGHT:
-        joinedRows =
-            org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
-                extractedLeftRows, extractedRightRows, leftNullRow);
-        break;
+        {
+          Schema leftNullSchema = buildNullSchema(leftSchema);
+          Row leftNullRow = Row.nullRow(leftNullSchema);
+
+          setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+
+          joinedRows =
+              org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
+                  extractedLeftRows, extractedRightRows, leftNullRow);
+          break;
+        }
       case FULL:
-        joinedRows =
-            org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
-                extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
-        break;
+        {
+          Schema leftNullSchema = buildNullSchema(leftSchema);
+          Schema rightNullSchema = buildNullSchema(rightSchema);
+
+          Row rightNullRow = Row.nullRow(rightNullSchema);
+          Row leftNullRow = Row.nullRow(leftNullSchema);
+
+          setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
+          setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+
+          joinedRows =
+              org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
+                  extractedLeftRows, extractedRightRows, leftNullRow, rightNullRow);
+          break;
+        }
       case INNER:
       default:
         joinedRows =
@@ -295,8 +322,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   public PCollection<Row> sideInputJoin(
       PCollection<KV<Row, Row>> extractedLeftRows,
       PCollection<KV<Row, Row>> extractedRightRows,
-      Row leftNullRow,
-      Row rightNullRow) {
+      Schema leftSchema,
+      Schema rightSchema) {
     // we always make the Unbounded table on the left to do the sideInput join
     // (will convert the result accordingly before return)
     boolean swapped = (extractedLeftRows.isBounded() == PCollection.IsBounded.BOUNDED);
@@ -305,7 +332,19 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     PCollection<KV<Row, Row>> realLeftRows = swapped ? extractedRightRows : extractedLeftRows;
     PCollection<KV<Row, Row>> realRightRows = swapped ? extractedLeftRows : extractedRightRows;
-    Row realRightNullRow = swapped ? leftNullRow : rightNullRow;
+
+    Row realRightNullRow;
+    if (swapped) {
+      Schema leftNullSchema = buildNullSchema(leftSchema);
+      setValueCoder(realRightRows, SchemaCoder.of(leftNullSchema));
+
+      realRightNullRow = Row.nullRow(leftNullSchema);
+    } else {
+      Schema rightNullSchema = buildNullSchema(rightSchema);
+      setValueCoder(realRightRows, SchemaCoder.of(rightNullSchema));
+
+      realRightNullRow = Row.nullRow(rightNullSchema);
+    }
 
     // swapped still need to pass down because, we need to swap the result back.
     return sideInputJoinHelper(
@@ -332,9 +371,21 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     return ret;
   }
 
-  private Row buildNullRow(BeamRelNode relNode) {
-    Schema leftType = CalciteUtils.toBeamSchema(relNode.getRowType());
-    return Row.nullRow(leftType);
+  private Schema buildNullSchema(Schema schema) {
+    Schema.Builder builder = Schema.builder();
+
+    builder.addFields(
+        schema.getFields().stream().map(f -> f.withNullable(true)).collect(Collectors.toList()));
+
+    return builder.build();
+  }
+
+  private static <K, V> PCollection<KV<K, V>> setValueCoder(
+      PCollection<KV<K, V>> kvs, Coder<V> valueCoder) {
+    // safe case because PCollection of KV always has KvCoder
+    KvCoder<K, V> coder = (KvCoder<K, V>) kvs.getCoder();
+
+    return kvs.setCoder(KvCoder.of(coder.getKeyCoder(), valueCoder));
   }
 
   private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {

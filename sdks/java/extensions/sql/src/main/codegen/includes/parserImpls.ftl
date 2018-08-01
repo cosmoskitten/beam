@@ -281,7 +281,7 @@ Schema.FieldType SimpleType() :
     simpleTypeName = SqlTypeName(s)
     {
         s.end(this);
-        return CalciteUtils.toFieldType(simpleTypeName);
+        return CalciteUtils.toBeamFieldType(simpleTypeName);
     }
 }
 
