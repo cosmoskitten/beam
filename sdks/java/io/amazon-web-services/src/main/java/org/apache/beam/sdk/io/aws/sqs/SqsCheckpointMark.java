@@ -18,36 +18,48 @@
 package org.apache.beam.sdk.io.aws.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
-import com.google.common.collect.Lists;
+import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.Set;
 import org.apache.beam.sdk.io.UnboundedSource;
 
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-  private List<Message> messagesToDelete;
-  private SqsUnboundedReader reader;
+  private final Set<Message> messagesToDelete;
+  private final transient Optional<SqsUnboundedReader> reader;
 
-  private SqsCheckpointMark() {
-    this.messagesToDelete = new ArrayList<>();
-  }
-
-  public SqsCheckpointMark(SqsUnboundedReader reader, List<Message> messagesToDelete) {
-    this.reader = reader;
-    this.messagesToDelete = messagesToDelete;
+  public SqsCheckpointMark(SqsUnboundedReader reader, Collection<Message> messagesToDelete) {
+    this.reader = Optional.of(reader);
+    this.messagesToDelete = ImmutableSet.copyOf(messagesToDelete);
+    ;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    final ArrayList<Message> snapshot = Lists.newArrayList(messagesToDelete);
-    for (Message message : snapshot) {
-      reader.delete(message);
-    }
-    messagesToDelete.removeAll(snapshot);
+    reader.ifPresent(r -> r.delete(messagesToDelete));
   }
 
-  List<Message> getMessagesToDelete() {
+  Set<Message> getMessagesToDelete() {
     return messagesToDelete;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SqsCheckpointMark that = (SqsCheckpointMark) o;
+    return Objects.equal(messagesToDelete, that.messagesToDelete);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(messagesToDelete);
   }
 }

@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
+import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -31,10 +36,21 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   private final Read read;
   private final SqsConfiguration sqsConfiguration;
+  private final Supplier<AmazonSQS> sqs;
 
   public SqsUnboundedSource(Read read, SqsConfiguration sqsConfiguration) {
     this.read = read;
     this.sqsConfiguration = sqsConfiguration;
+
+    sqs =
+        Suppliers.memoize(
+            (Supplier<AmazonSQS> & Serializable)
+                () ->
+                    AmazonSQSClientBuilder.standard()
+                        .withClientConfiguration(sqsConfiguration.getClientConfiguration())
+                        .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
+                        .withRegion(sqsConfiguration.getAwsRegion())
+                        .build());
   }
 
   @Override
@@ -66,8 +82,8 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
     return read;
   }
 
-  public SqsConfiguration getSqsConfiguration() {
-    return sqsConfiguration;
+  public AmazonSQS getSqs() {
+    return sqs.get();
   }
 
   @Override
