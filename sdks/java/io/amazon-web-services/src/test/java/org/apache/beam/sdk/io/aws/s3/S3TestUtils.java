@@ -37,6 +37,15 @@ class S3TestUtils {
     return options;
   }
 
+  static S3Options s3OptionsWithCustomEndpointAndPathStyleAccessEnabled() {
+    S3Options options = PipelineOptionsFactory.as(S3Options.class);
+    options.setAwsServiceEndpoint("https://s3.custom.dns");
+    options.setAwsRegion("no-matter");
+    options.setS3UploadBufferSizeBytes(5_242_880);
+    options.setPathStyleAccessEnabled(true);
+    return options;
+  }
+
   static S3Options s3OptionsWithSSEAlgorithm() {
     S3Options options = s3Options();
     options.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
