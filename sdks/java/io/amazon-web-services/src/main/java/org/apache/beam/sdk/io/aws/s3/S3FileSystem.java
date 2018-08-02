@@ -25,6 +25,7 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -130,7 +131,21 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           builder.withEndpointConfiguration(
               new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
     }
+
+    // TODO: use new AmazonS3ClientBuilder method when https://github.com/aws/aws-sdk-java/issues/1736 is resolved
+    builder = setS3ClientOptions(builder, options.getS3ClientOptions());
     return builder.build();
+  }
+
+  private static AmazonS3ClientBuilder setS3ClientOptions(
+      AmazonS3ClientBuilder builder, S3ClientOptions s3ClientOptions) {
+    return builder
+        .withPathStyleAccessEnabled(s3ClientOptions.isPathStyleAccess())
+        .withChunkedEncodingDisabled(s3ClientOptions.isChunkedEncodingDisabled())
+        .withAccelerateModeEnabled(s3ClientOptions.isAccelerateModeEnabled())
+        .withPayloadSigningEnabled(s3ClientOptions.isPayloadSigningEnabled())
+        .withDualstackEnabled(s3ClientOptions.isDualstackEnabled())
+        .withForceGlobalBucketAccessEnabled(s3ClientOptions.isForceGlobalBucketAccessEnabled());
   }
 
   @Override

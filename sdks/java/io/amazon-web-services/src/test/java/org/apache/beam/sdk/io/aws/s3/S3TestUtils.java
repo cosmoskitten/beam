@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
@@ -34,6 +35,16 @@ class S3TestUtils {
     S3Options options = PipelineOptionsFactory.as(S3Options.class);
     options.setAwsRegion("us-west-1");
     options.setS3UploadBufferSizeBytes(5_242_880);
+    return options;
+  }
+
+  static S3Options s3OptionsWithCustomEndpointAndPathStyleAccessEnabled() {
+    S3Options options = PipelineOptionsFactory.as(S3Options.class);
+    options.setAwsServiceEndpoint("https://s3.custom.dns");
+    options.setAwsRegion("no-matter");
+    options.setS3UploadBufferSizeBytes(5_242_880);
+    S3ClientOptions s3ClientOptions = S3ClientOptions.builder().setPathStyleAccess(true).build();
+    options.setS3ClientOptions(s3ClientOptions);
     return options;
   }
 

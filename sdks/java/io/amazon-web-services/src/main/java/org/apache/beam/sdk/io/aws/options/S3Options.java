@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
+import com.amazonaws.services.s3.S3ClientOptions;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import javax.annotation.Nullable;
@@ -71,6 +72,22 @@ public interface S3Options extends AwsOptions {
   SSEAwsKeyManagementParams getSSEAwsKeyManagementParams();
 
   void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
+
+  @Description(
+      "Amazon S3 client options, like path style access, etc."
+          + "It's not possible to specify this argument on the command-line.")
+  @Default.InstanceFactory(S3ClientOptionsFactory.class)
+  S3ClientOptions getS3ClientOptions();
+
+  void setS3ClientOptions(S3ClientOptions s3ClientOptions);
+
+  /** Provides default S3 client options. */
+  class S3ClientOptionsFactory implements DefaultValueFactory<S3ClientOptions> {
+    @Override
+    public S3ClientOptions create(PipelineOptions options) {
+      return S3ClientOptions.builder().build();
+    }
+  }
 
   /**
    * Provide the default s3 upload buffer size in bytes: 64MB if more than 512MB in RAM are
