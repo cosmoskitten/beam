@@ -41,9 +41,6 @@ public interface JobInvocation {
   /** Listen for job state changes with a {@link Consumer}. */
   void addStateListener(Consumer<Enum> stateStreamObserver);
 
-  /** Subscribe to a message about a job finishing. */
-  void addTerminationListener(BiConsumer<JobState.Enum, String> terminatedStateObserver);
-
   /** Listen for job messages with a {@link Consumer}. */
   void addMessageListener(Consumer<JobMessage> messageStreamObserver);
 
