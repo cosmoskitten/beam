@@ -267,7 +267,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
           Schema rigthNullSchema = buildNullSchema(rightSchema);
           Row rightNullRow = Row.nullRow(rigthNullSchema);
 
-          setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
+          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rigthNullSchema));
 
           joinedRows =
               org.apache.beam.sdk.extensions.joinlibrary.Join.leftOuterJoin(
@@ -280,7 +280,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
           Schema leftNullSchema = buildNullSchema(leftSchema);
           Row leftNullRow = Row.nullRow(leftNullSchema);
 
-          setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
 
           joinedRows =
               org.apache.beam.sdk.extensions.joinlibrary.Join.rightOuterJoin(
@@ -292,11 +292,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
           Schema leftNullSchema = buildNullSchema(leftSchema);
           Schema rightNullSchema = buildNullSchema(rightSchema);
 
-          Row rightNullRow = Row.nullRow(rightNullSchema);
           Row leftNullRow = Row.nullRow(leftNullSchema);
+          Row rightNullRow = Row.nullRow(rightNullSchema);
 
-          setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
-          setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+          extractedLeftRows = setValueCoder(extractedLeftRows, SchemaCoder.of(leftNullSchema));
+          extractedRightRows = setValueCoder(extractedRightRows, SchemaCoder.of(rightNullSchema));
 
           joinedRows =
               org.apache.beam.sdk.extensions.joinlibrary.Join.fullOuterJoin(
@@ -336,13 +336,13 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     Row realRightNullRow;
     if (swapped) {
       Schema leftNullSchema = buildNullSchema(leftSchema);
-      setValueCoder(realRightRows, SchemaCoder.of(leftNullSchema));
 
+      realRightRows = setValueCoder(realRightRows, SchemaCoder.of(leftNullSchema));
       realRightNullRow = Row.nullRow(leftNullSchema);
     } else {
       Schema rightNullSchema = buildNullSchema(rightSchema);
-      setValueCoder(realRightRows, SchemaCoder.of(rightNullSchema));
 
+      realRightRows = setValueCoder(realRightRows, SchemaCoder.of(rightNullSchema));
       realRightNullRow = Row.nullRow(rightNullSchema);
     }
 
