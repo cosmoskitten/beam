@@ -115,7 +115,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     messagesToDelete.add(current);
 
     Instant currentMessageTimestamp = getCurrentTimestamp();
-    if (oldestPendingTimestamp.isEqual(BoundedWindow.TIMESTAMP_MIN_VALUE) || getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
+    if (getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
       oldestPendingTimestamp = currentMessageTimestamp;
     }
 
