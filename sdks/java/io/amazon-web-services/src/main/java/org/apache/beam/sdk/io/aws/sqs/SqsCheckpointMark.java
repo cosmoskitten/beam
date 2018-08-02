@@ -19,21 +19,21 @@ package org.apache.beam.sdk.io.aws.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
 import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.apache.beam.sdk.io.UnboundedSource;
 
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-  private final Set<Message> messagesToDelete;
+  private final List<Message> messagesToDelete;
   private final transient Optional<SqsUnboundedReader> reader;
 
   public SqsCheckpointMark(SqsUnboundedReader reader, Collection<Message> messagesToDelete) {
     this.reader = Optional.of(reader);
-    this.messagesToDelete = ImmutableSet.copyOf(messagesToDelete);
+    this.messagesToDelete = ImmutableList.copyOf(messagesToDelete);
     ;
   }
 
@@ -42,7 +42,7 @@ class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     reader.ifPresent(r -> r.delete(messagesToDelete));
   }
 
-  Set<Message> getMessagesToDelete() {
+  List<Message> getMessagesToDelete() {
     return messagesToDelete;
   }
 

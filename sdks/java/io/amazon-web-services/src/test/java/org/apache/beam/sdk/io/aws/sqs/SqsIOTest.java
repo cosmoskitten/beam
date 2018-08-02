@@ -27,6 +27,7 @@ import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
@@ -71,11 +72,12 @@ public class SqsIOTest {
     final AmazonSQS client = embeddedSqsRestServer.getClient();
     final String queueUrl = embeddedSqsRestServer.getQueueUrl();
 
-    List<String> messages = new ArrayList<>();
+    List<SendMessageRequest> messages = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      messages.add("This is a test " + i);
+      final SendMessageRequest request = new SendMessageRequest(queueUrl, "This is a test " + i);
+      messages.add(request);
     }
-    pipeline.apply(Create.of(messages)).apply(SqsIO.write().withQueueUrl(queueUrl));
+    pipeline.apply(Create.of(messages)).apply(SqsIO.write());
     pipeline.run().waitUntilFinish();
 
     List<String> received = new ArrayList<>();

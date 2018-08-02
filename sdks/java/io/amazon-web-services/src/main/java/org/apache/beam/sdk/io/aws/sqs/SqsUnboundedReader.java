@@ -24,13 +24,12 @@ import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.Set;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -42,7 +41,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
   private final SqsUnboundedSource source;
   private Message current;
   private final Queue<Message> messagesNotYetRead;
-  private Set<Message> messagesToDelete;
+  private List<Message> messagesToDelete;
   private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public SqsUnboundedReader(SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark) {
@@ -50,7 +49,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     this.current = null;
 
     this.messagesNotYetRead = new ArrayDeque<>();
-    this.messagesToDelete = new HashSet<>();
+    this.messagesToDelete = new ArrayList<>();
 
     if (sqsCheckpointMark != null) {
       this.messagesToDelete.addAll(sqsCheckpointMark.getMessagesToDelete());
@@ -116,7 +115,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
     messagesToDelete.add(current);
 
     Instant currentMessageTimestamp = getCurrentTimestamp();
-    if (getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
+    if (oldestPendingTimestamp.isEqual(BoundedWindow.TIMESTAMP_MIN_VALUE) || getCurrentTimestamp().isBefore(oldestPendingTimestamp)) {
       oldestPendingTimestamp = currentMessageTimestamp;
     }
 
@@ -141,6 +140,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> implem
   private void pull() {
     final ReceiveMessageRequest receiveMessageRequest =
         new ReceiveMessageRequest(source.getRead().queueUrl());
+
     receiveMessageRequest.setMaxNumberOfMessages(MAX_NUMBER_OF_MESSAGES);
     receiveMessageRequest.setAttributeNames(
         Arrays.asList(MessageSystemAttributeName.SentTimestamp.toString()));

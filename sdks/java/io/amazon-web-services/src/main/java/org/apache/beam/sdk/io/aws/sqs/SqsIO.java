@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -51,13 +52,12 @@ import org.joda.time.Duration;
  *
  * <h3>Writing to an SQS queue</h3>
  *
- * <p>To configure an SQS sink, you have to provide the queueUrl to connect to. The following
- * example illustrates how to configure the sink:
+ * <p>The following example illustrates how to use the sink:
  *
  * <pre>{@code
  * pipeline
- *   .apply(...) // returns PCollection<String>
- *   .apply(SqsIO.write().withQueueUrl(queueUrl))
+ *   .apply(...) // returns PCollection<SendMessageRequest>
+ *   .apply(SqsIO.write())
  * }</pre>
  *
  * <h3>Additional Configuration</h3>
@@ -164,45 +164,30 @@ public class SqsIO {
    * and configuration.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<String>, PDone> {
-    @Nullable
-    abstract String queueUrl();
-
+  public abstract static class Write extends PTransform<PCollection<SendMessageRequest>, PDone> {
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setQueueUrl(String queueUrl);
-
       abstract Write build();
     }
 
-    /** Define the queueUrl used by the {@link Write} to send messages to SQS. */
-    public Write withQueueUrl(String queueUrl) {
-      checkArgument(queueUrl != null, "queueUrl can not be null");
-      checkArgument(!queueUrl.isEmpty(), "queueUrl can not be empty");
-      return toBuilder().setQueueUrl(queueUrl).build();
-    }
-
     @Override
-    public PDone expand(PCollection<String> input) {
+    public PDone expand(PCollection<SendMessageRequest> input) {
       input.apply(
           ParDo.of(
               new SqsWriteFn(
-                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class)),
-                  queueUrl())));
+                  new SqsConfiguration(input.getPipeline().getOptions().as(AwsOptions.class)))));
       return PDone.in(input.getPipeline());
     }
   }
 
-  private static class SqsWriteFn extends DoFn<String, Void> {
+  private static class SqsWriteFn extends DoFn<SendMessageRequest, Void> {
     private final SqsConfiguration sqsConfiguration;
-    private final String queueUrl;
     private transient AmazonSQS sqs;
 
-    SqsWriteFn(SqsConfiguration sqsConfiguration, String queueUrl) {
+    SqsWriteFn(SqsConfiguration sqsConfiguration) {
       this.sqsConfiguration = sqsConfiguration;
-      this.queueUrl = queueUrl;
     }
 
     @Setup
@@ -217,7 +202,7 @@ public class SqsIO {
 
     @ProcessElement
     public void processElement(ProcessContext processContext) throws Exception {
-      sqs.sendMessage(queueUrl, processContext.element());
+      sqs.sendMessage(processContext.element());
     }
 
     @Teardown
