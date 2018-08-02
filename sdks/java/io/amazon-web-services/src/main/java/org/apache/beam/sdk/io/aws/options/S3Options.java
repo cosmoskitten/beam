@@ -72,6 +72,12 @@ public interface S3Options extends AwsOptions {
 
   void setSSEAwsKeyManagementParams(SSEAwsKeyManagementParams value);
 
+  @Description("Whether to enable path style access to buckets.")
+  @Default.Boolean(false)
+  boolean getPathStyleAccessEnabled();
+
+  void setPathStyleAccessEnabled(boolean pathStyleAccessEnabled);
+
   /**
    * Provide the default s3 upload buffer size in bytes: 64MB if more than 512MB in RAM are
    * available and 5MB otherwise.

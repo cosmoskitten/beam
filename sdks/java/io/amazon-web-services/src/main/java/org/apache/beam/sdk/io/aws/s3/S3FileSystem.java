@@ -130,6 +130,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           builder.withEndpointConfiguration(
               new EndpointConfiguration(options.getAwsServiceEndpoint(), options.getAwsRegion()));
     }
+    if (options.getPathStyleAccessEnabled()) {
+      builder.enablePathStyleAccess();
+    }
     return builder.build();
   }
 
