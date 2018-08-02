@@ -171,7 +171,7 @@ public class BeamAggregationTransforms implements Serializable {
           sourceFieldExps.add(sourceExp);
         }
 
-        Schema.Field field = CalciteUtils.toBeamField(aggName, call.type);
+        Schema.Field field = CalciteUtils.toField(aggName, call.type);
         Schema.TypeName fieldTypeName = field.getType().getTypeName();
         fields.add(field);
 

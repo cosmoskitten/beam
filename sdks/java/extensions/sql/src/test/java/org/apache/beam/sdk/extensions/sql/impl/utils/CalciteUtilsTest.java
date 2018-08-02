@@ -142,7 +142,7 @@ public class CalciteUtilsTest {
             .build();
 
     final Schema out =
-        CalciteUtils.toBeamSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
+        CalciteUtils.toSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
 
     assertEquals(schema, out);
   }
@@ -164,7 +164,7 @@ public class CalciteUtilsTest {
             .build();
 
     final Schema out =
-        CalciteUtils.toBeamSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
+        CalciteUtils.toSchema(CalciteUtils.toCalciteRowType(schema, dataTypeFactory));
 
     assertEquals(schema, out);
   }
