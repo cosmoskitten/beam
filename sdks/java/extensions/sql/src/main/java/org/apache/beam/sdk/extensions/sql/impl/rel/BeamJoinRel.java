@@ -148,11 +148,11 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       if (isSideInputJoin()) {
         checkArgument(pinput.size() == 1, "More than one input received for side input join");
         return joinAsLookup(leftRelNode, rightRelNode, pinput.get(0))
-            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
       }
 
-      Schema leftSchema = CalciteUtils.toBeamSchema(left.getRowType());
-      Schema rightSchema = CalciteUtils.toBeamSchema(right.getRowType());
+      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
+      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
 
       assert pinput.size() == 2;
       PCollection<Row> leftRows = pinput.get(0);
@@ -315,7 +315,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         joinedRows
             .apply(
                 "JoinParts2WholeRow", MapElements.via(new BeamJoinTransforms.JoinParts2WholeRow()))
-            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
     return ret;
   }
 
@@ -366,7 +366,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                         new BeamJoinTransforms.SideInputJoinDoFn(
                             joinType, rightNullRow, rowsView, swapped))
                     .withSideInputs(rowsView))
-            .setRowSchema(CalciteUtils.toBeamSchema(getRowType()));
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
 
     return ret;
   }
@@ -437,8 +437,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         new BeamJoinTransforms.JoinAsLookup(
             condition,
             seekableTable,
-            CalciteUtils.toBeamSchema(rightRelNode.getRowType()),
-            CalciteUtils.toBeamSchema(leftRelNode.getRowType()).getFieldCount()));
+            CalciteUtils.toSchema(rightRelNode.getRowType()),
+            CalciteUtils.toSchema(leftRelNode.getRowType()).getFieldCount()));
   }
 
   /** check if {@code BeamRelNode} implements {@code BeamSeekableTable}. */

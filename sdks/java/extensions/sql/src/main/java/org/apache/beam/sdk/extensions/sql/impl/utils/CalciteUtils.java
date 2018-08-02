@@ -18,8 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
@@ -68,19 +66,19 @@ public class CalciteUtils {
       BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
 
   // The list of field type names used in SQL as Beam field types.
-  public static final FieldType TINY_INT = toBeamFieldType(SqlTypeName.TINYINT);
-  public static final FieldType SMALL_INT = toBeamFieldType(SqlTypeName.SMALLINT);
-  public static final FieldType INTEGER = toBeamFieldType(SqlTypeName.INTEGER);
-  public static final FieldType BIG_INT = toBeamFieldType(SqlTypeName.BIGINT);
-  public static final FieldType FLOAT = toBeamFieldType(SqlTypeName.FLOAT);
-  public static final FieldType DOUBLE = toBeamFieldType(SqlTypeName.DOUBLE);
-  public static final FieldType DECIMAL = toBeamFieldType(SqlTypeName.DECIMAL);
-  public static final FieldType BOOLEAN = toBeamFieldType(SqlTypeName.BOOLEAN);
-  public static final FieldType CHAR = toBeamFieldType(SqlTypeName.CHAR);
-  public static final FieldType VARCHAR = toBeamFieldType(SqlTypeName.VARCHAR);
-  public static final FieldType TIME = toBeamFieldType(SqlTypeName.TIME);
-  public static final FieldType DATE = toBeamFieldType(SqlTypeName.DATE);
-  public static final FieldType TIMESTAMP = toBeamFieldType(SqlTypeName.TIMESTAMP);
+  public static final FieldType TINY_INT = toFieldType(SqlTypeName.TINYINT);
+  public static final FieldType SMALL_INT = toFieldType(SqlTypeName.SMALLINT);
+  public static final FieldType INTEGER = toFieldType(SqlTypeName.INTEGER);
+  public static final FieldType BIG_INT = toFieldType(SqlTypeName.BIGINT);
+  public static final FieldType FLOAT = toFieldType(SqlTypeName.FLOAT);
+  public static final FieldType DOUBLE = toFieldType(SqlTypeName.DOUBLE);
+  public static final FieldType DECIMAL = toFieldType(SqlTypeName.DECIMAL);
+  public static final FieldType BOOLEAN = toFieldType(SqlTypeName.BOOLEAN);
+  public static final FieldType CHAR = toFieldType(SqlTypeName.CHAR);
+  public static final FieldType VARCHAR = toFieldType(SqlTypeName.VARCHAR);
+  public static final FieldType TIME = toFieldType(SqlTypeName.TIME);
+  public static final FieldType DATE = toFieldType(SqlTypeName.DATE);
+  public static final FieldType TIMESTAMP = toFieldType(SqlTypeName.TIMESTAMP);
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the
   // default mapping.
@@ -90,8 +88,8 @@ public class CalciteUtils {
           FieldType.STRING, SqlTypeName.VARCHAR);
 
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
-  public static Schema toBeamSchema(RelDataType tableInfo) {
-    return tableInfo.getFieldList().stream().map(CalciteUtils::toBeamField).collect(toSchema());
+  public static Schema toSchema(RelDataType tableInfo) {
+    return tableInfo.getFieldList().stream().map(CalciteUtils::toField).collect(Schema.toSchema());
   }
 
   public static SqlTypeName toSqlTypeName(FieldType type) {
@@ -114,7 +112,7 @@ public class CalciteUtils {
     }
   }
 
-  public static FieldType toBeamFieldType(SqlTypeName sqlTypeName) {
+  public static FieldType toFieldType(SqlTypeName sqlTypeName) {
     switch (sqlTypeName) {
       case MAP:
       case MULTISET:
@@ -130,28 +128,28 @@ public class CalciteUtils {
     }
   }
 
-  public static Schema.Field toBeamField(RelDataTypeField calciteField) {
-    return toBeamField(calciteField.getName(), calciteField.getType());
+  public static Schema.Field toField(RelDataTypeField calciteField) {
+    return toField(calciteField.getName(), calciteField.getType());
   }
 
-  public static Schema.Field toBeamField(String name, RelDataType calciteType) {
-    return Schema.Field.of(name, toBeamFieldType(calciteType))
+  public static Schema.Field toField(String name, RelDataType calciteType) {
+    return Schema.Field.of(name, toFieldType(calciteType))
         .withNullable(calciteType.isNullable());
   }
 
-  public static FieldType toBeamFieldType(RelDataType calciteType) {
+  public static FieldType toFieldType(RelDataType calciteType) {
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
       case MULTISET:
-        return FieldType.array(toBeamFieldType(calciteType.getComponentType()));
+        return FieldType.array(toFieldType(calciteType.getComponentType()));
       case MAP:
         return FieldType.map(
-            toBeamFieldType(calciteType.getKeyType()), toBeamFieldType(calciteType.getValueType()));
+            toFieldType(calciteType.getKeyType()), toFieldType(calciteType.getValueType()));
       case ROW:
-        return FieldType.row(toBeamSchema(calciteType));
+        return FieldType.row(toSchema(calciteType));
 
       default:
-        return toBeamFieldType(calciteType.getSqlTypeName());
+        return toFieldType(calciteType.getSqlTypeName());
     }
   }
 
