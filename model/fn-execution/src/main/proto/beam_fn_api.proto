@@ -250,11 +250,16 @@ message ProcessBundleRequest {
 message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
+  // DEPRECATED
   Metrics metrics = 1;
 
   // (Optional) Specifies that the bundle has been split since the last
   // ProcessBundleProgressResponse was sent.
   BundleSplit split = 2;
+
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated MonitoringInfo monitoring_infos = 3;
 }
 
 // A request to report progress information for a given bundle.
@@ -275,9 +280,9 @@ message MonitoringInfo {
   // Sub types like field formats - int64, double, string.
   // Aggregation methods - SUM, LATEST, TOP-N, BOTTOM-N, DISTRIBUTION
   // valid values are:
-  // beam:metrics:[SumInt64|LatestInt64|Top-NInt64|Bottom-NInt64|
-  //     SumDouble|LatestDouble|Top-NDouble|Bottom-NDouble|DistributionInt64|
-  //     DistributionDouble|MonitoringDataTable]
+  // beam:metrics:[sum_int_64|latest_int_64|top_n_int_64|bottom_n_int_64|
+  //     sum_double|latest_double|top_n_double|bottom_n_double|
+  //     distribution_int_64|distribution_double|monitoring_data_table
   string type = 2;
 
   // The Metric or monitored state.
@@ -302,6 +307,10 @@ message MonitoringInfo {
   // Some systems such as Stackdriver will be able to aggregate the metrics
   // using a subset of the provided labels
   map<string, string> labels = 5;
+
+  // The walltime of the most recent update.
+  // Useful for aggregation for Latest types such as LatestInt64.
+  google.protobuf.Timestamp timestamp = 6;
 }
 
 message Metric {
@@ -525,12 +534,16 @@ message Metrics {
 }
 
 message ProcessBundleProgressResponse {
-  // (Required)
+  // DEPRECATED (Required)
   Metrics metrics = 1;
 
   // (Optional) Specifies that the bundle has been split since the last
   // ProcessBundleProgressResponse was sent.
   BundleSplit split = 2;
+
+  // (Required) The list of metrics or other MonitoredState
+  // collected while processing this bundle.
+  repeated MonitoringInfo monitoring_infos = 3;
 }
 
 message ProcessBundleSplitRequest {

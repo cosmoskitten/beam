@@ -220,6 +220,7 @@ class SdkWorker(object):
         instruction_id=instruction_id,
         register=beam_fn_api_pb2.RegisterResponse())
 
+  # Are these methods dead code? No. invoked via do_instruction
   def process_bundle(self, request, instruction_id):
     process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
     state_handler = self.state_handler_factory.create_state_handler(
@@ -238,15 +239,18 @@ class SdkWorker(object):
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-            metrics=processor.metrics()))
+            metrics=processor.metrics(),
+            monitoring_infos=processor.monitoring_infos()))
 
+  # Are these methods dead code?
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
     processor = self.bundle_processors.get(request.instruction_reference)
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
-            metrics=processor.metrics() if processor else None))
+            metrics=processor.metrics() if processor else None,
+            monitoring_infos=processor.monitoring_infos() if processor else []))
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
