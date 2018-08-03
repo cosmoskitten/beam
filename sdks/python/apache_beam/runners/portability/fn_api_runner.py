@@ -33,6 +33,7 @@ import grpc
 from future import standard_library
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
+import apache_beam.metrics.monitoring_infos as monitoring_infos
 from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.coders import WindowedValueCoder
@@ -40,6 +41,7 @@ from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
+from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -855,17 +857,21 @@ class FnApiRunner(runner.PipelineRunner):
     else:
       controller = FnApiRunner.DirectController()
     metrics_by_stage = {}
+    monitoring_infos_by_stage = {}
 
     try:
       pcoll_buffers = collections.defaultdict(list)
       for stage in stages:
-        metrics_by_stage[stage.name] = self.run_stage(
+        stage_results = self.run_stage(
             controller, pipeline_components, stage,
-            pcoll_buffers, safe_coders).process_bundle.metrics
+            pcoll_buffers, safe_coders)
+        metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
+        monitoring_infos_by_stage[stage.name] = (
+            stage_results.process_bundle.monitoring_infos)
     finally:
       controller.close()
-
-    return RunnerResult(runner.PipelineState.DONE, metrics_by_stage)
+    return RunnerResult(
+        runner.PipelineState.DONE, metrics_by_stage, monitoring_infos_by_stage)
 
   def run_stage(
       self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
@@ -1264,10 +1270,26 @@ class ControlFuture(object):
 
 
 class FnApiMetrics(metrics.metric.MetricResults):
-  def __init__(self, step_metrics):
+  def __init__(self, step_metrics, step_monitoring_infos,
+               use_monitoring_infos=False, user_metrics_only=True):
+    """Used for querying metrics from the PipelineResult object.
+
+      step_metrics: The deprecated legacy metrics format.
+      step_monitoring_infos: The same metrics specified as MonitoringInfos.
+      use_monitoring_infos: If true, return the metrics based on the
+          step_monitoring_infos.
+      user_metrics_only: True if user metrics only, False if all metrics.
+    """
     self._counters = {}
     self._distributions = {}
     self._gauges = {}
+    self.user_metrics_only = user_metrics_only
+    if use_monitoring_infos:
+      self._init_metrics_from_monitoring_infos(step_monitoring_infos)
+    else:
+      self._init_metrics_from_legacy_metrics(step_metrics)
+
+  def _init_metrics_from_legacy_metrics(self, step_metrics):
     for step_metric in step_metrics.values():
       for ptransform_id, ptransform in step_metric.ptransforms.items():
         for proto in ptransform.user:
@@ -1287,6 +1309,31 @@ class FnApiMetrics(metrics.metric.MetricResults):
                     metrics.cells.GaugeData.from_runner_api(
                         proto.gauge_data))
 
+  def _to_metric_key(self, monitoring_info):
+    # Right now this assumes that all metrics have a PTRANSFORM
+    ptransform_id = monitoring_info.labels['PTRANSFORM']
+    namespace, name = monitoring_infos.parse_namespace_and_name(monitoring_info)
+    return MetricKey(
+        ptransform_id, metrics.metricbase.MetricName(namespace, name))
+
+  def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
+    for smi in step_monitoring_infos.values():
+      # Only include user metrics.
+      for mi in smi:
+        if (self.user_metrics_only and
+            not monitoring_infos.is_user_monitoring_info(mi)):
+          continue
+        key = self._to_metric_key(mi)
+        if monitoring_infos.is_counter(mi):
+          self._counters[key] = (
+              monitoring_infos.extract_metric_result_map_value(mi))
+        elif monitoring_infos.is_distribution(mi):
+          self._distributions[key] = (
+              monitoring_infos.extract_metric_result_map_value(mi))
+        elif monitoring_infos.is_gauge(mi):
+          self._gauges[key] = (
+              monitoring_infos.extract_metric_result_map_value(mi))
+
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
                 for k, v in self._counters.items()
@@ -1304,17 +1351,25 @@ class FnApiMetrics(metrics.metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
-  def __init__(self, state, metrics_by_stage):
+  def __init__(self, state, metrics_by_stage, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
     self._metrics_by_stage = metrics_by_stage
+    self._monitoring_infos_by_stage = monitoring_infos_by_stage
     self._user_metrics = None
 
   def wait_until_finish(self, duration=None):
     return self._state
 
-  def metrics(self):
+  def metrics(self, use_monitoring_infos=False, user_metrics_only=True):
+    if use_monitoring_infos or not user_metrics_only:
+      # Don't cache if a non default option is specified.
+      return FnApiMetrics(
+          self._metrics_by_stage, self._monitoring_infos_by_stage,
+          use_monitoring_infos=True, user_metrics_only=user_metrics_only)
     if self._user_metrics is None:
-      self._user_metrics = FnApiMetrics(self._metrics_by_stage)
+      self._user_metrics = FnApiMetrics(
+          self._metrics_by_stage, self._monitoring_infos_by_stage,
+          use_monitoring_infos=False, user_metrics_only=user_metrics_only)
     return self._user_metrics
 
 
