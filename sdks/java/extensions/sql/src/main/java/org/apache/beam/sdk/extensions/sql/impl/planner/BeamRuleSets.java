@@ -120,7 +120,8 @@ public class BeamRuleSets {
           // AggregateReduceFunctionsRule.INSTANCE,
 
           // remove unnecessary sort rule
-          SortRemoveRule.INSTANCE,
+          // https://issues.apache.org/jira/browse/BEAM-5073
+          // SortRemoveRule.INSTANCE,
 
           // prune empty results rules
           PruneEmptyRules.AGGREGATE_INSTANCE,
