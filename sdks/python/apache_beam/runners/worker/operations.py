@@ -31,7 +31,9 @@ from builtins import zip
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.monitoring_infos import int64_counter
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -189,6 +191,58 @@ class Operation(object):
                     if len(self.receivers) == 1
                     else None))),
         user=self.metrics_container.to_runner_api())
+
+  def monitoring_infos(self, transform_id):
+    """Returns the list of MonitoringInfos collected by this operation."""
+    return (self.execution_time_metrics(transform_id) +
+            self.element_count_metrics(transform_id) +
+            self.user_metrics(transform_id))
+
+  def element_count_metrics(self, transform_id):
+    """Returns the element count MonitoringInfo collected by this operation."""
+    if len(self.receivers) == 1:
+      # If there is exactly one output, we can unambiguously
+      # fix its name later, which we do.
+      # TODO(robertwb): Plumb the actual name here.
+      return [int64_counter(
+          monitoring_infos.ELEMENT_COUNT_URN,
+          self.receivers[0].opcounter.element_counter.value(),
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT',
+      )]
+    return []
+
+  def user_metrics(self, transform_id):
+    """Returns the user MonitoringInfos collected by this operation."""
+    return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
+
+  def execution_time_metrics(self, transform_id):
+    total_time_spent_msecs = (
+        self.scoped_start_state.sampled_msecs_int()
+        + self.scoped_process_state.sampled_msecs_int()
+        + self.scoped_finish_state.sampled_msecs_int())
+    return [
+        int64_counter(
+            monitoring_infos.START_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        int64_counter(
+            monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        int64_counter(
+            monitoring_infos.FINISH_BUNDLE_MSECS_URN,
+            self.scoped_start_state.sampled_msecs_int(),
+            ptransform=transform_id
+        ),
+        int64_counter(
+            monitoring_infos.TOTAL_MSECS_URN,
+            total_time_spent_msecs,
+            ptransform=transform_id
+        ),
+    ]
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -441,6 +495,18 @@ class DoOperation(Operation):
         metrics.processed_elements.measured.output_element_counts[
             str(tag)] = receiver.opcounter.element_counter.value()
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    if self.tagged_receivers:
+      for tag, receiver in self.tagged_receivers.items():
+        infos.append(int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            ptransform=transform_id,
+            tag=str(tag)
+        ))
+    return infos
 
 
 class DoFnRunnerReceiver(Receiver):
