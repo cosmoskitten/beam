@@ -186,12 +186,14 @@ This installs Python from source and includes the test and gcp dependencies.
 
 On macOS/Linux:
 
+    $ cd sdks/python
     $ virtualenv env
     $ . ./env/bin/activate
     (env) $ pip install -e .[gcp,test]
 
 On Windows:
 
+    > cd sdks/python
     > c:\Python27\python.exe -m virtualenv
     > env\Scripts\activate
     (env) > pip install -e .[gcp,test]
