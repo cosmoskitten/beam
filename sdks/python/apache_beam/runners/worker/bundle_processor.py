@@ -313,6 +313,14 @@ class BundleProcessor(object):
             self._fix_output_tags(transform_id, op.progress_metrics())
             for transform_id, op in self.ops.items()})
 
+  def monitoring_infos(self):
+    """Returns the MonitoringInfos collected processing this bundle."""
+    all_monitoring_infos = []
+    for transform_id, op in self.ops.items():
+      for m_info in op.monitoring_infos(transform_id):
+        all_monitoring_infos.append(m_info)
+    return all_monitoring_infos
+
   def _fix_output_tags(self, transform_id, metrics):
     # Outputs are still referred to by index, not by name, in many Operations.
     # However, if there is exactly one output, we can fix up the name here.
