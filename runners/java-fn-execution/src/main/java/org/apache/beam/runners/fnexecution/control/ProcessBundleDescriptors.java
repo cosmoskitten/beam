@@ -28,8 +28,11 @@ import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -39,6 +42,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
@@ -56,7 +60,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -146,6 +149,8 @@ public class ProcessBundleDescriptors {
     if (stateEndpoint != null) {
       bundleDescriptorBuilder.setStateApiServiceDescriptor(stateEndpoint);
     }
+    sanitizeComponents(stage, components);
+
     bundleDescriptorBuilder
         .putAllCoders(components.getCodersMap())
         .putAllEnvironments(components.getEnvironmentsMap())
@@ -371,6 +376,85 @@ public class ProcessBundleDescriptors {
               spec));
     }
     return idsToSpec.build().rowMap();
+  }
+
+  private static void sanitizeComponents(ExecutableStage stage, Builder components) {
+    /* Possible inputs to a pTransform can only be those which are
+     * <ul>
+     *  <li> Input to the Stage
+     *  <li> Outputs of the Stage
+     *  <li> User State
+     *  <li> Timers
+     *  <li> Side Input
+     *  <li> Output from other pTransform in the same Stage
+     * </ul>
+     */
+    Set<String> possibleInputs = new HashSet<>();
+    possibleInputs.add(stage.getInputPCollection().getId());
+    possibleInputs.addAll(
+        stage
+            .getOutputPCollections()
+            .stream()
+            .map(PCollectionNode::getId)
+            .collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        stage
+            .getUserStates()
+            .stream()
+            .map(us -> us.collection().getId())
+            .collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        stage.getTimers().stream().map(t -> t.collection().getId()).collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        stage
+            .getSideInputs()
+            .stream()
+            .map(s -> s.collection().getId())
+            .collect(Collectors.toSet()));
+    possibleInputs.addAll(
+        components
+            .getTransformsMap()
+            .values()
+            .stream()
+            .flatMap(t -> t.getOutputsMap().values().stream())
+            .collect(Collectors.toSet()));
+    Set<String> danglingInputs =
+        components
+            .getTransformsMap()
+            .values()
+            .stream()
+            .flatMap(t -> t.getInputsMap().values().stream())
+            .filter(in -> !possibleInputs.contains(in))
+            .collect(Collectors.toSet());
+
+    Map<String, PTransform> transformsMap = ImmutableMap.copyOf(components.getTransformsMap());
+    for (Entry<String, PTransform> transformEntry : transformsMap.entrySet()) {
+      PTransform transform = transformEntry.getValue();
+      Map<String, String> validInputs =
+          transform
+              .getInputsMap()
+              .entrySet()
+              .stream()
+              .filter(e -> !danglingInputs.contains(e.getValue()))
+              .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+      if (!validInputs.equals(transform.getInputsMap())) {
+        // Dangling inputs found so recreate pTransform without the dangling inputs.
+        PTransform validTransform =
+            transform.toBuilder().clearInputs().putAllInputs(validInputs).build();
+        components.removeTransforms(transformEntry.getKey());
+        components.putTransforms(transformEntry.getKey(), validTransform);
+      }
+    }
+    Map<String, PCollection> validPCollectionMap =
+        components
+            .getPcollectionsMap()
+            .entrySet()
+            .stream()
+            .filter(e -> !danglingInputs.contains(e.getKey()))
+            .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+    components.clearPcollections().putAllPcollections(validPCollectionMap);
   }
 
   @AutoValue
