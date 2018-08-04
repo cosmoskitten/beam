@@ -178,8 +178,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
                   GlobalWindows.class.getSimpleName(), windowingStrategy));
         }
 
-        BeamSqlRowComparator comparator =
-            new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+        ReversedBeamSqlRowComparator comparator =
+            new ReversedBeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
 
         // first find the top (offset + count)
         PCollection<List<Row>> rawStream =
@@ -317,12 +317,31 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           }
         }
 
-        fieldRet *= (orientation.get(i) ? -1 : 1);
+        fieldRet *= (orientation.get(i) ? 1 : -1);
+
         if (fieldRet != 0) {
           return fieldRet;
         }
       }
       return 0;
+    }
+  }
+
+  private static class ReversedBeamSqlRowComparator implements Comparator<Row>, Serializable {
+    private BeamSqlRowComparator comparator;
+
+    public ReversedBeamSqlRowComparator(
+        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
+      comparator = new BeamSqlRowComparator(fieldsIndices, orientation, nullsFirst);
+    }
+
+    @Override
+    public int compare(Row row1, Row row2) {
+      int ret = comparator.compare(row1, row2);
+      if (ret != 0) {
+        ret *= -1;
+      }
+      return ret;
     }
   }
 }
