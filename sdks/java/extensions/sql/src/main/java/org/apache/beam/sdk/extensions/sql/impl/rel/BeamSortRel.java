@@ -179,7 +179,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         }
 
         BeamSqlRowComparator comparator =
-            new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+            new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst, true);
 
         // first find the top (offset + count)
         PCollection<List<Row>> rawStream =
@@ -270,12 +270,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
+    private boolean isReversed;
 
     public BeamSqlRowComparator(
-        List<Integer> fieldsIndices, List<Boolean> orientation, List<Boolean> nullsFirst) {
+        List<Integer> fieldsIndices,
+        List<Boolean> orientation,
+        List<Boolean> nullsFirst,
+        boolean isReversed) {
       this.fieldsIndices = fieldsIndices;
       this.orientation = orientation;
       this.nullsFirst = nullsFirst;
+      this.isReversed = isReversed;
     }
 
     @Override
@@ -317,7 +322,26 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           }
         }
 
-        fieldRet *= (orientation.get(i) ? -1 : 1);
+        // if isReversed is true, then the comparison result will be reserved. For example, if
+        // v1 < v2, then 1 will be returned as fieldRet (v1 > v2).
+        if (isReversed) {
+          // if orientation is true
+          //    if v1.compareTo(v2) = -1, then fieldRet = 1, which means v1 is greater than v2.
+          //    if v1.compareTo(v2) = 1, then fieldRet = -1, which means v1 is less than v2.
+          // if orientation is false
+          //    if v1.compareTo(v2) = -1, then fieldRet = -1, which means v1 is less than v2.
+          //    if v1.compareTo(v2) = 1, then fieldRet = 1, which means v1 is greater than v2
+          fieldRet *= (orientation.get(i) ? -1 : 1);
+        } else {
+          // if orientation is true
+          //    if v1.compareTo(v2) = -1, then fieldRet = -1, which means v1 is less than v2.
+          //    if v1.compareTo(v2) = 1, then fieldRet = 1, which means v1 is greater than v2.
+          // if orientation is false
+          //    if v1.compareTo(v2) = -1, then fieldRet = 1, which means v1 is greater than v2.
+          //    if v1.compareTo(v2) = 1, then fieldRet = -1, which means v1 is less than v2
+          fieldRet *= (orientation.get(i) ? 1 : -1);
+        }
+
         if (fieldRet != 0) {
           return fieldRet;
         }
