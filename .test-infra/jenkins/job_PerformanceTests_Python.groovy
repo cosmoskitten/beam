@@ -47,14 +47,13 @@ job('beam_PerformanceTests_Python'){
   def pipelineArgsJoined = pipelineArgList.join(',')
 
   def argMap = [
-      beam_sdk : 'python',
-      benchmarks: 'beam_integration_benchmark',
-      beam_it_args: pipelineArgsJoined,
-      beam_it_class: 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+      beam_sdk       : 'python',
+      benchmarks     : 'beam_integration_benchmark',
+      bigquery_table : 'beam_performance.wordcount_py_pkb_results',
+      beam_it_class  : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
+      beam_it_args   : pipelineArgsJoined,
+
   ]
 
   commonJobProperties.buildPerformanceTest(delegate, argMap)
-
-  // [BEAM-3809] Python performance tests are failing.
-  // disabled()
 }
