@@ -312,9 +312,9 @@ class CommonJobProperties {
 
     // Absolute path of project root and virtualenv path of Beam and Perfkit.
     def beam_root = makePathAbsolute(checkoutDir)
-    def beam_env = "${beam_root}/.beam_env"
     def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def perfkit_env = "${perfkit_root}/.perfkit_env"
+    def beam_env = makePathAbsolute("env/.beam_env")
+    def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
     context.steps {
         // Clean up environment.
