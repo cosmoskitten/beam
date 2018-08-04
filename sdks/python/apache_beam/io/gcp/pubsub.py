@@ -27,7 +27,6 @@ from __future__ import absolute_import
 import re
 from builtins import object
 
-from past.builtins import basestring
 from past.builtins import unicode
 
 from apache_beam import coders
@@ -206,7 +205,7 @@ class _ReadStringsFromPubSub(PTransform):
          | ReadFromPubSub(self.topic, self.subscription, self.id_label,
                           with_attributes=False)
          | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = basestring
+    p.element_type = unicode
     return p
 
 
