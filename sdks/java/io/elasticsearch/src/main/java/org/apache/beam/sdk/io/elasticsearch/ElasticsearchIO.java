@@ -44,18 +44,26 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -71,8 +79,12 @@ import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
@@ -133,6 +145,8 @@ import org.elasticsearch.client.RestClientBuilder;
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ElasticsearchIO {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIO.class);
+
   public static Read read() {
     // default scrollKeepalive = 5m as a majorant for un-predictable time between 2 start/read calls
     // default batchSize to 100 as recommended by ES dev team as a safe value when dealing
@@ -171,6 +185,7 @@ public class ElasticsearchIO {
       JsonNode items = searchResult.path("items");
       //some items present in bulk might have errors, concatenate error messages
       for (JsonNode item : items) {
+
         String errorRootName = "";
         if (backendVersion == 2) {
           errorRootName = "create";
@@ -714,6 +729,57 @@ public class ElasticsearchIO {
     }
   }
 
+  /**
+   * This is the default predicate used to test if a failed ES operation should be retried. A retry
+   * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
+   * TOO_MANY_REQUESTS(429) exception.
+   */
+  static class DefaultRetryPredicate implements RetryPredicate {
+
+    private int ERROR_CODE;
+
+    public DefaultRetryPredicate(@Nonnull int code) {
+      Objects.requireNonNull(code);
+      this.ERROR_CODE = code;
+    }
+
+    public DefaultRetryPredicate() {
+      this(429);
+    }
+
+    /**
+     * method identified if the error is 429 returns true.
+     *
+     * @param response
+     * @return
+     */
+    private boolean identify(Response response) {
+      JsonNode searchResult = null;
+      try {
+        searchResult = parseResponse(response);
+      } catch (IOException e) {
+        LOG.warn("Could not identify the response " + response);
+        return false;
+      }
+      boolean errors = searchResult.path("errors").asBoolean();
+      if (errors) {
+        JsonNode items = searchResult.path("items");
+        for (JsonNode item : items) {
+          //early detection
+          if (item.findValue("status").asInt() == ERROR_CODE) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public boolean test(Throwable t) {
+      return (t instanceof ResponseException) && identify(((ResponseException) t).getResponse());
+    }
+  }
+
   /** A {@link PTransform} writing data to Elasticsearch. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
@@ -742,6 +808,9 @@ public class ElasticsearchIO {
     @Nullable
     abstract FieldValueExtractFn getTypeFn();
 
+    @Nullable
+    abstract RetryConfiguration getRetryConfiguration();
+
     abstract boolean getUsePartialUpdate();
 
     abstract Builder builder();
@@ -761,6 +830,8 @@ public class ElasticsearchIO {
       abstract Builder setTypeFn(FieldValueExtractFn typeFn);
 
       abstract Builder setUsePartialUpdate(boolean usePartialUpdate);
+
+      abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Write build();
     }
@@ -861,6 +932,11 @@ public class ElasticsearchIO {
       return builder().setUsePartialUpdate(usePartialUpdate).build();
     }
 
+    public Write withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration is required");
+      return builder().setRetryConfiguration(retryConfiguration).build();
+    }
+
     @Override
     public PDone expand(PCollection<String> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
@@ -874,6 +950,15 @@ public class ElasticsearchIO {
     static class WriteFn extends DoFn<String, Void> {
       private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
       private static final int DEFAULT_RETRY_ON_CONFLICT = 5; // race conditions on updates
+
+      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
+      private static final Duration RETRY_MAX_BACKOFF = Duration.standardSeconds(365);
+
+      static final String RETRY_ATTEMPT_LOG = "Retrying again .. %d";
+      static final String RETRY_FAILED_LOG =
+          "Error writing to ES after %d attempt(s). No more attempts allowed";
+
+      private transient FluentBackoff retryBackoff;
 
       private int backendVersion;
       private final Write spec;
@@ -915,6 +1000,20 @@ public class ElasticsearchIO {
         ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
         backendVersion = getBackendVersion(connectionConfiguration);
         restClient = connectionConfiguration.createClient();
+
+        retryBackoff =
+            FluentBackoff.DEFAULT
+                .withMaxRetries(0)
+                .withInitialBackoff(RETRY_INITIAL_BACKOFF)
+                .withMaxCumulativeBackoff(RETRY_MAX_BACKOFF);
+
+        if (spec.getRetryConfiguration() != null) {
+          retryBackoff =
+              FluentBackoff.DEFAULT
+                  .withInitialBackoff(RETRY_INITIAL_BACKOFF)
+                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+        }
       }
 
       @StartBundle
@@ -985,7 +1084,7 @@ public class ElasticsearchIO {
         flushBatch();
       }
 
-      private void flushBatch() throws IOException {
+      private void flushBatch() throws Exception {
         if (batch.isEmpty()) {
           return;
         }
@@ -995,7 +1094,7 @@ public class ElasticsearchIO {
         }
         batch.clear();
         currentBatchSizeBytes = 0;
-        Response response;
+        Response response = null;
         // Elasticsearch will default to the index/type provided here if none are set in the
         // document meta (i.e. using ElasticsearchIO$Write#withIndexFn and
         // ElasticsearchIO$Write#withTypeFn options)
@@ -1007,7 +1106,37 @@ public class ElasticsearchIO {
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
         response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
+        if (spec.getRetryConfiguration() != null
+            && spec.getRetryConfiguration()
+                .getRetryPredicate()
+                .test(new ResponseException(response))) {
+          response = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
+        }
         checkForErrors(response, backendVersion);
+      }
+
+      /** retry request based on retry configuration policy. */
+      private Response handleRetry(
+          String method, String endpoint, Map<String, String> params, HttpEntity requestBody)
+          throws Exception {
+        Response response = null;
+        Sleeper sleeper = Sleeper.DEFAULT;
+        BackOff backoff = retryBackoff.backoff();
+        int attempt = 0;
+        //while retry policy exists
+        while (BackOffUtils.next(sleeper, backoff)) {
+          LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
+          response =
+              restClient.performRequest(method, endpoint, Collections.emptyMap(), requestBody);
+          if (spec.getRetryConfiguration()
+              .getRetryPredicate()
+              .test(new ResponseException(response))) {
+            continue;
+          }
+          //if request was successful or has other errors
+          return response;
+        }
+        throw new IOException(String.format(RETRY_FAILED_LOG, attempt));
       }
 
       @Teardown

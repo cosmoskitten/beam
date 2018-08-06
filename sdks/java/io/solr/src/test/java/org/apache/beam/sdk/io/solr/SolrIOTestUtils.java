@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
@@ -122,7 +123,7 @@ public class SolrIOTestUtils {
   }
 
   /** A strategy that will accept to retry on any SolrException. */
-  static class LenientRetryPredicate implements SolrIO.RetryConfiguration.RetryPredicate {
+  static class LenientRetryPredicate implements RetryPredicate {
     @Override
     public boolean test(Throwable throwable) {
       return throwable instanceof SolrException;

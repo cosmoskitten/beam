@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.solr;
 
-import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
@@ -28,6 +27,8 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.io.solr.SolrIOTestUtils.LenientRetryPredicate;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -64,6 +65,7 @@ import org.slf4j.LoggerFactory;
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
 public class SolrIOTest extends SolrCloudTestCase {
+
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
   private static final String SOLR_COLLECTION = "beam";
@@ -71,6 +73,8 @@ public class SolrIOTest extends SolrCloudTestCase {
   private static final long NUM_DOCS = 400L;
   private static final int NUM_SCIENTISTS = 10;
   private static final int BATCH_SIZE = 200;
+
+  private static final RetryPredicate DEFAULT_RETRY_PREDICATE = new SolrIO.DefaultRetryPredicate();
 
   private static AuthorizedSolrClient<CloudSolrClient> solrClient;
   private static SolrIO.ConnectionConfiguration connectionConfiguration;
@@ -241,8 +245,8 @@ public class SolrIOTest extends SolrCloudTestCase {
         SolrIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withRetryConfiguration(
-                SolrIO.RetryConfiguration.create(3, Duration.standardMinutes(3))
-                    .withRetryPredicate(new LenientRetryPredicate()))
+                RetryConfiguration.create(
+                    3, Duration.standardMinutes(3), new LenientRetryPredicate()))
             .to("wrong-collection");
 
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);

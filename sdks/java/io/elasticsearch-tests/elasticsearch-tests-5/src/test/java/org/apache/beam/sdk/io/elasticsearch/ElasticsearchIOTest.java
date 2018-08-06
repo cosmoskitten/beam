@@ -26,22 +26,35 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.lessThan;
+import static org.junit.Assert.assertEquals;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.transport.Netty4Plugin;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,7 +68,9 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
-
+  //RetryPredicate for 429- TOO MANY REQUESTS.
+  private static final RetryPredicate DEFAULT_RETRY_PREDICATE =
+      new ElasticsearchIO.DefaultRetryPredicate();
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
 
@@ -215,5 +230,43 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
+  }
+
+  @Test
+  public void testDefaultRetryPredicate() throws IOException {
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));
+    String x =
+        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+            + "{ \"field1\" : @ }\n";
+    HttpEntity entity = new NStringEntity(x, ContentType.APPLICATION_JSON);
+
+    Response response =
+        getRestClient().performRequest("POST", "/_bulk", Collections.emptyMap(), entity);
+    //Cannnot create a mock Response, so tried with a bulk request and expecting 400 code.
+    assertTrue(
+        new ElasticsearchIO.DefaultRetryPredicate(400).test(new ResponseException(response)));
+  }
+
+  @Test
+  public void testWriteRetry() throws Throwable {
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage(
+        String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, 2));
+    // wrong json values to generate 400 http code.
+    String data[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+    ElasticsearchIO.Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withRetryConfiguration(
+                RetryConfiguration.create(
+                    3, Duration.millis(35000), new ElasticsearchIO.DefaultRetryPredicate(400)));
+    pipeline.apply(Create.of(Arrays.asList(data))).apply(write);
+    try {
+      pipeline.run();
+    } catch (Exception ex) {
+      throw ex.getCause();
+    }
+
+    fail();
   }
 }
