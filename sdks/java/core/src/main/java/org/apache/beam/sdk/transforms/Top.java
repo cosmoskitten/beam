@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.PerKey;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -168,7 +169,17 @@ public class Top {
    * {@code PCollection} of {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>> Combine.Globally<T, List<T>> largest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Natural<T>()));
+    return Combine.globally(largestFn(count));
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the largest count values. */
+  public static <T extends Comparable<T>> TopCombineFn<T, Natural<T>> largestFn(int count) {
+    return new TopCombineFn<>(count, new Natural<T>());
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the smallest count values. */
+  public static <T extends Comparable<T>> TopCombineFn<T, Reversed<T>> smallestFn(int count) {
+    return new TopCombineFn<>(count, new Reversed<T>());
   }
 
   /**
@@ -248,7 +259,7 @@ public class Top {
    */
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>> smallestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Reversed<V>()));
+    return Combine.perKey(smallestFn(count));
   }
 
   /**
@@ -287,7 +298,7 @@ public class Top {
    * PCollection} and return the top elements.
    */
   public static <K, V extends Comparable<V>> PerKey<K, V, List<V>> largestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Natural<V>()));
+    return Combine.perKey(largestFn(10));
   }
 
   /** @deprecated use {@link Natural} instead */
@@ -335,7 +346,6 @@ public class Top {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-
   /**
    * {@code CombineFn} for {@code Top} transforms that combines a bunch of {@code T}s into a single
    * {@code count}-long {@code List<T>}, using {@code compareFn} to choose the largest {@code T}s.
