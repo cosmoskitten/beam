@@ -29,9 +29,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.common.retry.BaseRetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -220,56 +221,33 @@ public class SolrIO {
    *       </ul>
    * </ul>
    */
-  @AutoValue
-  public abstract static class RetryConfiguration implements Serializable {
-    @VisibleForTesting
-    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+  public static class RetryConfiguration extends BaseRetryConfiguration {
 
-    abstract int getMaxAttempts();
-
-    abstract Duration getMaxDuration();
-
-    abstract RetryPredicate getRetryPredicate();
-
-    abstract Builder builder();
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract SolrIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
-
-      abstract SolrIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
-
-      abstract SolrIO.RetryConfiguration.Builder setRetryPredicate(RetryPredicate retryPredicate);
-
-      abstract SolrIO.RetryConfiguration build();
+    private RetryConfiguration(
+        int maxAttempts, Duration maxDuration, RetryPredicate defaultRetryPredicate) {
+      super(maxAttempts, maxDuration, defaultRetryPredicate);
     }
 
+    /**
+     * Creates RetryConfiguration for {@link SolrIO} with provided maxAttempts, maxDurations and
+     * exponential backoff based retries.
+     */
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration must be greater than 0");
-      return new AutoValue_SolrIO_RetryConfiguration.Builder()
-          .setMaxAttempts(maxAttempts)
-          .setMaxDuration(maxDuration)
-          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
-          .build();
+      return new RetryConfiguration(maxAttempts, maxDuration, DEFAULT_RETRY_PREDICATE);
     }
 
-    // Exposed only to allow tests to easily simulate server errors
     @VisibleForTesting
     RetryConfiguration withRetryPredicate(RetryPredicate predicate) {
-      checkArgument(predicate != null, "predicate must be provided");
-      return builder().setRetryPredicate(predicate).build();
+      this.retryPredicate = predicate;
+      return this;
     }
 
-    /**
-     * An interface used to control if we retry the Solr call when a {@link Throwable} occurs. If
-     * {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend the requests
-     * to the Solr server if the {@link RetryConfiguration} permits it.
-     */
-    @FunctionalInterface
-    interface RetryPredicate extends Predicate<Throwable>, Serializable {}
+    @VisibleForTesting
+    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
     /** This is the default predicate used to test if a failed Solr operation should be retried. */
     private static class DefaultRetryPredicate implements RetryPredicate {
