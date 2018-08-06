@@ -736,11 +736,11 @@ public class ElasticsearchIO {
    */
   static class DefaultRetryPredicate implements RetryPredicate {
 
-    private int ERROR_CODE;
+    private int errorCode;
 
     public DefaultRetryPredicate(@Nonnull int code) {
       Objects.requireNonNull(code);
-      this.ERROR_CODE = code;
+      this.errorCode = code;
     }
 
     public DefaultRetryPredicate() {
@@ -766,7 +766,7 @@ public class ElasticsearchIO {
         JsonNode items = searchResult.path("items");
         for (JsonNode item : items) {
           //early detection
-          if (item.findValue("status").asInt() == ERROR_CODE) {
+          if (item.findValue("status").asInt() == errorCode) {
             return true;
           }
         }

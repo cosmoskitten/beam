@@ -41,6 +41,7 @@ public class RetryConfiguration implements Serializable {
         .build();
   }
 
+  /** Retry Configuration Builder builds the RetryConfiguration object. */
   public static final class RetryConfigurationBuilder {
 
     private int maxAttempts;
