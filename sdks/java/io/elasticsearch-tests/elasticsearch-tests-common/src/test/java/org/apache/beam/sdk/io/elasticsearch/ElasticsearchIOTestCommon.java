@@ -25,13 +25,14 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refr
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
-import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,20 +40,27 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
+import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
+import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +69,18 @@ import org.slf4j.LoggerFactory;
 class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
+
+  private static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(400);
+
+  private static final int EXPECTED_RETRIES = 2;
+  private static final int MAX_ATTEMPTS = 3;
+  private static final String BAD_FORMATTED_DOC[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+  private static final String OK_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : 1 }\n";
+  private static final String BAD_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : @ }\n";
 
   static final String ES_INDEX = "beam";
   static final String ES_TYPE = "test";
@@ -112,62 +132,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
   }
 
-  void testSplit() throws Exception {
-    if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(
-          connectionConfiguration, NUM_DOCS_UTESTS, restClient);
-    }
-    final PipelineOptions options = PipelineOptionsFactory.create();
-    final Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    final BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
-
-    final int desiredBundleSizeBytes = 2000;
-    final List<? extends BoundedSource<String>> splits =
-        initialSource.split(desiredBundleSizeBytes, options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-
-    final long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
-    final float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-    final int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-    assertEquals("Wrong number of splits", expectedNumSources, splits.size());
-
-    int emptySplits = 0;
-    for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).isEmpty()) {
-        emptySplits += 1;
-      }
-    }
-    assertThat(
-        "There are too many empty splits, parallelism is sub-optimal",
-        emptySplits,
-        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
-  }
-
-  void testSplitsVolume(final PipelineOptions options) throws Exception {
-    final Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
-    final BoundedElasticsearchSource initialSource =
-        new BoundedElasticsearchSource(read, null, null, null);
-
-    final int desiredBundleSizeBytes = 10000;
-    final List<? extends BoundedSource<String>> splits =
-        initialSource.split(desiredBundleSizeBytes, options);
-    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
-
-    final long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
-    final float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
-    final int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-    assertEquals("Wrong number of splits", expectedNumSources, splits.size());
-
-    int nonEmptySplits = 0;
-    for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
-      }
-    }
-    assertEquals("Wrong number of empty splits", expectedNumSources, nonEmptySplits);
-  }
-
   void testRead() throws Exception {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
@@ -195,7 +159,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "  \"query\": {\n"
             + "  \"match\" : {\n"
             + "    \"scientist\" : {\n"
-            + "      \"query\" : \"Einstein\"\n"
+            + "      \"query\" : \"Einstein\",\n"
+            + "      \"type\" : \"boolean\"\n"
             + "    }\n"
             + "  }\n"
             + "  }\n"
@@ -450,10 +415,8 @@ class ElasticsearchIOTestCommon implements Serializable {
    * Tests that documents are dynamically routed to different types and not the type that is given
    * in the configuration. Documents should be routed to the a type of type_0 or type_1 using a
    * modulo approach of the explicit id.
-   *
-   * <p>This test does not work with ES 6 because multiple type support within an index was removed.
    */
-  void testWriteWithTypeFn2x5x() throws Exception {
+  void testWriteWithTypeFn() throws Exception {
     // defensive coding: this test requires an even number of docs
     long adjustedNumDocs = (numDocs & 1) == 0 ? numDocs : numDocs + 1;
 
@@ -572,5 +535,42 @@ class ElasticsearchIOTestCommon implements Serializable {
       fail("No string found containing " + expectedSubString);
       return null;
     }
+  }
+
+  /** Test that the default predicate correctly parses chosen error code. */
+  public void testDefaultRetryPredicate(RestClient restClient) throws IOException {
+
+    HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
+    Response response1 =
+        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
+    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1));
+
+    HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
+    Response response2 =
+        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2));
+  }
+
+  /**
+   * Test that retries are invoked when Elasticsearch returns a specific error code. We invoke this
+   * by issuing corrupt data and retrying on the `400` error code. Normal behaviour is to retry on
+   * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
+   * behavior.
+   */
+  public void testWriteRetry() throws Throwable {
+    expectedException.expectCause(isA(IOException.class));
+    // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
+    expectedException.expectMessage(
+        String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
+
+    ElasticsearchIO.Write write =
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withRetryConfiguration(
+                ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
+    pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
+
+    pipeline.run();
   }
 }
