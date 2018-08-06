@@ -32,8 +32,7 @@ class EmptyInputProvider implements RootInputProvider<Void> {
    */
   @Override
   public Collection<CommittedBundle<Void>> getInitialInputs(
-      PTransformNode transform,
-      int targetParallelism) {
+      PTransformNode transform, int targetParallelism) {
     return Collections.emptyList();
   }
 }

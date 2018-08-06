@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -34,23 +33,13 @@ import org.apache.beam.sdk.transforms.PTransform;
  * based on the type of {@link PTransform} of the application.
  */
 class RootProviderRegistry {
-  public static RootProviderRegistry javaPortableRegistry(BundleFactory bundleFactory) {
+  static RootProviderRegistry javaPortableRegistry(BundleFactory bundleFactory) {
     return new RootProviderRegistry(
         ImmutableMap.<String, RootInputProvider<?>>builder()
             .put(
                 IMPULSE_TRANSFORM_URN,
                 new ImpulseEvaluatorFactory.ImpulseRootProvider(bundleFactory))
             .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider())
-        .build());
-  }
-
-  /** Returns a {@link RootProviderRegistry} that only supports the {@link Impulse} primitive. */
-  public static RootProviderRegistry impulseRegistry(BundleFactory bundleFactory) {
-    return new RootProviderRegistry(
-        ImmutableMap.<String, RootInputProvider<?>>builder()
-            .put(
-                IMPULSE_TRANSFORM_URN,
-                new ImpulseEvaluatorFactory.ImpulseRootProvider(bundleFactory))
             .build());
   }
 
