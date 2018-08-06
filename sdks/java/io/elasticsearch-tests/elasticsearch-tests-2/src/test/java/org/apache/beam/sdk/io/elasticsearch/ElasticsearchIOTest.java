@@ -216,8 +216,20 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+<<<<<<< HEAD
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
+=======
+  public void testDefaultRetryPredicate() throws IOException {
+    elasticsearchIOTestCommon.testDefaultRetryPredicate(restClient);
+  }
+
+  @Test
+  public void testWriteRetry() throws Throwable {
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetry();
+>>>>>>> cccc274496... BEAM-3026: Adding retrying behavior on ESIO for 429: Too Many Requests
   }
 }

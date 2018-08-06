@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
 public class SolrIOTest extends SolrCloudTestCase {
+
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
   private static final String SOLR_COLLECTION = "beam";
