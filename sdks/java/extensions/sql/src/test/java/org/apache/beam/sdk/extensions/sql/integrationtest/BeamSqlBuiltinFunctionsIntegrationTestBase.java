@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
@@ -57,6 +58,7 @@ import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
+  private static final double PRECISION = 1e-7;
 
   private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
       ImmutableMap.<Class, TypeName>builder()
@@ -88,6 +90,20 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           .addInt64Field("c_bigint_max")
           .build();
 
+  private static final Schema ROW_TYPE_TWO =
+      Schema.builder()
+          .addDateTimeField("ts")
+          .addByteField("c_tinyint")
+          .addInt16Field("c_smallint")
+          .addInt32Field("c_integer")
+          .addInt32Field("c_integer_two")
+          .addInt64Field("c_bigint")
+          .addFloatField("c_float")
+          .addDoubleField("c_double")
+          .addDoubleField("c_double_two")
+          .addDecimalField("c_decimal")
+          .build();
+
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<Row> getTestPCollection() {
@@ -113,6 +129,49 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     }
   }
 
+  protected PCollection<Row> getAggregationTestPCollection() {
+    try {
+      return MockedBoundedTable.of(ROW_TYPE_TWO)
+          .addRows(
+              parseDate("1986-02-15 11:35:26"),
+              (byte) 1,
+              (short) 1,
+              1,
+              5,
+              1L,
+              1.0f,
+              1.0,
+              7.0,
+              BigDecimal.valueOf(1.0))
+          .addRows(
+              parseDate("1986-03-15 11:35:26"),
+              (byte) 2,
+              (short) 2,
+              2,
+              6,
+              2L,
+              2.0f,
+              2.0,
+              8.0,
+              BigDecimal.valueOf(2.0))
+          .addRows(
+              parseDate("1986-04-15 11:35:26"),
+              (byte) 3,
+              (short) 3,
+              3,
+              7,
+              3L,
+              3.0f,
+              3.0,
+              9.0,
+              BigDecimal.valueOf(3.0))
+          .buildIOReader(pipeline.begin())
+          .setRowSchema(ROW_TYPE_TWO);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   protected static DateTime parseDate(String str) {
     return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
   }
@@ -123,7 +182,13 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     private static ExpressionTestCase of(
         String sqlExpr, Object expectedResult, FieldType resultFieldType) {
       return new AutoValue_BeamSqlBuiltinFunctionsIntegrationTestBase_ExpressionTestCase(
-          sqlExpr, expectedResult, resultFieldType);
+          sqlExpr, expectedResult, resultFieldType, false);
+    }
+
+    private static ExpressionTestCase createTestCaseWithPrecision(
+        String sqlExpr, Object expectedResult, FieldType resultFieldType) {
+      return new AutoValue_BeamSqlBuiltinFunctionsIntegrationTestBase_ExpressionTestCase(
+          sqlExpr, expectedResult, resultFieldType, true);
     }
 
     abstract String sqlExpr();
@@ -131,6 +196,8 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     abstract Object expectedResult();
 
     abstract FieldType resultFieldType();
+
+    abstract boolean isCompareNonExactNumber();
   }
 
   /**
@@ -152,13 +219,18 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      // Because of erasure, we can only automatically infer non-parameterized types
-      TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
-      checkArgument(
-          resultTypeName != null,
-          "Could not infer a Beam type for %s."
-              + " Parameterized types must be provided explicitly.");
+      TypeName resultTypeName = getTypeName(expectedValue);
       addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      return this;
+    }
+
+    public ExpressionChecker addExprWithNonExactExpectedValue(
+        String expression, Object expectedValue) {
+      TypeName resultTypeName = getTypeName(expectedValue);
+      checkArgument(
+          expectedValue instanceof Double,
+          "Could not compare non exact value because expectedValue is not double!");
+      addExprWithNonExactExpectedValue(expression, expectedValue, FieldType.of(resultTypeName));
       return this;
     }
 
@@ -168,9 +240,20 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       return this;
     }
 
-    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
+    public ExpressionChecker addExprWithNonExactExpectedValue(
+        String expression, Object expectedValue, FieldType resultFieldType) {
+      exps.add(
+          ExpressionTestCase.createTestCaseWithPrecision(
+              expression, expectedValue, resultFieldType));
+      return this;
+    }
+
     public void buildRunAndCheck() {
-      PCollection<Row> inputCollection = getTestPCollection();
+      buildRunAndCheck(getTestPCollection());
+    }
+
+    /** Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result. */
+    public void buildRunAndCheck(PCollection<Row> inputCollection) {
 
       for (ExpressionTestCase testCase : exps) {
         String expression = testCase.sqlExpr();
@@ -180,12 +263,26 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
 
         PCollection<Row> output =
             inputCollection.apply(testCase.toString(), SqlTransform.query(sql));
-
-        PAssert.that(output)
-            .containsInAnyOrder(TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        if (testCase.isCompareNonExactNumber()) {
+          PAssert.that(output).satisfies(matchesScalar((double) expectedValue, PRECISION));
+        } else {
+          PAssert.that(output)
+              .containsInAnyOrder(
+                  TestUtils.RowsBuilder.of(schema).addRows(expectedValue).getRows());
+        }
       }
 
       inputCollection.getPipeline().run();
+    }
+
+    private TypeName getTypeName(Object expectedValue) {
+      // Because of erasure, we can only automatically infer non-parameterized types
+      TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
+      checkArgument(
+          resultTypeName != null,
+          "Could not infer a Beam type for %s."
+              + " Parameterized types must be provided explicitly.");
+      return resultTypeName;
     }
   }
 
