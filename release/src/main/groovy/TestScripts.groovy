@@ -26,7 +26,7 @@ import groovy.util.CliBuilder
 class TestScripts {
 
    // Global state to maintain when running the steps
-   class var {
+   class globalStates {
      static File startDir
      static File curDir
      static String repoUrl
@@ -47,53 +47,53 @@ class TestScripts {
      cli.pubsubTopic(args:1, "PubSub Topic")
 
      def options = cli.parse(args)
-     var.repoUrl = options.repourl
-     var.ver = options.ver
-     println "Repository URL: ${var.repoUrl}"
-     println "Version: ${var.ver}"
+     globalStates.repoUrl = options.repourl
+     globalStates.ver = options.ver
+     println "Repository URL: ${globalStates.repoUrl}"
+     println "Version: ${globalStates.ver}"
      if (options.gcpProject) {
-       var.gcpProject = options.gcpProject
-       println "GCS Project: ${var.gcpProject}"
+       globalStates.gcpProject = options.gcpProject
+       println "GCS Project: ${globalStates.gcpProject}"
      }
      if (options.gcsBucket) {
-       var.gcsBucket = options.gcsBucket
-       println "GCS Storage bucket: ${var.gcsBucket}"
+       globalStates.gcsBucket = options.gcsBucket
+       println "GCS Storage bucket: ${globalStates.gcsBucket}"
      }
      if (options.bqDataset) {
-         var.bqDataset = options.bqDataset
-         println "BigQuery Dataset: ${var.bqDataset}"
+         globalStates.bqDataset = options.bqDataset
+         println "BigQuery Dataset: ${globalStates.bqDataset}"
      }
      if (options.pubsubTopic) {
-         var.pubsubTopic = options.pubsubTopic
-         println "PubSub Topic: ${var.pubsubTopic}"
+         globalStates.pubsubTopic = options.pubsubTopic
+         println "PubSub Topic: ${globalStates.pubsubTopic}"
      }
    }
 
    def ver() {
-     return var.ver
+     return globalStates.ver
    }
 
    def gcpProject() {
-     return var.gcpProject
+     return globalStates.gcpProject
    }
 
    def gcsBucket() {
-     return var.gcsBucket
+     return globalStates.gcsBucket
    }
 
    def bqDataset() {
-     return var.bqDataset
+     return globalStates.bqDataset
    }
 
    def pubsubTopic() {
-     return var.pubsubTopic
+     return globalStates.pubsubTopic
    }
 
    // Both documents the overal scenario and creates a clean temp directory
    def describe(String desc) {
-     var.startDir = File.createTempDir()
-     var.startDir.deleteOnExit()
-     var.curDir = var.startDir
+     globalStates.startDir = File.createTempDir()
+     globalStates.startDir.deleteOnExit()
+     globalStates.curDir = globalStates.startDir
      print "**************************************\n* Scenario: ${desc}\n**************************************\n"
    }
 
@@ -122,7 +122,7 @@ class TestScripts {
    // Check for expected results in actual stdout from previous command, if fails, log errors then exit.
    public void see(String expected, String actual) {
      if (!actual.contains(expected)) {
-       var.startDir.deleteDir()
+       globalStates.startDir.deleteDir()
        println "Cannot find ${expected} in ${actual}"
        error("Cannot find expected text")
      }
@@ -143,7 +143,7 @@ class TestScripts {
 
    // Cleanup and print success
    public void done() {
-     var.startDir.deleteDir()
+     globalStates.startDir.deleteDir()
      println "[SUCCESS]"
      System.exit(0)
    }
@@ -153,7 +153,7 @@ class TestScripts {
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
-     pb.directory(var.curDir)
+     pb.directory(globalStates.curDir)
      pb.redirectErrorStream(true)
      def proc = pb.start()
      String output_text = ""
@@ -173,17 +173,17 @@ class TestScripts {
 
    // Change directory
    private void _chdir(String subdir) {
-     var.curDir = new File(var.curDir.absolutePath, subdir)
-     if (!var.curDir.exists()) {
-       error("Directory ${var.curDir} not found")
+     globalStates.curDir = new File(globalStates.curDir.absolutePath, subdir)
+     if (!globalStates.curDir.exists()) {
+       error("Directory ${globalStates.curDir} not found")
      }
    }
 
    // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
    private String _mvn(String args) {
-     def m2 = new File(var.startDir, ".m2/repository")
+     def m2 = new File(globalStates.startDir, ".m2/repository")
      m2.mkdirs()
-     def settings = new File(var.startDir, "settings.xml")
+     def settings = new File(globalStates.startDir, "settings.xml")
      settings.write """
        <settings>
          <localRepository>${m2.absolutePath}</localRepository>
@@ -193,7 +193,7 @@ class TestScripts {
                  <repositories>
                    <repository>
                      <id>test.release</id>
-                     <url>${var.repoUrl}</url>
+                     <url>${globalStates.repoUrl}</url>
                    </repository>
                  </repositories>
                </profile>
@@ -213,7 +213,7 @@ class TestScripts {
 
    // Clean up and report error
    public void error(String text) {
-     var.startDir.deleteDir()
+     globalStates.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)
    }
