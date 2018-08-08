@@ -517,16 +517,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
 
   @Test
   @SqlOperatorTest(name = "MAX", kind = "MAX")
-  @SqlOperatorTest(name = "MIN", kind = "MIN")
-  @SqlOperatorTest(name = "SUM", kind = "SUM")
-  @SqlOperatorTest(name = "AVG", kind = "AVG")
-  // @SqlOperatorTest(name = "$SUM0", kind = "SUM0")
-  @SqlOperatorTest(name = "COUNT", kind = "COUNT")
-  @SqlOperatorTest(name = "VAR_POP", kind = "VAR_POP")
-  @SqlOperatorTest(name = "VAR_SAMP", kind = "VAR_SAMP")
-  @SqlOperatorTest(name = "COVAR_POP", kind = "COVAR_POP")
-  @SqlOperatorTest(name = "COVAR_SAMP", kind = "COVAR_SAMP")
-  public void testAggrationFunctions() {
+  public void testMax() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("MAX(c_tinyint)", (byte) 3)
@@ -536,7 +527,15 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("MAX(c_float)", 3.0f)
             .addExpr("MAX(c_double)", 3.0)
             .addExpr("MAX(c_decimal)", BigDecimal.valueOf(3.0))
-            .addExpr("MAX(ts)", parseDate("1986-04-15 11:35:26"))
+            .addExpr("MAX(ts)", parseDate("1986-04-15 11:35:26"));
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "MIN", kind = "MIN")
+  public void testMin() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("MIN(c_tinyint)", (byte) 1)
             .addExpr("MIN(c_smallint)", (short) 1)
             .addExpr("MIN(c_integer)", 1)
@@ -544,37 +543,99 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("MIN(c_float)", 1.0f)
             .addExpr("MIN(c_double)", 1.0)
             .addExpr("MIN(c_decimal)", BigDecimal.valueOf(1.0))
-            .addExpr("MIN(ts)", parseDate("1986-02-15 11:35:26"))
+            .addExpr("MIN(ts)", parseDate("1986-02-15 11:35:26"));
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "SUM", kind = "SUM")
+  public void testSum() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("SUM(c_tinyint)", (byte) 6)
             .addExpr("SUM(c_smallint)", (short) 6)
             .addExpr("SUM(c_integer)", 6)
             .addExpr("SUM(c_bigint)", 6L)
             .addExpr("SUM(c_float)", 6.0f)
             .addExpr("SUM(c_double)", 6.0)
-            .addExpr("SUM(c_decimal)", BigDecimal.valueOf(6.0))
+            .addExpr("SUM(c_decimal)", BigDecimal.valueOf(6.0));
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "AVG", kind = "AVG")
+  public void testAvg() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("AVG(c_tinyint)", (byte) 2)
             .addExpr("AVG(c_smallint)", (short) 2)
             .addExpr("AVG(c_integer)", 2)
             .addExpr("AVG(c_bigint)", 2L)
             .addExpr("AVG(c_float)", 2.0f)
             .addExpr("AVG(c_double)", 2.0)
-            .addExpr("AVG(c_decimal)", BigDecimal.valueOf(2.0))
-            .addExpr("COUNT(*)", 4L)
-            .addExpr("COUNT(1)", 4L)
-            // .addExpr("$SUM0(c_tinyint)", (byte) 6)
-            // .addExpr("$SUM0(c_smallint)", (short) 6)
-            // .addExpr("$SUM0(c_integer)", 6)
-            // .addExpr("$SUM0(c_bigint)", 6L)
-            // .addExpr("$SUM0(c_float)", 6.0f)
-            // .addExpr("$SUM0(c_double)", 6.0)
-            // .addExpr("$SUM0(c_decimal)", BigDecimal.valueOf(6.0))
+            .addExpr("AVG(c_decimal)", BigDecimal.valueOf(2.0));
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  // @Test
+  // @SqlOperatorTest(name = "$SUM0", kind = "SUM0")
+  // public void testSUM0() {
+  //   ExpressionChecker checker =
+  //       new ExpressionChecker()
+  // .addExpr("$SUM0(c_tinyint)", (byte) 6)
+  // .addExpr("$SUM0(c_smallint)", (short) 6)
+  // .addExpr("$SUM0(c_integer)", 6)
+  // .addExpr("$SUM0(c_bigint)", 6L)
+  // .addExpr("$SUM0(c_float)", 6.0f)
+  // .addExpr("$SUM0(c_double)", 6.0)
+  // .addExpr("$SUM0(c_decimal)", BigDecimal.valueOf(6.0))
+  // checker.buildRunAndCheck(getAggregationTestPCollection());
+  // }
+
+  @Test
+  @SqlOperatorTest(name = "COUNT", kind = "COUNT")
+  public void testCount() {
+    ExpressionChecker checker =
+        new ExpressionChecker().addExpr("COUNT(*)", 4L).addExpr("COUNT(1)", 4L);
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "VAR_POP", kind = "VAR_POP")
+  public void testVARPOP() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("VAR_POP(c_integer)", 0)
+            .addExprWithNonExactExpectedValue("VAR_POP(c_double)", 0.6666666);
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "VAR_SAMP", kind = "VAR_SAMP")
+  public void testVARSAMP() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("VAR_SAMP(c_integer)", 1)
-            .addExprWithNonExactExpectedValue("VAR_POP(c_double)", 0.6666666)
-            .addExprWithNonExactExpectedValue("VAR_SAMP(c_double)", 1.0)
+            .addExprWithNonExactExpectedValue("VAR_SAMP(c_double)", 1.0);
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "COVAR_POP", kind = "COVAR_POP")
+  public void testCOVARPOP() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("COVAR_POP(c_integer, c_integer_two)", 0)
+            .addExprWithNonExactExpectedValue("COVAR_POP(c_double, c_double_two)", 0.6666666);
+    checker.buildRunAndCheck(getAggregationTestPCollection());
+  }
+
+  @Test
+  @SqlOperatorTest(name = "COVAR_SAMP", kind = "COVAR_SAMP")
+  public void testAggrationFunctions() {
+    ExpressionChecker checker =
+        new ExpressionChecker()
             .addExpr("COVAR_SAMP(c_integer, c_integer_two)", 1)
-            .addExprWithNonExactExpectedValue("COVAR_POP(c_double, c_double_two)", 0.6666666)
             .addExprWithNonExactExpectedValue("COVAR_SAMP(c_double, c_double_two)", 1.0);
 
     checker.buildRunAndCheck(getAggregationTestPCollection());
