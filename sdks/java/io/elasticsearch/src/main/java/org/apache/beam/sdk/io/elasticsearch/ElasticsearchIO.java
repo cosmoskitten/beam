@@ -759,15 +759,13 @@ public class ElasticsearchIO {
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
-    @VisibleForTesting
-    static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(400);
-
     /**
      * This is the default predicate used to test if a failed ES operation should be retried. A
      * retry will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes
      * first, for TOO_MANY_REQUESTS(429) error.
      */
-    private static class DefaultRetryPredicate implements RetryPredicate {
+    @VisibleForTesting
+    static class DefaultRetryPredicate implements RetryPredicate {
 
       private int errorCode;
 

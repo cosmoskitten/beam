@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.CUSTOM_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
@@ -34,7 +33,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -42,12 +40,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.transport.Netty4Plugin;
-import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -228,32 +224,10 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     elasticsearchIOTestCommon.testDefaultRetryPredicate(getRestClient());
   }
 
-  /**
-   * Test that retries are invoked when Elasticsearch returns a specific error code. We invoke this
-   * by issuing corrupt data and retrying on the `400` error code. Normal behaviour is to retry on
-   * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
-   * behavior.
-   */
   @Test
   public void testWriteRetry() throws Throwable {
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage(
-        String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, 2));
-
-    String data[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
-    ElasticsearchIO.Write write =
-        ElasticsearchIO.write()
-            .withConnectionConfiguration(connectionConfiguration)
-            .withRetryConfiguration(
-                ElasticsearchIO.RetryConfiguration.create(3, Duration.millis(35000))
-                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
-    pipeline.apply(Create.of(Arrays.asList(data))).apply(write);
-    try {
-      pipeline.run();
-    } catch (Exception ex) {
-      throw ex.getCause();
-    }
-
-    fail();
+    elasticsearchIOTestCommon.setExpectedException(expectedException);
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteRetry();
   }
 }
