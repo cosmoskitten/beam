@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** A {@link PCollectionView} created from the components of a {@link SideInput}. */
-class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
+public class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;
@@ -43,7 +43,7 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final transient PCollection<?> pCollection;
 
   /** Create a new {@link RunnerPCollectionView} from the provided components. */
-  RunnerPCollectionView(
+  public RunnerPCollectionView(
       PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
