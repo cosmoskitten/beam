@@ -833,7 +833,7 @@ public class ElasticsearchIO {
     abstract FieldValueExtractFn getTypeFn();
 
     @Nullable
-    abstract BaseRetryConfiguration getRetryConfiguration();
+    abstract RetryConfiguration getRetryConfiguration();
 
     abstract boolean getUsePartialUpdate();
 
@@ -855,7 +855,7 @@ public class ElasticsearchIO {
 
       abstract Builder setUsePartialUpdate(boolean usePartialUpdate);
 
-      abstract Builder setRetryConfiguration(BaseRetryConfiguration retryConfiguration);
+      abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Write build();
     }
@@ -978,7 +978,7 @@ public class ElasticsearchIO {
      * @param retryConfiguration the rules which govern the retry behavior
      * @return the {@link Write} with retrying configured
      */
-    public Write withRetryConfiguration(BaseRetryConfiguration retryConfiguration) {
+    public Write withRetryConfiguration(RetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration is required");
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
