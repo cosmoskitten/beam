@@ -313,7 +313,7 @@ public abstract class Row implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof Row)) {
+    if (!(o instanceof Row)) {
       return false;
     }
     Row other = (Row) o;
