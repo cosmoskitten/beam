@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Apache Beam IO Retry mechanism default implementations. */
+/** Apache Beam IO Retry mechanism configuration classes. */
 package org.apache.beam.sdk.io.common.retry;

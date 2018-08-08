@@ -18,11 +18,35 @@
 package org.apache.beam.sdk.io.common.retry;
 
 import java.io.Serializable;
-import java.util.function.Predicate;
+import org.joda.time.Duration;
 
 /**
- * An interface used to control if retry call when a {@link Throwable} occurs. If {@link
- * RetryPredicate#test(Object)} returns true.
+ * A POJO encapsulating a configuration for retry behavior when issuing requests. A retry will be
+ * attempted until the maxAttempts or maxDuration is exceeded, whichever comes first.
  */
-@FunctionalInterface
-public interface RetryPredicate extends Predicate<Throwable>, Serializable {}
+public class BaseRetryConfiguration implements Serializable {
+
+  private int maxAttempts;
+  private Duration maxDuration;
+  protected RetryPredicate retryPredicate;
+
+  protected BaseRetryConfiguration(
+      int maxAttempts, Duration maxDuration, RetryPredicate retryPredicate) {
+    super();
+    this.maxAttempts = maxAttempts;
+    this.maxDuration = maxDuration;
+    this.retryPredicate = retryPredicate;
+  }
+
+  public int getMaxAttempts() {
+    return maxAttempts;
+  }
+
+  public Duration getMaxDuration() {
+    return maxDuration;
+  }
+
+  public RetryPredicate getRetryPredicate() {
+    return retryPredicate;
+  }
+}

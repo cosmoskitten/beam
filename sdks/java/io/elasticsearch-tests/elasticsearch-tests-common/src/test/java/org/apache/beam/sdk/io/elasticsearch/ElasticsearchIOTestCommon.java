@@ -25,17 +25,22 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refr
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.CUSTOM_RETRY_PREDICATE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -45,6 +50,11 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
 import org.junit.rules.ExpectedException;
@@ -469,5 +479,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     // Partial update assertions
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "0"));
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
+  }
+
+  /** Test that the default predicate correctly parses chosen error code. */
+  void testDefaultRetryPredicate(RestClient restClient) throws IOException {
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));
+    String x =
+        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+            + "{ \"field1\" : @ }\n";
+    HttpEntity entity = new NStringEntity(x, ContentType.APPLICATION_JSON);
+
+    Response response = restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity);
+    assertTrue(CUSTOM_RETRY_PREDICATE.test(new ResponseException(response)));
   }
 }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.solr;
 
-import static org.apache.beam.sdk.io.solr.SolrIO.DEFAULT_RETRY_PREDICATE;
+import static org.apache.beam.sdk.io.solr.SolrIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
@@ -28,7 +28,6 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
 import org.apache.beam.sdk.io.solr.SolrIOTestUtils.LenientRetryPredicate;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -243,8 +242,8 @@ public class SolrIOTest extends SolrCloudTestCase {
         SolrIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withRetryConfiguration(
-                RetryConfiguration.create(
-                    3, Duration.standardMinutes(3), new LenientRetryPredicate()))
+                SolrIO.RetryConfiguration.create(3, Duration.standardMinutes(3))
+                    .withRetryPredicate(new LenientRetryPredicate()))
             .to("wrong-collection");
 
     List<SolrInputDocument> data = SolrIOTestUtils.createDocuments(NUM_DOCS);

@@ -31,7 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.BaseRetryConfiguration;
 import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -221,24 +221,50 @@ public class SolrIO {
    *       </ul>
    * </ul>
    */
-  @VisibleForTesting
-  static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+  public static class RetryConfiguration extends BaseRetryConfiguration {
 
-  /** This is the default predicate used to test if a failed Solr operation should be retried. */
-  private static class DefaultRetryPredicate implements RetryPredicate {
-    private static final ImmutableSet<Integer> ELIGIBLE_CODES =
-        ImmutableSet.of(
-            SolrException.ErrorCode.CONFLICT.code,
-            SolrException.ErrorCode.SERVER_ERROR.code,
-            SolrException.ErrorCode.SERVICE_UNAVAILABLE.code,
-            SolrException.ErrorCode.INVALID_STATE.code,
-            SolrException.ErrorCode.UNKNOWN.code);
+    private RetryConfiguration(
+        int maxAttempts, Duration maxDuration, RetryPredicate defaultRetryPredicate) {
+      super(maxAttempts, maxDuration, defaultRetryPredicate);
+    }
 
-    @Override
-    public boolean test(Throwable t) {
-      return (t instanceof IOException
-          || t instanceof SolrServerException
-          || (t instanceof SolrException && ELIGIBLE_CODES.contains(((SolrException) t).code())));
+    /**
+     * Creates RetryConfiguration for {@link SolrIO} with provided maxAttempts, maxDurations and
+     * exponential backoff based retries.
+     */
+    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+          "maxDuration must be greater than 0");
+      return new RetryConfiguration(maxAttempts, maxDuration, DEFAULT_RETRY_PREDICATE);
+    }
+
+    @VisibleForTesting
+    RetryConfiguration withRetryPredicate(RetryPredicate predicate) {
+      this.retryPredicate = predicate;
+      return this;
+    }
+
+    @VisibleForTesting
+    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+
+    /** This is the default predicate used to test if a failed Solr operation should be retried. */
+    private static class DefaultRetryPredicate implements RetryPredicate {
+      private static final ImmutableSet<Integer> ELIGIBLE_CODES =
+          ImmutableSet.of(
+              SolrException.ErrorCode.CONFLICT.code,
+              SolrException.ErrorCode.SERVER_ERROR.code,
+              SolrException.ErrorCode.SERVICE_UNAVAILABLE.code,
+              SolrException.ErrorCode.INVALID_STATE.code,
+              SolrException.ErrorCode.UNKNOWN.code);
+
+      @Override
+      public boolean test(Throwable t) {
+        return (t instanceof IOException
+            || t instanceof SolrServerException
+            || (t instanceof SolrException && ELIGIBLE_CODES.contains(((SolrException) t).code())));
+      }
     }
   }
 

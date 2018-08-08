@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.CUSTOM_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
@@ -35,21 +36,13 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
-import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.http.HttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.nio.entity.NStringEntity;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -68,9 +61,7 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
-  //RetryPredicate for 429- TOO MANY REQUESTS.
-  private static final RetryPredicate DEFAULT_RETRY_PREDICATE =
-      new ElasticsearchIO.DefaultRetryPredicate();
+
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
 
@@ -234,32 +225,28 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Test
   public void testDefaultRetryPredicate() throws IOException {
-    assertFalse(DEFAULT_RETRY_PREDICATE.test(new IOException("test")));
-    String x =
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
-            + "{ \"field1\" : @ }\n";
-    HttpEntity entity = new NStringEntity(x, ContentType.APPLICATION_JSON);
-
-    Response response =
-        getRestClient().performRequest("POST", "/_bulk", Collections.emptyMap(), entity);
-    //Cannnot create a mock Response, so tried with a bulk request and expecting 400 code.
-    assertTrue(
-        new ElasticsearchIO.DefaultRetryPredicate(400).test(new ResponseException(response)));
+    elasticsearchIOTestCommon.testDefaultRetryPredicate(getRestClient());
   }
 
+  /**
+   * Test that retries are invoked when Elasticsearch returns a specific error code. We invoke this
+   * by issuing corrupt data and retrying on the `400` error code. Normal behaviour is to retry on
+   * `429` only but that is difficult to simulate reliably. The logger is used to verify expected
+   * behavior.
+   */
   @Test
   public void testWriteRetry() throws Throwable {
     expectedException.expect(IOException.class);
     expectedException.expectMessage(
         String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, 2));
-    // wrong json values to generate 400 http code.
+
     String data[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withRetryConfiguration(
-                RetryConfiguration.create(
-                    3, Duration.millis(35000), new ElasticsearchIO.DefaultRetryPredicate(400)));
+                ElasticsearchIO.RetryConfiguration.create(3, Duration.millis(35000))
+                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
     pipeline.apply(Create.of(Arrays.asList(data))).apply(write);
     try {
       pipeline.run();

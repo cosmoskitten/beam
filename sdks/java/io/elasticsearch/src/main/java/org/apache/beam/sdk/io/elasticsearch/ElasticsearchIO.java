@@ -44,15 +44,13 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.retry.RetryConfiguration;
+import org.apache.beam.sdk.io.common.retry.BaseRetryConfiguration;
 import org.apache.beam.sdk.io.common.retry.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -728,55 +726,81 @@ public class ElasticsearchIO {
       return source;
     }
   }
-
   /**
-   * This is the default predicate used to test if a failed ES operation should be retried. A retry
+   * A POJO encapsulating a configuration for retry behavior when issuing requests to ES. A retry
    * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
-   * TOO_MANY_REQUESTS(429) exception.
+   * 429 TOO_MANY_REQUESTS error.
    */
-  static class DefaultRetryPredicate implements RetryPredicate {
+  public static class RetryConfiguration extends BaseRetryConfiguration {
 
-    private int errorCode;
-
-    public DefaultRetryPredicate(@Nonnull int code) {
-      Objects.requireNonNull(code);
-      this.errorCode = code;
-    }
-
-    public DefaultRetryPredicate() {
-      this(429);
+    private RetryConfiguration(
+        int maxAttempts, Duration maxDuration, RetryPredicate retryPredicate) {
+      super(maxAttempts, maxDuration, retryPredicate);
     }
 
     /**
-     * method identified if the error is 429 returns true.
-     *
-     * @param response
-     * @return
+     * Creates RetryConfiguration for {@link ElasticsearchIO} with provided maxAttempts,
+     * maxDurations and exponential backoff based retries.
      */
-    private boolean identify(Response response) {
-      JsonNode searchResult = null;
-      try {
-        searchResult = parseResponse(response);
-      } catch (IOException e) {
-        LOG.warn("Could not identify the response " + response);
-        return false;
-      }
-      boolean errors = searchResult.path("errors").asBoolean();
-      if (errors) {
-        JsonNode items = searchResult.path("items");
-        for (JsonNode item : items) {
-          //early detection
-          if (item.findValue("status").asInt() == errorCode) {
-            return true;
-          }
-        }
-      }
-      return false;
+    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+          "maxDuration must be greater than 0");
+      return new RetryConfiguration(maxAttempts, maxDuration, DEFAULT_RETRY_PREDICATE);
     }
 
-    @Override
-    public boolean test(Throwable t) {
-      return (t instanceof ResponseException) && identify(((ResponseException) t).getResponse());
+    @VisibleForTesting
+    RetryConfiguration withRetryPredicate(RetryPredicate predicate) {
+      this.retryPredicate = predicate;
+      return this;
+    }
+
+    @VisibleForTesting
+    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+
+    @VisibleForTesting
+    static final RetryPredicate CUSTOM_RETRY_PREDICATE = new DefaultRetryPredicate(400);
+
+    /**
+     * This is the default predicate used to test if a failed ES operation should be retried. A
+     * retry will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes
+     * first, for TOO_MANY_REQUESTS(429) error.
+     */
+    private static class DefaultRetryPredicate implements RetryPredicate {
+
+      private int errorCode;
+
+      DefaultRetryPredicate(int code) {
+        this.errorCode = code;
+      }
+
+      DefaultRetryPredicate() {
+        this(429);
+      }
+
+      /** Returns true if the response has the error code for any mutation. */
+      private static boolean errorCodePresent(Response response, int errorCode) {
+        try {
+          JsonNode json = parseResponse(response);
+          if (json.path("errors").asBoolean()) {
+            for (JsonNode item : json.path("items")) {
+              if (item.findValue("status").asInt() == errorCode) {
+                return true;
+              }
+            }
+          }
+        } catch (IOException e) {
+          LOG.warn("Could not extract error codes from response {}", response);
+        }
+        return false;
+      }
+
+      @Override
+      public boolean test(Throwable t) {
+        return (t instanceof ResponseException)
+            && errorCodePresent(((ResponseException) t).getResponse(), this.errorCode);
+      }
     }
   }
 
@@ -809,7 +833,7 @@ public class ElasticsearchIO {
     abstract FieldValueExtractFn getTypeFn();
 
     @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract BaseRetryConfiguration getRetryConfiguration();
 
     abstract boolean getUsePartialUpdate();
 
@@ -831,7 +855,7 @@ public class ElasticsearchIO {
 
       abstract Builder setUsePartialUpdate(boolean usePartialUpdate);
 
-      abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
+      abstract Builder setRetryConfiguration(BaseRetryConfiguration retryConfiguration);
 
       abstract Write build();
     }
@@ -932,7 +956,29 @@ public class ElasticsearchIO {
       return builder().setUsePartialUpdate(usePartialUpdate).build();
     }
 
-    public Write withRetryConfiguration(RetryConfiguration retryConfiguration) {
+    /**
+     * Provides configuration to retry a failed batch call to Elastic Search. A batch is considered
+     * as failed if the underlying {@link RestClient} surfaces 429 HTTP status code as error for one
+     * or more of the items in the {@link Response}. Users should consider that retrying might
+     * compound the underlying problem which caused the initial failure. Users should also be aware
+     * that once retrying is exhausted the error is surfaced to the runner which <em>may</em> then
+     * opt to retry the current partition in entirety or abort if the max number of retries of the
+     * runner is completed. Retrying uses an exponential backoff algorithm, with minimum backoff of
+     * 5 seconds and then surfacing the error once the maximum number of retries or maximum
+     * configuration duration is exceeded.
+     *
+     * <p>Example use:
+     *
+     * <pre>{@code
+     * ElasticsearchIO.write()
+     *   .withRetryConfiguration(ElasticsearchIO.RetryConfiguration.create(10, Duration.standardMinutes(3))
+     *   ...
+     * }</pre>
+     *
+     * @param retryConfiguration the rules which govern the retry behavior
+     * @return the {@link Write} with retrying configured
+     */
+    public Write withRetryConfiguration(BaseRetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration is required");
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
@@ -952,9 +998,12 @@ public class ElasticsearchIO {
       private static final int DEFAULT_RETRY_ON_CONFLICT = 5; // race conditions on updates
 
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
-      private static final Duration RETRY_MAX_BACKOFF = Duration.standardSeconds(365);
+      private static final Duration RETRY_MAX_BACKOFF = Duration.standardDays(365);
 
-      static final String RETRY_ATTEMPT_LOG = "Retrying again .. %d";
+      @VisibleForTesting
+      static final String RETRY_ATTEMPT_LOG = "Error writing to Elasticsearch. Retry attempt[%d]";
+
+      @VisibleForTesting
       static final String RETRY_FAILED_LOG =
           "Error writing to ES after %d attempt(s). No more attempts allowed";
 
@@ -996,7 +1045,7 @@ public class ElasticsearchIO {
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() throws IOException {
         ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
         backendVersion = getBackendVersion(connectionConfiguration);
         restClient = connectionConfiguration.createClient();
@@ -1080,11 +1129,12 @@ public class ElasticsearchIO {
       }
 
       @FinishBundle
-      public void finishBundle(FinishBundleContext context) throws Exception {
+      public void finishBundle(FinishBundleContext context)
+          throws IOException, InterruptedException {
         flushBatch();
       }
 
-      private void flushBatch() throws Exception {
+      private void flushBatch() throws IOException, InterruptedException {
         if (batch.isEmpty()) {
           return;
         }
@@ -1118,7 +1168,7 @@ public class ElasticsearchIO {
       /** retry request based on retry configuration policy. */
       private Response handleRetry(
           String method, String endpoint, Map<String, String> params, HttpEntity requestBody)
-          throws Exception {
+          throws IOException, InterruptedException {
         Response response = null;
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
@@ -1126,8 +1176,7 @@ public class ElasticsearchIO {
         //while retry policy exists
         while (BackOffUtils.next(sleeper, backoff)) {
           LOG.warn(String.format(RETRY_ATTEMPT_LOG, ++attempt));
-          response =
-              restClient.performRequest(method, endpoint, Collections.emptyMap(), requestBody);
+          response = restClient.performRequest(method, endpoint, params, requestBody);
           if (spec.getRetryConfiguration()
               .getRetryPredicate()
               .test(new ResponseException(response))) {
@@ -1140,7 +1189,7 @@ public class ElasticsearchIO {
       }
 
       @Teardown
-      public void closeClient() throws Exception {
+      public void closeClient() throws IOException {
         if (restClient != null) {
           restClient.close();
         }
