@@ -145,6 +145,6 @@ public class RowWithGetters extends Row {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getValues());
+    return Objects.hash(getSchema(), getterTarget);
   }
 }
