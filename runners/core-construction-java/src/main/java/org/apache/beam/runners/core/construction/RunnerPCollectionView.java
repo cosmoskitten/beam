@@ -39,7 +39,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;
   private final @Nullable WindowingStrategy<?, ?> windowingStrategy;
-  private final @Nullable Coder<Iterable<WindowedValue<?>>> coder;
+  private final @Nullable Coder<?> coder;
   private final transient PCollection<?> pCollection;
 
   /** Create a new {@link RunnerPCollectionView} from the provided components. */
@@ -49,7 +49,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
       WindowMappingFn<?> windowMappingFn,
       @Nullable WindowingStrategy<?, ?> windowingStrategy,
-      @Nullable Coder<Iterable<WindowedValue<?>>> coder) {
+      @Nullable Coder<?> coder) {
     this.pCollection = pCollection;
     this.tag = tag;
     this.viewFn = viewFn;
@@ -84,7 +84,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
   }
 
   @Override
-  public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
+  public Coder<?> getCoderInternal() {
     return coder;
   }
 
