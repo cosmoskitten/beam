@@ -1425,6 +1425,7 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     // Method to create the PortableValidatesRunnerTask.
+    // Generated task expect :beam-sdks-java-core and :beam-runners-core-java to be in the class path.
     // The method takes PortableValidatesRunnerConfiguration as parameter.
     project.ext.createPortableValidatesRunnerTask = {
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
