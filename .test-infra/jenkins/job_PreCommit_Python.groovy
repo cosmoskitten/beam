@@ -22,6 +22,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
+    timeoutMins: 30,
     triggerPathPatterns: [
       '^model/.*$',
       '^runners/.*$',

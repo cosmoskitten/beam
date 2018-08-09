@@ -22,7 +22,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Go',
     gradleTask: ':goPreCommit',
-    timeoutMins: 150,
+    timeoutMins: 30,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/go/.*$',
