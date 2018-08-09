@@ -1425,6 +1425,7 @@ artifactId=${project.name}
     /** ***********************************************************************************************/
 
     // Method to create the PortableValidatesRunnerTask.
+    // Generated task expect :beam-sdks-java-core and :beam-runners-core-java in the evaluation dependency. More specifically the task expects evaluationDependsOn(":beam-sdks-java-core") and evaluationDependsOn(":beam-runners-core-java") in the calling build.gradle file.
     // The method takes PortableValidatesRunnerConfiguration as parameter.
     project.ext.createPortableValidatesRunnerTask = {
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
