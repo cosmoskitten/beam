@@ -71,8 +71,7 @@ public class TestCountingSource
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(
-        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, -1);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, -1);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
@@ -86,8 +85,7 @@ public class TestCountingSource
   }
 
   public TestCountingSource withoutSplitting() {
-    return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, 1);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, 1);
   }
 
   public TestCountingSource withFixedNumSplits(int maxNumSplits) {

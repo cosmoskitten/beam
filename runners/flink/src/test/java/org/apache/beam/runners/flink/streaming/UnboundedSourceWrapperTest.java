@@ -112,37 +112,38 @@ public class UnboundedSourceWrapperTest {
         assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
         StreamSource<
-            WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
-            UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
+                WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
+                UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark>>
             sourceOperator = new StreamSource<>(flinkWrapper);
 
         AbstractStreamOperatorTestHarness<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
             testHarness =
-            new AbstractStreamOperatorTestHarness<>(
-                sourceOperator,
-                numTasks /* max parallelism */,
-                numTasks /* parallelism */,
-                subtaskIndex /* subtask index */);
+                new AbstractStreamOperatorTestHarness<>(
+                    sourceOperator,
+                    numTasks /* max parallelism */,
+                    numTasks /* parallelism */,
+                    subtaskIndex /* subtask index */);
 
         testHarness.setProcessingTime(System.currentTimeMillis());
 
         // start a thread that advances processing time, so that we eventually get the final
         // watermark which is only updated via a processing-time trigger
-        Thread processingTimeUpdateThread = new Thread() {
-          @Override
-          public void run() {
-            while (true) {
-              try {
-                synchronized (testHarness.getCheckpointLock()) {
-                  testHarness.setProcessingTime(System.currentTimeMillis());
+        Thread processingTimeUpdateThread =
+            new Thread() {
+              @Override
+              public void run() {
+                while (true) {
+                  try {
+                    synchronized (testHarness.getCheckpointLock()) {
+                      testHarness.setProcessingTime(System.currentTimeMillis());
+                    }
+                    Thread.sleep(1000);
+                  } catch (Exception e) {
+                    break;
+                  }
                 }
-                Thread.sleep(1000);
-              } catch (Exception e) {
-                break;
               }
-            }
-          }
-        };
+            };
         processingTimeUpdateThread.start();
 
         testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -161,8 +162,8 @@ public class UnboundedSourceWrapperTest {
                   // it can happen that we get the max watermark several times, so guard against
                   // this
                   if (!hasSeenMaxWatermark
-                      && watermark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE
-                      .getMillis()) {
+                      && watermark.getTimestamp()
+                          >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
                     numWatermarksReceived[0]++;
                     hasSeenMaxWatermark = true;
                   }
@@ -174,8 +175,7 @@ public class UnboundedSourceWrapperTest {
                 }
 
                 @Override
-                public void emitLatencyMarker(LatencyMarker latencyMarker) {
-                }
+                public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
                 @Override
                 public void collect(
@@ -185,8 +185,7 @@ public class UnboundedSourceWrapperTest {
                 }
 
                 @Override
-                public void close() {
-                }
+                public void close() {}
               });
         } catch (SuccessException e) {
           processingTimeUpdateThread.interrupt();
