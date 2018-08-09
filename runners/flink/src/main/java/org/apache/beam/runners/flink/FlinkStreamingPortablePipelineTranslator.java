@@ -69,13 +69,13 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -598,8 +598,8 @@ public class FlinkStreamingPortablePipelineTranslator
                 e);
       }
 
-      // TODO: get coder from the stream instead?
-      Coder<Iterable<WindowedValue<?>>> coder = (Coder) instantiateCoder(collectionId, components);
+      // TODO: get coder from stream instead?
+      Coder<WindowedValue<Object>> coder = instantiateCoder(collectionId, components);
 
       sideInputs.put(sideInputId,
               new RunnerPCollectionView<>(
@@ -636,7 +636,9 @@ public class FlinkStreamingPortablePipelineTranslator
         throw new IllegalStateException("Input Stream TypeInformation is no CoderTypeInformation.");
       }
 
-      Coder<?> coder = ((CoderTypeInformation) tpe).getCoder();
+      // wrap for iterable map below
+      WindowedValueCoder coder = (WindowedValueCoder)((CoderTypeInformation) tpe).getCoder();
+      coder = coder.withValueCoder(IterableCoder.of(coder.getValueCoder()));
       inputCoders.add(coder);
     }
 
@@ -654,8 +656,10 @@ public class FlinkStreamingPortablePipelineTranslator
       final int intTag = tagToIntMapping.get(tag);
       String collectionId = components.getTransformsOrThrow(sideInput.getKey().getTransformId())
                       .getInputsOrThrow(sideInput.getKey().getLocalName());
-      DataStream<Object> sideInputStream = context.getDataStreamOrThrow(collectionId);
-      DataStream<RawUnionValue> unionValueStream = sideInputStream.map(
+      DataStream<WindowedValue<?>> sideInputStream = context.getDataStreamOrThrow(collectionId);
+      // the side input handler expects an iterable..
+      DataStream<WindowedValue<Iterable<?>>> iterableStream = sideInputStream.map(new WrapAsIterable());
+      DataStream<RawUnionValue> unionValueStream = iterableStream.map(
               new FlinkStreamingTransformTranslators.ToRawUnion<>(intTag)).returns(unionTypeInformation);
 
       if (sideInputUnion == null) {
@@ -666,6 +670,13 @@ public class FlinkStreamingPortablePipelineTranslator
     }
 
     return new Tuple2<>(intToViewMapping, sideInputUnion);
+  }
+
+  private static class WrapAsIterable implements MapFunction<WindowedValue<?>, WindowedValue<Iterable<?>>> {
+    @Override
+    public WindowedValue<Iterable<?>> map(WindowedValue<?> value) {
+      return value.withValue(Collections.singletonList(value.getValue()));
+    }
   }
 
   static <T> Coder<WindowedValue<T>> instantiateCoder(
