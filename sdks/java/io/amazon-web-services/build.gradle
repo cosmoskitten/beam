@@ -29,6 +29,9 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.amazonaws:aws-java-sdk-core:$aws_java_sdk_version"
   shadow "com.amazonaws:aws-java-sdk-s3:$aws_java_sdk_version"
+  shadow "com.amazonaws:aws-java-sdk-sns:$aws_java_sdk_version"
+  shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version"
+  shadow "commons-lang:commons-lang:2.6"
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
