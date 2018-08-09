@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * if the object has hidden fields that are not reflected in the schema but are compared in equals,
  * then results will be incorrect.
  *
- * <p></TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
+ * <p>TODO: Validate equals() method is provided, and if not generate a "slow" equals method based
  * on the schema.
  */
 @Experimental(Kind.SCHEMAS)

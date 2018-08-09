@@ -164,7 +164,7 @@ public class SchemaRegistry {
    *
    * <p>Currently schema field names will match field names in the POJO, and all fields must be
    * mutable (i.e. no final fields). The Java object is expected to have implemented a correct
-   * .equals() and .hashCode method.s The equals method must be completely determined by the schema
+   * .equals() and .hashCode methods The equals method must be completely determined by the schema
    * fields. i.e. if the object has hidden fields that are not reflected in the schema but are
    * compared in equals, then results will be incorrect.
    */
@@ -177,9 +177,9 @@ public class SchemaRegistry {
    *
    * <p>Currently schema field names will match getter names in the bean, and all getters must have
    * matching setters. The Java object is expected to have implemented a correct .equals() and
-   * .hashCode method.s The equals method must be completely determined by the schema fields. i.e.
-   * if the object has hidden fields that are not reflected in the schema but are compared in
-   * equals, then results will be incorrect.
+   * .hashCode methods The equals method must be completely determined by the schema fields. i.e. if
+   * the object has hidden fields that are not reflected in the schema but are compared in equals,
+   * then results will be incorrect.
    */
   public <T> void registerJavaBean(Class<T> clazz) {
     registerJavaBean(TypeDescriptor.of(clazz));
