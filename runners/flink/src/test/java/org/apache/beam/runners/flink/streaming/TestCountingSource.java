@@ -115,12 +115,7 @@ public class TestCountingSource
   @Override
   public List<TestCountingSource> split(int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    int actualNumSplits;
-    if (fixedNumSplits == -1) {
-      actualNumSplits = desiredNumSplits;
-    } else {
-      actualNumSplits = fixedNumSplits;
-    }
+    int actualNumSplits = (fixedNumSplits == -1) ? desiredNumSplits : fixedNumSplits;
     for (int i = 0; i < actualNumSplits; i++) {
       splits.add(withShardNumber(i));
     }
