@@ -55,4 +55,3 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     return new JavaBeanSetterFactory();
   }
 }
-O
