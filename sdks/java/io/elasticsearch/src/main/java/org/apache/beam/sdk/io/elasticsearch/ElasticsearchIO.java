@@ -139,6 +139,7 @@ public class ElasticsearchIO {
     // default batchSize to 100 as recommended by ES dev team as a safe value when dealing
     // with big documents and still a good compromise for performances
     return new AutoValue_ElasticsearchIO_Read.Builder()
+        .setWithMetadata(false)
         .setScrollKeepalive("5m")
         .setBatchSize(100L)
         .build();
@@ -368,6 +369,8 @@ public class ElasticsearchIO {
     @Nullable
     abstract String getQuery();
 
+    abstract boolean isWithMetadata();
+
     abstract String getScrollKeepalive();
 
     abstract long getBatchSize();
@@ -379,6 +382,8 @@ public class ElasticsearchIO {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
       abstract Builder setQuery(String query);
+
+      abstract Builder setWithMetadata(boolean withMetadata);
 
       abstract Builder setScrollKeepalive(String scrollKeepalive);
 
@@ -404,6 +409,13 @@ public class ElasticsearchIO {
       checkArgument(query != null, "query can not be null");
       checkArgument(!query.isEmpty(), "query can not be empty");
       return builder().setQuery(query).build();
+    }
+
+    /**
+     * Include metadata in result json documents. Document source will be under json node _source.
+     */
+    public Read withMetadata() {
+      return builder().setWithMetadata(true).build();
     }
 
     /**
@@ -447,6 +459,7 @@ public class ElasticsearchIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.addIfNotNull(DisplayData.item("withMetadata", isWithMetadata()));
       builder.addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
       builder.addIfNotNull(DisplayData.item("scrollKeepalive", getScrollKeepalive()));
       getConnectionConfiguration().populateDisplayData(builder);
@@ -680,9 +693,14 @@ public class ElasticsearchIO {
       }
       // list behind iterator is empty
       List<String> batch = new ArrayList<>();
+      boolean withMetadata = source.spec.isWithMetadata();
       for (JsonNode hit : hits) {
-        String document = hit.path("_source").toString();
-        batch.add(document);
+        if (withMetadata) {
+          batch.add(hit.toString());
+        } else {
+          String document = hit.path("_source").toString();
+          batch.add(document);
+        }
       }
       batchIterator = batch.listIterator();
       current = batchIterator.next();
