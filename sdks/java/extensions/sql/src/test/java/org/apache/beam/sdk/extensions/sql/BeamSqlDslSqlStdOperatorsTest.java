@@ -1111,17 +1111,21 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     checker.buildRunAndCheck();
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5128")
   @Test
-  // More needed @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
-  // More needed @SqlOperatorTest(name = "CEIL", kind = "CEIL")
+  @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
+  @SqlOperatorTest(name = "CEIL", kind = "CEIL")
   public void testFloorAndCeil() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("FLOOR(ts TO MONTH)", parseDate("1986-02-01 00:00:00"))
             .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
             .addExpr("CEIL(ts TO MONTH)", parseDate("1986-03-01 00:00:00"))
-            .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"));
-    checker.buildRunAndCheck();
+            .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"))
+            .addExpr("FLOOR(c_double)", 1.0)
+            .addExpr("CEIL(c_double)", 2.0);
+
+    checker.buildRunAndCheck(getFloorCeilingTestPCollection());
   }
 
   @Test
