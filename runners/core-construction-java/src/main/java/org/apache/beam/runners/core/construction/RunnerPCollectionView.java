@@ -44,7 +44,7 @@ public class RunnerPCollectionView<T> extends PValueBase implements PCollectionV
 
   /** Create a new {@link RunnerPCollectionView} from the provided components. */
   public RunnerPCollectionView(
-      PCollection<?> pCollection,
+      @Nullable PCollection<?> pCollection,
       TupleTag<Iterable<WindowedValue<?>>> tag,
       ViewFn<Iterable<WindowedValue<?>>, T> viewFn,
       WindowMappingFn<?> windowMappingFn,
