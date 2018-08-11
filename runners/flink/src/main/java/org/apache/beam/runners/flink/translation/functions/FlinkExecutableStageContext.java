@@ -39,6 +39,10 @@ public interface FlinkExecutableStageContext {
     return BatchFlinkExecutableStageContext.BatchFactory.INSTANCE;
   }
 
+  static Factory streamingFactory() {
+    return FlinkStreamingExecutableStageContext.StreamingFactory.INSTANCE;
+  }
+
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
 
   StateRequestHandler getStateRequestHandler(

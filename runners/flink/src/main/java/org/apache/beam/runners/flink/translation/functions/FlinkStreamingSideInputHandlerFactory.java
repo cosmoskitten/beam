@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -159,8 +158,8 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
 
   private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
       PCollectionView<?> collection, Coder<K> keyCoder, Coder<V> valueCoder, Coder<W> windowCoder) {
-    ImmutableMultimap.Builder<SideInputKey, V> multimap = ImmutableMultimap.builder();
     /*
+    ImmutableMultimap.Builder<SideInputKey, V> multimap = ImmutableMultimap.builder();
         for (WindowedValue<KV<K, V>> windowedValue : broadcastVariable) {
           K key = windowedValue.getValue().getKey();
           V value = windowedValue.getValue().getValue();
