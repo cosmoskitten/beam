@@ -46,7 +46,7 @@ class BatchFlinkExecutableStageContext implements FlinkExecutableStageContext {
     return new BatchFlinkExecutableStageContext(jobBundleFactory);
   }
 
-  private BatchFlinkExecutableStageContext(JobBundleFactory jobBundleFactory) {
+  BatchFlinkExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
   }
 
