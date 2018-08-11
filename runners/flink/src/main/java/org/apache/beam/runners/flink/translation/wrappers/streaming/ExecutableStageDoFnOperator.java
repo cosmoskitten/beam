@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
@@ -46,6 +47,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,11 +129,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
-    FlinkStreamingSideInputHandlerFactory.forStage(
-        executableStage, getRuntimeContext(), sideInputIds, super.sideInputHandler);
-    // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
-    // same backing runtime context and broadcast variables. We use checkState below to catch errors
-    // in backward-incompatible Flink changes.
+
+    if (!sideInputs.isEmpty()) {
+      checkNotNull(super.sideInputHandler);
+      // consider the watermark when checking ready windows
+      sideInputHandler.setWatermark(new Instant(super.currentSideInputWatermark));
+      FlinkStreamingSideInputHandlerFactory.forStage(
+          executableStage, getRuntimeContext(), sideInputIds, super.sideInputHandler);
+    }
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
@@ -160,6 +166,22 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     stageContext = null;
     FlinkStreamingSideInputHandlerFactory.removeFor(executableStage, getRuntimeContext());
     super.close();
+  }
+
+  @Override
+  protected void addSideInputValue(StreamRecord<RawUnionValue> streamRecord) {
+    @SuppressWarnings("unchecked")
+    WindowedValue<Iterable<?>> value =
+        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
+
+    PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
+    sideInputHandler.concatSideInputValue(sideInput, value);
+  }
+
+  @Override
+  public void processWatermark2(Watermark mark) throws Exception {
+    sideInputHandler.setWatermark(new Instant(mark.getTimestamp()));
+    super.processWatermark2(mark);
   }
 
   // TODO: remove single element bundle assumption

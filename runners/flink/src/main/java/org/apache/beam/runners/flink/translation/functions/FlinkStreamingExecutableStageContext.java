@@ -10,17 +10,23 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
+import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
-public class FlinkStreamingExecutableStageContext extends BatchFlinkExecutableStageContext {
+/** Implementation of a {@link FlinkExecutableStageContext} for streaming. */
+public class FlinkStreamingExecutableStageContext implements FlinkExecutableStageContext {
   private final JobBundleFactory jobBundleFactory;
 
   FlinkStreamingExecutableStageContext(JobBundleFactory jobBundleFactory) {
-    super(jobBundleFactory);
     this.jobBundleFactory = jobBundleFactory;
+  }
+
+  @Override
+  public StageBundleFactory getStageBundleFactory(ExecutableStage executableStage) {
+    return jobBundleFactory.forStage(executableStage);
   }
 
   private static FlinkExecutableStageContext create(JobInfo jobInfo) throws Exception {
@@ -32,21 +38,27 @@ public class FlinkStreamingExecutableStageContext extends BatchFlinkExecutableSt
   public StateRequestHandler getStateRequestHandler(
       ExecutableStage executableStage, RuntimeContext runtimeContext) {
 
-    StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
-        checkNotNull(FlinkStreamingSideInputHandlerFactory.getFor(executableStage, runtimeContext));
-    try {
-      return StateRequestHandlers.forSideInputHandlerFactory(
-          ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    if (!executableStage.getSideInputs().isEmpty()) {
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+          checkNotNull(
+              FlinkStreamingSideInputHandlerFactory.getFor(executableStage, runtimeContext));
+      try {
+        return StateRequestHandlers.forSideInputHandlerFactory(
+            ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return StateRequestHandler.unsupported();
     }
   }
 
   @Override
   protected void finalize() throws Exception {
-    super.finalize();
+    jobBundleFactory.close();
   }
 
+  /** StreamingFactory. * */
   public enum StreamingFactory implements Factory {
     INSTANCE;
 
