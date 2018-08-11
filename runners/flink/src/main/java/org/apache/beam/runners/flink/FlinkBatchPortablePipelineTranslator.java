@@ -149,6 +149,7 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
+    // TODO: this does not seem required
     translatorMap.put(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
         FlinkBatchPortablePipelineTranslator::translateView);
