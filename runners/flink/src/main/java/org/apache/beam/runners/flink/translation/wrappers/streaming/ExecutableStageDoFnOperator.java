@@ -28,6 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -68,11 +69,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private final JobInfo jobInfo;
   private final FlinkExecutableStageContext.Factory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
+  private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
 
   private transient FlinkExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
+  private transient ExecutableStage executableStage;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -84,6 +87,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       OutputManagerFactory<OutputT> outputManagerFactory,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
+      Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds,
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
@@ -108,19 +112,22 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
     this.outputMap = outputMap;
+    this.sideInputIds = sideInputIds;
   }
 
   @Override
   public void open() throws Exception {
     super.open();
 
-    ExecutableStage executableStage = ExecutableStage.fromPayload(payload);
+    executableStage = ExecutableStage.fromPayload(payload);
     // TODO: Wire this into the distributed cache and make it pluggable.
     // TODO: Do we really want this layer of indirection when accessing the stage bundle factory?
     // It's a little strange because this operator is responsible for the lifetime of the stage
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
+    FlinkStreamingSideInputHandlerFactory.forStage(
+        executableStage, getRuntimeContext(), sideInputIds, super.sideInputHandler);
     // NOTE: It's safe to reuse the state handler between partitions because each partition uses the
     // same backing runtime context and broadcast variables. We use checkState below to catch errors
     // in backward-incompatible Flink changes.
@@ -151,6 +158,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     try (AutoCloseable bundleFactoryCloser = stageBundleFactory) {}
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     stageContext = null;
+    FlinkStreamingSideInputHandlerFactory.removeFor(executableStage, getRuntimeContext());
     super.close();
   }
 
