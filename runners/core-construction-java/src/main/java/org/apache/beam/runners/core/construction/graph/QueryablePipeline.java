@@ -105,7 +105,10 @@ public class QueryablePipeline {
     this.pipelineNetwork = buildNetwork(transformIds, this.components);
   }
 
-  /** Produces a {@link RunnerApi.Components} which contains only primitive transforms. */
+  /**
+   * Filter a {@link RunnerApi.Components} to only the IDs of primitive transforms (transforms that
+   * have no subtransforms).
+   */
   @VisibleForTesting
   static Collection<String> getPrimitiveTransformIds(RunnerApi.Components components) {
     Collection<String> ids = new LinkedHashSet<>();
@@ -126,26 +129,41 @@ public class QueryablePipeline {
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
       Collection<String> transformIds, Components components) {
+
     MutableNetwork<PipelineNode, PipelineEdge> network =
-        NetworkBuilder.directed().allowsParallelEdges(true).allowsSelfLoops(false).build();
+        NetworkBuilder
+            .directed()
+            .allowsParallelEdges(true)
+            .allowsSelfLoops(false)
+            .build();
+
     Set<PCollectionNode> unproducedCollections = new HashSet<>();
+
     for (String transformId : transformIds) {
       PTransform transform = components.getTransformsOrThrow(transformId);
+      System.out.println("doing ptransform: " + transform + " (" + network.nodes().size() + " nodes)");
       PTransformNode transformNode =
           PipelineNode.pTransform(transformId, this.components.getTransformsOrThrow(transformId));
       network.addNode(transformNode);
       for (String produced : transform.getOutputsMap().values()) {
+        System.out.println("doing pcollection: " + produced + " (" + network.nodes().size() + " nodes)");
         PCollectionNode producedNode =
             PipelineNode.pCollection(produced, components.getPcollectionsOrThrow(produced));
         network.addNode(producedNode);
+
+        System.out.println("in-degree before: " + network.inDegree(producedNode));
         network.addEdge(transformNode, producedNode, new PerElementEdge());
+        System.out.println("in-degree after : " + network.inDegree(producedNode));
+
         checkArgument(
             network.inDegree(producedNode) == 1,
-            "A %s should have exactly one producing %s, %s has %s",
+            "A %s should have exactly one producing %s, %s has %s: %s",
             PCollectionNode.class.getSimpleName(),
             PTransformNode.class.getSimpleName(),
             producedNode,
+            network.predecessors(producedNode).size(),
             network.predecessors(producedNode));
+
         unproducedCollections.remove(producedNode);
       }
       for (Map.Entry<String, String> consumed : transform.getInputsMap().entrySet()) {
@@ -155,13 +173,17 @@ public class QueryablePipeline {
         PCollectionNode consumedNode =
             PipelineNode.pCollection(
                 pcollectionId, this.components.getPcollectionsOrThrow(pcollectionId));
+        System.out.println("doing input pcollection: " + pcollectionId + " (" + network.nodes().size() + " nodes)");
         if (network.addNode(consumedNode)) {
           // This node has been added to the network for the first time, so it has no producer.
+          System.out.println("\tadded node: " + consumedNode);
           unproducedCollections.add(consumedNode);
         }
         if (getLocalSideInputNames(transform).contains(consumed.getKey())) {
+          System.out.println("adding side-input edge");
           network.addEdge(consumedNode, transformNode, new SingletonEdge());
         } else {
+          System.out.println("adding edge: " + consumedNode + "\nto:\n" + transformNode);
           network.addEdge(consumedNode, transformNode, new PerElementEdge());
         }
       }

@@ -104,7 +104,7 @@ def createPortableValidatesRunnerTask = {
       }
     } else {
       useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunnerTmp'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'

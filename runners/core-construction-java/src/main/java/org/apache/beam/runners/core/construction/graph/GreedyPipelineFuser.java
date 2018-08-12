@@ -60,6 +60,7 @@ public class GreedyPipelineFuser {
   private GreedyPipelineFuser(Pipeline p) {
     // Validate that the original pipeline is well-formed.
     PipelineValidator.validate(p);
+    System.out.println("pipeline:\n" + p + "\n\n");
     this.pipeline = QueryablePipeline.forPrimitivesIn(p.getComponents());
     Set<PTransformNode> unfusedRootNodes = new LinkedHashSet<>();
     NavigableSet<CollectionConsumer> rootConsumers = new TreeSet<>();

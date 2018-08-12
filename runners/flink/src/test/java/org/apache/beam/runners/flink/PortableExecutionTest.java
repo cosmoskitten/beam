@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -44,21 +45,33 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineTest;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.ValidatesRunnerTmp;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
@@ -68,15 +81,10 @@ import org.junit.runners.Parameterized.Parameters;
  * Exercises job invocation, executable stage translation and deployment with embedded Flink for
  * batch and streaming.
  */
-@RunWith(Parameterized.class)
+@RunWith(JUnit4.class)
 public class PortableExecutionTest implements Serializable {
 
-  @Parameters
-  public static Object[] data() {
-    return new Object[] {true, false};
-  }
-
-  @Parameter public boolean isStreaming;
+  public boolean isStreaming = false;
 
   private transient ListeningExecutorService flinkJobExecutor;
 
@@ -115,44 +123,66 @@ public class PortableExecutionTest implements Serializable {
 
   private static ArrayList<KV<String, Iterable<Long>>> outputValues = new ArrayList<>();
 
+  private static class IdentityTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+    @Override
+    public PCollection<Integer> expand(PCollection<Integer> input) {
+      return input.apply(
+          ParDo.of(
+              new DoFn<Integer, Integer>() {
+                @ProcessElement
+                public void processElement(@Element Integer element, OutputReceiver<Integer> r)
+                    throws Exception {
+                  r.output(element);
+                }
+              }
+          )
+      );
+    }
+  }
+
   @Test
   public void testExecution() throws Exception {
     Pipeline p = Pipeline.create();
-    p.apply("impulse", Impulse.create())
-        .apply(
-            "create",
-            ParDo.of(
-                new DoFn<byte[], String>() {
-                  @ProcessElement
-                  public void process(ProcessContext ctxt) {
-                    ctxt.output("zero");
-                    ctxt.output("one");
-                    ctxt.output("two");
-                  }
-                }))
-        .apply(
-            "len",
-            ParDo.of(
-                new DoFn<String, Long>() {
-                  @ProcessElement
-                  public void process(ProcessContext ctxt) {
-                    ctxt.output((long) ctxt.element().length());
-                  }
-                }))
-        .apply("addKeys", WithKeys.of("foo"))
-        // Use some unknown coders
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
-        // Force the output to be materialized
-        .apply("gbk", GroupByKey.create())
-        .apply(
-            "collect",
-            ParDo.of(
-                new DoFn<KV<String, Iterable<Long>>, Void>() {
-                  @ProcessElement
-                  public void process(ProcessContext ctx) {
-                    outputValues.add(ctx.element());
-                  }
-                }));
+    PCollection<Integer> output =
+        p
+            .apply(Create.of(1, 2, 3, 4))
+            .apply("IdentityTransform", new IdentityTransform());
+
+//    p.apply("impulse", Impulse.create())
+//        .apply(
+//            "create",
+//            ParDo.of(
+//                new DoFn<byte[], String>() {
+//                  @ProcessElement
+//                  public void process(ProcessContext ctxt) {
+//                    ctxt.output("zero");
+//                    ctxt.output("one");
+//                    ctxt.output("two");
+//                  }
+//                }))
+//        .apply(
+//            "len",
+//            ParDo.of(
+//                new DoFn<String, Long>() {
+//                  @ProcessElement
+//                  public void process(ProcessContext ctxt) {
+//                    ctxt.output((long) ctxt.element().length());
+//                  }
+//                }))
+//        .apply("addKeys", WithKeys.of("foo"))
+//        // Use some unknown coders
+//        .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()))
+//        // Force the output to be materialized
+//        .apply("gbk", GroupByKey.create())
+//        .apply(
+//            "collect",
+//            ParDo.of(
+//                new DoFn<KV<String, Iterable<Long>>, Void>() {
+//                  @ProcessElement
+//                  public void process(ProcessContext ctx) {
+//                    outputValues.add(ctx.element());
+//                  }
+//                }));
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
@@ -176,7 +206,7 @@ public class PortableExecutionTest implements Serializable {
     }
     assertEquals("job state", Enum.DONE, jobInvocation.getState());
 
-    assertEquals(1, outputValues.size());
+    assertEquals(2, outputValues.size());
     assertEquals("foo", outputValues.get(0).getKey());
     assertThat(outputValues.get(0).getValue(), containsInAnyOrder(4L, 3L, 3L));
   }

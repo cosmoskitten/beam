@@ -67,6 +67,7 @@ public class TestPortableRunner extends PipelineRunner<PipelineResult> {
     Object jobServerDriver;
     Class<?> jobServerDriverClass = testPortablePipelineOptions.getJobServerDriver();
     String[] parameters = testPortablePipelineOptions.getJobServerConfig();
+    LOG.info("*** portable runner job server params: {}", String.join(", ", parameters));
     try {
       jobServerDriver =
           InstanceBuilder.ofType(jobServerDriverClass)

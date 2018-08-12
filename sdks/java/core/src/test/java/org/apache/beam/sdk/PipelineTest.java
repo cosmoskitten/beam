@@ -50,6 +50,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.testing.ValidatesRunnerTmp;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -284,11 +285,13 @@ public class PipelineTest {
 
   /** Tests that Pipeline supports a pass-through identity function. */
   @Test
-  @Category(ValidatesRunner.class)
-  public void testIdentityTransform() throws Exception {
+  @Category(ValidatesRunnerTmp.class)
+  public void testIdentityTransform() {
 
     PCollection<Integer> output =
-        pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply("IdentityTransform", new IdentityTransform<>());
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
