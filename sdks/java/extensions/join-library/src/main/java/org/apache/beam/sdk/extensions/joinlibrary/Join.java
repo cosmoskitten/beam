@@ -57,10 +57,10 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(v1Tuple, leftCollection)
             .and(v2Tuple, rightCollection)
-            .apply(CoGroupByKey.create());
+            .apply("GBK", CoGroupByKey.create());
 
     return coGbkResultCollection
-        .apply(
+        .apply("Join",
             ParDo.of(
                 new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
                   @ProcessElement
@@ -111,10 +111,10 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(v1Tuple, leftCollection)
             .and(v2Tuple, rightCollection)
-            .apply(CoGroupByKey.create());
+            .apply("GBK", CoGroupByKey.create());
 
     return coGbkResultCollection
-        .apply(
+        .apply("Join",
             ParDo.of(
                 new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
                   @ProcessElement
@@ -169,10 +169,10 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(v1Tuple, leftCollection)
             .and(v2Tuple, rightCollection)
-            .apply(CoGroupByKey.create());
+            .apply("GBK", CoGroupByKey.create());
 
     return coGbkResultCollection
-        .apply(
+        .apply("Join",
             ParDo.of(
                 new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
                   @ProcessElement
@@ -231,10 +231,10 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(v1Tuple, leftCollection)
             .and(v2Tuple, rightCollection)
-            .apply(CoGroupByKey.create());
+            .apply("GBK", CoGroupByKey.create());
 
     return coGbkResultCollection
-        .apply(
+        .apply("Join",
             ParDo.of(
                 new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
                   @ProcessElement
