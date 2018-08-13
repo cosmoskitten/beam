@@ -373,6 +373,9 @@ class ElasticsearchIOTestCommon implements Serializable {
    * Tests that documents are dynamically routed to different types and not the type that is given
    * in the configuration. Documents should be routed to the a type of type_0 or type_1 using a
    * modulo approach of the explicit id.
+   *
+   * <p>This test does not work with ES 6 because ES 6 does not allow one mapping has more than 1
+   * type
    */
   void testWriteWithTypeFn() throws Exception {
     // defensive coding: this test requires an even number of docs

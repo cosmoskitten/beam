@@ -36,7 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * A test of {@link ElasticsearchIO} on an independent Elasticsearch v5.x instance.
+ * A test of {@link ElasticsearchIO} on an independent Elasticsearch v6.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
@@ -45,7 +45,7 @@ import org.junit.Test;
  * correct server IP:
  *
  * <pre>
- *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-5
+ *  ./gradlew integrationTest -p sdks/java/io/elasticsearch-tests/elasticsearch-tests-6
  *  -DintegrationTestPipelineOptions='[
  *  "--elasticsearchServer=1.2.3.4",
  *  "--elasticsearchHttpPort=9200"]'
@@ -141,7 +141,6 @@ public class ElasticsearchIOIT {
    */
   @Test
   public void testWriteWithFullAddressingVolume() throws Exception {
-    // cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
         new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
