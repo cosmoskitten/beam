@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -118,8 +120,26 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     for (Map.Entry<String, String> entry : map.entrySet()) {
       args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
     }
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
-    options.as(ApplicationNameOptions.class).setAppName("BeamSql");
+
+    PipelineOptions options = null;
+    try {
+      options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+      options.as(ApplicationNameOptions.class).setAppName("BeamSql");
+    } catch (IllegalArgumentException e) {
+      Matcher matcher =
+          Pattern.compile("Class (.+) missing a property named \\'(.+)\\'\\.(.*)")
+              .matcher(e.getMessage());
+      if (matcher.matches()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "You may have SET an unregistered option '%s', which could fail current query. "
+                    + "You could run 'RESET %s' in Shell to reset the option.",
+                matcher.group(2), matcher.group(2)));
+      } else {
+        throw e;
+      }
+    }
+
     return options;
   }
 
