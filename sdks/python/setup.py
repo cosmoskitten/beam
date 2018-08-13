@@ -38,7 +38,13 @@ from setuptools.command.test import test
 
 def get_version():
   global_names = {}
-  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)  # pylint: disable=exec-used
+  exec(  # pylint: disable=exec-used
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          'apache_beam/version.py')
+          ).read(),
+      global_names
+  )
   return global_names['__version__']
 
 
@@ -98,6 +104,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill>=0.2.6,<=0.2.8.2',
+    'fastavro==0.19.7',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<=0.11.3',
@@ -114,14 +121,6 @@ REQUIRED_PACKAGES = [
     'futures>=3.1.1,<4.0.0',
     'future>=0.16.0,<1.0.0',
     ]
-
-REQUIRED_PACKAGES_LINUX_ONLY = [
-    'fastavro==0.19.7',
-]
-
-# TODO(BEAM-4749): fastavro fails to install in MacOS.
-if 'Linux' in platform.system():
-  REQUIRED_PACKAGES.extend(REQUIRED_PACKAGES_LINUX_ONLY)
 
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',

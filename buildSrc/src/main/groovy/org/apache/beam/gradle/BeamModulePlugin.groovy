@@ -259,30 +259,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '-Dorg.gradle.parallel=false', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-
-    project.offlineDependencies {
-      repositories {
-        maven { url offlineRepositoryRoot }
-        mavenLocal()
-        mavenCentral()
-        jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
-      }
-
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
-    }
-
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -297,7 +273,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.19.0"
     def generated_grpc_ga_version = "1.18.0"
-    def google_cloud_bigdataoss_version = "1.4.5"
+    def google_cloud_bigdataoss_version = "1.9.0"
     def bigtable_version = "1.4.0"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.10.0"
@@ -347,7 +323,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         datastore_v1_proto_client                   : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.0",
-        datastore_v1_protos                         : "com.google.cloud.datastore:datastore-v1-protos:1.5.0",
+        datastore_v1_protos                         : "com.google.api.grpc:proto-google-cloud-datastore-v1:$generated_grpc_beta_version",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
         gax_grpc                                    : "com.google.api:gax-grpc:1.29.0",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -403,7 +379,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
-        mockito_core                                : "org.mockito:mockito-core:1.9.5",
+        mockito_core                                : "org.mockito:mockito-core:1.10.19",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.8.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -568,6 +544,28 @@ class BeamModulePlugin implements Plugin<Project> {
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
+
+      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+      // repository. This offline repository satisfies all Gradle build dependencies and Java
+      // project dependencies. The offline repository is placed within $rootDir/offline-repo
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+      // by specifying '--no-parallel', see
+      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+      project.apply plugin: "io.pry.gradle.offline_dependencies"
+      project.offlineDependencies {
+        repositories {
+          mavenLocal()
+          mavenCentral()
+          jcenter()
+          maven { url "https://plugins.gradle.org/m2/" }
+          maven { url "http://repo.spring.io/plugins-release" }
+          maven { url project.offlineRepositoryRoot }
+        }
+        includeSources = false
+        includeJavadocs = false
+        includeIvyXmls = false
+      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
@@ -790,7 +788,7 @@ artifactId=${project.name}
               url "file://${project.rootProject.projectDir}/testPublication/"
             }
             maven {
-              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease()
+              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
                       ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                       : 'https://repository.apache.org/content/repositories/snapshots')
 
@@ -812,7 +810,7 @@ artifactId=${project.name}
               // </settings>
               def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
               if (settingsXml.exists()) {
-                def serverId = (isRelease() ? 'apache.releases.https' : 'apache.snapshots.https')
+                def serverId = (isRelease(project) ? 'apache.releases.https' : 'apache.snapshots.https')
                 def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
                 if (m2SettingCreds) {
                   credentials {
@@ -1058,6 +1056,10 @@ artifactId=${project.name}
 
         if (runner?.equalsIgnoreCase('direct')) {
           testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+        }
+
+        if (runner?.equalsIgnoreCase('flink')) {
+          testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
         }
 
         /* include dependencies required by filesystems */

@@ -310,6 +310,9 @@ public abstract class Row implements Serializable {
 
   @Override
   public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
     if (!(o instanceof Row)) {
       return false;
     }
@@ -325,7 +328,7 @@ public abstract class Row implements Serializable {
 
   @Override
   public String toString() {
-    return Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
+    return "Row:" + Arrays.deepToString(Iterables.toArray(getValues(), Object.class));
   }
 
   /**
