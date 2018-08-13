@@ -42,6 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -75,6 +77,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class PubsubJsonIT implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubJsonIT.class);
+
+  private static String project;
 
   private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
@@ -91,6 +95,11 @@ public class PubsubJsonIT implements Serializable {
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+  @BeforeClass
+  public static void setUpClass() {
+    project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+  }
 
   /**
    * HACK: we need an objectmapper to turn pipelineoptions back into a map. We need to use
@@ -264,7 +273,7 @@ public class PubsubJsonIT implements Serializable {
                 });
 
     // wait one minute to allow subscription creation.
-    Thread.sleep(60 * 1000);
+    eventsTopic.checkIfAnySubscriptionExists(project, Duration.standardMinutes(1));
     eventsTopic.publish(messages);
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
     pool.shutdown();
