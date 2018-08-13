@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
+package org.apache.beam.runners.samza.container;
 
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Go',
-    gradleTask: ':goPreCommit',
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/go/.*$',
-      '^runners/.*$',
-      '^release/.*$',
-    ]
-)
-builder.build()
+import org.apache.samza.config.Config;
+import org.apache.samza.config.ShellCommandConfig;
+import org.apache.samza.runtime.LocalContainerRunner;
+
+/** Runs the beam Yarn container, using the static global job model. */
+public class BeamContainerRunner extends LocalContainerRunner {
+
+  public BeamContainerRunner(Config config) {
+    super(ContainerCfgFactory.jobModel, System.getenv(ShellCommandConfig.ENV_CONTAINER_ID()));
+  }
+}

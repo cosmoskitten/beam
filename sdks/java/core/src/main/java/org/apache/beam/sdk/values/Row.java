@@ -310,6 +310,9 @@ public abstract class Row implements Serializable {
 
   @Override
   public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
     if (!(o instanceof Row)) {
       return false;
     }

@@ -16,17 +16,5 @@
  * limitations under the License.
  */
 
-import PrecommitJobBuilder
-
-PrecommitJobBuilder builder = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Go',
-    gradleTask: ':goPreCommit',
-    triggerPathPatterns: [
-      '^model/.*$',
-      '^sdks/go/.*$',
-      '^runners/.*$',
-      '^release/.*$',
-    ]
-)
-builder.build()
+/** Internal implementation of the Beam runner for Apache Samza. */
+package org.apache.beam.runners.samza.container;

@@ -259,30 +259,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '-Dorg.gradle.parallel=false', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-
-    project.offlineDependencies {
-      repositories {
-        maven { url offlineRepositoryRoot }
-        mavenLocal()
-        mavenCentral()
-        jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
-      }
-
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
-    }
-
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -297,7 +273,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.19.0"
     def generated_grpc_ga_version = "1.18.0"
-    def google_cloud_bigdataoss_version = "1.4.5"
+    def google_cloud_bigdataoss_version = "1.9.0"
     def bigtable_version = "1.4.0"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.10.0"
@@ -403,7 +379,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
-        mockito_core                                : "org.mockito:mockito-core:1.9.5",
+        mockito_core                                : "org.mockito:mockito-core:1.10.19",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.8.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -568,6 +544,28 @@ class BeamModulePlugin implements Plugin<Project> {
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
+
+      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+      // repository. This offline repository satisfies all Gradle build dependencies and Java
+      // project dependencies. The offline repository is placed within $rootDir/offline-repo
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+      // by specifying '--no-parallel', see
+      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+      project.apply plugin: "io.pry.gradle.offline_dependencies"
+      project.offlineDependencies {
+        repositories {
+          mavenLocal()
+          mavenCentral()
+          jcenter()
+          maven { url "https://plugins.gradle.org/m2/" }
+          maven { url "http://repo.spring.io/plugins-release" }
+          maven { url project.offlineRepositoryRoot }
+        }
+        includeSources = false
+        includeJavadocs = false
+        includeIvyXmls = false
+      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
