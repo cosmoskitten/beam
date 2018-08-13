@@ -41,7 +41,8 @@ import org.joda.time.Duration;
  * <h3>Reading from an SQS queue</h3>
  *
  * <p>The {@link SqsIO} {@link Read} returns an unbounded {@link PCollection} of {@link
- * com.amazonaws.services.sqs.model.Message} containing the received messages.
+ * com.amazonaws.services.sqs.model.Message} containing the received messages. Note: This source
+ * does not currently advance the watermark when no new messages are received.
  *
  * <p>To configure an SQS source, you have to provide the queueUrl to connect to. The following
  * example illustrates how to configure the source:
