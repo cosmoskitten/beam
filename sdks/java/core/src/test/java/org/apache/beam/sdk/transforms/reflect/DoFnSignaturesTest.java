@@ -1145,7 +1145,11 @@ public class DoFnSignaturesTest {
 
               @OnWindowExpiration
               public void bar(
-                  BoundedWindow b, @StateId("foo") ValueState<Integer> s, PipelineOptions p) {}
+                  BoundedWindow b,
+                  @StateId("foo") ValueState<Integer> s,
+                  PipelineOptions p,
+                  OutputReceiver o,
+                  MultiOutputReceiver m) {}
             }.getClass());
 
     List<Parameter> params = sig.onWindowExpiration().extraParameters();
