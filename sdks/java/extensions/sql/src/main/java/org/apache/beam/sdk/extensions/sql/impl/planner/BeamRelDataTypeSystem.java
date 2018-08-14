@@ -35,4 +35,9 @@ public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {
   public int getMaxNumericPrecision() {
     return 38;
   }
+
+  @Override
+  public boolean shouldConvertRaggedUnionTypesToVarying() {
+    return true;
+  }
 }
