@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
+import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -56,11 +57,13 @@ public class BeamSqlDateFunctionsIntegrationTest
       Row row = iter.next();
       // LOCALTIME
       DateTime date = DateTime.now();
-      assertTrue(date.getMillis() - row.getDateTime(0).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(1).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(2).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(3).getMillis() < 1000);
-      assertTrue(date.getMillis() - row.getDateTime(4).getMillis() < 1000);
+      long millis = date.getMillis();
+      int timeMillis = (int) (date.getMillis() % MILLIS_PER_DAY);
+      assertTrue(timeMillis - row.getDateTime(0).getMillis() < 1000);
+      assertTrue(millis - row.getDateTime(1).getMillis() < 1000);
+      assertTrue(millis - row.getDateTime(2).getMillis() < (MILLIS_PER_DAY + 1000));
+      assertTrue(timeMillis - row.getDateTime(3).getMillis() < 1000);
+      assertTrue(millis - row.getDateTime(4).getMillis() < 1000);
       assertFalse(iter.hasNext());
       return null;
     }
