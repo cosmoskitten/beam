@@ -49,18 +49,36 @@ public class ExplicitShardedFile implements ShardedFile {
           .withMaxRetries(MAX_READ_RETRIES);
 
   private final List<Metadata> files;
+  private final String filePattern;
 
   /** Constructs an {@link ExplicitShardedFile} for the given files. */
   public ExplicitShardedFile(Collection<String> files) throws IOException {
     this.files = new ArrayList<>();
+    this.filePattern = null;
     for (String file : files) {
       this.files.add(FileSystems.matchSingleFileSpec(file));
     }
   }
 
+  /**
+   * Constructs an {@link ExplicitShardedFile} for the given file pattern.
+   *
+   * <p>For internal use only.
+   */
+  public ExplicitShardedFile(String filePattern) {
+    this.files = null;
+    this.filePattern = filePattern;
+  }
+
   @Override
   public List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
+    List<Metadata> files;
+    if (this.files == null) {
+      files = FileSystems.match(filePattern).metadata();
+    } else {
+      files = this.files;
+    }
     if (files.isEmpty()) {
       return Collections.emptyList();
     }
@@ -95,7 +113,11 @@ public class ExplicitShardedFile implements ShardedFile {
 
   @Override
   public String toString() {
-    return String.format("explicit sharded file (%s)", Joiner.on(", ").join(files));
+    if (files == null) {
+      return String.format("explicit sharded file with pattern (%s)", filePattern);
+    } else {
+      return String.format("explicit sharded file (%s)", Joiner.on(", ").join(files));
+    }
   }
 
   /**

@@ -135,6 +135,7 @@ task validatesRunner(type: Test) {
   testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    excludeCategories "org.apache.beam.sdk.testing.RetryFailures"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
   }

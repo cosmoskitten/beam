@@ -88,6 +88,8 @@ task validatesRunnerBatch(type: Test) {
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // TODO: support @RequiresStableInput then remove the next line
+    excludeCategories "org.apache.beam.sdk.testing.RetryFailures"
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'

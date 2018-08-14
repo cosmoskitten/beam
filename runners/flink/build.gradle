@@ -105,6 +105,8 @@ def createValidatesRunnerTask(Map m) {
     maxParallelForks 2
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // TODO: support @RequiresStableInput then remove the next line
+      excludeCategories "org.apache.beam.sdk.testing.RetryFailures"
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
