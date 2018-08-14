@@ -1044,5 +1044,25 @@ deps:
     artifact: sqlline
     owners: kenn,kedin,apilloud,amaliujia
 
+  org.apache.kudu:kudu-client:
+    group: org.apache.kudu
+    artifact: kudu-client
+    owners:
+
+  org.mongodb:mongo-java-driver:
+    group: org.mongodb
+    artifact: mongo-java-driver
+    owners:
+
+  io.opencensus:opencensus-api:
+    group: io.opencensus
+    artifact: opencensus-api
+    owners:
+
+  io.opencensus:opencensus-contrib-grpc-metrics:
+    group: io.opencensus
+    artifact: opencensus-contrib-grpc-metrics
+    owners:
+
 # No dependency added below this line.
 ...

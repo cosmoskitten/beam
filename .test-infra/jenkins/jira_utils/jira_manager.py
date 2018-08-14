@@ -99,7 +99,7 @@ class JiraManager:
           issue = self._create_issue(dep_name, dep_latest_version)
         logging.info('Created a new issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
       elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
-        self._append_descriptions(issue, dep_name, dep_latest_version)
+        #self._append_descriptions(issue, dep_name, dep_latest_version)
         logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
       return issue
     except:
