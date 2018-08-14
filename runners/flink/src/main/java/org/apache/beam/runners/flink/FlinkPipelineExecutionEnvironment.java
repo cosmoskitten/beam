@@ -69,7 +69,7 @@ class FlinkPipelineExecutionEnvironment {
    * org.apache.flink.api.java.DataSet} or {@link
    * org.apache.flink.streaming.api.datastream.DataStream} one.
    */
-  public void translate(FlinkRunner flinkRunner, Pipeline pipeline) {
+  public void translate(Pipeline pipeline) {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
@@ -87,7 +87,7 @@ class FlinkPipelineExecutionEnvironment {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+      translator = new FlinkStreamingPipelineTranslator(flinkStreamEnv, options);
     } else {
       this.flinkBatchEnv =
           FlinkExecutionEnvironments.createBatchExecutionEnvironment(
