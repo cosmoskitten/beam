@@ -26,7 +26,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasti
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
+import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -37,9 +39,11 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -104,6 +108,62 @@ class ElasticsearchIOTestCommon implements Serializable {
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     LOG.info("Estimated size: {}", estimatedSize);
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
+  }
+
+  void testSplit5x6x() throws Exception {
+    if (!useAsITests) {
+      ElasticSearchIOTestUtils.insertTestDocuments(
+          connectionConfiguration, NUM_DOCS_UTESTS, restClient);
+    }
+    final PipelineOptions options = PipelineOptionsFactory.create();
+    final Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
+    final BoundedElasticsearchSource initialSource =
+        new BoundedElasticsearchSource(read, null, null, null);
+
+    final int desiredBundleSizeBytes = 2000;
+    final List<? extends BoundedSource<String>> splits =
+        initialSource.split(desiredBundleSizeBytes, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
+
+    final long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
+    final float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
+    final int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
+    assertEquals("Wrong number of splits", expectedNumSources, splits.size());
+
+    int emptySplits = 0;
+    for (BoundedSource<String> subSource : splits) {
+      if (readFromSource(subSource, options).isEmpty()) {
+        emptySplits += 1;
+      }
+    }
+    assertThat(
+        "There are too many empty splits, parallelism is sub-optimal",
+        emptySplits,
+        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
+  }
+
+  void testITSplit5x6x(final PipelineOptions options) throws Exception {
+    final Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
+    final BoundedElasticsearchSource initialSource =
+        new BoundedElasticsearchSource(read, null, null, null);
+
+    final int desiredBundleSizeBytes = 10000;
+    final List<? extends BoundedSource<String>> splits =
+        initialSource.split(desiredBundleSizeBytes, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
+
+    final long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
+    final float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
+    final int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
+    assertEquals("Wrong number of splits", expectedNumSources, splits.size());
+
+    int nonEmptySplits = 0;
+    for (BoundedSource<String> subSource : splits) {
+      if (readFromSource(subSource, options).size() > 0) {
+        nonEmptySplits += 1;
+      }
+    }
+    assertEquals("Wrong number of empty splits", expectedNumSources, nonEmptySplits);
   }
 
   void testRead() throws Exception {
@@ -374,8 +434,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    * in the configuration. Documents should be routed to the a type of type_0 or type_1 using a
    * modulo approach of the explicit id.
    *
-   * <p>This test does not work with ES 6 because ES 6 does not allow one mapping has more than 1
-   * type
+   * <p>This test does not work with ES 6 because multiple type support within an index was removed.
    */
   void testWriteWithTypeFn() throws Exception {
     // defensive coding: this test requires an even number of docs

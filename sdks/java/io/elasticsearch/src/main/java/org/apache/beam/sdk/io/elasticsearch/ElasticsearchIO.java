@@ -125,7 +125,8 @@ import org.elasticsearch.client.RestClientBuilder;
  *
  * <p>Optionally, you can provide {@link ElasticsearchIO.Write.FieldValueExtractFn} using {@code
  * withIndexFn()} or {@code withTypeFn()} to enable per-document routing to the target Elasticsearch
- * index and type.
+ * index (all versions) and type (version <6). Support for type routing was removed in Elasticsearch
+ * 6 (see https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch)
  *
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
