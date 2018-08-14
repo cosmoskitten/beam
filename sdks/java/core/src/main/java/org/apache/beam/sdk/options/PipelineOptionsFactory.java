@@ -1512,20 +1512,33 @@ public class PipelineOptionsFactory {
                   Sets.filter(
                       propertyNamesToGetters.keySet(),
                       input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
+
+          PipelineOptionUnexpectedPropertyException exception;
           switch (closestMatches.size()) {
             case 0:
-              throw new IllegalArgumentException(
-                  String.format("Class %s missing a property named '%s'.", klass, entry.getKey()));
+              exception =
+                  new PipelineOptionUnexpectedPropertyException(
+                      String.format(
+                          "Class %s missing a property named '%s'.", klass, entry.getKey()));
+              exception.createUnexpectedPropertyExceptionMessage(entry.getKey());
+              throw exception;
             case 1:
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Class %s missing a property named '%s'. Did you mean '%s'?",
-                      klass, entry.getKey(), Iterables.getOnlyElement(closestMatches)));
+              exception =
+                  new PipelineOptionUnexpectedPropertyException(
+                      String.format(
+                          "Class %s missing a property named '%s'. Did you mean '%s'?",
+                          klass, entry.getKey(), Iterables.getOnlyElement(closestMatches)));
+              exception.createUnexpectedPropertyExceptionMessage(
+                  entry.getKey(), Iterables.getOnlyElement(closestMatches));
+              throw exception;
             default:
-              throw new IllegalArgumentException(
-                  String.format(
-                      "Class %s missing a property named '%s'. Did you mean one of %s?",
-                      klass, entry.getKey(), closestMatches));
+              exception =
+                  new PipelineOptionUnexpectedPropertyException(
+                      String.format(
+                          "Class %s missing a property named '%s'. Did you mean one of %s?",
+                          klass, entry.getKey(), closestMatches));
+              exception.createUnexpectedPropertyExceptionMessage(entry.getKey(), closestMatches);
+              throw exception;
           }
         }
         Method method = propertyNamesToGetters.get(entry.getKey());
