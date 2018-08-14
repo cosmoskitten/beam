@@ -35,6 +35,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.util.UnnumberedShardedFile;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -88,6 +89,27 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
    */
   public FileChecksumMatcher(String checksum, String filePath) {
     this(checksum, filePath, DEFAULT_SHARD_TEMPLATE);
+  }
+
+  /**
+   * Constructor that allows users to specify whether to use shardTemplate or not.
+   *
+   * @param checksum expected checksum string used to verify file content.
+   * @param filePath path of files that's to be verified.
+   * @param useShardTemplate if set to false, will not use shardTemplate to match files
+   */
+  public FileChecksumMatcher(String checksum, String filePath, boolean useShardTemplate) {
+    checkArgument(
+        !Strings.isNullOrEmpty(checksum), "Expected valid checksum, but received %s", checksum);
+    checkArgument(
+        !Strings.isNullOrEmpty(filePath), "Expected valid file path, but received %s", filePath);
+
+    this.expectedChecksum = checksum;
+    if (useShardTemplate) {
+      this.shardedFile = new NumberedShardedFile(filePath, DEFAULT_SHARD_TEMPLATE);
+    } else {
+      this.shardedFile = new UnnumberedShardedFile(filePath);
+    }
   }
 
   /**
@@ -151,7 +173,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     return actualChecksum;
   }
 
-  private String computeHash(@Nonnull List<String> strs) {
+  private static String computeHash(@Nonnull List<String> strs) {
     if (strs.isEmpty()) {
       return Hashing.sha1().hashString("", StandardCharsets.UTF_8).toString();
     }
