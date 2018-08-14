@@ -22,6 +22,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import test_pipeline
+from apache_beam.runners import create_runner
+from apache_beam.runners import DirectRunner
+from apache_beam.runners import TestDirectRunner
 
 
 class DirectPipelineResultTest(unittest.TestCase):
@@ -39,6 +42,14 @@ class DirectPipelineResultTest(unittest.TestCase):
       post_test_threads = set(t.ident for t in threading.enumerate())
       new_threads = post_test_threads - pre_test_threads
       self.assertEqual(len(new_threads), 0)
+
+  def test_create_runner(self):
+    self.assertTrue(
+        isinstance(create_runner('DirectRunner'),
+                   DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('TestDirectRunner'),
+                   TestDirectRunner))
 
 
 if __name__ == '__main__':
