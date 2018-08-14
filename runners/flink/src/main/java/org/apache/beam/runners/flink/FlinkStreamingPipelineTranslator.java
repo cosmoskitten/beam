@@ -42,12 +42,9 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private int depth = 0;
 
-  private FlinkRunner flinkRunner;
-
   public FlinkStreamingPipelineTranslator(
-      FlinkRunner flinkRunner, StreamExecutionEnvironment env, PipelineOptions options) {
+      StreamExecutionEnvironment env, PipelineOptions options) {
     this.streamingContext = new FlinkStreamingTranslationContext(env, options);
-    this.flinkRunner = flinkRunner;
   }
 
   @Override
