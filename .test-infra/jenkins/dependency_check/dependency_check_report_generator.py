@@ -133,19 +133,20 @@ def prioritize_dependencies(deps, sdk_type):
         <td>{2}</td>
         <td>{3}</td>
         <td>{4}</td>
-        <td>{5}</td>
-        </tr>\n""".format(dep_details_url,
+        <td>{5}</td>""".format(dep_details_url,
                           dep_name,
                           curr_ver,
                           latest_ver,
                           curr_release_date,
                           latest_release_date)
-      if compare_dependency_versions(curr_ver, latest_ver):
+      if (compare_dependency_versions(curr_ver, latest_ver) or
+          compare_dependency_release_dates(curr_release_date, latest_release_date)):
+        jira_issue = jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
+        if (jira_issue.fields.status.name == 'Open' or jira_issue.fields.status.name == 'Reopened'):
+          dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
+                                                                     jira_issue.key)
         high_priority_deps.append(dep_info)
-        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
-      elif compare_dependency_release_dates(curr_release_date, latest_release_date):
-        high_priority_deps.append(dep_info)
-        jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
+
     except:
       traceback.print_exc()
       continue
@@ -359,11 +360,13 @@ def generate_report(sdk_type):
       <td><b>{2}</b></td>
       <td><b>{3}</b></td>
       <td><b>{4}</b></td>
+      <td><b>{5}</b></td>
       </tr>""".format("Dependency Name",
                       "Current Version",
                       "Latest Version",
                       "Release Date Of the Current Used Version",
-                      "Release Date Of The Latest Release")
+                      "Release Date Of The Latest Release",
+                      "JIRA Issue")
     report.write(subtitle)
     report.write("<table>\n")
     report.write(table_fields)
