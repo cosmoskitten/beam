@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -40,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.PipelineOptionUnexpectedPropertyException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -124,19 +123,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     PipelineOptions options = null;
     try {
       options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
-    } catch (IllegalArgumentException e) {
-      Matcher matcher =
-          Pattern.compile("Class (.+) missing a property named \\'(.+)\\'\\.(.*)")
-              .matcher(e.getMessage());
-      if (matcher.matches()) {
-        throw new IllegalArgumentException(
-            String.format(
-                "You may have SET an unregistered option '%s', which could have failed current "
-                    + "query. You could run 'RESET %s' in Shell to reset the option.",
-                matcher.group(2), matcher.group(2)));
-      } else {
-        throw e;
-      }
+    } catch (PipelineOptionUnexpectedPropertyException e) {
+      throw new IllegalArgumentException(e.getUnexpectedPropertyExceptionMessage());
     }
 
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
