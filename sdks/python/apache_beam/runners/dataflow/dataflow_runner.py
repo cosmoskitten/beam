@@ -1109,11 +1109,7 @@ class DataflowPipelineResult(PipelineResult):
     if not self.has_job:
       return True
 
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
-    return self._job.currentState in [
-        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
-        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
+    return PipelineState.is_terminal(self.state)
 
   def wait_until_finish(self, duration=None):
     if not self.is_in_terminal_state():
