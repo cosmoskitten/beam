@@ -107,15 +107,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 > c_decimal_2", false)
             .addExpr("c_varchar_2 > c_varchar_1", true)
             .addExpr("c_varchar_1 > c_varchar_1", false)
-            .addExpr("c_varchar_1 > c_varchar_2", false);
+            .addExpr("c_varchar_1 > c_varchar_2", false)
+            .addExpr("c_boolean_false > c_boolean_true", false)
+            .addExpr("c_boolean_true > c_boolean_false", true);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testGreaterThanException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false > c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -146,15 +141,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 >= c_decimal_2", false)
             .addExpr("c_varchar_2 >= c_varchar_1", true)
             .addExpr("c_varchar_1 >= c_varchar_1", true)
-            .addExpr("c_varchar_1 >= c_varchar_2", false);
+            .addExpr("c_varchar_1 >= c_varchar_2", false)
+            .addExpr("c_boolean_false >= c_boolean_true", false)
+            .addExpr("c_boolean_true >= c_boolean_false", true);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testGreaterThanOrEqualsException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false >= c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -185,15 +175,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 < c_decimal_2", true)
             .addExpr("c_varchar_2 < c_varchar_1", false)
             .addExpr("c_varchar_1 < c_varchar_1", false)
-            .addExpr("c_varchar_1 < c_varchar_2", true);
+            .addExpr("c_varchar_1 < c_varchar_2", true)
+            .addExpr("c_boolean_false < c_boolean_true", true)
+            .addExpr("c_boolean_true < c_boolean_false", false);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testLessThanException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false < c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
@@ -224,15 +209,10 @@ public class BeamSqlComparisonOperatorsIntegrationTest
             .addExpr("c_decimal_1 <= c_decimal_2", true)
             .addExpr("c_varchar_2 <= c_varchar_1", false)
             .addExpr("c_varchar_1 <= c_varchar_1", true)
-            .addExpr("c_varchar_1 <= c_varchar_2", true);
+            .addExpr("c_varchar_1 <= c_varchar_2", true)
+            .addExpr("c_boolean_false <= c_boolean_true", true)
+            .addExpr("c_boolean_true <= c_boolean_false", false);
 
-    checker.buildRunAndCheck();
-  }
-
-  @Test(expected = RuntimeException.class)
-  public void testLessThanOrEqualsException() {
-    ExpressionChecker checker =
-        new ExpressionChecker().addExpr("c_boolean_false <= c_boolean_true", false);
     checker.buildRunAndCheck();
   }
 
