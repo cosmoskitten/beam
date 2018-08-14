@@ -200,17 +200,25 @@ def find_release_time_from_maven_central(group_id, artifact_id, version):
   url = "http://search.maven.org/solrsearch/select?q=g:{0}+AND+a:{1}+AND+v:{2}".format(
       group_id,
       artifact_id,
-      version)
-  logging.info('Finding release from maven central')
+      version
+  )
+  logging.info('Finding release date of {0}:{1} {2} from the Maven Central').format(
+      group_id,
+      artifact_id,
+      version
+  )
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
-      logging.error("The response status code is not ok: " + str(response.status_code))
-      logging.info("Failed finding the release date of {0}:{1} {2}".format(group_id, artifact_id, version))
+      logging.error("""Failed finding the release date of {0}:{1} {2}.
+        The response status code is not ok: {4}""".format(group_id,
+                                                          artifact_id,
+                                                          version,
+                                                          str(response.status_code)))
       return None
     response_data = response.json()
-    release_timestamp = response_data['response']['docs'][0]['timestamp']
-    release_date = datetime.fromtimestamp(release_timestamp/1000).date()
+    release_timestamp_mills = response_data['response']['docs'][0]['timestamp']
+    release_date = datetime.fromtimestamp(release_timestamp_mills/1000).date()
     return release_date
   except Exception as e:
     logging.error("Errors while extracting the release date: " + str(e))
@@ -230,12 +238,17 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
       dep_name,
       version
   )
-  logging.info('Finding release time from python compatibility checking service.')
+  logging.info('Finding release time of {0} {1} from the python compatibility checking service.').format(
+      dep_name,
+      version
+  )
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
-      logging.error("The response status code is not ok: " + str(response.status_code))
-      logging.info("Failed finding the release date of {0} {1}".format(dep_name, version))
+      logging.error("""Failed finding the release date of {0} {2}. 
+        The response status code is not ok: {3}""".format(dep_name,
+                                                          version,
+                                                          str(response.status_code)))
       return None
     response_data = response.json()
     release_datetime = response_data['dependency_info'][dep_name]['installed_version_time']
