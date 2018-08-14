@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import datetime
 import os
 import tempfile
 import urllib
@@ -81,8 +82,12 @@ class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
   def __init__(self, temp_dir=None):
-    self._temp_dir = temp_dir or tempfile.mkdtemp(
-        prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+    if temp_dir:
+      self._temp_dir = filesystems.FileSystems.join(temp_dir,
+          datetime.datetime.now().strftime("cache-%y-%m-%d-%H:%M:%S"))
+    else:
+      self._temp_dir = tempfile.mkdtemp(
+          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
   def exists(self, *labels):
