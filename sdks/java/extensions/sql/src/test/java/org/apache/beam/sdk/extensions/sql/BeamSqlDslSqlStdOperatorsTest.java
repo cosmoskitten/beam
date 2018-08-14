@@ -335,14 +335,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float * c_bigint", 1.0f)
             .addExpr("c_double * c_bigint", 1.0)
             .addExpr("1 / 1", 1)
-            .addExpr("1.0 / 1", ONE10)
-            .addExpr("1 / 1.0", ONE10)
-            .addExpr("1.0 / 1.0", ONE10)
+            .addExpr("1.0 / 1", ONE)
+            .addExpr("1 / 1.0", BigDecimal.ONE)
+            .addExpr("1.0 / 1.0", BigDecimal.ONE)
             .addExpr("c_tinyint / c_tinyint", (byte) 1)
             .addExpr("c_smallint / c_smallint", (short) 1)
             .addExpr("c_bigint / c_bigint", 1L)
-            .addExpr("c_decimal / c_decimal", ONE10)
-            .addExpr("c_tinyint / c_decimal", ONE10)
+            .addExpr("c_decimal / c_decimal", BigDecimal.ONE)
+            .addExpr("c_tinyint / c_decimal", BigDecimal.ONE)
             .addExpr("c_float / c_decimal", 1.0)
             .addExpr("c_double / c_decimal", 1.0)
             .addExpr("c_float / c_float", 1.0f)
@@ -352,13 +352,13 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double / c_bigint", 1.0)
             .addExpr("mod(1, 1)", 0)
             .addExpr("mod(1.0, 1)", 0)
-            .addExpr("mod(1, 1.0)", ZERO)
+            .addExpr("mod(1, 1.0)", BigDecimal.ZERO)
             .addExpr("mod(1.0, 1.0)", ZERO)
             .addExpr("mod(c_tinyint, c_tinyint)", (byte) 0)
             .addExpr("mod(c_smallint, c_smallint)", (short) 0)
             .addExpr("mod(c_bigint, c_bigint)", 0L)
-            .addExpr("mod(c_decimal, c_decimal)", ZERO)
-            .addExpr("mod(c_tinyint, c_decimal)", ZERO)
+            .addExpr("mod(c_decimal, c_decimal)", BigDecimal.ZERO)
+            .addExpr("mod(c_tinyint, c_decimal)", BigDecimal.ZERO)
             // Test overflow
             .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
             .addExpr("c_smallint_max + c_smallint_max", (short) -2)
@@ -544,7 +544,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("3 = 5 IS NOT UNKNOWN", true)
             .addExpr("5 = 5 IS NOT UNKNOWN", true)
             .addExpr("(NOT 5 = 5) IS NOT UNKNOWN", true)
-            .addExpr("(3 = NULL) IS UNKNOWN", false)
+            .addExpr("(3 = NULL) IS UNKNOWN", true)
             .addExpr("(3 = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NULL = NULL) IS NOT UNKNOWN", false)
             .addExpr("(NOT NULL = NULL) IS NOT UNKNOWN", false)
@@ -1044,7 +1044,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "RAND", kind = "OTHER_FUNCTION")
   public void testRand() {
     ExpressionChecker checker =
-        new ExpressionChecker().addExpr("RAND(c_integer)", new Random(INTEGER_VALUE).nextDouble());
+        new ExpressionChecker()
+            .addExpr(
+                "RAND(c_integer)", new Random(INTEGER_VALUE ^ (INTEGER_VALUE << 16)).nextDouble());
 
     checker.buildRunAndCheck();
   }
