@@ -150,7 +150,6 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   def create_options(self):
     def get_pipeline_name():
-      logging.info(inspect.stack())
       for _, _, _, method_name, _, _ in inspect.stack():
         if method_name.find('test') != -1:
           return method_name
