@@ -157,7 +157,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       return 'unknown_test'
 
     options = PipelineOptions.from_dictionary({
-        'job_name': get_pipeline_name() + time.time()
+        'job_name': get_pipeline_name() + '_' + time.time()
     })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
     return options
