@@ -19,9 +19,11 @@
 package org.apache.beam.gradle
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import groovy.json.JsonOutput
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.plugins.quality.FindBugs
@@ -193,6 +195,30 @@ class BeamModulePlugin implements Plugin<Project> {
     String tag = null // Sets the image tag (optional).
   }
 
+  // A class defining the configuration for PortableValidatesRunner.
+  class PortableValidatesRunnerConfiguration {
+    // Task name for validate runner case.
+    String name = 'validatesPortableRunner'
+    // Fully qualified JobServerClass name to use.
+    String jobServerDriver
+    // A string representing the jobServer Configuration.
+    String jobServerConfig
+    // Categories for tests to run.
+    Closure testCategories = {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    }
+    // Configuration for the classpath when running the test.
+    Configuration testClasspathConfiguration
+  }
+
   def isRelease(Project project) {
     return project.hasProperty('isRelease')
   }
@@ -259,30 +285,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '-Dorg.gradle.parallel=false', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-
-    project.offlineDependencies {
-      repositories {
-        maven { url offlineRepositoryRoot }
-        mavenLocal()
-        mavenCentral()
-        jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
-      }
-
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
-    }
-
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -297,7 +299,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def generated_grpc_beta_version = "0.19.0"
     def generated_grpc_ga_version = "1.18.0"
-    def google_cloud_bigdataoss_version = "1.4.5"
+    def google_cloud_bigdataoss_version = "1.9.0"
     def bigtable_version = "1.4.0"
     def google_clients_version = "1.23.0"
     def google_auth_version = "0.10.0"
@@ -403,7 +405,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
-        mockito_core                                : "org.mockito:mockito-core:1.9.5",
+        mockito_core                                : "org.mockito:mockito-core:1.10.19",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.8.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
@@ -568,6 +570,28 @@ class BeamModulePlugin implements Plugin<Project> {
         from project.sourceSets.test.output
       }
       project.artifacts.archives project.packageTests
+
+      // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+      // repository. This offline repository satisfies all Gradle build dependencies and Java
+      // project dependencies. The offline repository is placed within $rootDir/offline-repo
+      // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+      // Note that parallel build must be disabled when executing 'updateOfflineRepository'
+      // by specifying '--no-parallel', see
+      // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+      project.apply plugin: "io.pry.gradle.offline_dependencies"
+      project.offlineDependencies {
+        repositories {
+          mavenLocal()
+          mavenCentral()
+          jcenter()
+          maven { url "https://plugins.gradle.org/m2/" }
+          maven { url "http://repo.spring.io/plugins-release" }
+          maven { url project.offlineRepositoryRoot }
+        }
+        includeSources = false
+        includeJavadocs = false
+        includeIvyXmls = false
+      }
 
       // Configures annotation processing for commonly used annotation processors
       // across all Java projects.
@@ -815,7 +839,8 @@ artifactId=${project.name}
               // </settings>
               def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
               if (settingsXml.exists()) {
-                def serverId = (isRelease(project) ? 'apache.releases.https' : 'apache.snapshots.https')
+                def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
+                        ? 'apache.releases.https' : 'apache.snapshots.https')
                 def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
                 if (m2SettingCreds) {
                   credentials {
@@ -953,7 +978,7 @@ artifactId=${project.name}
           }
         }
         // Only sign artifacts if we are performing a release
-        if (isRelease(project)) {
+        if (isRelease(project) && !project.hasProperty('noSigning')) {
           project.apply plugin: "signing"
           project.signing {
             useGpgCmd()
@@ -1061,6 +1086,10 @@ artifactId=${project.name}
 
         if (runner?.equalsIgnoreCase('direct')) {
           testCompile it.project(path: ":beam-runners-direct-java", configuration: 'shadowTest')
+        }
+
+        if (runner?.equalsIgnoreCase('flink')) {
+          testCompile it.project(path: ":beam-runners-flink_2.11", configuration: 'shadowTest')
         }
 
         /* include dependencies required by filesystems */
@@ -1395,6 +1424,39 @@ artifactId=${project.name}
         main = "${config.type}-java-${config.runner}".toLowerCase()
         classpath = project.project(':release').sourceSets.main.runtimeClasspath
         args argsNeeded
+      }
+    }
+
+
+    /** ***********************************************************************************************/
+
+    // Method to create the PortableValidatesRunnerTask.
+    // The method takes PortableValidatesRunnerConfiguration as parameter.
+    project.ext.createPortableValidatesRunnerTask = {
+      /*
+       * We need to rely on manually specifying these evaluationDependsOn to ensure that
+       * the following projects are evaluated before we evaluate this project. This is because
+       * we are attempting to reference the "sourceSets.test.output" directly.
+       */
+      project.evaluationDependsOn(":beam-sdks-java-core")
+      project.evaluationDependsOn(":beam-runners-core-java")
+      def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
+      def name = config.name
+      def beamTestPipelineOptions = [
+        "--runner=org.apache.beam.runners.reference.testing.TestPortableRunner",
+        "--jobServerDriver=${config.jobServerDriver}",
+      ]
+      if (config.jobServerConfig) {
+        beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
+      }
+      project.tasks.create(name: name, type: Test) {
+        group = "Verification"
+        description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
+        classpath = config.testClasspathConfiguration
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        maxParallelForks 1
+        useJUnit(config.testCategories)
       }
     }
   }

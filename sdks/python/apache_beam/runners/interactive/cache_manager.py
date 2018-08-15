@@ -20,9 +20,8 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import glob
+import datetime
 import os
-import shutil
 import tempfile
 import urllib
 
@@ -79,23 +78,26 @@ class CacheManager(object):
     raise NotImplementedError
 
 
-class LocalFileCacheManager(CacheManager):
+class FileBasedCacheManager(CacheManager):
   """Maps PCollections to local temp files for materialization."""
 
-  def __init__(self, temp_dir=None):
-    self._temp_dir = temp_dir or tempfile.mkdtemp(
-        prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
+  def __init__(self, cache_dir=None):
+    if cache_dir:
+      self._cache_dir = filesystems.FileSystems.join(
+          cache_dir,
+          datetime.datetime.now().strftime("cache-%y-%m-%d-%H:%M:%S"))
+    else:
+      self._cache_dir = tempfile.mkdtemp(
+          prefix='interactive-temp-', dir=os.environ.get('TEST_TMPDIR', None))
     self._versions = collections.defaultdict(lambda: self._CacheVersion())
 
   def exists(self, *labels):
-    return bool(
-        filesystems.FileSystems.match([self._glob_path(*labels)],
-                                      limits=[1])[0].metadata_list)
+    return bool(self._match(*labels))
 
   def _latest_version(self, *labels):
     timestamp = 0
-    for path in glob.glob(self._glob_path(*labels)):
-      timestamp = max(timestamp, os.path.getmtime(path))
+    for path in self._match(*labels):
+      timestamp = max(timestamp, filesystems.FileSystems.last_updated(path))
     result = self._versions["-".join(labels)].get_version(timestamp)
     return result
 
@@ -105,8 +107,8 @@ class LocalFileCacheManager(CacheManager):
 
     def _read_helper():
       coder = SafeFastPrimitivesCoder()
-      for path in glob.glob(self._glob_path(*labels)):
-        for line in open(path):
+      for path in self._match(*labels):
+        for line in filesystems.FileSystems.open(path):
           yield coder.decode(line.strip())
     result, version = list(_read_helper()), self._latest_version(*labels)
     return result, version
@@ -120,14 +122,19 @@ class LocalFileCacheManager(CacheManager):
                                coder=SafeFastPrimitivesCoder())._sink
 
   def cleanup(self):
-    if os.path.exists(self._temp_dir):
-      shutil.rmtree(self._temp_dir)
+    if filesystems.FileSystems.exists(self._cache_dir):
+      filesystems.FileSystems.delete([self._cache_dir])
 
   def _glob_path(self, *labels):
     return self._path(*labels) + '-*-of-*'
 
   def _path(self, *labels):
-    return filesystems.FileSystems.join(self._temp_dir, *labels)
+    return filesystems.FileSystems.join(self._cache_dir, *labels)
+
+  def _match(self, *labels):
+    match = filesystems.FileSystems.match([self._glob_path(*labels)])
+    assert len(match) == 1
+    return [metadata.path for metadata in match[0].metadata_list]
 
   class _CacheVersion(object):
     """This class keeps track of the timestamp and the corresponding version."""
@@ -173,14 +180,13 @@ class WriteCache(beam.PTransform):
 
   def expand(self, pcoll):
     prefix = 'sample' if self._sample else 'full'
-    if not self._cache_manager.exists(prefix, self._label):
-      if self._sample:
-        pcoll |= 'Sample' >> (
-            combiners.Sample.FixedSizeGlobally(self._sample_size)
-            | beam.FlatMap(lambda sample: sample))
-      # pylint: disable=expression-not-assigned
-      return pcoll | 'Write' >> beam.io.Write(
-          self._cache_manager.sink(prefix, self._label))
+    if self._sample:
+      pcoll |= 'Sample' >> (
+          combiners.Sample.FixedSizeGlobally(self._sample_size)
+          | beam.FlatMap(lambda sample: sample))
+    # pylint: disable=expression-not-assigned
+    return pcoll | 'Write' >> beam.io.Write(
+        self._cache_manager.sink(prefix, self._label))
 
 
 class SafeFastPrimitivesCoder(coders.Coder):
