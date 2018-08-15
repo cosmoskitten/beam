@@ -1,0 +1,22 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+filters:
+  # Per-language reviewers.
+  "\\.go$":
+    reviewers:
+      - herohde
+  "\\.java$":
+    reviewers:
+      - lukecwik
+      - kennknowles
+      - aaltay
+  "\\.py$":
+    reviewers:
+      - pabloem
+      - robertwb
+      - aaltay
+      - charlesccychen
+
+  "build\\.gradle$":
+    reviewers:
+      - lukecwik
