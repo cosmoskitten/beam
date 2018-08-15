@@ -204,16 +204,16 @@ def find_release_time_from_maven_central(group_id, artifact_id, version):
       artifact_id,
       version
   )
-  logging.info('Finding release date of {0}:{1} {2} from the Maven Central').format(
+  logging.info('Finding release date of {0}:{1} {2} from the Maven Central'.format(
       group_id,
       artifact_id,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
       logging.error("""Failed finding the release date of {0}:{1} {2}.
-        The response status code is not ok: {4}""".format(group_id,
+        The response status code is not ok: {3}""".format(group_id,
                                                           artifact_id,
                                                           version,
                                                           str(response.status_code)))
@@ -240,15 +240,15 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
       dep_name,
       version
   )
-  logging.info('Finding release time of {0} {1} from the python compatibility checking service.').format(
+  logging.info('Finding release time of {0} {1} from the python compatibility checking service.'.format(
       dep_name,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
-      logging.error("""Failed finding the release date of {0} {2}. 
-        The response status code is not ok: {3}""".format(dep_name,
+      logging.error("""Failed finding the release date of {0} {1}. 
+        The response status code is not ok: {2}""".format(dep_name,
                                                           version,
                                                           str(response.status_code)))
       return None
