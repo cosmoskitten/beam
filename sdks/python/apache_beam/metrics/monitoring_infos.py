@@ -48,6 +48,10 @@ SUM_INT64_TYPE = 'beam:metrics:sum_int_64'
 DISTRIBUTION_INT64_TYPE = 'beam:metrics:distribution_int_64'
 LATEST_INT64_TYPE = 'beam:metrics:latest_int_64'
 
+COUNTER_TYPES = set([SUM_INT64_TYPE])
+DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
+GAUGE_TYPES = set([LATEST_INT64_TYPE])
+
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -182,17 +186,17 @@ def user_metric_urn(namespace, name):
 
 def is_counter(monitoring_info_proto):
   """Returns true if the monitoring info is a coutner metric."""
-  return monitoring_info_proto.type in [SUM_INT64_TYPE]
+  return monitoring_info_proto.type in COUNTER_TYPES
 
 
 def is_distribution(monitoring_info_proto):
   """Returns true if the monitoring info is a distrbution metric."""
-  return monitoring_info_proto.type in [DISTRIBUTION_INT64_TYPE]
+  return monitoring_info_proto.type in DISTRIBUTION_TYPES
 
 
 def is_gauge(monitoring_info_proto):
   """Returns true if the monitoring info is a gauge metric."""
-  return monitoring_info_proto.type in [LATEST_INT64_TYPE]
+  return monitoring_info_proto.type in GAUGE_TYPES
 
 
 def is_user_monitoring_info(monitoring_info_proto):
