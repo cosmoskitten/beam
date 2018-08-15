@@ -51,27 +51,14 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
     this.delegateExpression = createDelegateExpression(operands, outputType);
   }
 
-  @Override
-  public boolean accept() {
-    return delegateExpression != null && delegateExpression.accept();
-  }
-
-  @Override
-  public BeamSqlPrimitive evaluate(
-      Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
-    if (delegateExpression == null) {
-      throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
-    }
-
-    return delegateExpression.evaluate(inputRow, window, env);
-  }
-
   private BeamSqlExpression createDelegateExpression(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
     if (isTimestampMinusTimestamp(operands, outputType)) {
       return new BeamSqlTimestampMinusTimestampExpression(operands, outputType);
     } else if (isTimestampMinusInterval(operands, outputType)) {
       return new BeamSqlTimestampMinusIntervalExpression(operands, outputType);
+    } else if (isDatetimeMinusInterval(operands, outputType)) {
+      return new BeamSqlDatetimeMinusIntervalExpression(operands, outputType);
     }
 
     return null;
@@ -79,11 +66,34 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
 
   private boolean isTimestampMinusTimestamp(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
+
     return BeamSqlTimestampMinusTimestampExpression.accept(operands, outputType);
   }
 
   private boolean isTimestampMinusInterval(
       List<BeamSqlExpression> operands, SqlTypeName outputType) {
+
     return BeamSqlTimestampMinusIntervalExpression.accept(operands, outputType);
+  }
+
+  private boolean isDatetimeMinusInterval(
+      List<BeamSqlExpression> operands, SqlTypeName outputType) {
+
+    return BeamSqlDatetimeMinusIntervalExpression.accept(operands, outputType);
+  }
+
+  @Override
+  public boolean accept() {
+    return delegateExpression != null && delegateExpression.accept();
+  }
+
+  @Override
+  public BeamSqlPrimitive evaluate(
+          Row inputRow, BoundedWindow window, BeamSqlExpressionEnvironment env) {
+    if (delegateExpression == null) {
+      throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
+    }
+
+    return delegateExpression.evaluate(inputRow, window, env);
   }
 }
