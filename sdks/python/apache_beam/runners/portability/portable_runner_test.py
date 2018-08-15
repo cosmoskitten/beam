@@ -149,7 +149,16 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       time.sleep(0.1)
 
   def create_options(self):
-    options = PipelineOptions()
+    def get_pipeline_name():
+      for _, _, _, method_name, _, _ in inspect.stack():
+        if method_name.find('test') != -1:
+          return method_name
+      return 'unknown_test'
+
+    # Set the job name for better debugging.
+    options = PipelineOptions.from_dictionary({
+        'job_name': get_pipeline_name() + '_' + time.time()
+    })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
     return options
 
