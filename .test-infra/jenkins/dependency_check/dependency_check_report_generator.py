@@ -141,12 +141,13 @@ def prioritize_dependencies(deps, sdk_type):
                           latest_release_date)
       if (compare_dependency_versions(curr_ver, latest_ver) or
           compare_dependency_release_dates(curr_release_date, latest_release_date)):
+        # Create a new issue or update on the existing issue
         jira_issue = jira_manager.run(dep_name, latest_ver, sdk_type, group_id = group_id)
         if (jira_issue.fields.status.name == 'Open' or jira_issue.fields.status.name == 'Reopened'):
           dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
             ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
             jira_issue.key)
-        high_priority_deps.append(dep_info)
+          high_priority_deps.append(dep_info)
 
     except:
       traceback.print_exc()
@@ -204,16 +205,16 @@ def find_release_time_from_maven_central(group_id, artifact_id, version):
       artifact_id,
       version
   )
-  logging.info('Finding release date of {0}:{1} {2} from the Maven Central').format(
+  logging.info('Finding release date of {0}:{1} {2} from the Maven Central'.format(
       group_id,
       artifact_id,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
       logging.error("""Failed finding the release date of {0}:{1} {2}.
-        The response status code is not ok: {4}""".format(group_id,
+        The response status code is not ok: {3}""".format(group_id,
                                                           artifact_id,
                                                           version,
                                                           str(response.status_code)))
@@ -240,15 +241,15 @@ def find_release_time_from_python_compatibility_checking_service(dep_name, versi
       dep_name,
       version
   )
-  logging.info('Finding release time of {0} {1} from the python compatibility checking service.').format(
+  logging.info('Finding release time of {0} {1} from the python compatibility checking service.'.format(
       dep_name,
       version
-  )
+  ))
   try:
     response = request_session_with_retries().get(url)
     if not response.ok:
-      logging.error("""Failed finding the release date of {0} {2}. 
-        The response status code is not ok: {3}""".format(dep_name,
+      logging.error("""Failed finding the release date of {0} {1}. 
+        The response status code is not ok: {2}""".format(dep_name,
                                                           version,
                                                           str(response.status_code)))
       return None
