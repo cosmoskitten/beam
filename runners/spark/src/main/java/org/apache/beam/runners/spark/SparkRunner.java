@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.PipelineResources.prepareFilesForStaging;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
@@ -164,6 +165,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
+    prepareFilesToStageForRemoteClusterExecution();
+
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
       SparkRunnerStreamingContextFactory streamingContextFactory =
@@ -269,6 +272,18 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
       // set streaming mode if it's a streaming pipeline
       this.mOptions.setStreaming(true);
+    }
+  }
+
+  /**
+   * Local configurations work in the same JVM and have no problems with improperly formatted files
+   * on classpath (eg. directories with .class files or empty directories). Prepare files for
+   * staging only when using remote cluster.
+   */
+  private void prepareFilesToStageForRemoteClusterExecution() {
+    if (!mOptions.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+      mOptions.setFilesToStage(
+          prepareFilesForStaging(mOptions.getFilesToStage(), mOptions.getTempLocation()));
     }
   }
 
@@ -435,7 +450,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     protected <TransformT extends PTransform<? super PInput, POutput>>
         TransformEvaluator<TransformT> translate(
             TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
-      //--- determine if node is bounded/unbounded.
+      // --- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
       Map<TupleTag<?>, PValue> pValues;
