@@ -17,6 +17,7 @@
 ###############################################################################
 
 FROM openjdk:8-jdk
+#FROM python:3.7
 MAINTAINER Beam dev@beam.apache.org
 
 # Install dependencies for Jenkins Python tests
@@ -38,10 +39,11 @@ ENV PATH="/google-cloud-sdk/bin:${PATH}"
 RUN gcloud components update --quiet || echo 'gcloud components update failed' && \
     rm gcloud.tar.gz
 
+
 # Add the entrypoint script which install gcloud sdk
-#COPY docker-entrypoint.sh /usr/local/bin/
-#RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh
-#ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# COPY docker-entrypoint.sh /usr/local/bin/
+# RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh
+# ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Create beam user to validate the build on user space
 ENV USER=user \
@@ -55,6 +57,7 @@ RUN mkdir -p $HOME; \
     chmod 777 $HOME;
 USER $USER
 WORKDIR $HOME
+
 #COPY my-first-project-190318.json $HOME/credentials.json
 #RUN  gcloud auth activate-service-account --key-file=credentials.json && \
 #     gcloud config set project my-first-project-190318 && \
