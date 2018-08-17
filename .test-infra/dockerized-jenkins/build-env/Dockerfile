@@ -38,6 +38,8 @@ ENV PATH="/google-cloud-sdk/bin:${PATH}"
 RUN gcloud components update --quiet || echo 'gcloud components update failed' && \
     rm gcloud.tar.gz
 
+ENV JAVA_HOME='/docker-java-home'
+
 # Add the entrypoint script which install gcloud sdk
 #COPY docker-entrypoint.sh /usr/local/bin/
 #RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh
