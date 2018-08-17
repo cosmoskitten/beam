@@ -16,7 +16,8 @@
 # limitations under the License.
 ###############################################################################
 
-FROM openjdk:8-jdk
+#FROM openjdk:8-jdk
+FROM python:3.7
 MAINTAINER Beam dev@beam.apache.org
 
 # Install dependencies for Jenkins Python tests
@@ -37,6 +38,7 @@ tar xf gcloud.tar.gz && \
 ENV PATH="/google-cloud-sdk/bin:${PATH}"
 RUN gcloud components update --quiet || echo 'gcloud components update failed' && \
     rm gcloud.tar.gz
+
 
 # Add the entrypoint script which install gcloud sdk
 #COPY docker-entrypoint.sh /usr/local/bin/
