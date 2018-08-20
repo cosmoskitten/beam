@@ -51,7 +51,7 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   private final SqlNode tblProperties;
 
   private static final SqlOperator OPERATOR =
-      new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
+      new SqlSpecialOperator("CREATE EXTERNAL TABLE", SqlKind.OTHER_DDL);
 
   /** Creates a SqlCreateTable. */
   public SqlCreateTable(
@@ -82,6 +82,7 @@ public class SqlCreateTable extends SqlCreate implements SqlExecutableStatement 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("CREATE");
+    writer.keyword("EXTERNAL");
     writer.keyword("TABLE");
     if (ifNotExists) {
       writer.keyword("IF NOT EXISTS");
