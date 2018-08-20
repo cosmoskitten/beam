@@ -97,5 +97,5 @@ class CombineTest(unittest.TestCase):
       p.run().wait_until_finish()
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+    logging.getLogger().setLevel(logging.DEBUG)
+    unittest.main()
