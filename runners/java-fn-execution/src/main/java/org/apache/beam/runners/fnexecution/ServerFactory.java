@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
 import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
@@ -39,9 +40,10 @@ public abstract class ServerFactory {
     return new InetSocketAddressServerFactory(UrlFactory.createDefault());
   }
 
-  /** Create a {@link ServerFactory} that uses the given url factory. */
-  public static ServerFactory createWithUrlFactory(UrlFactory urlFactory) {
-    return new InetSocketAddressServerFactory(urlFactory);
+  /** Create a {@link ServerFactory} that uses the given url factory and a given port. */
+  public static ServerFactory createWithUrlFactory(
+      UrlFactory urlFactory, Supplier<Integer> portSupplier) {
+    return new InetSocketAddressServerFactory(urlFactory, portSupplier);
   }
 
   /**
@@ -68,16 +70,23 @@ public abstract class ServerFactory {
    */
   public static class InetSocketAddressServerFactory extends ServerFactory {
     private final UrlFactory urlFactory;
+    private final Supplier<Integer> portSupplier;
 
     private InetSocketAddressServerFactory(UrlFactory urlFactory) {
+      this(urlFactory, () -> 0);
+    }
+
+    private InetSocketAddressServerFactory(UrlFactory urlFactory, Supplier<Integer> portSupplier) {
       this.urlFactory = urlFactory;
+      this.portSupplier = portSupplier;
     }
 
     @Override
     public Server allocatePortAndCreate(
         BindableService service, Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptor)
         throws IOException {
-      InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+      InetSocketAddress address =
+          new InetSocketAddress(InetAddress.getLoopbackAddress(), portSupplier.get());
       Server server = createServer(service, address);
       apiServiceDescriptor.setUrl(urlFactory.createUrl(address.getHostName(), server.getPort()));
       return server;
