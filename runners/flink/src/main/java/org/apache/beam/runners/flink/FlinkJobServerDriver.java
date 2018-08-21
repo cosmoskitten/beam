@@ -51,8 +51,14 @@ public class FlinkJobServerDriver implements Runnable {
 
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
-    @Option(name = "--job-host", usage = "The job server host string")
+    @Option(name = "--job-host", usage = "The job server host name")
     private String host = "";
+
+    @Option(name = "--job-port", usage = "The job service port. (Default: 8099)")
+    private int port = 8099;
+
+    @Option(name = "--artifact-port", usage = "The artifact service port. (Default: 8098)")
+    private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath = "/tmp/beam-artifact-staging";
@@ -169,7 +175,9 @@ public class FlinkJobServerDriver implements Runnable {
       jobServiceGrpcFnServer = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     } else {
       Endpoints.ApiServiceDescriptor descriptor =
-          Endpoints.ApiServiceDescriptor.newBuilder().setUrl(configuration.host).build();
+          Endpoints.ApiServiceDescriptor.newBuilder()
+              .setUrl(configuration.host + ":" + configuration.port)
+              .build();
       jobServiceGrpcFnServer = GrpcFnServer.create(service, descriptor, serverFactory);
     }
     LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
@@ -200,8 +208,16 @@ public class FlinkJobServerDriver implements Runnable {
   private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws IOException {
     BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
-        GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    final GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService;
+    if (Strings.isNullOrEmpty(configuration.host)) {
+      artifactStagingService = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    } else {
+      Endpoints.ApiServiceDescriptor descriptor =
+          Endpoints.ApiServiceDescriptor.newBuilder()
+              .setUrl(configuration.host + ":" + configuration.artifactPort)
+              .build();
+      artifactStagingService = GrpcFnServer.create(service, descriptor, serverFactory);
+    }
     LOG.info(
         "ArtifactStagingService started on {}",
         artifactStagingService.getApiServiceDescriptor().getUrl());
