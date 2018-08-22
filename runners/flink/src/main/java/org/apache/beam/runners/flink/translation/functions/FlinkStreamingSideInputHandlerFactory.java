@@ -26,7 +26,6 @@ import com.google.common.collect.Multimap;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
@@ -41,8 +40,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
  * {@link StateRequestHandler} that uses {@link org.apache.beam.runners.core.SideInputHandler} to
@@ -60,7 +57,6 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
    */
   public static FlinkStreamingSideInputHandlerFactory forStage(
       ExecutableStage stage,
-      RuntimeContext runtimeContext,
       Map<SideInputId, PCollectionView<?>> viewMapping,
       org.apache.beam.runners.core.SideInputHandler runnerHandler) {
     ImmutableMap.Builder<SideInputId, PCollectionView<?>> sideInputBuilder = ImmutableMap.builder();
@@ -81,26 +77,8 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
 
     FlinkStreamingSideInputHandlerFactory factory =
         new FlinkStreamingSideInputHandlerFactory(sideInputBuilder.build(), runnerHandler);
-    SIDEINPUT_HANDLER_FACTORIES.put(Pair.of(runtimeContext, stage), factory);
     return factory;
   }
-
-  public static FlinkStreamingSideInputHandlerFactory getFor(
-      ExecutableStage stage, RuntimeContext runtimeContext) {
-    return SIDEINPUT_HANDLER_FACTORIES.get(Pair.of(runtimeContext, stage));
-  }
-
-  public static void removeFor(ExecutableStage stage, RuntimeContext runtimeContext) {
-    SIDEINPUT_HANDLER_FACTORIES.remove(Pair.of(runtimeContext, stage));
-  }
-
-  /**
-   * Map of side input factories for currently active executable stage operators. We require this
-   * map since we cannot reference the corresponding handlers via {@link RuntimeContext}.
-   */
-  private static final ConcurrentHashMap<
-          Pair<RuntimeContext, ExecutableStage>, FlinkStreamingSideInputHandlerFactory>
-      SIDEINPUT_HANDLER_FACTORIES = new ConcurrentHashMap<>();
 
   private FlinkStreamingSideInputHandlerFactory(
       Map<SideInputId, PCollectionView<?>> sideInputToCollection,

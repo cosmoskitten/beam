@@ -17,18 +17,11 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.io.IOException;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
-import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** Implementation of a {@link FlinkExecutableStageContext} for streaming. */
 public class FlinkStreamingExecutableStageContext
@@ -47,25 +40,6 @@ public class FlinkStreamingExecutableStageContext
   private static FlinkExecutableStageContext create(JobInfo jobInfo) throws Exception {
     JobBundleFactory jobBundleFactory = DockerJobBundleFactory.create(jobInfo);
     return new FlinkStreamingExecutableStageContext(jobBundleFactory);
-  }
-
-  @Override
-  public StateRequestHandler getStateRequestHandler(
-      ExecutableStage executableStage, RuntimeContext runtimeContext) {
-
-    if (!executableStage.getSideInputs().isEmpty()) {
-      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
-          checkNotNull(
-              FlinkStreamingSideInputHandlerFactory.getFor(executableStage, runtimeContext));
-      try {
-        return StateRequestHandlers.forSideInputHandlerFactory(
-            ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      return StateRequestHandler.unsupported();
-    }
   }
 
   @Override
