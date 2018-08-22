@@ -19,7 +19,6 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.joda.time.Instant;
 
 /**
  * Generic side input handler that uses {@link StateInternals} to store all data. Both the actual
@@ -78,12 +76,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
           PCollectionView<?>,
           StateTag<CombiningState<BoundedWindow, Set<BoundedWindow>, Set<BoundedWindow>>>>
       availableWindowsTags;
-
-  /**
-   * The next watermark to consider for pending materialization. Defaults to TIMESTAMP_MAX_VALUE for
-   * backward compatibility, i.e. the watermark is not considered for readiness of a window.
-   */
-  private Instant watermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
 
   /** State tag for the actual contents of each side input per window. */
   private final Map<PCollectionView<?>, StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
@@ -152,37 +144,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     }
   }
 
-  /**
-   * Add the given value to the existing side input {@link Iterable} or initialize it. The
-   * materialization remains pending until it can complete on watermark.
-   */
-  public void concatSideInputValue(PCollectionView<?> sideInput, WindowedValue<?> value) {
-    @SuppressWarnings("unchecked")
-    Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) sideInput.getWindowingStrategyInternal().getWindowFn().windowCoder();
-
-    StateTag<ValueState<Iterable<?>>> stateTag = sideInputContentsTags.get(sideInput);
-
-    for (BoundedWindow window : value.getWindows()) {
-      // TODO: use CombiningState
-      Iterable<?> state =
-          stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag).read();
-      if (state == null) {
-        state = Collections.singleton(value.getValue());
-        stateInternals
-            .state(StateNamespaces.global(), availableWindowsTags.get(sideInput))
-            .add(window);
-      } else {
-        state = Iterables.concat(state, Collections.singleton(value.getValue()));
-      }
-      stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag).write(state);
-    }
-  }
-
-  public void setWatermark(Instant watermark) {
-    this.watermark = watermark;
-  }
-
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
@@ -227,10 +188,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
   @Override
   public boolean isReady(PCollectionView<?> sideInput, BoundedWindow window) {
-
-    if (watermark.isBefore(window.maxTimestamp())) {
-      return false;
-    }
 
     Set<BoundedWindow> readyWindows =
         stateInternals.state(StateNamespaces.global(), availableWindowsTags.get(sideInput)).read();
