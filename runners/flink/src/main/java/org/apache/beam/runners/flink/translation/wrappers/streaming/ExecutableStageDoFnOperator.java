@@ -44,10 +44,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -132,8 +132,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     if (!sideInputs.isEmpty()) {
       checkNotNull(super.sideInputHandler);
-      // consider the watermark when checking ready windows
-      sideInputHandler.setWatermark(new Instant(super.currentSideInputWatermark));
       FlinkStreamingSideInputHandlerFactory.forStage(
           executableStage, getRuntimeContext(), sideInputIds, super.sideInputHandler);
     }
@@ -172,17 +170,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   protected void addSideInputValue(StreamRecord<RawUnionValue> streamRecord) {
     @SuppressWarnings("unchecked")
-    WindowedValue<Iterable<?>> value =
-        (WindowedValue<Iterable<?>>) streamRecord.getValue().getValue();
-
+    WindowedValue<KV<Void, Iterable<?>>> value =
+        (WindowedValue<KV<Void, Iterable<?>>>) streamRecord.getValue().getValue();
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
-    sideInputHandler.concatSideInputValue(sideInput, value);
-  }
-
-  @Override
-  public void processWatermark2(Watermark mark) throws Exception {
-    sideInputHandler.setWatermark(new Instant(mark.getTimestamp()));
-    super.processWatermark2(mark);
+    sideInputHandler.addSideInputValue(sideInput, value.withValue(value.getValue().getValue()));
   }
 
   // TODO: remove single element bundle assumption
