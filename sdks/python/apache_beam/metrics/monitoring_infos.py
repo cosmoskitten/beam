@@ -233,3 +233,13 @@ def parse_namespace_and_name(monitoring_info_proto):
   # If it is not a user counter, just use the first part fo the URN, i.e. 'beam'
   split = to_split.split(':')
   return split[0], ':'.join(split[1:])
+
+
+def to_key(monitoring_info_proto):
+  """Returns a key based on the URN and labels.
+
+  This is useful in maps to prevent reporting the same MonitoringInfo twice.
+  """
+  key_items = monitoring_info_proto.labels.items()
+  key_items.append(monitoring_info_proto.urn)
+  return frozenset(key_items)
