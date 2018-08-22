@@ -74,6 +74,13 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final int EXPECTED_RETRIES = 2;
   private static final int MAX_ATTEMPTS = 3;
+  private static final String BAD_FORMATTED_DOC[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
+  private static final String OK_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : 1 }\n";
+  private static final String BAD_REQUEST =
+      "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
+          + "{ \"field1\" : @ }\n";
 
   static final String ES_INDEX = "beam";
   static final String ES_TYPE = "test";
@@ -532,19 +539,13 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   /** Test that the default predicate correctly parses chosen error code. */
   public void testDefaultRetryPredicate(RestClient restClient) throws IOException {
-    String okRequest =
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
-            + "{ \"field1\" : 1 }\n";
-    String badRequest =
-        "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"doc\", \"_id\" : \"1\" } }\n"
-            + "{ \"field1\" : @ }\n";
 
-    HttpEntity entity1 = new NStringEntity(badRequest, ContentType.APPLICATION_JSON);
+    HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
     Response response1 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
     assertTrue(CUSTOM_RETRY_PREDICATE.test(response1));
 
-    HttpEntity entity2 = new NStringEntity(okRequest, ContentType.APPLICATION_JSON);
+    HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
     Response response2 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
     assertFalse(DEFAULT_RETRY_PREDICATE.test(response2));
@@ -562,20 +563,17 @@ class ElasticsearchIOTestCommon implements Serializable {
     expectedException.expectMessage(
         String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
 
-    String data[] = {"{ \"x\" :a,\"y\":\"ab\" }"};
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withRetryConfiguration(
                 ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
                     .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
-    pipeline.apply(Create.of(Arrays.asList(data))).apply(write);
+    pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
     try {
       pipeline.run();
     } catch (Exception ex) {
       throw ex.getCause();
     }
-    //when there is no exception, test should be failed
-    fail();
   }
 }
