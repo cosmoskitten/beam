@@ -20,13 +20,12 @@ package org.apache.beam.runners.flink.translation.functions;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
-import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -136,73 +136,32 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
 
   private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
       PCollectionView<?> collection, Coder<K> keyCoder, Coder<V> valueCoder, Coder<W> windowCoder) {
-    /*
-    ImmutableMultimap.Builder<SideInputKey, V> multimap = ImmutableMultimap.builder();
-        for (WindowedValue<KV<K, V>> windowedValue : broadcastVariable) {
-          K key = windowedValue.getValue().getKey();
-          V value = windowedValue.getValue().getValue();
 
-          for (BoundedWindow boundedWindow : windowedValue.getWindows()) {
-            @SuppressWarnings("unchecked")
-            W window = (W) boundedWindow;
-            multimap.put(
-                SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)),
-                value);
+    return new SideInputHandler<V, W>() {
+      @Override
+      public Iterable<V> get(byte[] key, W window) {
+        Iterable<KV<K, V>> values =
+            (Iterable<KV<K, V>>) runnerHandler.getIterable(collection, window);
+        ArrayList<V> result = new ArrayList<>();
+        // find values for the given key
+        for (KV<K, V> kv : values) {
+          ByteArrayOutputStream bos = new ByteArrayOutputStream();
+          try {
+            keyCoder.encode(kv.getKey(), bos);
+            if (Arrays.equals(key, bos.toByteArray())) {
+              result.add(kv.getValue());
+            }
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
           }
         }
-
-        return new MultimapSideInputHandler(multimap.build(), keyCoder, valueCoder, windowCoder);
-    */
-    throw new UnsupportedOperationException();
-  }
-
-  private static class MultimapSideInputHandler<K, V, W extends BoundedWindow>
-      implements SideInputHandler<V, W> {
-
-    private final Multimap<SideInputKey, V> collection;
-    private final Coder<K> keyCoder;
-    private final Coder<V> valueCoder;
-    private final Coder<W> windowCoder;
-
-    private MultimapSideInputHandler(
-        Multimap<SideInputKey, V> collection,
-        Coder<K> keyCoder,
-        Coder<V> valueCoder,
-        Coder<W> windowCoder) {
-      this.collection = collection;
-      this.keyCoder = keyCoder;
-      this.valueCoder = valueCoder;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public Iterable<V> get(byte[] keyBytes, W window) {
-      K key;
-      try {
-        // TODO: We could skip decoding and just compare encoded values for deterministic keyCoders.
-        key = keyCoder.decode(new ByteArrayInputStream(keyBytes));
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+        return result;
       }
-      return collection.get(
-          SideInputKey.of(keyCoder.structuralValue(key), windowCoder.structuralValue(window)));
-    }
 
-    @Override
-    public Coder<V> resultCoder() {
-      return valueCoder;
-    }
-  }
-
-  @AutoValue
-  abstract static class SideInputKey {
-    static SideInputKey of(Object key, Object window) {
-      return new AutoValue_FlinkStreamingSideInputHandlerFactory_SideInputKey(key, window);
-    }
-
-    @Nullable
-    abstract Object key();
-
-    abstract Object window();
+      @Override
+      public Coder<V> resultCoder() {
+        return valueCoder;
+      }
+    };
   }
 }
