@@ -19,9 +19,6 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.io.IOException;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
@@ -34,7 +31,8 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /** Implementation of a {@link FlinkExecutableStageContext} for streaming. */
-public class FlinkStreamingExecutableStageContext implements FlinkExecutableStageContext {
+public class FlinkStreamingExecutableStageContext
+    implements FlinkExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
   FlinkStreamingExecutableStageContext(JobBundleFactory jobBundleFactory) {
@@ -71,33 +69,20 @@ public class FlinkStreamingExecutableStageContext implements FlinkExecutableStag
   }
 
   @Override
-  protected void finalize() throws Exception {
+  public void close() throws Exception {
     jobBundleFactory.close();
   }
 
-  /** StreamingFactory. * */
   enum StreamingFactory implements Factory {
-    INSTANCE;
+    REFERENCE_COUNTING;
 
-    @SuppressWarnings("Immutable") // observably immutable
-    private final LoadingCache<JobInfo, FlinkExecutableStageContext> cachedContexts;
-
-    StreamingFactory() {
-      cachedContexts =
-          CacheBuilder.newBuilder()
-              .weakValues()
-              .build(
-                  new CacheLoader<JobInfo, FlinkExecutableStageContext>() {
-                    @Override
-                    public FlinkExecutableStageContext load(JobInfo jobInfo) throws Exception {
-                      return create(jobInfo);
-                    }
-                  });
-    }
+    private static final ReferenceCountingFlinkExecutableStageContextFactory actualFactory =
+        ReferenceCountingFlinkExecutableStageContextFactory.create(
+            FlinkStreamingExecutableStageContext::create);
 
     @Override
     public FlinkExecutableStageContext get(JobInfo jobInfo) {
-      return cachedContexts.getUnchecked(jobInfo);
+      return actualFactory.get(jobInfo);
     }
   }
 }
