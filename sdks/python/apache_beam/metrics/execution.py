@@ -39,6 +39,7 @@ from collections import defaultdict
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.monitoring_infos import int64_counter
 from apache_beam.metrics.monitoring_infos import int64_distribution
 from apache_beam.metrics.monitoring_infos import int64_gauge
@@ -238,7 +239,7 @@ class MetricsContainer(object):
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
-    return all_user_metrics
+    return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
 
 
 class MetricUpdates(object):

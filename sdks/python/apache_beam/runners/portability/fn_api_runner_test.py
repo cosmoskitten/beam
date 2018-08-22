@@ -357,20 +357,6 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
-    all_metrics = res.metrics(use_monitoring_infos=False).query()
-    all_metrics_via_montoring_infos = res.metrics(
-        use_monitoring_infos=True).query()
-
-    self.assertEqual(3, len(all_metrics))
-    self.assertEqual(3, len(all_metrics_via_montoring_infos))
-    for i in range(len(all_metrics['gauges'])):
-      metric = all_metrics['gauges'][i]
-      metric_via_mi = all_metrics_via_montoring_infos['gauges'][i]
-      # Set the timestamps to be equal, then Compare for equality.
-      metric_via_mi.committed.data.timestamp = metric.committed.data.timestamp
-      metric_via_mi.attempted.data.timestamp = metric.attempted.data.timestamp
-    self.assertEqual(all_metrics, all_metrics_via_montoring_infos)
-
   def test_non_user_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
@@ -385,7 +371,7 @@ class FnApiRunnerTest(unittest.TestCase):
     res.wait_until_finish()
 
     all_metrics_via_montoring_infos = res.metrics(
-        user_metrics_only=False, use_monitoring_infos=True).query()
+        user_metrics_only=False).query()
 
     def assert_counter_exists(metrics, namespace, name, step):
       found = 0
@@ -412,6 +398,7 @@ class FnApiRunnerTest(unittest.TestCase):
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
   def test_progress_metrics(self):
+    logging.getLogger().setLevel(logging.INFO)
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
       # This test is inherited by others that may not support the same
@@ -430,46 +417,49 @@ class FnApiRunnerTest(unittest.TestCase):
              beam.pvalue.TaggedOutput('twice', x)]))
     res = p.run()
     res.wait_until_finish()
+
     try:
-      self.assertEqual(2, len(res._metrics_by_stage))
-      pregbk_metrics, postgbk_metrics = list(res._metrics_by_stage.values())
-      if 'Create/Read' not in pregbk_metrics.ptransforms:
-        # The metrics above are actually unordered. Swap.
-        pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
+      self.assertEqual(2, len(res._monitoring_infos_by_stage))
+      pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+      if 'Create/Read' not in pregbk_mis[0].labels['PTRANSFORM']:
+        # The monitoring infos above are actually unordered. Swap.
+        pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Create/Read']
-          .processed_elements.measured.output_element_counts['None'])
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Map(sleep)']
-          .processed_elements.measured.output_element_counts['None'])
-      self.assertLessEqual(
-          4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
-          pregbk_metrics.ptransforms['Map(sleep)']
-          .processed_elements.measured.total_time_spent)
-      self.assertEqual(
-          1,
-          postgbk_metrics.ptransforms['GroupByKey/Read']
-          .processed_elements.measured.output_element_counts['None'])
+      def assert_has_monitoring_info(monitoring_infos, urn, value, labels):
+        found = 0
+        for m in monitoring_infos:
+          if (m.labels == labels and
+              m.metric.counter_data.int64_value == value and
+              m.urn == urn):
+            found = found + 1
+        self.assertEqual(
+            1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+            (found, (urn, value, labels),))
 
-      # The actual stage name ends up being something like 'm_out/lamdbda...'
-      m_out, = [
-          metrics for name, metrics in list(postgbk_metrics.ptransforms.items())
-          if name.startswith('m_out')]
-      self.assertEqual(
-          5,
-          m_out.processed_elements.measured.output_element_counts['None'])
-      self.assertEqual(
-          1,
-          m_out.processed_elements.measured.output_element_counts['once'])
-      self.assertEqual(
-          2,
-          m_out.processed_elements.measured.output_element_counts['twice'])
+      # pregbk_mis
+      labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 4, labels)
+      labels = {'PTRANSFORM' : 'Map(sleep)'}
+      assert_has_monitoring_info(
+          pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
+          4e-3 * DEFAULT_SAMPLING_PERIOD_MS, labels)
 
+      # postgbk_metrics
+      labels = {'PTRANSFORM' : 'GroupByKey/Read', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 1, labels)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'None'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 5, labels)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'once'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 1, labels)
+      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'twice'}
+      assert_has_monitoring_info(
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 2, labels)
     except:
-      print(res._metrics_by_stage)
+      print(res._monitoring_infos_by_stage)
       raise
 
 
