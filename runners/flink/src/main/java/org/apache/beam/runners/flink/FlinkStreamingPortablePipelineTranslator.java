@@ -75,6 +75,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -292,6 +293,9 @@ public class FlinkStreamingPortablePipelineTranslator
     RunnerApi.PTransform pTransform = pipeline.getComponents().getTransformsOrThrow(id);
     String inputPCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
 
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forComponents(pipeline.getComponents());
+
     RunnerApi.WindowingStrategy windowingStrategyProto =
         pipeline
             .getComponents()
@@ -300,12 +304,6 @@ public class FlinkStreamingPortablePipelineTranslator
                     .getComponents()
                     .getPcollectionsOrThrow(inputPCollectionId)
                     .getWindowingStrategyId());
-
-    DataStream<WindowedValue<KV<K, V>>> inputDataStream =
-        context.getDataStreamOrThrow(inputPCollectionId);
-
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(pipeline.getComponents());
 
     WindowingStrategy<?, ?> windowingStrategy;
     try {
@@ -320,6 +318,28 @@ public class FlinkStreamingPortablePipelineTranslator
 
     WindowedValueCoder<KV<K, V>> windowedInputCoder =
         (WindowedValueCoder) instantiateCoder(inputPCollectionId, pipeline.getComponents());
+
+    DataStream<WindowedValue<KV<K, V>>> inputDataStream =
+        context.getDataStreamOrThrow(inputPCollectionId);
+
+    SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<V>>>> outputDataStream =
+        addGBK(
+            inputDataStream,
+            windowingStrategy,
+            windowedInputCoder,
+            pTransform.getUniqueName(),
+            context);
+
+    context.addDataStream(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()), outputDataStream);
+  }
+
+  private <K, V> SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<V>>>> addGBK(
+      DataStream<WindowedValue<KV<K, V>>> inputDataStream,
+      WindowingStrategy<?, ?> windowingStrategy,
+      WindowedValueCoder<KV<K, V>> windowedInputCoder,
+      String operatorName,
+      StreamingTranslationContext context) {
     KvCoder<K, V> inputElementCoder = (KvCoder<K, V>) windowedInputCoder.getValueCoder();
 
     SingletonKeyedWorkItemCoder<K, V> workItemCoder =
@@ -361,11 +381,10 @@ public class FlinkStreamingPortablePipelineTranslator
 
     TupleTag<KV<K, Iterable<V>>> mainTag = new TupleTag<>("main output");
 
-    // TODO: remove non-portable operator re-use
     WindowDoFnOperator<K, V, Iterable<V>> doFnOperator =
         new WindowDoFnOperator<K, V, Iterable<V>>(
             reduceFn,
-            pTransform.getUniqueName(),
+            operatorName,
             (Coder) windowedWorkItemCoder,
             mainTag,
             Collections.emptyList(),
@@ -379,10 +398,9 @@ public class FlinkStreamingPortablePipelineTranslator
 
     SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<V>>>> outputDataStream =
         keyedWorkItemStream.transform(
-            pTransform.getUniqueName(), outputTypeInfo, (OneInputStreamOperator) doFnOperator);
+            operatorName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
 
-    context.addDataStream(
-        Iterables.getOnlyElement(pTransform.getOutputsMap().values()), outputDataStream);
+    return outputDataStream;
   }
 
   private void translateImpulse(
@@ -615,18 +633,18 @@ public class FlinkStreamingPortablePipelineTranslator
     return sideInputs;
   }
 
-  private static Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>>
-      transformSideInputs(
-          RunnerApi.ExecutableStagePayload stagePayload,
-          RunnerApi.Components components,
-          StreamingTranslationContext context) {
+  private Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs(
+      RunnerApi.ExecutableStagePayload stagePayload,
+      RunnerApi.Components components,
+      StreamingTranslationContext context) {
 
     LinkedHashMap<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputs =
         getSideInputIdToPCollectionViewMap(stagePayload, components);
 
     Map<TupleTag<?>, Integer> tagToIntMapping = new HashMap<>();
     Map<Integer, PCollectionView<?>> intToViewMapping = new HashMap<>();
-    List<Coder<?>> inputCoders = new ArrayList<>();
+    List<WindowedValueCoder<KV<Void, Object>>> kvCoders = new ArrayList<>();
+    List<Coder<?>> viewCoders = new ArrayList<>();
 
     int count = 0;
     for (Map.Entry<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInput :
@@ -645,12 +663,18 @@ public class FlinkStreamingPortablePipelineTranslator
         throw new IllegalStateException("Input Stream TypeInformation is no CoderTypeInformation.");
       }
 
-      Coder<?> coder = ((CoderTypeInformation) tpe).getCoder();
-      inputCoders.add(coder);
+      WindowedValueCoder<Object> coder =
+          (WindowedValueCoder) ((CoderTypeInformation) tpe).getCoder();
+      Coder<KV<Void, Object>> kvCoder = KvCoder.of(VoidCoder.of(), coder.getValueCoder());
+      kvCoders.add(coder.withValueCoder(kvCoder));
+      // coder for materialized view matching GBK below
+      WindowedValueCoder<KV<Void, Iterable<Object>>> viewCoder =
+          coder.withValueCoder(KvCoder.of(VoidCoder.of(), IterableCoder.of(coder.getValueCoder())));
+      viewCoders.add(viewCoder);
     }
 
     // second pass, now that we gathered the input coders
-    UnionCoder unionCoder = UnionCoder.of(inputCoders);
+    UnionCoder unionCoder = UnionCoder.of(viewCoders);
 
     CoderTypeInformation<RawUnionValue> unionTypeInformation =
         new CoderTypeInformation<>(unionCoder);
@@ -667,8 +691,24 @@ public class FlinkStreamingPortablePipelineTranslator
               .getTransformsOrThrow(sideInput.getKey().getTransformId())
               .getInputsOrThrow(sideInput.getKey().getLocalName());
       DataStream<WindowedValue<?>> sideInputStream = context.getDataStreamOrThrow(collectionId);
+
+      // insert GBK to materialize side input view
+      String viewName =
+          sideInput.getKey().getTransformId() + "-" + sideInput.getKey().getLocalName();
+      WindowedValueCoder<KV<Void, Object>> kvCoder = kvCoders.get(intTag);
+      DataStream<WindowedValue<KV<Void, Object>>> keyedSideInputStream =
+          sideInputStream.map(new ToVoidKeyValue());
+
+      SingleOutputStreamOperator<WindowedValue<KV<Void, Iterable<Object>>>> viewStream =
+          addGBK(
+              keyedSideInputStream,
+              sideInput.getValue().getWindowingStrategyInternal(),
+              kvCoder,
+              viewName,
+              context);
+
       DataStream<RawUnionValue> unionValueStream =
-          sideInputStream
+          viewStream
               .map(new FlinkStreamingTransformTranslators.ToRawUnion<>(intTag))
               .returns(unionTypeInformation);
 
@@ -680,6 +720,14 @@ public class FlinkStreamingPortablePipelineTranslator
     }
 
     return new Tuple2<>(intToViewMapping, sideInputUnion);
+  }
+
+  private static class ToVoidKeyValue<T>
+      implements MapFunction<WindowedValue<T>, WindowedValue<KV<Void, T>>> {
+    @Override
+    public WindowedValue<KV<Void, T>> map(WindowedValue<T> value) {
+      return value.withValue(KV.of(null, value.getValue()));
+    }
   }
 
   static <T> Coder<WindowedValue<T>> instantiateCoder(
