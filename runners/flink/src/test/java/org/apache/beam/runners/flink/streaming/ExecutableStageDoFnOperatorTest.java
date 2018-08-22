@@ -71,6 +71,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.internal.util.reflection.Whitebox;
 
 /** Tests for {@link ExecutableStageDoFnOperator}. */
 @RunWith(JUnit4.class)
@@ -100,7 +101,6 @@ public class ExecutableStageDoFnOperatorTest {
   public void setUpMocks() {
     MockitoAnnotations.initMocks(this);
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
-    when(stageContext.getStateRequestHandler(any(), any())).thenReturn(stateRequestHandler);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
   }
 
@@ -372,6 +372,7 @@ public class ExecutableStageDoFnOperatorTest {
             contextFactory,
             createOutputMap(mainOutput, additionalOutputs));
 
+    Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;
   }
 

@@ -20,7 +20,9 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -32,10 +34,12 @@ import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageC
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -130,15 +134,29 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
 
-    if (!sideInputs.isEmpty()) {
-      checkNotNull(super.sideInputHandler);
-      FlinkStreamingSideInputHandlerFactory.forStage(
-          executableStage, getRuntimeContext(), sideInputIds, super.sideInputHandler);
-    }
-    stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
+    stateRequestHandler = getStateRequestHandler(executableStage);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
     outputQueue = new LinkedBlockingQueue<>();
+  }
+
+  private StateRequestHandler getStateRequestHandler(ExecutableStage executableStage) {
+
+    if (!executableStage.getSideInputs().isEmpty()) {
+      checkNotNull(super.sideInputHandler);
+      StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
+          Preconditions.checkNotNull(
+              FlinkStreamingSideInputHandlerFactory.forStage(
+                  executableStage, sideInputIds, super.sideInputHandler));
+      try {
+        return StateRequestHandlers.forSideInputHandlerFactory(
+            ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      return StateRequestHandler.unsupported();
+    }
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -181,7 +199,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     try (AutoCloseable closable = stageContext) {}
     stageContext = null;
-    FlinkStreamingSideInputHandlerFactory.removeFor(executableStage, getRuntimeContext());
     super.close();
   }
 
