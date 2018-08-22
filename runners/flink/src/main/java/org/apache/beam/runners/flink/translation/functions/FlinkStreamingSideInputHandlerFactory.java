@@ -146,7 +146,7 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
     return new SideInputHandler<T, W>() {
       @Override
       public Iterable<T> get(byte[] key, W window) {
-        return (Iterable<T>) runnerHandler.getRaw(collection, window);
+        return (Iterable<T>) runnerHandler.getIterable(collection, window);
       }
 
       @Override

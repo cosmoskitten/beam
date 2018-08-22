@@ -42,7 +42,7 @@ class FlinkBatchExecutableStageContext implements FlinkExecutableStageContext, A
     return new FlinkBatchExecutableStageContext(jobBundleFactory);
   }
 
-  FlinkBatchExecutableStageContext(JobBundleFactory jobBundleFactory) {
+  private FlinkBatchExecutableStageContext(JobBundleFactory jobBundleFactory) {
     this.jobBundleFactory = jobBundleFactory;
   }
 
