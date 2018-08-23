@@ -62,7 +62,10 @@ cdef class Operation(object):
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
-  cpdef progress_metrics(self)
+  cpdef monitoring_infos(self, transform_id)
+  cpdef element_count_monitoring_infos(self, transform_id)
+  cpdef user_monitoring_infos(self, transform_id)
+  cpdef execution_time_monitoring_infos(self, transform_id)
 
 
 cdef class ReadOperation(Operation):
@@ -75,6 +78,7 @@ cdef class DoOperation(Operation):
   cdef Receiver dofn_receiver
   cdef object tagged_receivers
   cdef object side_input_maps
+  cpdef monitoring_infos(self, transform_id)
 
 
 cdef class CombineOperation(Operation):
