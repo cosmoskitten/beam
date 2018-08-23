@@ -36,13 +36,10 @@ import threading
 from builtins import object
 from collections import defaultdict
 
+from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.metrics import monitoring_infos
-from apache_beam.metrics.monitoring_infos import int64_counter
-from apache_beam.metrics.monitoring_infos import int64_distribution
-from apache_beam.metrics.monitoring_infos import int64_gauge
 from apache_beam.metrics.monitoring_infos import user_metric_urn
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import statesampler
@@ -220,21 +217,21 @@ class MetricsContainer(object):
     """Returns a list of MonitoringInfos for the metrics in this container."""
     all_user_metrics = []
     for k, v in self.counters.items():
-      all_user_metrics.append(int64_counter(
+      all_user_metrics.append(monitoring_infos.int64_counter(
           user_metric_urn(k.namespace, k.name),
           v.to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
 
     for k, v in self.distributions.items():
-      all_user_metrics.append(int64_distribution(
+      all_user_metrics.append(monitoring_infos.int64_distribution(
           user_metric_urn(k.namespace, k.name),
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id
       ))
 
     for k, v in self.gauges.items():
-      all_user_metrics.append(int64_gauge(
+      all_user_metrics.append(monitoring_infos.int64_gauge(
           user_metric_urn(k.namespace, k.name),
           v.get_cumulative().to_runner_api_monitoring_info(),
           ptransform=transform_id

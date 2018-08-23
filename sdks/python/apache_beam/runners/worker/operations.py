@@ -33,7 +33,6 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.monitoring_infos import int64_counter
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -185,7 +184,7 @@ class Operation(object):
       # If there is exactly one output, we can unambiguously
       # fix its name later, which we do.
       # TODO(robertwb): Plumb the actual name here.
-      mi = int64_counter(
+      mi = monitoring_infos.int64_counter(
           monitoring_infos.ELEMENT_COUNT_URN,
           self.receivers[0].opcounter.element_counter.value(),
           ptransform=transform_id,
@@ -204,22 +203,22 @@ class Operation(object):
         + self.scoped_process_state.sampled_msecs_int()
         + self.scoped_finish_state.sampled_msecs_int())
     mis = [
-        int64_counter(
+        monitoring_infos.int64_counter(
             monitoring_infos.START_BUNDLE_MSECS_URN,
             self.scoped_start_state.sampled_msecs_int(),
             ptransform=transform_id
         ),
-        int64_counter(
+        monitoring_infos.int64_counter(
             monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
             self.scoped_process_state.sampled_msecs_int(),
             ptransform=transform_id
         ),
-        int64_counter(
+        monitoring_infos.int64_counter(
             monitoring_infos.FINISH_BUNDLE_MSECS_URN,
             self.scoped_finish_state.sampled_msecs_int(),
             ptransform=transform_id
         ),
-        int64_counter(
+        monitoring_infos.int64_counter(
             monitoring_infos.TOTAL_MSECS_URN,
             total_time_spent_msecs,
             ptransform=transform_id
@@ -459,7 +458,7 @@ class DoOperation(Operation):
     infos = super(DoOperation, self).monitoring_infos(transform_id)
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
-        mi = int64_counter(
+        mi = monitoring_infos.int64_counter(
             monitoring_infos.ELEMENT_COUNT_URN,
             receiver.opcounter.element_counter.value(),
             ptransform=transform_id,
