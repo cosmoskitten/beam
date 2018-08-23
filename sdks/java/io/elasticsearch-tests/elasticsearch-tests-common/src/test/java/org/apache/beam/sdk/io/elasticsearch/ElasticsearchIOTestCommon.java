@@ -558,7 +558,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    * behavior.
    */
   public void testWriteRetry() throws Throwable {
-    expectedException.expect(IOException.class);
+    expectedException.expectCause(isA(IOException.class));
     // max attempt is 3, but retry is 2 which excludes 1st attempt when error was identified and retry started.
     expectedException.expectMessage(
         String.format(ElasticsearchIO.Write.WriteFn.RETRY_FAILED_LOG, EXPECTED_RETRIES));
@@ -570,10 +570,7 @@ class ElasticsearchIOTestCommon implements Serializable {
                 ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
                     .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
     pipeline.apply(Create.of(Arrays.asList(BAD_FORMATTED_DOC))).apply(write);
-    try {
-      pipeline.run();
-    } catch (Exception ex) {
-      throw ex.getCause();
-    }
+
+    pipeline.run();
   }
 }
