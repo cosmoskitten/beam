@@ -35,13 +35,13 @@ class SdkWorkerMainTest(unittest.TestCase):
 
     @classmethod
     def _add_argparse_args(cls, parser):
-      parser.add_argument('--eam:option:mock_option:v', help='mock option')
-      parser.add_argument('--eam:option:mock_option:v1', help='mock option')
-      parser.add_argument('--beam:option:mock_option:v', help='mock option')
-      parser.add_argument('--mock_flag', action='store_true', help='mock flag')
-      parser.add_argument('--mock_option', help='mock option')
+      parser.add_argument('--eam:option:m_option:v', help='mock option')
+      parser.add_argument('--eam:option:m_option:v1', help='mock option')
+      parser.add_argument('--beam:option:m_option:v', help='mock option')
+      parser.add_argument('--m_flag', action='store_true', help='mock flag')
+      parser.add_argument('--m_option', help='mock option')
       parser.add_argument(
-          '--mock_multi_option', action='append', help='mock multi option')
+          '--m_m_option', action='append', help='mock multi option')
 
   def test_status_server(self):
 
@@ -59,48 +59,48 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_parse_pipeine_options(self):
     expected_options = PipelineOptions()
     expected_options.view_as(
-        SdkWorkerMainTest.MockOptions).mock_multi_option = [
+        SdkWorkerMainTest.MockOptions).m_m_option = [
             'worker_threads=1', 'beam_fn_api'
         ]
     expected_options.view_as(
-        SdkWorkerMainTest.MockOptions).mock_option = '/tmp/requirements.txt'
+        SdkWorkerMainTest.MockOptions).m_option = '/tmp/requirements.txt'
     self.assertEqual(
-        {'mock_multi_option': ['worker_threads=1']},
+        {'m_m_option': ['worker_threads=1']},
         sdk_worker_main._parse_pipeline_options(
-            '{"options": {"mock_multi_option":["worker_threads=1"]}}')
+            '{"options": {"m_m_option":["worker_threads=1"]}}')
         .get_all_options(drop_default=True))
     self.assertEqual(
         expected_options.get_all_options(),
         sdk_worker_main._parse_pipeline_options(
             '{"options": {' +
-            '"mock_option": "/tmp/requirements.txt", ' +
-            '"mock_multi_option":["worker_threads=1", "beam_fn_api"]' +
+            '"m_option": "/tmp/requirements.txt", ' +
+            '"m_m_option":["worker_threads=1", "beam_fn_api"]' +
             '}}').get_all_options())
     self.assertEqual(
-        {'mock_multi_option': ['worker_threads=1']},
+        {'m_m_option': ['worker_threads=1']},
         sdk_worker_main._parse_pipeline_options(
-            '{"beam:option:mock_multi_option:v1":["worker_threads=1"]}')
+            '{"beam:option:m_m_option:v1":["worker_threads=1"]}')
         .get_all_options(drop_default=True))
     self.assertEqual(
         expected_options.get_all_options(),
         sdk_worker_main._parse_pipeline_options(
-            '{"beam:option:mock_option:v1": "/tmp/requirements.txt", ' +
-            '"beam:option:mock_multi_option:v1":["worker_threads=1", ' +
+            '{"beam:option:m_option:v1": "/tmp/requirements.txt", ' +
+            '"beam:option:m_m_option:v1":["worker_threads=1", ' +
             '"beam_fn_api"]}').get_all_options())
     self.assertEqual(
-        {'beam:option:mock_option:v': 'mock_val'},
+        {'beam:option:m_option:v': 'mock_val'},
         sdk_worker_main._parse_pipeline_options(
-            '{"options": {"beam:option:mock_option:v":"mock_val"}}')
+            '{"options": {"beam:option:m_option:v":"mock_val"}}')
         .get_all_options(drop_default=True))
     self.assertEqual(
-        {'eam:option:mock_option:v1': 'mock_val'},
+        {'eam:option:m_option:v1': 'mock_val'},
         sdk_worker_main._parse_pipeline_options(
-            '{"options": {"eam:option:mock_option:v1":"mock_val"}}')
+            '{"options": {"eam:option:m_option:v1":"mock_val"}}')
         .get_all_options(drop_default=True))
     self.assertEqual(
-        {'eam:option:mock_option:v': 'mock_val'},
+        {'eam:option:m_option:v': 'mock_val'},
         sdk_worker_main._parse_pipeline_options(
-            '{"options": {"eam:option:mock_option:v":"mock_val"}}')
+            '{"options": {"eam:option:m_option:v":"mock_val"}}')
         .get_all_options(drop_default=True))
 
   def test_work_count_custom_value(self):
