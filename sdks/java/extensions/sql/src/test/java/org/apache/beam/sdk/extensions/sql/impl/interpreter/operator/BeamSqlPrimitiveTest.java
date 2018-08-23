@@ -34,6 +34,15 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
         expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 
+  @Test
+  public void testPrimitiveBytes() {
+    BeamSqlPrimitive<byte[]> expBytes =
+        BeamSqlPrimitive.of(SqlTypeName.VARBINARY, new byte[] {1, 2, 3});
+    Assert.assertEquals(
+        expBytes.getValue(),
+        expBytes.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void testPrimitiveTypeUnMatch1() {
     BeamSqlPrimitive expInt = BeamSqlPrimitive.of(SqlTypeName.INTEGER, 100L);
@@ -64,5 +73,13 @@ public class BeamSqlPrimitiveTest extends BeamSqlFnExecutorTestBase {
     Assert.assertEquals(
         expInt.getValue(),
         expInt.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPrimitiveTypeUnMatch5() {
+    BeamSqlPrimitive expBytes = BeamSqlPrimitive.of(SqlTypeName.VARBINARY, 100L);
+    Assert.assertEquals(
+        expBytes.getValue(),
+        expBytes.evaluate(row, null, BeamSqlExpressionEnvironments.empty()).getValue());
   }
 }

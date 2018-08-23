@@ -131,6 +131,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       case CHAR:
       case VARCHAR:
         return value instanceof String || value instanceof NlsString;
+      case VARBINARY:
+        return value instanceof byte[];
       case TIME:
       case TIMESTAMP:
       case DATE:
