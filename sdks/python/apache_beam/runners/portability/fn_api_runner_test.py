@@ -543,7 +543,7 @@ class FnApiRunnerTest(unittest.TestCase):
         # TODO(ajamato): Consider adding a matcher framework
         found = 0
         for m in monitoring_infos:
-          if (m.labels == labels and m.urn == urn):
+          if m.labels == labels and m.urn == urn:
               if (ge_value is not None and
                   m.metric.counter_data.int64_value >= ge_value):
                 found = found + 1
