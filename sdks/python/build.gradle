@@ -211,7 +211,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 // 2. Either a) or b)
 //  a) If you want the Job Server to run in a Docker container:
 //
-//    ./gradlew :beam-runners-flink_2.11-job-server-container docker
+//    ./gradlew :beam-runners-flink_2.11-job-server-container:docker
 //
 //  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
