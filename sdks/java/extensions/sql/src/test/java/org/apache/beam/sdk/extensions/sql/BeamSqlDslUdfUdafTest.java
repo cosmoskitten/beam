@@ -20,6 +20,10 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -131,6 +135,40 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** test auto-registered UDF/UDAF. */
+  @Test
+  public void testAutoUdfUdaf() throws Exception {
+    Schema resultType =
+        Schema.builder().addInt32Field("f_int2").addInt32Field("squarecubicsum").build();
+
+    Row row = Row.withSchema(resultType).addValues(0, 4890).build();
+
+    String sql =
+        "SELECT f_int2, squaresum(cubic(f_int)) AS `squarecubicsum`"
+            + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result =
+        boundedInput1.apply("testUdaf", SqlTransform.query(sql).autoRegisterUdfUdaf());
+
+    PAssert.that(result).containsInAnyOrder(row);
+    pipeline.run().waitUntilFinish();
+  }
+
+  /** Auto register for test. */
+  @AutoService(UdfUdafRegister.class)
+  public static class UdfUdafRegisterTest implements UdfUdafRegister {
+
+    @Override
+    public Map<String, Class<? extends BeamSqlUdf>> getEvalUdfs() {
+      return new HashMap<String, Class<? extends BeamSqlUdf>>(
+          ImmutableMap.of("cubic", CubicInteger.class));
+    }
+
+    @Override
+    public Map<String, CombineFn> getUdafs() {
+      return new HashMap<String, CombineFn>(ImmutableMap.of("squaresum", new SquareSum()));
+    }
   }
 
   /** UDAF(CombineFn) for test, which returns the sum of square. */

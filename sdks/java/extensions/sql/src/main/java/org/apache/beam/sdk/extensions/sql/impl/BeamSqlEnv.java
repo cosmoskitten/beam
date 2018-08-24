@@ -17,16 +17,21 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import com.google.common.collect.Lists;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.UdfUdafRegister;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
@@ -97,6 +102,22 @@ public class BeamSqlEnv {
    */
   public void registerUdaf(String functionName, Combine.CombineFn combineFn) {
     defaultSchema.add(functionName, new UdafImpl(combineFn));
+  }
+
+  /** Load all UDF/UDAF from {@link UdfUdafRegister}. */
+  public void autoRegisterUdfUdaf() {
+    for (UdfUdafRegister ins :
+        Lists.newArrayList(ServiceLoader.<UdfUdafRegister>load(UdfUdafRegister.class))) {
+      for (Entry<String, Class<? extends BeamSqlUdf>> udf1 : ins.getEvalUdfs().entrySet()) {
+        registerUdf(udf1.getKey(), udf1.getValue());
+      }
+      for (Entry<String, SerializableFunction<?, ?>> udf2 : ins.getSerializeUdfs().entrySet()) {
+        registerUdf(udf2.getKey(), udf2.getValue());
+      }
+      for (Entry<String, CombineFn> udaf1 : ins.getUdafs().entrySet()) {
+        registerUdaf(udaf1.getKey(), udaf1.getValue());
+      }
+    }
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
