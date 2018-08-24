@@ -919,7 +919,6 @@ class FnApiRunner(runner.PipelineRunner):
     return pipeline_components, stages, safe_coders
 
   def run_stages(self, pipeline_components, stages, safe_coders):
-    logging.info('ajamato run_stages')
     if self._use_grpc:
       controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
     else:
