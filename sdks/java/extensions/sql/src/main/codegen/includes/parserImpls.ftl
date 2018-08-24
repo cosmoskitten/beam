@@ -191,6 +191,18 @@ SqlCreate SqlCreateExternalTable() :
     }
 }
 
+SqlCreate SqlCreateTableNotSupportedMessage(Span s, boolean replace) :
+{
+
+}
+{
+  <TABLE>
+
+  {
+    return new SqlCreateTableNotSupportedMessage(s.end(this), replace);
+  }
+}
+
 SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     final boolean ifExists;

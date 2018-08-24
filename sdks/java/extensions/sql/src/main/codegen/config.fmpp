@@ -25,6 +25,7 @@ data: {
         "org.apache.calcite.sql.SqlCreate"
         "org.apache.calcite.sql.SqlDrop"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTableNotSupportedMessage"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.schemas.Schema"
@@ -77,6 +78,7 @@ data: {
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
+        SqlCreateTableNotSupportedMessage
       ]
 
       # List of methods for parsing extensions to "DROP" calls.
