@@ -34,4 +34,11 @@ builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
+
+  steps {
+    gradle {
+      // BEAM-5035: Parallel builds are very flaky
+      switches('--no-parallel')
+    }
+  }
 }
