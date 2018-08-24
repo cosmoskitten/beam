@@ -538,39 +538,46 @@ class FnApiRunnerTest(unittest.TestCase):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
-      def assert_has_monitoring_info(monitoring_infos, urn, value, labels):
+      def assert_has_monitoring_info(
+          monitoring_infos, urn, labels, value=None, ge_value=None):
+        # TODO(ajamato): Consider adding a matcher framework
         found = 0
         for m in monitoring_infos:
-          if (m.labels == labels and
-              m.metric.counter_data.int64_value == value and
-              m.urn == urn):
-            found = found + 1
+          if (m.labels == labels and m.urn == urn):
+              if (ge_value is not None and
+                  m.metric.counter_data.int64_value >= ge_value):
+                found = found + 1
+              elif (value is not None and
+                    m.metric.counter_data.int64_value == value):
+                found = found + 1
+        ge_value_str = {'ge_value' : ge_value} if ge_value else ''
+        value_str = {'value' : value} if value else ''
         self.assertEqual(
             1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-            (found, (urn, value, labels),))
+            (found, (urn, labels, value_str, ge_value_str),))
 
       # pregbk_mis
       labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'None'}
       assert_has_monitoring_info(
-          pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 4, labels)
+          pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       labels = {'PTRANSFORM' : 'Map(sleep)'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
-          4e-3 * DEFAULT_SAMPLING_PERIOD_MS, labels)
+          labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk_metrics
       labels = {'PTRANSFORM' : 'GroupByKey/Read', 'TAG' : 'None'}
       assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 1, labels)
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'None'}
       assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 5, labels)
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
       labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'once'}
       assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 1, labels)
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
       labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'twice'}
       assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, 2, labels)
+          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=2)
     except:
       print(res._monitoring_infos_by_stage)
       raise

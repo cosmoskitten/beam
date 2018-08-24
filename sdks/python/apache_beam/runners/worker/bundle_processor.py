@@ -428,12 +428,10 @@ class BundleProcessor(object):
 
   def monitoring_infos(self):
     """Returns the list of MonitoringInfos collected processing this bundle."""
-    logging.info('ajamato monitoring_infos:')
-    # construct a new dict first to remove duplciates
+    # Construct a new dict first to remove duplciates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
       for mi in op.monitoring_infos(transform_id).values():
-        logging.info('ajamato m_info: %s', mi)
         fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
         all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
     return all_monitoring_infos_dict.values()
