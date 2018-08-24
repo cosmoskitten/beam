@@ -24,6 +24,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -41,7 +44,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -73,6 +75,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
+  private transient ExecutorService outputEmitter;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -127,6 +130,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     stateRequestHandler = stageContext.getStateRequestHandler(executableStage, getRuntimeContext());
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
+    // pipeline output with single thread (output manager and downstream operator chain are not thread-safe)
+    outputEmitter = Executors.newSingleThreadExecutor();
   }
 
   // TODO: currently assumes that every element is a separate bundle,
@@ -137,7 +142,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     checkState(
         stateRequestHandler != null, "%s not yet prepared", StateRequestHandler.class.getName());
 
-    final ArrayList<KV<String, OutputT>> results = new ArrayList();
+    final ArrayList<Future> results = new ArrayList();
 
     OutputReceiverFactory receiverFactory =
         new OutputReceiverFactory() {
@@ -145,8 +150,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           public FnDataReceiver<OutputT> create(String pCollectionId) {
             return (receivedElement) -> {
               synchronized (results) {
-                // buffer to not block the grpc thread
-                results.add(KV.of(pCollectionId, receivedElement));
+                // do not block the grpc thread
+                Future<?> future =
+                    outputEmitter.submit(
+                        () ->
+                            outputManager.output(
+                                outputMap.get(pCollectionId), (WindowedValue) receivedElement));
+                results.add(future);
               }
             };
           }
@@ -161,8 +171,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     // RemoteBundle close blocks until all results are received
-    for (KV<String, OutputT> result : results) {
-      outputManager.output(outputMap.get(result.getKey()), (WindowedValue) result.getValue());
+    // ensure output completion and exception propagation, if any
+    for (Future<?> future : results) {
+      future.get();
     }
   }
 
@@ -172,6 +183,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // Remove the reference to stageContext and make stageContext available for garbage collection.
     try (AutoCloseable closable = stageContext) {}
     stageContext = null;
+    outputEmitter.shutdownNow();
     super.close();
   }
 
