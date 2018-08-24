@@ -49,6 +49,7 @@ public class CalciteUtils {
           .put(FieldType.DECIMAL, SqlTypeName.DECIMAL)
           .put(FieldType.BOOLEAN, SqlTypeName.BOOLEAN)
           .put(FieldType.BYTES, SqlTypeName.VARBINARY)
+          .put(FieldType.BYTES, SqlTypeName.BINARY)
           .put(FieldType.DATETIME.withMetadata("DATE"), SqlTypeName.DATE)
           .put(FieldType.DATETIME.withMetadata("TIME"), SqlTypeName.TIME)
           .put(
