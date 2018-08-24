@@ -183,6 +183,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     ValueState<Iterable<?>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
+    // returns null when the side input is not ready
     return state.read();
   }
 

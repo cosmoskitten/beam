@@ -143,7 +143,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   private StateRequestHandler getStateRequestHandler(ExecutableStage executableStage) {
 
-    if (!executableStage.getSideInputs().isEmpty()) {
+    if (executableStage.getSideInputs().size() > 0) {
       checkNotNull(super.sideInputHandler);
       StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
           Preconditions.checkNotNull(

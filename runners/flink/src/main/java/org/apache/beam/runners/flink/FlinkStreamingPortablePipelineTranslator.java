@@ -78,7 +78,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -175,8 +174,6 @@ public class FlinkStreamingPortablePipelineTranslator
         PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, this::translateAssignWindows);
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
-    // TODO: this does not seem required
-    translatorMap.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, this::translateView);
 
     this.urnToTransformTranslator = translatorMap.build();
   }
@@ -201,17 +198,6 @@ public class FlinkStreamingPortablePipelineTranslator
         String.format(
             "Unknown type of URN %s for PTrasnform with id %s.",
             pipeline.getComponents().getTransformsOrThrow(id).getSpec().getUrn(), id));
-  }
-
-  private <InputT> void translateView(
-      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
-
-    RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(id);
-    DataStream<WindowedValue<InputT>> inputDataStream =
-        context.getDataStreamOrThrow(Iterables.getOnlyElement(transform.getInputsMap().values()));
-
-    context.addDataStream(
-        Iterables.getOnlyElement(transform.getOutputsMap().values()), inputDataStream);
   }
 
   private <K, V> void translateReshuffle(
@@ -474,12 +460,12 @@ public class FlinkStreamingPortablePipelineTranslator
     }
 
     String inputPCollectionId = stagePayload.getInput();
-    final Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformedSideInputs;
+    final TransformedSideInputs transformedSideInputs;
 
     if (stagePayload.getSideInputsCount() > 0) {
       transformedSideInputs = transformSideInputs(stagePayload, components, context);
     } else {
-      transformedSideInputs = new Tuple2<>(Collections.emptyMap(), null);
+      transformedSideInputs = new TransformedSideInputs(Collections.emptyMap(), null);
     }
 
     Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags = Maps.newLinkedHashMap();
@@ -537,22 +523,22 @@ public class FlinkStreamingPortablePipelineTranslator
             mainOutputTag,
             additionalOutputTags,
             outputManagerFactory,
-            transformedSideInputs.f0,
-            new ArrayList<>(transformedSideInputs.f0.values()),
+            transformedSideInputs.unionTagToView,
+            new ArrayList<>(transformedSideInputs.unionTagToView.values()),
             getSideInputIdToPCollectionViewMap(stagePayload, components),
             context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
-            FlinkExecutableStageContext.streamingFactory(),
+            FlinkExecutableStageContext.batchFactory(),
             collectionIdToTupleTag);
 
-    if (transformedSideInputs.f0.isEmpty()) {
+    if (transformedSideInputs.unionTagToView.isEmpty()) {
       outputStream =
           inputDataStream.transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
     } else {
       outputStream =
           inputDataStream
-              .connect(transformedSideInputs.f1.broadcast())
+              .connect(transformedSideInputs.unionedSideInputs.broadcast())
               .transform(transform.getUniqueName(), outputTypeInformation, doFnOperator);
     }
 
@@ -575,15 +561,15 @@ public class FlinkStreamingPortablePipelineTranslator
 
     LinkedHashMap<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputs =
         new LinkedHashMap<>();
+    // for PCollectionView compatibility, not used to transform materialization
+    ViewFn<Iterable<WindowedValue<?>>, ?> viewFn =
+        (ViewFn) new PCollectionViews.MultimapViewFn<Iterable<WindowedValue<Void>>, Void>();
+
     for (RunnerApi.ExecutableStagePayload.SideInputId sideInputId :
         stagePayload.getSideInputsList()) {
 
       // TODO: local name is unique as long as only one transform with side input can be within a stage
       String sideInputTag = sideInputId.getLocalName();
-      // for PCollectionView compatibility, not used to transform materialization
-      ViewFn<Iterable<WindowedValue<?>>, ?> viewFn =
-          (ViewFn) new PCollectionViews.MultimapViewFn<Iterable<WindowedValue<Void>>, Void>();
-
       String collectionId =
           components
               .getTransformsOrThrow(sideInputId.getTransformId())
@@ -622,7 +608,7 @@ public class FlinkStreamingPortablePipelineTranslator
     return sideInputs;
   }
 
-  private Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs(
+  private TransformedSideInputs transformSideInputs(
       RunnerApi.ExecutableStagePayload stagePayload,
       RunnerApi.Components components,
       StreamingTranslationContext context) {
@@ -708,7 +694,19 @@ public class FlinkStreamingPortablePipelineTranslator
       }
     }
 
-    return new Tuple2<>(intToViewMapping, sideInputUnion);
+    return new TransformedSideInputs(intToViewMapping, sideInputUnion);
+  }
+
+  private static class TransformedSideInputs {
+    final Map<Integer, PCollectionView<?>> unionTagToView;
+    final DataStream<RawUnionValue> unionedSideInputs;
+
+    TransformedSideInputs(
+        Map<Integer, PCollectionView<?>> unionTagToView,
+        DataStream<RawUnionValue> unionedSideInputs) {
+      this.unionTagToView = unionTagToView;
+      this.unionedSideInputs = unionedSideInputs;
+    }
   }
 
   private static class ToVoidKeyValue<T>

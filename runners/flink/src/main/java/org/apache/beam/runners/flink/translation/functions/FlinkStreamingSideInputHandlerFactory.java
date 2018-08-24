@@ -103,15 +103,14 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
     if (PTransformTranslation.ITERABLE_SIDE_INPUT.equals(accessPattern.getUrn())) {
       @SuppressWarnings("unchecked") // T == V
       Coder<V> outputCoder = (Coder<V>) elementCoder;
-      return forIterableSideInput(collectionNode, outputCoder, windowCoder);
+      return forIterableSideInput(collectionNode, outputCoder);
     } else if (PTransformTranslation.MULTIMAP_SIDE_INPUT.equals(accessPattern.getUrn())
         || Materializations.MULTIMAP_MATERIALIZATION_URN.equals(accessPattern.getUrn())) {
       // TODO: Remove non standard URN.
       // Using non standard version of multimap urn as dataflow uses the non standard urn.
       @SuppressWarnings("unchecked") // T == KV<?, V>
       KvCoder<?, V> kvCoder = (KvCoder<?, V>) elementCoder;
-      return forMultimapSideInput(
-          collectionNode, kvCoder.getKeyCoder(), kvCoder.getValueCoder(), windowCoder);
+      return forMultimapSideInput(collectionNode, kvCoder.getKeyCoder(), kvCoder.getValueCoder());
     } else {
       throw new IllegalArgumentException(
           String.format("Unknown side input access pattern: %s", accessPattern));
@@ -119,12 +118,14 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
   }
 
   private <T, W extends BoundedWindow> SideInputHandler<T, W> forIterableSideInput(
-      PCollectionView<?> collection, Coder<T> elementCoder, Coder<W> windowCoder) {
+      PCollectionView<?> collection, Coder<T> elementCoder) {
 
     return new SideInputHandler<T, W>() {
       @Override
       public Iterable<T> get(byte[] key, W window) {
-        return (Iterable<T>) runnerHandler.getIterable(collection, window);
+        return checkNotNull(
+            (Iterable<T>) runnerHandler.getIterable(collection, window),
+            "Element processed by SDK before side input is ready");
       }
 
       @Override
@@ -135,7 +136,7 @@ public class FlinkStreamingSideInputHandlerFactory implements SideInputHandlerFa
   }
 
   private <K, V, W extends BoundedWindow> SideInputHandler<V, W> forMultimapSideInput(
-      PCollectionView<?> collection, Coder<K> keyCoder, Coder<V> valueCoder, Coder<W> windowCoder) {
+      PCollectionView<?> collection, Coder<K> keyCoder, Coder<V> valueCoder) {
 
     return new SideInputHandler<V, W>() {
       @Override
