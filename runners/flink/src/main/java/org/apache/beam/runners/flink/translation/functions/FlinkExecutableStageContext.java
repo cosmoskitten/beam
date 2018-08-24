@@ -39,9 +39,5 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
     return FlinkBatchExecutableStageContext.BatchFactory.REFERENCE_COUNTING;
   }
 
-  static Factory streamingFactory() {
-    return FlinkStreamingExecutableStageContext.StreamingFactory.REFERENCE_COUNTING;
-  }
-
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);
 }
