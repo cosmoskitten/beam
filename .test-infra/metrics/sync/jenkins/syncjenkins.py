@@ -205,7 +205,7 @@ def fetchBacklog():
   lowTimestamp = lowTime.timestamp()
 
   # Fetching a bit outdated data to let Jenkins finish extra processing if any.
-  syncTime = datetime.now() - timedelta(minutes=1)
+  syncTime = datetime.now() - timedelta(minutes=10)
   syncTimestamp = syncTime.timestamp()
 
   highTime = syncTime
@@ -264,8 +264,10 @@ def fetchNewData():
   for updateTimestamp, buildUrl in buildsToFetch:
     i = i + 1
     print('.', end='')
-    if i % 32 == 0:
+    if i % 50 == 0:
       print()
+      checkmark = i / 50
+      print(f'{checkmark}', end='')
     sys.stdout.flush()
     buildInfo = fetchBuildInfo(buildUrl)
     if buildInfo[u'building']:
@@ -293,13 +295,20 @@ def fetchNewData():
 
 
 #################################################################################
+print("Started")
+
+print("Checking if DB needs to be initialized")
+sys.stdout.flush()
 if not initDbTablesIfNeeded():
-  raise Exception("Failed to initialize required tables in DB")
+  raise Exception("Failed to initialize required tables in DB.")
 
 
+print("Start jobs fetching loop")
+sys.stdout.flush()
 while True:
   fetchNewData()
-  print("Fetched data")
+  print("Fetched data. Sleeping for 5 min.")
+  sys.stdout.flush()
   time.sleep(5*60)
 
 print('Done')
