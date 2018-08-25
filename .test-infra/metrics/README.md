@@ -76,7 +76,7 @@ cd sync/jenkins
 docker build -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1 .
 docker push -t gcr.io/${PROJECT_ID}/beammetricssyncjenkins:v1
 ```
-1. Update image for container `kubectl set image deployment/nginx-deployment container=<new_image_name>`
+1. Update image for container `kubectl set image deployment/beamgrafana container=<new_image_name>`
 
 
 ## Useful Kubernetes commands and hints
