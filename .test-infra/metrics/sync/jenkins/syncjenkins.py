@@ -215,6 +215,8 @@ def fetchBacklog():
 
   cur = connection.cursor()
 
+  lastUpdateTime = lowTime
+
   for job in jobs:
     print("Fetching builds for", job[u'url'])
     builds = getBuildsToStore(job[u'url'], lowTimestamp, highTimestamp)
@@ -246,7 +248,7 @@ def fetchNewData():
   lowTimestamp = lowTime.timestamp()
 
   # Fetching a bit outdated data to let Jenkins finish extra processing if any.
-  syncTime = datetime.now() - timedelta(minutes=1)
+  syncTime = datetime.now() - timedelta(minutes=10)
   syncTimestamp = syncTime.timestamp()
 
   highTime = syncTime
@@ -255,19 +257,19 @@ def fetchNewData():
   rssBuilds = fetchJenkinsRss()
   buildsToFetch = filterRssBuildsByTime(rssBuilds, lowTime, highTime)
 
+  buildsToFetch.sort(key=lambda x: x[0])
+
   cur = connection.cursor()
 
   print("Total builds to fetch:", len(buildsToFetch))
+
+  newTS = lowTime
 
   #TODO commit in smaller batches
   i = 0
   for updateTimestamp, buildUrl in buildsToFetch:
     i = i + 1
     print('.', end='')
-    if i % 50 == 0:
-      print()
-      checkmark = i / 50
-      print(f'{checkmark}', end='')
     sys.stdout.flush()
     buildInfo = fetchBuildInfo(buildUrl)
     if buildInfo[u'building']:
@@ -276,7 +278,22 @@ def fetchNewData():
     rowValues = buildRowValuesArray(extractJobNameFromBuildUrl(buildInfo[u'url']), buildInfo)
     insertRow(cur, rowValues)
 
-  updateSyncTimestamp(cur, syncTime)
+    if updateTimestamp > newTS:
+      newTS = updateTimestamp
+
+    if i % 50 == 0:
+      print()
+      print(f'{i}', end='')
+
+      updateSyncTimestamp(cur, newTS)
+      cur.close()
+      connection.commit()
+
+      # For some reason psycopg doesn't commit changes unless connection
+      # is closed
+      connection.close()
+      connection  = initConnection(host)
+      cur = connection.cursor()
 
   cur.close()
 
@@ -301,7 +318,6 @@ print("Checking if DB needs to be initialized")
 sys.stdout.flush()
 if not initDbTablesIfNeeded():
   raise Exception("Failed to initialize required tables in DB.")
-
 
 print("Start jobs fetching loop")
 sys.stdout.flush()
