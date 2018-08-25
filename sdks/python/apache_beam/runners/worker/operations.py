@@ -39,6 +39,7 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
+from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfoUrns
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
