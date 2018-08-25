@@ -28,30 +28,30 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
-from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
+from apache_beam.portability.api.beam_fn_api_pb2 import Metric
+from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
+from apache_beam.portability import common_urns
 
-USER_COUNTER_URN_PREFIX = 'beam:metric:user:'
-ELEMENT_COUNT_URN = 'beam:metric:element_count:v1'
-START_BUNDLE_MSECS_URN = (
-    'beam:metric:pardo_execution_time:start_bundle_msecs:v1')
-PROCESS_BUNDLE_MSECS_URN = (
-    'beam:metric:pardo_execution_time:process_bundle_msecs:v1')
-FINISH_BUNDLE_MSECS_URN = (
-    'beam:metric:pardo_execution_time:finish_bundle_msecs:v1')
-TOTAL_MSECS_URN = (
-    'beam:metric:ptransform_execution_time:total_msecs:v1')
+USER_COUNTER_URN_PREFIX = (
+    common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
+ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
+START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
+PROCESS_BUNDLE_MSECS_URN = common_urns.monitoring_infos.PROCESS_BUNDLE_MSECS.urn
+FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
+TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
 # https://s.apache.org/beam-fn-api-metrics
-SUM_INT64_TYPE = 'beam:metrics:sum_int_64'
-DISTRIBUTION_INT64_TYPE = 'beam:metrics:distribution_int_64'
-LATEST_INT64_TYPE = 'beam:metrics:latest_int_64'
+SUM_INT64_TYPE = common_urns.monitoring_info_types.SUM_INT64_TYPE.urn
+DISTRIBUTION_INT64_TYPE = (
+    common_urns.monitoring_info_types.DISTRIBUTION_INT64_TYPE.urn)
+LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
 GAUGE_TYPES = set([LATEST_INT64_TYPE])
-
 
 def to_timestamp_proto(timestamp_secs):
   """Converts seconds since epoch to a google.protobuf.Timestamp.
@@ -118,8 +118,8 @@ def int64_counter(urn, metric, ptransform='', tag=''):
   """
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
-    metric = beam_fn_api_pb2.Metric(
-        counter_data=beam_fn_api_pb2.CounterData(
+    metric = Metric(
+        counter_data=CounterData(
             int64_value=metric
         )
     )
@@ -165,7 +165,7 @@ def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
         Or an int value.
     labels: The label dictionary to use in the MonitoringInfo.
   """
-  return beam_fn_api_pb2.MonitoringInfo(
+  return MonitoringInfo(
       urn=urn,
       type=type_urn,
       labels=labels or dict(),
