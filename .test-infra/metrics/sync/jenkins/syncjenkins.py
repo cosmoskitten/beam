@@ -157,7 +157,7 @@ def fetchNewData():
       for build in builds:
         rowValues = buildRowValuesArray(newJobName, build)
         print("inserting", newJobName, build[u'id'])
-        insertRow(cursor, rowValuest)
+        insertRow(cursor, rowValues)
       cursor.close()
       connection.commit()
       connection.close()
