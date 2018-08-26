@@ -36,12 +36,13 @@ dbpassword = os.environ['JENSYNC_DBPWD']
 jenkinsBuildsTableName = 'jenkins_builds'
 jenkinsSyncMetadataTableName = 'jenkins_sync_metadata'
 
-jenkinsJobsSchema = '''
-job_name varchar,
+jenkinsJobsCreateTableQuery = f"""
+create table {jenkinsBuildsTableName} (
+job_name varchar NOT NULL,
+build_id integer NOT NULL,
 build_url varchar,
 build_result varchar,
 build_timestamp TIMESTAMP,
-build_id varchar,
 build_builtOn varchar,
 build_duration integer,
 build_estimatedDuration integer,
@@ -52,30 +53,27 @@ timing_buildingDurationMillis integer,
 timing_executingTimeMillis integer,
 timing_queuingDurationMillis integer,
 timing_totalDurationMillis integer,
-timing_waitingDurationMillis integer
-'''
+timing_waitingDurationMillis integer,
+primary key(job_name, build_id)
+)
+"""
 
-# Get the list of jobs.
-def getJobs():
-  url = 'https://builds.apache.org/view/A-D/view/Beam/api/json?tree=jobs%5Bname,url,lastCompletedBuild%5btimestamp%5d%5D&depth=1'
+# returns (jobName, lastBuildId, jobUrl)
+def fetchJobs():
+  url = 'https://builds.apache.org/view/A-D/view/Beam/api/json?tree=jobs[name,url,lastCompletedBuild[id]]&depth=1'
   r = requests.get(url)
-  return r.json()[u'jobs']
+  jobs = r.json()[u'jobs']
+  print("---")
+  print(jobs)
+  result = map(lambda x: (x['name'], int(x['lastCompletedBuild']['id']) if x['lastCompletedBuild'] is not None else -1, x['url']), jobs)
+  return result
 
-def fetchBuildInfo(buildUrl):
-  durFields = 'blockedDurationMillis,buildableDurationMillis,buildingDurationMillis,executingTimeMillis,queuingDurationMillis,totalDurationMillis,waitingDurationMillis'
-  fields = f'result,timestamp,id,url,builtOn,building,duration,estimatedDuration,fullDisplayName,actions[{durFields}]'
-  url = f'{buildUrl}api/json?depth=1&tree={fields}'
-  r = requests.get(url)
-  return r.json()
-
-def initConnection(host):
+def initConnection():
   conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}' port='{port}' password='{dbpassword}'")
   return conn
 
-def tableExists(connection, tableName):
-  cursor = connection.cursor()
+def tableExists(cursor, tableName):
   cursor.execute(f"select * from information_schema.tables where table_name='{tableName}';")
-  cursor.close()
   return bool(cursor.rowcount)
 
 def createTable(connection, tableName, tableSchema):
@@ -86,72 +84,46 @@ def createTable(connection, tableName, tableSchema):
   connection.commit()
   return bool(cursor.rowcount)
 
+
 def initDbTablesIfNeeded():
-  connection  = initConnection(host)
+  connection = initConnection()
+  cursor = connection.cursor()
 
-  res = tableExists(connection, jenkinsBuildsTableName)
-
+  res = tableExists(cursor, jenkinsBuildsTableName)
   if not res:
-    res = createTable(connection, jenkinsBuildsTableName, jenkinsJobsSchema)
-    if not res:
+    cursor.execute(jenkinsJobsCreateTableQuery)
+    if not bool(cursor.rowcount):
       raise Exception(f"Failed to create table {jenkinsBuildsTableName}")
 
-  res = tableExists(connection, jenkinsSyncMetadataTableName)
-
-  if not res:
-    res = createTable(connection, jenkinsSyncMetadataTableName, 'lastSyncTime timestamp')
-    if not res:
-      raise Exception(f"Failed to create table {jenkinsSyncMetadataTableName}")
-
-    cur = connection.cursor()
-    zeroTime = datetime.fromtimestamp(0)
-    cmd = f"insert into {jenkinsSyncMetadataTableName} (lastSyncTime) values (%s)";
-    cur.execute(cmd, [zeroTime])
-    cur.close()
-    connection.commit()
+  cursor.close()
+  connection.commit()
 
   connection.close()
 
-  return res
+def fetchSyncedJobsBuildVersions(cursor):
+  fetchQuery = f'''
+  select job_name, max(build_id)
+  from {jenkinsBuildsTableName}
+  group by job_name
+  '''
 
+  cursor.execute(fetchQuery)
+  return dict(cursor.fetchall())
 
-# Get all the builds.
-def getBuilds(baseUrl):
+def fetchBuildsForJob(jobUrl):
   durFields = 'blockedDurationMillis,buildableDurationMillis,buildingDurationMillis,executingTimeMillis,queuingDurationMillis,totalDurationMillis,waitingDurationMillis'
   fields = f'result,timestamp,id,url,builtOn,building,duration,estimatedDuration,fullDisplayName,actions[{durFields}]'
-  url = f'{baseUrl}api/json?tree=builds[{fields}]&depth=1'
+  url = f'{jobUrl}api/json?depth=1&tree=builds[{fields}]'
   r = requests.get(url)
   return r.json()[u'builds']
-
-def fetchLastSyncTime(connection):
-  cursor = connection.cursor()
-  cursor.execute(f"select lastSyncTime from {jenkinsSyncMetadataTableName}")
-  timestamp = cursor.fetchone()[0]
-  cursor.close()
-  return timestamp
-
-def getJobsToFetch(jobs, lowTimestamp, highTimestamp):
-  jobs = getJobs()
-  supportedJobs = [job for job in jobs if job is not None]
-  supportedJobs = [job for job in supportedJobs if job[u'lastCompletedBuild'] is not None]
-  supportedJobs = [job for job in supportedJobs if (job[u'lastCompletedBuild'][u'timestamp'] / 1000 > lowTimestamp)]
-  supportedJobs = [job for job in supportedJobs if (job[u'lastCompletedBuild'][u'timestamp'] / 1000 < highTimestamp)]
-  return supportedJobs
-
-def getBuildsToStore(jobUrl, lowTimestamp, highTimestamp):
-  builds = getBuilds(jobUrl)
-  builds = [build for build in builds if not build[u'building']]
-  builds = [build for build in builds if (build[u'timestamp'] / 1000 > lowTimestamp)]
-  builds = [build for build in builds if (build[u'timestamp'] / 1000 < highTimestamp)]
-  return builds
 
 def buildRowValuesArray(jobName, build):
   timings = next((x for x in build[u'actions'] if (u'_class' in x) and (x[u'_class'] == u'jenkins.metrics.impl.TimeInQueueAction')), None)
   values = [jobName,
+          int(build[u'id']),
           build[u'url'],
           build[u'result'],
           datetime.fromtimestamp(build[u'timestamp'] / 1000),
-          build[u'id'],
           build[u'builtOn'],
           build[u'duration'],
           build[u'estimatedDuration'],
@@ -168,165 +140,51 @@ def buildRowValuesArray(jobName, build):
 def insertRow(cursor, rowValues):
   cursor.execute(f'insert into {jenkinsBuildsTableName} values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', rowValues)
 
-def updateSyncTimestamp(cursor, newTimestamp):
-  cursor.execute(f'delete from {jenkinsSyncMetadataTableName}')
-  cursor.execute(f'insert into {jenkinsSyncMetadataTableName} values (%s)', (newTimestamp, ))
-
-def fetchJenkinsRss():
-  jenkinsXmlnsTag = '{http://www.w3.org/2005/Atom}'
-  url = 'https://builds.apache.org/view/A-D/view/Beam/rssAll'
-  r = requests.get(url)
-  responseXmlText = r.text
-  responseRoot = ElementTree.fromstring(responseXmlText)
-  result = []
-  for entry in responseRoot.findall(jenkinsXmlnsTag + 'entry'):
-    updateTimeStr = entry.find(jenkinsXmlnsTag + 'updated').text
-    updateTime = datetime.strptime(updateTimeStr, '%Y-%m-%dT%H:%M:%SZ')
-    result.append((updateTime, entry.find(jenkinsXmlnsTag + 'link').get('href')))
-  return result
-
-def filterRssBuildsByTime(builds, lowDatetime, highDatetime):
-  result = [x for x in builds if x[0] >= lowDatetime]
-  result = [x for x in result if x[0] < highDatetime]
-  return result
-
-def fetchBacklog():
-  maxJobAgeDays = 1
-
-  connection  = initConnection(host)
-
-  lastSyncTime = fetchLastSyncTime(connection)
-  lastSyncTimestamp = lastSyncTime.timestamp()
-
-  outdatedThreshold = datetime.now() - timedelta(days=maxJobAgeDays)
-  outdatedTimestamp = outdatedThreshold.timestamp()
-
-  lowTime = max(outdatedThreshold, lastSyncTime)
-  lowTimestamp = lowTime.timestamp()
-
-  # Fetching a bit outdated data to let Jenkins finish extra processing if any.
-  syncTime = datetime.now() - timedelta(minutes=10)
-  syncTimestamp = syncTime.timestamp()
-
-  highTime = syncTime
-  highTimestamp = syncTimestamp
-
-  jobs = getJobsToFetch(connection, lowTimestamp, highTimestamp)
-
-  cur = connection.cursor()
-
-  lastUpdateTime = lowTime
-
-  for job in jobs:
-    print("Fetching builds for", job[u'url'])
-    builds = getBuildsToStore(job[u'url'], lowTimestamp, highTimestamp)
-    for build in builds:
-      rowValues = buildRowValuesArray(job[u'name'], build)
-      print(rowValues)
-      insertRow(cur, rowValues)
-
-  updateSyncTimestamp(cur, lastSyncTime)
-
-  cur.close()
-
-  connection.commit()
-
-  connection.close()
-
-
-def extractJobNameFromBuildUrl(url):
-  parts = url.split('/')
-  return parts[len(parts) - 3]
 
 def fetchNewData():
-  connection  = initConnection(host)
+  connection = initConnection()
+  cursor = connection.cursor()
+  syncedJobs = fetchSyncedJobsBuildVersions(cursor)
 
-  lastSyncTime = fetchLastSyncTime(connection)
-  lastSyncTimestamp = lastSyncTime.timestamp()
+  newJobs = fetchJobs()
 
-  lowTime = lastSyncTime
-  lowTimestamp = lowTime.timestamp()
-
-  # Fetching a bit outdated data to let Jenkins finish extra processing if any.
-  syncTime = datetime.now() - timedelta(minutes=5)
-  syncTimestamp = syncTime.timestamp()
-
-  highTime = syncTime
-  highTimestamp = syncTimestamp
-
-  rssBuilds = fetchJenkinsRss()
-  buildsToFetch = filterRssBuildsByTime(rssBuilds, lowTime, highTime)
-
-  buildsToFetch.sort(key=lambda x: x[0])
-
-  cur = connection.cursor()
-
-  print("Total builds to fetch:", len(buildsToFetch))
-
-  newTS = lowTime
-
-  #TODO commit in smaller batches
-  i = 0
-  for updateTimestamp, buildUrl in buildsToFetch:
-    i = i + 1
-    print('.', end='')
-    sys.stdout.flush()
-    buildInfo = fetchBuildInfo(buildUrl)
-    if buildInfo[u'building']:
-      print('Job is building', buildInfo[u'url'])
-      continue;
-    rowValues = buildRowValuesArray(extractJobNameFromBuildUrl(buildInfo[u'url']), buildInfo)
-    insertRow(cur, rowValues)
-
-    if updateTimestamp > newTS:
-      newTS = updateTimestamp
-
-    if i % 50 == 0:
-      print()
-      print(f'{i}', end='')
-
-      updateSyncTimestamp(cur, newTS)
-      cur.close()
+  for newJobName, newJobLastBuildId, newJobUrl in newJobs:
+    syncedJobId = syncedJobs[newJobName] if newJobName in syncedJobs else -1
+    print(syncedJobId, newJobLastBuildId)
+    if newJobLastBuildId > syncedJobId:
+      print(newJobName, newJobLastBuildId, newJobUrl)
+      builds = fetchBuildsForJob(newJobUrl)
+      builds = [x for x in builds if int(x[u'id']) > syncedJobId]
+      for build in builds:
+        rowValues = buildRowValuesArray(newJobName, build)
+        print("inserting", newJobName, build[u'id'])
+        insertRow(cursor, rowValuest)
+      cursor.close()
       connection.commit()
-
-      # For some reason psycopg doesn't commit changes unless connection
-      # is closed
       connection.close()
-      connection  = initConnection(host)
-      cur = connection.cursor()
+      connection = initConnection()
+      cursor = connection.cursor()
 
-  cur.close()
-
-  connection.commit()
-
+  cursor.close()
   connection.close()
 
-
-
-
-
-
-
-
-
-
-
 #################################################################################
-print("Started")
+print("Started.")
 
-print("Checking if DB needs to be initialized")
+print("Checking if DB needs to be initialized.")
 sys.stdout.flush()
-if not initDbTablesIfNeeded():
-  raise Exception("Failed to initialize required tables in DB.")
+initDbTablesIfNeeded()
 
-print("Start jobs fetching loop")
+print("Start jobs fetching loop.")
 sys.stdout.flush()
+
 while True:
   fetchNewData()
   print("Fetched data. Sleeping for 5 min.")
   sys.stdout.flush()
-  time.sleep(5*60)
+  time.sleep(5 * 60)
 
-print('Done')
+print('Done.')
+
 
 
