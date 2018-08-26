@@ -34,7 +34,6 @@ dbusername = os.environ['JENSYNC_DBUSERNAME']
 dbpassword = os.environ['JENSYNC_DBPWD']
 
 jenkinsBuildsTableName = 'jenkins_builds'
-jenkinsSyncMetadataTableName = 'jenkins_sync_metadata'
 
 jenkinsJobsCreateTableQuery = f"""
 create table {jenkinsBuildsTableName} (
