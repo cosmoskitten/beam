@@ -1349,25 +1349,24 @@ class ControlFuture(object):
 
 
 class FnApiMetrics(metrics.metric.MetricResults):
-  def __init__(self, step_monitoring_infos, user_metrics_only=True):
+  def __init__(self, step_monitoring_infos, user_metrics_only=True ):
     """Used for querying metrics from the PipelineResult object.
 
       step_monitoring_infos: Per step metrics specified as MonitoringInfos.
       use_monitoring_infos: If true, return the metrics based on the
           step_monitoring_infos.
-      user_metrics_only: True if user metrics only, False if all metrics.
     """
     self._counters = {}
     self._distributions = {}
     self._gauges = {}
-    self.user_metrics_only = user_metrics_only
+    self._user_metrics_only = user_metrics_only
     self._init_metrics_from_monitoring_infos(step_monitoring_infos)
 
   def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
     for smi in step_monitoring_infos.values():
       # Only include user metrics.
       for mi in smi:
-        if (self.user_metrics_only and
+        if (self._user_metrics_only and
             not monitoring_infos.is_user_monitoring_info(mi)):
           continue
         key = self._to_metric_key(mi)
@@ -1408,20 +1407,25 @@ class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
-    self._user_metrics = None
+    self._metrics = None
+    self._monitoring_metrics = None
 
   def wait_until_finish(self, duration=None):
     return self._state
 
-  def metrics(self, user_metrics_only=True):
-    if not user_metrics_only:
-      # Don't cache if we are retreiving all metrics, i.e. non-default option.
-      return FnApiMetrics(
-          self._monitoring_infos_by_stage, user_metrics_only=user_metrics_only)
-    if self._user_metrics is None:
-      self._user_metrics = FnApiMetrics(
-          self._monitoring_infos_by_stage, user_metrics_only=user_metrics_only)
-    return self._user_metrics
+  def metrics(self):
+    """Returns a queryable oject including user metrics only."""
+    if self._metrics is None:
+      self._metrics = FnApiMetrics(
+          self._monitoring_infos_by_stage, user_metrics_only=True)
+    return self._metrics
+
+  def monitoring_metrics(self):
+    """Returns a queryable oject including all metrics."""
+    if self._monitoring_metrics is None:
+      self._monitoring_metrics = FnApiMetrics(
+          self._monitoring_infos_by_stage, user_metrics_only=False)
+    return self._monitoring_metrics
 
 
 def only_element(iterable):
