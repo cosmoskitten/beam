@@ -483,8 +483,8 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    all_metrics_via_montoring_infos = res.metrics(
-        user_metrics_only=False).query()
+    result_metrics = res.monitoring_metrics()
+    all_metrics_via_montoring_infos = result_metrics.query()
 
     def assert_counter_exists(metrics, namespace, name, step):
       found = 0
