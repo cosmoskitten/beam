@@ -774,6 +774,8 @@ class DataflowRunner(PipelineRunner):
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
+    standard_options = transform_node.inputs[0].pipeline.options.view_as(
+        StandardOptions)
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
       source_dict = {}
@@ -804,6 +806,9 @@ class DataflowRunner(PipelineRunner):
     elif transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'bigquery':
+      if standard_options.streaming:
+        raise ValueError('BigQuery source is not currently available for use '
+                         'in streaming pipelines.')
       step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
       # TODO(silviuc): Add table validation if transform.source.validate.
       if transform.source.table_reference is not None:
@@ -826,8 +831,6 @@ class DataflowRunner(PipelineRunner):
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query' % transform.source)
     elif transform.source.format == 'pubsub':
-      standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
@@ -1072,18 +1075,7 @@ class DataflowPipelineResult(PipelineResult):
   def has_job(self):
     return self._job is not None
 
-  @property
-  def state(self):
-    """Return the current state of the remote job.
-
-    Returns:
-      A PipelineState object.
-    """
-    if not self.has_job:
-      return PipelineState.UNKNOWN
-
-    self._update_job()
-
+  def _get_job_state(self):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
     # TODO: Move this table to a another location.
@@ -1105,15 +1097,25 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
+  @property
+  def state(self):
+    """Return the current state of the remote job.
+
+    Returns:
+      A PipelineState object.
+    """
+    if not self.has_job:
+      return PipelineState.UNKNOWN
+
+    self._update_job()
+
+    return self._get_job_state()
+
   def is_in_terminal_state(self):
     if not self.has_job:
       return True
 
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
-    return self._job.currentState in [
-        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
-        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
+    return PipelineState.is_terminal(self._get_job_state())
 
   def wait_until_finish(self, duration=None):
     if not self.is_in_terminal_state():

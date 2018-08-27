@@ -307,7 +307,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.6.0"
     def guava_version = "20.0"
     def netty_version = "4.1.25.Final"
-    def proto_google_common_protos = "1.12.0"
+    def proto_google_common_protos_version = "1.12.0"
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
     def jackson_version = "2.9.5"
@@ -414,7 +414,7 @@ class BeamModulePlugin implements Plugin<Project> {
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$generated_grpc_beta_version",
-        proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos",
+        proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
         slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:1.7.25",
@@ -643,6 +643,9 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.checkstyle { toolVersion = "8.7" }
 
+      // Ensure check runs javadoc
+      project.check.dependsOn project.javadoc
+
       // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
       // connects the apt-eclipse plugin to update the eclipse project files
       // with the instructions needed to run apt within eclipse to handle the AutoValue
@@ -836,7 +839,8 @@ artifactId=${project.name}
               // </settings>
               def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
               if (settingsXml.exists()) {
-                def serverId = (isRelease(project) ? 'apache.releases.https' : 'apache.snapshots.https')
+                def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
+                        ? 'apache.releases.https' : 'apache.snapshots.https')
                 def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
                 if (m2SettingCreds) {
                   credentials {
@@ -974,7 +978,7 @@ artifactId=${project.name}
           }
         }
         // Only sign artifacts if we are performing a release
-        if (isRelease(project)) {
+        if (isRelease(project) && !project.hasProperty('noSigning')) {
           project.apply plugin: "signing"
           project.signing {
             useGpgCmd()

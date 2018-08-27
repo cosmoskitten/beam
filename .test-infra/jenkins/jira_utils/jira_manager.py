@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -47,6 +48,7 @@ class JiraManager:
       dep_latest_version,
       sdk_type: Java, Python
       group_id (optional): only required for Java dependencies
+    Return: Jira Issue
     """
     logging.info("Start handling the JIRA issues for {0} dependency: {1} {2}".format(
         sdk_type, dep_name, dep_latest_version))
@@ -66,7 +68,7 @@ class JiraManager:
             Created a parent issue for {1}""".format(summary, group_id))
           try:
             parent_issue = self._create_issue(group_id, None)
-            print parent_issue.key
+            print(parent_issue.key)
           except:
             logging.error("""Failed creating a parent issue for {0}.
               Stop handling the JIRA issue for {1}, {2}""".format(group_id, dep_name, dep_latest_version))
@@ -100,6 +102,7 @@ class JiraManager:
       elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
         self._append_descriptions(issue, dep_name, dep_latest_version)
         logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+      return issue
     except:
       raise
 
