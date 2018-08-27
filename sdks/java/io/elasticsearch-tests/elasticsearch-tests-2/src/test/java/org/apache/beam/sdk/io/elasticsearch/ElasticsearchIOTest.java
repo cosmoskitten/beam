@@ -101,6 +101,14 @@ public class ElasticsearchIOTest implements Serializable {
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
+    while (restClient.performRequest("HEAD", "/").getStatusLine().getStatusCode() != 200) {
+      try {
+        Thread.sleep(500L);
+      } catch (InterruptedException e) {
+        LOG.warn(
+            "Waiting thread was interrupted while waiting for connection to Elasticsearch to be available");
+      }
+    }
   }
 
   @AfterClass
