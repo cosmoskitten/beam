@@ -110,7 +110,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
   }
 
-  void testSplit5x6x() throws Exception {
+  void testSplit() throws Exception {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(
           connectionConfiguration, NUM_DOCS_UTESTS, restClient);
@@ -142,7 +142,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
   }
 
-  void testITSplit5x6x(final PipelineOptions options) throws Exception {
+  void testSplitsVolume(final PipelineOptions options) throws Exception {
     final Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
     final BoundedElasticsearchSource initialSource =
         new BoundedElasticsearchSource(read, null, null, null);
@@ -436,7 +436,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    *
    * <p>This test does not work with ES 6 because multiple type support within an index was removed.
    */
-  void testWriteWithTypeFn() throws Exception {
+  void testWriteWithTypeFn2x5x() throws Exception {
     // defensive coding: this test requires an even number of docs
     long adjustedNumDocs = (numDocs & 1) == 0 ? numDocs : numDocs + 1;
 

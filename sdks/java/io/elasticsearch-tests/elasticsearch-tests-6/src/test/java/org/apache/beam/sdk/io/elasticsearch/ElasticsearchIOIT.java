@@ -86,7 +86,7 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testSplitsVolume() throws Exception {
-    elasticsearchIOTestCommon.testITSplit5x6x(options);
+    elasticsearchIOTestCommon.testSplitsVolume(options);
   }
 
   @Test

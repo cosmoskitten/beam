@@ -175,7 +175,7 @@ public class ElasticsearchIO {
         String errorRootName = "";
         if (backendVersion == 2) {
           errorRootName = "create";
-        } else if (backendVersion >= 5) {
+        } else if (backendVersion == 5 || backendVersion == 6) {
           errorRootName = "index";
         }
         JsonNode errorRoot = item.path(errorRootName);
@@ -517,7 +517,7 @@ public class ElasticsearchIO {
           sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion >= 5) {
+      } else if (backendVersion == 5 || backendVersion == 6) {
         long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -617,7 +617,9 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (source.backendVersion >= 5 && source.numSlices != null && source.numSlices > 1) {
+      if ((source.backendVersion == 5 || source.backendVersion == 6)
+          && source.numSlices != null
+          && source.numSlices > 1) {
         //if there is more than one slice, add the slice to the user query
         String sliceQuery =
             String.format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId, source.numSlices);
@@ -1027,10 +1029,10 @@ public class ElasticsearchIO {
       int backendVersion =
           Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument(
-          (backendVersion == 2 || backendVersion >= 5),
+          (backendVersion == 2 || backendVersion == 5 || backendVersion == 6),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
-              + "Elasticsearch v5.x+ and v2.x",
+              + "Elasticsearch v6.x, v5.x and v2.x",
           backendVersion);
       return backendVersion;
 

@@ -32,10 +32,5 @@ import java.util.function.Consumer;
 class JarHell {
 
   @SuppressWarnings("EmptyMethod")
-  public static void checkJarHell(Consumer<String> output) {
-    System.out.println(
-        "Checking for jar hell..."
-            + "This method should have argument `Consumer<String>`. "
-            + "It's different from ES 5.x");
-  }
+  public static void checkJarHell(Consumer<String> output) {}
 }

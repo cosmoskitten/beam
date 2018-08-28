@@ -150,7 +150,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(ES_INDEX);
-    elasticsearchIOTestCommon.testSplit5x6x();
+    elasticsearchIOTestCommon.testSplit();
   }
 
   @Test
@@ -168,7 +168,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   @Test
   public void testWriteWithTypeFn() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testWriteWithTypeFn();
+    elasticsearchIOTestCommon.testWriteWithTypeFn2x5x();
   }
 
   @Test
