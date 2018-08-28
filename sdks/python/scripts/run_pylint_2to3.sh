@@ -36,24 +36,16 @@ fi
 set -o errexit
 set -o pipefail
 
-DEFAULT_MODULE=apache_beam
+MODULE=$(ls -d -C apache_beam *.py)
 
-usage(){ echo "Usage: $0 [MODULE|--help]
-# The default MODULE is $DEFAULT_MODULE"; }
+usage(){ echo "Usage: $0 [MODULE|--help] # The default MODULE is MODULE"; }
 
-MODULES=${DEFAULT_MODULE}
-while [[ $# -gt 0 ]] ; do
-  key="$1"
-  case ${key} in
+if test $# -gt 0; then
+  case "$@" in
     --help) usage; exit 1;;
-	*)
-	if [ ${MODULES} = ${DEFAULT_MODULE} ] ; then
-	  MODULES=()
-	fi
-	MODULES+=("$1")
-	shift;;
+	 *)      MODULE="$*";;
   esac
-done
+fi
 
 FUTURIZE_EXCLUDED=(
   "typehints.py"
@@ -96,6 +88,6 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-echo "Running pylint --py3k for modules $( printf "%s " "${MODULES[@]}" ):"
-pylint -j8 $( printf "%s " "${MODULES[@]}" ) \
+echo "Running pylint --py3k for module $( printf "%s " "${MODULE}" ):"
+pylint -j8 $( printf "%s " "${MODULE}" ) \
   --ignore-patterns="$FILES_TO_IGNORE" --py3k
