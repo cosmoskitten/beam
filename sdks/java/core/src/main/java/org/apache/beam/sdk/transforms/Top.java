@@ -174,12 +174,42 @@ public class Top {
 
   /** Returns a {@link CombineFn} that aggregates the largest count values. */
   public static <T extends Comparable<T>> TopCombineFn<T, Natural<T>> largestFn(int count) {
-    return new TopCombineFn<>(count, new Natural<T>());
+    return new TopCombineFn<T, Natural<T>>(count, new Natural<T>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the largest count long values. */
+  public static TopCombineFn<Long, Natural<Long>> largestLongsFn(int count) {
+    return new TopCombineFn<Long, Natural<Long>>(count, new Natural<Long>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the largest count int values. */
+  public static TopCombineFn<Integer, Natural<Integer>> largestIntsFn(int count) {
+    return new TopCombineFn<Integer, Natural<Integer>>(count, new Natural<>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the largest count double values. */
+  public static TopCombineFn<Double, Natural<Double>> largestDoublesFn(int count) {
+    return new TopCombineFn<Double, Natural<Double>>(count, new Natural<>()) {};
   }
 
   /** Returns a {@link CombineFn} that aggregates the smallest count values. */
   public static <T extends Comparable<T>> TopCombineFn<T, Reversed<T>> smallestFn(int count) {
-    return new TopCombineFn<>(count, new Reversed<T>());
+    return new TopCombineFn<T, Reversed<T>>(count, new Reversed<>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the smallest count long values. */
+  public static TopCombineFn<Long, Reversed<Long>> smallestLongsFn(int count) {
+    return new TopCombineFn<Long, Reversed<Long>>(count, new Reversed<>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the smallest count int values. */
+  public static TopCombineFn<Integer, Reversed<Integer>> smallestIntsFn(int count) {
+    return new TopCombineFn<Integer, Reversed<Integer>>(count, new Reversed<>()) {};
+  }
+
+  /** Returns a {@link CombineFn} that aggregates the smallest count double values. */
+  public static TopCombineFn<Double, Reversed<Double>> smallestDoublesFn(int count) {
+    return new TopCombineFn<Double, Reversed<Double>>(count, new Reversed<>()) {};
   }
 
   /**
