@@ -1062,7 +1062,7 @@ artifactId=${project.name}
         // Disable Gradle cache (it should not be used because the IT's won't run).
         outputs.upToDateWhen { false }
 
-        include "**/*IT.class"
+        include "**/*SessionsIT.class"
         systemProperties.beamTestPipelineOptions = configuration.integrationTestPipelineOptions
       }
     }
