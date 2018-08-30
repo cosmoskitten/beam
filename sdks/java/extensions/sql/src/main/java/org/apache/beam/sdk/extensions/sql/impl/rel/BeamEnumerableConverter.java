@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -304,7 +305,11 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
                   MetricsFilter.builder()
                       .addNameFilter(MetricNameFilter.named(BeamEnumerableConverter.class, "rows"))
                       .build());
-      count = metrics.getCounters().iterator().next().getAttempted();
+      try {
+        count = metrics.getCounters().iterator().next().getAttempted();
+      } catch (NoSuchElementException e) {
+        count = 0;
+      }
     }
     return Linq4j.singletonEnumerable(count);
   }
