@@ -17,32 +17,39 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -51,6 +58,7 @@ import org.joda.time.format.PeriodFormat;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,6 +69,8 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class SimpleDoFnRunnerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Mock StepContext mockStepContext;
 
@@ -124,9 +134,9 @@ public class SimpleDoFnRunnerTest {
    */
   @Test
   public void testTimerSet() {
-    WindowFn<?, ?> windowFn = new GlobalWindows();
-    DoFnWithTimers<GlobalWindow> fn = new DoFnWithTimers(windowFn.windowCoder());
-    DoFnRunner<String, String> runner =
+    WindowFn<?, GlobalWindow> windowFn = new GlobalWindows();
+    DoFnWithTimers<GlobalWindow> fn = new DoFnWithTimers<>(windowFn.windowCoder());
+    DoFnRunner<KV<String, String>, TimerData> runner =
         new SimpleDoFnRunner<>(
             null,
             fn,
@@ -142,15 +152,23 @@ public class SimpleDoFnRunnerTest {
     // Setting the timer needs the current time, as it is set relative
     Instant currentTime = new Instant(42);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(currentTime);
+    when(mockTimerInternals.currentProcessingTime()).thenReturn(currentTime);
 
-    runner.processElement(WindowedValue.valueInGlobalWindow("anyValue"));
+    runner.processElement(WindowedValue.valueInGlobalWindow(KV.of("anyKey", "anyValue")));
 
     verify(mockTimerInternals)
         .setTimer(
             StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
-            DoFnWithTimers.TIMER_ID,
+            DoFnWithTimers.EVENT_TIMER_ID,
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             TimeDomain.EVENT_TIME);
+
+    verify(mockTimerInternals)
+        .setTimer(
+            StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
+            DoFnWithTimers.PROCESSING_TIMER_ID,
+            currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
+            TimeDomain.PROCESSING_TIME);
   }
 
   @Test
@@ -198,44 +216,48 @@ public class SimpleDoFnRunnerTest {
   }
 
   /**
-   * Tests that {@link SimpleDoFnRunner#onTimer} properly dispatches to the underlying {@link DoFn}.
+   * Tests that {@link SimpleDoFnRunner#onTimer} properly dispatches to the underlying {@link DoFn}
+   * on appropriate time domains.
    */
   @Test
+  @Category(NeedsRunner.class)
   public void testOnTimerCalled() {
+
+    // TIMESTAMP_MIN_VALUE is initial value for processing time used done by TestClock
+    Instant currentProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    Instant currentEventTime = new Instant(42);
+
+    TestStream<KV<String, String>> testStream =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(currentEventTime)
+            .addElements(TimestampedValue.of(KV.of("anyKey", "anyValue"), new Instant(99)))
+            .advanceProcessingTime(DoFnWithTimers.TIMER_OFFSET.plus(1))
+            .advanceWatermarkToInfinity();
+
     WindowFn<?, GlobalWindow> windowFn = new GlobalWindows();
-    DoFnWithTimers<GlobalWindow> fn = new DoFnWithTimers(windowFn.windowCoder());
-    DoFnRunner<String, String> runner =
-        new SimpleDoFnRunner<>(
-            null,
-            fn,
-            NullSideInputReader.empty(),
-            null,
-            null,
-            Collections.emptyList(),
-            mockStepContext,
-            null,
-            Collections.emptyMap(),
-            WindowingStrategy.of(windowFn));
+    DoFnWithTimers<GlobalWindow> fn = new DoFnWithTimers<>(windowFn.windowCoder());
 
-    Instant currentTime = new Instant(42);
-    Duration offset = Duration.millis(37);
+    PCollection<TimerData> output =
+        pipeline
+            .apply(testStream)
+            .apply(Window.into(new GlobalWindows()))
+            .apply(ParDo.of(fn))
+            .setCoder(TimerInternals.TimerDataCoder.of(windowFn.windowCoder()));
 
-    // Mocking is not easily compatible with annotation analysis, so we manually record
-    // the method call.
-    runner.onTimer(
-        DoFnWithTimers.TIMER_ID,
-        GlobalWindow.INSTANCE,
-        currentTime.plus(offset),
-        TimeDomain.EVENT_TIME);
-
-    assertThat(
-        fn.onTimerInvocations,
-        contains(
+    PAssert.that(output)
+        .containsInAnyOrder(
             TimerData.of(
-                DoFnWithTimers.TIMER_ID,
+                DoFnWithTimers.PROCESSING_TIMER_ID,
                 StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
-                currentTime.plus(offset),
-                TimeDomain.EVENT_TIME)));
+                currentProcessingTime.plus(DoFnWithTimers.TIMER_OFFSET).plus(1),
+                TimeDomain.PROCESSING_TIME),
+            TimerData.of(
+                DoFnWithTimers.EVENT_TIMER_ID,
+                StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
+                currentEventTime.plus(DoFnWithTimers.TIMER_OFFSET),
+                TimeDomain.EVENT_TIME));
+
+    pipeline.run();
   }
 
   /**
@@ -379,34 +401,49 @@ public class SimpleDoFnRunnerTest {
     }
   }
 
-  private static class DoFnWithTimers<W extends BoundedWindow> extends DoFn<String, String> {
-    static final String TIMER_ID = "testTimerId";
+  private static class DoFnWithTimers<W extends BoundedWindow>
+      extends DoFn<KV<String, String>, TimerData> {
+    static final String EVENT_TIMER_ID = "testEventTimerId";
+    static final String PROCESSING_TIMER_ID = "testProcessingTimerId";
 
     static final Duration TIMER_OFFSET = Duration.millis(100);
 
     private final Coder<W> windowCoder;
 
-    // Mutable
-    List<TimerData> onTimerInvocations;
-
     DoFnWithTimers(Coder<W> windowCoder) {
       this.windowCoder = windowCoder;
-      this.onTimerInvocations = new ArrayList<>();
     }
 
-    @TimerId(TIMER_ID)
-    private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    @TimerId(EVENT_TIMER_ID)
+    private static final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @TimerId(PROCESSING_TIMER_ID)
+    private static final TimerSpec processingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
     @ProcessElement
-    public void process(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
-      timer.offset(TIMER_OFFSET).setRelative();
+    public void process(
+        ProcessContext context,
+        @TimerId(EVENT_TIMER_ID) Timer eventTimer,
+        @TimerId(PROCESSING_TIMER_ID) Timer processingTimer) {
+      eventTimer.offset(TIMER_OFFSET).setRelative();
+      processingTimer.offset(TIMER_OFFSET).setRelative();
     }
 
-    @OnTimer(TIMER_ID)
-    public void onTimer(OnTimerContext context) {
-      onTimerInvocations.add(
+    @OnTimer(EVENT_TIMER_ID)
+    public void onEventTimer(OnTimerContext context) {
+      context.output(
           TimerData.of(
-              DoFnWithTimers.TIMER_ID,
+              DoFnWithTimers.EVENT_TIMER_ID,
+              StateNamespaces.window(windowCoder, (W) context.window()),
+              context.timestamp(),
+              context.timeDomain()));
+    }
+
+    @OnTimer(PROCESSING_TIMER_ID)
+    public void onProcessingTimer(OnTimerContext context) {
+      context.output(
+          TimerData.of(
+              DoFnWithTimers.PROCESSING_TIMER_ID,
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.timestamp(),
               context.timeDomain()));
