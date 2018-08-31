@@ -466,10 +466,16 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
+    def has_mi_for_ptransform(monitoring_infos, ptransform):
+      for mi in monitoring_infos:
+        if ptransform in mi.labels['PTRANSFORM']:
+          return True
+      return False
+
     try:
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
-      if 'Create/Read' not in pregbk_mis[0].labels['PTRANSFORM']:
+      if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
