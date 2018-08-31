@@ -1267,7 +1267,7 @@ class ControlFuture(object):
 
 
 class FnApiMetrics(metrics.metric.MetricResults):
-  def __init__(self, step_monitoring_infos, user_metrics_only=True ):
+  def __init__(self, step_monitoring_infos, user_metrics_only=True):
     """Used for querying metrics from the PipelineResult object.
 
       step_monitoring_infos: Per step metrics specified as MonitoringInfos.
