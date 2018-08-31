@@ -757,8 +757,13 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
             "Will copy temporary file {} to final location {}", entry.getKey(), entry.getValue());
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
-      // we ignore missing files here.
-      FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      // we ignore missing files here. It is possible that files already exist in the
+      // destination and we wish to replace them (e.g. a previous job run)
+      FileSystems.rename(
+          srcFiles,
+          dstFiles,
+          StandardMoveOptions.IGNORE_MISSING_FILES,
+          StandardMoveOptions.OVERWRITE_EXISTING_FILES);
       removeTemporaryFiles(srcFiles); // defensive coding
     }
 
