@@ -75,7 +75,7 @@ public class FieldTypeDescriptors {
     } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       return getMapFieldType(typeDescriptor);
     } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Row.class))) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Cannot automatically determine a field type from a Row class"
               + " as we cannot determine the schema. You should set a field type explicitly.");
     } else {
