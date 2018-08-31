@@ -71,7 +71,7 @@ def generate_proto_files(force=False):
       raise RuntimeError(
           'No proto files found in %s.' % proto_dirs)
 
-  # Regenerate iff the proto files or this file are newer.
+  # Regenerate iff the proto files are newer.
   elif force or not out_files or len(out_files) < len(proto_files) or (
       min(os.path.getmtime(path) for path in out_files)
       <= max(os.path.getmtime(path)
