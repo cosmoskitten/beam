@@ -36,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -310,10 +311,11 @@ public class FileSystems {
       return;
     }
 
+    Set<MoveOptions> options = Sets.newHashSet(moveOptions);
+
     List<ResourceId> srcToRename = srcResourceIds;
     List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (options.contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
@@ -322,8 +324,44 @@ public class FileSystems {
     if (srcToRename.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToRename.iterator().next().getScheme())
-        .rename(srcToRename, destToRename);
+
+    boolean overwrite =
+        options.contains(MoveOptions.StandardMoveOptions.OVERWRITE_EXISTING_FILES) ? true : false;
+    rename(
+        getFileSystemInternal(srcToRename.iterator().next().getScheme()),
+        srcToRename,
+        destToRename,
+        overwrite);
+  }
+
+  /**
+   * Executes a rename of the src which all must exist using the provided filesystem.
+   *
+   * <p>If overwrite is enabled and filesystem throws {code FileAlreadyExistsException} then an
+   * attempt to delete the destination is made and the rename is retried.
+   *
+   * @param fileSystem The filesystem in use
+   * @param src The source resources to move
+   * @param dest The destinations for the sources to move to (must be same length as src)
+   * @param overwrite If existing files in destination should be deleted and recreated
+   * @throws IOException If the rename could not be completed
+   */
+  @VisibleForTesting
+  static void rename(
+      FileSystem fileSystem, List<ResourceId> src, List<ResourceId> dest, boolean overwrite)
+      throws IOException {
+    try {
+      fileSystem.rename(src, dest);
+    } catch (FileAlreadyExistsException e) {
+      if (overwrite) {
+        // remove all destination resources that exist in both src and dest and retry
+        List<ResourceId> existings = filterExistingFiles(src, dest);
+        fileSystem.delete(existings);
+        fileSystem.rename(src, dest);
+      } else {
+        throw e;
+      }
+    }
   }
 
   /**
@@ -379,6 +417,7 @@ public class FileSystems {
         .delete(resourceIdsToDelete);
   }
 
+  // filters files that do not exist in srcResourceIds
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
     validateSrcDestLists(srcResourceIds, destResourceIds);
@@ -398,6 +437,29 @@ public class FileSystems {
       }
     }
     return KV.of(srcToHandle, destToHandle);
+  }
+
+  // filters files that exist in both srcResourceIds and destResourceIds returning the destResourceIds
+  private static List<ResourceId> filterExistingFiles(
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (destResourceIds.isEmpty()) {
+      // Short-circuit.
+      return Collections.<ResourceId>emptyList();
+    }
+
+    List<ResourceId> destToHandle = new ArrayList<>();
+
+    List<MatchResult> matchResultsSrc = matchResources(srcResourceIds);
+    List<MatchResult> matchResultsDest = matchResources(destResourceIds);
+    for (int i = 0; i < matchResultsSrc.size(); ++i) {
+      boolean srcExists = !matchResultsSrc.get(i).status().equals(Status.NOT_FOUND);
+      boolean destExists = !matchResultsDest.get(i).status().equals(Status.NOT_FOUND);
+      if (srcExists && destExists) {
+        destToHandle.add(destResourceIds.get(i));
+      }
+    }
+    return destToHandle;
   }
 
   private static void validateSrcDestLists(
