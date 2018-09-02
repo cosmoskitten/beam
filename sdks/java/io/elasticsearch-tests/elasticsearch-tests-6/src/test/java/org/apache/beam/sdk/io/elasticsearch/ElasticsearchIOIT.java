@@ -29,7 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * A test of {@link ElasticsearchIO} on an independent Elasticsearch v6.x instance.
+ * A test of {@link ElasticsearchIO} on an independent Elasticsearch v5.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
@@ -86,7 +86,7 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testSplitsVolume() throws Exception {
-    elasticsearchIOTestCommon.testSplitsVolume(options);
+    elasticsearchIOTestCommon.testSplit();
   }
 
   @Test
