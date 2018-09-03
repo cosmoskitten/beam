@@ -124,22 +124,38 @@ public class SparkCoGroupByKeyStreamingTest {
                   assertEquals("Wrong size of the output PCollection", 2, Iterables.size(input));
                   for (KV<Integer, CoGbkResult> element : input) {
                     if (element.getKey() == 1) {
+                      Iterable<Integer> input1Elements = element.getValue().getAll(INPUT1_TAG);
+                      assertEquals(
+                          "Wrong number of values for output elements for tag input1 and key 1",
+                          Iterables.size(input1Elements));
                       assertThat(
                           "Elements of PCollection input1 for key \"1\" are not present in the output PCollection",
-                          element.getValue().getAll(INPUT1_TAG),
+                          input1Elements,
                           containsInAnyOrder(1, 2, 3));
+                      Iterable<Integer> input2Elements = element.getValue().getAll(INPUT2_TAG);
+                      assertEquals(
+                          "Wrong number of values for output elements for tag input2 and key 1",
+                          Iterables.size(input2Elements));
                       assertThat(
                           "Elements of PCollection input2 for key \"1\" are not present in the output PCollection",
-                          element.getValue().getAll(INPUT2_TAG),
+                          input2Elements,
                           containsInAnyOrder(11, 12, 13));
                     } else if (element.getKey() == 2) {
+                      Iterable<Integer> input1Elements = element.getValue().getAll(INPUT1_TAG);
+                      assertEquals(
+                          "Wrong number of values for output elements for tag input1 and key 2",
+                          Iterables.size(input1Elements));
                       assertThat(
                           "Elements of PCollection input1 for key \"2\" are not present in the output PCollection",
-                          element.getValue().getAll(INPUT1_TAG),
+                          input1Elements,
                           containsInAnyOrder(4, 5, 6));
+                      Iterable<Integer> input2Elements = element.getValue().getAll(INPUT2_TAG);
+                      assertEquals(
+                          "Wrong number of values for output elements for tag input2 and key 2",
+                          Iterables.size(input2Elements));
                       assertThat(
                           "Elements of PCollection input2 for key \"2\" are not present in the output PCollection",
-                          element.getValue().getAll(INPUT2_TAG),
+                          input2Elements,
                           containsInAnyOrder(14, 15, 16));
                     } else {
                       fail("Unknown key in the output PCollection");
