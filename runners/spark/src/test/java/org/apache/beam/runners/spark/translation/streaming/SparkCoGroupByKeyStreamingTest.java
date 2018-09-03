@@ -53,7 +53,6 @@ import org.slf4j.LoggerFactory;
 /** A test that verifies that CoGroupByKey works in streaming mode in spark runner. */
 public class SparkCoGroupByKeyStreamingTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkCoGroupByKeyStreamingTest.class);
   private static final TupleTag<Integer> INPUT1_TAG = new TupleTag<>("input1");
   private static final TupleTag<Integer> INPUT2_TAG = new TupleTag<>("input2");
 
