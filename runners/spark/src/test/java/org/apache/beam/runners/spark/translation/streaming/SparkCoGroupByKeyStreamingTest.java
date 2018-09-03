@@ -19,8 +19,11 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
+import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
@@ -117,30 +120,32 @@ public class SparkCoGroupByKeyStreamingTest {
         KeyedPCollectionTuple.of(INPUT1_TAG, input1)
             .and(INPUT2_TAG, input2)
             .apply(CoGroupByKey.create());
-    PAssert.that("wrong output of the join using CoGroupByKey in streaming mode", output)
+    PAssert.that("Wrong output of the join using CoGroupByKey in streaming mode", output)
         .satisfies(
             (SerializableFunction<Iterable<KV<Integer, CoGbkResult>>, Void>)
                 input -> {
+                  assertEquals("Wrong size of the output PCollection", 2, Iterables.size(input));
                   for (KV<Integer, CoGbkResult> element : input) {
                     if (element.getKey() == 1) {
                       assertThat(
-                          "element of PCollection input1 for key \"1\" are not present in the output PCollection",
+                          "Elements of PCollection input1 for key \"1\" are not present in the output PCollection",
                           element.getValue().getAll(INPUT1_TAG),
                           containsInAnyOrder(1, 2, 3));
                       assertThat(
-                          "element of PCollection input2 for key \"1\" are not present in the output PCollection",
+                          "Elements of PCollection input2 for key \"1\" are not present in the output PCollection",
                           element.getValue().getAll(INPUT2_TAG),
                           containsInAnyOrder(11, 12, 13));
-                    }
-                    if (element.getKey() == 2) {
+                    } else if (element.getKey() == 2) {
                       assertThat(
-                          "element of PCollection input1 for key \"2\" are not present in the output PCollection",
+                          "Elements of PCollection input1 for key \"2\" are not present in the output PCollection",
                           element.getValue().getAll(INPUT1_TAG),
                           containsInAnyOrder(4, 5, 6));
                       assertThat(
-                          "element of PCollection input2 for key \"2\" are not present in the output PCollection",
+                          "Elements of PCollection input2 for key \"2\" are not present in the output PCollection",
                           element.getValue().getAll(INPUT2_TAG),
                           containsInAnyOrder(14, 15, 16));
+                    } else {
+                      fail("Unknown key in the output PCollection");
                     }
                   }
                   return null;
