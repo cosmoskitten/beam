@@ -334,7 +334,7 @@ class CommonJobProperties {
         shell("virtualenv ${perfkit_env}")
 
         // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
+        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5 nose=1.3.7")
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
