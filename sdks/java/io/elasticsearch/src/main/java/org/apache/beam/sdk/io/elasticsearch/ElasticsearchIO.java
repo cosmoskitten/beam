@@ -133,8 +133,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Optionally, you can provide {@link ElasticsearchIO.Write.FieldValueExtractFn} using {@code
  * withIndexFn()} or {@code withTypeFn()} to enable per-document routing to the target Elasticsearch
- * index (all versions) and type (version <6). Support for type routing was removed in Elasticsearch
- * 6 (see https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch)
+ * index (all versions) and type (version &gt; 6). Support for type routing was removed in
+ * Elasticsearch 6 (see
+ * https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch)
  *
  * <p>When {withUsePartialUpdate()} is enabled, the input document must contain an id field and
  * {@code withIdFn()} must be used to allow its extraction by the ElasticsearchIO.
@@ -278,6 +279,8 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the username.
      *
      * @param username the username used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withUsername(String username) {
       checkArgument(username != null, "username can not be null");
@@ -289,6 +292,8 @@ public class ElasticsearchIO {
      * If Elasticsearch authentication is enabled, provide the password.
      *
      * @param password the password used to authenticate to Elasticsearch
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withPassword(String password) {
       checkArgument(password != null, "password can not be null");
@@ -301,6 +306,8 @@ public class ElasticsearchIO {
      * containing the client key.
      *
      * @param keystorePath the location of the keystore containing the client key.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
       checkArgument(keystorePath != null, "keystorePath can not be null");
@@ -313,6 +320,8 @@ public class ElasticsearchIO {
      * to open the client keystore.
      *
      * @param keystorePassword the password of the client keystore.
+     * @return a {@link ConnectionConfiguration} describes a connection configuration to
+     *     Elasticsearch.
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
       checkArgument(keystorePassword != null, "keystorePassword can not be null");
@@ -403,7 +412,13 @@ public class ElasticsearchIO {
       abstract Read build();
     }
 
-    /** Provide the Elasticsearch connection configuration object. */
+    /**
+     * Provide the Elasticsearch connection configuration object.
+     *
+     * @param connectionConfiguration a {@link ConnectionConfiguration} describes a connection
+     *     configuration to Elasticsearch.
+     * @return a {@link PTransform} reading data from Elasticsearch.
+     */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
       checkArgument(connectionConfiguration != null, "connectionConfiguration can not be null");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
@@ -415,6 +430,7 @@ public class ElasticsearchIO {
      * @param query the query. See <a
      *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
      *     DSL</a>
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withQuery(String query) {
       checkArgument(query != null, "query can not be null");
@@ -424,6 +440,8 @@ public class ElasticsearchIO {
 
     /**
      * Include metadata in result json documents. Document source will be under json node _source.
+     *
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withMetadata() {
       return builder().setWithMetadata(true).build();
@@ -433,6 +451,9 @@ public class ElasticsearchIO {
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
+     *
+     * @param scrollKeepalive keepalive duration of the scroll
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
@@ -448,6 +469,7 @@ public class ElasticsearchIO {
      * batchSize
      *
      * @param batchSize number of documents read in each scroll read
+     * @return a {@link PTransform} reading data from Elasticsearch.
      */
     public Read withBatchSize(long batchSize) {
       checkArgument(
