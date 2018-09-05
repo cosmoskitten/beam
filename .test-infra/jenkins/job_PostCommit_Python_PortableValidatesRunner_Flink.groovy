@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_PortableValidatesRunn
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Execute gradle task to test Python SDK.
+  // Execute gradle task to test Python Flink Portable Runner.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
