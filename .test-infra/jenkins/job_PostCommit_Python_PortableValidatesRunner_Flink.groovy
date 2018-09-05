@@ -32,7 +32,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_PortableValidatesRunn
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-sdks-python:flinkCompatibilityMatrixBatch')
-      tasks(':beam-sdks-python:flinkCompatibilityMatrixStreaming')
+      tasks(':beam-sdks-python:setupVirtualenv')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
