@@ -107,10 +107,17 @@ public class FlinkJobServerDriver implements Runnable {
         new ThreadFactoryBuilder().setNameFormat("flink-runner-job-server").setDaemon(true).build();
     ListeningExecutorService executor =
         MoreExecutors.listeningDecorator(Executors.newCachedThreadPool(threadFactory));
-    ServerFactory jobServerFactory = ServerFactory.createWithPortSupplier(() -> configuration.port);
+    ServerFactory jobServerFactory = ServerFactory
+        .createWithPortSupplier(() -> getPort(configuration.host, configuration.port));
     ServerFactory artifactServerFactory =
-        ServerFactory.createWithPortSupplier(() -> configuration.artifactPort);
+        ServerFactory
+            .createWithPortSupplier(() -> getPort(configuration.host, configuration.artifactPort));
     return create(configuration, executor, jobServerFactory, artifactServerFactory);
+  }
+
+  private static int getPort(String host, int port){
+    // If host is empty then use dynamic port
+    return Strings.isNullOrEmpty(host)? 0 : port;
   }
 
   public static FlinkJobServerDriver create(
@@ -130,7 +137,7 @@ public class FlinkJobServerDriver implements Runnable {
     this.configuration = configuration;
     this.executor = executor;
     this.jobServerFactory = jobServerFactory;
-    this.artifactServerFactory = jobServerFactory;
+    this.artifactServerFactory = artifactServerFactory;
   }
 
   @Override
