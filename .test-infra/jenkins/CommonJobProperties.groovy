@@ -335,7 +335,6 @@ class CommonJobProperties {
 
         // update setuptools and pip
         shell("${beam_env}/bin/pip install --upgrade grpcio-tools==1.3.5")
-        shell("${perfkit_env}/bin/pip install --upgrade")
 
         // Clone appropriate perfkit branch
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
