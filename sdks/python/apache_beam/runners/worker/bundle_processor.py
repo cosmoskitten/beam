@@ -235,7 +235,8 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._value_coder = value_coder
 
   def read(self):
-    return IterableState(self._state_handler, self._state_key, self._value_coder)
+    return IterableState(
+        self._state_handler, self._state_key, self._value_coder)
 
   def add(self, value):
     self._state_handler.blocking_append(

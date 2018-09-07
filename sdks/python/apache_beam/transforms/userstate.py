@@ -62,8 +62,6 @@ class CombiningValueStateSpec(StateSpec):
     self.name = name
     # The coder here should be for the accumulator type of the given CombineFn.
     self.coder = coder
-    # Avoid circular imports.
-    from apache_beam.transforms.core import CombineFn
     self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
 
 
