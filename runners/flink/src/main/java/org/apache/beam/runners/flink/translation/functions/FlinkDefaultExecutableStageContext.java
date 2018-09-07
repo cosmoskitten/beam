@@ -27,7 +27,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
-  static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) throws Exception {
+  private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) throws Exception {
     JobBundleFactory jobBundleFactory = DockerJobBundleFactory.FACTORY.get().create(jobInfo);
     return new FlinkDefaultExecutableStageContext(jobBundleFactory);
   }
