@@ -292,8 +292,8 @@ def flinkCompatibilityMatrix = {
   def name = 'flinkCompatibilityMatrix' + type
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
-    dependsOn ':beam-runners-flink_2.11-job-server:jar'
+//    dependsOn ':beam-sdks-python-container:docker'
+//    dependsOn ':beam-runners-flink_2.11-job-server:jar'
     doLast {
       exec {
         executable 'sh'
