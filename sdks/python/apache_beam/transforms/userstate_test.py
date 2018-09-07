@@ -22,9 +22,12 @@ import unittest
 
 import mock
 
+import apache_beam as beam
 from apache_beam.coders import BytesCoder
 from apache_beam.coders import VarIntCoder
 from apache_beam.runners.common import DoFnSignature
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.combiners import TopCombineFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
@@ -300,6 +303,32 @@ class InterfaceTest(unittest.TestCase):
         (r'DoFn StatefulDoFnWithTimerWithTypo3 has a TimerSpec without an '
          r'associated on_timer callback: TimerSpec\(expiry2\).')):
       UserStateUtils.validate_stateful_dofn(dofn)
+
+
+class StateOnlyTest(unittest.TestCase):
+
+  def test_index(self):
+
+    index_state_spec = CombiningValueStateSpec(
+        'index', beam.coders.VarIntCoder(), sum)
+
+    # TODO(ccy): State doesn't work with Map of FlatMap.
+    class AddIndex(beam.DoFn):
+      def process(self, kv, index=DoFn.StateParam(index_state_spec)):
+        k, v = kv
+        index.add(1)
+        yield k, v, index.read()
+
+    inputs = [('A', 'a')] * 2 + [('B', 'b')] * 3
+    expected = [('A', 'a', 1),
+                ('A', 'a', 2),
+                ('B', 'b', 1),
+                ('B', 'b', 2),
+                ('B', 'b', 3)]
+
+    with beam.Pipeline() as p:
+      assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
+                  equal_to(expected))
 
 
 if __name__ == '__main__':
