@@ -332,28 +332,30 @@ class CommonJobProperties {
 
         shell("virtualenv --version")
 
-        // create new VirtualEnv, inherit already existing packages
+        // BEAM
         shell("virtualenv ${beam_env} --no-site-packages")
-        shell("virtualenv ${perfkit_env} --no-site-packages")
+        shell(". ${beam_env}/bin/activate")
 
-        // update setuptools and pip
-        shell("${beam_env}/bin/pip install --upgrade setuptools pip grpcio-tools==1.3.5")
-        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
+        shell("which python pip")
+        shell("pip install --upgrade setuptools pip grpcio-tools==1.3.5")
+        shell("pip install -e ${beam_root}/sdks/python/[gcp,test]")
+        shell("(cd ${beam_root}/sdks/python && python setup.py sdist --dist-dir=target)")
 
-        // Clone appropriate perfkit branch
+        shell("deactivate")
+
+        // PERFKIT
         shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
-        // Install job requirements for Python SDK.
-        shell("${beam_env}/bin/pip install -e ${beam_root}/sdks/python/[gcp,test]")
+        shell("virtualenv ${perfkit_env} --no-site-packages")
+        shell(". ${perfkit_env}/bin/activate")
 
-        // Build PythonSDK tar ball.
-        shell("(cd ${beam_root}/sdks/python && ${beam_env}/bin/python setup.py sdist --dist-dir=target)")
-
-        // Install Perfkit benchmark requirements.
+        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
 
         // Launch performance test.
         shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
+
+        shell("deactivate")
     }
   }
 
