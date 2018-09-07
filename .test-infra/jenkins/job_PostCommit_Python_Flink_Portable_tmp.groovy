@@ -20,14 +20,14 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Portable_tmp',
-        'Run Python Flink Portable tmp', 'Apache Python Flink Runner Portable Tests tmp', this) {
-    description('Runs Python Portable suite on the Flink runner tmp.')
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_PVR_Flink_Gradle',
+  'Run Python Flink PortableValidatesRunner', 'Apache Python Flink Runner PortableValidatesRunner Tests', this) {
+  description('Runs Python PortableValidatesRunner suite on the Flink runner.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  // Execute shell command to test Python SDK.
+  // Execute gradle task to test Python Flink Portable Runner.
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
