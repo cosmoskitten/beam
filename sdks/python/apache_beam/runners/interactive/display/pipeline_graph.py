@@ -95,14 +95,6 @@ class PipelineGraph(object):
   def get_dot(self):
     return str(self._get_graph())
 
-  def display_graph(self):
-    """Displays graph via IPython or prints DOT if not possible."""
-    try:
-      from IPython.core import display  # pylint: disable=import-error
-      display.display(display.HTML(self._get_graph().create_svg()))  # pylint: disable=protected-access
-    except ImportError:
-      print(str(self._get_graph()))
-
   def _top_level_transforms(self):
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
