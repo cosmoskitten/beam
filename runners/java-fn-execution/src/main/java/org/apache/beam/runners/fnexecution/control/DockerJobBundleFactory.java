@@ -58,10 +58,6 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
             }
           });
 
-  public static JobBundleFactory create(JobInfo jobInfo) throws Exception {
-    return FACTORY.get().create(jobInfo);
-  }
-
   protected DockerJobBundleFactory(JobInfo jobInfo) throws Exception {
     super(jobInfo);
   }
@@ -83,19 +79,6 @@ public class DockerJobBundleFactory extends JobBundleFactoryBase {
         loggingServer,
         retrievalServer,
         provisioningServer);
-  }
-
-  @Override
-  public void close() throws Exception {
-    // Clear the cache. This closes all active environments.
-    environmentCache.invalidateAll();
-    environmentCache.cleanUp();
-
-    // Tear down common servers.
-    controlServer.close();
-    loggingServer.close();
-    retrievalServer.close();
-    provisioningServer.close();
   }
 
   @Override
