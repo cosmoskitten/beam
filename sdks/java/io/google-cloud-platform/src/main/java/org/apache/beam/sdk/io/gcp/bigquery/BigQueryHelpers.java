@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -29,6 +32,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +48,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,24 +86,202 @@ public class BigQueryHelpers {
     }
   }
 
+  // A class that waits for pending jobs, retrying them according to policy if they fail.
+  static class PendingJobManager {
+    private static class JobInfo {
+      private final PendingJob pendingJob;
+      @Nullable private final SerializableFunction<PendingJob, Exception> onSuccess;
+
+      public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
+        this.pendingJob = pendingJob;
+        this.onSuccess = onSuccess;
+      }
+    }
+
+    private List<JobInfo> pendingJobs = Lists.newArrayList();
+
+    // Add a pending job and a function to call when the job has completed successfully.
+    PendingJobManager addPendingJob(
+        PendingJob pendingJob, @Nullable SerializableFunction<PendingJob, Exception> onSuccess) {
+      this.pendingJobs.add(new JobInfo(pendingJob, onSuccess));
+      return this;
+    }
+
+    void waitForDone() throws Exception {
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(Integer.MAX_VALUE)
+                  .withInitialBackoff(Duration.standardSeconds(1))
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff());
+      Sleeper sleeper = Sleeper.DEFAULT;
+      while (!pendingJobs.isEmpty()) {
+        List<JobInfo> retryJobs = Lists.newArrayList();
+        for (JobInfo jobInfo : pendingJobs) {
+          if (jobInfo.pendingJob.pollJob()) {
+            // Job has completed successfully.
+            Exception e = jobInfo.onSuccess.apply(null);
+            if (e != null) {
+              throw e;
+            }
+          } else {
+            // Job failed, start it again. If it has hit the maximum number of retries then runJob
+            // will throw an exception.
+            jobInfo.pendingJob.runJob();
+            retryJobs.add(jobInfo);
+          }
+        }
+        pendingJobs = retryJobs;
+        if (!pendingJobs.isEmpty()) {
+          // Sleep before retrying.
+          nextBackOff(sleeper, backoff);
+        }
+      }
+    }
+
+    /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+    private static boolean nextBackOff(Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
+      try {
+        return BackOffUtils.next(sleeper, backoff);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  static class PendingJob {
+    private final SerializableFunction<RetryJobId, Void> executeJob;
+    private final SerializableFunction<RetryJobId, Job> pollJob;
+    private final String projectId;
+    private final String bqLocation;
+    private final JobService jobService;
+    private final int maxRetries;
+    private int currentAttempt;
+    RetryJobId currentJobId;
+    Job lastJobAttempted;
+    boolean started;
+
+    PendingJob(
+        SerializableFunction<RetryJobId, Void> executeJob,
+        SerializableFunction<RetryJobId, Job> pollJob,
+        String projectId,
+        String bqLocation,
+        JobService jobService,
+        int maxRetries,
+        String jobIdPrefix) {
+      this.executeJob = executeJob;
+      this.pollJob = pollJob;
+      this.projectId = projectId;
+      this.bqLocation = bqLocation;
+      this.jobService = jobService;
+      this.maxRetries = maxRetries;
+      this.currentAttempt = 0;
+      currentJobId = new RetryJobId(jobIdPrefix, 0);
+      this.started = false;
+    }
+
+    // Run the job.
+    void runJob() throws InterruptedException, IOException {
+      ++currentAttempt;
+      if (!shouldRetry()) {
+        throw new RuntimeException(
+            String.format(
+                "Failed to create job with prefix %s, "
+                    + "reached max retries: %d, last failed job: %s.",
+                currentJobId.getJobIdPrefix(),
+                maxRetries,
+                BigQueryHelpers.jobToPrettyString(lastJobAttempted)));
+      }
+
+      try {
+        executeJob.apply(currentJobId);
+      } catch (RuntimeException e) {
+        LOG.warn("Job {} failed with {}", currentJobId.getJobId(), e);
+        // It's possible that the job actually made it to BQ even though we got a failure here.
+        // For example, the response from BQ may have timed out returning. getRetryJobId will
+        // return the correct job id to use on retry, or a job id to continue polling (if it turns
+        // out the the job has not actually failed yet).
+        RetryJobIdResult result = getRetryJobId(currentJobId, projectId, bqLocation, jobService);
+        currentJobId = result.jobId;
+        if (result.shouldRetry) {
+          // Otherwise the jobs either never started or started and failed. Try the job again with
+          // the job id returned by getRetryJobId.
+          return;
+        }
+      }
+      LOG.info("job {} started", currentJobId.getJobId());
+      // The job has reached BigQuery and is in either the PENDING state or has completed
+      // successfully.
+      this.started = true;
+    }
+
+    // Poll the status of the job. Returns true if the job has completed successfully and false
+    // otherwise.
+    boolean pollJob() throws InterruptedException, IOException {
+      if (started) {
+        Job job = pollJob.apply(currentJobId);
+        this.lastJobAttempted = job;
+        Status jobStatus = parseStatus(job);
+        switch (jobStatus) {
+          case SUCCEEDED:
+            LOG.info("Load job {} succeeded. Statistics: {}", currentJobId, job.getStatistics());
+            return true;
+          case UNKNOWN:
+            // This might happen if BigQuery's job listing is slow. Retry with the same
+            // job id.
+            LOG.info(
+                "Load job {} finished in unknown state: {}: {}",
+                currentJobId,
+                job.getStatus(),
+                shouldRetry() ? "will retry" : "will not retry");
+            return false;
+          case FAILED:
+            String oldJobId = currentJobId.getJobId();
+            currentJobId =
+                BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService)
+                    .jobId;
+            LOG.info(
+                "Load job {} failed, {}: {}. Next job id {}",
+                oldJobId,
+                shouldRetry() ? "will retry" : "will not retry",
+                job.getStatus(),
+                currentJobId);
+            return false;
+          default:
+            throw new IllegalStateException(
+                String.format(
+                    "Unexpected status [%s] of load job: %s.",
+                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
+        }
+      }
+      return false;
+    }
+
+    boolean shouldRetry() {
+      return currentAttempt < maxRetries + 1;
+    }
+  }
+
   static class RetryJobId {
     private final String jobIdPrefix;
     private final int retryIndex;
 
-    public RetryJobId(String jobIdPrefix, int retryIndex) {
+    RetryJobId(String jobIdPrefix, int retryIndex) {
       this.jobIdPrefix = jobIdPrefix;
       this.retryIndex = retryIndex;
     }
 
-    public String getJobIdPrefix() {
+    String getJobIdPrefix() {
       return jobIdPrefix;
     }
 
-    public int getRetryIndex() {
+    int getRetryIndex() {
       return retryIndex;
     }
 
-    public String getJobId() {
+    String getJobId() {
       return jobIdPrefix + "-" + retryIndex;
     }
 
