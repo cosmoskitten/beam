@@ -19,6 +19,15 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
@@ -127,15 +136,15 @@ public class QueryablePipeline {
 
   private static final Set<String> PRIMITIVE_URNS =
       ImmutableSet.of(
-          PTransformTranslation.PAR_DO_TRANSFORM_URN,
-          PTransformTranslation.FLATTEN_TRANSFORM_URN,
-          PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-          PTransformTranslation.IMPULSE_TRANSFORM_URN,
-          PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-          PTransformTranslation.TEST_STREAM_TRANSFORM_URN,
-          PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN,
-          PTransformTranslation.READ_TRANSFORM_URN,
-          PTransformTranslation.CREATE_VIEW_TRANSFORM_URN);
+          PAR_DO_TRANSFORM_URN,
+          FLATTEN_TRANSFORM_URN,
+          GROUP_BY_KEY_TRANSFORM_URN,
+          IMPULSE_TRANSFORM_URN,
+          ASSIGN_WINDOWS_TRANSFORM_URN,
+          TEST_STREAM_TRANSFORM_URN,
+          MAP_WINDOWS_TRANSFORM_URN,
+          READ_TRANSFORM_URN,
+          CREATE_VIEW_TRANSFORM_URN);
 
   /** Returns true if the provided transform is a primitive. */
   private static boolean isPrimitiveTransform(PTransform transform) {
@@ -361,7 +370,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalSideInputNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
@@ -373,7 +382,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalUserStateNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getStateSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
@@ -385,7 +394,7 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalTimerNames(PTransform transform) {
-    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
       } catch (InvalidProtocolBufferException e) {
