@@ -93,7 +93,7 @@ class TimerSpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runer_api(self, context):
+  def to_runner_api(self, context):
     return beam_runner_api_pb2.TimerSpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain))
 
