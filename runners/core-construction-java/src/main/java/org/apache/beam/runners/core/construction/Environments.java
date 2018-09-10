@@ -56,8 +56,9 @@ public class Environments {
    */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
       String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
+  private static final String ENVIRONMENT_DOCKER_URN = BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER);
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
-      Environment.newBuilder().setUrn("beam:env:docker:v1")
+      Environment.newBuilder().setUrn(ENVIRONMENT_DOCKER_URN)
           .setPayload(
               RunnerApi.DockerPayload.newBuilder()
               .setContainerImage(JAVA_SDK_HARNESS_CONTAINER_URL)
@@ -72,7 +73,7 @@ public class Environments {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
     return Environment.newBuilder()
-        .setUrn("beam:env:docker:v1")
+        .setUrn(ENVIRONMENT_DOCKER_URN)
         .setPayload(RunnerApi.DockerPayload.newBuilder()
             .setContainerImage(url).build()
             .toByteString())

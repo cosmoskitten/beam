@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.environment;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -115,14 +114,13 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
 
     String executable = processPayload.getCommand();
+    ImmutableList.Builder<String> args = ImmutableList.<String>builder().addAll(processPayload.getArgsList());
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    List<String> args =
-        ImmutableList.of(
-            String.format("--id=%s", workerId),
+    args.add(String.format("--id=%s", workerId),
             String.format("--logging_endpoint=%s", loggingEndpoint),
             String.format("--artifact_endpoint=%s", artifactEndpoint),
             String.format("--provision_endpoint=%s", provisionEndpoint),
@@ -133,7 +131,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
+          processManager.startProcess(workerId, executable, args.build(), processPayload.getEnvMap());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {

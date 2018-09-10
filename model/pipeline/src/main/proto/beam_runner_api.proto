@@ -994,7 +994,8 @@ message ProcessPayload {
   string os = 1;  // "linux", "darwin", ..
   string arch = 2;  // "amd64", ..
   string command = 3; // process to execute
-  map<string, string> env = 4; // environment variables
+  repeated string args = 4; // Arguments to the command
+  map<string, string> env = 5; // Environment variables
 }
 
 // A specification of a user defined function.

@@ -206,8 +206,7 @@ public class SdkComponents {
     if (existing != null) {
       return existing;
     }
-    String url = env.getUrn();
-    String name = uniqify(url, environmentIds.values());
+    String name = uniqify(env.getUrn(), environmentIds.values());
     environmentIds.put(env, name);
     componentsBuilder.putEnvironments(name, env);
     return name;
