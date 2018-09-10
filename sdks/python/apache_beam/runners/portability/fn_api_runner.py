@@ -781,6 +781,43 @@ class FnApiRunner(runner.PipelineRunner):
         stage.deduplicate_read()
       return final_stages
 
+    def inject_timer_pcollections(stages):
+      for stage in stages:
+        for transform in list(stage.transforms):
+          if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+            for tag, timer_spec in payload.timer_specs:
+              timer_read_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_read_%s' % (transform.unique_name, tag))
+              timer_write_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_write%s' % (transform.unique_name, tag))
+               # TODO: acutally populate
+               input_pcoll = pipeline_components.pcollections[
+                   next(transform.inputs.values())]
+               pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
+                   beam_runner_api_pb2.PCollection(input_pcoll))
+               pipeline_components.pcollections[timer_read_pcoll].unique_name = timer_read_pcoll
+               pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
+                   beam_runner_api_pb2.PCollection(input_pcoll))
+               pipeline_components.pcollections[timer_write_pcoll].unique_name = timer_write_pcoll
+               state.transforms.append(
+                   beam_runner_api_pb2.PTransform(
+                       unique_name=input_pcoll = '/Read',
+                       outputs={'out': input_pcoll},
+                       spec=beam_runner_api_pb2.FunctionSpec(
+                           urn=bundle_processor.DATA_INPUT_URN,
+                           payload='materialize:%s' % timer_read_pcoll)))
+               state.transforms.append(
+                   beam_runner_api_pb2.PTransform(
+                       unique_name=input_pcoll = '/Write',
+                       outputs={'out': input_pcoll},
+                       spec=beam_runner_api_pb2.FunctionSpec(
+                           urn=bundle_processor.DATA_OUTPUT_URN,
+                           payload='materialize:%s' % timer_write_pcoll)))
+
     def sort_stages(stages):
       """Order stages suitable for sequential execution.
       """
