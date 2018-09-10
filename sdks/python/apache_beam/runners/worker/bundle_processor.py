@@ -246,15 +246,35 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._state_handler.blocking_clear(self._state_key)
 
 
+class OutputTimer(object):
+  def __init__(self, key, receiver):
+    self._key = key
+    self._receiver = receiver
+
+  def set(self, timestamp):
+    self._receiver.output((key, dict(timestamp=timestamp)))
+
+  def clear(self, timestamp):
+    self._receiver.output((key, dict(timestamp=None)))
+
+
 class UserStateContext(userstate.UserStateContext):
-  def __init__(self, state_handler, transform_id, key_coder, window_coder):
+  def __init__(
+      self, state_handler, transform_id, key_coder, window_coder, timer_specs):
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
+    self._timer_specs = timer_specs
+    self._timer_receivers = None
+
+  def update_timer_receivers(self, receivers):
+    self._timer_receivers = {}
+    for tag, spec in self._timer_specs:
+      self._timer_receivers[spec.name] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
-    raise NotImplementedError
+    return OutputTimer(key, self._timer_receivers[spec.name])
 
   def get_state(self, state_spec, key, window):
     if isinstance(state_spec,
@@ -490,9 +510,30 @@ class BeamTransformFactory(object):
     return op
 
 
+class TimerConsumer(operations.Operation):
+  def __init__(self, timer_tag, do_op):
+    self._timer_tag = timer_tag
+    self._do_op = do_op
+
+  def process(self, windowed_value):
+    self._do_op.process_timer(self._timer_tag, windowed_value)
+
+
 @BeamTransformFactory.register_urn(
     DATA_INPUT_URN, beam_fn_api_pb2.RemoteGrpcPort)
 def create(factory, transform_id, transform_proto, grpc_port, consumers):
+  # Timers are the one special case where we don't want to call the
+  # (unlabeled) operation.process() method, which we detect here.
+  # TODO(robertwb): Consider generalizing if there are any more cases.
+  output_pcoll = only_element(transform_proto.outputs.values())
+  if (len(consumers) == 1
+      and isinstance(only_element(consumers.values()), operations.DoOperation)):
+    do_op = only_element(consumers.values())
+    for tag, (pcoll_id, spec) in do_op.timer_inputs:
+      if pcoll_id == output_pcoll:
+        consumers = [TimerConsumer(tag, do_op)]
+        break
+
   target = beam_fn_api_pb2.Target(
       primitive_transform_reference=transform_id,
       name=only_element(list(transform_proto.outputs.keys())))
@@ -575,18 +616,18 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   serialized_fn = parameter.do_fn.spec.payload
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
-      serialized_fn, parameter.side_inputs)
+      serialized_fn, parameter)
 
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, side_inputs_proto=None):
+    serialized_fn, pardo_proto=None):
 
-  if side_inputs_proto:
+  if pardo_proto and pardo_proto.side_inputs:
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
-        for tag, si in side_inputs_proto.items()]
+        for tag, si in pardo_proto.side_inputs.items()]
     tagged_side_inputs.sort(
         key=lambda tag_si: int(re.match('side([0-9]+)(-.*)?$',
                                         tag_si[0]).group(1)))
@@ -616,22 +657,35 @@ def _create_pardo_operation(
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
-    side_input_tags = side_inputs_proto or ()
+    side_input_tags = getattr(pardo_proto, 'side_inputs', None) or ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
                  if tag not in side_input_tags]
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
-  if userstate.UserStateUtils.is_stateful_dofn(dofn_data[0]):
-    input_coder = factory.get_only_input_coder(transform_proto)
+  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs):
+    main_input_coder = None
+    timer_inputs = {}
+    for tag, pcoll_id in transform_proto.inputs.items():
+      if tag in pardo_proto.timer_specs:
+        timer_inputs[tag] = pcoll_id, pardo_proto.timer_specs[tag]
+      elif tag in pardo_proto.side_inputs:
+        pass
+      else:
+        # Must be the main input
+        assert main_input_coder is None
+        main_input_coder = factory.get_windowed_coder(pcoll_id)
+    assert main_input_coder is not None
     user_state_context = UserStateContext(
         factory.state_handler,
         transform_id,
-        input_coder.key_coder(),
-        input_coder.window_coder)
+        main_input_coder.key_coder(),
+        main_input_coder.window_coder,
+        timer_specs=pardo_proto.timer_specs)
   else:
     user_state_context = None
+    timer_inputs = None
 
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
@@ -648,7 +702,8 @@ def _create_pardo_operation(
           factory.counter_factory,
           factory.state_sampler,
           side_input_maps,
-          user_state_context),
+          user_state_context,
+          timer_inputs=timer_inputs),
       transform_proto.unique_name,
       consumers,
       output_tags)
