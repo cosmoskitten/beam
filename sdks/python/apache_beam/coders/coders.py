@@ -442,7 +442,7 @@ class _TimerCoder(FastCoder):
 
   For internal use."""
   def __init__(self, payload_coder):
-      self._payload_coder = payload_coder
+    self._payload_coder = payload_coder
 
   def _get_component_coders(self):
     return [self._payload_coder]
@@ -459,6 +459,7 @@ class _TimerCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._payload_coder)
+
 
 Coder.register_structured_urn(
     common_urns.coders.TIMER.urn, _TimerCoder)

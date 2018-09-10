@@ -450,8 +450,10 @@ class TimerCoderImpl(StreamCoderImpl):
     self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
 
   def decode_from_stream(self, in_stream, nested):
+    # TODO(robertwb): Consider using a concrete class rather than a dict here.
     return dict(
-        timestamp=self._timestamp_coder_impl.decode_from_stream(in_stream, True),
+        timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
         payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 
