@@ -254,6 +254,7 @@ class FnApiRunner(runner.PipelineRunner):
         self.transforms = transforms
         self.downstream_side_inputs = downstream_side_inputs
         self.must_follow = must_follow
+        self.timers = []
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -849,6 +850,52 @@ class FnApiRunner(runner.PipelineRunner):
         stage.deduplicate_read()
       return final_stages
 
+    def inject_timer_pcollections(stages):
+      for stage in stages:
+        for transform in list(stage.transforms):
+          if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+            for tag in payload.timer_specs.keys():
+              timer_read_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_read_%s' % (transform.unique_name, tag))
+              timer_write_pcoll = unique_name(
+                  pipeline_components.pcollections,
+                  '%s_timers_to_write_%s' % (transform.unique_name, tag))
+              input_pcoll = pipeline_components.pcollections[
+                  next(iter(transform.inputs.values()))]
+              pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
+                  input_pcoll)
+              pipeline_components.pcollections[
+                  timer_read_pcoll].unique_name = timer_read_pcoll
+              pipeline_components.pcollections[
+                  timer_write_pcoll].CopyFrom(
+                      input_pcoll)
+              pipeline_components.pcollections[
+                  timer_write_pcoll].unique_name = timer_write_pcoll
+              stage.transforms.append(
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=timer_read_pcoll + '/Read',
+                      outputs={'out': timer_read_pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_INPUT_URN,
+                          payload=str('timers:%s' % timer_read_pcoll))))
+              stage.transforms.append(
+                  beam_runner_api_pb2.PTransform(
+                      unique_name=timer_write_pcoll + '/Write',
+                      inputs={'in': timer_write_pcoll},
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=bundle_processor.DATA_OUTPUT_URN,
+                          payload=str('timers:%s' % timer_write_pcoll))))
+              assert tag not in transform.inputs
+              transform.inputs[tag] = timer_read_pcoll
+              assert tag not in transform.outputs
+              transform.outputs[tag] = timer_write_pcoll
+              stage.timers.append(
+                  (timer_read_pcoll + '/Read', timer_write_pcoll))
+        yield stage
+
     def sort_stages(stages):
       """Order stages suitable for sequential execution.
       """
@@ -909,7 +956,7 @@ class FnApiRunner(runner.PipelineRunner):
     for phase in [
         annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
         lift_combiners, expand_gbk, sink_flattens, greedily_fuse,
-        impulse_to_input, sort_stages]:
+        impulse_to_input, inject_timer_pcollections, sort_stages]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
       logging.debug('Stages: %s', [str(s) for s in stages])
@@ -1017,7 +1064,7 @@ class FnApiRunner(runner.PipelineRunner):
         controller.state_handler.blocking_append(state_key, elements_data)
 
     def get_buffer(pcoll_id):
-      if pcoll_id.startswith('materialize:'):
+      if pcoll_id.startswith('materialize:') or pcoll_id.startswith('timers:'):
         if pcoll_id not in pcoll_buffers:
           # Just store the data chunks for replay.
           pcoll_buffers[pcoll_id] = list()
@@ -1044,9 +1091,32 @@ class FnApiRunner(runner.PipelineRunner):
         raise NotImplementedError(pcoll_id)
       return pcoll_buffers[pcoll_id]
 
-    return BundleManager(
+    result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
         self._progress_frequency).process_bundle(data_input, data_output)
+
+    while True:
+      timer_inputs = {}
+      for transform_id, timer_writes in stage.timers:
+        written_timers = get_buffer('timers:' + timer_writes)
+        if written_timers:
+          timer_inputs[transform_id, 'out'] = list(written_timers)
+          written_timers[:] = []
+      if timer_inputs:
+        # The worker will be waiting on these inputs as well.
+        for other_input in data_input:
+          if other_input not in timer_inputs:
+            timer_inputs[other_input] = []
+        # TODO(robertwb): merge results
+        BundleManager(
+            controller,
+            get_buffer,
+            process_bundle_descriptor,
+            self._progress_frequency).process_bundle(timer_inputs, data_output)
+      else:
+        break
+
+    return result
 
   # These classes are used to interact with the worker.
 
