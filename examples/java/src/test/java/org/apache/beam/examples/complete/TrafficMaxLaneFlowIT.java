@@ -32,7 +32,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 /** End-to-end tests of TrafficMaxLaneFlowIT. */
 @RunWith(JUnit4.class)
@@ -75,5 +74,4 @@ public class TrafficMaxLaneFlowIT {
     String res = response.getRows().get(0).getF().get(0).getV().toString();
     assertEquals("9763", res);
   }
-
 }

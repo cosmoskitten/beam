@@ -342,7 +342,7 @@ public class TrafficMaxLaneFlow {
     void setWindowSlideEvery(Integer value);
   }
 
-  public static void runTrafficMaxLaneFlow(TrafficMaxLaneFlowOptions options) throws IOException{
+  public static void runTrafficMaxLaneFlow(TrafficMaxLaneFlowOptions options) throws IOException {
     // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
