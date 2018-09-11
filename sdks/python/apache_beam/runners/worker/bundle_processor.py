@@ -50,6 +50,7 @@ from apache_beam.transforms import sideinputs
 from apache_beam.transforms import userstate
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
+from apache_beam.utils import timestamp
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -251,11 +252,15 @@ class OutputTimer(object):
     self._key = key
     self._receiver = receiver
 
-  def set(self, timestamp):
-    self._receiver.output((key, dict(timestamp=timestamp)))
+  def set(self, ts):
+    from apache_beam.transforms.window import GlobalWindows
+    self._receiver.receive(
+        GlobalWindows.windowed_value(
+            (self._key,
+             dict(timestamp=timestamp.Timestamp.of(ts), clear=False))))
 
   def clear(self, timestamp):
-    self._receiver.output((key, dict(timestamp=None)))
+    self._receiver.receive((self._key, dict(timestamp=timestamp, clear=True)))
 
 
 class UserStateContext(userstate.UserStateContext):
@@ -270,11 +275,11 @@ class UserStateContext(userstate.UserStateContext):
 
   def update_timer_receivers(self, receivers):
     self._timer_receivers = {}
-    for tag, spec in self._timer_specs:
-      self._timer_receivers[spec.name] = receivers.pop(tag)
+    for tag in self._timer_specs:
+      self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(self, timer_spec, key, window):
-    return OutputTimer(key, self._timer_receivers[spec.name])
+    return OutputTimer(key, self._timer_receivers[timer_spec.name])
 
   def get_state(self, state_spec, key, window):
     if isinstance(state_spec,
@@ -526,12 +531,13 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   # (unlabeled) operation.process() method, which we detect here.
   # TODO(robertwb): Consider generalizing if there are any more cases.
   output_pcoll = only_element(transform_proto.outputs.values())
-  if (len(consumers) == 1
-      and isinstance(only_element(consumers.values()), operations.DoOperation)):
-    do_op = only_element(consumers.values())
-    for tag, (pcoll_id, spec) in do_op.timer_inputs:
+  output_consumers = only_element(consumers.values())
+  if (len(output_consumers) == 1
+      and isinstance(only_element(output_consumers), operations.DoOperation)):
+    do_op = only_element(output_consumers)
+    for tag, (pcoll_id, spec) in do_op.timer_inputs.items():
       if pcoll_id == output_pcoll:
-        consumers = [TimerConsumer(tag, do_op)]
+        output_consumers[:] = [TimerConsumer(tag, do_op)]
         break
 
   target = beam_fn_api_pb2.Target(
@@ -657,9 +663,13 @@ def _create_pardo_operation(
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
-    side_input_tags = getattr(pardo_proto, 'side_inputs', None) or ()
+    if pardo_proto:
+      other_input_tags = set.union(
+          set(pardo_proto.side_inputs), set(pardo_proto.timer_specs))
+    else:
+      other_input_tags = ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
-                 if tag not in side_input_tags]
+                 if tag not in other_input_tags]
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))

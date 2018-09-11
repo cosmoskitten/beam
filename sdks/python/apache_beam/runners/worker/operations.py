@@ -42,6 +42,7 @@ from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
+from apache_beam.transforms import userstate
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
@@ -368,7 +369,11 @@ class DoOperation(Operation):
         self.tagged_receivers[original_tag] = self.receivers[index]
 
       if self.user_state_context:
-        self.user_state_context.update_timer_receivers(self.receivers)
+        self.user_state_context.update_timer_receivers(self.tagged_receivers)
+        self.timer_specs = {
+            spec.name: spec
+            for spec in userstate.UserStateUtils.get_dofn_specs(fn)[1]
+        }
 
       if self.side_input_maps is None:
         if tags_and_types:
@@ -396,7 +401,7 @@ class DoOperation(Operation):
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
-    _, timer_spec = self.timer_inputs[tag]
+    timer_spec = self.timer_specs[tag]
     self.dofn_receiver.process_user_timer(
         timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
