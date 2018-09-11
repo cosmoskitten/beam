@@ -61,22 +61,34 @@ import org.slf4j.LoggerFactory;
  *    BigqueryClient client = BigqueryClient.getNewBigquerryClient(applicationName);
  * ]}</pre>
  *
- * Execute a query with retries
+ * <p>Execute a query with retries:
  *
  * <pre>{@code [
  *    QueryResponse response = client.queryWithRetries(queryString, projectId);
  * ]}</pre>
  *
- * Create a new dataset in one project
+ * <p>Create a new dataset in one project:
  *
  * <pre>{@code [
  *    client.createNewDataset(projectId, datasetId);
  * ]}</pre>
  *
- * Delete a dataset in one project, included its all tables.
+ * <p>Delete a dataset in one project, included its all tables:
  *
  * <pre>{@code [
  *    client.deleteDataset(projectId, datasetId);
+ * ]}</pre>
+ *
+ * <p>Create a new table
+ *
+ * <pre>{@code [
+ *    client.createNewTable(projectId, datasetId, newTable)
+ * ]}</pre>
+ *
+ * <p>Insert data into table
+ *
+ * <pre>{@code [
+ *    client.insertDataToTable(projectId, datasetId, tableName, rows)
  * ]}</pre>
  */
 public class BigqueryClient {
