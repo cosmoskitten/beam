@@ -23,14 +23,14 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Optional;
 import javax.annotation.Nullable;
-
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.InvalidProtocolBufferException;
 
@@ -56,27 +56,23 @@ public class Environments {
    */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
       String.format("%s-docker-apache.bintray.io/beam/java", System.getenv("USER"));
-  private static final String ENVIRONMENT_DOCKER_URN = BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER);
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
-      Environment.newBuilder().setUrn(ENVIRONMENT_DOCKER_URN)
-          .setPayload(
-              RunnerApi.DockerPayload.newBuilder()
-              .setContainerImage(JAVA_SDK_HARNESS_CONTAINER_URL)
-              .build()
-              .toByteString())
-          .build();
+      createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
   private Environments() {}
 
-  public static Environment createOrGetDefaultEnvironment(String url) {
+  public static Environment createOrGetDefaultDockerEnvironment(String url) {
     if (Strings.isNullOrEmpty(url)) {
       return JAVA_SDK_HARNESS_ENVIRONMENT;
     }
+    return createDockerEnvironment(url);
+  }
+
+  public static Environment createDockerEnvironment(String dockerImageUrl) {
     return Environment.newBuilder()
-        .setUrn(ENVIRONMENT_DOCKER_URN)
-        .setPayload(RunnerApi.DockerPayload.newBuilder()
-            .setContainerImage(url).build()
-            .toByteString())
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
+        .setPayload(
+            DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
         .build();
   }
 
