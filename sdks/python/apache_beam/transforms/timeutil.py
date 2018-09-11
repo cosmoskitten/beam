@@ -59,6 +59,7 @@ class TimeDomain(object):
   def to_runner_api(domain):
     return TimeDomain._RUNNER_API_MAPPING[domain]
 
+
 class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):
   """Implementation of TimestampCombiner."""
 
