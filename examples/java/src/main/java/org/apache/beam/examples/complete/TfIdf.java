@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The default input is {@code gs://apache-beam-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://apache-beam-samples/shakespeare/winterstale} and can be overridden with
  * {@code --input}.
  */
 public class TfIdf {
@@ -415,8 +415,7 @@ public class TfIdf {
     }
   }
 
-  public static void main(String[] args) throws Exception {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  static void runTfIdf(Options options) throws Exception {
     Pipeline pipeline = Pipeline.create(options);
     pipeline.getCoderRegistry().registerCoderForClass(URI.class, StringDelegateCoder.of(URI.class));
 
@@ -426,5 +425,11 @@ public class TfIdf {
         .apply(new WriteTfIdf(options.getOutput()));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) throws Exception {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runTfIdf(options);
   }
 }
