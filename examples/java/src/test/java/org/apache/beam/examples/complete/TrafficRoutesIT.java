@@ -24,7 +24,6 @@ import com.google.api.services.bigquery.model.QueryResponse;
 import org.apache.beam.examples.complete.TrafficRoutes.FormatStatsFn;
 import org.apache.beam.examples.complete.TrafficRoutes.TrafficRoutesOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryToTableIT.BigQueryToTableOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
