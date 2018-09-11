@@ -146,8 +146,8 @@ task googleCloudPlatformIntegrationTest(type: Test) {
           "--tempRoot=${dataflowTempRoot}",
   ])
 
-  include '**/*IT.class'
-  exclude '**/PubsubReadIT.class'
+  include '**/BigQueryToTableIT.class'
+//  exclude '**/PubsubReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
