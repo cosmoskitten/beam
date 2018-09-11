@@ -166,7 +166,7 @@ task examplesJavaIntegrationTest(type: Test) {
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
-  include '**/*IT.class'
+  include '**/TrafficRoutesIT.class'
   exclude '**/WordCountIT.class'
   exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
@@ -178,7 +178,7 @@ task examplesJavaIntegrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
-  dependsOn googleCloudPlatformIntegrationTest
+//  dependsOn googleCloudPlatformIntegrationTest
   dependsOn examplesJavaIntegrationTest
 }
 
