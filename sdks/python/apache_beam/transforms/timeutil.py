@@ -27,7 +27,6 @@ from future.utils import with_metaclass
 
 from apache_beam.portability.api import beam_runner_api_pb2
 
-
 __all__ = [
     'TimeDomain',
     ]
