@@ -523,7 +523,7 @@ public class AutoComplete {
           .apply(ParDo.of(new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
             @ProcessElement
             public void process(ProcessContext c) {
-              c.output(new Long(c.element().hashCode()));
+              c.output(Long.valueOf(c.element().hashCode()));
             }
           }))
           .apply(Sum.longsGlobally());
