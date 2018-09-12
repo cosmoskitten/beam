@@ -462,7 +462,7 @@ public class AutoComplete {
     void setOutputProject(String value);
   }
 
-  public static void runAutocompletePipeline(Options options) throws IOException{
+  public static void runAutocompletePipeline(Options options) throws IOException {
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
     ExampleUtils exampleUtils = new ExampleUtils(options);
@@ -519,14 +519,17 @@ public class AutoComplete {
     }
 
     if (options.getOutputToChecksum()) {
-      PCollection<Long> checksum = toWrite
-          .apply(ParDo.of(new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
-            @ProcessElement
-            public void process(ProcessContext c) {
-              c.output(Long.valueOf(c.element().hashCode()));
-            }
-          }))
-          .apply(Sum.longsGlobally());
+      PCollection<Long> checksum =
+          toWrite
+              .apply(
+                  ParDo.of(
+                      new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(Long.valueOf(c.element().hashCode()));
+                        }
+                      }))
+              .apply(Sum.longsGlobally());
 
       PAssert.that(checksum).containsInAnyOrder(options.getExpectedChecksum());
     }

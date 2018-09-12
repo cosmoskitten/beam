@@ -26,14 +26,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Run integration tests for a basic AutoComplete pipeline. */
 @RunWith(JUnit4.class)
 public class AutocompleteIT {
 
   public static final String DEFAULT_INPUT = "gs://dataflow-samples/shakespeare/kinglear.txt";
 
-  public static final Long DEFAULT_INPUT_CHECKSUM = 1;
+  public static final Long DEFAULT_INPUT_CHECKSUM = 1L;
 
-
+  /** Options for the Autocomplete Integration test. */
   public interface AutocompleteITOptions extends TestPipelineOptions, Options {}
 
   @BeforeClass
@@ -43,7 +44,8 @@ public class AutocompleteIT {
 
   @Test
   public void testE2EAutoComplete() throws Exception {
-    AutocompleteITOptions options = TestPipeline.testingPipelineOptions().as(AutocompleteITOptions.class);
+    AutocompleteITOptions options =
+        TestPipeline.testingPipelineOptions().as(AutocompleteITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
     options.setOutputToBigQuery(false);
@@ -51,8 +53,6 @@ public class AutocompleteIT {
     options.setOutputToChecksum(true);
     options.setExpectedChecksum(DEFAULT_INPUT_CHECKSUM);
 
-
     AutoComplete.runAutocompletePipeline(options);
   }
-
 }
