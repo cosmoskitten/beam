@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -29,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
@@ -73,6 +75,21 @@ public class Environments {
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
         .setPayload(
             DockerPayload.newBuilder().setContainerImage(dockerImageUrl).build().toByteString())
+        .build();
+  }
+
+  public static Environment createProcessEnvironment(
+      String os, String arch, String command, Map<String, String> env) {
+    return Environment.newBuilder()
+        .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+        .setPayload(
+            ProcessPayload.newBuilder()
+                .setOs(os)
+                .setArch(arch)
+                .setCommand(command)
+                .putAllEnv(env)
+                .build()
+                .toByteString())
         .build();
   }
 

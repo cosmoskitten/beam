@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -108,34 +109,32 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     Preconditions.checkState(
         environment
             .getUrn()
-            .equals(RunnerApi.StandardEnvironments.Environments.EXTERNAL.toString()),
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
         "The passed environment does not contain a ProcessPayload.");
     final RunnerApi.ProcessPayload processPayload =
         RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
     String executable = processPayload.getCommand();
-    ImmutableList.Builder<String> args =
-        ImmutableList.<String>builder().addAll(processPayload.getArgsList());
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    args.add(
-        String.format("--id=%s", workerId),
-        String.format("--logging_endpoint=%s", loggingEndpoint),
-        String.format("--artifact_endpoint=%s", artifactEndpoint),
-        String.format("--provision_endpoint=%s", provisionEndpoint),
-        String.format("--control_endpoint=%s", controlEndpoint));
+    ImmutableList<String> args =
+        ImmutableList.of(
+            String.format("--id=%s", workerId),
+            String.format("--logging_endpoint=%s", loggingEndpoint),
+            String.format("--artifact_endpoint=%s", artifactEndpoint),
+            String.format("--provision_endpoint=%s", provisionEndpoint),
+            String.format("--control_endpoint=%s", controlEndpoint));
 
     LOG.debug("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {
       ProcessManager.RunningProcess process =
-          processManager.startProcess(
-              workerId, executable, args.build(), processPayload.getEnvMap());
+          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
