@@ -30,7 +30,6 @@ from builtins import range
 from builtins import zip
 
 from future.utils import itervalues
-from past.utils import old_div
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
@@ -271,14 +270,14 @@ class _BatchSizeEstimator(object):
   def _thin_data(self):
     sorted_data = sorted(self._data)
     odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
-    # Sort the pairs by how different they are.
 
-    def div_keys(kv1_kv2):
-      (x1, _), (x2, _) = kv1_kv2
-      return old_div(x2, x1) # TODO(BEAM-4858)
+    # Sort the pairs by how different they are (in batch size).
+    def uniqueness(adjacent_data):
+      (batch_size, _), (next_batch_size, _) = adjacent_data
+      return float(next_batch_size) / batch_size
 
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=div_keys)
+                   key=uniqueness)
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
     threshold = 2 * len(pairs) // 3
     self._data = (

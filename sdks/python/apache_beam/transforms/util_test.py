@@ -125,6 +125,20 @@ class BatchElementsTest(unittest.TestCase):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
 
+  def test_thin_data(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=None, target_batch_duration_secs=10, clock=clock)
+    batch_duration = lambda batch_size: 1 + .7 * batch_size
+    num_stable_calls = util._BatchSizeEstimator._MAX_DATA_POINTS * 3
+    expected_sizes = [1, 2, 4, 8] + [12] * num_stable_calls
+    actual_sizes = []
+    for _ in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(actual_sizes[-1]))
+    self.assertEqual(expected_sizes, actual_sizes)
+
 
 class IdentityWindowTest(unittest.TestCase):
 
