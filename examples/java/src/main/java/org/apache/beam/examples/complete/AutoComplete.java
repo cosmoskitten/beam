@@ -527,8 +527,8 @@ public class AutoComplete {
                         @ProcessElement
                         public void process(ProcessContext c) {
                           KV<String, List<CompletionCandidate>> elm = c.element();
-                          Long listHash = c.element().getValue().stream()
-                              .mapToLong(cc -> cc.hashCode()).sum();
+                          Long listHash =
+                              c.element().getValue().stream().mapToLong(cc -> cc.hashCode()).sum();
                           c.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
                         }
                       }))
