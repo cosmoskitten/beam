@@ -28,7 +28,7 @@ import org.junit.runners.JUnit4;
 
 /** Run integration tests for a basic AutoComplete pipeline. */
 @RunWith(JUnit4.class)
-public class AutocompleteIT {
+public class AutoCompleteIT {
 
   public static final String DEFAULT_INPUT = "gs://dataflow-samples/shakespeare/kinglear.txt";
 
