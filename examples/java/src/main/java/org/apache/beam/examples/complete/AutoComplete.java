@@ -526,7 +526,10 @@ public class AutoComplete {
                       new DoFn<KV<String, List<CompletionCandidate>>, Long>() {
                         @ProcessElement
                         public void process(ProcessContext c) {
-                          c.output(Long.valueOf(c.element().hashCode()));
+                          KV<String, List<CompletionCandidate>> elm = c.element();
+                          Long listHash = c.element().getValue().stream()
+                              .mapToLong(cc -> cc.hashCode()).sum();
+                          c.output(Long.valueOf(elm.getKey().hashCode()) + listHash);
                         }
                       }))
               .apply(Sum.longsGlobally());

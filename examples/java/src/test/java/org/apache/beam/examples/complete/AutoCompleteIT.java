@@ -35,7 +35,7 @@ public class AutocompleteIT {
   public static final Long DEFAULT_INPUT_CHECKSUM = 1L;
 
   /** Options for the Autocomplete Integration test. */
-  public interface AutocompleteITOptions extends TestPipelineOptions, Options {}
+  public interface AutoCompleteITOptions extends TestPipelineOptions, Options {}
 
   @BeforeClass
   public static void setUp() {
@@ -44,8 +44,8 @@ public class AutocompleteIT {
 
   @Test
   public void testE2EAutoComplete() throws Exception {
-    AutocompleteITOptions options =
-        TestPipeline.testingPipelineOptions().as(AutocompleteITOptions.class);
+    AutoCompleteITOptions options =
+        TestPipeline.testingPipelineOptions().as(AutoCompleteITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
     options.setOutputToBigQuery(false);
