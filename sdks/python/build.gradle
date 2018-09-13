@@ -265,7 +265,7 @@ task postCommitITTests(dependsOn: 'installGcpTest') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/lll.sh IT batch"
     }
   }
 }
