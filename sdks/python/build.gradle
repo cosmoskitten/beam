@@ -193,7 +193,7 @@ task installGcpTest(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test]"
+      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test] && pip install --upgrade google-cloud-bigquery"
     }
   }
 }
