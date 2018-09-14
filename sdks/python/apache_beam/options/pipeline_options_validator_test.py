@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import logging
 import unittest
-import sys
 from builtins import object
 
 from hamcrest.core.base_matcher import BaseMatcher
@@ -331,7 +330,7 @@ class SetupTest(unittest.TestCase):
 
     for case in test_case:
       matcher = case['on_success_matcher']
-      if matcher and sys.version_info[0] >= 3 and type(matcher) is bytes:
+      if matcher and type(matcher) is bytes:
         errors = get_validator(matcher.decode('utf-8')).validate()
       else:
         errors = get_validator(matcher).validate()
