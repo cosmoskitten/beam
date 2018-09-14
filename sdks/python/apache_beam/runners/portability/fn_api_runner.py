@@ -421,28 +421,28 @@ class FnApiRunner(runner.PipelineRunner):
             impulse_pc = unique_name(
                 pipeline_components.pcollections, 'Impulse')
             pipeline_components.pcollections[impulse_pc].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=impulse_pc,
-                  coder_id=globally_windowed_bytes_coder_id,
-                  windowing_strategy_id=read_pc_proto.windowing_strategy_id,
-                  is_bounded=read_pc_proto.is_bounded))
+                beam_runner_api_pb2.PCollection(
+                    unique_name=impulse_pc,
+                    coder_id=globally_windowed_bytes_coder_id,
+                    windowing_strategy_id=read_pc_proto.windowing_strategy_id,
+                    is_bounded=read_pc_proto.is_bounded))
             stage.transforms.remove(transform)
             # TODO(robertwb): If this goes multi-process before fn-api
             # read is default, expand into split + reshuffle + read.
             stage.transforms.append(
                 beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name + '/Impulse',
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.primitives.IMPULSE.urn),
-                  outputs={'out': impulse_pc}))
+                    unique_name=transform.unique_name + '/Impulse',
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.primitives.IMPULSE.urn),
+                    outputs={'out': impulse_pc}))
             stage.transforms.append(
                 beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name,
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=python_urns.IMPULSE_READ_TRANSFORM,
-                      payload=transform.spec.payload),
-                  inputs={'in': impulse_pc},
-                  outputs={'out': read_pc}))
+                    unique_name=transform.unique_name,
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=python_urns.IMPULSE_READ_TRANSFORM,
+                        payload=transform.spec.payload),
+                    inputs={'in': impulse_pc},
+                    outputs={'out': read_pc}))
 
         # Now map impulses to inputs.
         for transform in list(stage.transforms):
@@ -451,11 +451,11 @@ class FnApiRunner(runner.PipelineRunner):
             impulse_pc = only_element(transform.outputs.values())
             stage.transforms.append(
                 beam_runner_api_pb2.PTransform(
-                  unique_name=transform.unique_name,
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN,
-                      payload=str('impulse:%s' % impulse_pc)),
-                  outputs=transform.outputs))
+                    unique_name=transform.unique_name,
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=bundle_processor.DATA_INPUT_URN,
+                        payload=str('impulse:%s' % impulse_pc)),
+                    outputs=transform.outputs))
 
         yield stage
 
