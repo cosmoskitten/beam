@@ -253,6 +253,8 @@ class OutputTimer(object):
     self._receiver = receiver
 
   def set(self, ts):
+    print("set(%s)" % ts)
+    print("key", self._key)
     from apache_beam.transforms.window import GlobalWindows
     self._receiver.receive(
         GlobalWindows.windowed_value(
@@ -377,6 +379,7 @@ class BundleProcessor(object):
 
   def process_bundle(self, instruction_id):
 
+    print("BUNDLE STARTING")
     expected_inputs = []
     for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
@@ -396,10 +399,12 @@ class BundleProcessor(object):
         op.start()
 
       # Inject inputs from data plane.
+      print("expected_inputs", [str(s).replace('\n', ' ') for s in expected_inputs])
       for input_op in expected_inputs:
         for data in input_op.data_channel.input_elements(
             instruction_id, [input_op.target]):
           # ignores input name
+          print(input_op, data)
           input_op.process_encoded(data.data)
 
       # Finish all operations.
@@ -407,6 +412,7 @@ class BundleProcessor(object):
         logging.info('finish %s', op)
         op.finish()
     finally:
+      print("BUNDLE DONE")
       self.state_sampler.stop_if_still_running()
 
   def metrics(self):
