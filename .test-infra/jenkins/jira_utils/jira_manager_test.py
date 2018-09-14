@@ -60,7 +60,7 @@ class JiraManagerTest(unittest.TestCase):
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       manager = JiraManager('url', 'username', 'password', owners_yaml)
       manager.run('dep0', '1.0', 'Python')
-      manager.jira.create_issue.assert_called_once_with(self._get_experct_summary('dep0', '1.0'),
+      manager.jira.create_issue.assert_called_once_with(self._get_experct_summary('dep0'),
                                                         ['dependencies'],
                                                         self._get_expected_description('dep0', '1.0', ['owner0', 'owner1', 'owner2']),
                                                         )
@@ -79,7 +79,7 @@ class JiraManagerTest(unittest.TestCase):
                     dep0:
                       owners:
                   """
-    summary = self._get_experct_summary(dep_name, dep_latest_version)
+    summary = self._get_experct_summary(dep_name)
     description = self._get_expected_description(dep_name, dep_latest_version, [])
 
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
@@ -105,7 +105,7 @@ class JiraManagerTest(unittest.TestCase):
                       artifact: artifact0
                       owners: owner0
                   """
-    summary = self._get_experct_summary('group0', None)
+    summary = self._get_experct_summary('group0')
     description = self._get_expected_description(dep_name, dep_latest_version, [])
 
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
@@ -114,7 +114,7 @@ class JiraManagerTest(unittest.TestCase):
                       []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
         manager.run(dep_name, dep_latest_version, 'Java', group_id='group0')
-        manager.jira.create_issue.assert_called_once_with(self._get_experct_summary(dep_name, dep_latest_version),
+        manager.jira.create_issue.assert_called_once_with(self._get_experct_summary(dep_name),
                                                           ['dependencies'],
                                                           self._get_expected_description(dep_name, dep_latest_version, ['owner0']),
                                                           parent_key='BEAM-1000',
@@ -137,7 +137,7 @@ class JiraManagerTest(unittest.TestCase):
                       artifact: artifact0
                       owners: owner0
                   """
-    summary = self._get_experct_summary('group0', None)
+    summary = self._get_experct_summary('group0')
     description = self._get_expected_description(dep_name, dep_latest_version, [])
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
@@ -148,11 +148,8 @@ class JiraManagerTest(unittest.TestCase):
         manager.jira.reopen_issue.assert_called_once()
 
 
-  def _get_experct_summary(self, dep_name, dep_latest_version):
-    summary =  'Beam Dependency Update Request: ' + dep_name
-    if dep_latest_version:
-      summary = summary + " " + dep_latest_version
-    return summary
+  def _get_experct_summary(self, dep_name):
+    return 'Beam Dependency Update Request: ' + dep_name
 
 
   def _get_expected_description(self, dep_name, dep_latest_version, owners):

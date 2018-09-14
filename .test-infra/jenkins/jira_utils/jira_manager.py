@@ -86,7 +86,7 @@ class JiraManager:
             return
         logging.info("Found the parent issue {0}. Continuous to create or update the sub-task for {1}".format(parent_issue.key, dep_name))
       # creating a new issue/sub-task or updating on the existing issue of the dep
-      summary =  _ISSUE_SUMMARY_PREFIX + dep_name + " " + dep_latest_version
+      summary =  _ISSUE_SUMMARY_PREFIX + dep_name
       issues = self._search_issues(summary)
       issue = None
       for i in issues:
@@ -119,8 +119,6 @@ class JiraManager:
     logging.info("Creating a new JIRA issue to track {0} upgrade process".format(dep_name))
     owners = self._find_owners(dep_name)
     summary =  _ISSUE_SUMMARY_PREFIX + dep_name
-    if dep_latest_version:
-      summary = summary + " " + dep_latest_version
     description = """\n\n{0}\n
         Please review and upgrade the {1} to the latest version {2} \n 
         cc: """.format(
