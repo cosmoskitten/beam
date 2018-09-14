@@ -205,12 +205,6 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
       args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch TestDirectRunner"
     }
   }
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT streaming TestDirectRunner"
-    }
-  }
 }
 
 // Before running this, you need to:
