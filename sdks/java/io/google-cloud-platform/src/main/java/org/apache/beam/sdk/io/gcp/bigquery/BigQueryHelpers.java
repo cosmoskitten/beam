@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.util.BackOff;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -82,22 +81,48 @@ public class BigQueryHelpers {
 
   static class RetryJob {
     private final SerializableFunction<RetryJobId, Void> executeJob;
-    private final SerializableFunction<RetryJobId, Status> pollJob;
+    private final SerializableFunction<RetryJobId, Job> pollJob;
+    private final String projectId;
+    private final String bqLocation;
+    private final JobService jobService;
     private final int maxRetries;
+    private int currentAttempt;
     RetryJobId currentJobId;
+    Job lastJobAttempted;
     boolean started;
 
-
-    RetryJob(SerializableFunction<RetryJobId, Void> executeJob, SerializableFunction<RetryJobId,
-        Status> pollJob, int maxRetries, String jobIdPrefix{
+    RetryJob(
+        SerializableFunction<RetryJobId, Void> executeJob,
+        SerializableFunction<RetryJobId, Job> pollJob,
+        String projectId,
+        String bqLocation,
+        JobService jobService,
+        int maxRetries,
+        String jobIdPrefix) {
       this.executeJob = executeJob;
       this.pollJob = pollJob;
-      this.i = retryBackoff;
+      this.projectId = projectId;
+      this.bqLocation = bqLocation;
+      this.jobService = jobService;
+      this.maxRetries = maxRetries;
+      this.currentAttempt = 0;
       currentJobId = new RetryJobId(jobIdPrefix, 0);
       this.started = false;
     }
 
-    void runJob() {
+    // Run the job.
+    void runJob() throws InterruptedException, IOException {
+      ++currentAttempt;
+      if (!shouldRetry()) {
+        throw new RuntimeException(
+            String.format(
+                "Failed to create job with prefix %s, "
+                    + "reached max retries: %d, last failed job: %s.",
+                currentJobId.getJobIdPrefix(),
+                maxRetries,
+                BigQueryHelpers.jobToPrettyString(lastJobAttempted)));
+      }
+
       try {
         executeJob.apply(currentJobId);
       } catch (RuntimeException e) {
@@ -106,54 +131,64 @@ public class BigQueryHelpers {
         // For example, the response from BQ may have timed out returning. getRetryJobId will
         // return the correct job id to use on retry, or a job id to continue polling (if it turns
         // out the the job has not actually failed yet).
-        RetryJobIdResult result =
-            BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService);
+        RetryJobIdResult result = getRetryJobId(currentJobId, projectId, bqLocation, jobService);
         currentJobId = result.jobId;
-        if (!result.shouldRetry) {
-          // The job has reached BigQuery and is in either the PENDING state or has completed
-          // successfully.
-          this.started = true;
+        if (result.shouldRetry) {
+          // Otherwise the jobs either never started or started and failed. Try the job again with
+          // the job id returned by getRetryJobId.
+          return;
         }
-        // Otherwise the jobs is not started. Trye the load again with the new job id.
       }
+      LOG.info("job {} started", currentJobId.getJobId());
+      // The job has reached BigQuery and is in either the PENDING state or has completed
+      // successfully.
+      this.started = true;
     }
 
-    boolean pollJob() {
+    // Poll the status of the job. Returns true if the job has completed successfully and false
+    // otherwise.
+    boolean pollJob() throws InterruptedException, IOException {
       if (started) {
-        Status jobStatus = pollJob.apply(currentJobId);
+        Job job = pollJob.apply(currentJobId);
+        this.lastJobAttempted = job;
+        Status jobStatus = parseStatus(job);
         switch (jobStatus) {
           case SUCCEEDED:
-            LOG.info("Load job {} succeeded. Statistics: {}", currentJobId, loadJob.getStatistics());
+            LOG.info("Load job {} succeeded. Statistics: {}", currentJobId, job.getStatistics());
             return true;
           case UNKNOWN:
             // This might happen if BigQuery's job listing is slow. Retry with the same
             // job id.
             LOG.info(
                 "Load job {} finished in unknown state: {}: {}",
-                jobRef,
-                loadJob.getStatus(),
-                (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
-            lastFailedLoadJob = loadJob;
+                currentJobId,
+                job.getStatus(),
+                shouldRetry() ? "will retry" : "will not retry");
             return false;
           case FAILED:
-            lastFailedLoadJob = loadJob;
-            currentJobId = BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService)
-                .jobId;
+            String oldJobId = currentJobId.getJobId();
+            currentJobId =
+                BigQueryHelpers.getRetryJobId(currentJobId, projectId, bqLocation, jobService)
+                    .jobId;
             LOG.info(
                 "Load job {} failed, {}: {}. Next job id {}",
-                jobRef,
-                (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
-                loadJob.getStatus(),
-                jobId);
+                oldJobId,
+                shouldRetry() ? "will retry" : "will not retry",
+                job.getStatus(),
+                currentJobId);
             return false;
           default:
             throw new IllegalStateException(
                 String.format(
                     "Unexpected status [%s] of load job: %s.",
-                    loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
+                    job.getStatus(), BigQueryHelpers.jobToPrettyString(job)));
         }
       }
       return false;
+    }
+
+    boolean shouldRetry() {
+      return currentAttempt < maxRetries + 1;
     }
   }
 

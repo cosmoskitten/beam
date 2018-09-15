@@ -757,7 +757,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to create load job");
+    thrown.expectMessage("Failed to create job");
     p.run();
   }
 
@@ -777,9 +777,9 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to create load job with id prefix");
+    thrown.expectMessage("Failed to create job with prefix");
     thrown.expectMessage("reached max retries");
-    thrown.expectMessage("last failed load job");
+    thrown.expectMessage("last failed job");
 
     p.run();
   }

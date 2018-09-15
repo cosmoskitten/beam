@@ -23,20 +23,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.base.Strings;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -46,9 +42,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJob;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobId;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJobIdResult;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -92,8 +85,8 @@ import org.slf4j.LoggerFactory;
  */
 class WriteTables<DestinationT>
     extends PTransform<
-    PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
-    PCollection<KV<TableDestination, String>>> {
+        PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
+        PCollection<KV<TableDestination, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
@@ -113,6 +106,7 @@ class WriteTables<DestinationT>
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
     private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
 
+    // Represents a pending BigQuery load job.
     private class PendingJob {
       final BoundedWindow window;
       final RetryJob retryJob;
@@ -120,7 +114,12 @@ class WriteTables<DestinationT>
       final TableDestination tableDestination;
       final TableReference tableReference;
 
-      public PendingJob(BoundedWindow window, RetryJob retryJob, List<String> partitionFiles, TableDestination tableDestination, TableReference tableReference) {
+      public PendingJob(
+          BoundedWindow window,
+          RetryJob retryJob,
+          List<String> partitionFiles,
+          TableDestination tableDestination,
+          TableReference tableReference) {
         this.window = window;
         this.retryJob = retryJob;
         this.partitionFiles = partitionFiles;
@@ -128,6 +127,7 @@ class WriteTables<DestinationT>
         this.tableReference = tableReference;
       }
     }
+    // All pending load jobs.
     private List<PendingJob> pendingJobs = Lists.newArrayList();
 
     @StartBundle
@@ -190,23 +190,23 @@ class WriteTables<DestinationT>
       CreateDisposition createDisposition =
           (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
 
-      RetryJob retryJob = startLoad(
-          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-          jobIdPrefix,
-          tableReference,
-          tableDestination.getTimePartitioning(),
-          tableSchema,
-          partitionFiles,
-          writeDisposition,
-          createDisposition,
-          tableDestination.getTableDescription());
-      pendingJobs.add(new PendingJob(window, retryJob, partitionFiles, tableDestination,
-          tableReference));
+      RetryJob retryJob =
+          startLoad(
+              bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              jobIdPrefix,
+              tableReference,
+              tableDestination.getTimePartitioning(),
+              tableSchema,
+              partitionFiles,
+              writeDisposition,
+              createDisposition);
+      pendingJobs.add(
+          new PendingJob(window, retryJob, partitionFiles, tableDestination, tableReference));
     }
 
     @FinishBundle
-    public void finishBundle(FinishBundleContext c) throws InterruptedException {
+    public void finishBundle(FinishBundleContext c) throws InterruptedException, IOException {
       BackOff backoff =
           BackOffAdapter.toGcpBackOff(
               FluentBackoff.DEFAULT
@@ -216,10 +216,20 @@ class WriteTables<DestinationT>
                   .backoff());
       Sleeper sleeper = Sleeper.DEFAULT;
 
+      DatasetService datasetService =
+          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
+      // Wait for all pending jobs to complete, retrying failed jobs.
       while (!pendingJobs.isEmpty()) {
         List<PendingJob> retryJobs = Lists.newArrayList();
         for (PendingJob pendingJob : pendingJobs) {
           if (pendingJob.retryJob.pollJob()) {
+            // Job has completed successfully.
+            if (pendingJob.tableDestination.getTableDescription() != null) {
+              TableReference ref = pendingJob.tableReference;
+              datasetService.patchTableDescription(
+                  ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                  pendingJob.tableDestination.getTableDescription());
+            }
             c.output(
                 mainOutputTag,
                 KV.of(
@@ -232,12 +242,14 @@ class WriteTables<DestinationT>
                   temporaryFilesTag, file, pendingJob.window.maxTimestamp(), pendingJob.window);
             }
           } else {
+            // Job failed. Start it again.
             pendingJob.retryJob.runJob();
             retryJobs.add(pendingJob);
           }
         }
         pendingJobs = retryJobs;
         if (!pendingJobs.isEmpty()) {
+          // Sleep before retrying.
           nextBackOff(sleeper, backoff);
         }
       }
@@ -316,8 +328,7 @@ class WriteTables<DestinationT>
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      @Nullable String tableDescription) {
+      CreateDisposition createDisposition) {
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -334,161 +345,48 @@ class WriteTables<DestinationT>
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 
-    BackOff backoff =
-        BackOffAdapter.toGcpBackOff(
-            FluentBackoff.DEFAULT
-                .withMaxRetries(maxRetryJobs)
-                .withInitialBackoff(Duration.standardSeconds(1))
-                .withMaxBackoff(Duration.standardMinutes(1))
-                .backoff());
-
-    RetryJob retryJob = new RetryJob(jobId -> {
-      JobReference jobRef =
-          new JobReference()
-              .setProjectId(projectId)
-              .setJobId(jobId.getJobId())
-              .setLocation(bqLocation);
-      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef,
-          jobId.getRetryIndex());
-      try {
-        jobService.startLoadJob(jobRef, loadConfig);
-      } catch (IOException | InterruptedException e) {
-        LOG.warn("Load job {} failed with {}", jobRef, e);
-        throw new RuntimeException(e);
-      }
-      return null;
-    }, jobId -> {
-      JobReference jobRef =
-          new JobReference()
-              .setProjectId(projectId)
-              .setJobId(jobId.getJobId())
-              .setLocation(bqLocation);
-      try {
-        return BigQueryHelpers.parseStatus(jobService.pollJob(
-            jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES));
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    },
-        backoff,
-        jobIdPrefix);
+    RetryJob retryJob =
+        new RetryJob(
+            // Function to load the data.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              LOG.info(
+                  "Loading {} files into {} using job {}, job id iteration {}",
+                  gcsUris.size(),
+                  ref,
+                  jobRef,
+                  jobId.getRetryIndex());
+              try {
+                jobService.startLoadJob(jobRef, loadConfig);
+              } catch (IOException | InterruptedException e) {
+                LOG.warn("Load job {} failed with {}", jobRef, e);
+                throw new RuntimeException(e);
+              }
+              return null;
+            },
+            // Function to poll the result of a load job.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              try {
+                return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            projectId,
+            bqLocation,
+            jobService,
+            maxRetryJobs,
+            jobIdPrefix);
     return retryJob;
-  }
-
-
-  private void load(
-      JobService jobService,
-      DatasetService datasetService,
-      String jobIdPrefix,
-      TableReference ref,
-      TimePartitioning timePartitioning,
-      @Nullable TableSchema schema,
-      List<String> gcsUris,
-      WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      @Nullable String tableDescription)
-      throws InterruptedException, IOException {
-    JobConfigurationLoad loadConfig =
-        new JobConfigurationLoad()
-            .setDestinationTable(ref)
-            .setSchema(schema)
-            .setSourceUris(gcsUris)
-            .setWriteDisposition(writeDisposition.name())
-            .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON")
-            .setIgnoreUnknownValues(ignoreUnknownValues);
-    if (timePartitioning != null) {
-      loadConfig.setTimePartitioning(timePartitioning);
-    }
-    String projectId = loadJobProjectId == null ? ref.getProjectId() : loadJobProjectId.get();
-    Job lastFailedLoadJob = null;
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
-
-    BackOff backoff =
-        BackOffAdapter.toGcpBackOff(
-            FluentBackoff.DEFAULT
-                .withMaxRetries(maxRetryJobs)
-                .withInitialBackoff(Duration.standardSeconds(1))
-                .withMaxBackoff(Duration.standardMinutes(1))
-                .backoff());
-    Sleeper sleeper = Sleeper.DEFAULT;
-    // First attempt is always jobIdPrefix-0.
-    RetryJobId jobId = new RetryJobId(jobIdPrefix, 0);
-    int i = 0;
-    do {
-      ++i;
-      JobReference jobRef =
-          new JobReference()
-              .setProjectId(projectId)
-              .setJobId(jobId.getJobId())
-              .setLocation(bqLocation);
-
-      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
-      try {
-        jobService.startLoadJob(jobRef, loadConfig);
-      } catch (IOException e) {
-        LOG.warn("Load job {} failed with {}", jobRef, e);
-        // It's possible that the job actually made it to BQ even though we got a failure here.
-        // For example, the response from BQ may have timed out returning. getRetryJobId will
-        // return the correct job id to use on retry, or a job id to continue polling (if it turns
-        // out the the job has not actually failed yet).
-        RetryJobIdResult result =
-            BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService);
-        jobId = result.jobId;
-        if (result.shouldRetry) {
-          // Try the load again with the new job id.
-          continue;
-        }
-        // Otherwise,the job has reached BigQuery and is in either the PENDING state or has
-        // completed successfully.
-      }
-      LOG.info("Load job {} started", jobRef);
-      // Try to wait until the job is done (succeeded or failed).
-      Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
-
-      Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
-      switch (jobStatus) {
-        case SUCCEEDED:
-          LOG.info("Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
-          if (tableDescription != null) {
-            datasetService.patchTableDescription(
-                ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
-                tableDescription);
-          }
-          return;
-        case UNKNOWN:
-          // This might happen if BigQuery's job listing is slow. Retry with the same
-          // job id.
-          LOG.info(
-              "Load job {} finished in unknown state: {}: {}",
-              jobRef,
-              loadJob.getStatus(),
-              (i < maxRetryJobs - 1) ? "will retry" : "will not retry");
-          lastFailedLoadJob = loadJob;
-          continue;
-        case FAILED:
-          lastFailedLoadJob = loadJob;
-          jobId = BigQueryHelpers.getRetryJobId(jobId, projectId, bqLocation, jobService).jobId;
-          LOG.info(
-              "Load job {} failed, {}: {}. Next job id {}",
-              jobRef,
-              (i < maxRetryJobs - 1) ? "will retry" : "will not retry",
-              loadJob.getStatus(),
-              jobId);
-          continue;
-        default:
-          throw new IllegalStateException(
-              String.format(
-                  "Unexpected status [%s] of load job: %s.",
-                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
-      }
-    } while (nextBackOff(sleeper, backoff));
-    throw new RuntimeException(
-        String.format(
-            "Failed to create load job with id prefix %s, "
-                + "reached max retries: %d, last failed load job: %s.",
-            jobIdPrefix, maxRetryJobs, BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
   }
 
   /** Identical to {@link BackOffUtils#next} but without checked IOException. */
