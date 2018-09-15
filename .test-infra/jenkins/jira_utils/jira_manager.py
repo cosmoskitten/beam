@@ -19,12 +19,16 @@ from __future__ import print_function
 import logging
 import yaml
 import traceback
+
+import dependency_check.version_comparer as version_comparer
 from datetime import datetime
 from jira_client import JiraClient
+
 
 _JIRA_PROJECT_NAME = 'BEAM'
 _JIRA_COMPONENT = 'dependencies'
 _ISSUE_SUMMARY_PREFIX = 'Beam Dependency Update Request: '
+_ISSUE_REOPEN_DAYS = 180
 
 class JiraManager:
 
@@ -85,6 +89,7 @@ class JiraManager:
               Stop handling the JIRA issue for {1}, {2}""".format(parent_issue.key, dep_name, dep_latest_version))
             return
         logging.info("Found the parent issue {0}. Continuous to create or update the sub-task for {1}".format(parent_issue.key, dep_name))
+
       # creating a new issue/sub-task or updating on the existing issue of the dep
       summary =  _ISSUE_SUMMARY_PREFIX + dep_name
       issues = self._search_issues(summary)
@@ -93,15 +98,22 @@ class JiraManager:
         if i.fields.summary == summary:
           issue = i
           break
+      # Create a new JIRA if no existing one.
       if not issue:
         if sdk_type == 'Java':
           issue = self._create_issue(dep_name, dep_latest_version, is_subtask=True, parent_key=parent_issue.key)
         else:
           issue = self._create_issue(dep_name, dep_latest_version)
         logging.info('Created a new issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+      # Add descriptions in to the opening issue.
       elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
         self._append_descriptions(issue, dep_name, dep_latest_version)
         logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
+      # Check if we need reopen the issue if it was closed. If so, reopen it then add descriptions.
+      elif self._need_reopen(issue, dep_latest_version):
+        self.jira.reopen_issue(issue)
+        self._append_descriptions(issue, dep_name, dep_latest_version)
+        logging.info("Reopened the issue {0} for {1} {2}".format(issue.key, dep_name, dep_latest_version))
       return issue
     except:
       raise
@@ -212,3 +224,46 @@ class JiraManager:
     owners = map(str.strip, owners)
     owners = list(filter(None, owners))
     return owners
+
+
+  def _need_reopen(self, issue, dep_latest_version):
+    """
+    Return a boolean that indicates whether reopen the closed issue.
+    """
+    # Check if the issue was closed with a "fix version/s"
+    # Reopen the issue if it hits the next release version.
+    next_release_version = self._get_next_release_version()
+    if issue.fields.fixVersions[0].name in next_release_version:
+      return True
+
+    # Check if there is other new versions released.
+    # Reopen the issue if 3 new version has been released in 6 month since closure.
+    try:
+      if issue.fields.resolutiondate:
+        closing_date = datetime.strptime(issue.fields.resolutiondate[:19], "%Y-%m-%dT%H:%M:%S")
+        if (datetime.today() - closing_date).days >= _ISSUE_REOPEN_DAYS:
+          # Extract the previous version when JIRA closed.
+          descriptions = issue.fields.description.splitlines()
+          descriptions = descriptions[len(descriptions)-3]
+          previous_version = descriptions.split("the latest version", 1)[1].strip()
+          if version_comparer.compare_dependency_versions(previous_version, dep_latest_version):
+            return True
+    except Exception as e:
+      traceback.print_exc()
+      logging.error("Failed deciding to reopen the issue." + str(e))
+      return False
+
+    return False
+
+
+  def _get_next_release_version(self):
+    global_names = {}
+    exec(
+      open(os.path.join(
+          os.path.dirname(os.path.abspath(__file__)),
+          '../../../sdks/python/',
+          'apache_beam/version.py')
+      ).read(),
+      global_names
+    )
+    return global_names['__version__']
