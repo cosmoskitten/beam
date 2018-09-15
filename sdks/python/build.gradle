@@ -193,7 +193,7 @@ task installGcpTest(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test] && pip install --upgrade google-cloud-bigquery"
+      args '-c', ". ${envdir}/bin/activate && pip install -e .[gcp,test]"
     }
   }
 }
@@ -203,12 +203,6 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT batch TestDirectRunner"
-    }
-  }
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT streaming TestDirectRunner"
     }
   }
 }

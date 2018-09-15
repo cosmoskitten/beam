@@ -79,6 +79,9 @@ class TempDir(object):
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
   """Compute a hash value from a list of string."""
   content.sort()
+  print '================================'
+  print content
+  print '================================'
   m = hashlib.new(hashing_alg)
   for elem in content:
     m.update(str(elem))
