@@ -19,7 +19,6 @@ package org.apache.beam.runners.core.construction;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -29,6 +28,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,14 +79,15 @@ public class PipelineResourcesTest {
   @Test
   public void testRemovingNonexistentFilesFromFilesToStage() throws IOException {
     String nonexistentFilePath = tmpFolder.getRoot().getPath() + "/nonexistent/file";
+    String existingFilePath = tmpFolder.newFile("existingFile").getAbsolutePath();
     String temporaryLocation = tmpFolder.newFolder().getAbsolutePath();
 
-    List<String> filesToStage = new ArrayList<>();
-    filesToStage.add(nonexistentFilePath);
+    List<String> filesToStage = Arrays.asList(nonexistentFilePath, existingFilePath);
+    List<String> expectedFilesToStage = Arrays.asList(existingFilePath);
 
     List<String> result = PipelineResources.prepareFilesForStaging(filesToStage, temporaryLocation);
 
-    assertThat(result, is(empty()));
+    assertThat(result, is(expectedFilesToStage));
   }
 
   @Test

@@ -107,7 +107,7 @@ class FlinkPipelineExecutionEnvironment {
    * staging only when using remote cluster.
    */
   private void prepareFilesToStageForRemoteClusterExecution() {
-    if (!options.getFlinkMaster().matches("\\[.*\\]")) {
+    if (!options.getFlinkMaster().equals("[auto]") && !options.getFlinkMaster().equals("[local]")) {
       options.setFilesToStage(
           prepareFilesForStaging(options.getFilesToStage(), options.getTempLocation()));
     }
