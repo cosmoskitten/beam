@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -29,6 +32,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +48,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +86,72 @@ public class BigQueryHelpers {
     }
   }
 
-  static class RetryJob {
+  // A class that waits for pending jobs, retrying them according to policy if they fail.
+  static class PendingJobManager {
+    private static class JobInfo {
+      private final PendingJob pendingJob;
+      @Nullable private final SerializableFunction<PendingJob, Exception> onSuccess;
+
+      public JobInfo(PendingJob pendingJob, SerializableFunction<PendingJob, Exception> onSuccess) {
+        this.pendingJob = pendingJob;
+        this.onSuccess = onSuccess;
+      }
+    }
+
+    private List<JobInfo> pendingJobs = Lists.newArrayList();
+
+    // Add a pending job and a function to call when the job has completed successfully.
+    PendingJobManager addPendingJob(
+        PendingJob pendingJob, @Nullable SerializableFunction<PendingJob, Exception> onSuccess) {
+      this.pendingJobs.add(new JobInfo(pendingJob, onSuccess));
+      return this;
+    }
+
+    void waitForDone() throws Exception {
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(Integer.MAX_VALUE)
+                  .withInitialBackoff(Duration.standardSeconds(1))
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff());
+      Sleeper sleeper = Sleeper.DEFAULT;
+      while (!pendingJobs.isEmpty()) {
+        List<JobInfo> retryJobs = Lists.newArrayList();
+        for (JobInfo jobInfo : pendingJobs) {
+          if (jobInfo.pendingJob.pollJob()) {
+            // Job has completed successfully.
+            Exception e = jobInfo.onSuccess.apply(null);
+            if (e != null) {
+              throw e;
+            }
+          } else {
+            // Job failed, start it again. If it has hit the maximum number of retries then runJob
+            // will throw an exception.
+            jobInfo.pendingJob.runJob();
+            retryJobs.add(jobInfo);
+          }
+        }
+        pendingJobs = retryJobs;
+        if (!pendingJobs.isEmpty()) {
+          // Sleep before retrying.
+          nextBackOff(sleeper, backoff);
+        }
+      }
+    }
+
+    /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+    private static boolean nextBackOff(Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
+      try {
+        return BackOffUtils.next(sleeper, backoff);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  static class PendingJob {
     private final SerializableFunction<RetryJobId, Void> executeJob;
     private final SerializableFunction<RetryJobId, Job> pollJob;
     private final String projectId;
@@ -91,7 +163,7 @@ public class BigQueryHelpers {
     Job lastJobAttempted;
     boolean started;
 
-    RetryJob(
+    PendingJob(
         SerializableFunction<RetryJobId, Void> executeJob,
         SerializableFunction<RetryJobId, Job> pollJob,
         String projectId,

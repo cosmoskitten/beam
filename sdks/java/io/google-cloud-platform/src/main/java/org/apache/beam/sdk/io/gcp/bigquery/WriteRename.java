@@ -18,9 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
@@ -33,18 +30,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.RetryJob;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.BackOffAdapter;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,20 +59,22 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private final CreateDisposition firstPaneCreateDisposition;
   private final int maxRetryJobs;
 
-  private static class PendingJob {
-    final RetryJob retryJob;
+  private static class PendingJobData {
+    final BigQueryHelpers.PendingJob retryJob;
     final TableDestination tableDestination;
     final List<TableReference> tempTables;
 
-    public PendingJob(
-        RetryJob retryJob, TableDestination tableDestination, List<TableReference> tempTables) {
+    public PendingJobData(
+        BigQueryHelpers.PendingJob retryJob,
+        TableDestination tableDestination,
+        List<TableReference> tempTables) {
       this.retryJob = retryJob;
       this.tableDestination = tableDestination;
       this.tempTables = tempTables;
     }
   }
   // All pending copy jobs.
-  private List<PendingJob> pendingJobs = Lists.newArrayList();
+  private List<PendingJobData> pendingJobs = Lists.newArrayList();
 
   public WriteRename(
       BigQueryServices bqServices,
@@ -114,46 +110,33 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   }
 
   @FinishBundle
-  public void finishBundle(FinishBundleContext c) throws InterruptedException, IOException {
-    BackOff backoff =
-        BackOffAdapter.toGcpBackOff(
-            FluentBackoff.DEFAULT
-                .withMaxRetries(Integer.MAX_VALUE)
-                .withInitialBackoff(Duration.standardSeconds(1))
-                .withMaxBackoff(Duration.standardMinutes(1))
-                .backoff());
-    Sleeper sleeper = Sleeper.DEFAULT;
-
+  public void finishBundle(FinishBundleContext c) throws Exception {
     DatasetService datasetService =
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));
-    // Wait for all pending jobs to complete, retrying failed jobs.
-    while (!pendingJobs.isEmpty()) {
-      List<PendingJob> retryJobs = Lists.newArrayList();
-      for (PendingJob pendingJob : pendingJobs) {
-        if (pendingJob.retryJob.pollJob()) {
-          // Job has completed successfully.
-          if (pendingJob.tableDestination.getTableDescription() != null) {
-            TableReference ref = pendingJob.tableDestination.getTableReference();
-            datasetService.patchTableDescription(
-                ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
-                pendingJob.tableDestination.getTableDescription());
-          }
-          removeTemporaryTables(datasetService, pendingJob.tempTables);
-        } else {
-          // Job failed. Start it again.
-          pendingJob.retryJob.runJob();
-          retryJobs.add(pendingJob);
-        }
-      }
-      pendingJobs = retryJobs;
-      if (!pendingJobs.isEmpty()) {
-        // Sleep before retrying.
-        nextBackOff(sleeper, backoff);
-      }
+    PendingJobManager jobManager = new PendingJobManager();
+    for (PendingJobData pendingJob : pendingJobs) {
+      jobManager.addPendingJob(
+          pendingJob.retryJob,
+          j -> {
+            try {
+              if (pendingJob.tableDestination.getTableDescription() != null) {
+                TableReference ref = pendingJob.tableDestination.getTableReference();
+                datasetService.patchTableDescription(
+                    ref.clone()
+                        .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                    pendingJob.tableDestination.getTableDescription());
+              }
+              removeTemporaryTables(datasetService, pendingJob.tempTables);
+              return null;
+            } catch (IOException | InterruptedException e) {
+              return e;
+            }
+          });
     }
+    jobManager.waitForDone();
   }
 
-  private PendingJob startWriteRename(
+  private PendingJobData startWriteRename(
       TableDestination finalTableDestination, Iterable<String> tempTableNames, ProcessContext c)
       throws Exception {
     WriteDisposition writeDisposition =
@@ -171,7 +154,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
         BigQueryHelpers.createJobId(
             c.sideInput(jobIdToken), finalTableDestination, -1, c.pane().getIndex());
 
-    RetryJob retryJob =
+    BigQueryHelpers.PendingJob retryJob =
         startCopy(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
@@ -180,10 +163,10 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
             tempTables,
             writeDisposition,
             createDisposition);
-    return new PendingJob(retryJob, finalTableDestination, tempTables);
+    return new PendingJobData(retryJob, finalTableDestination, tempTables);
   }
 
-  private RetryJob startCopy(
+  private BigQueryHelpers.PendingJob startCopy(
       JobService jobService,
       DatasetService datasetService,
       String jobIdPrefix,
@@ -202,8 +185,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 
     String projectId = ref.getProjectId();
-    RetryJob retryJob =
-        new RetryJob(
+    BigQueryHelpers.PendingJob retryJob =
+        new BigQueryHelpers.PendingJob(
             jobId -> {
               JobReference jobRef =
                   new JobReference()
@@ -241,15 +224,6 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
             maxRetryJobs,
             jobIdPrefix);
     return retryJob;
-  }
-
-  /** Identical to {@link BackOffUtils#next} but without checked IOException. */
-  private static boolean nextBackOff(Sleeper sleeper, BackOff backoff) throws InterruptedException {
-    try {
-      return BackOffUtils.next(sleeper, backoff);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   static void removeTemporaryTables(DatasetService tableService, List<TableReference> tempTables) {

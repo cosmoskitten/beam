@@ -1281,6 +1281,7 @@ public class BigQueryIOWriteTest implements Serializable {
     DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.processElement(tempTablesElement);
+    tester.finishBundle();
 
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
