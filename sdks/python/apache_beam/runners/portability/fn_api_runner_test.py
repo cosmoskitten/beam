@@ -259,7 +259,7 @@ class FnApiRunnerTest(unittest.TestCase):
         print("GOT", element)
         k, ts = element
         timer.set(ts)
-#        timer.set(2 * element)
+        timer.set(2 * ts)
 
       @userstate.on_timer(timer_spec)
       def process_timer(self):
@@ -271,10 +271,10 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Create([('k', 10), ('k', 100)])
           | beam.Map(lambda x: object() and x)
           | beam.ParDo(TimerDoFn())
-)#          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
+          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
 
       expected = [('fired', ts) for ts in (10, 20, 100, 200)]
-  #    assert_that(actual, equal_to(expected))
+      assert_that(actual, equal_to(expected))
 
 
   def test_group_by_key(self):

@@ -253,7 +253,7 @@ class OutputTimer(object):
     self._receiver = receiver
 
   def set(self, ts):
-    print("set(%s)" % ts)
+    print("set(%s)" % (ts,))
     print("key", self._key)
     from apache_beam.transforms.window import GlobalWindows
     self._receiver.receive(
