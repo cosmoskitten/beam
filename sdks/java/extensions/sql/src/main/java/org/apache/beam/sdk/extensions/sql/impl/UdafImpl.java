@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
@@ -34,7 +34,7 @@ public final class UdafImpl<InputT, AccumT, OutputT>
     implements AggregateFunction, ImplementableAggFunction, Serializable {
   private CombineFn<InputT, AccumT, OutputT> combineFn;
 
-  public UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
+  UdafImpl(CombineFn<InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
   }
 
