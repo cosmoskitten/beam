@@ -403,7 +403,6 @@ class BundleProcessor(object):
         input_op_by_target[input_op.target.primitive_transform_reference
         ] = input_op
       for data_channel, expected_targets in data_channels.items():
-        print('Reading', data_channel, expected_targets)
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
           input_op_by_target[data.target.primitive_transform_reference
