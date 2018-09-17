@@ -359,7 +359,6 @@ class DoFnInvoker(object):
         self.signature.finish_bundle_method.method_value())
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
-    print("INVOKE", type(timer_spec), key, window, timestamp)
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
