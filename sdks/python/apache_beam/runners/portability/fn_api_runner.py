@@ -1101,9 +1101,14 @@ class FnApiRunner(runner.PipelineRunner):
       for transform_id, timer_reads, timer_writes in stage.timers:
         written_timers = get_buffer('timers:' + timer_writes)
         if written_timers:
-          timer_inputs[transform_id, timer_reads] = list(written_timers)
+          timer_inputs[transform_id, 'out'] = list(written_timers)
           written_timers[:] = []
       if timer_inputs:
+        pprint.pprint(timer_inputs)
+        # The worker will be waiting on these inputs as well.
+        for other_input in data_input:
+          if other_input not in timer_inputs:
+            timer_inputs[other_input] = []
         pprint.pprint(timer_inputs)
 #        break
         # TODO: merge results
