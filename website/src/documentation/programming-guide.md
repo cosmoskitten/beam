@@ -1572,6 +1572,20 @@ transform's intermediate data changes type multiple times.
   }
 ```
 
+{:.language-java}
+If your logic only needs to be used once, you may instead define your composite
+transform as an anonymous Java 8 lambda function passed to `PTransform.compose`:
+
+```java
+  input.apply(PTransform.compose((PCollection<String> lines) -> {
+      PCollection<String> words = lines.apply(
+          ParDo.of(new ExtractWordsFn()));
+      PCollection<KV<String, Long>> wordCounts =
+          words.apply(Count.<String>perElement());
+      return wordCounts;
+  }))
+```
+
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_monitoring_composite
 %}```
