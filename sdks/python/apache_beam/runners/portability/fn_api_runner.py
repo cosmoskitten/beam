@@ -1037,7 +1037,6 @@ class FnApiRunner(runner.PipelineRunner):
         windowing_strategies=dict(
             pipeline_components.windowing_strategies.items()),
         environments=dict(pipeline_components.environments.items()))
-    print('bundle', process_bundle_descriptor)
 
     if controller.state_api_service_descriptor():
       process_bundle_descriptor.state_api_service_descriptor.url = (
@@ -1088,15 +1087,11 @@ class FnApiRunner(runner.PipelineRunner):
         raise NotImplementedError(pcoll_id)
       return pcoll_buffers[pcoll_id]
 
-    print "-" * 20, "run -1"
-    import pprint
-    pprint.pprint(data_input)
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
         self._progress_frequency).process_bundle(data_input, data_output)
 
     for k in range(5): #while True:
-      print "-" * 20, "run", k
       timer_inputs = {}
       for transform_id, timer_reads, timer_writes in stage.timers:
         written_timers = get_buffer('timers:' + timer_writes)
@@ -1104,14 +1099,11 @@ class FnApiRunner(runner.PipelineRunner):
           timer_inputs[transform_id, 'out'] = list(written_timers)
           written_timers[:] = []
       if timer_inputs:
-        pprint.pprint(timer_inputs)
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
           if other_input not in timer_inputs:
             timer_inputs[other_input] = []
-        pprint.pprint(timer_inputs)
-#        break
-        # TODO: merge results
+        # TODO(robertwb): merge results
         BundleManager(
             controller,
             get_buffer,
@@ -1317,9 +1309,7 @@ class BundleManager(object):
           process_bundle_id, beam_fn_api_pb2.Target(
               primitive_transform_reference=transform_id, name=name))
       for element_data in elements:
-        print(("Sending %s  '%s'" % (transform_id, repr(element_data))).replace('\n', ' '))
         data_out.write(element_data)
-      print("Closing", transform_id)
       data_out.close()
 
     # Actually start the bundle.

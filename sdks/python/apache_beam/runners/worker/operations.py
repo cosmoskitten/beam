@@ -423,7 +423,6 @@ class DoOperation(Operation):
       self.dofn_receiver.receive(o)
 
   def process_timer(self, tag, windowed_timer):
-    print(tag, windowed_timer)
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
     self.dofn_receiver.process_user_timer(
