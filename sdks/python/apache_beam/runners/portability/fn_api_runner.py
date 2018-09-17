@@ -1088,7 +1088,7 @@ class FnApiRunner(runner.PipelineRunner):
         raise NotImplementedError(pcoll_id)
       return pcoll_buffers[pcoll_id]
 
-    print "-" * 20, "run 0"
+    print "-" * 20, "run -1"
     import pprint
     pprint.pprint(data_input)
     result = BundleManager(

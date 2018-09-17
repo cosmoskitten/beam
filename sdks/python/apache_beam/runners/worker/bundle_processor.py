@@ -400,12 +400,18 @@ class BundleProcessor(object):
 
       # Inject inputs from data plane.
       print("expected_inputs", [str(s).replace('\n', ' ') for s in expected_inputs])
+      data_channels = collections.defaultdict(list)
+      input_op_by_target = {}
       for input_op in expected_inputs:
-        for data in input_op.data_channel.input_elements(
-            instruction_id, [input_op.target]):
-          # ignores input name
-          print(input_op, data)
-          input_op.process_encoded(data.data)
+        data_channels[input_op.data_channel].append(input_op)
+        # ignores input name
+        input_op_by_target[input_op.target.primitive_transform_reference
+        ] = input_op
+      for data_channel, expected_targets in data_channels.items():
+        for data in data_channel.input_elements(
+            instruction_id, expected_targets):
+          input_op_by_target[data.target.primitive_transform_reference
+          ].process_encoded(data.data)
 
       # Finish all operations.
       for op in self.ops.values():
