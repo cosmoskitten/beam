@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Test;
 
+/** Tests for {@link FlinkExecutionEnvironments}. */
 public class FlinkExecutionEnvironmentsTest {
 
   @Test
