@@ -21,14 +21,15 @@ A Dataflow job that reads from BQ using a query and then writes to a
 big query table at the end of the pipeline.
 """
 
+# pylint: disable=wrong-import-order, wrong-import-position
 from __future__ import absolute_import
 
 import argparse
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 def run_bq_pipeline(argv=None):
@@ -54,12 +55,14 @@ def run_bq_pipeline(argv=None):
   p = TestPipeline(options=PipelineOptions(pipeline_args))
 
   # pylint: disable=expression-not-assigned
+  # pylint: disable=bad-continuation
   (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
       query=known_args.query, use_standard_sql=known_args.use_standard_sql))
    | 'write' >> beam.io.Write(beam.io.BigQuerySink(
-          known_args.output, schema=table_schema,
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
+           known_args.output,
+           schema=table_schema,
+           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 
   result = p.run()
   result.wait_until_finish()
