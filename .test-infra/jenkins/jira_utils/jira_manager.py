@@ -19,6 +19,7 @@ from __future__ import print_function
 import logging
 import yaml
 import traceback
+import os
 
 import dependency_check.version_comparer as version_comparer
 from datetime import datetime

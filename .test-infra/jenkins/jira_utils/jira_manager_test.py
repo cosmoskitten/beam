@@ -17,6 +17,7 @@ from __future__ import print_function
 #
 
 import unittest, mock
+import jira_utils
 from mock import patch, mock_open, Mock
 from jira_manager import JiraManager
 from datetime import datetime
@@ -32,10 +33,17 @@ class MockedJiraIssue:
       self.summary = summary
       self.description = description
       self.status = self.MockedJiraIssueStatus(status)
+      self.fixVersions = [self.MockedJiraIssueFixVersions()]
+      if status == 'Closed':
+        self.resolutiondate = '1999-01-01T00:00:00'
 
     class MockedJiraIssueStatus:
       def __init__(self, status):
         self.name = status
+
+    class MockedJiraIssueFixVersions:
+      def __init__(self):
+        self.name = '2.8.0'
 
 
 @patch('jira_utils.jira_manager.JiraClient')
@@ -145,6 +153,61 @@ class JiraManagerTest(unittest.TestCase):
                       []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
         manager.run(dep_name, dep_latest_version, sdk_type='Java', group_id='group0')
+        manager.jira.reopen_issue.assert_called_once()
+
+
+  @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
+  @patch('jira_utils.jira_manager.JiraClient.create_issue', side_effect = [MockedJiraIssue('BEAM-2000', 'summary', 'description', 'Open')])
+  @patch.object(jira_utils.jira_manager.JiraManager,
+                '_get_next_release_version', side_effect=['2.8.0.dev'])
+  def test_run_with_reopening_issue_with_fixversions(self, *args):
+    """
+    Test JiraManager.run on reopening an issue when JIRA fixVersions hits the release version.
+    Expect: jira.reopen_issue is called once.
+    """
+    dep_name = 'dep0'
+    dep_latest_version = '1.0'
+    owners_yaml = """
+                  deps:
+                    dep0:
+                      owners:
+                  """
+    summary = self._get_experct_summary(dep_name)
+    description = self._get_expected_description(dep_name, dep_latest_version, [])
+    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+      with patch('jira_utils.jira_manager.JiraManager._search_issues',
+                 side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
+                                []]):
+        manager = JiraManager('url', 'username', 'password', owners_yaml)
+        manager.run(dep_name, dep_latest_version, 'Python', group_id='group0')
+        manager.jira.reopen_issue.assert_called_once()
+
+
+  @patch('jira_utils.jira_manager.JiraClient.create_issue', side_effect = [MockedJiraIssue('BEAM-2000', 'summary', 'description', 'Open')])
+  @patch.object(jira_utils.jira_manager.JiraManager,
+                '_get_next_release_version', side_effect=['2.9.0.dev'])
+  def test_run_with_reopening_issue_with_new_release_available(self, *args):
+    """
+    Test JiraManager.run that reopens an issue once 3 versions releases after 6
+    months since previous closure.
+    Expect: jira.reopen_issue is called once.
+    """
+    dep_name = 'dep0'
+    issue_closed_version = '1.0'
+    dep_latest_version = '1.3'
+    owners_yaml = """
+                    deps:
+                      dep0:
+                        owners:
+                    """
+    summary = self._get_experct_summary(dep_name)
+    description = self._get_expected_description(dep_name, issue_closed_version, [])
+    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+      with patch('jira_utils.jira_manager.JiraManager._search_issues',
+                 side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
+                                []]):
+        manager = JiraManager('url', 'username', 'password', owners_yaml)
+        manager.run(dep_name, dep_latest_version, 'Python', group_id='group0')
         manager.jira.reopen_issue.assert_called_once()
 
 
