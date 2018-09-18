@@ -17,10 +17,11 @@ from __future__ import print_function
 #
 
 import logging
-import yaml
+import os
 import traceback
-
+import yaml
 import dependency_check.version_comparer as version_comparer
+
 from datetime import datetime
 from jira_client import JiraClient
 
@@ -72,7 +73,6 @@ class JiraManager:
             Created a parent issue for {1}""".format(summary, group_id))
           try:
             parent_issue = self._create_issue(group_id, None)
-            print(parent_issue.key)
           except:
             logging.error("""Failed creating a parent issue for {0}.
               Stop handling the JIRA issue for {1}, {2}""".format(group_id, dep_name, dep_latest_version))
@@ -140,6 +140,7 @@ class JiraManager:
     )
     for owner in owners:
       description += "[~{0}], ".format(owner)
+    description += "\n-------------- Do not modify the description above --------------\n"
     try:
       if not is_subtask:
         issue = self.jira.create_issue(summary, [_JIRA_COMPONENT], description)
@@ -188,6 +189,7 @@ class JiraManager:
     owners = self._find_owners(dep_name)
     for owner in owners:
       description += "[~{0}], ".format(owner)
+    description += "\n-------------- Do not modify the description above --------------\n"
     try:
       self.jira.update_issue(issue, description=description)
     except Exception as e:
@@ -237,14 +239,16 @@ class JiraManager:
       return True
 
     # Check if there is other new versions released.
-    # Reopen the issue if 3 new version has been released in 6 month since closure.
+    # Reopen the issue if 3 new versions have been released in 6 month since closure.
     try:
       if issue.fields.resolutiondate:
         closing_date = datetime.strptime(issue.fields.resolutiondate[:19], "%Y-%m-%dT%H:%M:%S")
         if (datetime.today() - closing_date).days >= _ISSUE_REOPEN_DAYS:
           # Extract the previous version when JIRA closed.
           descriptions = issue.fields.description.splitlines()
-          descriptions = descriptions[len(descriptions)-3]
+          descriptions = descriptions[len(descriptions)-4]
+          # The version info has been stored in the JIRA description in a specific format.
+          # Such as "Please review and upgrade the <dep name> to the latest version <version>"
           previous_version = descriptions.split("the latest version", 1)[1].strip()
           if version_comparer.compare_dependency_versions(previous_version, dep_latest_version):
             return True
