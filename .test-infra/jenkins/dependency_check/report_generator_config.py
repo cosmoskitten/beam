@@ -46,6 +46,7 @@ class ReportGeneratorConfig:
   PYTHON_DEP_OWNERS     = WORKING_SPACE + '/src/ownership/PYTHON_DEPENDENCY_OWNERS.yaml'
 
 
+
   @classmethod
   def get_bigquery_table_id(cls, sdk_type):
     if sdk_type.lower() == 'java':
