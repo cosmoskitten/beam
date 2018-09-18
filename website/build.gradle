@@ -22,6 +22,8 @@ apply plugin: "base"
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
 def buildDir = "$project.rootDir/build/website"
+def contentBuildDir = "$buildDir/content"
+def contentRepoDir = "$project.rootDir/website/content"
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
@@ -104,3 +106,32 @@ task testWebsite(type: Exec) {
 task preCommit {
   dependsOn testWebsite
 }
+
+task mergeWebsite << {
+  /* Disabled for now, for testing
+  exec {
+    executable 'git'
+    args 'checkout', 'asf-site'
+  }
+  copy {
+    from contentBuildDir
+    into contentRepoDir
+  }
+  exec {
+    executable 'git'
+    args 'add', contentRepoDir
+  }
+  exec {
+    executable 'git'
+    args 'commit', '-m', 'Update website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
+  }
+  exec {
+    executable 'git'
+    args 'push', 'origin', 'asf-site'
+  }
+  */
+  println "Successful test of mergeWebsite"
+}
+
+// Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
+mergeWebsite.dependsOn buildWebsite
