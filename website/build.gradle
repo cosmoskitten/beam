@@ -19,9 +19,14 @@
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
+// Publish website to asf-git branch.
+apply plugin: 'org.ajoberstar.grgit'
+
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
-def buildDir = "$project.rootDir/build/website"
+def buildDir = "${project.rootDir}/build/website"
+def buildContentDir = "${project.rootDir}/build/website/generated-content"
+def repoContentDir = "${project.rootDir}/website/generated-content"
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
@@ -70,7 +75,7 @@ task buildWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir "$buildDir/content"
+  outputs.dir buildContentDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -87,20 +92,63 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir "$buildDir/content"
+  inputs.dir buildContentDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec rake test"""
 }
 
-/**
- * Removed testWebsite from the Beam build dependency because it is broken and obsolete.
- * See https://issues.apache.org/jira/browse/BEAM-5367 for more info.
- */
-
-// check.dependsOn testWebsite
+check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
 }
+
+// Creates a new commit on asf-site branch
+task commitWebsite << {
+  assert file("${buildContentDir}/index.html").exists()
+  // Generated javadoc and pydoc content is noa built or stored in this repo.
+  assert !file("${buildContentDir}/documentation/sdks/javadoc").exists()
+  assert !file("${buildContentDir}/documentation/sdks/pydoc").exists()
+
+  def git = grgit.open()
+  git.checkout(branch: 'asf-site')
+
+  // Delete the previous content.
+  git.remove(patterns: [ 'website/generated-content' ])
+  assert !file("${repoContentDir}/index.html").exists()
+  delete repoContentDir
+
+  // Copy the built content it and add it.
+  copy {
+    from buildContentDir
+    into repoContentDir
+  }
+  assert file("${repoContentDir}/index.html").exists()
+  git.add(patterns: ['website/generated-content'])
+
+  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+  git.commit(message: message)
+}
+
+// Pushes the asf-site branch commits.
+task publishWebsite << {
+  def git = grgit.open()
+  git.checkout(branch: 'asf-site')
+  // Cannot authenticate to the default github uri, so specify gitbox.
+  exec {
+    executable 'sh'
+    args '-c', "git remote set-url origin https://gitbox.apache.org/repos/asf/beam.git"
+  }
+  // git.push() fails to authenticate, so run git push directly.
+  exec {
+    executable 'sh'
+    args '-c', "git push origin asf-site"
+  } 
+}
+
+commitWebsite.dependsOn testWebsite
+publishWebsite.dependsOn commitWebsite
