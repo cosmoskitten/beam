@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -41,6 +42,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,7 +65,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
+import org.mockito.Captor;
+import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SpannerIO}. */
 @RunWith(JUnit4.class)
@@ -72,16 +77,22 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
 
   private FakeServiceFactory serviceFactory;
 
   @Before
   @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
+    MockitoAnnotations.initMocks(this);
     serviceFactory = new FakeServiceFactory();
 
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+
+    // Capture batches sent to writeAtLeastOnce.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+        .thenReturn(null);
 
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
@@ -229,7 +240,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1000000000)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
     pipeline.run();
 
@@ -248,7 +258,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1000000000)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
     pipeline.run();
 
@@ -282,7 +291,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1000000000)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
     pipeline.run();
 
@@ -297,9 +305,14 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   private void verifyBatches(Iterable<Mutation>... batches) {
-    for (Iterable<Mutation> b : batches) {
-      verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(mutationsInNoOrder(b));
-    }
+    List<Iterable<Mutation>> expectedBatches = Arrays.asList(batches);
+    List<Iterable<Mutation>> invokedBatches = mutationBatchesCaptor.getAllValues();
+
+    System.err.println("Expected: " + expectedBatches);
+    System.err.println("Got: " + invokedBatches);
+
+    assertEquals(expectedBatches.size(), invokedBatches.size());
+    assertThat(invokedBatches, containsInAnyOrder(expectedBatches));
   }
 
   @Test
@@ -316,7 +329,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(batchSize)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
 
     pipeline.run();
@@ -341,7 +353,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withServiceFactory(serviceFactory)
             .withMaxNumMutations(maxNumMutations)
             .withBatchSizeBytes(Integer.MAX_VALUE)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
 
     pipeline.run();
@@ -362,7 +373,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1)
-            .withSampler(fakeSampler(m(1000L)))
             .grouped());
     pipeline.run();
 
@@ -385,7 +395,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1000000000)
-            .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
             .grouped());
     pipeline.run();
 
@@ -417,7 +426,6 @@ public class SpannerIOWriteTest implements Serializable {
                 .withServiceFactory(serviceFactory)
                 .withBatchSizeBytes(1000000000)
                 .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
-                .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
                 .grouped());
     PAssert.that(result.getFailedMutations())
         .satisfies(
@@ -456,7 +464,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory)
             .withBatchSizeBytes(1)
-            .withSampler(fakeSampler(m(2L)))
             .grouped());
 
     pipeline.run();
@@ -563,16 +570,16 @@ public class SpannerIOWriteTest implements Serializable {
 
     @Override
     public PCollection<KV<String, List<byte[]>>> expand(PCollection<KV<String, byte[]>> input) {
-      MutationGroupEncoder coder = new MutationGroupEncoder(schema);
+      MutationKeyEncoder coder = new MutationKeyEncoder(schema);
       Map<String, List<byte[]>> map = new HashMap<>();
       for (Mutation m : mutations) {
         String table = m.getTable().toLowerCase();
         List<byte[]> list = map.computeIfAbsent(table, k -> new ArrayList<>());
-        list.add(coder.encodeKey(m));
+        list.add(coder.encodeTableNameAndKey(m));
       }
       List<KV<String, List<byte[]>>> result = new ArrayList<>();
       for (Map.Entry<String, List<byte[]>> entry : map.entrySet()) {
-        entry.getValue().sort(SpannerIO.SerializableBytesComparator.INSTANCE);
+        entry.getValue().sort(UnsignedBytes.lexicographicalComparator());
         result.add(KV.of(entry.getKey(), entry.getValue()));
       }
       return input.getPipeline().apply(Create.of(result));
