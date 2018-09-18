@@ -24,10 +24,8 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.spanner.ErrorCode;
@@ -66,9 +64,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
-import org.mockito.Spy;
 
 /** Unit tests for {@link SpannerIO}. */
 @RunWith(JUnit4.class)
