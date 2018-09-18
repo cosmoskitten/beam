@@ -111,8 +111,14 @@ class LocalFileSystem(FileSystem):
     if not self.exists(dir_or_prefix):
       return
 
+    def list_files(root):
+      for dirpath, dirs, files in os.walk(root):
+        for f in files:
+          f_path = os.path.join(os.path.relpath(dirpath, root), f)
+          yield f_path
+
     try:
-      for f in os.listdir(dir_or_prefix):
+      for f in list_files(dir_or_prefix):
         f = self.join(dir_or_prefix, f)
         try:
           yield FileMetadata(f, os.path.getsize(f))
