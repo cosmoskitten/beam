@@ -19,9 +19,14 @@
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
+// Publish website to asf-git branch.
+apply plugin: 'org.ajoberstar.git-publish'
+apply plugin: 'org.ajoberstar.grgit'
+
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
-def buildDir = "$project.rootDir/build/website"
+def buildDir = "${project.rootDir}/build/website"
+def repoContentDir = "${project.rootDir}/website/generated-content"
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
@@ -70,7 +75,7 @@ task buildWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir "$buildDir/content"
+  outputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -87,20 +92,46 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir "$buildDir/content"
+  inputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec rake test"""
 }
 
-/**
- * Removed testWebsite from the Beam build dependency because it is broken and obsolete.
- * See https://issues.apache.org/jira/browse/BEAM-5367 for more info.
- */
-
-// check.dependsOn testWebsite
+check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
 }
+
+gitPublish {
+  branch = 'asf-site'
+  contents {
+    from("${buildDir}/generated-content/") {
+      include 'index.html'
+      into 'website/generated-content'
+    }
+  }
+  preserve {
+    include '**'
+    exclude 'website/generated-content/**'
+    include 'website/generated-content/documentation/sdks/pydoc/**'
+    include 'website/generated-content/documentation/sdks/javadoc/**'
+  } 
+  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  println latestCommit
+  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+  commitMessage = message
+}
+
+task gitSetup << {
+  def branch = grgit.branch.current.name
+  if (branch != 'master') {
+    throw new GradleException("Cannot publish from branch ${branch}, only from master")
+  }
+}
+
+gitPublishReset.dependsOn gitSetup
+gitPublishReset.dependsOn testWebsite
