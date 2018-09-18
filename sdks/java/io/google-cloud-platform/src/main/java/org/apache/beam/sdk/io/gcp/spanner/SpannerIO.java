@@ -27,6 +27,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
@@ -55,6 +56,7 @@ import org.apache.beam.sdk.transforms.ApproximateQuantiles;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -65,6 +67,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -166,10 +169,10 @@ import org.slf4j.LoggerFactory;
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
  * <ul>
- *   <li>Mutations are not submitted atomically;
- *   <li>A mutation is applied at least once;
- *   <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
- *       rolled back.
+ * <li>Mutations are not submitted atomically;
+ * <li>A mutation is applied at least once;
+ * <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
+ * rolled back.
  * </ul>
  *
  * <p>Use {@link MutationGroup} to ensure that a small set mutations is bundled together. It is
@@ -179,6 +182,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
+
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
@@ -246,7 +250,9 @@ public class SpannerIO {
         .build();
   }
 
-  /** Implementation of {@link #readAll}. */
+  /**
+   * Implementation of {@link #readAll}.
+   */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class ReadAll
@@ -264,6 +270,7 @@ public class SpannerIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
@@ -275,39 +282,53 @@ public class SpannerIO {
       abstract ReadAll build();
     }
 
-    /** Specifies the Cloud Spanner configuration. */
+    /**
+     * Specifies the Cloud Spanner configuration.
+     */
     public ReadAll withSpannerConfig(SpannerConfig spannerConfig) {
       return toBuilder().setSpannerConfig(spannerConfig).build();
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public ReadAll withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public ReadAll withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public ReadAll withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public ReadAll withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public ReadAll withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
-    /** Specifies the Cloud Spanner host. */
+    /**
+     * Specifies the Cloud Spanner host.
+     */
     public ReadAll withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
@@ -317,7 +338,9 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
@@ -367,7 +390,9 @@ public class SpannerIO {
     }
   }
 
-  /** Implementation of {@link #read}. */
+  /**
+   * Implementation of {@link #read}.
+   */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
@@ -407,45 +432,61 @@ public class SpannerIO {
       abstract Read build();
     }
 
-    /** Specifies the Cloud Spanner configuration. */
+    /**
+     * Specifies the Cloud Spanner configuration.
+     */
     public Read withSpannerConfig(SpannerConfig spannerConfig) {
       return toBuilder().setSpannerConfig(spannerConfig).build();
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public Read withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public Read withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public Read withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public Read withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public Read withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public Read withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
-    /** Specifies the Cloud Spanner host. */
+    /**
+     * Specifies the Cloud Spanner host.
+     */
     public Read withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
@@ -455,7 +496,9 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
-    /** If true the uses Cloud Spanner batch API. */
+    /**
+     * If true the uses Cloud Spanner batch API.
+     */
     public Read withBatching(boolean batching) {
       return toBuilder().setBatching(batching).build();
     }
@@ -576,45 +619,61 @@ public class SpannerIO {
           .apply("As PCollectionView", View.asSingleton());
     }
 
-    /** Specifies the Cloud Spanner configuration. */
+    /**
+     * Specifies the Cloud Spanner configuration.
+     */
     public CreateTransaction withSpannerConfig(SpannerConfig spannerConfig) {
       return toBuilder().setSpannerConfig(spannerConfig).build();
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public CreateTransaction withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public CreateTransaction withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public CreateTransaction withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public CreateTransaction withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public CreateTransaction withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public CreateTransaction withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
-    /** Specifies the Cloud Spanner host. */
+    /**
+     * Specifies the Cloud Spanner host.
+     */
     public CreateTransaction withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
@@ -634,7 +693,9 @@ public class SpannerIO {
       return toBuilder().setTimestampBound(timestampBound).build();
     }
 
-    /** A builder for {@link CreateTransaction}. */
+    /**
+     * A builder for {@link CreateTransaction}.
+     */
     @AutoValue.Builder
     public abstract static class Builder {
 
@@ -646,11 +707,17 @@ public class SpannerIO {
     }
   }
 
-  /** A failure handling strategy. */
+  /**
+   * A failure handling strategy.
+   */
   public enum FailureMode {
-    /** Invalid write to Spanner will cause the pipeline to fail. A default strategy. */
+    /**
+     * Invalid write to Spanner will cause the pipeline to fail. A default strategy.
+     */
     FAIL_FAST,
-    /** Invalid mutations will be returned as part of the result of the write transform. */
+    /**
+     * Invalid mutations will be returned as part of the result of the write transform.
+     */
     REPORT_FAILURES
   }
 
@@ -675,7 +742,7 @@ public class SpannerIO {
 
     @Nullable
     abstract PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
-        getSampler();
+    getSampler();
 
     abstract Builder toBuilder();
 
@@ -699,51 +766,69 @@ public class SpannerIO {
       abstract Write build();
     }
 
-    /** Specifies the Cloud Spanner configuration. */
+    /**
+     * Specifies the Cloud Spanner configuration.
+     */
     public Write withSpannerConfig(SpannerConfig spannerConfig) {
       return toBuilder().setSpannerConfig(spannerConfig).build();
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public Write withProjectId(String projectId) {
       return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
-    /** Specifies the Cloud Spanner project. */
+    /**
+     * Specifies the Cloud Spanner project.
+     */
     public Write withProjectId(ValueProvider<String> projectId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withProjectId(projectId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public Write withInstanceId(String instanceId) {
       return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
-    /** Specifies the Cloud Spanner instance. */
+    /**
+     * Specifies the Cloud Spanner instance.
+     */
     public Write withInstanceId(ValueProvider<String> instanceId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withInstanceId(instanceId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public Write withDatabaseId(String databaseId) {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
-    /** Specifies the Cloud Spanner database. */
+    /**
+     * Specifies the Cloud Spanner database.
+     */
     public Write withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
-    /** Specifies the Cloud Spanner host. */
+    /**
+     * Specifies the Cloud Spanner host.
+     */
     public Write withHost(ValueProvider<String> host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
     }
 
-    /** Specifies the Cloud Spanner host. */
+    /**
+     * Specifies the Cloud Spanner host.
+     */
     public Write withHost(String host) {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
@@ -761,22 +846,30 @@ public class SpannerIO {
       return toBuilder().setSampler(sampler).build();
     }
 
-    /** Same transform but can be applied to {@link PCollection} of {@link MutationGroup}. */
+    /**
+     * Same transform but can be applied to {@link PCollection} of {@link MutationGroup}.
+     */
     public WriteGrouped grouped() {
       return new WriteGrouped(this);
     }
 
-    /** Specifies the batch size limit. */
+    /**
+     * Specifies the batch size limit.
+     */
     public Write withBatchSizeBytes(long batchSizeBytes) {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
 
-    /** Specifies failure mode. {@link FailureMode#FAIL_FAST} mode is selected by default. */
+    /**
+     * Specifies failure mode. {@link FailureMode#FAIL_FAST} mode is selected by default.
+     */
     public Write withFailureMode(FailureMode failureMode) {
       return toBuilder().setFailureMode(failureMode).build();
     }
 
-    /** Specifies the cell mutation limit. */
+    /**
+     * Specifies the cell mutation limit.
+     */
     public Write withMaxNumMutations(long maxNumMutations) {
       return toBuilder().setMaxNumMutations(maxNumMutations).build();
     }
@@ -813,10 +906,20 @@ public class SpannerIO {
     }
   }
 
-  /** Same as {@link Write} but supports grouped mutations. */
+  /**
+   * Same as {@link Write} but supports grouped mutations.
+   */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
+
     private final Write spec;
+    private static final TupleTag<MutationGroup> BATCHABLE_MUTATIONS_TAG =
+        new TupleTag<MutationGroup>() {
+        };
+    private static final TupleTag<Iterable<MutationGroup>> UNBATCHABLE_MUTATIONS_TAG =
+        new TupleTag<Iterable<MutationGroup>>() {
+        };
+
 
     public WriteGrouped(Write spec) {
       this.spec = spec;
@@ -842,10 +945,26 @@ public class SpannerIO {
                   ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
               .apply("Schema View", View.asSingleton());
 
-      // Serialize mutations, we don't need to encode/decode them while reshuffling.
+      // Split the mutations into batchable and unbatchable mutations.
+      // Filter out mutation groups too big to be batched
+      PCollectionTuple filteredMutations =
+          input.apply(
+              "Filter Unbatchable Mutations",
+              ParDo.of(
+                  new BatchableMutationFilterFn(
+                      schemaView,
+                      UNBATCHABLE_MUTATIONS_TAG,
+                      spec.getBatchSizeBytes(),
+                      spec.getMaxNumMutations()))
+                  .withSideInputs(schemaView)
+                  .withOutputTags(
+                      BATCHABLE_MUTATIONS_TAG, TupleTagList.of(UNBATCHABLE_MUTATIONS_TAG)));
+
+      // Serialize batchable mutations, we don't need to encode/decode them while reshuffling.
       // The primary key is encoded via OrderedCode so we can calculate quantiles.
       PCollection<SerializedMutation> serialized =
-          input
+          filteredMutations
+              .get(BATCHABLE_MUTATIONS_TAG)
               .apply(
                   "Serialize mutations",
                   ParDo.of(new SerializeMutationsFn(schemaView)).withSideInputs(schemaView))
@@ -862,7 +981,7 @@ public class SpannerIO {
       TupleTag<MutationGroup> failedTag = new TupleTag<>("failedMutations");
       // Assign partition based on the closest element in the sample and group mutations.
       AssignPartitionFn assignPartitionFn = new AssignPartitionFn(keySample);
-      PCollectionTuple result =
+      PCollection<Iterable<MutationGroup>> batchedMutations =
           serialized
               .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
               .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
@@ -870,17 +989,23 @@ public class SpannerIO {
               .apply(
                   "Batch mutations together",
                   ParDo.of(
-                          new BatchFn(
-                              spec.getBatchSizeBytes(),
-                              spec.getMaxNumMutations(),
-                              spec.getSpannerConfig(),
-                              schemaView))
-                      .withSideInputs(schemaView))
+                      new BatchFn(
+                          spec.getBatchSizeBytes(),
+                          spec.getMaxNumMutations(),
+                          spec.getSpannerConfig(),
+                          schemaView))
+                      .withSideInputs(schemaView));
+
+      // Merge the batchable and unbatchable mutations and write to Spanner.
+      PCollectionTuple result =
+          PCollectionList.of(filteredMutations.get(UNBATCHABLE_MUTATIONS_TAG))
+              .and(batchedMutations)
+              .apply("Flatten", Flatten.pCollections())
               .apply(
                   "Write mutations to Spanner",
                   ParDo.of(
-                          new WriteToSpannerFn(
-                              spec.getSpannerConfig(), spec.getFailureMode(), failedTag))
+                      new WriteToSpannerFn(
+                          spec.getSpannerConfig(), spec.getFailureMode(), failedTag))
                       .withOutputTags(mainTag, TupleTagList.of(failedTag)));
       PCollection<MutationGroup> failedMutations = result.get(failedTag);
       failedMutations.setCoder(SerializableCoder.of(MutationGroup.class));
@@ -889,7 +1014,7 @@ public class SpannerIO {
     }
 
     private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
-        createDefaultSampler() {
+    createDefaultSampler() {
       return Combine.perKey(
           ApproximateQuantiles.ApproximateQuantilesCombineFn.create(
               spec.getNumSamples(),
@@ -900,6 +1025,7 @@ public class SpannerIO {
   }
 
   private static class ToMutationGroupFn extends DoFn<Mutation, MutationGroup> {
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Mutation value = c.element();
@@ -907,7 +1033,9 @@ public class SpannerIO {
     }
   }
 
-  /** Serializes mutations to ((table name, serialized key), serialized value) tuple. */
+  /**
+   * Serializes mutations to ((table name, serialized key), serialized value) tuple.
+   */
   private static class SerializeMutationsFn extends DoFn<MutationGroup, SerializedMutation> {
 
     final PCollectionView<SpannerSchema> schemaView;
@@ -932,7 +1060,7 @@ public class SpannerIO {
         key = mutationGroupEncoder.encodeKey(m.getTable(), next);
       } else {
         // The key is left empty for non-point deletes, since there is no general way to batch them.
-        key = new byte[] {};
+        key = new byte[]{};
       }
       byte[] value = mutationGroupEncoder.encode(g);
       c.output(SerializedMutation.create(table, key, value));
@@ -948,7 +1076,9 @@ public class SpannerIO {
     }
   }
 
-  /** Assigns a partition to the mutation group token based on the sampled data. */
+  /**
+   * Assigns a partition to the mutation group token based on the sampled data.
+   */
   private static class AssignPartitionFn
       extends DoFn<SerializedMutation, KV<String, SerializedMutation>> {
 
@@ -981,7 +1111,9 @@ public class SpannerIO {
     }
   }
 
-  /** Batches mutations together. */
+  /**
+   * Batches mutations together.
+   */
   private static class BatchFn
       extends DoFn<KV<String, Iterable<SerializedMutation>>, Iterable<MutationGroup>> {
 
@@ -1055,6 +1187,50 @@ public class SpannerIO {
     }
   }
 
+
+  /**
+   * Filters MutationGroups larger than the batch size to the output tagged with {@code
+   * UNBATCHABLE_MUTATIONS_TAG}
+   */
+  private static class BatchableMutationFilterFn extends DoFn<MutationGroup, MutationGroup> {
+
+    private final PCollectionView<SpannerSchema> schemaView;
+    private final TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag;
+    private final long batchSizeBytes;
+    private final long maxNumMutations;
+
+    private BatchableMutationFilterFn(
+        PCollectionView<SpannerSchema> schemaView,
+        TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag,
+        long batchSizeBytes,
+        long maxNumMutations) {
+      this.schemaView = schemaView;
+      this.unbatchableMutationsTag = unbatchableMutationsTag;
+      this.batchSizeBytes = batchSizeBytes;
+      this.maxNumMutations = maxNumMutations;
+    }
+
+    @DoFn.ProcessElement
+    public void processElement(ProcessContext c) {
+      MutationGroup mg = c.element();
+      if (mg.primary().getOperation() == Op.DELETE && !isPointDelete(mg.primary())) {
+        // Ranged deletes are not batchable.
+        c.output(unbatchableMutationsTag, Arrays.asList(mg));
+        return;
+      }
+
+      SpannerSchema spannerSchema = c.sideInput(schemaView);
+      long groupSize = MutationSizeEstimator.sizeOf(mg);
+      long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
+
+      if (groupSize >= batchSizeBytes || groupCells >= maxNumMutations) {
+        c.output(unbatchableMutationsTag, Arrays.asList(mg));
+      } else {
+        c.output(mg);
+      }
+    }
+  }
+
   private static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
 
     private transient SpannerAccessor spannerAccessor;
@@ -1110,5 +1286,6 @@ public class SpannerIO {
     }
   }
 
-  private SpannerIO() {} // Prevent construction.
+  private SpannerIO() {
+  } // Prevent construction.
 }
