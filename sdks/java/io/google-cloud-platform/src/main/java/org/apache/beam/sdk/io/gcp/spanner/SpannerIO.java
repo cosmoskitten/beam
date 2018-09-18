@@ -164,9 +164,9 @@ import org.slf4j.LoggerFactory;
  * batching.
  *
  * <p>The write transform reads the database schema on pipeline start. If the schema is created as
- * part of the same pipline, this transform needs to wait until the schema has been created.
- * Use {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be
- * used with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
+ * part of the same pipline, this transform needs to wait until the schema has been created. Use
+ * {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be used
+ * with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
  *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
