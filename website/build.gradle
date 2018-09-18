@@ -19,9 +19,13 @@
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
+// Publish website to asf-git branch.
+apply plugin: 'org.ajoberstar.grgit'
+
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
-def buildDir = "$project.rootDir/build/website"
+def buildDir = "${project.rootDir}/build/website"
+def repoContentDir = "${project.rootDir}/website/generated-content"
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
@@ -70,7 +74,7 @@ task buildWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir "$buildDir/content"
+  outputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -87,20 +91,40 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir "$buildDir/content"
+  inputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec rake test"""
 }
 
-/**
- * Removed testWebsite from the Beam build dependency because it is broken and obsolete.
- * See https://issues.apache.org/jira/browse/BEAM-5367 for more info.
- */
-
-// check.dependsOn testWebsite
+check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
 }
+
+task gitCreateSymlink << {
+}
+
+task publishWebsite << {
+  def git = grgit.open()
+  git.checkout(branch: 'asf-site')
+  git.remove(patterns: [ repoContentDir ])
+  copy {
+    from(buildDir + '/index.html')
+    into(repoContentDir)
+  }
+  git.add(repoContentDir).toString())
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && ln -s website/generated-content content && git add content"
+  }
+  git.add("${project.rootDir/content".toString())
+  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+  git.commit(messsage: messsage)
+}
+
+//publishWebsite.dependsOn buildWebsite
