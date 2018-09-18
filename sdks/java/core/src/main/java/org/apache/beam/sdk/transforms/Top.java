@@ -368,6 +368,7 @@ public class Top {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+
   /**
    * {@code CombineFn} for {@code Top} transforms that combines a bunch of {@code T}s into a single
    * {@code count}-long {@code List<T>}, using {@code compareFn} to choose the largest {@code T}s.
