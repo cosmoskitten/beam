@@ -278,7 +278,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Local configurations work in the same JVM and have no problems with improperly formatted files
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
-   * staging only when using remote cluster.
+   * staging only when using remote cluster (passing the master address explicitly).
    */
   private void prepareFilesToStageForRemoteClusterExecution() {
     if (!mOptions.getSparkMaster().matches("local\\[?\\d*\\]?")) {

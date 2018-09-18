@@ -104,10 +104,10 @@ class FlinkPipelineExecutionEnvironment {
   /**
    * Local configurations work in the same JVM and have no problems with improperly formatted files
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
-   * staging only when using remote cluster.
+   * staging only when using remote cluster (passing the master address explicitly).
    */
   private void prepareFilesToStageForRemoteClusterExecution() {
-    if (!options.getFlinkMaster().equals("[auto]") && !options.getFlinkMaster().equals("[local]")) {
+    if (!options.getFlinkMaster().matches("\\[auto\\]|\\[collection\\]|\\[local\\]")) {
       options.setFilesToStage(
           prepareFilesForStaging(options.getFilesToStage(), options.getTempLocation()));
     }
