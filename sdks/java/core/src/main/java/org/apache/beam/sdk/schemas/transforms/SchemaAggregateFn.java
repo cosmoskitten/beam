@@ -97,7 +97,7 @@ class SchemaAggregateFn {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
           this.inputSubSchema = Select.getOutputSchema(inputSchema, this.fieldsToAggregate);
-          this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema, Integer.MAX_VALUE);
+          this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
           this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
         } else {
           this.fieldsToAggregate = fieldsToAggregate;
@@ -248,8 +248,7 @@ class SchemaAggregateFn {
                 fieldAggregation.inputSubSchema);
         if (fieldAggregation.needsUnnesting) {
           selected =
-              Unnest.unnestRow(
-                  selected, fieldAggregation.unnestedInputSubSchema, Integer.MAX_VALUE);
+              Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
         }
         return selected.getValue(0);
       }
