@@ -247,8 +247,7 @@ class SchemaAggregateFn {
                 row.getSchema(),
                 fieldAggregation.inputSubSchema);
         if (fieldAggregation.needsUnnesting) {
-          selected =
-              Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
+          selected = Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
         }
         return selected.getValue(0);
       }
