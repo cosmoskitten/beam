@@ -76,7 +76,7 @@ public interface FlinkPipelineOptions
   void setCheckpointingInterval(Long interval);
 
   @Description("The checkpointing mode that defines consistency guarantee.")
-  @Default.Enum("AT_LEAST_ONCE")
+  @Default.Enum("EXACTLY_ONCE")
   CheckpointingMode getCheckpointingMode();
 
   void setCheckpointingMode(CheckpointingMode mode);
