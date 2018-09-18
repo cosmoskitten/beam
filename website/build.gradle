@@ -108,9 +108,9 @@ task preCommit {
 }
 
 task mergeWebsite << {
-  // Should depend on testWebsite
+  // Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
   dependsOn buildWebsite
-  /*
+  /* Disabled for now, for testing
   exec {
     executable 'git'
     args 'checkout', 'asf-site'
