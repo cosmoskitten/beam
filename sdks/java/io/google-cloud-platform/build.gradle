@@ -36,6 +36,7 @@ dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-sorter", configuration: "shadow")
   shadow library.java.guava
   shadow library.java.jackson_databind
   shadow library.java.grpc_core
@@ -69,6 +70,8 @@ dependencies {
   shadow library.java.proto_google_common_protos
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadowTest")
   shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
@@ -91,6 +94,7 @@ task integrationTest(type: Test) {
           "--runner=DirectRunner",
           "--project=${gcpProject}",
           "--tempRoot=${gcpTempRoot}",
+          "--setTargetParallelism=1",
   ])
 
   // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
