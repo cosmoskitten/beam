@@ -163,6 +163,11 @@ import org.slf4j.LoggerFactory;
  * Write#withBatchSizeBytes(long)}. Setting batch size to a small value or zero practically disables
  * batching.
  *
+ * <p>The write transform reads the database schema on pipeline start. If the schema is created as
+ * part of the same pipline, this transform needs to wait until the schema has been created.
+ * Use {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be
+ * used with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
+ *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
  * <ul>
