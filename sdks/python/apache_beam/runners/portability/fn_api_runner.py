@@ -43,6 +43,7 @@ from apache_beam.internal import pickler
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -58,6 +59,11 @@ from apache_beam.utils import proto_utils
 
 standard_library.install_aliases()
 # This module is experimental. No backwards-compatibility guarantees.
+
+ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
+    beam.coders.BytesCoder(),
+    beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
+        beam.transforms.window.GlobalWindows.windowed_value(''))
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
@@ -310,7 +316,23 @@ class FnApiRunner(runner.PipelineRunner):
           new_transforms.append(transform)
         self.transforms = new_transforms
 
-    # Now define the "optimization" phases.
+    # Some helper functions.
+
+    def add_or_get_coder_id(coder_proto):
+      for coder_id, coder in pipeline_components.coders.items():
+        if coder == coder_proto:
+          return coder_id
+      new_coder_id = unique_name(pipeline_components.coders, 'coder')
+      pipeline_components.coders[new_coder_id].CopyFrom(coder_proto)
+      return new_coder_id
+
+    def windowed_coder_id(coder_id, window_coder_id):
+      proto = beam_runner_api_pb2.Coder(
+          spec=beam_runner_api_pb2.SdkFunctionSpec(
+              spec=beam_runner_api_pb2.FunctionSpec(
+                  urn=common_urns.coders.WINDOWED_VALUE.urn)),
+          component_coder_ids=[coder_id, window_coder_id])
+      return add_or_get_coder_id(proto)
 
     safe_coders = {}
 
@@ -447,22 +469,6 @@ class FnApiRunner(runner.PipelineRunner):
 
       ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
       """
-      def add_or_get_coder_id(coder_proto):
-        for coder_id, coder in pipeline_components.coders.items():
-          if coder == coder_proto:
-            return coder_id
-        new_coder_id = unique_name(pipeline_components.coders, 'coder')
-        pipeline_components.coders[new_coder_id].CopyFrom(coder_proto)
-        return new_coder_id
-
-      def windowed_coder_id(coder_id):
-        proto = beam_runner_api_pb2.Coder(
-            spec=beam_runner_api_pb2.SdkFunctionSpec(
-                spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=common_urns.coders.WINDOWED_VALUE.urn)),
-            component_coder_ids=[coder_id, window_coder_id])
-        return add_or_get_coder_id(proto)
-
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
@@ -511,7 +517,8 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Precombine.out',
-                  coder_id=windowed_coder_id(key_accumulator_coder_id),
+                  coder_id=windowed_coder_id(
+                      key_accumulator_coder_id, window_coder_id),
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
                   is_bounded=input_pcoll.is_bounded))
 
@@ -520,7 +527,8 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Group.out',
-                  coder_id=windowed_coder_id(key_accumulator_iter_coder_id),
+                  coder_id=windowed_coder_id(
+                      key_accumulator_iter_coder_id, window_coder_id),
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -529,7 +537,8 @@ class FnApiRunner(runner.PipelineRunner):
           pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
                   unique_name=transform.unique_name + '/Merge.out',
-                  coder_id=windowed_coder_id(key_accumulator_coder_id),
+                  coder_id=windowed_coder_id(
+                      key_accumulator_coder_id, window_coder_id),
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
@@ -945,7 +954,7 @@ class FnApiRunner(runner.PipelineRunner):
     for phase in [
         annotate_downstream_side_inputs, fix_side_input_pcoll_coders,
         lift_combiners, expand_gbk, sink_flattens, greedily_fuse,
-        inject_timer_pcollections, sort_stages]:
+        impulse_to_input, inject_timer_pcollections, sort_stages]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
       logging.debug('Stages: %s', [str(s) for s in stages])
@@ -990,7 +999,10 @@ class FnApiRunner(runner.PipelineRunner):
           pcoll_id = transform.spec.payload
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
             target = transform.unique_name, only_element(transform.outputs)
-            data_input[target] = pcoll_buffers[pcoll_id]
+            if pcoll_id.startswith('impulse:'):
+              data_input[target] = [ENCODED_IMPULSE_VALUE]
+            else:
+              data_input[target] = pcoll_buffers[pcoll_id]
             coder_id = pipeline_components.pcollections[
                 only_element(transform.outputs.values())].coder_id
           elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
