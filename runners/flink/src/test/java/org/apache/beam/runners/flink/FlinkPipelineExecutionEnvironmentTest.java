@@ -63,7 +63,6 @@ public class FlinkPipelineExecutionEnvironmentTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<Long, String>() {
-
                   @ProcessElement
                   public void processElement(ProcessContext c) throws Exception {
                     c.output(Long.toString(c.element()));

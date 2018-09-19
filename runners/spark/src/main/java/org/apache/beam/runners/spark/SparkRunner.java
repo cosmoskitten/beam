@@ -451,7 +451,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     protected <TransformT extends PTransform<? super PInput, POutput>>
         TransformEvaluator<TransformT> translate(
             TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
-      // --- determine if node is bounded/unbounded.
+      //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
       Map<TupleTag<?>, PValue> pValues;
