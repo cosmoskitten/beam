@@ -307,18 +307,17 @@ public class Combine {
    *
    * <h3>Note on Data Encoding</h3>
    *
-   * <p>Data encoding is required to make CombineFn work.
-   * The sample code above implements {@code java.io.Serializable} so that CombineFn in
-   * consequence makes use of SerializableCoder to encode the data.
-   * In many cases though, relying on Serializable could be
-   * less preferred for efficiency considerations. In addition, Serializable may not be applicable
-   * in all situations. There are two alternatives to make data encoding work for AverageFn:
+   * <p>Data encoding is required to make CombineFn work. The sample code above implements {@code
+   * java.io.Serializable} so that CombineFn in consequence makes use of SerializableCoder to encode
+   * the data. In many cases though, relying on Serializable could be less preferred for efficiency
+   * considerations. In addition, Serializable may not be applicable in all situations. There are
+   * two alternatives to make data encoding work for AverageFn:
    *
    * <ul>
-   * <li> Generic Coder class. Implement an encoder class explicitly and use {@code @DefaultCoder} tag.
-   * <li> {@link CombineFn} Specific way. While extending {@link CombineFn}, overwrite
-   * both {@link #getAccumulatorCoder}
-   * and {@link #getDefaultOutputCoder}.
+   *   <li>Generic Coder class. Implement an encoder class explicitly and use {@code @DefaultCoder}
+   *       tag.
+   *   <li>{@link CombineFn} Specific way. While extending {@link CombineFn}, overwrite both {@link
+   *       #getAccumulatorCoder} and {@link #getDefaultOutputCoder}.
    * </ul>
    *
    * @param <InputT> type of input values
