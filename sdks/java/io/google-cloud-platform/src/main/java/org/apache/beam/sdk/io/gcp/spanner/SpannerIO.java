@@ -1117,7 +1117,7 @@ public class SpannerIO {
 
   /**
    * Filters MutationGroups larger than the batch size to the output tagged with {@code
-   * UNBATCHABLE_MUTATIONS_TAG}
+   * UNBATCHABLE_MUTATIONS_TAG}.
    */
   private static class BatchableMutationFilterFn extends DoFn<MutationGroup, MutationGroup> {
 
