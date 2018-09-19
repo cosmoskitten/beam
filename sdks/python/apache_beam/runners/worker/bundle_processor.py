@@ -123,7 +123,7 @@ class DataInputOperation(RunnerIOOperation):
       self.output(decoded_value)
 
 
-class IterableState(object):
+class _StateBackedIterable(object):
   def __init__(self, state_handler, state_key, coder):
     self._state_handler = state_handler
     self._state_key = state_key
@@ -165,7 +165,7 @@ class StateBackedSideInputMap(object):
       access_pattern = self._side_input_data.access_pattern
 
       if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-        raw_view = IterableState(state_handler, state_key, self._element_coder)
+        raw_view = _StateBackedIterable(state_handler, state_key, self._element_coder)
 
       elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
             access_pattern ==
@@ -181,7 +181,7 @@ class StateBackedSideInputMap(object):
               keyed_state_key.CopyFrom(state_key)
               keyed_state_key.multimap_side_input.key = (
                   key_coder_impl.encode_nested(key))
-              cache[key] = IterableState(
+              cache[key] = _StateBackedIterable(
                   state_handler, keyed_state_key, value_coder)
             return cache[key]
 
@@ -221,6 +221,8 @@ class CombiningValueRuntimeState(userstate.RuntimeState):
 
   def add(self, value):
     # Prefer blind writes, but don't let them grow unboundedly.
+    # This should be tuned to be much lower, but for now exercise
+    # both paths well.
     if random.random() < 0.5:
       accumulator = self._read_accumulator(False)
       self._underlying_bag_state.clear()
@@ -241,7 +243,7 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._value_coder = value_coder
 
   def read(self):
-    return IterableState(
+    return _StateBackedIterable(
         self._state_handler, self._state_key, self._value_coder)
 
   def add(self, value):
@@ -252,7 +254,7 @@ class SynchronousBagRuntimeState(userstate.RuntimeState):
     self._state_handler.blocking_clear(self._state_key)
 
 
-class UserStateContext(userstate.UserStateContext):
+class FnApiUserStateContext(userstate.UserStateContext):
   def __init__(self, state_handler, transform_id, key_coder, window_coder):
     self._state_handler = state_handler
     self._transform_id = transform_id
@@ -631,7 +633,7 @@ def _create_pardo_operation(
 
   if userstate.is_stateful_dofn(dofn_data[0]):
     input_coder = factory.get_only_input_coder(transform_proto)
-    user_state_context = UserStateContext(
+    user_state_context = FnApiUserStateContext(
         factory.state_handler,
         transform_id,
         input_coder.key_coder(),
