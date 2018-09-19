@@ -22,7 +22,9 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -104,10 +106,13 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       List<String> parts = Splitter.on(':').splitToList(masterUrl);
+      Configuration clientConfig = new Configuration();
+      clientConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
       flinkStreamEnv =
           StreamExecutionEnvironment.createRemoteEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
+              clientConfig,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -164,12 +169,19 @@ public class FlinkExecutionEnvironments {
                     ? ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
                     : ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
       }
+
+      long minPauseBetweenCheckpoints = options.getMinPauseBetweenCheckpoints();
+      if (minPauseBetweenCheckpoints != -1) {
+        flinkStreamEnv
+            .getCheckpointConfig()
+            .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
+      }
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
 
     // State backend
-    final AbstractStateBackend stateBackend = options.getStateBackend();
+    final StateBackend stateBackend = options.getStateBackend();
     if (stateBackend != null) {
       flinkStreamEnv.setStateBackend(stateBackend);
     }
