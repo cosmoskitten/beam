@@ -546,9 +546,6 @@ class BeamModulePlugin implements Plugin<Project> {
           '-parameters',
           '-Xlint:all',
           '-Werror',
-          '-XepDisableWarningsInGeneratedCode',
-          '-XepExcludedPaths:(.*/)?(build/generated.*avro-java|build/generated)/.*',
-          '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
@@ -679,6 +676,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
+      project.dependencies {
+        errorprone "com.google.errorprone:error_prone_core:2.3.1"
+        errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
+      }
+      project.tasks.withType(JavaCompile) {
+        options.errorprone {
+          disableWarningsInGeneratedCode = true
+          excludedPaths = '(.*/)?(build/generated.*avro-java|build/generated)/.*'
+          check('MutableConstantField', 'OFF')
+        }
+      }
+
 
       // Enables a plugin which can perform shading of classes. See the general comments
       // above about dependency management for Java projects and how the shadow plugin
