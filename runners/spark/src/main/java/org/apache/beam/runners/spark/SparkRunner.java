@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.core.construction.PipelineResources.prepareFilesForStaging;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
@@ -28,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.PipelineResources;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -165,7 +165,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
-    prepareFilesToStageForRemoteClusterExecution();
+    prepareFilesToStageForRemoteClusterExecution(mOptions);
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
@@ -280,10 +280,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    * on classpath (eg. directories with .class files or empty directories). Prepare files for
    * staging only when using remote cluster (passing the master address explicitly).
    */
-  private void prepareFilesToStageForRemoteClusterExecution() {
-    if (!mOptions.getSparkMaster().matches("local\\[?\\d*\\]?")) {
-      mOptions.setFilesToStage(
-          prepareFilesForStaging(mOptions.getFilesToStage(), mOptions.getTempLocation()));
+  private static void prepareFilesToStageForRemoteClusterExecution(SparkPipelineOptions options) {
+    if (!options.getSparkMaster().matches("local\\[?\\d*\\]?")) {
+      options.setFilesToStage(
+          PipelineResources.prepareFilesForStaging(
+              options.getFilesToStage(), options.getTempLocation()));
     }
   }
 
