@@ -61,7 +61,9 @@ public interface FlinkPipelineOptions
 
   void setFlinkMaster(String value);
 
-  @Description("The degree of parallelism to be used when distributing operations onto workers.")
+  @Description(
+      "The degree of parallelism to be used when distributing operations onto workers. "
+          + "If the parallelism is not set, the configured Flink default is used, or 1 if none can be found.")
   @Default.Integer(-1)
   Integer getParallelism();
 
