@@ -264,6 +264,8 @@ class _BatchSizeEstimator(object):
       self._ignore_next_timing = False
     else:
       self._data.append((batch_size, elapsed))
+      if len(self._data) > 20:
+        self._data.pop(0)
       if len(self._data) >= self._MAX_DATA_POINTS:
         self._thin_data()
 
@@ -309,6 +311,8 @@ class _BatchSizeEstimator(object):
     a = ybar - b * xbar
 
     # Avoid nonsensical or division-by-zero errors below due to noise.
+#    print(self._data)
+    print("a", a, "b", b)
     a = max(a, 1e-10)
     b = max(b, 1e-20)
 

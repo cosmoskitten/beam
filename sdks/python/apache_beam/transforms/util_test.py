@@ -125,6 +125,28 @@ class BatchElementsTest(unittest.TestCase):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
 
+  def test_play(self):
+    clock = FakeClock()
+    batch_estimator = util._BatchSizeEstimator(
+        target_batch_overhead=.1, target_batch_duration_secs=None, clock=clock)
+    import random
+    def batch_duration(k, batch_size):
+      if k == 9:
+        return 1 + 0.04 * batch_size
+      elif k == 10:
+        return 2
+      else:
+        return 1 + 0.01 * batch_size
+    # At 27 items, a batch takes ~20 seconds with 5% (~1 second) overhead.
+    expected_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512] + [1] * 40
+    actual_sizes = []
+    for k in range(len(expected_sizes)):
+      actual_sizes.append(batch_estimator.next_batch_size())
+      with batch_estimator.record_time(actual_sizes[-1]):
+        clock.sleep(batch_duration(k, actual_sizes[-1]))
+    print actual_sizes
+#    self.assertEqual(expected_sizes, actual_sizes)
+
   def test_thin_data(self):
     clock = FakeClock()
     batch_estimator = util._BatchSizeEstimator(
