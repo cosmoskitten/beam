@@ -258,7 +258,7 @@ public class Combine {
    *     int sum = 0;
    *     int count = 0;
    *
-   *     @Override
+   *     {@literal @}Override
    *     public boolean equals(Object other) {
    *       if (other == null) return false;
    *       if (other == this) return true;
