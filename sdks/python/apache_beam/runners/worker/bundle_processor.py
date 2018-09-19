@@ -406,12 +406,13 @@ class BundleProcessor(object):
       for input_op in expected_inputs:
         data_channels[input_op.data_channel].append(input_op.target)
         # ignores input name
-        input_op_by_target[input_op.target.primitive_transform_reference
-        ] = input_op
+        input_op_by_target[
+            input_op.target.primitive_transform_reference] = input_op
       for data_channel, expected_targets in data_channels.items():
         for data in data_channel.input_elements(
             instruction_id, expected_targets):
-          input_op_by_target[data.target.primitive_transform_reference
+          input_op_by_target[
+              data.target.primitive_transform_reference
           ].process_encoded(data.data)
 
       # Finish all operations.
@@ -547,7 +548,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if (len(output_consumers) == 1
       and isinstance(only_element(output_consumers), operations.DoOperation)):
     do_op = only_element(output_consumers)
-    for tag, (pcoll_id, spec) in do_op.timer_inputs.items():
+    for tag, (pcoll_id, unused_spec) in do_op.timer_inputs.items():
       if pcoll_id == output_pcoll:
         output_consumers[:] = [TimerConsumer(tag, do_op)]
         break

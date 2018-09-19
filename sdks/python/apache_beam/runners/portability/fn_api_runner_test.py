@@ -257,7 +257,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
     class TimerDoFn(beam.DoFn):
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
-        k, ts = element
+        unused_key, ts = element
         timer.set(ts)
         timer.set(2 * ts)
 

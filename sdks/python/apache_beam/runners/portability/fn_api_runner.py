@@ -852,15 +852,17 @@ class FnApiRunner(runner.PipelineRunner):
               timer_write_pcoll = unique_name(
                   pipeline_components.pcollections,
                   '%s_timers_to_write_%s' % (transform.unique_name, tag))
-              # TODO: acutally populate
               input_pcoll = pipeline_components.pcollections[
                   next(iter(transform.inputs.values()))]
               pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
                   input_pcoll)
-              pipeline_components.pcollections[timer_read_pcoll].unique_name = timer_read_pcoll
-              pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
+              pipeline_components.pcollections[
+                  timer_read_pcoll].unique_name = timer_read_pcoll
+              pipeline_components.pcollections[
+                  timer_write_pcoll].CopyFrom(
                   input_pcoll)
-              pipeline_components.pcollections[timer_write_pcoll].unique_name = timer_write_pcoll
+              pipeline_components.pcollections[
+                  timer_write_pcoll].unique_name = timer_write_pcoll
               stage.transforms.append(
                   beam_runner_api_pb2.PTransform(
                       unique_name=timer_read_pcoll + '/Read',
@@ -1079,7 +1081,7 @@ class FnApiRunner(runner.PipelineRunner):
         controller, get_buffer, process_bundle_descriptor,
         self._progress_frequency).process_bundle(data_input, data_output)
 
-    for k in range(5): #while True:
+    for while True:
       timer_inputs = {}
       for transform_id, timer_reads, timer_writes in stage.timers:
         written_timers = get_buffer('timers:' + timer_writes)
