@@ -34,6 +34,7 @@ import grpc
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import fn_api_runner_test
@@ -198,6 +199,19 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 class PortableRunnerTestWithGrpc(PortableRunnerTest):
   _use_grpc = True
+
+
+class PortableRunnerTestWithProcessHarness(PortableRunnerTest):
+  _use_grpc = True
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithProcessHarness, self).create_options()
+    po = options.view_as(PortableOptions)
+    po.python_environment_type = common_urns.environments.PROCESS.urn
+    po.python_environment_config = '{"command": "' + (
+        '%s -m apache_beam.runners.worker.sdk_worker_main' + sys.executable
+    ) + '"}'
+    return options
 
 
 @unittest.skip("BEAM-3040")
