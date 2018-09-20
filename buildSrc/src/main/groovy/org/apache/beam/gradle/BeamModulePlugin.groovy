@@ -603,14 +603,14 @@ class BeamModulePlugin implements Plugin<Project> {
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
         compileOnly auto_value
-        apt auto_value
+        annotationProcessor auto_value
         testCompileOnly auto_value
-        testApt auto_value
+        testAnnotationProcessor auto_value
 
         compileOnly auto_service
-        apt auto_service
+        annotationProcessor auto_service
         testCompileOnly auto_service
-        testApt auto_service
+        testAnnotationProcessor auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -620,9 +620,9 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: https://www.apache.org/legal/resolved.html#prohibited
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
-        apt findbugs_annotations
+        annotationProcessor findbugs_annotations
         testCompileOnly findbugs_annotations
-        testApt findbugs_annotations
+        testAnnotationProcessor findbugs_annotations
       }
 
       // Add the optional and provided configurations for dependencies
@@ -677,10 +677,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
       project.dependencies {
-        errorprone "com.google.errorprone:error_prone_core:2.3.1"
-        errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
+        errorprone "com.google.errorprone:error_prone_core:2.0.16"
+        errorproneJavac "com.google.errorprone:javac:1.8.0-u20"
       }
-      project.tasks.withType(JavaCompile) {
+      project.tasks.withType(JavaCompile).configureEach {
         options.errorprone {
           disableWarningsInGeneratedCode = true
           excludedPaths = '(.*/)?(build/generated.*avro-java|build/generated)/.*'
