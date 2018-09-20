@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import os
 import threading
@@ -30,6 +31,7 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
@@ -70,16 +72,14 @@ class PortableRunner(runner.PipelineRunner):
       return 'unknown'
 
   def run_pipeline(self, pipeline):
-    docker_image = (
-        pipeline.options.view_as(PortableOptions).harness_docker_image
-        or self.default_docker_image())
-    job_endpoint = pipeline.options.view_as(PortableOptions).job_endpoint
+    portable_options = pipeline.options.view_as(PortableOptions)
+    job_endpoint = portable_options.job_endpoint
     if not job_endpoint:
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
 
     proto_context = pipeline_context.PipelineContext(
-        default_environment_url=docker_image)
+        default_environment=self._create_environment(portable_options))
     proto_pipeline = pipeline.to_runner_api(context=proto_context)
 
     if not self.is_embedded_fnapi_runner:
@@ -145,6 +145,30 @@ class PortableRunner(runner.PipelineRunner):
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
     return PipelineResult(job_service, run_response.job_id)
+
+  def _create_environment(self, portable_options):
+    environment_type = (portable_options.python_environment_type or
+                        common_urns.environments.DOCKER.urn)
+    if environment_type == common_urns.environments.DOCKER.urn:
+      docker_image = (
+          portable_options.python_environment_config
+          or self.default_docker_image())
+      return beam_runner_api_pb2.Environment(
+          url=docker_image,
+          urn=common_urns.environments.DOCKER.urn,
+          payload=beam_runner_api_pb2.DockerPayload(
+              container_image=docker_image
+          ).SerializeToString())
+    elif environment_type == common_urns.environments.PROCESS.urn:
+      config = json.load(portable_options.python_environment_config)
+      return beam_runner_api_pb2.Environment(
+          urn=common_urns.environments.PROCESS.urn,
+          payload=beam_runner_api_pb2.ProcessPayload(
+              os=(config['os'] or ''),
+              arch=(config['arch'] or ''),
+              command=config['command'],
+              env=(config['env'] or '')
+          ).SerializeToString())
 
 
 class PortableMetrics(metrics.metric.MetricResults):
