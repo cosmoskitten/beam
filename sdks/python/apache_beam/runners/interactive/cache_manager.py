@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import filesystems
 from apache_beam.transforms import combiners
+from future.moves import urllib
 
 
 class CacheManager(object):
@@ -193,7 +194,8 @@ class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
   def encode(self, value):
-    return urllib.quote(coders.coders.FastPrimitivesCoder().encode(value))
+    return urllib.parse.quote(coders.coders.FastPrimitivesCoder().encode(value))
 
   def decode(self, value):
-    return coders.coders.FastPrimitivesCoder().decode(urllib.unquote(value))
+    return coders.coders.FastPrimitivesCoder().decode(
+      urllib.parse.unquote_to_bytes(value))

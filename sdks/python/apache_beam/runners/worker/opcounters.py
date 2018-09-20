@@ -286,7 +286,8 @@ class OperationCounters(object):
 
   def should_sample(self):
     # We create this separate method because the above "_should_sample()" method
-    # is marked as inline in Cython and thus can't be exposed to Python code.
+    # is marked as inline in Cython and thus can't be exposed to Python
+    # code.
     return self._should_sample()
 
   def __str__(self):
