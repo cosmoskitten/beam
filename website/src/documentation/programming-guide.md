@@ -1346,6 +1346,7 @@ determined by the input data, or depend on a different branch of your pipeline.
   PCollection<String> wordsBelowCutOff =
   words.apply(ParDo
       .of(new DoFn<String, String>() {
+          @ProcessElement
           public void processElement(ProcessContext c) {
             String word = c.element();
             // In our DoFn, access the side input.
