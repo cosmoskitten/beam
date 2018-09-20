@@ -196,7 +196,7 @@ public class ReferenceRunner {
 
       EnvironmentFactory environmentFactory =
           createEnvironmentFactory(
-              control, logging, artifact, provisioning, controlClientPool.getSource());
+              control, logging, artifact, provisioning, controlClientPool);
       JobBundleFactory jobBundleFactory =
           SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
 
@@ -234,19 +234,19 @@ public class ReferenceRunner {
       GrpcFnServer<GrpcLoggingService> logging,
       GrpcFnServer<ArtifactRetrievalService> artifact,
       GrpcFnServer<StaticGrpcProvisionService> provisioning,
-      ControlClientPool.Source controlClientSource) {
+      ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:
-        return DockerEnvironmentFactory.forServices(
+        return new DockerEnvironmentFactory.Provider().createEnvironmentFactory(
             control,
             logging,
             artifact,
             provisioning,
-            controlClientSource,
+            controlClient,
             IdGenerators.incrementingLongs());
       case IN_PROCESS:
         return InProcessEnvironmentFactory.create(
-            PipelineOptionsFactory.create(), logging, control, controlClientSource);
+            PipelineOptionsFactory.create(), logging, control, controlClient.getSource());
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", EnvironmentType.class.getSimpleName(), environmentType));

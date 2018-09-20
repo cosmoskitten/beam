@@ -199,23 +199,31 @@ public class Environments {
   }
 
   private static class ProcessPayloadReferenceJSON {
+    @Nullable
     private String os;
+    @Nullable
     private String arch;
+    @Nullable
     private String command;
+    @Nullable
     private Map<String, String> env;
 
+    @Nullable
     public String getOs() {
       return os;
     }
 
+    @Nullable
     public String getArch() {
       return arch;
     }
 
+    @Nullable
     public String getCommand() {
       return command;
     }
 
+    @Nullable
     public Map<String, String> getEnv() {
       return env;
     }
