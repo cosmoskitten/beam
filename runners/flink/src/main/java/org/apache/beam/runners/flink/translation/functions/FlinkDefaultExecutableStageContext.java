@@ -17,10 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import com.google.common.collect.ImmutableMap;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.control.DockerJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.LazyJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 
 /** Implementation of a {@link FlinkExecutableStageContext}. */
@@ -28,7 +33,14 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
   private final JobBundleFactory jobBundleFactory;
 
   private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) throws Exception {
-    JobBundleFactory jobBundleFactory = DockerJobBundleFactory.FACTORY.get().create(jobInfo);
+    JobBundleFactory jobBundleFactory =
+        LazyJobBundleFactory.create(
+            jobInfo,
+            ImmutableMap.of(
+                BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+                new DockerEnvironmentFactory.Provider(),
+                BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
+                new ProcessEnvironmentFactory.Provider()));
     return new FlinkDefaultExecutableStageContext(jobBundleFactory);
   }
 
