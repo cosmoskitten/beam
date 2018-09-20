@@ -48,12 +48,12 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public synchronized ByteKeyRange currentRestriction() {
+  public ByteKeyRange currentRestriction() {
     return range;
   }
 
   @Override
-  public synchronized ByteKeyRange checkpoint() {
+  public ByteKeyRange checkpoint() {
     checkState(lastClaimedKey != null, "Can't checkpoint before any key was successfully claimed");
     ByteKey nextKey = next(lastClaimedKey);
     ByteKeyRange res = ByteKeyRange.of(nextKey, range.getEndKey());
@@ -70,7 +70,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
    *     current {@link ByteKeyRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
-  protected synchronized boolean tryClaimImpl(ByteKey key) {
+  public boolean tryClaim(ByteKey key) {
     checkArgument(
         lastAttemptedKey == null || key.compareTo(lastAttemptedKey) > 0,
         "Trying to claim key %s while last attempted was %s",
@@ -97,12 +97,12 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
    * call this if it hits EOF - even though the last attempted claim was before the end of the
    * range, there are no more keys to claim.
    */
-  public synchronized void markDone() {
+  public void markDone() {
     lastAttemptedKey = range.getEndKey();
   }
 
   @Override
-  public synchronized void checkDone() throws IllegalStateException {
+  public void checkDone() throws IllegalStateException {
     checkState(lastAttemptedKey != null, "Can't check if done before any key claim was attempted");
     ByteKey nextKey = next(lastAttemptedKey);
     checkState(
