@@ -34,11 +34,13 @@ import grpc
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_job_api_pb2, beam_runner_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
+from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -214,6 +216,46 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         '--worker_command_line',
         '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
     ]
+
+
+class PortableRunnerInternalTest(unittest.TestCase):
+  def test__create_docker_environment(self):
+    docker_image = 'py-docker'
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'python_environment_type': common_urns.environments.DOCKER.urn,
+          'python_environment_config': docker_image,
+        })), beam_runner_api_pb2.Environment(
+            url=docker_image,
+            urn=common_urns.environments.DOCKER.urn,
+            payload=beam_runner_api_pb2.DockerPayload(
+                container_image=docker_image
+            ).SerializeToString()))
+
+  def test__create_process_environment(self):
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'python_environment_type': common_urns.environments.PROCESS.urn,
+          'python_environment_config': '{"os": "linux", "arch": "amd64", '
+                                       '"command": "run.sh", '
+                                       '"env":{"k1": "v1", "k2": "v2"} }',
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.PROCESS.urn,
+            payload=beam_runner_api_pb2.ProcessPayload(
+                os='linux',
+                arch='amd64',
+                command='run.sh',
+                env={'k1': 'v1', 'k2': 'v2'},
+            ).SerializeToString()))
+    self.assertEqual(
+        PortableRunner._create_environment(PipelineOptions.from_dictionary({
+          'python_environment_type': common_urns.environments.PROCESS.urn,
+          'python_environment_config': '{"command": "run.sh"}',
+        })), beam_runner_api_pb2.Environment(
+            urn=common_urns.environments.PROCESS.urn,
+            payload=beam_runner_api_pb2.ProcessPayload(
+                command='run.sh',
+            ).SerializeToString()))
 
 
 if __name__ == '__main__':
