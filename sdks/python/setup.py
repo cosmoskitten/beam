@@ -121,6 +121,7 @@ REQUIRED_PACKAGES = [
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     'pydot>=1.2.0,<1.3',
+    'pyhamcrest>=1.9,<2.0',
     'pytz>=2018.3,<=2018.4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
@@ -132,7 +133,6 @@ REQUIRED_PACKAGES = [
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'numpy>=1.14.3,<2',
-    'pyhamcrest>=1.9,<2.0',
     ]
 
 GCP_REQUIREMENTS = [
