@@ -136,7 +136,7 @@ task mergeWebsite << {
 }
 
 gitPublish {
-    repoUri = 'git@github.com/alanmyrvold/beam.git'
+    repoUri = 'git@github.com:alanmyrvold/beam.git'
     branch = 'asf-site'
     contents {
         from("${buildDir}/generated-content/") {
@@ -151,4 +151,4 @@ gitPublish {
 }
 
 // Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
-gitPublishReset.dependsOn buildWebsite
+//gitPublishReset.dependsOn buildWebsite
