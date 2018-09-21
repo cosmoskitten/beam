@@ -141,13 +141,14 @@ gitPublish {
   contents {
     from("${buildDir}/generated-content/") {
       include 'index.html'
-      into "$repoContentDir"
+      into 'website/generated-content'
     }
   }
   preserve {
-    'content'
-    'website/generated-content/documentation/sdks/pydoc'
-    'website/generated-content/documentation/sdks/javadoc'
+    include '**'
+    exclude 'website/generated-content/**'
+    include 'website/generated-content/documentation/sdks/pydoc/**'
+    include 'website/generated-content/documentation/sdks/javadoc/**'
   } 
   commitMessage = 'Publishing website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
 }
@@ -159,5 +160,5 @@ task gitSetup << {
   }
 }
 
-// Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
 gitPublishReset.dependsOn gitSetup
+gitPublishReset.dependsOn testWebsite
