@@ -21,6 +21,7 @@ apply plugin: "base"
 
 // Publish website to asf-git branch.
 apply plugin: 'org.ajoberstar.git-publish'
+apply plugin: 'org.ajoberstar.grgit'
 
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
@@ -136,19 +137,27 @@ task mergeWebsite << {
 }
 
 gitPublish {
-    repoUri = 'git@github.com:alanmyrvold/beam.git'
-    branch = 'asf-site'
-    contents {
-        from("${buildDir}/generated-content/") {
-            include 'index.html'
-            into "$repoContentDir"
-        }
+  branch = 'asf-site'
+  contents {
+    from("${buildDir}/generated-content/") {
+      include 'index.html'
+      into "$repoContentDir"
     }
-    preserve {
-      'content'
-    } 
-    commitMessage = 'Publishing website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
+  }
+  preserve {
+    'content'
+    'website/generated-content/documentation/sdks/pydoc'
+    'website/generated-content/documentation/sdks/javadoc'
+  } 
+  commitMessage = 'Publishing website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
+}
+
+task gitSetup << {
+  def branch = grgit.branch.current.name
+  if (branch != 'mergeWebsite') {
+    throw new GradleException("Cannot publish from branch ${branch}, only from master")
+  }
 }
 
 // Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
-//gitPublishReset.dependsOn buildWebsite
+gitPublishReset.dependsOn gitSetup
