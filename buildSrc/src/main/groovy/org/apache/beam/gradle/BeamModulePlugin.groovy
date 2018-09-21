@@ -659,7 +659,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enables a plugin which can apply code formatting to source.
       // TODO(https://issues.apache.org/jira/browse/BEAM-4394): Should this plugin be enabled for all projects?
       project.apply plugin: "com.diffplug.gradle.spotless"
-      project.spotless { java { googleJavaFormat() } }
+      project.spotless {
+        java {
+          googleJavaFormat()
+          ignoreErrorForPath('generated-test-avro-java')
+        }
+      }
 
       // Enables a plugin which performs code analysis for common bugs.
       // This plugin is configured to only analyze the "main" source set.
