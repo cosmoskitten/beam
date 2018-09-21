@@ -38,9 +38,11 @@ import com.google.common.collect.Sets;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -123,15 +125,24 @@ public class QueryablePipeline {
   @VisibleForTesting
   static Collection<String> getPrimitiveTransformIds(RunnerApi.Components components) {
     Collection<String> ids = new LinkedHashSet<>();
+
     for (Map.Entry<String, PTransform> transformEntry : components.getTransformsMap().entrySet()) {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        List<String> subtransforms = transform.getSubtransformsList();
-        if (subtransforms.isEmpty()) {
-          ids.add(transformEntry.getKey());
-        } else {
-          ids.addAll(subtransforms);
+        // for a "primitive" transform, we want to keep only "leaf" sub-transform descendents, if any (in the common
+        // case, primitive transforms have no subtransforms, and are themselves kept)
+        Deque<String> transforms = new ArrayDeque<>();
+        transforms.push(transformEntry.getKey());
+        while (!transforms.isEmpty()) {
+          String id = transforms.pop();
+          PTransform next = components.getTransformsMap().get(id);
+          List<String> subtransforms = next.getSubtransformsList();
+          if (subtransforms.isEmpty()) {
+            ids.add(id);
+          } else {
+            transforms.addAll(subtransforms);
+          }
         }
       }
     }
@@ -175,9 +186,10 @@ public class QueryablePipeline {
         network.addEdge(transformNode, producedNode, new PerElementEdge());
         checkArgument(
             network.inDegree(producedNode) == 1,
-            "A %s should have exactly one producing %s, %s has %s",
+            "A %s should have exactly one producing %s, but found %s:\nPCollection:\n%s\nProducers:\n%s",
             PCollectionNode.class.getSimpleName(),
             PTransformNode.class.getSimpleName(),
+            network.predecessors(producedNode).size(),
             producedNode,
             network.predecessors(producedNode));
         unproducedCollections.remove(producedNode);
