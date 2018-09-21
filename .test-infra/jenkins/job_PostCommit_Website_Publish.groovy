@@ -20,11 +20,12 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 
-// This job builds and merges the website.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Merge', 'Run Website Merge',
-  'Website Merge', this) {
+// This job builds and publishes the website into the asf-site branch of the beam repo.
+// TODO: Delete trigger phrase
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', 'Run Website Publish',
+  'Website Publish', this) {
 
-  description('Builds and merges the web site.')
+  description('Publish generated website content into asf-site branch for hosting.')
 
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'git-websites')
@@ -33,7 +34,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Merge', 'Run Website
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-website:mergeWebsite')
+      tasks(':beam-website:clean')
+      tasks(':beam-website:gitPublishPush')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

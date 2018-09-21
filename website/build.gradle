@@ -19,11 +19,13 @@
 // Define common lifecycle tasks and artifact types
 apply plugin: "base"
 
+// Publish website to asf-git branch.
+apply plugin: 'org.ajoberstar.git-publish'
+
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
-def buildDir = "$project.rootDir/build/website"
-def contentBuildDir = "$buildDir/content"
-def contentRepoDir = "$project.rootDir/website/content"
+def buildDir = "${project.rootDir}/build/website"
+def repoContentDir = "${project.rootDir}/website/generated-content"
 
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
@@ -72,7 +74,7 @@ task buildWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir "$buildDir/content"
+  outputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -89,7 +91,7 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir "$buildDir/content"
+  inputs.dir "$buildDir/generated-content"
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -133,5 +135,20 @@ task mergeWebsite << {
   println "Successful test of mergeWebsite"
 }
 
+gitPublish {
+    repoUri = 'git@github.com/alanmyrvold/beam.git'
+    branch = 'asf-site'
+    contents {
+        from("${buildDir}/generated-content/") {
+            include 'index.html'
+            into "$repoContentDir"
+        }
+    }
+    preserve {
+      'content'
+    } 
+    commitMessage = 'Publishing website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
+}
+
 // Should depend on testWebsite; using buildWebsite for testing due to broken links [BEAM-5367].
-mergeWebsite.dependsOn buildWebsite
+gitPublishReset.dependsOn buildWebsite
