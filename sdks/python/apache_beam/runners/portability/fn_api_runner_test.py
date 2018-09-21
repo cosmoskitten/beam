@@ -36,6 +36,7 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
 if statesampler.FAST_SAMPLER:
@@ -228,6 +229,29 @@ class FnApiRunnerTest(unittest.TestCase):
           pcoll | beam.FlatMap(cross_product, beam.pvalue.AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
 
+  def test_pardo_state_only(self):
+
+    index_state_spec = userstate.CombiningValueStateSpec(
+        'index', beam.coders.VarIntCoder(), sum)
+
+    # TODO(ccy): State isn't detected with Map/FlatMap.
+    class AddIndex(beam.DoFn):
+      def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
+        k, v = kv
+        index.add(1)
+        yield k, v, index.read()
+
+    inputs = [('A', 'a')] * 2 + [('B', 'b')] * 3
+    expected = [('A', 'a', 1),
+                ('A', 'a', 2),
+                ('B', 'b', 1),
+                ('B', 'b', 2),
+                ('B', 'b', 3)]
+
+    with self.create_pipeline() as p:
+      assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
+                  equal_to(expected))
+
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
@@ -406,7 +430,7 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Create/Read']
-          .processed_elements.measured.output_element_counts['None'])
+          .processed_elements.measured.output_element_counts['out'])
       self.assertEqual(
           4,
           pregbk_metrics.ptransforms['Map(sleep)']

@@ -118,7 +118,7 @@ rat {
 
   def exclusions = [
     // Ignore files we track but do not distribute
-    ".github/**/*",
+    "**/.github/**/*",
 
     "**/package-list",
     "**/user.avsc",
