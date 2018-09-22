@@ -108,6 +108,9 @@ task preCommit {
 gitPublish {
   branch = 'asf-site'
   contents {
+    from('.') {
+      include 'contents'
+    }
     from("${buildDir}/generated-content/") {
       include 'index.html'
       into 'website/generated-content'
@@ -115,6 +118,7 @@ gitPublish {
   }
   preserve {
     include '**'
+    exclide 'contents'
     exclude 'website/generated-content/**'
     include 'website/generated-content/documentation/sdks/pydoc/**'
     include 'website/generated-content/documentation/sdks/javadoc/**'
@@ -128,7 +132,7 @@ gitPublish {
 
 task gitSetup << {
   def branch = grgit.branch.current.name
-  if (branch != 'master') {
+  if (branch != 'mergeWebsite') {
     throw new GradleException("Cannot publish from branch ${branch}, only from master")
   }
 }
