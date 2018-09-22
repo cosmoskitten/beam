@@ -106,6 +106,7 @@ task preCommit {
 }
 
 gitPublish {
+  repoUri = 'git@github.com:apache/beam.git'
   branch = 'asf-site'
   contents {
     from("${buildDir}/generated-content/") {
