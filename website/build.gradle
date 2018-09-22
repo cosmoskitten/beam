@@ -120,7 +120,6 @@ gitPublish {
     include 'website/generated-content/documentation/sdks/javadoc/**'
   } 
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
-  println latestCommit
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
   commitMessage = message
@@ -142,7 +141,7 @@ task gitCreateSymlink << {
 }
 
 gitPublishReset.dependsOn gitSetup
-gitPublishReset.dependsOn testWebsite
+//gitPublishReset.dependsOn testWebsite
+gitPublishReset.dependsOn buildWebsite
 gitCreateSymlink.dependsOn gitPublishReset
 gitPublishCopy.dependsOn gitCreateSymlink
-
