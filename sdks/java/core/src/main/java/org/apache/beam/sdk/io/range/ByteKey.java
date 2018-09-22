@@ -35,14 +35,17 @@ import javax.annotation.Nonnull;
  * arrays in lexicographic order. The smallest {@link ByteKey} is a zero-length array; the successor
  * to a key is the same key with an additional 0 byte appended; and keys have unbounded size.
  *
- * <p>Note that the empty {@link ByteKey} compares smaller than all other keys, but some systems
- * have the semantic that when an empty {@link ByteKey} is used as an upper bound, it represents the
- * largest possible key. In these cases, implementors should use {@link #isEmpty} to test whether an
- * upper bound key is empty.
+ * <p>Note that the empty {@link ByteKey} compares smaller than all other keys, and the {@link
+ * #INFINITE_KEY} compares larger then all other keys.
  */
 public final class ByteKey implements Comparable<ByteKey>, Serializable {
   /** An empty key. */
   public static final ByteKey EMPTY = ByteKey.of();
+
+  /**
+   * A special key that compares greater then all other keys representing the largest possible key.
+   */
+  public static final ByteKey INFINITE_KEY = ByteKey.of(0x4c75, 0x6b65, 0x4377, 0x696b);
 
   /**
    * Creates a new {@link ByteKey} backed by a copy of the data remaining in the specified {@link
@@ -82,6 +85,9 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
 
   /** Returns a read-only {@link ByteBuffer} representing this {@link ByteKey}. */
   public ByteBuffer getValue() {
+    if (this.equals(INFINITE_KEY)) {
+      throw new IllegalStateException("The infinite key has no byte representation.");
+    }
     return value.asReadOnlyByteBuffer();
   }
 
@@ -91,6 +97,9 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
    * <p>Copies the underlying {@code byte[]}.
    */
   public byte[] getBytes() {
+    if (this.equals(INFINITE_KEY)) {
+      throw new IllegalStateException("The infinite key has no byte representation.");
+    }
     return value.toByteArray();
   }
 
@@ -107,6 +116,13 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   @Override
   public int compareTo(@Nonnull ByteKey other) {
     checkNotNull(other, "other");
+    if (this == other) {
+      return 0;
+    } else if (this == INFINITE_KEY) {
+      return 1;
+    } else if (other == INFINITE_KEY) {
+      return -1;
+    }
     ByteIterator thisIt = value.iterator();
     ByteIterator otherIt = other.value.iterator();
     while (thisIt.hasNext() && otherIt.hasNext()) {
@@ -135,6 +151,9 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   // Prints the key as a string "[deadbeef]".
   @Override
   public String toString() {
+    if (this.equals(INFINITE_KEY)) {
+      return "[INFINITE KEY]";
+    }
     char[] encoded = new char[2 * value.size() + 2];
     encoded[0] = '[';
     int cnt = 1;

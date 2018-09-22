@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,7 +26,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -62,8 +65,10 @@ public class ByteKeyTest {
         ByteKey.of(0xff, 0xfe),
         ByteKey.of(0xff, 0xff),
         ByteKey.of(0xff, 0xff, 0xff),
-        ByteKey.of(0xff, 0xff, 0xff, 0xff),
+        ByteKey.of(0xff, 0xff, 0xff, 0xff)
       };
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   /**
    * Tests {@link ByteKey#compareTo(ByteKey)} using exhaustive testing within a large sorted list of
@@ -94,6 +99,19 @@ public class ByteKeyTest {
     }
   }
 
+  @Test
+  public void testCompareToInfiniteKey() {
+    for (ByteKey testKey : TEST_KEYS) {
+      int cmp = testKey.compareTo(ByteKey.INFINITE_KEY);
+      if (cmp >= 0) {
+        fail(
+            String.format(
+                "Expected that cmp(%s, %s) < 0, got %d", testKey, ByteKey.INFINITE_KEY, cmp));
+      }
+    }
+    assertThat(ByteKey.INFINITE_KEY, comparesEqualTo(ByteKey.INFINITE_KEY));
+  }
+
   /** Tests {@link ByteKey#equals}. */
   @Test
   public void testEquals() {
@@ -113,6 +131,7 @@ public class ByteKeyTest {
         }
       }
     }
+    assertEquals(ByteKey.INFINITE_KEY, ByteKey.INFINITE_KEY);
   }
 
   /** Tests {@link ByteKey#hashCode}. */
@@ -147,6 +166,7 @@ public class ByteKeyTest {
     assertEquals(
         "[0123456789abcdef]",
         ByteKey.of(0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef).toString());
+    assertEquals("[INFINITE KEY]", ByteKey.INFINITE_KEY.toString());
   }
 
   /** Tests {@link ByteKey#isEmpty}. */
@@ -162,5 +182,7 @@ public class ByteKeyTest {
     assertTrue("[] equal after getBytes", Arrays.equals(new byte[] {}, ByteKey.EMPTY.getBytes()));
     assertTrue(
         "[00] equal after getBytes", Arrays.equals(new byte[] {0x00}, ByteKey.of(0x00).getBytes()));
+    thrown.expect(IllegalStateException.class);
+    ByteKey.INFINITE_KEY.getBytes();
   }
 }

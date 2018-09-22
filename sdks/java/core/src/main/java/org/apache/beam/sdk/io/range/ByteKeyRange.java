@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * non-empty range {@code [startKey, endKey)} that is inclusive of the start key and exclusive of
  * the end key.
  *
- * <p>When the end key is empty, it is treated as the largest possible key.
+ * <p>When the end key is {@link ByteKey#INFINITE_KEY}, it is treated as the largest possible key.
  *
  * <h3>Interpreting {@link ByteKey} in a {@link ByteKeyRange}</h3>
  *
@@ -68,8 +68,8 @@ import org.slf4j.LoggerFactory;
 public final class ByteKeyRange implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
-  /** The range of all keys, with empty start and end keys. */
-  public static final ByteKeyRange ALL_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.EMPTY);
+  /** The range of all keys, with empty start key and a special infinite end key. */
+  public static final ByteKeyRange ALL_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.INFINITE_KEY);
 
   /**
    * Creates a new {@link ByteKeyRange} with the given start and end keys.
@@ -152,10 +152,11 @@ public final class ByteKeyRange implements Serializable {
    */
   public double estimateFractionForKey(ByteKey key) {
     checkNotNull(key, "key");
-    checkArgument(!key.isEmpty(), "Cannot compute fraction for an empty key");
     checkArgument(
         key.compareTo(startKey) >= 0, "Expected key %s >= range start key %s", key, startKey);
-
+    if (key.isEmpty()) {
+      return 0.0;
+    }
     if (key.equals(endKey)) {
       return 1.0;
     }
@@ -164,11 +165,12 @@ public final class ByteKeyRange implements Serializable {
     byte[] startBytes = startKey.getBytes();
     byte[] endBytes = endKey.getBytes();
     byte[] keyBytes = key.getBytes();
-    // If the endKey is unspecified, add a leading 1 byte to it and a leading 0 byte to all other
-    // keys, to get a concrete least upper bound for the desired range.
-    if (endKey.isEmpty()) {
+    // If the end key is the infinite key, add a leading 0 byte to all other
+    // keys and use the byte array { 1 } as the end key to get a concrete least upper bound for the
+    // desired range.
+    if (ByteKey.INFINITE_KEY.equals(endKey)) {
       startBytes = addHeadByte(startBytes, (byte) 0);
-      endBytes = addHeadByte(endBytes, (byte) 1);
+      endBytes = new byte[] {1};
       keyBytes = addHeadByte(keyBytes, (byte) 0);
     }
 
@@ -215,11 +217,12 @@ public final class ByteKeyRange implements Serializable {
         fraction >= 0.0 && fraction < 1.0, "Fraction %s must be in the range [0, 1)", fraction);
     byte[] startBytes = startKey.getBytes();
     byte[] endBytes = endKey.getBytes();
-    // If the endKey is unspecified, add a leading 1 byte to it and a leading 0 byte to all other
-    // keys, to get a concrete least upper bound for the desired range.
-    if (endKey.isEmpty()) {
+    // If the end key is the infinite key, add a leading 0 byte to the start key
+    // key and treat the end key as the byte array { 1 } to get a concrete least upper bound for the
+    // desired range.
+    if (ByteKey.INFINITE_KEY.equals(endKey)) {
       startBytes = addHeadByte(startBytes, (byte) 0);
-      endBytes = addHeadByte(endBytes, (byte) 1);
+      endBytes = new byte[] {(byte) 1};
     }
 
     // Pad to the longest key.
@@ -249,7 +252,8 @@ public final class ByteKeyRange implements Serializable {
     BigInteger interpolatedOffset =
         new BigDecimal(range).multiply(BigDecimal.valueOf(fraction)).toBigInteger();
 
-    int outputKeyLength = endKey.isEmpty() ? (paddedKeyLength - 1) : paddedKeyLength;
+    int outputKeyLength =
+        ByteKey.INFINITE_KEY.equals(endKey) ? (paddedKeyLength - 1) : paddedKeyLength;
     return ByteKey.copyFrom(
         fixupHeadZeros(rangeStartInt.add(interpolatedOffset).toByteArray(), outputKeyLength));
   }
@@ -272,7 +276,7 @@ public final class ByteKeyRange implements Serializable {
     this.startKey = checkNotNull(startKey, "startKey");
     this.endKey = checkNotNull(endKey, "endKey");
     checkArgument(
-        endKey.isEmpty() || startKey.compareTo(endKey) <= 0,
+        startKey.compareTo(endKey) <= 0,
         "Start %s must be less than or equal to end %s",
         startKey,
         endKey);
@@ -349,7 +353,7 @@ public final class ByteKeyRange implements Serializable {
    * treated as larger than all possible {@link ByteKey keys}.
    */
   boolean endsAfterKey(ByteKey key) {
-    return endKey.isEmpty() || key.compareTo(endKey) < 0;
+    return key.compareTo(endKey) < 0;
   }
 
   /** Builds a BigInteger out of the specified array, padded to the desired byte length. */
