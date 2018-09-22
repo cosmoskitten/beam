@@ -156,7 +156,7 @@ task publishWebsite << {
     def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
     def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
     String message = "Publishing website ${currentDate} at commit ${latestCommit}"
-    args '-c', "cd $workingdir && git add website/generated-content && git commit --allow-empty  -am \"${message}\" && git push"
+    args '-c', "cd $workingdir && git add website/generated-content && git commit --allow-empty  -am \"${message}\" && git push origin asf-site"
   }
 }
 
