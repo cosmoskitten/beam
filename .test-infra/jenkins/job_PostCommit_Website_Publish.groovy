@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', 'Run Websi
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':beam-website:clean')
-      tasks(':beam-website:gitPublishPush')
+      tasks(':beam-website:publishWebsite')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

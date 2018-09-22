@@ -149,8 +149,20 @@ task gitCreateSymlink << {
   }
 }
 
+task publishWebsite << {
+  exec {
+    def workingdir = "${project.rootDir}/website/build/gitPublish"
+    executable 'sh'
+    def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+    def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+    String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+    args '-c', "cd $workingdir && git add website/generated-content && git commit --allow-empty  -am \"${message}\" && git push"
+  }
+}
+
 gitPublishReset.dependsOn gitSetup
 //gitPublishReset.dependsOn testWebsite
 gitPublishReset.dependsOn buildWebsite
 //gitCreateSymlink.dependsOn gitPublishReset
 //gitPublishCopy.dependsOn gitCreateSymlink
+publishWebsite.dependsOn gitPublishCopy
