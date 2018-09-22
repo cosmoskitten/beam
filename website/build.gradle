@@ -108,9 +108,6 @@ task preCommit {
 gitPublish {
   branch = 'asf-site'
   contents {
-    from('.') {
-      include 'contents'
-    }
     from("${buildDir}/generated-content/") {
       include 'index.html'
       into 'website/generated-content'
@@ -118,7 +115,6 @@ gitPublish {
   }
   preserve {
     include '**'
-    exclide 'contents'
     exclude 'website/generated-content/**'
     include 'website/generated-content/documentation/sdks/pydoc/**'
     include 'website/generated-content/documentation/sdks/javadoc/**'
@@ -137,5 +133,16 @@ task gitSetup << {
   }
 }
 
+task gitCreateSymlink << {
+  exec {
+    def workingdir = "${project.rootDir}/website/build/gitPublish"
+    executable 'sh'
+    args '-c', "cd $workingdir && ln -s website/generated-content content && git add content"
+  }
+}
+
 gitPublishReset.dependsOn gitSetup
 gitPublishReset.dependsOn testWebsite
+gitCreateSymlink.dependsOn gitPublishReset
+gitPublishCopy.dependsOn gitCreateSymlink
+

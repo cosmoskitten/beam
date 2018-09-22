@@ -28,7 +28,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', 'Run Websi
   description('Publish generated website content into asf-site branch for hosting.')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240, true, 'git-websites')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 30, true, 'git-websites')
 
   // Gradle goals for this job.
   steps {
