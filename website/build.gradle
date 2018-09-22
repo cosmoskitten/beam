@@ -128,9 +128,9 @@ gitPublish {
 
 task gitSetup << {
   def branch = grgit.branch.current.name
-  if (branch != 'mergeWebsite') {
-    throw new GradleException("Cannot publish from branch ${branch}, only from master")
-  }
+  //iif (branch != 'master') {
+  ///  throw new GradleException("Cannot publish from branch ${branch}, only from master")
+  //}
 }
 
 task gitCreateSymlink << {
