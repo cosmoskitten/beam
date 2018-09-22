@@ -99,41 +99,10 @@ task testWebsite(type: Exec) {
       bundle exec rake test"""
 }
 
-/**
- * Removed testWebsite from the Beam build dependency because it is broken and obsolete.
- * See https://issues.apache.org/jira/browse/BEAM-5367 for more info.
- */
-
-// check.dependsOn testWebsite
+check.dependsOn testWebsite
 
 task preCommit {
   dependsOn testWebsite
-}
-
-task mergeWebsite << {
-  /* Disabled for now, for testing
-  exec {
-    executable 'git'
-    args 'checkout', 'asf-site'
-  }
-  copy {
-    from contentBuildDir
-    into contentRepoDir
-  }
-  exec {
-    executable 'git'
-    args 'add', contentRepoDir
-  }
-  exec {
-    executable 'git'
-    args 'commit', '-m', 'Update website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
-  }
-  exec {
-    executable 'git'
-    args 'push', 'origin', 'asf-site'
-  }
-  */
-  println "Successful test of mergeWebsite"
 }
 
 gitPublish {
@@ -150,12 +119,16 @@ gitPublish {
     include 'website/generated-content/documentation/sdks/pydoc/**'
     include 'website/generated-content/documentation/sdks/javadoc/**'
   } 
-  commitMessage = 'Publishing website ' + new Date().format('yyyy/MM/dd HH:mm:ss')
+  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  println latestCommit
+  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+  commitMessage = message
 }
 
 task gitSetup << {
   def branch = grgit.branch.current.name
-  if (branch != 'mergeWebsite') {
+  if (branch != 'master') {
     throw new GradleException("Cannot publish from branch ${branch}, only from master")
   }
 }
