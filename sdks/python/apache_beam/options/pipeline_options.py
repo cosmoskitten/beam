@@ -685,6 +685,12 @@ class TestOptions(PipelineOptions):
         help='The time to wait (in milliseconds) for test pipeline to finish. '
              'If it is set to None, it will wait indefinitely until the job '
              'is finished.')
+    # This option is used by Dataflow Runner's Pub/Sub client. Its camelCase
+    # style matches the runner's.
+    parser.add_argument(
+        '--pubsubRootUrl',
+        default=None,
+        help='Root URL for use with the Google Cloud Pub/Sub API.')
 
   def validate(self, validator):
     errors = []
