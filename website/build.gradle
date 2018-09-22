@@ -143,5 +143,5 @@ task gitCreateSymlink << {
 gitPublishReset.dependsOn gitSetup
 //gitPublishReset.dependsOn testWebsite
 gitPublishReset.dependsOn buildWebsite
-gitCreateSymlink.dependsOn gitPublishReset
-gitPublishCopy.dependsOn gitCreateSymlink
+//gitCreateSymlink.dependsOn gitPublishReset
+//gitPublishCopy.dependsOn gitCreateSymlink
