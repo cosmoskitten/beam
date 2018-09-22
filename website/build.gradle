@@ -106,7 +106,7 @@ task preCommit {
 }
 
 gitPublish {
-  repoUri = 'git@github.com:apache/beam.git'
+ // repoUri = 'git@github.com:apache/beam.git'
   branch = 'asf-site'
   contents {
     from("${buildDir}/generated-content/") {
@@ -129,8 +129,12 @@ gitPublish {
 task gitSetup << {
   def branch = grgit.branch.current.name
   exec {
-    executable 'sh'
-    args '-c', 'ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts'
+    executable 'git'
+    args 'remote', '-v'
+  }
+  exec {
+    executable 'git'
+    args 'config', '-l'
   }
   //iif (branch != 'master') {
   ///  throw new GradleException("Cannot publish from branch ${branch}, only from master")
