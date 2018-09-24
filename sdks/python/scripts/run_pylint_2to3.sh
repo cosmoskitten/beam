@@ -47,17 +47,23 @@ if test $# -gt 0; then
   esac
 fi
 
-FUTURIZE_GREP_PARAM=$( IFS='|'; echo "${ids[*]}" )
+EXCLUDED_FROM_FUTURIZE_CHECK=(
+# Non-portable code runs only in Python 2.
+# https://github.com/apache/beam/blob/7b8786f84739f4f50c2491cb247b75459734b5ac/sdks/python/apache_beam/typehints/typehints.py#L343
+"apache_beam/typehints/typehints.py"
+)
+
+FUTURIZE_FILTER=$( IFS='|'; echo "${EXCLUDED_FROM_FUTURIZE_CHECK[*]}" )
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
-futurize_filtered=$(echo "$futurize_results" |grep -v "$FUTURIZE_GREP_PARAM" \
+futurize_filtered=$(echo "$futurize_results" | grep -Ev "$FUTURIZE_FILTER" \
   || echo "")
 count=${#futurize_filtered}
 if [ "$count" != "0" ]; then
   echo "Some of the changes require futurize stage 1 changes."
   echo "The files with required changes:"
   echo "$futurize_filtered"
-  echo "You can run futurize apache_beam to see the proposed changes."
+  echo "You can run futurize apache_beam --stage1 to see the proposed changes."
   exit 1
 fi
 echo "No future changes needed"
