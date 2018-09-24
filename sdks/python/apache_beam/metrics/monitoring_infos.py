@@ -241,6 +241,6 @@ def to_key(monitoring_info_proto):
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = monitoring_info_proto.labels.items()
+  key_items = monitoring_info_proto.labels.items() or []
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
