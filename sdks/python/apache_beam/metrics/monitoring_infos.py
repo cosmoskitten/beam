@@ -28,18 +28,18 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
+from apache_beam.portability import common_urns
 from apache_beam.portability.api.beam_fn_api_pb2 import CounterData
 from apache_beam.portability.api.beam_fn_api_pb2 import Metric
 from apache_beam.portability.api.beam_fn_api_pb2 import MonitoringInfo
-from apache_beam.portability import common_urns
 
-USER_COUNTER_URN_PREFIX = (
-    common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
 ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
 START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
 PROCESS_BUNDLE_MSECS_URN = common_urns.monitoring_infos.PROCESS_BUNDLE_MSECS.urn
 FINISH_BUNDLE_MSECS_URN = common_urns.monitoring_infos.FINISH_BUNDLE_MSECS.urn
 TOTAL_MSECS_URN = common_urns.monitoring_infos.TOTAL_MSECS.urn
+USER_COUNTER_URN_PREFIX = (
+    common_urns.monitoring_infos.USER_COUNTER_URN_PREFIX.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
