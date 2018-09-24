@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
+import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.decode;
+import static org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped.encode;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
@@ -46,6 +48,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -158,12 +162,12 @@ import org.slf4j.LoggerFactory;
  *     "Write", SpannerIO.write().withInstanceId("instance").withDatabaseId("database"));
  * }</pre>
  *
- * <p>The default maximum size of the batch is set to 1MB or 5000 mutated cells, to override this
+ * <p>The default maximum size of the batch is set to 1MB or 5000 mutated cells. To override this
  * use {@link Write#withBatchSizeBytes(long)} and {@link Write#withMaxNumMutations(long)}. Setting
- * batch size to a small value or zero practically disables batching. Note that the maximum size of
- * a single transaction is 20,000 mutated cells - including cells in indexes, so reduce the maximum
- * number of mutations if you have a large number of indexes and are getting exceptions with
- * message: <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt>
+ * batch size to a small value or zero disables batching. Note that the maximum size of a single
+ * transaction is 20,000 mutated cells - including cells in indexes, so reduce the maximum number of
+ * mutations if you have a large number of indexes and are getting exceptions with message:
+ * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt>
  *
  * <p>The write transform reads the database schema on pipeline start. If the schema is created as
  * part of the same pipline, this transform needs to wait until the schema has been created. Use
@@ -184,10 +188,21 @@ import org.slf4j.LoggerFactory;
  * SpannerIO.Write} transform, and call {@link Write#grouped()} method. It will return a
  * transformation that can be applied to a PCollection of MutationGroup.
  *
+ * <p>Build Note: SpannerIO.write() and SpannerIO.writeGrouped() both have a runtime dependency on:
+ *
+ * <ul>
+ *   <li>org.apache.hadoop:hadoop-common
+ *   <li>org.apache.hadoop:hadoop-mapreduce-client-core
+ * </ul>
+ *
+ * So these dependencies need to be included in the build. However Hadoop MapReduce is not actually
+ * used.
+ *
+ *
  * <h3>Streaming Support</h3>
  *
- * <p>{@link SpannerIO.Write} currently does not support unbounded writes hence should not be used
- * as a sink for streaming pipelines.
+ * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
+ * the write order of individual {@link MutationGroup} objects is not guaranteed.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
@@ -198,10 +213,6 @@ public class SpannerIO {
   private static final int DEFAULT_MAX_NUM_MUTATIONS = 5000;
   // Multiple of mutation size to use to gather and sort mutations
   private static final int DEFAULT_GROUPING_FACTOR = 1000;
-  // The maximum number of keys to fit in memory when computing approximate quantiles.
-  private static final long MAX_NUM_KEYS = (long) 1e6;
-  // TODO calculate number of samples based on the size of the input.
-  private static final int DEFAULT_NUM_SAMPLES = 1000;
 
   /**
    * Creates an uninitialized instance of {@link Read}. Before use, the {@link Read} must be
@@ -256,7 +267,6 @@ public class SpannerIO {
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setGroupingFactor(DEFAULT_GROUPING_FACTOR)
-        .setNumSamples(DEFAULT_NUM_SAMPLES)
         .setFailureMode(FailureMode.FAIL_FAST)
         .build();
   }
@@ -684,8 +694,6 @@ public class SpannerIO {
 
     abstract long getMaxNumMutations();
 
-    abstract int getNumSamples();
-
     abstract FailureMode getFailureMode();
 
     @Nullable
@@ -703,8 +711,6 @@ public class SpannerIO {
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
 
       abstract Builder setMaxNumMutations(long maxNumMutations);
-
-      abstract Builder setNumSamples(int numSamples);
 
       abstract Builder setFailureMode(FailureMode failureMode);
 
@@ -838,6 +844,8 @@ public class SpannerIO {
     private static final TupleTag<Void> MAIN_OUT_TAG = new TupleTag<Void>("mainOut") {};
     private static final TupleTag<MutationGroup> FAILED_MUTATIONS_TAG =
         new TupleTag<MutationGroup>("failedMutations") {};
+    private static final SerializableCoder<MutationGroup> CODER =
+        SerializableCoder.of(MutationGroup.class);
 
     public WriteGrouped(Write spec) {
       this.spec = spec;
@@ -861,7 +869,7 @@ public class SpannerIO {
               .apply("Schema View", View.asSingleton());
 
       // Split the mutations into batchable and unbatchable mutations.
-      // Filter out mutation groups too big to be batched
+      // Filter out mutation groups too big to be batched.
       PCollectionTuple filteredMutations =
           input
               .apply("To Global Window", Window.into(new GlobalWindows()))
@@ -902,7 +910,7 @@ public class SpannerIO {
       PCollectionTuple result =
           PCollectionList.of(filteredMutations.get(UNBATCHABLE_MUTATIONS_TAG))
               .and(batchedMutations)
-              .apply("Flatten", Flatten.pCollections())
+              .apply("Merge", Flatten.pCollections())
               .apply(
                   "Write mutations to Spanner",
                   ParDo.of(
@@ -915,6 +923,27 @@ public class SpannerIO {
           result.get(MAIN_OUT_TAG),
           result.get(FAILED_MUTATIONS_TAG),
           FAILED_MUTATIONS_TAG);
+    }
+
+    @VisibleForTesting
+    static MutationGroup decode(byte[] bytes) {
+      ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+      try {
+        return CODER.decode(bis);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @VisibleForTesting
+    static byte[] encode(MutationGroup g) {
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      try {
+        CODER.encode(g, bos);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return bos.toByteArray();
     }
   }
 
@@ -929,6 +958,10 @@ public class SpannerIO {
   /**
    * Gathers a set of mutations together, gets the keys, encodes them to byte[], sorts them and then
    * outputs the encoded sorted list.
+   *
+   * <p>Testing notes: With very small amounts of data, each mutation group is in a separate bundle,
+   * and as batching and sorting is over the bundle, this effectively means that no batching will
+   * occur, Therefore this DoFn has to be tested in isolation.
    */
   @VisibleForTesting
   static class GatherBundleAndSortFn extends DoFn<MutationGroup, Iterable<KV<byte[], byte[]>>> {
@@ -941,12 +974,10 @@ public class SpannerIO {
     private long batchCells;
 
     private final PCollectionView<SpannerSchema> schemaView;
-    private static final SerializableCoder<MutationGroup> CODER =
-        SerializableCoder.of(MutationGroup.class);
 
     private transient BufferedExternalSorter sorter = null;
 
-    private GatherBundleAndSortFn(
+    GatherBundleAndSortFn(
         long maxBatchSizeBytes,
         long maxNumMutations,
         long groupingFactor,
@@ -1002,16 +1033,6 @@ public class SpannerIO {
       batchSizeBytes += groupSize;
       batchCells += groupCells;
     }
-
-    private static byte[] encode(MutationGroup g) {
-      ByteArrayOutputStream bos = new ByteArrayOutputStream();
-      try {
-        CODER.encode(g, bos);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      return bos.toByteArray();
-    }
   }
 
   /** Batches mutations together. */
@@ -1021,8 +1042,6 @@ public class SpannerIO {
     private final long maxBatchSizeBytes;
     private final long maxNumMutations;
     private final PCollectionView<SpannerSchema> schemaView;
-    private static final SerializableCoder<MutationGroup> CODER =
-        SerializableCoder.of(MutationGroup.class);
 
     // Current batch of mutations to be written.
     private transient ImmutableList.Builder<MutationGroup> batch;
@@ -1031,7 +1050,7 @@ public class SpannerIO {
     // total number of mutated cells including indices.
     private transient long batchCells;
 
-    private BatchFn(
+    BatchFn(
         long maxBatchSizeBytes, long maxNumMutations, PCollectionView<SpannerSchema> schemaView) {
       this.maxBatchSizeBytes = maxBatchSizeBytes;
       this.maxNumMutations = maxNumMutations;
@@ -1076,29 +1095,28 @@ public class SpannerIO {
         c.output(mutations);
       }
     }
-
-    private static MutationGroup decode(byte[] bytes) {
-      ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-      try {
-        return CODER.decode(bis);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 
   /**
    * Filters MutationGroups larger than the batch size to the output tagged with {@code
    * UNBATCHABLE_MUTATIONS_TAG}.
+   *
+   * <p>Testing notes: As batching does not occur during full pipline testing, this DoFn must be
+   * tested in isolation.
    */
-  private static class BatchableMutationFilterFn extends DoFn<MutationGroup, MutationGroup> {
+  @VisibleForTesting
+  static class BatchableMutationFilterFn extends DoFn<MutationGroup, MutationGroup> {
 
     private final PCollectionView<SpannerSchema> schemaView;
     private final TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag;
     private final long batchSizeBytes;
     private final long maxNumMutations;
+    private final Counter batchableMutationGroupsCounter =
+        Metrics.counter(WriteGrouped.class, "batchable_mutation_groups");
+    private final Counter unBatchableMutationGroupsCounter =
+        Metrics.counter(WriteGrouped.class, "unbatchable_mutation_groups");
 
-    private BatchableMutationFilterFn(
+    BatchableMutationFilterFn(
         PCollectionView<SpannerSchema> schemaView,
         TupleTag<Iterable<MutationGroup>> unbatchableMutationsTag,
         long batchSizeBytes,
@@ -1115,6 +1133,7 @@ public class SpannerIO {
       if (mg.primary().getOperation() == Op.DELETE && !isPointDelete(mg.primary())) {
         // Ranged deletes are not batchable.
         c.output(unbatchableMutationsTag, Arrays.asList(mg));
+        unBatchableMutationGroupsCounter.inc();
         return;
       }
 
@@ -1124,8 +1143,10 @@ public class SpannerIO {
 
       if (groupSize >= batchSizeBytes || groupCells >= maxNumMutations) {
         c.output(unbatchableMutationsTag, Arrays.asList(mg));
+        unBatchableMutationGroupsCounter.inc();
       } else {
         c.output(mg);
+        batchableMutationGroupsCounter.inc();
       }
     }
   }
@@ -1135,6 +1156,12 @@ public class SpannerIO {
     private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
+    private final Counter mutationGroupBatchesCounter =
+        Metrics.counter(WriteGrouped.class, "mutation_group_batches");
+    private final Counter mutationGroupWriteSuccessCounter =
+        Metrics.counter(WriteGrouped.class, "mutation_groups_write_success");
+    private final Counter mutationGroupWriteFailCounter =
+        Metrics.counter(WriteGrouped.class, "mutation_groups_write_fail");
 
     private final TupleTag<MutationGroup> failedTag;
 
@@ -1161,8 +1188,11 @@ public class SpannerIO {
       boolean tryIndividual = false;
       // Batch upsert rows.
       try {
+        mutationGroupBatchesCounter.inc();
         Iterable<Mutation> batch = Iterables.concat(mutations);
         spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+        mutationGroupWriteSuccessCounter.inc(Iterables.size(mutations));
+        return;
       } catch (SpannerException e) {
         if (failureMode == FailureMode.REPORT_FAILURES) {
           tryIndividual = true;
@@ -1176,8 +1206,10 @@ public class SpannerIO {
         for (MutationGroup mg : mutations) {
           try {
             spannerAccessor.getDatabaseClient().writeAtLeastOnce(mg);
+            mutationGroupWriteSuccessCounter.inc();
           } catch (SpannerException e) {
-            LOG.warn("Failed to submit the mutation group: "+mg, e);
+            mutationGroupWriteFailCounter.inc();
+            LOG.warn("Failed to write the mutation group: " + mg, e);
             c.output(failedTag, mg);
           }
         }
