@@ -21,9 +21,9 @@ from __future__ import absolute_import
 
 from builtins import object
 
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
-from apache_beam.portability.api import beam_fn_api_pb2
 
 
 class PropertiesFromEnumValue(object):
