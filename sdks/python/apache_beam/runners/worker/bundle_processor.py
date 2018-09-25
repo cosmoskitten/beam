@@ -436,7 +436,6 @@ class BundleProcessor(object):
         all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
     return all_monitoring_infos_dict.values()
 
-  # TODO, bug is here???
   def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
     actual_output_tags = list(
         self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
