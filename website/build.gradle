@@ -107,7 +107,7 @@ task preCommit {
 task gitCreateSymlink << {
 }
 
-task publishWebsite << {
+task commitWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
@@ -115,12 +115,12 @@ task publishWebsite << {
     from(buildDir + '/index.html')
     into(repoContentDir)
   }
-  git.add(repoContentDir).toString())
+  git.add(repoContentDir.toString())
   exec {
     executable 'sh'
     args '-c', "cd ${project.rootDir} && ln -s website/generated-content content && git add content"
   }
-  git.add("${project.rootDir/content".toString())
+  git.add("${project.rootDir}/content".toString())
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
