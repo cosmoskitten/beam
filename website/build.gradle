@@ -121,6 +121,7 @@ task commitWebsite << {
     include 'index.html'
     into repoContentDir
   }
+  assert file("${repoContentDir}/index.html").exists()
   git.add(patterns: [repoContentDir])
 
   // TODO Delete adding symlink
