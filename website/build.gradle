@@ -20,7 +20,6 @@
 apply plugin: "base"
 
 // Publish website to asf-git branch.
-apply plugin: 'org.ajoberstar.git-publish'
 apply plugin: 'org.ajoberstar.grgit'
 
 def dockerImageTag = 'beam-website'
@@ -105,64 +104,26 @@ task preCommit {
   dependsOn testWebsite
 }
 
-gitPublish {
- // repoUri = 'git@github.com:apache/beam.git'
-  branch = 'asf-site'
-  contents {
-    from("${buildDir}/generated-content/") {
-      include 'index.html'
-      into 'website/generated-content'
-    }
-  }
-  preserve {
-    include '**'
-    exclude 'website/generated-content/**'
-    include 'website/generated-content/documentation/sdks/pydoc/**'
-    include 'website/generated-content/documentation/sdks/javadoc/**'
-  } 
-  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
-  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
-  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
-  commitMessage = message
-}
-
-task gitSetup << {
-  def branch = grgit.branch.current.name
-  exec {
-    executable 'git'
-    args 'remote', '-v'
-  }
-  exec {
-    executable 'git'
-    args 'config', '-l'
-  }
-  //iif (branch != 'master') {
-  ///  throw new GradleException("Cannot publish from branch ${branch}, only from master")
-  //}
-}
-
 task gitCreateSymlink << {
-  exec {
-    def workingdir = "${project.rootDir}/website/build/gitPublish"
-    executable 'sh'
-    args '-c', "cd $workingdir && ln -s website/generated-content content && git add content"
-  }
 }
 
 task publishWebsite << {
-  exec {
-    def workingdir = "${project.rootDir}/website/build/gitPublish"
-    executable 'sh'
-    def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
-    def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
-    String message = "Publishing website ${currentDate} at commit ${latestCommit}"
-    args '-c', "cd $workingdir && git add website/generated-content && git commit --allow-empty  -am \"${message}\" && git push origin asf-site"
+  git = grgit.open()
+  git.checkout(branch: 'asf-site')
+  git.remove(patterns: [ repoContentDir ])
+  copy {
+    from(buildDir + '/index.html')
+    into(repoContentDir)
   }
+  git.add(repoContentDir)
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && ln -s website/generated-content content && git add content"
+  }
+  def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
+  String message = "Publishing website ${currentDate} at commit ${latestCommit}"
+  git.commit(messsage: messsage)
 }
 
-gitPublishReset.dependsOn gitSetup
-//gitPublishReset.dependsOn testWebsite
-gitPublishReset.dependsOn buildWebsite
-//gitCreateSymlink.dependsOn gitPublishReset
-//gitPublishCopy.dependsOn gitCreateSymlink
-publishWebsite.dependsOn gitPublishCopy
+publishWebsite.dependsOn buildWebsite
