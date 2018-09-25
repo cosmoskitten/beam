@@ -124,7 +124,7 @@ task commitWebsite << {
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
-  git.commit(messsage: messsage)
+  git.commit(message: message)
 }
 
 //publishWebsite.dependsOn buildWebsite
