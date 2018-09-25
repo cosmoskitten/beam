@@ -188,7 +188,7 @@ class Operation(object):
           monitoring_infos.ELEMENT_COUNT_URN,
           self.receivers[0].opcounter.element_counter.value(),
           ptransform=transform_id,
-          tag='ONLY_OUTPUT',
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
       return {monitoring_infos.to_key(mi) : mi}
     return {}

@@ -497,10 +497,13 @@ class FnApiRunnerTest(unittest.TestCase):
             1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
             (found, (urn, labels, value_str, ge_value_str),))
 
+      # TODO, this breaks in a specific version of python
+      # Fix by checking for the prefix.
       # pregbk_mis
       labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'None'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
+      #################33
       labels = {'PTRANSFORM' : 'Map(sleep)'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
