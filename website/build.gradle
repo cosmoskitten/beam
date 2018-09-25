@@ -138,4 +138,12 @@ task commitWebsite << {
   git.commit(message: message)
 }
 
-//publishWebsite.dependsOn buildWebsite
+task publishWebsite << {
+  def git = grgit.open()
+  git.checkout(branch: 'asf-site')
+  git.push()
+  git.checkout(branch: 'mergeWebsite')
+}
+
+commitWebsite.dependsOn buildWebsite
+publishWebsite.dependsOn commitWebsite
