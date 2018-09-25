@@ -112,7 +112,7 @@ task commitWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
-  rmdir(repoContentDir)
+  delete(repoContentDir)
   mkdir(repoContentDir)
   copy {
     // TODO: Not just index.html
