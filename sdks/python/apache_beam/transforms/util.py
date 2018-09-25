@@ -270,23 +270,9 @@ class _BatchSizeEstimator(object):
         self._thin_data()
 
   def _thin_data(self):
-    sorted_data = sorted(self._data)
-    odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
-
-    # Sort the pairs by how different they are (in batch size).
-    def uniqueness(adjacent_data):
-      (batch_size, _), (next_batch_size, _) = adjacent_data
-      return float(next_batch_size) / batch_size
-
-    pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=uniqueness)
-    # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
-    threshold = 2 * len(pairs) // 3
-    self._data = (
-        list(sum(pairs[threshold:], ()))
-        + [((x1 + x2) / 2.0, (t1 + t2) / 2.0)
-           for (x1, t1), (x2, t2) in pairs[:threshold]]
-        + odd_one_out)
+    # Make sure we don't change the parity of len(self._data).
+    self._data.pop(random.randrange(len(self._data) // 4))
+    self._data.pop(random.randrange(len(self._data) // 2))
 
   @staticmethod
   def linear_regression_no_numpy(xs, ys):
