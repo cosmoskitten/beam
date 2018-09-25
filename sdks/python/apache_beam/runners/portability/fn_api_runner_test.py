@@ -272,12 +272,11 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       actual = (
           p
-          | beam.Create([('k', 10), ('k', 100)])
-          | beam.Map(lambda x: object() and x)
+          | beam.Create([('k1', 10), ('k2', 100)])
           | beam.ParDo(TimerDoFn())
           | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
 
-      expected = [('fired', ts) for ts in (10, 20, 100, 200)]
+      expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
   def test_group_by_key(self):

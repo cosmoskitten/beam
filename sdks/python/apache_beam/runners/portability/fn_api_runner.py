@@ -55,6 +55,7 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -252,7 +253,7 @@ class FnApiRunner(runner.PipelineRunner):
         self.transforms = transforms
         self.downstream_side_inputs = downstream_side_inputs
         self.must_follow = must_follow
-        self.timers = []
+        self.timer_pcollections = []
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -856,23 +857,55 @@ class FnApiRunner(runner.PipelineRunner):
             payload = proto_utils.parse_Bytes(
                 transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             for tag in payload.timer_specs.keys():
+              input_pcoll = pipeline_components.pcollections[
+                  next(iter(transform.inputs.values()))]
+              # Create the appropriate coder for the timer PCollection.
+              void_coder_id = add_or_get_coder_id(
+                  beam.coders.SingletonCoder(None).to_runner_api(None))
+              timer_coder_id = add_or_get_coder_id(
+                  beam_runner_api_pb2.Coder(
+                    spec=beam_runner_api_pb2.SdkFunctionSpec(
+                        spec=beam_runner_api_pb2.FunctionSpec(
+                            urn=common_urns.coders.TIMER.urn)),
+                    component_coder_ids=[void_coder_id]))
+              key_coder_id = input_pcoll.coder_id
+              if (pipeline_components.coders[key_coder_id].spec.spec.urn
+                  == common_urns.coders.WINDOWED_VALUE.urn):
+                key_coder_id = pipeline_components.coders[
+                    key_coder_id].component_coder_ids[0]
+              if (pipeline_components.coders[key_coder_id].spec.spec.urn
+                  == common_urns.coders.KV.urn):
+                key_coder_id = pipeline_components.coders[
+                    key_coder_id].component_coder_ids[0]
+              key_timer_coder_id = add_or_get_coder_id(
+                  beam_runner_api_pb2.Coder(
+                    spec=beam_runner_api_pb2.SdkFunctionSpec(
+                        spec=beam_runner_api_pb2.FunctionSpec(
+                            urn=common_urns.coders.KV.urn)),
+                    component_coder_ids=[key_coder_id, timer_coder_id]))
+              timer_pcoll_coder_id = windowed_coder_id(
+                  key_timer_coder_id,
+                  pipeline_components.windowing_strategies[
+                      input_pcoll.windowing_strategy_id].window_coder_id)
+              # Inject the read and write pcollections.
               timer_read_pcoll = unique_name(
                   pipeline_components.pcollections,
                   '%s_timers_to_read_%s' % (transform.unique_name, tag))
               timer_write_pcoll = unique_name(
                   pipeline_components.pcollections,
                   '%s_timers_to_write_%s' % (transform.unique_name, tag))
-              input_pcoll = pipeline_components.pcollections[
-                  next(iter(transform.inputs.values()))]
               pipeline_components.pcollections[timer_read_pcoll].CopyFrom(
-                  input_pcoll)
-              pipeline_components.pcollections[
-                  timer_read_pcoll].unique_name = timer_read_pcoll
-              pipeline_components.pcollections[
-                  timer_write_pcoll].CopyFrom(
-                      input_pcoll)
-              pipeline_components.pcollections[
-                  timer_write_pcoll].unique_name = timer_write_pcoll
+                  beam_runner_api_pb2.PCollection(
+                      unique_name=timer_read_pcoll,
+                      coder_id=timer_pcoll_coder_id,
+                      windowing_strategy_id=input_pcoll.windowing_strategy_id,
+                      is_bounded=input_pcoll.is_bounded))
+              pipeline_components.pcollections[timer_write_pcoll].CopyFrom(
+                  beam_runner_api_pb2.PCollection(
+                      unique_name=timer_write_pcoll,
+                      coder_id=timer_pcoll_coder_id,
+                      windowing_strategy_id=input_pcoll.windowing_strategy_id,
+                      is_bounded=input_pcoll.is_bounded))
               stage.transforms.append(
                   beam_runner_api_pb2.PTransform(
                       unique_name=timer_read_pcoll + '/Read',
@@ -891,7 +924,7 @@ class FnApiRunner(runner.PipelineRunner):
               transform.inputs[tag] = timer_read_pcoll
               assert tag not in transform.outputs
               transform.outputs[tag] = timer_write_pcoll
-              stage.timers.append(
+              stage.timer_pcollections.append(
                   (timer_read_pcoll + '/Read', timer_write_pcoll))
         yield stage
 
@@ -1096,10 +1129,28 @@ class FnApiRunner(runner.PipelineRunner):
 
     while True:
       timer_inputs = {}
-      for transform_id, timer_writes in stage.timers:
+      for transform_id, timer_writes in stage.timer_pcollections:
+        windowed_timer_coder_impl = context.coders[
+            pipeline_components.pcollections[timer_writes].coder_id].get_impl()
         written_timers = get_buffer(b'timers:' + timer_writes)
         if written_timers:
-          timer_inputs[transform_id, 'out'] = list(written_timers)
+          # Keep only the "last" timer set per key and window.
+          timers_by_key_and_window = {}
+          for elements_data in written_timers:
+            input_stream = create_InputStream(elements_data)
+            while input_stream.size() > 0:
+              windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
+                  input_stream, True)
+              key, timer = windowed_key_timer.value
+              # TODO: Explode and merge windows.
+              assert len(windowed_key_timer.windows) == 1
+              timers_by_key_and_window[key, windowed_key_timer.windows[0]
+                  ] = windowed_key_timer
+          out = create_OutputStream()
+          for windowed_key_timer in timers_by_key_and_window.values():
+            windowed_timer_coder_impl.encode_to_stream(
+                windowed_key_timer, out, True)
+          timer_inputs[transform_id, 'out'] = [out.get()]
           written_timers[:] = []
       if timer_inputs:
         # The worker will be waiting on these inputs as well.

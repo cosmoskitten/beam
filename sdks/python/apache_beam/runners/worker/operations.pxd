@@ -82,7 +82,7 @@ cdef class DoOperation(Operation):
   cdef object tagged_receivers
   cdef object side_input_maps
   cdef object user_state_context
-  cdef dict timer_inputs
+  cdef public dict timer_inputs
   cdef dict timer_specs
 
 

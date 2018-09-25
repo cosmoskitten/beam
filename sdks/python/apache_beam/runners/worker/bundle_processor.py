@@ -551,7 +551,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
   if (len(output_consumers) == 1
       and isinstance(only_element(output_consumers), operations.DoOperation)):
     do_op = only_element(output_consumers)
-    for tag, (pcoll_id, unused_spec) in do_op.timer_inputs.items():
+    for tag, pcoll_id in do_op.timer_inputs.items():
       if pcoll_id == output_pcoll:
         output_consumers[:] = [TimerConsumer(tag, do_op)]
         break
@@ -708,7 +708,7 @@ def _create_pardo_operation(
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
       if tag in pardo_proto.timer_specs:
-        timer_inputs[tag] = pcoll_id, pardo_proto.timer_specs[tag]
+        timer_inputs[tag] = pcoll_id
       elif tag in pardo_proto.side_inputs:
         pass
       else:
