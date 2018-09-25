@@ -75,7 +75,7 @@ task buildWebsite(type: Exec) {
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir $buildContentDir
+  outputs.dir buildContentDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -92,7 +92,7 @@ task testWebsite(type: Exec) {
   finalizedBy stopAndRemoveDockerContainer
 
   inputs.files "$buildDir/Rakefile"
-  inputs.dir $buildContentDir
+  inputs.dir buildContentDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -113,15 +113,19 @@ task commitWebsite << {
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
   copy {
-    from(buildDir + '/index.html')
+    // TODO: Not just index.html
+    from("{buildContentDir}/index.html")
     into(repoContentDir)
   }
   git.add(patterns: [repoContentDir])
+
+  // TODO Delete adding symlink
   exec {
     executable 'sh'
     args '-c', "cd ${project.rootDir} && ln -s website/generated-content content && git add content"
   }
   git.add(patterns: ["${project.rootDir}/content"])
+
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
