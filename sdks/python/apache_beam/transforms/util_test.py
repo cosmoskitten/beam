@@ -147,7 +147,7 @@ class BatchElementsTest(unittest.TestCase):
     self.assertLess(
         max(stable_set), expected_target + expected_target * variance)
 
-  def run_regression_test(self, linear_regression_fn, test_outliers):
+  def _run_regression_test(self, linear_regression_fn, test_outliers):
     xs = [random.random() for _ in range(10)]
     ys = [2*x + 1 for x in xs]
     a, b = linear_regression_fn(xs, ys)
@@ -183,7 +183,7 @@ class BatchElementsTest(unittest.TestCase):
       self.assertAlmostEqual(b, 3, delta=0.01)
 
   def test_no_numpy_regression(self):
-    self.run_regression_test(
+    self._run_regression_test(
         util._BatchSizeEstimator.linear_regression_no_numpy, False)
 
   def test_numpy_regression(self):
@@ -192,7 +192,7 @@ class BatchElementsTest(unittest.TestCase):
       import numpy as _
     except ImportError:
       self.skipTest('numpy not available')
-    self.run_regression_test(
+    self._run_regression_test(
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
 
