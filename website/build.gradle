@@ -115,12 +115,12 @@ task commitWebsite << {
     from(buildDir + '/index.html')
     into(repoContentDir)
   }
-  git.add(repoContentDir.toString())
+  git.add(patterns: [repoContentDir])
   exec {
     executable 'sh'
     args '-c', "cd ${project.rootDir} && ln -s website/generated-content content && git add content"
   }
-  git.add("${project.rootDir}/content".toString())
+  git.add(patterns: ["${project.rootDir}/content"])
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
