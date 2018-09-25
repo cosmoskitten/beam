@@ -56,9 +56,13 @@ EXCLUDED_FROM_FUTURIZE_CHECK=(
 FUTURIZE_FILTER=$( IFS='|'; echo "${EXCLUDED_FROM_FUTURIZE_CHECK[*]}" )
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
-futurize_filtered=$(echo "$futurize_results" | grep -Ev "$FUTURIZE_FILTER" \
+if [ -n "$FUTURIZE_FILTER" ]; then
+  futurize_filtered=$(echo "$futurize_results" | grep -Ev "$FUTURIZE_FILTER" \
   || echo "")
-count=${#futurize_filtered}
+  count=${#futurize_filtered}
+else
+  count=${#futurize_results}
+fi
 if [ "$count" != "0" ]; then
   echo "Some of the changes require futurize stage 1 changes."
   echo "The files with required changes:"
