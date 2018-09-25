@@ -25,7 +25,7 @@ apply plugin: 'org.ajoberstar.grgit'
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
 def buildDir = "${project.rootDir}/build/website"
-def buildContentDir = "${project.rootDir}/build/generated-content"
+def buildContentDir = "${project.rootDir}/build/website/generated-content"
 def repoContentDir = "${project.rootDir}/website/generated-content"
 
 task buildDockerImage(type: Exec) {
