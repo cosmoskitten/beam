@@ -122,14 +122,14 @@ task commitWebsite << {
     into repoContentDir
   }
   assert file("${repoContentDir}/index.html").exists()
-  git.add(patterns: [repoContentDir])
+  git.add(patterns: ['website/generated-content'])
 
   // TODO Delete adding symlink
   exec {
     executable 'sh'
     args '-c', "cd ${project.rootDir} && rm -r content && ln -s website/generated-content content && git add content"
   }
-  git.add(patterns: ["${project.rootDir}/content"])
+  git.add(patterns: ['content'])
 
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
   def currentDate = new Date().format('yyyy/MM/dd HH:mm:ss')
