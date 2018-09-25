@@ -152,6 +152,9 @@ rat {
     // Ignore ownership files
     "ownership/**/*",
     "**/OWNERS",
+
+    // Json doesn't support comments.
+    "**/*.json",
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -211,8 +214,6 @@ task goPreCommit() {
   dependsOn ":beam-sdks-java-container:build"
   dependsOn ":beam-sdks-python-container:build"
   dependsOn ":beam-sdks-go-container:build"
-  dependsOn ":beam-runners-gcp-gcemd:build"
-  dependsOn ":beam-runners-gcp-gcsproxy:build"
 }
 
 task goPostCommit() {

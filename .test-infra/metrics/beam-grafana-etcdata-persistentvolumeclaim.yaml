@@ -1,4 +1,4 @@
-###############################################################################
+################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -14,17 +14,19 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 # limitations under the License.
-###############################################################################
+################################################################################
 
-FROM debian:stretch
-MAINTAINER "Apache Beam <dev@beam.apache.org>"
-
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        ca-certificates \
-        && \
-    rm -rf /var/lib/apt/lists/*
-
-ADD target/linux_amd64/gcsproxy /opt/apache/beam/
-
-ENTRYPOINT ["/opt/apache/beam/gcsproxy"]
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: beam-grafana-etcdata
+  name: beam-grafana-etcdata
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+status: {}
