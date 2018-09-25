@@ -108,7 +108,7 @@ task gitCreateSymlink << {
 }
 
 task publishWebsite << {
-  git = grgit.open()
+  def git = grgit.open()
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
   copy {
@@ -126,4 +126,4 @@ task publishWebsite << {
   git.commit(messsage: messsage)
 }
 
-publishWebsite.dependsOn buildWebsite
+//publishWebsite.dependsOn buildWebsite
