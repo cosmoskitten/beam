@@ -125,9 +125,10 @@ task commitWebsite << {
   git.add(patterns: ['website/generated-content'])
 
   // TODO Delete adding symlink
+  delete("${project.rootDir}/content")
   exec {
     executable 'sh'
-    args '-c', "cd ${project.rootDir} && rm -r content && ln -s website/generated-content content && git add content"
+    args '-c', "cd ${project.rootDir} && ln -s website/generated-content content"
   }
   git.add(patterns: ['content'])
 
