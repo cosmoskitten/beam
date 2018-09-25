@@ -55,7 +55,6 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
-from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -864,10 +863,10 @@ class FnApiRunner(runner.PipelineRunner):
                   beam.coders.SingletonCoder(None).to_runner_api(None))
               timer_coder_id = add_or_get_coder_id(
                   beam_runner_api_pb2.Coder(
-                    spec=beam_runner_api_pb2.SdkFunctionSpec(
-                        spec=beam_runner_api_pb2.FunctionSpec(
-                            urn=common_urns.coders.TIMER.urn)),
-                    component_coder_ids=[void_coder_id]))
+                      spec=beam_runner_api_pb2.SdkFunctionSpec(
+                          spec=beam_runner_api_pb2.FunctionSpec(
+                              urn=common_urns.coders.TIMER.urn)),
+                      component_coder_ids=[void_coder_id]))
               key_coder_id = input_pcoll.coder_id
               if (pipeline_components.coders[key_coder_id].spec.spec.urn
                   == common_urns.coders.WINDOWED_VALUE.urn):
@@ -879,10 +878,10 @@ class FnApiRunner(runner.PipelineRunner):
                     key_coder_id].component_coder_ids[0]
               key_timer_coder_id = add_or_get_coder_id(
                   beam_runner_api_pb2.Coder(
-                    spec=beam_runner_api_pb2.SdkFunctionSpec(
-                        spec=beam_runner_api_pb2.FunctionSpec(
-                            urn=common_urns.coders.KV.urn)),
-                    component_coder_ids=[key_coder_id, timer_coder_id]))
+                      spec=beam_runner_api_pb2.SdkFunctionSpec(
+                          spec=beam_runner_api_pb2.FunctionSpec(
+                              urn=common_urns.coders.KV.urn)),
+                      component_coder_ids=[key_coder_id, timer_coder_id]))
               timer_pcoll_coder_id = windowed_coder_id(
                   key_timer_coder_id,
                   pipeline_components.windowing_strategies[
@@ -1096,7 +1095,8 @@ class FnApiRunner(runner.PipelineRunner):
         controller.state_handler.blocking_append(state_key, elements_data)
 
     def get_buffer(pcoll_id):
-      if pcoll_id.startswith(b'materialize:') or pcoll_id.startswith(b'timers:'):
+      if (pcoll_id.startswith(b'materialize:')
+          or pcoll_id.startswith(b'timers:')):
         if pcoll_id not in pcoll_buffers:
           # Just store the data chunks for replay.
           pcoll_buffers[pcoll_id] = list()
@@ -1141,11 +1141,11 @@ class FnApiRunner(runner.PipelineRunner):
             while input_stream.size() > 0:
               windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
                   input_stream, True)
-              key, timer = windowed_key_timer.value
+              key, _ = windowed_key_timer.value
               # TODO: Explode and merge windows.
               assert len(windowed_key_timer.windows) == 1
-              timers_by_key_and_window[key, windowed_key_timer.windows[0]
-                  ] = windowed_key_timer
+              timers_by_key_and_window[
+                  key, windowed_key_timer.windows[0]] = windowed_key_timer
           out = create_OutputStream()
           for windowed_key_timer in timers_by_key_and_window.values():
             windowed_timer_coder_impl.encode_to_stream(

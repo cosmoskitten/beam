@@ -437,7 +437,7 @@ class _TimerCoder(FastCoder):
 
   For internal use."""
   def __init__(self, payload_coder):
-      self._payload_coder = payload_coder
+    self._payload_coder = payload_coder
 
   def _get_component_coders(self):
     return [self._payload_coder]

@@ -447,7 +447,8 @@ class TimerCoderImpl(StreamCoderImpl):
 
   def decode_from_stream(self, in_stream, nested):
     return dict(
-        timestamp=self._timestamp_coder_impl.decode_from_stream(in_stream, True),
+        timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
         payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
 
 

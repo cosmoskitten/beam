@@ -84,7 +84,7 @@ class StandardCodersTest(unittest.TestCase):
               value_parser(x['value']), x['timestamp'] * 1000,
               tuple([window_parser(w) for w in x['windows']])),
       'beam:coder:timer:v1':
-          lambda x, payload_parser: logging.warn((x, Timestamp(micros=x['timestamp']))) or dict(
+          lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
               timestamp=Timestamp(micros=x['timestamp'])),
   }
