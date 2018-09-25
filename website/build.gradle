@@ -109,6 +109,7 @@ task gitCreateSymlink << {
 }
 
 task commitWebsite << {
+  assert file("${buildContentDir}/index.html").exists()
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
@@ -116,8 +117,9 @@ task commitWebsite << {
   mkdir(repoContentDir)
   copy {
     // TODO: Not just index.html
-    from("${buildContentDir}/index.html")
-    into(repoContentDir)
+    from buildContentDir
+    include 'index.html'
+    into repoContentDir
   }
   git.add(patterns: [repoContentDir])
 
