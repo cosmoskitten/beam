@@ -25,7 +25,6 @@ class VersionComparerTest(unittest.TestCase):
   def setUp(self):
     print("\n\nTest : " + self._testMethodName)
 
-
   def test_compare_major_verison_true(self):
     curr_ver = '1.0.0'
     latest_ver = '2.0.0'
@@ -44,6 +43,11 @@ class VersionComparerTest(unittest.TestCase):
   def test_compare_minor_version_false(self):
     curr_ver = '1.0.0'
     latest_ver = '1.2.0'
+    self.assertFalse(version_comparer.compare_dependency_versions(curr_ver, latest_ver))
+
+  def test_compare_same_version_false(self):
+    curr_ver = '1.0.0'
+    latest_ver = '1.0.0'
     self.assertFalse(version_comparer.compare_dependency_versions(curr_ver, latest_ver))
 
 if __name__ == '__main__':

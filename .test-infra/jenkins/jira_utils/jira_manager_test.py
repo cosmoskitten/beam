@@ -22,6 +22,8 @@ from mock import patch, mock_open, Mock
 from jira_manager import JiraManager
 from datetime import datetime
 
+MOCKED_DEP_CURRENT_VERSION = '0.1.0'
+MOCKED_DEP_LATEST_VERSION = '1.0.0'
 
 class MockedJiraIssue:
   def __init__(self, key, summary, description, status):
@@ -67,10 +69,13 @@ class JiraManagerTest(unittest.TestCase):
                   """
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       manager = JiraManager('url', 'username', 'password', owners_yaml)
-      manager.run('dep0', '1.0', 'Python')
+      manager.run('dep0',
+                  MOCKED_DEP_CURRENT_VERSION,
+                  MOCKED_DEP_LATEST_VERSION,
+                  'Python')
       manager.jira.create_issue.assert_called_once_with(self._get_experct_summary('dep0'),
                                                         ['dependencies'],
-                                                        self._get_expected_description('dep0', '1.0', ['owner0', 'owner1', 'owner2']),
+                                                        self._get_expected_description('dep0', MOCKED_DEP_LATEST_VERSION, ['owner0', 'owner1', 'owner2']),
                                                         )
 
 
@@ -81,20 +86,22 @@ class JiraManagerTest(unittest.TestCase):
     Expect: jira.update_issue is called once.
     """
     dep_name = 'dep0'
-    dep_latest_version = '1.0'
     owners_yaml = """
                   deps:
                     dep0:
                       owners:
                   """
     summary = self._get_experct_summary(dep_name)
-    description = self._get_expected_description(dep_name, dep_latest_version, [])
+    description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
 
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         return_value=[MockedJiraIssue('BEAM-1000', summary, description, 'Open')]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
-        manager.run(dep_name, dep_latest_version, 'Python')
+        manager.run(dep_name,
+                    MOCKED_DEP_CURRENT_VERSION,
+                    MOCKED_DEP_LATEST_VERSION,
+                    'Python')
         manager.jira.update_issue.assert_called_once()
 
 
@@ -105,7 +112,6 @@ class JiraManagerTest(unittest.TestCase):
     Expect: jira.create_issue is called once with certain parameters.
     """
     dep_name = 'group0:artifact0'
-    dep_latest_version = '1.0'
     owners_yaml = """
                   deps:
                     group0:artifact0:
@@ -114,17 +120,21 @@ class JiraManagerTest(unittest.TestCase):
                       owners: owner0
                   """
     summary = self._get_experct_summary('group0')
-    description = self._get_expected_description(dep_name, dep_latest_version, [])
+    description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
 
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Open')],
                       []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
-        manager.run(dep_name, dep_latest_version, 'Java', group_id='group0')
+        manager.run(dep_name,
+                    MOCKED_DEP_CURRENT_VERSION,
+                    MOCKED_DEP_LATEST_VERSION,
+                    'Java',
+                    group_id='group0')
         manager.jira.create_issue.assert_called_once_with(self._get_experct_summary(dep_name),
                                                           ['dependencies'],
-                                                          self._get_expected_description(dep_name, dep_latest_version, ['owner0']),
+                                                          self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, ['owner0']),
                                                           parent_key='BEAM-1000',
                                                           )
 
@@ -137,7 +147,6 @@ class JiraManagerTest(unittest.TestCase):
     Expect: jira.reopen_issue is called once.
     """
     dep_name = 'group0:artifact0'
-    dep_latest_version = '1.0'
     owners_yaml = """
                   deps:
                     group0:artifact0:
@@ -146,18 +155,21 @@ class JiraManagerTest(unittest.TestCase):
                       owners: owner0
                   """
     summary = self._get_experct_summary('group0')
-    description = self._get_expected_description(dep_name, dep_latest_version, [])
+    description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                       []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
-        manager.run(dep_name, dep_latest_version, sdk_type='Java', group_id='group0')
+        manager.run(dep_name,
+                    MOCKED_DEP_CURRENT_VERSION,
+                    MOCKED_DEP_LATEST_VERSION,
+                    sdk_type='Java',
+                    group_id='group0')
         manager.jira.reopen_issue.assert_called_once()
 
 
   @patch('jira_utils.jira_manager.datetime', Mock(today=Mock(return_value=datetime.strptime('2000-01-01', '%Y-%m-%d'))))
-  @patch('jira_utils.jira_manager.JiraClient.create_issue', side_effect = [MockedJiraIssue('BEAM-2000', 'summary', 'description', 'Open')])
   @patch.object(jira_utils.jira_manager.JiraManager,
                 '_get_next_release_version', side_effect=['2.8.0.dev'])
   def test_run_with_reopening_issue_with_fixversions(self, *args):
@@ -166,24 +178,25 @@ class JiraManagerTest(unittest.TestCase):
     Expect: jira.reopen_issue is called once.
     """
     dep_name = 'dep0'
-    dep_latest_version = '1.0'
     owners_yaml = """
                   deps:
                     dep0:
                       owners:
                   """
     summary = self._get_experct_summary(dep_name)
-    description = self._get_expected_description(dep_name, dep_latest_version, [])
+    description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
     with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
                  side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                                 []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
-        manager.run(dep_name, dep_latest_version, 'Python', group_id='group0')
+        manager.run(dep_name,
+                    MOCKED_DEP_CURRENT_VERSION,
+                    MOCKED_DEP_LATEST_VERSION,
+                    'Python')
         manager.jira.reopen_issue.assert_called_once()
 
 
-  @patch('jira_utils.jira_manager.JiraClient.create_issue', side_effect = [MockedJiraIssue('BEAM-2000', 'summary', 'description', 'Open')])
   @patch.object(jira_utils.jira_manager.JiraManager,
                 '_get_next_release_version', side_effect=['2.9.0.dev'])
   def test_run_with_reopening_issue_with_new_release_available(self, *args):
@@ -207,7 +220,10 @@ class JiraManagerTest(unittest.TestCase):
                  side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                                 []]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
-        manager.run(dep_name, dep_latest_version, 'Python', group_id='group0')
+        manager.run(dep_name,
+                    MOCKED_DEP_CURRENT_VERSION,
+                    dep_latest_version,
+                    'Python')
         manager.jira.reopen_issue.assert_called_once()
 
 
@@ -216,16 +232,21 @@ class JiraManagerTest(unittest.TestCase):
 
 
   def _get_expected_description(self, dep_name, dep_latest_version, owners):
-    description = """\n\n{0}\n
-        Please review and upgrade the {1} to the latest version {2} \n 
+    description =  """\n\n ------------------------- {0} -------------------------\n
+        Please consider upgrading the dependency {1}. \n
+        The current version is {2}. The latest version is {3} \n
         cc: """.format(
-      datetime.strptime('2000-01-01', '%Y-%m-%d'),
-      dep_name,
-      dep_latest_version
+        "2000-01-01 00:00:00",
+        dep_name,
+        MOCKED_DEP_CURRENT_VERSION,
+        dep_latest_version
     )
     for owner in owners:
       description += "[~{0}], ".format(owner)
-    description += "\n-------------- Do not modify the description above --------------\n"
+    description += ("\n Please refer to "
+                    "[Beam Dependency Guide |https://beam.apache.org/contribute/dependencies/]"
+                    "for more information. \n"
+                    "Do Not Modify The Description Above. \n")
     return description
 
 
