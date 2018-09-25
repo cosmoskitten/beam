@@ -763,8 +763,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           srcFiles,
           dstFiles,
           StandardMoveOptions.IGNORE_MISSING_FILES,
-          StandardMoveOptions.OVERWRITE_EXISTING_FILES);
-      removeTemporaryFiles(srcFiles); // defensive coding
+          StandardMoveOptions.REPLACE_EXISTING);
     }
 
     /**

@@ -299,6 +299,12 @@ public class FileSystems {
    *
    * <p>It doesn't support renaming globs.
    *
+   * <p>If the underlying file system reports that a target file already exists and moveOptions
+   * contains {@code StandardMoveOptions.REPLACE_EXISTING} then all target files that existed prior
+   * to calling rename will be deleted and the rename retried. When a retry is attempted then
+   * missing files from the source will be ignored. Some filesystem implementations will <em>always
+   * overwrite</em>.
+   *
    * @param srcResourceIds the references of the source resources
    * @param destResourceIds the references of the destination resources
    */
@@ -325,39 +331,66 @@ public class FileSystems {
       return;
     }
 
-    boolean overwrite =
-        options.contains(MoveOptions.StandardMoveOptions.OVERWRITE_EXISTING_FILES) ? true : false;
+    boolean replaceExisting =
+        options.contains(MoveOptions.StandardMoveOptions.REPLACE_EXISTING) ? true : false;
     rename(
         getFileSystemInternal(srcToRename.iterator().next().getScheme()),
         srcToRename,
         destToRename,
-        overwrite);
+        replaceExisting);
   }
 
   /**
    * Executes a rename of the src which all must exist using the provided filesystem.
    *
-   * <p>If overwrite is enabled and filesystem throws {code FileAlreadyExistsException} then an
-   * attempt to delete the destination is made and the rename is retried.
+   * <p>If replaceExisting is enabled and filesystem throws {code FileAlreadyExistsException} then
+   * an attempt to delete the destination is made and the rename is retried. Some filesystem
+   * implementations may apply this automatically without throwing.
    *
    * @param fileSystem The filesystem in use
-   * @param src The source resources to move
-   * @param dest The destinations for the sources to move to (must be same length as src)
-   * @param overwrite If existing files in destination should be deleted and recreated
+   * @param srcResourceIds The source resources to move
+   * @param destResourceIds The destinations for the sources to move to (must be same length as
+   *     srcResourceIds)
+   * @param replaceExisting If existing files in destination should be overwritten
    * @throws IOException If the rename could not be completed
    */
   @VisibleForTesting
   static void rename(
-      FileSystem fileSystem, List<ResourceId> src, List<ResourceId> dest, boolean overwrite)
+      FileSystem fileSystem,
+      List<ResourceId> srcResourceIds,
+      List<ResourceId> destResourceIds,
+      boolean replaceExisting)
       throws IOException {
     try {
-      fileSystem.rename(src, dest);
+      fileSystem.rename(srcResourceIds, destResourceIds);
     } catch (FileAlreadyExistsException e) {
-      if (overwrite) {
-        // remove all destination resources that exist in both src and dest and retry
-        List<ResourceId> existings = filterExistingFiles(src, dest);
-        fileSystem.delete(existings);
-        fileSystem.rename(src, dest);
+      if (replaceExisting) {
+
+        // The filesystem has reported a target that existed prior to calling rename. Some files may
+        // have been moved successfully but there are no guarantees on which as some filesystems
+        // batch and run in parallel asynchronously. We determine the state and delete all dest files
+        // still existing in src and issue a retry. This will ignore all non existing src files.
+
+        List<MatchResult> matchResultsSrc = matchResources(srcResourceIds);
+        List<MatchResult> matchResultsDest = matchResources(destResourceIds);
+        List<ResourceId> destResourceIdsToDelete = new ArrayList<>();
+        List<ResourceId> srcResourceIdsToRetry = new ArrayList<>();
+        List<ResourceId> destResourceIdsToRetry = new ArrayList<>();
+
+        for (int i = 0; i < matchResultsSrc.size(); ++i) {
+          boolean srcExists = !matchResultsSrc.get(i).status().equals(Status.NOT_FOUND);
+          boolean destExists = !matchResultsDest.get(i).status().equals(Status.NOT_FOUND);
+          if (srcExists) {
+            srcResourceIdsToRetry.add(srcResourceIds.get(i));
+            destResourceIdsToRetry.add(destResourceIds.get(i));
+            if (destExists) {
+              destResourceIdsToDelete.add(destResourceIds.get(i));
+            }
+          }
+        }
+        fileSystem.delete(destResourceIdsToDelete);
+        fileSystem.rename(srcResourceIdsToRetry, destResourceIdsToRetry);
+
       } else {
         throw e;
       }
