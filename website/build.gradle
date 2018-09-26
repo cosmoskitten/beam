@@ -113,7 +113,6 @@ task commitWebsite << {
   assert !file("${buildContentDir}/documentation/sdks/pydoc").exists()
 
   def git = grgit.open()
-  assert grgit.branch.current.name  == 'master'
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ 'website/generated-content' ])
   assert !file("${repoContentDir}/index.html").exists()
