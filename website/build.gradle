@@ -136,18 +136,18 @@ task commitWebsite << {
 task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
-  // grgit has problems authenticating, s
-/*
+  // Cannot authenticate to the default github uri, so specify gitbox.
   exec {
     executable 'sh'
     args '-c', "git remote set-url origin https://gitbox.apache.org/repos/asf/beam.git"
   }
+/*
   exec {
     executable 'sh'
     args '-c', "git push origin asf-site"
   } 
 */
-  git.push(remote: 'https://gitbox.apache.org/repos/asf/beam.git')
+  git.push()
 }
 
 // TODO: Depend on testWebsite
