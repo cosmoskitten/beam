@@ -455,6 +455,7 @@ class _TimerCoder(FastCoder):
   def __hash__(self):
     return hash(type(self)) + hash(self._payload_coder)
 
+
 Coder.register_structured_urn(
     common_urns.coders.TIMER.urn, _TimerCoder)
 
