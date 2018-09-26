@@ -116,6 +116,7 @@ task commitWebsite << {
   //assert grgit.branch.current.name  == 'master'
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
+  delete repoContentDir
   assert !file("${repoContentDir}/index.html").exists()
   copy {
     // TODO: Not just index.html
