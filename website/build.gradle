@@ -146,8 +146,10 @@ task commitWebsite << {
 task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
-  git.push(remote: 'https://git-wip-us.apache.org/repos/asf/beam.git',
-           refsOrSpecs: ['refs/heads/asf-site:refs/heads/asf-site'])
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git push origin asf-site"
+  }
 }
 
 // TODO: Depend on testWebsite
