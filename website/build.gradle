@@ -146,7 +146,7 @@ task commitWebsite << {
 task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
-  git.push(refOrSpecs: ['refs/heads/asf-site:refs/heads/asf-site'])
+  git.push(refsOrSpecs: ['refs/heads/asf-site:refs/heads/asf-site'])
 }
 
 // TODO: Depend on testWebsite
