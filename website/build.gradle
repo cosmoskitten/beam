@@ -141,13 +141,11 @@ task publishWebsite << {
     executable 'sh'
     args '-c', "git remote set-url origin https://gitbox.apache.org/repos/asf/beam.git"
   }
-/*
+  // git.push() fails to authenticate, so run git push directly.
   exec {
     executable 'sh'
     args '-c', "git push origin asf-site"
   } 
-*/
-  git.push()
 }
 
 // TODO: Depend on testWebsite
