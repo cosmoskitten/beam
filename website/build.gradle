@@ -114,13 +114,15 @@ task commitWebsite << {
 
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
+
+  // Delete the previous content.
   git.remove(patterns: [ 'website/generated-content' ])
   assert !file("${repoContentDir}/index.html").exists()
   delete repoContentDir
+
+  // Copy the built content it and add it.
   copy {
-    // TODO: Not just index.html
     from buildContentDir
-    include 'index.html'
     into repoContentDir
   }
   assert file("${repoContentDir}/index.html").exists()
@@ -148,6 +150,5 @@ task publishWebsite << {
   } 
 }
 
-// TODO: Depend on testWebsite
-commitWebsite.dependsOn buildWebsite
+commitWebsite.dependsOn testWebsite
 publishWebsite.dependsOn commitWebsite
