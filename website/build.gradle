@@ -146,7 +146,7 @@ task publishWebsite << {
   git.checkout(branch: 'asf-site')
   exec {
     executable 'sh'
-    args '-c', "cd ${project.rootDir} && git remote set-url origin git@github.com:apache/beam.git"
+    args '-c', "cd ${project.rootDir} && git remote set-url origin https://git-wip-us.apache.org/repos/asf/beam.git"
   }
   exec {
     executable 'sh'
