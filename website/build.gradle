@@ -113,6 +113,7 @@ task commitWebsite << {
   assert !file("${buildContentDir}/documentation/sdks/pydoc").exists()
 
   def git = grgit.open()
+  grgit.fetch(refSpecs: ['refs/heads/asf-site:refs/heads/asf-site'])
   git.fetch()
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ 'website/generated-content' ])
@@ -146,7 +147,6 @@ task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
   git.push()
-  git.checkout(branch: 'master')
 }
 
 // TODO: Depend on testWebsite
