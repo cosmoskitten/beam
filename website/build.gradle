@@ -107,6 +107,14 @@ task preCommit {
 
 // Creates a new commit on asf-site branch
 task commitWebsite << {
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git remote -v"
+  }
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git config -l"
+  }
   assert file("${buildContentDir}/index.html").exists()
   // Generated javadoc and pydoc content is noa built or stored in this repo.
   assert !file("${buildContentDir}/documentation/sdks/javadoc").exists()
