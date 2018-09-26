@@ -911,14 +911,16 @@ class FnApiRunner(runner.PipelineRunner):
                       outputs={'out': timer_read_pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          payload=str('timers:%s' % timer_read_pcoll))))
+                          payload=('timers:%s' % timer_read_pcoll).encode(
+                              'utf-8'))))
               stage.transforms.append(
                   beam_runner_api_pb2.PTransform(
                       unique_name=timer_write_pcoll + '/Write',
                       inputs={'in': timer_write_pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          payload=str('timers:%s' % timer_write_pcoll))))
+                          payload=('timers:%s' % timer_write_pcoll).encode(
+                              'utf-8'))))
               assert tag not in transform.inputs
               transform.inputs[tag] = timer_read_pcoll
               assert tag not in transform.outputs
@@ -1132,7 +1134,7 @@ class FnApiRunner(runner.PipelineRunner):
       for transform_id, timer_writes in stage.timer_pcollections:
         windowed_timer_coder_impl = context.coders[
             pipeline_components.pcollections[timer_writes].coder_id].get_impl()
-        written_timers = get_buffer(b'timers:' + timer_writes)
+        written_timers = get_buffer(b'timers:' + timer_writes.encode('utf-8'))
         if written_timers:
           # Keep only the "last" timer set per key and window.
           timers_by_key_and_window = {}
