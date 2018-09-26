@@ -150,5 +150,5 @@ task publishWebsite << {
 }
 
 // TODO: Depend on testWebsite
-commitWebsite.dependsOn buildWebsite
+//commitWebsite.dependsOn buildWebsite
 publishWebsite.dependsOn commitWebsite
