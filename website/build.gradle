@@ -107,14 +107,6 @@ task preCommit {
 
 // Creates a new commit on asf-site branch
 task commitWebsite << {
-  exec {
-    executable 'sh'
-    args '-c', "cd ${project.rootDir} && git remote -v"
-  }
-  exec {
-    executable 'sh'
-    args '-c', "cd ${project.rootDir} && git config -l"
-  }
   assert file("${buildContentDir}/index.html").exists()
   // Generated javadoc and pydoc content is noa built or stored in this repo.
   assert !file("${buildContentDir}/documentation/sdks/javadoc").exists()
@@ -152,6 +144,18 @@ task commitWebsite << {
 task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git remote set-url origin git@github.com:apache/beam.git"
+  }
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git remote -v"
+  }
+  exec {
+    executable 'sh'
+    args '-c', "cd ${project.rootDir} && git config -l"
+  }
   exec {
     executable 'sh'
     args '-c', "cd ${project.rootDir} && git push origin asf-site"
