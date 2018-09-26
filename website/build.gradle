@@ -105,14 +105,11 @@ task preCommit {
   dependsOn testWebsite
 }
 
-task gitCreateSymlink << {
-}
-
+// Creates a new commit on asf-site branch
 task commitWebsite << {
   assert file("${buildContentDir}/index.html").exists()
   def git = grgit.open()
-  assert grgit.branch.current.name  == 'mergeWebsite'
-  //assert grgit.branch.current.name  == 'master'
+  assert grgit.branch.current.name  == 'master'
   git.checkout(branch: 'asf-site')
   git.remove(patterns: [ repoContentDir ])
   delete(repoContentDir)
@@ -140,6 +137,7 @@ task commitWebsite << {
   git.commit(message: message)
 }
 
+// Pushes the asf-site branch commits.
 task publishWebsite << {
   def git = grgit.open()
   git.checkout(branch: 'asf-site')
@@ -147,5 +145,6 @@ task publishWebsite << {
   git.checkout(branch: 'master')
 }
 
-//commitWebsite.dependsOn buildWebsite
+// TODO: Depend on testWebsite
+commitWebsite.dependsOn buildWebsite
 publishWebsite.dependsOn commitWebsite
