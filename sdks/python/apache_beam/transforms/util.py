@@ -270,12 +270,14 @@ class _BatchSizeEstimator(object):
         self._thin_data()
 
   def _thin_data(self):
-    # Make sure we don't change the parity of len(self._data).
+    # Make sure we don't change the parity of len(self._data)
+    # As it's used below to alternate jitter.
     self._data.pop(random.randrange(len(self._data) // 4))
     self._data.pop(random.randrange(len(self._data) // 2))
 
   @staticmethod
   def linear_regression_no_numpy(xs, ys):
+    # Least squares fit for y = a*x + b over all points.
     n = float(len(xs))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
@@ -292,19 +294,16 @@ class _BatchSizeEstimator(object):
     xs = np.asarray(xs, dtype=float)
     ys = np.asarray(ys, dtype=float)
 
-    # First do a simple least squares fit over all points.
-    n = len(xs)
-    sum_x = sum(xs)
-    sum_y = sum(ys)
-    xbar = sum_x / n
-    ybar = sum_y / n
-    b = sum((xs - xbar) * (ys - ybar)) / sum((xs - xbar)**2)
-    a = ybar - b * xbar
+    # First do a simple least squares fit for y = a*x + b over all points.
+    b, a = np.polyfit(xs, ys, 1)
 
+    n = len(xs)
     if n < 10:
       return a, b
     else:
       # Refine this by throwing out outliers, according to Cook's distance.
+      # https://en.wikipedia.org/wiki/Cook%27s_distance
+      sum_x = sum(xs)
       sum_x2 = sum(xs**2)
       errs = a * xs + b - ys
       s2 = sum(errs**2) / (n - 2)
@@ -314,16 +313,9 @@ class _BatchSizeEstimator(object):
       h = (sum_x2 - 2 * sum_x * xs + n * xs**2) / (n * sum_x2 - sum_x**2)
       cook_ds = 0.5 / s2 * errs**2 * (h / (1 - h)**2)
 
-      # Exclude those with Cook's distance greater than 1, and re-compute
-      # the regression.
-      weight = cook_ds < 1
-      n = sum(weight)
-      sum_x = sum(weight * xs)
-      sum_y = sum(weight * ys)
-      xbar = sum_x / n
-      ybar = sum_y / n
-      b = sum(weight * (xs - xbar) * (ys - ybar)) / sum(weight * (xs - xbar)**2)
-      a = ybar - b * xbar
+      # Re-compute the regression, excluding those points with Cook's distance
+      # greater than 1.
+      b, a = np.polyfit(xs, ys, 1, w=cook_ds < 1)
       return a, b
 
   try:
@@ -367,8 +359,12 @@ class _BatchSizeEstimator(object):
       # Solution to a / (a + b*x) = self._target_batch_overhead.
       target = min(target, (a / b) * (1 / self._target_batch_overhead - 1))
 
-    # Avoid getting stuck.
+    # Avoid getting stuck at a single batch size (especially the minimal
+    # batch size) which would not allow us to do the extrapolation required
+    # to try elsewhere.
+    # Jitter alternates between 0 and 1.
     jitter = len(self._data) % 2
+    # Smear our samples across a range centered at the target.
     if len(self._data) > 10:
       target += int(target * self._variance * 2 * (random.random() - .5))
 
@@ -471,6 +467,9 @@ class BatchElements(PTransform):
         as used in the formula above
     target_batch_duration_secs: (optional) a target for total time per bundle,
         in seconds
+    variance: (optional) the permitted (relative) amount of deviation from the
+        (estimated) ideal batch size used to produce a wider base for
+        linear interpolation
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
@@ -480,12 +479,14 @@ class BatchElements(PTransform):
                max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
+               variance=0.25,
                clock=time.time):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         target_batch_overhead=target_batch_overhead,
         target_batch_duration_secs=target_batch_duration_secs,
+        variance=variance,
         clock=clock)
 
   def expand(self, pcoll):
