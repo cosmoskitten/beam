@@ -511,7 +511,6 @@ class FnApiRunnerTest(unittest.TestCase):
           all_metrics_via_montoring_infos, namespace, name, step='MyStep')
 
   def test_progress_metrics(self):
-    logging.getLogger().setLevel(logging.INFO)
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
       # This test is inherited by others that may not support the same
