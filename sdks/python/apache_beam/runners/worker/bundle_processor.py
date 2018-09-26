@@ -434,7 +434,7 @@ class BundleProcessor(object):
       for mi in op.monitoring_infos(transform_id).values():
         fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
         all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
-    return all_monitoring_infos_dict.values()
+    return list(all_monitoring_infos_dict.values())
 
   def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
     actual_output_tags = list(
