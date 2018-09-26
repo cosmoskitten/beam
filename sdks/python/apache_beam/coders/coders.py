@@ -319,7 +319,8 @@ class ToStringCoder(Coder):
 
     def encode(self, value):
       # pylint: disable=unicode-builtin
-      return value.encode('utf-8') if isinstance(value, unicode) else str(value)  # noqa: F821
+      return (value.encode('utf-8') if isinstance(value, unicode)  # noqa: F821
+              else str(value))
 
   else:
 
