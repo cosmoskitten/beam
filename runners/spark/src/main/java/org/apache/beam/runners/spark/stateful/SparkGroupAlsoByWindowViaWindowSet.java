@@ -46,7 +46,6 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFunction;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
@@ -541,7 +540,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             .transformToPair(
                 (rdd, time) ->
                     rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-                        .map(WindowingHelpers.unwindowFunction())
                         .mapToPair(TranslationUtils.toPairFunction())
                         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder)))
             .dstream();
