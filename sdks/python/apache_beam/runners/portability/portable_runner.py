@@ -136,7 +136,8 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # TODO: Define URNs for options.
-    options = {'beam:option:' + k + ':v1': v
+    # convert int and long: https://issues.apache.org/jira/browse/BEAM-5509
+    options = {'beam:option:' + k + ':v1': (str(v) if type(v) in (int, long) else v)
                for k, v in pipeline._options.get_all_options().items()
                if v is not None}
 
