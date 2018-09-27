@@ -190,5 +190,5 @@ task publishWebsite << {
   }
 }
 
-commitWebsite.dependsOn testWebsite
-#publishWebsite.dependsOn commitWebsite
+//commitWebsite.dependsOn testWebsite
+publishWebsite.dependsOn commitWebsite
