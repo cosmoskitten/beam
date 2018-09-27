@@ -116,7 +116,7 @@ task commitWebsite << {
   def git = grgit.open()
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
-  git.fetch(remote: 'https://github.com/apache/beam.git')
+  git.fetch(remote: 'origin', refSpecs: ['+refs/heads/*:refs/remotes/origin/*'])
   git.checkout(branch: 'asf-site')
 
   // Delete the previous content.
@@ -175,7 +175,7 @@ task publishWebsite << {
                    pushRefSpecs: ['asf-site'])
   }
   // Because git.push() fails to authenticate, run git push directly.
-  git.fetch(remote: 'https://gitbox.apache.org/repos/asf/beam.git')
+  git.fetch(remote: 'website-publish', refSpecs: ['+refs/heads/*:refs/remotes/origin/*'])
   exec {
     executable 'sh'
     args '-c', "git push website-publish asf-site < /dev/null"
