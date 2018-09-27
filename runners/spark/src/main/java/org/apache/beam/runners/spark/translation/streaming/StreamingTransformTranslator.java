@@ -297,15 +297,9 @@ public final class StreamingTransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
-            dStream.transform(
-                rdd -> GroupCombineFunctions.groupByKeyOnly(rdd, coder.getKeyCoder(), wvCoder));
-
-        // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             SparkGroupAlsoByWindowViaWindowSet.groupAlsoByWindow(
-                groupedByKeyStream,
+                dStream,
                 coder.getKeyCoder(),
                 wvCoder,
                 windowingStrategy,
