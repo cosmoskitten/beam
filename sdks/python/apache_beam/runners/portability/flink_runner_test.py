@@ -66,7 +66,6 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
-      options.view_as(SetupOptions).sdk_location = 'container'
       if streaming:
         options.view_as(StandardOptions).streaming = True
       return options
@@ -79,6 +78,9 @@ if __name__ == '__main__':
 
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
+
+    def test_pardo_state_only(self):
+      raise unittest.SkipTest("BEAM-2918 - User state not yet supported.")
 
     # Inherits all other tests.
 
