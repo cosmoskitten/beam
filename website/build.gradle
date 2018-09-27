@@ -198,5 +198,5 @@ task publishWebsite << {
   shell "git remote remove test-upstream"
 }
 
-//commitWebsite.dependsOn testWebsite
+commitWebsite.dependsOn testWebsite
 publishWebsite.dependsOn commitWebsite
