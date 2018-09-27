@@ -137,7 +137,6 @@ task commitWebsite << {
   String message = "Publishing website ${currentDate} at commit ${latestCommit}"
   if (git.status().isClean()) {
     println 'No changes to commit'
-    commitedChanges = true
   } else {
     println 'Creating commit for changes'
     commitedChanges = true
