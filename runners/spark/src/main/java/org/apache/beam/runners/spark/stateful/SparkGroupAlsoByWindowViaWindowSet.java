@@ -539,7 +539,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     final DStream<Tuple2<ByteArray, byte[]>> tupleDStream =
         inputDStream
             .map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
             .dstream();
