@@ -18,7 +18,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.util.Collections;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -31,7 +30,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -45,33 +43,16 @@ public class GroupCombineFunctions {
    * An implementation of {@link
    * org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} for the Spark runner.
    */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupByKeyOnly(
-      JavaRDD<WindowedValue<KV<K, V>>> rdd,
-      Coder<K> keyCoder,
-      WindowedValueCoder<V> wvCoder,
-      @Nullable Partitioner partitioner) {
+  public static <K, V> JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupByKeyOnly(
+      JavaRDD<WindowedValue<KV<K, V>>> rdd, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowedValue::getValue)
-            .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-
-    // If no partitioner is passed, the default group by key operation is called
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
-        (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
-
-    // using mapPartitions allows to preserve the partitioner
-    // and avoid unnecessary shuffle downstream.
-    return groupedRDD
-        .mapPartitionsToPair(
-            TranslationUtils.pairFunctionToPairFlatMapFunction(
-                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
-            true)
-        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
-        .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(WindowedValue::valueInGlobalWindow), true);
+    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
+        .mapToPair(TranslationUtils.toPairFunction())
+        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+        .groupByKey()
+        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
+        .map(TranslationUtils.fromPairFunction());
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
@@ -167,7 +148,6 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowedValue::getValue)
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())

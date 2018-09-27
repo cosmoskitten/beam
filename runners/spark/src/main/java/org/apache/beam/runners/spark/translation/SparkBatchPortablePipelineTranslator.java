@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -37,7 +36,6 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionN
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -54,8 +52,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.spark.HashPartitioner;
-import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
@@ -155,9 +151,8 @@ public class SparkBatchPortablePipelineTranslator {
           GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
               inputRdd, inputKeyCoder, inputValueCoder, windowingStrategy);
     } else {
-      Partitioner partitioner = getPartitioner(context);
-      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
-          GroupCombineFunctions.groupByKeyOnly(inputRdd, inputKeyCoder, wvCoder, partitioner);
+      JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
+          GroupCombineFunctions.groupByKeyOnly(inputRdd, inputKeyCoder, wvCoder);
       // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
       groupedByKeyAndWindow =
           groupedByKeyOnly.flatMap(
@@ -267,15 +262,6 @@ public class SparkBatchPortablePipelineTranslator {
       unionRDD = context.getSparkContext().union(rdds);
     }
     context.pushDataset(getOutputId(transformNode), new BoundedDataset<>(unionRDD));
-  }
-
-  @Nullable
-  private static Partitioner getPartitioner(SparkTranslationContext context) {
-    Long bundleSize =
-        context.serializablePipelineOptions.get().as(SparkPipelineOptions.class).getBundleSize();
-    return (bundleSize > 0)
-        ? null
-        : new HashPartitioner(context.getSparkContext().defaultParallelism());
   }
 
   private static String getInputId(PTransformNode transformNode) {

@@ -42,7 +42,7 @@ import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
+import org.apache.beam.runners.spark.stateful.SparkStreamingGroupByKey;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -84,7 +84,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.spark.Accumulator;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -302,20 +301,9 @@ public final class StreamingTransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyStream =
-            dStream.transform(
-                rdd ->
-                    GroupCombineFunctions.groupByKeyOnly(
-                        rdd,
-                        coder.getKeyCoder(),
-                        wvCoder,
-                        new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism())));
-
-        // --- now group also by window.
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            SparkGroupAlsoByWindowViaWindowSet.groupAlsoByWindow(
-                groupedByKeyStream,
+            SparkStreamingGroupByKey.groupByKey(
+                dStream,
                 coder.getKeyCoder(),
                 wvCoder,
                 windowingStrategy,

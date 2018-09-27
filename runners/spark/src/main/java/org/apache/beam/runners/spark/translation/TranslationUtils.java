@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -45,12 +44,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.storage.StorageLevel;
@@ -134,19 +130,9 @@ public final class TranslationUtils {
     return kv -> new Tuple2<>(kv.getKey(), kv.getValue());
   }
 
-  /** {@link KV} to pair flatmap function. */
-  public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
-    return itr -> Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
-  }
-
   /** A pair to {@link KV} function . */
   static <K, V> Function<Tuple2<K, V>, KV<K, V>> fromPairFunction() {
     return t2 -> KV.of(t2._1(), t2._2());
-  }
-
-  /** A pair to {@link KV} flatmap function . */
-  static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return itr -> Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
   }
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */
@@ -256,58 +242,6 @@ public final class TranslationUtils {
     return t -> {
       // Empty implementation.
     };
-  }
-
-  /**
-   * A utility method that adapts {@link PairFunction} to a {@link PairFlatMapFunction} with an
-   * {@link Iterator} input. This is particularly useful because it allows to use functions written
-   * for mapToPair functions in flatmapToPair functions.
-   *
-   * @param pairFunction the {@link PairFunction} to adapt.
-   * @param <T> the input type.
-   * @param <K> the output key type.
-   * @param <V> the output value type.
-   * @return a {@link PairFlatMapFunction} that accepts an {@link Iterator} as an input and applies
-   *     the {@link PairFunction} on every element.
-   */
-  public static <T, K, V> PairFlatMapFunction<Iterator<T>, K, V> pairFunctionToPairFlatMapFunction(
-      final PairFunction<T, K, V> pairFunction) {
-    return itr ->
-        Iterators.transform(
-            itr,
-            t -> {
-              try {
-                return pairFunction.call(t);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            });
-  }
-
-  /**
-   * A utility method that adapts {@link Function} to a {@link FlatMapFunction} with an {@link
-   * Iterator} input. This is particularly useful because it allows to use functions written for map
-   * functions in flatmap functions.
-   *
-   * @param func the {@link Function} to adapt.
-   * @param <InputT> the input type.
-   * @param <OutputT> the output type.
-   * @return a {@link FlatMapFunction} that accepts an {@link Iterator} as an input and applies the
-   *     {@link Function} on every element.
-   */
-  public static <InputT, OutputT>
-      FlatMapFunction<Iterator<InputT>, OutputT> functionToFlatMapFunction(
-          final Function<InputT, OutputT> func) {
-    return itr ->
-        Iterators.transform(
-            itr,
-            t -> {
-              try {
-                return func.call(t);
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            });
   }
 
   /**
