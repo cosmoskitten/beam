@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
@@ -49,22 +48,11 @@ public class GroupCombineFunctions {
       boolean defaultParallelism) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .map(WindowingHelpers.unwindowFunction())
-            .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD;
-    if (defaultParallelism) {
-      groupedRDD =
-          pairRDD.groupByKey(new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism()));
-    } else {
-      groupedRDD = pairRDD.groupByKey();
-    }
-
-    // using mapPartitions allows to preserve the partitioner
-    // and avoid unnecessary shuffle downstream.
-    return groupedRDD
+    return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
+        .map(WindowingHelpers.unwindowFunction())
+        .mapToPair(TranslationUtils.toPairFunction())
+        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+        .groupByKey()
         .mapPartitionsToPair(
             TranslationUtils.pairFunctionToPairFlatMapFunction(
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
