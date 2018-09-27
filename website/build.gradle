@@ -173,7 +173,7 @@ task publishWebsite << {
     // Cannot authenticate to the default github uri, so specify gitbox.
     git.remote.add(name: 'website-publish',
                    url: 'https://gitbox.apache.org/repos/asf/beam.git',
-                   pushRefSpecs: ['refs/heads/asf-site'])
+                   pushRefSpecs: ['asf-site'])
   }
   // Because git.push() fails to authenticate, run git push directly.
   git.push(remote: 'website-publish')
