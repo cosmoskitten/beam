@@ -129,7 +129,8 @@ task commitWebsite << {
     git.remote.add(name: 'test-upstream',
                    url: 'https://gitbox.apache.org/repos/asf/beam.git')
   }
-  shell "git fetch upstream"
+  shell "git fetch origin")
+  shell "git fetch test-upstream"
   git.checkout(branch: 'asf-site')
   shell "git fetch test-upstream"
   shell "git reset --hard test-upstream/asf-site"
