@@ -198,7 +198,6 @@ import org.slf4j.LoggerFactory;
  * So these dependencies need to be included in the build. However Hadoop MapReduce is not actually
  * used.
  *
- *
  * <h3>Streaming Support</h3>
  *
  * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
