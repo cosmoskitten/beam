@@ -49,7 +49,6 @@ public class GroupCombineFunctions {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowingHelpers.unwindowFunction())
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .groupByKey()
@@ -217,7 +216,6 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-        .map(WindowingHelpers.unwindowFunction())
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
