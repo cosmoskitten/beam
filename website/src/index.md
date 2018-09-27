@@ -161,7 +161,7 @@ limitations under the License.
 
 <div class="ctas section">
   <div class="ctas__title">
-    Get started!
+    Get started
   </div>
   <div class="ctas__ctas ctas__ctas--top">
   <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
