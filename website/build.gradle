@@ -116,7 +116,7 @@ task commitWebsite << {
   def git = grgit.open()
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
-  git.fetch(remote: 'https://github.com/apache/beam')
+  git.fetch(remote: 'https://github.com/apache/beam.git')
   git.checkout(branch: 'asf-site')
 
   // Delete the previous content.
