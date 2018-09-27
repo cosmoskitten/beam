@@ -277,7 +277,7 @@ class _BatchSizeEstimator(object):
 
   @staticmethod
   def linear_regression_no_numpy(xs, ys):
-    # Least squares fit for y = a*x + b over all points.
+    # Least squares fit for y = a + bx over all points.
     n = float(len(xs))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
@@ -294,7 +294,7 @@ class _BatchSizeEstimator(object):
     xs = np.asarray(xs, dtype=float)
     ys = np.asarray(ys, dtype=float)
 
-    # First do a simple least squares fit for y = a*x + b over all points.
+    # First do a simple least squares fit for y = a + bx over all points.
     b, a = np.polyfit(xs, ys, 1)
 
     n = len(xs)
@@ -305,7 +305,7 @@ class _BatchSizeEstimator(object):
       # https://en.wikipedia.org/wiki/Cook%27s_distance
       sum_x = sum(xs)
       sum_x2 = sum(xs**2)
-      errs = a * xs + b - ys
+      errs = a + b * xs - ys
       s2 = sum(errs**2) / (n - 2)
       if s2 == 0:
         # It's an exact fit!
@@ -314,8 +314,8 @@ class _BatchSizeEstimator(object):
       cook_ds = 0.5 / s2 * errs**2 * (h / (1 - h)**2)
 
       # Re-compute the regression, excluding those points with Cook's distance
-      # greater than 1.
-      b, a = np.polyfit(xs, ys, 1, w=cook_ds < 1)
+      # greater than 0.5.
+      b, a = np.polyfit(xs, ys, 1, w=cook_ds <= 0.5)
       return a, b
 
   try:
@@ -360,8 +360,8 @@ class _BatchSizeEstimator(object):
       target = min(target, (a / b) * (1 / self._target_batch_overhead - 1))
 
     # Avoid getting stuck at a single batch size (especially the minimal
-    # batch size) which would not allow us to do the extrapolation required
-    # to try elsewhere.
+    # batch size) which would not allow us to extrapolate to other batch
+    # sizes.
     # Jitter alternates between 0 and 1.
     jitter = len(self._data) % 2
     # Smear our samples across a range centered at the target.
