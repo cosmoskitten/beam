@@ -29,6 +29,14 @@ def buildContentDir = "${project.rootDir}/build/website/generated-content"
 def repoContentDir = "${project.rootDir}/website/generated-content"
 def commitedChanges = false
 
+def shell = { cmd ->
+  println cmd
+  exec {
+    executable 'sh'
+    args '-c', cmd
+  } 
+}
+
 task buildDockerImage(type: Exec) {
   inputs.files 'Gemfile', 'Gemfile.lock'
   commandLine 'docker', 'build', '-t', dockerImageTag, '.'
@@ -116,7 +124,15 @@ task commitWebsite << {
   def git = grgit.open()
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  if (!git.remote.list().find { it.name == 'test-upstream' }) {
+    println "Adding test-upstream remote"
+    git.remote.add(name: 'test-upstream',
+                   url: 'https://gitbox.apache.org/repos/asf/beam.git')
+  }
+  shell "git fetch upstream"
   git.checkout(branch: 'asf-site')
+  shell "git fetch test-upstream"
+  shell "git reset --hard test-upstream/asf-site"
 
   // Delete the previous content.
   git.remove(patterns: [ 'website/generated-content' ])
@@ -171,19 +187,16 @@ task publishWebsite << {
     // Cannot authenticate to the default github uri, so specify gitbox.
     git.remote.add(name: 'website-publish',
                    url: 'https://gitbox.apache.org/repos/asf/beam.git',
-                   pushRefSpecs: ['refs/heads/asf-site'])
+                   pushRefSpecs: ['asf-site'])
   }
   // Because git.push() fails to authenticate, run git push directly.
-  exec {
-    executable 'sh'
-    args '-c', "git push website-publish asf-site"
-  } 
+  shell "git fetch website-publish"
+  shell "git merge website-publish/asf-site --no-edit"
+  shell "git push website-publish asf-site < /dev/null"
   // Remove the remote. grgit does not have a remote.remove method.
-  exec {
-    executable 'sh'
-    args '-c', "git remote remove website-publish"
-  }
+  shell "git remote remove website-publish"
+  shell "git remote remove test-upstream"
 }
 
-commitWebsite.dependsOn testWebsite
+//commitWebsite.dependsOn testWebsite
 publishWebsite.dependsOn commitWebsite
