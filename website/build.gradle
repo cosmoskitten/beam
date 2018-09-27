@@ -116,7 +116,9 @@ task commitWebsite << {
   def git = grgit.open()
   // get the latest commit on master
   def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+  git.fetch()
   git.checkout(branch: 'asf-site')
+  git.pull()
 
   // Delete the previous content.
   git.remove(patterns: [ 'website/generated-content' ])
@@ -177,7 +179,7 @@ task publishWebsite << {
   // Because git.push() fails to authenticate, run git push directly.
   exec {
     executable 'sh'
-    args '-c', "git push -f website-publish asf-site"
+    args '-c', "git push website-publish asf-site"
   } 
   // Remove the remote. grgit does not have a remote.remove method.
   exec {
