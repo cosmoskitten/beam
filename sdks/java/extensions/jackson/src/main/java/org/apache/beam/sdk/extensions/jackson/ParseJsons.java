@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.jackson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -103,7 +104,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     return new WithSuccessesTag(successesTag);
   }
 
-  public class WithSuccessesTag {
+  public class WithSuccessesTag implements Serializable {
     private final TupleTag<OutputT> successesTag;
 
     public WithSuccessesTag(TupleTag<OutputT> successesTag) {
@@ -115,7 +116,8 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     }
   }
 
-  public class CatchingFailures extends PTransform<PCollection<? extends String>, PCollectionTuple> {
+  public class CatchingFailures
+      extends PTransform<PCollection<? extends String>, PCollectionTuple> {
 
     private final TupleTag<OutputT> successesTag;
 

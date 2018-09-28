@@ -207,7 +207,7 @@ public class MapElements<InputT, OutputT>
   /**
    * Wraps a TupleTag together with the exceptions types that should be routed to it.
    */
-  private static class TaggedExceptions<InputT> {
+  private static class TaggedExceptions<InputT> implements Serializable {
     private final TupleTag<Failure<InputT>> tag;
     private final Class[] exceptionsToCatch;
 
@@ -244,7 +244,7 @@ public class MapElements<InputT, OutputT>
    * users must invoke its single method {@link #keyedBy(TupleTag)} to associate that tag with
    * the list of Exception classes that should populate it.
    */
-  public class Catching {
+  public class Catching implements Serializable {
     private final WithFailures parent;
     private final Class[] exceptionsToCatch;
 
