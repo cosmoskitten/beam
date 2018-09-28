@@ -35,8 +35,14 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
     FlinkExecutableStageContext get(JobInfo jobInfo);
   }
 
+  static String PER_OPERATOR_FACTORY = "flinkExecutableStageContextPerOperator";
+
   static Factory factory() {
-    return FlinkDefaultExecutableStageContext.ReferenceCountingFactory.REFERENCE_COUNTING;
+    if (System.getProperty(PER_OPERATOR_FACTORY) != null) {
+      return FlinkDefaultExecutableStageContext.MULTI_INSTANCE_FACTORY;
+    } else {
+      return FlinkDefaultExecutableStageContext.ReferenceCountingFactory.REFERENCE_COUNTING;
+    }
   }
 
   StageBundleFactory getStageBundleFactory(ExecutableStage executableStage);

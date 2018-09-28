@@ -306,9 +306,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       return;
     }
 
-    EnvironmentFactory.Provider environmentProviderFactory =
+    EnvironmentFactory.Provider environmentFactoryProvider =
         environmentFactoryProviderMap.get(environment.getUrn());
-    ServerFactory serverFactory = environmentProviderFactory.getServerFactory();
+    ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
 
     this.clientPool = MapControlClientPool.create();
     this.executor = Executors.newCachedThreadPool();
@@ -333,9 +333,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stateServer =
         GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
-    this.environmentFactory =
-        environmentFactoryProviderMap
-            .get(environment.getUrn())
+    this.environmentFactory = environmentFactoryProvider
             .createEnvironmentFactory(
                 controlServer,
                 loggingServer,

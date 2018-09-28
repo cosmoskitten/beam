@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
@@ -75,6 +76,7 @@ public class FlinkJobServerDriver implements Runnable {
   }
 
   public static void main(String[] args) throws Exception {
+    System.setProperty(FlinkExecutableStageContext.PER_OPERATOR_FACTORY, "true");
     //TODO: Expose the fileSystem related options.
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
