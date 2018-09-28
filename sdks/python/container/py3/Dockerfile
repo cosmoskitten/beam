@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM python:3.4-stretch
+FROM python:3.5-stretch
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 # Install native bindings required for dependencies.
