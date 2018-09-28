@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -58,57 +59,77 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     return newTransform;
   }
 
+  private SimpleFunction<String, OutputT> parseFn = new SimpleFunction<String, OutputT>() {
+    @Override
+    public OutputT apply(String input) {
+      try {
+        ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
+        return mapper.readValue(input, outputClass);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Failed to parse a " + outputClass.getName() + " from JSON value: " + input,
+            e);
+      }
+    }
+  };
+
   @Override
   public PCollection<OutputT> expand(PCollection<String> input) {
-    return input.apply(
-        MapElements.via(
-            new SimpleFunction<String, OutputT>() {
-              @Override
-              public OutputT apply(String input) {
-                try {
-                  ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-                  return mapper.readValue(input, outputClass);
-                } catch (IOException e) {
-                  throw new RuntimeException(
-                      "Failed to parse a " + outputClass.getName() + " from JSON value: " + input,
-                      e);
-                }
-              }
-            }));
+    return input.apply(MapElements.via(parseFn));
   }
 
   /**
-   * Returns a {@link PTransform} that catches parsing exceptions and emits a
-   * {@link org.apache.beam.sdk.values.PCollectionTuple} with both parsed output and
-   * a collection of failures.
+   * Sets the {@link TupleTag} to associate with successes; this method should be immediately
+   * followed by a call to {@link WithSuccessesTag#catchingFailures()}.
+   *
+   * <p>Failures will be associated with static tag {@link ParseJsons#failuresTag}.
    *
    * <p>Example:
    *
    * <pre>{@code
    * TupleTag<Foo> parsedFoosTag = new TupleTag<>();
    * strings
-   *   .apply(ParseJsons.of(Foo.class).withSuccessesTag(parsedFoosTag))
+   *   .apply(ParseJsons
+   *     .of(Foo.class)
+   *     .withSuccessesTag(parsedFoosTag)
+   *     .catchingFailures())
    *   .apply(PTransform.compose((PCollectionTuple input) -> {
    *     input.get(ParseJsons.failuresTag).apply(new MyErrorOutputTransform());
    *     return input.get(parsedFoosTag);
    *   }));
    * }</pre>
    */
-  public MapElements<String, OutputT>.Tagged.Catching withSuccessesTag(TupleTag<OutputT> successesTag) {
-    return MapElements.via(
-        new SimpleFunction<String, OutputT>() {
-          @Override
-          public OutputT apply(String input) {
-            try {
-              ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
-              return mapper.readValue(input, outputClass);
-            } catch (IOException e) {
-              throw new UncheckedIOException(
-                  "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
-            }
-          }
-        })
-        .withOutputTags(successesTag, failuresTag)
-        .catching(UncheckedIOException.class);
+  public WithSuccessesTag withSuccessesTag(TupleTag<OutputT> successesTag) {
+    return new WithSuccessesTag(successesTag);
   }
+
+  public class WithSuccessesTag {
+    private final TupleTag<OutputT> successesTag;
+
+    public WithSuccessesTag(TupleTag<OutputT> successesTag) {
+      this.successesTag = successesTag;
+    }
+
+    public CatchingFailures catchingFailures() {
+      return new CatchingFailures(successesTag);
+    }
+  }
+
+  public class CatchingFailures extends PTransform<PCollection<? extends String>, PCollectionTuple> {
+
+    private final TupleTag<OutputT> successesTag;
+
+    public CatchingFailures(TupleTag<OutputT> successesTag) {
+      this.successesTag = successesTag;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<? extends String> input) {
+      return input.apply(MapElements
+          .via(parseFn)
+          .withSuccessesTag(successesTag)
+          .catching(UncheckedIOException.class).keyedBy(failuresTag));
+    }
+  }
+
 }
