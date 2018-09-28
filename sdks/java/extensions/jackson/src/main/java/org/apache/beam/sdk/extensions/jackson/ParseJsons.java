@@ -108,7 +108,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
             }
           }
         })
-        .withTags(successesTag, failuresTag)
+        .withOutputTags(successesTag, failuresTag)
         .catching(UncheckedIOException.class);
   }
 }

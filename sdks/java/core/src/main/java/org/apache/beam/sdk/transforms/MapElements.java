@@ -198,7 +198,7 @@ public class MapElements<InputT, OutputT>
    * Set the {@link TupleTag} instances to associate with successfully mapped output and with
    * failures, anticipating a call to {@link Tagged#catching(Class[])}.
    */
-  public Tagged withTags(TupleTag<OutputT> successesTag, TupleTag<Failure<InputT>> failuresTag) {
+  public Tagged withOutputTags(TupleTag<OutputT> successesTag, TupleTag<Failure<InputT>> failuresTag) {
     return new Tagged(successesTag, failuresTag);
   }
 
