@@ -22,26 +22,27 @@ applyDockerNature()
 description = "Apache Beam :: SDKs :: Python :: Container :: Python 3 Container"
 
 configurations {
-  dockerDependency
+  sdkSourceTarball
+  sdkHarnessLauncher
 }
 
 dependencies {
-  // Temporary disable for faster iteration on gradle change.
-  // dockerDependency project(path: ":beam-sdks-python", configuration: "distConfig")
-  dockerDependency project(path: ":beam-sdks-python-container", configuration: "sdkHarnessLauncher")
+  sdkSourceTarball project(path: ":beam-sdks-python", configuration: "distConfig")
+  sdkHarnessLauncher project(path: ":beam-sdks-python-container", configuration: "sdkHarnessLauncher")
 }
 
 task copyDockerfileDependencies(type: Copy) {
-  from configurations.dockerDependency
+  from configurations.sdkSourceTarball
+  from configurations.sdkHarnessLauncher
   from file("../base_image_requirements.txt")
   into "build/target"
-  configurations.dockerDependency.stopExecutionIfEmpty()
+  configurations.sdkSourceTarball.stopExecutionIfEmpty()
+  configurations.sdkHarnessLauncher.stopExecutionIfEmpty()
 }
 
 docker {
-  name containerImageName(name: "python27")
-  files "./build/"
+  name containerImageName(name: "python3")
+  files "./build/target"
 }
 
-// Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn copyDockerfileDependencies
