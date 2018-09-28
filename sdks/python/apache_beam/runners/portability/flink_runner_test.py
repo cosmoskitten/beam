@@ -80,6 +80,9 @@ if __name__ == '__main__':
     def test_no_subtransform_composite(self):
       raise unittest.SkipTest("BEAM-4781")
 
+    def test_pardo_state_only(self):
+      raise unittest.SkipTest("BEAM-4781- User state not supported.")
+
     # Inherits all other tests.
 
   # Run the tests.
