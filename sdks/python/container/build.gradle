@@ -20,7 +20,6 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyGoNature()
 applyDockerNature()
 
-
 description = "Apache Beam :: SDKs :: Python :: Container"
 
 // Figure out why the golang plugin does not add a build dependency between projects.
@@ -29,7 +28,7 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
 
 configurations {
-  dockerDependency
+  sdkSourceTarball
   sdkHarnessLauncher
 }
 
@@ -40,16 +39,15 @@ dependencies {
     build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
     test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
   }
-
-  dockerDependency project(path: ":beam-sdks-python", configuration: "distConfig")
-  dockerDependency project(path: ":beam-sdks-python-container", configuration: "sdkHarnessLauncher")
+  sdkSourceTarball project(path: ":beam-sdks-python", configuration: "distConfig")
 }
 
-task copyDockerfileDependencies(type: Copy) {
-  from configurations.dockerDependency
+task copyDockerfileDependencies(type: Copy, dependsOn: build) {
+  from configurations.sdkSourceTarball
+  from file("build/launcher")
   from file("./base_image_requirements.txt")
   into "build/target"
-  configurations.dockerDependency.stopExecutionIfEmpty()
+  configurations.sdkSourceTarball.stopExecutionIfEmpty()
 }
 
 golang {
@@ -63,7 +61,7 @@ golang {
 
 docker {
   name containerImageName(name: "python")
-  files "./build/"
+  files "./build/target"
 }
 
 artifacts {
