@@ -20,10 +20,12 @@ package org.apache.beam.sdk.extensions.jackson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * {@link PTransform} for parsing JSON {@link String Strings}. Parse {@link PCollection} of {@link
@@ -35,6 +37,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
 
   private final Class<? extends OutputT> outputClass;
   private ObjectMapper customMapper;
+  public static final TupleTag<MapElements.Failure<String>> failuresTag = new TupleTag<>();
 
   /**
    * Creates a {@link ParseJsons} {@link PTransform} that will parse JSON {@link String Strings}
@@ -72,5 +75,40 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
                 }
               }
             }));
+  }
+
+  /**
+   * Returns a {@link PTransform} that catches parsing exceptions and emits a
+   * {@link org.apache.beam.sdk.values.PCollectionTuple} with both parsed output and
+   * a collection of failures.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * TupleTag<Foo> parsedFoosTag = new TupleTag<>();
+   * strings
+   *   .apply(ParseJsons.of(Foo.class).withSuccessesTag(parsedFoosTag))
+   *   .apply(PTransform.compose((PCollectionTuple input) -> {
+   *     input.get(ParseJsons.failuresTag).apply(new MyErrorOutputTransform());
+   *     return input.get(parsedFoosTag);
+   *   }));
+   * }</pre>
+   */
+  public MapElements<String, OutputT>.Tagged.Catching withSuccessesTag(TupleTag<OutputT> successesTag) {
+    return MapElements.via(
+        new SimpleFunction<String, OutputT>() {
+          @Override
+          public OutputT apply(String input) {
+            try {
+              ObjectMapper mapper = Optional.fromNullable(customMapper).or(DEFAULT_MAPPER);
+              return mapper.readValue(input, outputClass);
+            } catch (IOException e) {
+              throw new UncheckedIOException(
+                  "Failed to parse a " + outputClass.getName() + " from JSON value: " + input, e);
+            }
+          }
+        })
+        .withTags(successesTag, failuresTag)
+        .catching(UncheckedIOException.class);
   }
 }
