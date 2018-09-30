@@ -184,4 +184,13 @@ public interface FlinkPipelineOptions
   Long getLatencyTrackingInterval();
 
   void setLatencyTrackingInterval(Long interval);
+
+  @Description(
+      "SDK process parallelism for portable pipelines. Currently supported options are "
+          + "'[pipeline]' (single SDK harness process per pipeline and task manager JVM) or "
+          + "'[stage]' (separate SDK harness for every executable stage.")
+  @Default.String("[pipeline]")
+  String getSdkWorkerParallelism();
+
+  void setSdkWorkerParallelism(String factory);
 }

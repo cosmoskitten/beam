@@ -36,8 +36,9 @@ public class FlinkJobInvoker implements JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
   public static FlinkJobInvoker create(
-      ListeningExecutorService executorService, String flinkMasterUrl) {
-    return new FlinkJobInvoker(executorService, flinkMasterUrl);
+      ListeningExecutorService executorService,
+      FlinkJobServerDriver.ServerConfiguration configuration) {
+    return new FlinkJobInvoker(executorService, configuration.getFlinkMasterUrl());
   }
 
   private final ListeningExecutorService executorService;
@@ -62,6 +63,7 @@ public class FlinkJobInvoker implements JobInvoker {
     LOG.info("Invoking job {}", invocationId);
 
     flinkOptions.setFlinkMaster(flinkMasterUrl);
+    //flinkOptions.setSdkWorkerParallelism("[stage]");
 
     flinkOptions.setRunner(null);
 

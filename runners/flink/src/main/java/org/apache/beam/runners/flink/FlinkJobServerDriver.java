@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
@@ -63,7 +62,8 @@ public class FlinkJobServerDriver implements Runnable {
     private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
-    private String artifactStagingPath = "/tmp/beam-artifact-staging";
+    private String artifactStagingPath =
+        System.getProperty("java.io.tmpdir") + "/beam-artifact-staging";
 
     @Option(
       name = "--clean-artifacts-per-job",
@@ -73,10 +73,13 @@ public class FlinkJobServerDriver implements Runnable {
 
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
     private String flinkMasterUrl = "[auto]";
+
+    public String getFlinkMasterUrl() {
+      return this.flinkMasterUrl;
+    }
   }
 
   public static void main(String[] args) throws Exception {
-    System.setProperty(FlinkExecutableStageContext.PER_OPERATOR_FACTORY, "true");
     //TODO: Expose the fileSystem related options.
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
@@ -234,7 +237,7 @@ public class FlinkJobServerDriver implements Runnable {
     return artifactStagingService;
   }
 
-  private JobInvoker createJobInvoker() throws IOException {
-    return FlinkJobInvoker.create(executor, configuration.flinkMasterUrl);
+  private JobInvoker createJobInvoker() {
+    return FlinkJobInvoker.create(executor, configuration);
   }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.Serializable;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 
@@ -35,10 +36,8 @@ public interface FlinkExecutableStageContext extends AutoCloseable {
     FlinkExecutableStageContext get(JobInfo jobInfo);
   }
 
-  static String PER_OPERATOR_FACTORY = "flinkExecutableStageContextPerOperator";
-
-  static Factory factory() {
-    if (System.getProperty(PER_OPERATOR_FACTORY) != null) {
+  static Factory factory(FlinkPipelineOptions options) {
+    if ("[stage]".equals(options.getSdkWorkerParallelism())) {
       return FlinkDefaultExecutableStageContext.MULTI_INSTANCE_FACTORY;
     } else {
       return FlinkDefaultExecutableStageContext.ReferenceCountingFactory.REFERENCE_COUNTING;

@@ -75,6 +75,6 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
     }
   }
 
-  static Factory MULTI_INSTANCE_FACTORY =
+  static final Factory MULTI_INSTANCE_FACTORY =
       (jobInfo) -> FlinkDefaultExecutableStageContext.create(jobInfo);
 }
