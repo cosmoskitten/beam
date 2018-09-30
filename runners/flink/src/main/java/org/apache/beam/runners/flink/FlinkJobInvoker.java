@@ -37,16 +37,18 @@ public class FlinkJobInvoker implements JobInvoker {
 
   public static FlinkJobInvoker create(
       ListeningExecutorService executorService,
-      FlinkJobServerDriver.ServerConfiguration configuration) {
-    return new FlinkJobInvoker(executorService, configuration.getFlinkMasterUrl());
+      FlinkJobServerDriver.ServerConfiguration serverConfig) {
+    return new FlinkJobInvoker(executorService, serverConfig);
   }
 
   private final ListeningExecutorService executorService;
-  private final String flinkMasterUrl;
+  private final FlinkJobServerDriver.ServerConfiguration serverConfig;
 
-  private FlinkJobInvoker(ListeningExecutorService executorService, String flinkMasterUrl) {
+  private FlinkJobInvoker(
+      ListeningExecutorService executorService,
+      FlinkJobServerDriver.ServerConfiguration serverConfig) {
     this.executorService = executorService;
-    this.flinkMasterUrl = flinkMasterUrl;
+    this.serverConfig = serverConfig;
   }
 
   @Override
@@ -62,8 +64,13 @@ public class FlinkJobInvoker implements JobInvoker {
         String.format("%s_%s", flinkOptions.getJobName(), UUID.randomUUID().toString());
     LOG.info("Invoking job {}", invocationId);
 
-    flinkOptions.setFlinkMaster(flinkMasterUrl);
-    //flinkOptions.setSdkWorkerParallelism("[stage]");
+    if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getFlinkMaster())) {
+      flinkOptions.setFlinkMaster(serverConfig.getFlinkMasterUrl());
+    }
+
+    if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getSdkWorkerParallelism())) {
+      flinkOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
+    }
 
     flinkOptions.setRunner(null);
 
