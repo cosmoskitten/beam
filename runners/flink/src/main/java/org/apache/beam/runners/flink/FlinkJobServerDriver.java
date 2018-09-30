@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -63,7 +64,7 @@ public class FlinkJobServerDriver implements Runnable {
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
     private String artifactStagingPath =
-        System.getProperty("java.io.tmpdir") + "/beam-artifact-staging";
+        Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 
     @Option(
       name = "--clean-artifacts-per-job",
@@ -76,6 +77,13 @@ public class FlinkJobServerDriver implements Runnable {
 
     public String getFlinkMasterUrl() {
       return this.flinkMasterUrl;
+    }
+
+    @Option(name = "--sdk-worker-parallelism", usage = "Parallelism of SDK worker processes")
+    private String sdkWorkerParallelism = "[pipeline]";
+
+    public String getSdkWorkerParallelism() {
+      return this.sdkWorkerParallelism;
     }
   }
 
