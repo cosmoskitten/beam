@@ -92,9 +92,8 @@ import scala.runtime.AbstractFunction1;
  * bounds the types of state and output to be the same, a (state, output) tuple is used, filtering
  * the state (and output if no firing) in the following steps.
  */
-public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
+public class SparkStreamingGroupByKey implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(SparkStreamingGroupByKey.class);
 
   /** State and Timers wrapper. */
   public static class StateAndTimers implements Serializable {
@@ -425,13 +424,13 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final CounterCell droppedDueToClosedWindow =
           cellProvider.getCounter(
               MetricName.named(
-                  SparkGroupAlsoByWindowViaWindowSet.class,
+                  SparkStreamingGroupByKey.class,
                   GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER));
 
       final CounterCell droppedDueToLateness =
           cellProvider.getCounter(
               MetricName.named(
-                  SparkGroupAlsoByWindowViaWindowSet.class,
+                  SparkStreamingGroupByKey.class,
                   GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER));
 
       // log if there's something to log.
@@ -551,7 +550,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   }
 
   public static <K, InputT, W extends BoundedWindow>
-      JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> groupAlsoByWindow(
+      JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> groupByKey(
           final JavaDStream<WindowedValue<KV<K, InputT>>> inputDStream,
           final Coder<K> keyCoder,
           final Coder<WindowedValue<InputT>> wvCoder,
