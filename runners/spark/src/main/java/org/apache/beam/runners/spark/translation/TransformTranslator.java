@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -131,14 +130,8 @@ public final class TransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         // --- group by key only.
-        Long bundleSize =
-            context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
-        Partitioner partitioner =
-            (bundleSize > 0)
-                ? new HashPartitioner(context.getSparkContext().defaultParallelism())
-                : null;
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+        JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKey =
+            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder);
 
         // --- now group also by window.
         // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
@@ -430,14 +423,14 @@ public final class TransformTranslator {
     final WindowedValue.WindowedValueCoder<V> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
-    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, null);
+    JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupRDD =
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
 
     return groupRDD
         .map(
             input -> {
-              final K key = input.getValue().getKey();
-              Iterable<WindowedValue<V>> value = input.getValue().getValue();
+              final K key = input.getKey();
+              Iterable<WindowedValue<V>> value = input.getValue();
               return FluentIterable.from(value)
                   .transform(
                       windowedValue ->
