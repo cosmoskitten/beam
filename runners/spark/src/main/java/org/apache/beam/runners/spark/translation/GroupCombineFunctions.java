@@ -54,7 +54,7 @@ public class GroupCombineFunctions {
    * An implementation of {@link
    * org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} for the Spark runner.
    */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupByKeyOnly(
+  public static <K, V> JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupByKeyOnly(
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       WindowedValueCoder<V> wvCoder,
@@ -70,16 +70,9 @@ public class GroupCombineFunctions {
     JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
         (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
 
-    // using mapPartitions allows to preserve the partitioner
-    // and avoid unnecessary shuffle downstream.
     return groupedRDD
-        .mapPartitionsToPair(
-            TranslationUtils.pairFunctionToPairFlatMapFunction(
-                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
-            true)
-        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
-        .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(WindowedValue::valueInGlobalWindow), true);
+        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
+        .map(TranslationUtils.fromPairFunction());
   }
 
   /** Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation. */
