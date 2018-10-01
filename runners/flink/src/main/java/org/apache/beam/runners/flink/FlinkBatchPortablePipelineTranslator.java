@@ -149,6 +149,10 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
+    translatorMap.put(
+        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
+        // Need to support this until the primitive is removed
+        FlinkBatchPortablePipelineTranslator::translateView);
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
 
@@ -523,6 +527,17 @@ public class FlinkBatchPortablePipelineTranslator
 
     context.addDataSet(
         Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()), dataSource);
+  }
+
+  private static <InputT> void translateView(
+      PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
+
+    DataSet<WindowedValue<InputT>> inputDataSet =
+        context.getDataSetOrThrow(
+            Iterables.getOnlyElement(transform.getTransform().getInputsMap().values()));
+
+    context.addDataSet(
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()), inputDataSet);
   }
 
   /**

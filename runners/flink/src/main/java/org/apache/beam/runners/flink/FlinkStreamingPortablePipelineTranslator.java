@@ -175,6 +175,10 @@ public class FlinkStreamingPortablePipelineTranslator
     translatorMap.put(ExecutableStage.URN, this::translateExecutableStage);
     translatorMap.put(PTransformTranslation.RESHUFFLE_URN, this::translateReshuffle);
 
+    translatorMap.put(
+        // Need to support this until the primitive is removed
+        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, this::translateView);
+
     this.urnToTransformTranslator = translatorMap.build();
   }
 
@@ -551,6 +555,16 @@ public class FlinkStreamingPortablePipelineTranslator
           outputs.get(tupleTag.getId()),
           outputStream.getSideOutput(tagsToOutputTags.get(tupleTag)));
     }
+  }
+
+  private <InputT> void translateView(
+      String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
+
+    DataStream<WindowedValue<InputT>> inputDataSet = context.getDataStreamOrThrow(id);
+    RunnerApi.Components components = pipeline.getComponents();
+    RunnerApi.PTransform transform = components.getTransformsOrThrow(id);
+    String outputCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
+    context.addDataStream(outputCollectionId, inputDataSet);
   }
 
   private static LinkedHashMap<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>>
