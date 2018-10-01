@@ -171,7 +171,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
   @Override
   public void close() throws Exception {
-
     // Clear the cache. This closes all active environments.
     // note this may cause open calls to be cancelled by the peer
     environmentCache.invalidateAll();

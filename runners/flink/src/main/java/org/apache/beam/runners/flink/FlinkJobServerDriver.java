@@ -33,6 +33,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -79,8 +80,11 @@ public class FlinkJobServerDriver implements Runnable {
       return this.flinkMasterUrl;
     }
 
-    @Option(name = "--sdk-worker-parallelism", usage = "Parallelism of SDK worker processes")
-    private String sdkWorkerParallelism = "[pipeline]";
+    @Option(
+      name = "--sdk-worker-parallelism",
+      usage = "Default parallelism for SDK worker processes (see portable pipeline options)"
+    )
+    private String sdkWorkerParallelism = PortablePipelineOptions.SDK_WORKER_PARALLELISM_PIPELINE;
 
     public String getSdkWorkerParallelism() {
       return this.sdkWorkerParallelism;

@@ -27,6 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,8 +69,9 @@ public class FlinkJobInvoker implements JobInvoker {
       flinkOptions.setFlinkMaster(serverConfig.getFlinkMasterUrl());
     }
 
-    if (FlinkPipelineOptions.AUTO.equals(flinkOptions.getSdkWorkerParallelism())) {
-      flinkOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
+    PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
+    if (portableOptions.getSdkWorkerParallelism() == null) {
+      portableOptions.setSdkWorkerParallelism(serverConfig.getSdkWorkerParallelism());
     }
 
     flinkOptions.setRunner(null);
