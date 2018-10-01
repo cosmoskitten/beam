@@ -146,7 +146,7 @@ public final class TransformTranslator {
 
           // --- group by key only.
           Partitioner partitioner = getPartitioner(context);
-          JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+          JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupedByKeyOnly =
               GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
           // --- now group also by window.
@@ -440,14 +440,14 @@ public final class TransformTranslator {
     final WindowedValue.WindowedValueCoder<V> wvCoder =
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
-    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
+    JavaRDD<KV<K, Iterable<WindowedValue<V>>>> groupRDD =
         GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
 
     return groupRDD
         .map(
             input -> {
-              final K key = input.getValue().getKey();
-              Iterable<WindowedValue<V>> value = input.getValue().getValue();
+              final K key = input.getKey();
+              Iterable<WindowedValue<V>> value = input.getValue();
               return FluentIterable.from(value)
                   .transform(
                       windowedValue ->
