@@ -33,8 +33,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-python:flinkCompatibilityMatrixBatch')
-      tasks(':beam-sdks-python:flinkCompatibilityMatrixStreaming')
+      tasks(':beam-sdks-python:flinkCompatibilityMatrixBatchProcess')
+      tasks(':beam-sdks-python:flinkCompatibilityMatrixStreamingProcess')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
