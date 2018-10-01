@@ -47,14 +47,14 @@ rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 # Insall packages and run the unit tests of the report generator and the jira manager
 pip install mock jira pyyaml
 cd $WORKSPACE/src/.test-infra/jenkins
-python -m dependency_check.dependency_check_report_generator_test
-python -m jira_utils.jira_manager_test
-python -m dependency_check.version_comparer_test
+#python -m dependency_check.dependency_check_report_generator_test
+#python -m jira_utils.jira_manager_test
+#python -m dependency_check.version_comparer_test
 
 echo "<html><body>" > $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
 
 python -m dependency_check/dependency_check_report_generator Python
 
-python -m dependency_check.dependency_check_report_generator Java
+#python -m dependency_check.dependency_check_report_generator Java
 
 echo "$REPORT_DESCRIPTION </body></html>" >> $WORKSPACE/src/build/dependencyUpdates/beam-dependency-check-report.html
