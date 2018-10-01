@@ -67,4 +67,3 @@ job('beam_Release_Gradle_NightlySnapshot') {
     }
   }
 }
-
