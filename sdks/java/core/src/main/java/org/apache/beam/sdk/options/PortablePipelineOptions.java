@@ -78,11 +78,11 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   @Description(
       "SDK worker/harness process parallelism. Currently supported options are "
-          + "<null> (Let the runner decide) or "
+          + "<null> (let the runner decide) or '"
           + SDK_WORKER_PARALLELISM_PIPELINE
-          + " (single SDK harness process per pipeline and task manager JVM) or "
+          + "' (single SDK harness process per pipeline and task manager JVM) or '"
           + SDK_WORKER_PARALLELISM_STAGE
-          + " (separate SDK harness for every executable stage.)")
+          + "' (separate SDK harness for every executable stage).")
   @Nullable
   String getSdkWorkerParallelism();
 
