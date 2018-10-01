@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import argparse
 import logging
 import shutil
 import sys
@@ -25,6 +26,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
@@ -34,12 +36,26 @@ if __name__ == '__main__':
   # Run as
   #
   # python -m apache_beam.runners.portability.flink_runner_test \
-  #     /path/to/job_server.jar \
+  #     --flink_job_server_jar=/path/to/job_server.jar \
+  #     --type=Batch \
+  #     --harness_type=docker \
   #     [FlinkRunnerTest.test_method, ...]
-  flinkJobServerJar = sys.argv.pop(1)
-  streaming = sys.argv.pop(1).lower() == 'streaming'
 
-  # This is defined here to only be run when we invoke this file explicitly.
+  parser = argparse.ArgumentParser(add_help=True)
+  parser.add_argument('--flink_job_server_jar',
+                      help='Job server jar to submit jobs.')
+  parser.add_argument('--type', default='batch',
+                      help='Job type. batch or streaming')
+  parser.add_argument('--harness_type', default='docker',
+                      help='Harness type. docker or process')
+  known_args, args = parser.parse_known_args(sys.argv)
+  sys.argv = args
+
+  flink_job_server_jar = known_args.flink_job_server_jar
+  streaming = known_args.type.lower() == 'streaming'
+  harness_type = known_args.harness_type.lower()
+
+# This is defined here to only be run when we invoke this file explicitly.
   class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     _use_grpc = True
     _use_subprocesses = True
@@ -50,7 +66,7 @@ if __name__ == '__main__':
       try:
         return [
             'java',
-            '-jar', flinkJobServerJar,
+            '-jar', flink_job_server_jar,
             '--artifacts-dir', tmp_dir,
             '--job-host', 'localhost',
             '--job-port', str(port),
@@ -65,6 +81,12 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = ['beam_fn_api']
+      # Default environment is Docker.
+      if harness_type == 'process':
+        options.view_as(PortableOptions).environment_type = 'PROCESS'
+        options.view_as(
+            PortableOptions
+        ).environment_config = '{"command": "build/sdk_worker.sh"}'
       if streaming:
         options.view_as(StandardOptions).streaming = True
       return options

@@ -327,24 +327,35 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+class CompatibilityMatrixConfig {
+  String type
+  String harnessType = "Docker"
+}
+
 def flinkCompatibilityMatrix = {
-  def type = it
-  def name = 'flinkCompatibilityMatrix' + type
+  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
+  def type = config.type
+  def harnessType = config.harnessType
+  def name = 'flinkCompatibilityMatrix' + type + harnessType
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
+    dependsOn 'createProcessWorker'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
+    if (type.toLowerCase() == 'docker')
+      dependsOn ':beam-sdks-python-container:docker'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
+        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --type=${type} --harness_type=${harnessType}"
       }
     }
   }
 }
 
-flinkCompatibilityMatrix('Batch')
-flinkCompatibilityMatrix('Streaming')
+flinkCompatibilityMatrix(type: 'Batch')
+flinkCompatibilityMatrix(type:'Streaming')
+flinkCompatibilityMatrix(type: 'Batch', harnessType: 'Process')
+flinkCompatibilityMatrix(type:'Streaming', harnessType: 'Process')
 
 task postCommit() {
   dependsOn "preCommit"
@@ -358,6 +369,24 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
     exec {
       executable 'sh'
       args '-c', "./scripts/run_dependency_check.sh"
+    }
+  }
+}
+
+project.task('createProcessWorker') {
+  def outputFile = file("${project.buildDir}/sdk_worker.sh")
+  def workerScript = file("./scripts/process_sdk_worker.sh").absolutePath
+  def text = "sh -c \". ${envdir}/bin/activate && . ${workerScript} \$*\""
+  dependsOn ':beam-sdks-python-container:build'
+  dependsOn 'setupVirtualenv'
+  outputs.file outputFile
+  doLast{
+    outputFile.write text
+    exec {
+      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+    }
+    exec {
+      commandLine('chmod',  '+x', outputFile)
     }
   }
 }
