@@ -340,24 +340,50 @@ task hdfsIntegrationTest(dependsOn: 'installGcpTest') {
   }
 }
 
+class CompatibilityMatrixConfig {
+  // Execute string pipelines.
+  boolean streaming = false
+  // Execute on Docker or Process based environment.
+  HARNESS_TYPE harnessType = HARNESS_TYPE.DOCKER
+
+  enum HARNESS_TYPE{
+    DOCKER, PROCESS
+  }
+}
+
 def flinkCompatibilityMatrix = {
-  def type = it
-  def name = 'flinkCompatibilityMatrix' + type
+  def config = it ? it as CompatibilityMatrixConfig : new CompatibilityMatrixConfig()
+  def harnessType = config.harnessType.name()
+  def streaming = config.streaming
+  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${harnessType}"
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
+    dependsOn 'createProcessWorker'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
+    if (harnessType.toLowerCase() == 'docker')
+      dependsOn ':beam-sdks-python-container:docker'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test ${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} ${type}"
+        args '-c', ". ${envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --harness_type=${harnessType} ${streaming ? '--streaming' : ''}"
       }
     }
   }
 }
 
-flinkCompatibilityMatrix('Batch')
-flinkCompatibilityMatrix('Streaming')
+task flinkCompatibilityMatrixDocker() {
+  dependsOn flinkCompatibilityMatrix(streaming: false)
+  dependsOn flinkCompatibilityMatrix(streaming: true)
+}
+
+task flinkCompatibilityMatrixProcess() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, harnessType: CompatibilityMatrixConfig.HARNESS_TYPE.PROCESS)
+  dependsOn flinkCompatibilityMatrix(streaming: true, harnessType: CompatibilityMatrixConfig.HARNESS_TYPE.PROCESS)
+}
+
+task flinkValidatesRunner() {
+  dependsOn 'flinkCompatibilityMatrixProcess'
+}
 
 task postCommit() {
   dependsOn "preCommit"
@@ -378,4 +404,22 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
 task buildSnapshot() {
   dependsOn 'sdist'
   dependsOn 'depSnapshot'
+}
+
+project.task('createProcessWorker') {
+  dependsOn ':beam-sdks-python-container:build'
+  dependsOn 'setupVirtualenv'
+  def sdkWorkerFile = file("${project.buildDir}/sdk_worker.sh")
+  def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/linux_amd64/boot"
+  def sdkWorkerFileCode = "sh -c \". ${envdir}/bin/activate && ${workerScript} \$* \""
+  outputs.file sdkWorkerFile
+  doLast {
+    sdkWorkerFile.write sdkWorkerFileCode
+    exec {
+      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+    }
+    exec {
+      commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
 }
