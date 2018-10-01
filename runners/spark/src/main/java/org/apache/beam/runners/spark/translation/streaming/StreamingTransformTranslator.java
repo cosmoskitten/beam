@@ -38,7 +38,7 @@ import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
+import org.apache.beam.runners.spark.stateful.SparkStreamingGroupByKey;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -298,7 +298,7 @@ public final class StreamingTransformTranslator {
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            SparkGroupAlsoByWindowViaWindowSet.groupAlsoByWindow(
+            SparkStreamingGroupByKey.groupByKey(
                 dStream,
                 coder.getKeyCoder(),
                 wvCoder,
