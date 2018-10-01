@@ -332,7 +332,8 @@ def flinkCompatibilityMatrix = {
   def name = 'flinkCompatibilityMatrix' + type
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':beam-sdks-python-container:docker'
+    dependsOn 'createProcessWorker'
+//    dependsOn ':beam-sdks-python-container:docker'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
     doLast {
       exec {
@@ -358,6 +359,23 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
     exec {
       executable 'sh'
       args '-c', "./scripts/run_dependency_check.sh"
+    }
+  }
+}
+
+project.task('createProcessWorker') {
+  def outputFile = file("${project.buildDir}/sdk_worker.sh")
+  def workerScript = file("./scripts/process_sdk_worker.sh").absolutePath
+  def text = "sh -c \". ${envdir}/bin/activate && . ${workerScript} \$*\""
+  dependsOn 'setupVirtualenv'
+  outputs.file outputFile
+  doLast{
+    outputFile.write text
+    exec {
+      commandLine('sh', '-c', ". ${envdir}/bin/activate && cd ${project.projectDir} && python setup.py install ")
+    }
+    exec {
+      commandLine('chmod',  '+x', outputFile)
     }
   }
 }
