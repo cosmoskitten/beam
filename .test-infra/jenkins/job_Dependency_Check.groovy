@@ -47,7 +47,7 @@ job('beam_Dependency_Check') {
             ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
   }
 
-  wrappers{
+  wrappers{l
     credentialsBinding {
         usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
     }
@@ -58,7 +58,8 @@ job('beam_Dependency_Check') {
     extendedEmail {
       triggers {
         always {
-          recipientList('dev@beam.apache.org')
+          recipientList('yifanzou@google.com')
+//          recipientList('dev@beam.apache.org')
           contentType('text/html')
           subject("Beam Dependency Check Report (${date})")
           content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')

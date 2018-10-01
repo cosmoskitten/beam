@@ -16,13 +16,13 @@
 # limitations under the License.
 #
 
+import dependency_check.version_comparer as version_comparer
 import logging
 import os.path
 import re
 import requests
 import sys
 import traceback
-import version_comparer
 
 from datetime import datetime
 from dependency_check.bigquery_client_utils import BigQueryClientUtils
@@ -138,14 +138,15 @@ def prioritize_dependencies(deps, sdk_type):
                           latest_release_date)
       if (version_comparer.compare_dependency_versions(curr_ver, latest_ver) or
           compare_dependency_release_dates(curr_release_date, latest_release_date)):
+        high_priority_deps.append(dep_info + "</tr>")
         # Create a new issue or update on the existing issue
-        jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
-        if (jira_issue.fields.status.name == 'Open' or
-            jira_issue.fields.status.name == 'Reopened'):
-          dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
-            ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
-            jira_issue.key)
-          high_priority_deps.append(dep_info)
+        # jira_issue = jira_manager.run(dep_name, curr_ver, latest_ver, sdk_type, group_id = group_id)
+        # if (jira_issue.fields.status.name == 'Open' or
+        #     jira_issue.fields.status.name == 'Reopened'):
+        #   dep_info += "<td><a href=\'{0}\'>{1}</a></td></tr>".format(
+        #     ReportGeneratorConfig.BEAM_JIRA_HOST+"browse/"+ jira_issue.key,
+        #     jira_issue.key)
+        #   high_priority_deps.append(dep_info)
 
     except:
       traceback.print_exc()
