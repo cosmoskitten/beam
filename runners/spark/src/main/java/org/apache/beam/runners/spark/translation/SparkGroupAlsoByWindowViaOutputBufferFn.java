@@ -49,8 +49,7 @@ import org.joda.time.Instant;
 /** An implementation of {@link GroupAlsoByWindow} for the Spark runner. */
 public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
     implements FlatMapFunction<
-        WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
-        WindowedValue<KV<K, Iterable<InputT>>>> {
+        KV<K, Iterable<WindowedValue<InputT>>>, WindowedValue<KV<K, Iterable<InputT>>>> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
@@ -71,9 +70,9 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
 
   @Override
   public Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
-      WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>> windowedValue) throws Exception {
-    K key = windowedValue.getValue().getKey();
-    Iterable<WindowedValue<InputT>> values = windowedValue.getValue().getValue();
+      KV<K, Iterable<WindowedValue<InputT>>> kv) throws Exception {
+    K key = kv.getKey();
+    Iterable<WindowedValue<InputT>> values = kv.getValue();
 
     //------ based on GroupAlsoByWindowsViaOutputBufferDoFn ------//
 
