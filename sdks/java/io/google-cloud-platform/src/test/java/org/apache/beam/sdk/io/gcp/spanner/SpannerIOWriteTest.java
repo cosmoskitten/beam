@@ -603,7 +603,6 @@ public class SpannerIOWriteTest implements Serializable {
             .collect(Collectors.toList());
 
     // Process elements.
-    testFn.setup();
     when(mockProcessContext.element()).thenReturn(encodedInput);
     testFn.processElement(mockProcessContext);
 
@@ -650,7 +649,6 @@ public class SpannerIOWriteTest implements Serializable {
             .collect(Collectors.toList());
 
     // Process elements.
-    testFn.setup();
     when(mockProcessContext.element()).thenReturn(encodedInput);
     testFn.processElement(mockProcessContext);
 
