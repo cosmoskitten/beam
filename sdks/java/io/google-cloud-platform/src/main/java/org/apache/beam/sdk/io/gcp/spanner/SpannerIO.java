@@ -39,15 +39,18 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.primitives.UnsignedBytes;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -855,6 +858,20 @@ public class SpannerIO {
     }
   }
 
+  /**
+   * A singleton to compare encoded MutationGroups by encoded Key that wraps {@code
+   * UnsignedBytes#lexicographicalComparator} which unfortunately is not serializable.
+   */
+  private enum EncodedKvMutationGroupComparator
+      implements Comparator<KV<byte[], byte[]>>, Serializable {
+    INSTANCE {
+      @Override
+      public int compare(KV<byte[], byte[]> a, KV<byte[], byte[]> b) {
+        return UnsignedBytes.lexicographicalComparator().compare(a.getKey(), b.getKey());
+      }
+    }
+  }
+
   /** Same as {@link Write} but supports grouped mutations. */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
@@ -998,7 +1015,7 @@ public class SpannerIO {
 
     private final PCollectionView<SpannerSchema> schemaView;
 
-    private transient BufferedExternalSorter sorter = null;
+    private transient ArrayList<KV<byte[], byte[]>> mutationsToSort = null;
 
     GatherBundleAndSortFn(
         long maxBatchSizeBytes,
@@ -1012,7 +1029,7 @@ public class SpannerIO {
 
     @StartBundle
     public synchronized void startBundle() throws Exception {
-      if (sorter == null) {
+      if (mutationsToSort == null) {
         initSorter();
       } else {
         throw new IllegalStateException("Sorter should be null here");
@@ -1020,7 +1037,7 @@ public class SpannerIO {
     }
 
     private void initSorter() {
-      sorter = BufferedExternalSorter.create(BufferedExternalSorter.options().withMemoryMB(2000));
+      mutationsToSort = new ArrayList<KV<byte[], byte[]>>((int) maxNumMutations);
       batchSizeBytes = 0;
       batchCells = 0;
     }
@@ -1031,9 +1048,11 @@ public class SpannerIO {
     }
 
     private Iterable<KV<byte[], byte[]>> sortAndGetList() throws IOException {
-      Iterable<KV<byte[], byte[]>> sortedValues = sorter.sort();
-      sorter = null;
-      return sortedValues;
+      mutationsToSort.sort(EncodedKvMutationGroupComparator.INSTANCE);
+      ArrayList<KV<byte[], byte[]>> tmp = mutationsToSort;
+      // Ensure no more mutations can be added.
+      mutationsToSort = null;
+      return tmp;
     }
 
     @ProcessElement
@@ -1051,7 +1070,7 @@ public class SpannerIO {
           initSorter();
         }
 
-        sorter.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
+        mutationsToSort.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
         batchSizeBytes += groupSize;
         batchCells += groupCells;
       }
