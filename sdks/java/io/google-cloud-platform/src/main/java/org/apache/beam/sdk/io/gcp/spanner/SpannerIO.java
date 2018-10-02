@@ -191,12 +191,24 @@ import org.slf4j.LoggerFactory;
  * <p>Build Note: SpannerIO.write() and SpannerIO.writeGrouped() both have a runtime dependency on:
  *
  * <ul>
- *   <li>org.apache.hadoop:hadoop-common
- *   <li>org.apache.hadoop:hadoop-mapreduce-client-core
+ *   <li>org.apache.hadoop:hadoop-common:2.7.3
+ *   <li>org.apache.hadoop:hadoop-mapreduce-client-core:2.7.3
  * </ul>
  *
  * So these dependencies need to be included in the build. However Hadoop MapReduce is not actually
- * used.
+ * used. Note that to avoid dependency version issues, these 2 should be at the end of
+ * the dependency list, or the following transient dependencies need to be excluded:
+ * <ul>
+ *    <li>org.apache.hadoop:hadoop-common</li>
+ *    <ul>
+ *      <li>com.google.protobuf:protobuf-java</li>
+ *      <li>org.apache.avro:avro</li>
+ *    </ul>
+ *    <li>org.apache.hadoop:hadoop-mapreduce-client-core</li>
+ *    <ul>
+ *      <li>com.google.guava:guava</li>
+ *    </ul>
+ * </ul>
  *
  * <h3>Streaming Support</h3>
  *
@@ -987,7 +999,7 @@ public class SpannerIO {
     }
 
     @StartBundle
-    public void startBundle() throws Exception {
+    public synchronized void startBundle() throws Exception {
       if (sorter == null) {
         initSorter();
       } else {
@@ -1004,7 +1016,7 @@ public class SpannerIO {
     }
 
     @FinishBundle
-    public void finishBundle(FinishBundleContext c) throws Exception {
+    public synchronized void finishBundle(FinishBundleContext c) throws Exception {
       c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
     }
 
@@ -1018,19 +1030,21 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationKeyEncoder encoder = new MutationKeyEncoder(spannerSchema);
-
       MutationGroup mg = c.element();
       long groupSize = MutationSizeEstimator.sizeOf(mg);
       long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
-      if (((batchCells + groupCells) > maxNumMutations)
-          || (batchSizeBytes + groupSize) > maxBatchSizeBytes) {
-        c.output(sortAndGetList());
-        initSorter();
-      }
 
-      sorter.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
-      batchSizeBytes += groupSize;
-      batchCells += groupCells;
+      synchronized (this) {
+        if (((batchCells + groupCells) > maxNumMutations)
+            || (batchSizeBytes + groupSize) > maxBatchSizeBytes) {
+          c.output(sortAndGetList());
+          initSorter();
+        }
+
+        sorter.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
+        batchSizeBytes += groupSize;
+        batchCells += groupCells;
+      }
     }
   }
 
