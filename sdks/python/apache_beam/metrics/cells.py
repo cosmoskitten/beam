@@ -162,7 +162,11 @@ class CounterCell(Counter, MetricCell):
       return self.value
 
   def to_runner_api_monitoring_info(self):
-    """Returns a Metric with this value for use in a MonitoringInfo."""
+    """Returns a Metric with this counter value for use in a MonitoringInfo."""
+    # TODO(ajamato): Update this code to be consisten with Gauges
+    # and Distributions. Since there is no CounterData class this method
+    # was added to CounterCell. Consider adding a CounterData class or
+    # removing the GaugeData and DistributionData classes.
     return beam_fn_api_pb2.Metric(
         counter_data=beam_fn_api_pb2.CounterData(
             int64_value=self.get_cumulative()
