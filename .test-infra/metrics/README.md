@@ -55,7 +55,7 @@ sudo apt-get update
 sudo apt-get install docker-ce
 
 ###################################################
-# Commands below here required to sping up docker #
+# Commands below here required to spin up docker  #
 # containers locally. Can be omitted for kuberctl #
 # setup.                                          #
 ###################################################
