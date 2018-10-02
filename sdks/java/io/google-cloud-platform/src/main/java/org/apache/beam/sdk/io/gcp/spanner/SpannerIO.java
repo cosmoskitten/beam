@@ -147,7 +147,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to Cloud Spanner</h3>
  *
  * <p>The Cloud Spanner {@link SpannerIO.Write} transform writes to Cloud Spanner by executing a
- * collection of input row {@link Mutation Mutations}. The mutations grouped into batches for
+ * collection of input row {@link Mutation Mutations}. The mutations are grouped into batches for
  * efficiency.
  *
  * <p>To configure the write transform, create an instance using {@link #write()} and then specify
@@ -158,21 +158,47 @@ import org.slf4j.LoggerFactory;
  * // Earlier in the pipeline, create a PCollection of Mutations to be written to Cloud Spanner.
  * PCollection<Mutation> mutations = ...;
  * // Write mutations.
- * mutations.apply(
+ * SpannerWriteResult result = mutations.apply(
  *     "Write", SpannerIO.write().withInstanceId("instance").withDatabaseId("database"));
  * }</pre>
  *
- * <p>The default maximum size of the batch is set to 1MB or 5000 mutated cells. To override this
- * use {@link Write#withBatchSizeBytes(long)} and {@link Write#withMaxNumMutations(long)}. Setting
- * batch size to a small value or zero disables batching. Note that the maximum size of a single
- * transaction is 20,000 mutated cells - including cells in indexes, so reduce the maximum number of
- * mutations if you have a large number of indexes and are getting exceptions with message:
- * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt>
+ * <h3>SpannerWriteResult</h3>
+ *
+ * The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the transform,
+ * including a {@link PCollection} of MutationGroups that failed to write, and a {@link PCollection}
+ * that can be used as a completion signal.
+ *
+ * <h3>Batching</h3>
+ *
+ * <p>To reduce the number of transactions sent to Spanner, the {@link Mutation Mutations} are
+ * grouped into batches The default maximum size of the batch is set to 1MB or 5000 mutated cells.
+ * To override this use {@link Write#withBatchSizeBytes(long) withBatchSizeBytes()} and {@link
+ * Write#withMaxNumMutations(long) withMaxNumMutations()}. Setting either to a small value or zero
+ * disables batching.
+ *
+ * <p>Note that the maximum size of a single transaction is 20,000 mutated cells - including cells
+ * in indexes. If you have a large number of indexes and are getting exceptions with message:
+ * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt> you will need to specify a
+ * smaller number of {@code MaxNumMutations}.
+ *
+ * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
+ * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
+ * Mutations} is then sorted by Key, and the batches are created from the sorted group. This so that
+ * each batch will have keys that are 'close' to each other to optimise write performance. This
+ * grouping factor (number of batches) is controlled by the parameter {@link
+ * Write#withGroupingFactor(int) withGroupingFactor()}.<br>
+ * Note that each worker will need enough memory to hold {@code GroupingFactor x MaxBatchSizeBytes}
+ * Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce {@code
+ * GroupingFactor}
+ *
+ * <h3>Database Schema Preparation</h3>
  *
  * <p>The write transform reads the database schema on pipeline start. If the schema is created as
- * part of the same pipline, this transform needs to wait until the schema has been created. Use
+ * part of the same pipeline, this transform needs to wait until the schema has been created. Use
  * {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be used
  * with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
+ *
+ * <h3>Transactions</h3>
  *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
@@ -183,20 +209,18 @@ import org.slf4j.LoggerFactory;
  *       rolled back.
  * </ul>
  *
- * <p>Use {@link MutationGroup} to ensure that a small set mutations is bundled together. It is
- * guaranteed that mutations in a group are submitted in the same transaction. Build {@link
- * SpannerIO.Write} transform, and call {@link Write#grouped()} method. It will return a
- * transformation that can be applied to a PCollection of MutationGroup.
+ * <p>Use {@link MutationGroup MutationGroups} with the {@link WriteGrouped} transform to ensure
+ * that a small set mutations is bundled together. It is guaranteed that mutations in a {@link
+ * MutationGroup} are submitted in the same transaction.
  *
- * <p>Build Note: SpannerIO.write() and SpannerIO.writeGrouped() both have a runtime dependency on:
- *
- * <ul>
- *   <li>org.apache.hadoop:hadoop-common
- *   <li>org.apache.hadoop:hadoop-mapreduce-client-core
- * </ul>
- *
- * So these dependencies need to be included in the build. However Hadoop MapReduce is not actually
- * used.
+ * <pre>{@code
+ * // Earlier in the pipeline, create a PCollection of MutationGroups to be written to Cloud Spanner.
+ * PCollection<MutationGroup> mutationGroups = ...;
+ * // Write mutation groups.
+ * SpannerWriteResult result = mutationGroups.apply(
+ *     "Write",
+ *     SpannerIO.write().withInstanceId("instance").withDatabaseId("database").grouped());
+ * }</pre>
  *
  * <h3>Streaming Support</h3>
  *
@@ -987,7 +1011,7 @@ public class SpannerIO {
     }
 
     @StartBundle
-    public void startBundle() throws Exception {
+    public synchronized void startBundle() throws Exception {
       if (sorter == null) {
         initSorter();
       } else {
@@ -996,15 +1020,13 @@ public class SpannerIO {
     }
 
     private void initSorter() {
-      sorter =
-          BufferedExternalSorter.create(
-              BufferedExternalSorter.options().withMemoryMB(2000).withTempLocation("/tmp"));
+      sorter = BufferedExternalSorter.create(BufferedExternalSorter.options().withMemoryMB(2000));
       batchSizeBytes = 0;
       batchCells = 0;
     }
 
     @FinishBundle
-    public void finishBundle(FinishBundleContext c) throws Exception {
+    public synchronized void finishBundle(FinishBundleContext c) throws Exception {
       c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
     }
 
@@ -1018,19 +1040,21 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationKeyEncoder encoder = new MutationKeyEncoder(spannerSchema);
-
       MutationGroup mg = c.element();
       long groupSize = MutationSizeEstimator.sizeOf(mg);
       long groupCells = MutationCellCounter.countOf(spannerSchema, mg);
-      if (((batchCells + groupCells) > maxNumMutations)
-          || (batchSizeBytes + groupSize) > maxBatchSizeBytes) {
-        c.output(sortAndGetList());
-        initSorter();
-      }
 
-      sorter.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
-      batchSizeBytes += groupSize;
-      batchCells += groupCells;
+      synchronized (this) {
+        if (((batchCells + groupCells) > maxNumMutations)
+            || (batchSizeBytes + groupSize) > maxBatchSizeBytes) {
+          c.output(sortAndGetList());
+          initSorter();
+        }
+
+        sorter.add(KV.of(encoder.encodeTableNameAndKey(mg.primary()), encode(mg)));
+        batchSizeBytes += groupSize;
+        batchCells += groupCells;
+      }
     }
   }
 
