@@ -43,14 +43,19 @@ class JobServicePipelineResult implements PipelineResult {
 
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
+  @Nullable private State terminationState;
 
   JobServicePipelineResult(ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService) {
     this.jobId = jobId;
     this.jobService = jobService;
+    this.terminationState = null;
   }
 
   @Override
   public State getState() {
+    if (terminationState != null) {
+      return terminationState;
+    }
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateResponse response =
         stub.getState(GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build());
@@ -89,6 +94,9 @@ class JobServicePipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
+    if (terminationState != null) {
+      return terminationState;
+    }
     JobServiceBlockingStub stub = jobService.get();
     GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
     GetJobStateResponse response = stub.getState(request);
@@ -108,6 +116,7 @@ class JobServicePipelineResult implements PipelineResult {
     } catch (Exception e) {
       LOG.warn("Error cleaning up job service", e);
     }
+    terminationState = lastState;
     return lastState;
   }
 
