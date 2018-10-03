@@ -314,8 +314,10 @@ class _BatchSizeEstimator(object):
       cook_ds = 0.5 / s2 * errs**2 * (h / (1 - h)**2)
 
       # Re-compute the regression, excluding those points with Cook's distance
-      # greater than 0.5.
-      b, a = np.polyfit(xs, ys, 1, w=cook_ds <= 0.5)
+      # greater than 0.5, and weighting by the inverse of x to give a more
+      # stable y-intercept.
+      weight = (cook_ds <= 0.5) / xs
+      b, a = np.polyfit(xs, ys, 1, w=weight)
       return a, b
 
   try:
@@ -338,8 +340,13 @@ class _BatchSizeEstimator(object):
               self._min_batch_size * self._MAX_GROWTH_FACTOR),
           self._min_batch_size + 1))
 
+    # There tends to be a lot of noise in the top quantile, which also
+    # has outsided influence in the regression.  If we have enough data,
+    # Simply declare the top 20% to be outliers.
+    trimmed_data = sorted(self._data)[:max(20, len(self._data) * 4 // 5)]
+
     # Linear regression for y = a + bx, where x is batch size and y is time.
-    xs, ys = zip(*self._data)
+    xs, ys = zip(*trimmed_data)
     a, b = self.linear_regression(xs, ys)
 
     # Avoid nonsensical or division-by-zero errors below due to noise.

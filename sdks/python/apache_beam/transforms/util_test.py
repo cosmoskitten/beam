@@ -154,33 +154,33 @@ class BatchElementsTest(unittest.TestCase):
     self.assertAlmostEqual(a, 1)
     self.assertAlmostEqual(b, 2)
 
-    xs = [random.random() for _ in range(100)]
+    xs = [1 + random.random() for _ in range(100)]
     ys = [7*x + 5 + 0.01 * random.random() for x in xs]
     a, b = linear_regression_fn(xs, ys)
     self.assertAlmostEqual(a, 5, delta=0.01)
     self.assertAlmostEqual(b, 7, delta=0.01)
 
     if test_outliers:
-      xs = [random.random() for _ in range(100)]
+      xs = [1 + random.random() for _ in range(100)]
       ys = [2*x + 1 for x in xs]
       a, b = linear_regression_fn(xs, ys)
       self.assertAlmostEqual(a, 1)
       self.assertAlmostEqual(b, 2)
 
       # An outlier or two doesn't affect the result.
-      for _ in range(3):
-        xs += [100]
-        ys += [300]
+      for _ in range(2):
+        xs += [10]
+        ys += [30]
         a, b = linear_regression_fn(xs, ys)
         self.assertAlmostEqual(a, 1)
         self.assertAlmostEqual(b, 2)
 
       # But enough of them, and they're no longer outliers.
-      xs += [100] * 10
-      ys += [300] * 10
+      xs += [10] * 10
+      ys += [30] * 10
       a, b = linear_regression_fn(xs, ys)
-      self.assertAlmostEqual(a, 0.5, delta=0.5)
-      self.assertAlmostEqual(b, 3, delta=0.01)
+      self.assertLess(a, 0.5)
+      self.assertGreater(b, 2.5)
 
   def test_no_numpy_regression(self):
     self._run_regression_test(
