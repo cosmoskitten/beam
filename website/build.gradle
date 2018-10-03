@@ -223,7 +223,7 @@ task stageWebsite << {
         "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
 
   // Copy the build website to GCS
-  shell "gsutil -m cp -r ${buildContentDir} ${gcs_path} || true"
+  shell "gsutil -m cp -r ${buildContentDir} ${gcs_path}"
 
   println "Website published to http://apache-beam-website-pull-" +
       "requests.storage.googleapis.com/${pullId}/index.html"
