@@ -84,6 +84,18 @@ task buildPython(dependsOn: 'setupVirtualenv') {
 }
 build.dependsOn buildPython
 
+// Snapshot of dependency requirements defined in setup.py.
+// Results will be stored in files under Gradle build directory.
+task depSnapshot(dependsOn: 'installGcpTest') {
+  doLast {
+    println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local > ${project.buildDir}/requirements.txt"
+    }
+  }
+}
+
 task lint {}
 check.dependsOn lint
 
@@ -360,4 +372,9 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
       args '-c', "./scripts/run_dependency_check.sh"
     }
   }
+}
+
+task buildSnapshot() {
+  dependsOn 'sdist'
+  dependsOn 'depSnapshot'
 }
