@@ -15,15 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.mock;
-
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildBeamSqlSchema;
-import static org.apache.beam.sdk.extensions.sql.TestUtils.buildRows;
+package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,6 +33,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /** Mocked table for bounded data sources. */
+@Experimental
 public class MockedBoundedTable extends MockedTable {
   /** rows written to this table. */
   private static final ConcurrentLinkedQueue<Row> CONTENT = new ConcurrentLinkedQueue<>();
@@ -59,7 +58,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedBoundedTable of(final Object... args) {
-    return new MockedBoundedTable(buildBeamSqlSchema(args));
+    return new MockedBoundedTable(MockUtils.buildBeamSqlSchema(args));
   }
 
   /** Build a mocked bounded table with the specified type. */
@@ -81,7 +80,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public MockedBoundedTable addRows(Object... args) {
-    List<Row> rows = buildRows(getSchema(), Arrays.asList(args));
+    List<Row> rows = MockUtils.buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }

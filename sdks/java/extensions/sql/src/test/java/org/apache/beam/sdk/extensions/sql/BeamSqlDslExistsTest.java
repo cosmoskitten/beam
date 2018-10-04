@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
-import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.MockedBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;

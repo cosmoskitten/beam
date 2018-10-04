@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.mock;
+package org.apache.beam.sdk.extensions.sql.meta.provider.test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.TestUtils;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -34,6 +34,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A mocked unbounded table. */
+@Experimental
 public class MockedUnboundedTable extends MockedTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
@@ -58,7 +59,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public static MockedUnboundedTable of(final Object... args) {
-    return new MockedUnboundedTable(TestUtils.buildBeamSqlSchema(args));
+    return new MockedUnboundedTable(MockUtils.buildBeamSqlSchema(args));
   }
 
   public MockedUnboundedTable timestampColumnIndex(int idx) {
@@ -81,7 +82,7 @@ public class MockedUnboundedTable extends MockedTable {
    * }</pre>
    */
   public MockedUnboundedTable addRows(Duration duration, Object... args) {
-    List<Row> rows = TestUtils.buildRows(getSchema(), Arrays.asList(args));
+    List<Row> rows = MockUtils.buildRows(getSchema(), Arrays.asList(args));
     // record the watermark + rows
     this.timestampedRows.add(Pair.of(duration, rows));
     return this;
