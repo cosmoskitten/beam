@@ -91,7 +91,7 @@ task depSnapshot(dependsOn: 'installGcpTest') {
     println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip freeze --local > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all > ${project.buildDir}/requirements.txt"
     }
   }
 }
