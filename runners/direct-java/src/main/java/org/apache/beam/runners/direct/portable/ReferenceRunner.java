@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -85,6 +86,7 @@ import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineDebugOptions;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -195,7 +197,10 @@ public class ReferenceRunner {
             GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 
       EnvironmentFactory environmentFactory =
-          createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
+          createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool,
+              PipelineOptionsTranslation.fromProto(options)
+                  .as(PortablePipelineDebugOptions.class)
+                  .getDeleteDynamicSdkHarnessContainers());
       JobBundleFactory jobBundleFactory =
           SingleEnvironmentInstanceJobBundleFactory.create(environmentFactory, data, state);
 
@@ -233,10 +238,11 @@ public class ReferenceRunner {
       GrpcFnServer<GrpcLoggingService> logging,
       GrpcFnServer<ArtifactRetrievalService> artifact,
       GrpcFnServer<StaticGrpcProvisionService> provisioning,
-      ControlClientPool controlClient) {
+      ControlClientPool controlClient,
+      boolean cleanup) {
     switch (environmentType) {
       case DOCKER:
-        return new DockerEnvironmentFactory.Provider()
+        return new DockerEnvironmentFactory.Provider(cleanup)
             .createEnvironmentFactory(
                 control,
                 logging,

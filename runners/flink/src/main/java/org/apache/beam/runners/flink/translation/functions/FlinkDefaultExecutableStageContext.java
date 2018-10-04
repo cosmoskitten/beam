@@ -18,9 +18,11 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -29,23 +31,35 @@ import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineDebugOptions;
 
 /** Implementation of a {@link FlinkExecutableStageContext}. */
 class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext, AutoCloseable {
   private final JobBundleFactory jobBundleFactory;
 
   private static FlinkDefaultExecutableStageContext create(JobInfo jobInfo) {
-    JobBundleFactory jobBundleFactory =
-        DefaultJobBundleFactory.create(
-            jobInfo,
-            ImmutableMap.of(
-                BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
-                new DockerEnvironmentFactory.Provider(),
-                BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
-                new ProcessEnvironmentFactory.Provider(),
-                Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
-                new EmbeddedEnvironmentFactory.Provider()));
-    return new FlinkDefaultExecutableStageContext(jobBundleFactory);
+    try {
+      PipelineOptions pipelineOptions =
+          PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
+      JobBundleFactory jobBundleFactory =
+          DefaultJobBundleFactory.create(
+              jobInfo,
+              ImmutableMap.of(
+                  BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+                  new DockerEnvironmentFactory.Provider(
+                      pipelineOptions
+                          .as(PortablePipelineDebugOptions.class)
+                          .getDeleteDynamicSdkHarnessContainers()),
+                  BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
+                  new ProcessEnvironmentFactory.Provider(),
+                  Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
+                  new EmbeddedEnvironmentFactory.Provider()));
+      return new FlinkDefaultExecutableStageContext(jobBundleFactory);
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private FlinkDefaultExecutableStageContext(JobBundleFactory jobBundleFactory) {
