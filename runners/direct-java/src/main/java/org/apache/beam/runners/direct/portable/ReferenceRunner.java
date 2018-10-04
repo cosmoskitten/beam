@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -75,7 +76,6 @@ import org.apache.beam.runners.fnexecution.control.MapControlClientPool;
 import org.apache.beam.runners.fnexecution.control.SingleEnvironmentInstanceJobBundleFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
-import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
@@ -85,6 +85,7 @@ import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineDebugOptions;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -236,7 +237,10 @@ public class ReferenceRunner {
       ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:
-        return new DockerEnvironmentFactory.Provider()
+        return new DockerEnvironmentFactory.Provider(
+                PipelineOptionsTranslation.fromProto(options)
+                    .as(PortablePipelineDebugOptions.class)
+                    .getDeleteDynamicSdkHarnessContainers())
             .createEnvironmentFactory(
                 control,
                 logging,
