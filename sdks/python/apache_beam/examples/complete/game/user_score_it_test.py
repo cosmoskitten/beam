@@ -64,7 +64,7 @@ class UserScoreIT(unittest.TestCase):
   def test_user_score_it(self):
 
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
-    file_verifier = FileChecksumMatcher(self.output + '*-of-*',
+    file_verifier = FileChecksumMatcher(self.output + '/*-of-*',
                                         self.DEFAULT_EXPECTED_CHECKSUM)
 
     extra_opts = {'input': self.DEFAULT_INPUT_FILE,
