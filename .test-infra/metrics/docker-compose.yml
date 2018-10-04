@@ -27,7 +27,7 @@ services:
       - beam-postgresql-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=<PGPasswordHere>
+      - POSTGRES_PASSWORD=aaa
       - POSTGRES_DB=beam_metrics
   grafana:
     image: grafana/grafana
@@ -39,10 +39,10 @@ services:
       - beam-grafana-etcdata:/etc/grafana
       - beam-grafana-logdata:/var/log/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
+      - GF_SECURITY_ADMIN_PASSWORD=xxx
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - GF_INSTALL_PLUGINS=vonage-status-panel
+      - GF_INSTALL_PLUGINS=vonage-status-panel,grafana-simple-json-datasource
   syncjenkins:
     image: syncjenkins
     container_name: beamsyncjenkins
@@ -54,7 +54,7 @@ services:
       - JENSYNC_PORT=5432
       - JENSYNC_DBNAME=beam_metrics
       - JENSYNC_DBUSERNAME=admin
-      - JENSYNC_DBPWD=<PGPasswordHere>
+      - JENSYNC_DBPWD=aaa
 volumes:
   beam-postgresql-data:
   beam-grafana-libdata:
