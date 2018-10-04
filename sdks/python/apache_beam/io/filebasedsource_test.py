@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import random
+import sys
 import tempfile
 import unittest
 from builtins import object
@@ -51,6 +52,9 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 class LineSource(FileBasedSource):
 
+  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
+                                             'fixed on Python 3'
+                                             'TODO: BEAM-5627')
   def read_records(self, file_name, range_tracker):
     f = self.open_file(file_name)
     try:
