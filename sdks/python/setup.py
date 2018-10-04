@@ -136,11 +136,17 @@ REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
     ]
 
+GCP_REQUIREMENTS_PY2_ONLY = [
+    'googledatastore==7.0.1'
+]
+
+GCP_REQUIREMENTS_PY3_ONLY = [
+]
+
 GCP_REQUIREMENTS = [
     # oauth2client >=4 only works with google-apitools>=0.5.18.
     'google-apitools>=0.5.18,<=0.5.20',
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    'googledatastore==7.0.1',
     'google-cloud-pubsub==0.26.0',
     'proto-google-cloud-pubsub-v1==0.15.4',
     # GCP packages required by tests
@@ -149,8 +155,10 @@ GCP_REQUIREMENTS = [
 
 if sys.version_info[0] == 2:
   REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY2_ONLY
+  GCP_REQUIREMENTS = GCP_REQUIREMENTS + GCP_REQUIREMENTS_PY2_ONLY
 elif sys.version_info[0] >= 3:
   REQUIRED_PACKAGES = REQUIRED_PACKAGES + REQUIRED_PACKAGES_PY3_ONLY
+  GCP_REQUIREMENTS = GCP_REQUIREMENTS + GCP_REQUIREMENTS_PY3_ONLY
 
 
 # We must generate protos after setup_requires are installed.
