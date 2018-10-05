@@ -90,8 +90,9 @@ task depSnapshot(dependsOn: 'installGcpTest') {
   doLast {
     println 'Snapshoting full dependencies requirements with versions info to requirements.txt.'
     exec {
+      // Remove useless item "pkg-resources" from file which is introduced by a bug in Ubuntu.
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all > ${project.buildDir}/requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip freeze --local --all | grep -v \"pkg-resources\" > ${project.buildDir}/requirements.txt"
     }
   }
 }
