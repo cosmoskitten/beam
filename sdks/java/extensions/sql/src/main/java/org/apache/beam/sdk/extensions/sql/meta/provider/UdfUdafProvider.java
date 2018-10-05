@@ -15,24 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
-/** Register for UDF and UDAF. */
-public interface UdfUdafRegister {
-  default Map<String, Class<? extends BeamSqlUdf>> getEvalUdfs() {
-    return new HashMap<>();
+/** Provider for UDF and UDAF. */
+public interface UdfUdafProvider {
+  /** For UDFs implement {@link BeamSqlUdf}. */
+  default Map<String, Class<? extends BeamSqlUdf>> getBeamSqlUdfs() {
+    return Collections.emptyMap();
   }
 
-  default Map<String, SerializableFunction<?, ?>> getSerializeUdfs() {
-    return new HashMap<>();
+  /** For UDFs implement {@link SerializableFunction}. */
+  default Map<String, SerializableFunction<?, ?>> getSerializableFunctionUdfs() {
+    return Collections.emptyMap();
   }
 
   default Map<String, Combine.CombineFn> getUdafs() {
-    return new HashMap<>();
+    return Collections.emptyMap();
   }
 }

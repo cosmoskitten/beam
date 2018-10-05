@@ -41,7 +41,7 @@ public class BeamSqlCli {
     this.metaStore = metaStore;
     this.env = BeamSqlEnv.withTableProvider(metaStore);
     if (autoLoadUdfUdaf) {
-      env.autoRegisterUdfUdaf();
+      env.loadUdfUdafFromProvider();
     }
 
     return this;
