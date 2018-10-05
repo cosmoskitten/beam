@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -141,33 +142,33 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   @Test
   public void testAutoUdfUdaf() throws Exception {
     Schema resultType =
-        Schema.builder().addInt32Field("f_int2").addInt32Field("squarecubicsum").build();
+        Schema.builder().addInt32Field("f_int2").addInt32Field("autoload_squarecubicsum").build();
 
     Row row = Row.withSchema(resultType).addValues(0, 4890).build();
 
     String sql =
-        "SELECT f_int2, squaresum(cubic(f_int)) AS `squarecubicsum`"
+        "SELECT f_int2, autoload_squaresum(autoload_cubic(f_int)) AS `autoload_squarecubicsum`"
             + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<Row> result =
-        boundedInput1.apply("testUdaf", SqlTransform.query(sql).autoRegisterUdfUdaf());
+        boundedInput1.apply("testUdaf", SqlTransform.query(sql).withAutoUdfUdafLoad(true));
 
     PAssert.that(result).containsInAnyOrder(row);
     pipeline.run().waitUntilFinish();
   }
 
   /** Auto register for test. */
-  @AutoService(UdfUdafRegister.class)
-  public static class UdfUdafRegisterTest implements UdfUdafRegister {
+  @AutoService(UdfUdafProvider.class)
+  public static class UdfUdafProviderTest implements UdfUdafProvider {
 
     @Override
-    public Map<String, Class<? extends BeamSqlUdf>> getEvalUdfs() {
+    public Map<String, Class<? extends BeamSqlUdf>> getBeamSqlUdfs() {
       return new HashMap<String, Class<? extends BeamSqlUdf>>(
-          ImmutableMap.of("cubic", CubicInteger.class));
+          ImmutableMap.of("autoload_cubic", CubicInteger.class));
     }
 
     @Override
     public Map<String, CombineFn> getUdafs() {
-      return new HashMap<String, CombineFn>(ImmutableMap.of("squaresum", new SquareSum()));
+      return new HashMap<String, CombineFn>(ImmutableMap.of("autoload_squaresum", new SquareSum()));
     }
   }
 

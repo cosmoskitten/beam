@@ -21,19 +21,14 @@ package org.apache.beam.sdk.extensions.sql;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -90,11 +85,16 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract List<UdafDefinition> udafDefinitions();
 
+  abstract boolean autoUdfUdafLoad();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnv sqlEnv = BeamSqlEnv.readOnly(PCOLLECTION_NAME, toTableMap(input));
 
     registerFunctions(sqlEnv);
+    if (autoUdfUdafLoad()) {
+      sqlEnv.loadUdfUdafFromProvider();
+    }
 
     return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
   }
@@ -153,38 +153,13 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
         .setQueryString(queryString)
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
+        .setAutoUdfUdafLoad(false)
         .build();
   }
 
-  /** Load all UDF/UDAF from {@link UdfUdafRegister}. */
-  public SqlTransform autoRegisterUdfUdaf() {
-    List<UdfDefinition> newUdfs = new ArrayList<>();
-    List<UdafDefinition> newUdafs = new ArrayList<>();
-
-    for (UdfUdafRegister ins :
-        Lists.newArrayList(ServiceLoader.<UdfUdafRegister>load(UdfUdafRegister.class))) {
-      for (Entry<String, Class<? extends BeamSqlUdf>> udf1 : ins.getEvalUdfs().entrySet()) {
-        newUdfs.add(UdfDefinition.of(udf1.getKey(), udf1.getValue(), BeamSqlUdf.UDF_METHOD));
-      }
-      for (Entry<String, SerializableFunction<?, ?>> udf2 : ins.getSerializeUdfs().entrySet()) {
-        newUdfs.add(UdfDefinition.of(udf2.getKey(), udf2.getValue().getClass(), "apply"));
-      }
-      for (Entry<String, CombineFn> udaf1 : ins.getUdafs().entrySet()) {
-        newUdafs.add(UdafDefinition.of(udaf1.getKey(), udaf1.getValue()));
-      }
-    }
-
-    ImmutableList<UdfDefinition> allUdfDefinitions =
-        ImmutableList.<UdfDefinition>builder().addAll(udfDefinitions()).addAll(newUdfs).build();
-    ImmutableList<UdafDefinition> allUdafDefinitions =
-        ImmutableList.<UdafDefinition>builder().addAll(udafDefinitions()).addAll(newUdafs).build();
-
-    return toBuilder()
-        .setUdfDefinitions(allUdfDefinitions)
-        .setUdafDefinitions(allUdafDefinitions)
-        .build();
+  public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
+    return toBuilder().setAutoUdfUdafLoad(autoUdfUdafLoad).build();
   }
-
   /**
    * register a UDF function used in this query.
    *
@@ -236,6 +211,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
+
+    abstract Builder setAutoUdfUdafLoad(boolean autoUdfUdafLoad);
 
     abstract SqlTransform build();
   }
