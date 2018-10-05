@@ -194,7 +194,7 @@ dependencies {
 
   runtime library.java.slf4j_jdk14
 
-  sourceFile "javax.servlet:javax.servlet-api:3.1.0:sources"
+//  sourceFile "javax.servlet:javax.servlet-api:3.1.0:sources"
 
   testCompile "org.apache.beam:beam-runners-core-java:$version:tests"
   testCompile "org.apache.beam:beam-runners-direct-java:$version"
