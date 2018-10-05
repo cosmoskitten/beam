@@ -18,9 +18,13 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.common.collect.ImmutableList;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -56,6 +60,7 @@ class BeamQueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
   private final FrameworkConfig config;
+  private PipelineOptions options;
 
   BeamQueryPlanner(CalciteConnection connection) {
     final CalciteConnectionConfig config = connection.config();
@@ -97,6 +102,12 @@ class BeamQueryPlanner {
             .typeSystem(connection.getTypeFactory().getTypeSystem())
             .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
             .build();
+
+    options = PipelineOptionsFactory.create();
+  }
+
+  public void setOptions(PipelineOptions options) {
+    this.options = options;
   }
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
@@ -142,6 +153,24 @@ class BeamQueryPlanner {
   }
 
   private Planner getPlanner() {
-    return Frameworks.getPlanner(config);
+    Planner planner;
+
+    try {
+      Class plannerImplClass =
+          Class.forName(options.as(BeamSqlPipelineOptions.class).getPlannerImplClassName());
+      Constructor constructor = plannerImplClass.getConstructor(FrameworkConfig.class);
+      planner = (Planner) constructor.newInstance(config);
+    } catch (ClassNotFoundException
+        | NoSuchMethodException
+        | InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException e) {
+      throw new RuntimeException(
+          "Please set a correct plannerImplClassName. The current value is "
+              + options.as(BeamSqlPipelineOptions.class).getPlannerImplClassName(),
+          e);
+    }
+
+    return planner;
   }
 }
