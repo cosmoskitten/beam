@@ -208,20 +208,6 @@ dependencies {
   testCompile library.java.mockito_core
 }
 
-/******************************************************************************/
-// Extract required source files under '$buildDir/original_sources_to_package',
-// which will be packed into jar file.
-
-task extractSourceFiles(type: Copy) {
-  configurations.sourceFile.files.each {
-    if (it.name.contains("javax.servlet-api")) {
-      from zipTree(it)
-      into "$buildDir/original_sources_to_package/sources/javax.servlet-api"
-    }
-  }
-}
-shadowJar.dependsOn extractSourceFiles
-
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
 checkstyleTest.enabled = false
