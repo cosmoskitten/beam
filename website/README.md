@@ -1,3 +1,8 @@
+**Deprecation notice:** The website is being migrated to
+https://github.com/apache/beam/tree/master/website
+
+---
+
 # Apache Beam website
 
 _**The website source code is currently being migrated from 
