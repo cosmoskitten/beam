@@ -116,19 +116,10 @@ public class ProcessManager {
         new ProcessBuilder(ImmutableList.<String>builder().add(command).addAll(args).build());
     pb.environment().putAll(env);
 
-    if (INHERIT_IO) {
       LOG.debug(
           "==> DEBUG enabled: Inheriting stdout/stderr of process (adjustable in ProcessManager)");
       pb.inheritIO();
-    } else {
-      pb.redirectErrorStream(true);
-      // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE buffer
-      if (System.getProperty("os.name", "").startsWith("Windows")) {
-        pb.redirectOutput(new File("nul"));
-      } else {
-        pb.redirectOutput(new File("/dev/null"));
-      }
-    }
+
 
     LOG.debug("Attempting to start process with command: {}", pb.command());
     Process newProcess = pb.start();
