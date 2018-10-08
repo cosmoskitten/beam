@@ -25,10 +25,16 @@ apply plugin: 'org.ajoberstar.grgit'
 def dockerImageTag = 'beam-website'
 def dockerWorkDir = "/repo"
 def buildDir = "${project.rootDir}/build/website"
-def buildContentDir = "${project.rootDir}/build/website/generated-content"
+def githubPullRequestId = project.findProperty('githubPullRequestId')
+def buildContentDir = "${buildDir}/generated-content"
+def buildContentWithBaseDir = githubPullRequestId ? "${buildContentDir}/${githubPullRequestId}": buildContentDir
 def repoContentDir = "${project.rootDir}/website/generated-content"
 def commitedChanges = false
 def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
+
+def baseUrlFlag = githubPullRequestId ? "--baseurl=/${githubPullRequestId}" : ''
+def destinationFlag = githubPullRequestId ? "--destination=generated-content/${githubPullRequestId}" : ''
+def extraJekyllFlags = "$baseUrlFlag $destinationFlag"
 
 def shell = { cmd ->
   println cmd
@@ -100,21 +106,21 @@ task cleanWebsite(type: Delete) {
 clean.dependsOn cleanWebsite
 
 task buildWebsite(type: Exec) {
-  def baseurlFlag = project.findProperty('githubPullRequestId') ? "--baseurl=/${project.findProperty('githubPullRequestId')}" : ''
   dependsOn startDockerContainer, setupBuildDir
   finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
   inputs.dir 'src'
-  inputs.property 'baseurl', baseurlFlag
+  inputs.property 'extraJekyllFlags', extraJekyllFlags
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir buildContentDir
+  outputs.dir buildContentWithBaseDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
       bundle exec jekyll build \
+      --incremental \
       --config $dockerWorkDir/website/_config.yml \
-      --incremental ${baseurlFlag} \
-      --source $dockerWorkDir/website/src
+      --source $dockerWorkDir/website/src \
+      $extraJekyllFlags
       """
 }
 build.dependsOn buildWebsite
@@ -123,9 +129,10 @@ task serveWebsite(type: Exec) {
   dependsOn startDockerContainer, setupBuildDir
   finalizedBy stopAndRemoveDockerContainer
   inputs.files 'Gemfile.lock', '_config.yml'
+  inputs.property 'extraJekyllFlags', extraJekyllFlags
   inputs.dir 'src'
   outputs.dir "$buildDir/.sass-cache"
-  outputs.dir buildContentDir
+  outputs.dir buildContentWithBaseDir
   commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """cd $dockerWorkDir/build/website && \
@@ -133,14 +140,14 @@ task serveWebsite(type: Exec) {
       --config $dockerWorkDir/website/_config.yml \
       --incremental \
       --source $dockerWorkDir/website/src \
-      --host 0.0.0.0
+      --host 0.0.0.0 \
+      $extraJekyllFlags
       """
 }
 
 task testWebsite(type: Exec) {
   dependsOn startDockerContainer, buildWebsite
   finalizedBy stopAndRemoveDockerContainer
-
   inputs.files "$buildDir/Rakefile"
   inputs.dir buildContentDir
   commandLine 'docker', 'exec',
@@ -157,10 +164,10 @@ task preCommit {
 
 // Creates a new commit on asf-site branch
 task commitWebsite << {
-  assert file("${buildContentDir}/index.html").exists()
+  assert file("${buildContentWithBaseDir}/index.html").exists()
   // Generated javadoc and pydoc content is not built or stored in this repo.
-  assert !file("${buildContentDir}/documentation/sdks/javadoc").exists()
-  assert !file("${buildContentDir}/documentation/sdks/pydoc").exists()
+  assert !file("${buildContentWithBaseDir}/documentation/sdks/javadoc").exists()
+  assert !file("${buildContentWithBaseDir}/documentation/sdks/pydoc").exists()
 
   def git = grgit.open()
   // get the latest commit on master
@@ -176,7 +183,7 @@ task commitWebsite << {
 
   // Copy the built content and add it.
   copy {
-    from buildContentDir
+    from buildContentWithBaseDir
     into repoContentDir
   }
   assert file("${repoContentDir}/index.html").exists()
@@ -245,7 +252,7 @@ task stageWebsite << {
         "python ${project.rootDir}/website/.jenkins/append_index_html_to_internal_links.py"
 
   // Copy the build website to GCS
-  shell "gsutil -m cp -r ${buildContentDir} ${gcs_path}"
+  shell "gsutil -m cp -r ${buildContentWithBaseDir} ${gcs_path}"
 
   println "Website published to http://${gcs_bucket}." +
       "storage.googleapis.com/${githubPullRequestId}/index.html"
