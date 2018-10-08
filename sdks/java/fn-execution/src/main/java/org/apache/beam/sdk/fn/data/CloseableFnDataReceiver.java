@@ -24,6 +24,8 @@ package org.apache.beam.sdk.fn.data;
  * <p>The close method for a {@link CloseableFnDataReceiver} must be idempotent.
  */
 public interface CloseableFnDataReceiver<T> extends FnDataReceiver<T>, AutoCloseable {
+  void flush() throws Exception;
+
   /**
    * {@inheritDoc}.
    *
