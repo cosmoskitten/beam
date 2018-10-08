@@ -375,8 +375,10 @@ task dependencyUpdates(dependsOn: ':dependencyUpdates') {
 
 project.task('createProcessWorker') {
   def outputFile = file("${project.buildDir}/sdk_worker.sh")
-  def workerScript = file("./scripts/process_sdk_worker.sh").absolutePath
-  def text = "sh -c \". ${envdir}/bin/activate && . ${workerScript} \$*\""
+  def workerScript = file("container/build/target/launcher/linux_amd64/boot").absolutePath
+  def text = "sh -c \". ${envdir}/bin/activate && echo ankur2... \$* && ${workerScript} \$* \""
+  println('ankur......')
+  println(text)
   dependsOn ':beam-sdks-python-container:build'
   dependsOn 'setupVirtualenv'
   outputs.file outputFile
