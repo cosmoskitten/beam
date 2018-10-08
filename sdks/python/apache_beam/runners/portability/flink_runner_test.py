@@ -70,6 +70,7 @@ if __name__ == '__main__':
             '--artifacts-dir', tmp_dir,
             '--job-host', 'localhost',
             '--job-port', str(port),
+            '--artifact-port', '0',
         ]
       finally:
         shutil.rmtree(tmp_dir)
