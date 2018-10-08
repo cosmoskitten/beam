@@ -22,7 +22,6 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -162,13 +161,12 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     @Override
     public Map<String, Class<? extends BeamSqlUdf>> getBeamSqlUdfs() {
-      return new HashMap<String, Class<? extends BeamSqlUdf>>(
-          ImmutableMap.of("autoload_cubic", CubicInteger.class));
+      return ImmutableMap.of("autoload_cubic", CubicInteger.class);
     }
 
     @Override
     public Map<String, CombineFn> getUdafs() {
-      return new HashMap<String, CombineFn>(ImmutableMap.of("autoload_squaresum", new SquareSum()));
+      return ImmutableMap.of("autoload_squaresum", new SquareSum());
     }
   }
 
