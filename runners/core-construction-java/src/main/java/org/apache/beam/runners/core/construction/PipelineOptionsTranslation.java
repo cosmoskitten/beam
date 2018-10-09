@@ -83,7 +83,9 @@ public class PipelineOptionsTranslation {
         mapWithoutUrns.put(
             CaseFormat.LOWER_UNDERSCORE.to(
                 CaseFormat.LOWER_CAMEL,
-                optionKey.substring("beam:option:".length(), optionKey.length() - ":v1".length())),
+                optionKey.startsWith("beam:option:") ? optionKey
+                    .substring("beam:option:".length(), optionKey.length() - ":v1".length())
+                    : optionKey),
             optionValue);
       }
       return MAPPER.readValue(
