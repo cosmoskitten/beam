@@ -49,7 +49,12 @@ import logging
 import unittest
 import uuid
 
-import avro
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 from nose.plugins.attrib import attr
 
 from apache_beam.io.avroio import ReadAllFromAvro
@@ -78,7 +83,7 @@ def record(i):
 
 class FastavroIT(unittest.TestCase):
 
-  SCHEMA = avro.schema.parse('''
+  SCHEMA = Parse('''
     {"namespace": "example.avro",
      "type": "record",
      "name": "User",
