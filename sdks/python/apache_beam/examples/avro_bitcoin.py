@@ -29,7 +29,12 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-import avro
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam.io.avroio import ReadFromAvro
@@ -85,7 +90,7 @@ class BitcoinTxnCountDoFn(beam.DoFn):
     ]
 
 
-SCHEMA = avro.schema.parse('''
+SCHEMA = Parse('''
   {
     "namespace": "example.avro",
     "type": "record",
