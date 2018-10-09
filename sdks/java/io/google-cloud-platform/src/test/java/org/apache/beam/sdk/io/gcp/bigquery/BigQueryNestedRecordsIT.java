@@ -67,6 +67,7 @@ public class BigQueryNestedRecordsIT {
   public void testNestedRecords() throws Exception {
     PipelineOptionsFactory.register(Options.class);
     Options options = TestPipeline.testingPipelineOptions().as(Options.class);
+    options.setTempLocation(options.getTempRoot() + "/temp-it/");
     runPipeline(options);
   }
 
