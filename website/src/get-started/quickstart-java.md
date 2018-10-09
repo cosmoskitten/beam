@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Beam Quickstart for Java"
-permalink: /get-started/quickstart-java/
+permalink: {{ site.baseurl }}/get-started/quickstart-java/
 section_menu: section-menu/get-started.html
 redirect_from:
   - /get-started/quickstart/
