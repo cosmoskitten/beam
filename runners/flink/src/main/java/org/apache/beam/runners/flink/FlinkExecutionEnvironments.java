@@ -203,6 +203,9 @@ public class FlinkExecutionEnvironments {
             .getCheckpointConfig()
             .setMinPauseBetweenCheckpoints(minPauseBetweenCheckpoints);
       }
+    } else {
+      // checkpointing is disabled, we can allow shutting down sources when they're done
+      options.setShutdownSourcesOnFinalWatermark(true);
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
