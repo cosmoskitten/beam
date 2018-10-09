@@ -480,7 +480,7 @@ public class RabbitMqIO {
                 delivery.getProperties().getAppId(),
                 delivery.getProperties().getClusterId());
         currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
-        if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
+        if (currentTimestamp.isAfter(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
         }
       } catch (Exception e) {
