@@ -55,6 +55,12 @@ from avro import datafile
 from avro import schema
 from fastavro.read import block_reader
 from fastavro.write import Writer
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from avro.schema import Parse # avro-python3 library for python3
+except ImportError:
+  from avro.schema import parse as Parse # avro library for python2
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink
@@ -312,7 +318,7 @@ class _AvroBlock(object):
     # iteration.
     self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
-    self._schema = schema.parse(schema_string)
+    self._schema = Parse(schema_string)
     self._offset = offset
     self._size = size
 
@@ -481,7 +487,7 @@ class WriteToAvro(beam.transforms.PTransform):
         end in a common extension, if given by file_name_suffix. In most cases,
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
-      schema: The schema to use, as returned by avro.schema.parse
+      schema: The schema to use, as returned by avro.schema.Parse
       codec: The codec to use for block-level compression. Any string supported
         by the Avro specification is accepted (for example 'null').
       file_name_suffix: Suffix for the files written.
