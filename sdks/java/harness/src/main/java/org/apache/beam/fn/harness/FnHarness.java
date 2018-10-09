@@ -87,6 +87,7 @@ public class FnHarness {
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
 
     String id = System.getenv(HARNESS_ID);
+
     PipelineOptions options = PipelineOptionsTranslation.fromJson(System.getenv(PIPELINE_OPTIONS));
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
