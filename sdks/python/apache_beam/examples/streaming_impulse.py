@@ -46,7 +46,7 @@ def run(argv=None):
                                  accumulation_mode=AccumulationMode.DISCARDING)
    | 'group' >> beam.GroupByKey()
    | 'count' >> beam.Map(count)
-   | 'log' >> beam.Map(lambda x: logging.info("%d" % x)))
+   | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
 
   result = p.run()
   result.wait_until_finish()
