@@ -248,6 +248,15 @@ class CommonJobProperties {
           notifyAddress,
           /* _do_ notify every unstable build */ false,
           /* do not email individuals */ false)
+      extendedEmail {
+        triggers {
+          firstFailure {
+            sendTo {
+              firstFailingBuildSuspects()
+            }
+          }
+        }
+      }
     }
   }
 
