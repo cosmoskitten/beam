@@ -161,8 +161,9 @@ class OperationCountersTest(unittest.TestCase):
     total_size += coder.estimate_size(value)
     self.verify_counters(opcounts, 3, (float(total_size) / 3))
 
-  @unittest.skipIf(sys.version_info[0] == 3, 'This test still needs to be '
-                                             'fixed on Python 3')
+  @unittest.skipIf(sys.version_info[0] == 3 and
+                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   'This test still needs to be fixed on Python 3.')
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
     buckets = [0] * 300
