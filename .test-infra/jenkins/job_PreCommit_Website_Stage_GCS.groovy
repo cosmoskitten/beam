@@ -26,7 +26,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 )
 builder.build {
   publishers {
-    buildDescription(/Website published to (http:\/\/.+/index.html)/)
+    buildDescription(/Website published to (http:\/\/.+\/index.html)/)
   }
 }
 
