@@ -50,46 +50,55 @@ from xml.etree import ElementTree
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
 # Actual host should be used for production.
-# import subprocess
-# cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
-# host = cmd_out.split(" ")[2]
+import subprocess
+cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
+host = cmd_out.split(" ")[2]
 
-host = os.environ['JENSYNC_HOST']
+# host = os.environ['JENSYNC_HOST']
 port = os.environ['JENSYNC_PORT']
 dbname = os.environ['JENSYNC_DBNAME']
 dbusername = os.environ['JENSYNC_DBUSERNAME']
 dbpassword = os.environ['JENSYNC_DBPWD']
 
-jiraTFIssuesTableName = 'jira_test_failures_issues'
+jiraIssuesTableName = 'jira_issues'
 
-jiraTFIssuesCreateTableQuery = f"""
-create table {jiraTFIssuesTableName} (
+jiraIssuesCreateTableQuery = f"""
+create table {jiraIssuesTableName} (
 id varchar NOT NULL,
 url varchar,
 summary varchar,
 status varchar,
-creator TIMESTAMP,
+creator varchar,
 assignee varchar,
 created TIMESTAMP,
 updated TIMESTAMP,
 fixed_date TIMESTAMP,
 primary key(id)
+)"""
+
+jiraIssuesMetadataTableName = 'jira_issues_metadata'
+
+jiraIssuesMetadataCreateTableQuery = f"""
+create table {jiraIssuesMetadataTableName} (
+lastsynctime TIMESTAMP
 )
 """
 
+def fetchIssues(startTime, startAt = 0):
 
-def fetchIssues(lastSyncTime, startAt = 0):
+  startTimeStr = startTime.strftime("%Y-%m-%d %H:%M")
   # time format 0001-01-01 00:01   ==> "yyyy-mm-dd hh:mm"
-  url = ('https://issues.apache.org/jira/rest/api/latest/search?'
-         'jql=component=test-failures AND status=open '
-         'AND updated > "{time}"'
-         '&maxResults=50&startAt={startAt}')
+  url = (f'https://issues.apache.org/jira/rest/api/latest/search?'
+         f'jql=project=BEAM '
+         f'AND updated > "{startTimeStr}"'
+         f'&maxResults=100&startAt={startAt}')
+  print(url)
 
   r = requests.get(url)
   return r.json()
 
 
-def initConnection():
+def initDBConnection():
   conn = psycopg2.connect(f"dbname='{dbname}' user='{dbusername}' host='{host}'"
                           f" port='{port}' password='{dbpassword}'")
   return conn
@@ -101,32 +110,60 @@ def tableExists(cursor, tableName):
   return bool(cursor.rowcount)
 
 
-def initDbTablesIfNeeded():
-  connection = initConnection()
+def initDBTablesIfNeeded():
+  connection = initDBConnection()
   cursor = connection.cursor()
 
-  buildsTableExists = tableExists(cursor, jiraTFIssuesTableName)
+  buildsTableExists = tableExists(cursor, jiraIssuesTableName)
   print('Builds table exists', buildsTableExists)
   if not buildsTableExists:
-    cursor.execute(jiraTFIssuesCreateTableQuery)
+    cursor.execute(jiraIssuesCreateTableQuery)
     if not bool(cursor.rowcount):
-      raise Exception(f"Failed to create table {jiraTFIssuesTableName}")
+      raise Exception(f"Failed to create table {jiraIssuesTableName}")
+
+  metadataTableExists = tableExists(cursor, jiraIssuesMetadataTableName)
+  print('Metadata table exists', buildsTableExists)
+  if not metadataTableExists:
+    cursor.execute(jiraIssuesMetadataCreateTableQuery)
+    if not bool(cursor.rowcount):
+      raise Exception(f"Failed to create table {jiraIssuesMetadataTableName}")
+
+  minTimestamp = datetime(1970, 1, 1)
+  insertDummyTimestampSqlQuery = f"insert into {jiraIssuesMetadataTableName} values (%s)"
+
+  cursor.execute(insertDummyTimestampSqlQuery, [minTimestamp])
 
   cursor.close()
   connection.commit()
 
   connection.close()
 
+def updateLastSyncTimestamp(timestamp):
+  connection = initDBConnection()
+  cursor = connection.cursor()
 
-def fetchSyncedJobsBuildVersions(cursor):
-  fetchQuery = f'''
-  select job_name, max(build_id)
-  from {jiraTFIssuesTableName}
-  group by job_name
-  '''
+  minTimestamp = datetime(1970, 1, 1)
+  cleanupQuery = f"delete from {jiraIssuesMetadataTableName}"
+  cursor.execute(cleanupQuery)
+  insertDummyTimestampSqlQuery = f"insert into {jiraIssuesMetadataTableName} values (%s)"
+  cursor.execute(insertDummyTimestampSqlQuery, [minTimestamp])
+
+  cursor.close()
+  connection.commit()
+  connection.close()
+
+def fetchLastSyncTime():
+  connection = initDBConnection()
+  cursor = connection.cursor()
+
+  fetchQuery = f'select lastsynctime from {jiraIssuesMetadataTableName}'
 
   cursor.execute(fetchQuery)
-  return dict(cursor.fetchall())
+  result = cursor.fetchone()[0]
+
+  cursor.close()
+  connection.close()
+  return result
 
 
 def fetchBuildsForJob(jobUrl):
@@ -171,37 +208,42 @@ def insertRow(cursor, rowValues):
 
 
 def fetchNewData():
-  connection = initConnection()
-  cursor = connection.cursor()
-  syncedJobs = fetchSyncedJobsBuildVersions(cursor)
-  cursor.close()
-  connection.close()
+  lastSyncTimestamp = fetchLastSyncTime()
 
-  newJobs = fetchJobs()
+  startAt = 0
+  total = 1
+  fetchedCount = 0
 
-  for newJobName, newJobLastBuildId, newJobUrl in newJobs:
-    syncedJobId = syncedJobs[newJobName] if newJobName in syncedJobs else -1
-    if newJobLastBuildId > syncedJobId:
-      builds = fetchBuildsForJob(newJobUrl)
-      builds = [x for x in builds if int(x[u'id']) > syncedJobId]
+  while (startAt + fetchedCount) < total:
+    startAt += fetchedCount
+    queryResult = fetchIssues(lastSyncTimestamp, startAt)
+    newIssues = queryResult['issues']
+    fetchedCount = len(newIssues)
+    total = queryResult['total']
 
-      connection = initConnection()
-      cursor = connection.cursor()
+    for issue in newIssues:
+      syncedJobId = syncedJobs[newJobName] if newJobName in syncedJobs else -1
+      if newJobLastBuildId > syncedJobId:
+        builds = fetchBuildsForJob(newJobUrl)
+        builds = [x for x in builds if int(x[u'id']) > syncedJobId]
+  
+        connection = initDBConnection()
+        cursor = connection.cursor()
+  
+        for build in builds:
+          if build[u'building']:
+            continue;
+          rowValues = buildRowValuesArray(newJobName, build)
+          print("inserting", newJobName, build[u'id'])
+          insertRow(cursor, rowValues)
+  
+        cursor.close()
+        connection.commit()
+        connection.close()  # For some reason .commit() doesn't push data
 
-      for build in builds:
-        if build[u'building']:
-          continue;
-        rowValues = buildRowValuesArray(newJobName, build)
-        print("inserting", newJobName, build[u'id'])
-        insertRow(cursor, rowValues)
-
-      cursor.close()
-      connection.commit()
-      connection.close()  # For some reason .commit() doesn't push data
-
-def probeJenkinsIsUp():
+def probeJiraIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  result = sock.connect_ex(('builds.apache.org', 443))
+  result = sock.connect_ex(('issues.apache.org', 443))
   return True if result == 0 else False
 
 
@@ -211,14 +253,14 @@ if __name__ == '__main__':
 
   print("Checking if DB needs to be initialized.")
   sys.stdout.flush()
-  initDbTablesIfNeeded()
+  initDBTablesIfNeeded()
 
   print("Start jobs fetching loop.")
   sys.stdout.flush()
 
   while True:
-    if not probeJenkinsIsUp():
-      print("Jenkins is unavailabel, skipping fetching data.")
+    if not probeJiraIsUp():
+      print("Jira is unavailable, skipping fetching data.")
       continue
     else:
       fetchNewData()
