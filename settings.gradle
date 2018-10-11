@@ -58,6 +58,8 @@ include "beam-runners-local-java-core"
 project(":beam-runners-local-java-core").dir = file("runners/local-java")
 include "beam-runners-reference-java"
 project(":beam-runners-reference-java").dir = file("runners/reference/java")
+include "beam-runners-reference-job-server"
+project(":beam-runners-reference-job-server").dir = file("runners/reference/job-server")
 include "beam-runners-spark"
 project(":beam-runners-spark").dir = file("runners/spark")
 include "beam-runners-samza"
@@ -158,6 +160,8 @@ include "beam-sdks-java-io-synthetic"
 project(":beam-sdks-java-io-synthetic").dir = file("sdks/java/io/synthetic")
 include "beam-sdks-java-javadoc"
 project(":beam-sdks-java-javadoc").dir = file("sdks/java/javadoc")
+include "beam-sdks-java-load-tests"
+project(":beam-sdks-java-load-tests").dir = file("sdks/java/load-tests")
 include "beam-sdks-java-maven-archetypes-examples"
 project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven-archetypes/examples")
 include "beam-sdks-java-maven-archetypes-starter"
@@ -168,7 +172,15 @@ include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
 include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
+include "beam-sdks-python-container-py3"
+project(":beam-sdks-python-container-py3").dir = file("sdks/python/container/py3")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
 include "beam-website"
 project(":beam-website").dir = file("website")
+include "beam-runners-google-cloud-dataflow-java-legacy-worker"
+project(":beam-runners-google-cloud-dataflow-java-legacy-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+include "beam-runners-google-cloud-dataflow-java-fn-api-worker"
+project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").dir = file("runners/google-cloud-dataflow-java/worker")
+include "beam-runners-google-cloud-dataflow-java-windmill"
+project(":beam-runners-google-cloud-dataflow-java-windmill").dir = file("runners/google-cloud-dataflow-java/worker/windmill")

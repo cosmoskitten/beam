@@ -28,6 +28,7 @@ from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
@@ -104,6 +105,12 @@ class PortableRunner(runner.PipelineRunner):
   def run_pipeline(self, pipeline):
     portable_options = pipeline.options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
+
+    # TODO: https://issues.apache.org/jira/browse/BEAM-5525
+    # portable runner specific default
+    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
+      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+
     if not job_endpoint:
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
@@ -136,7 +143,8 @@ class PortableRunner(runner.PipelineRunner):
         del transform_proto.subtransforms[:]
 
     # TODO: Define URNs for options.
-    options = {'beam:option:' + k + ':v1': v
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
                for k, v in pipeline._options.get_all_options().items()
                if v is not None}
 
@@ -197,7 +205,8 @@ class PipelineResult(runner.PipelineResult):
     self._messages = []
 
   def cancel(self):
-    self._job_service.Cancel()
+    self._job_service.Cancel(beam_job_api_pb2.CancelJobRequest(
+        job_id=self._job_id))
 
   @property
   def state(self):

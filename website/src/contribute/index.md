@@ -63,6 +63,9 @@ you want to be assigned issues, a PMC member can add you to the project contribu
 group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
 to ask to be added as a contributor in the Beam issue tracker.
 
+Anyone can browse the [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
+If you wish to contribute changes, please request edit access on the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+
 ## Contributing code
 
 Discussons about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
@@ -273,12 +276,10 @@ a read-only collaborator to apache/beam by opening an INFRA ticket. -->
 
 ## Contributing to the website
 
-The Beam website is in the [Beam Site GitHub
-mirror](https://github.com/apache/beam-site) repository in the `asf-site`
-branch (_not_ `master`).  The
-[README](https://github.com/apache/beam-site/blob/asf-site/README.md) there
-explains how to modify different parts of the site. The GitHub workflow is the
-same - make your change and open a pull request.
+The Beam website is in the `/website` directory of the repo. The
+[README](https://github.com/apache/beam/blob/master/website) there explains how
+to modify different parts of the site. The GitHub workflow is the same - make
+your change and open a pull request.
 
 Issues are tracked in the
 [website](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website)
@@ -350,7 +351,7 @@ We are also working on writing Performance Tests for IOs and developing a Perfor
  - running Performance Tests on runners other than Dataflow and Direct
  - improving existing Performance Testing Framework and it's documentation
 
-See the [documentation](https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests) and the [initial proposal](https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing)(for file based tests).
+See the [documentation]({{ site.baseurl }}/documentation/io/testing/#i-o-transform-integration-tests) and the [initial proposal](https://docs.google.com/document/d/1dA-5s6OHiP_cz-NRAbwapoKF5MEC1wKps4A5tFbIPKE/edit?usp=sharing)(for file based tests).
 
 If you're willing to help in this area, tag the following people in PRs: [@chamikaramj](https://github.com/chamikaramj), [@DariuszAniszewski](https://github.com/dariuszaniszewski), [@lgajowy](https://github.com/lgajowy), [@szewi](https://github.com/szewi), [@kkucharc](https://github.com/kkucharc)
 

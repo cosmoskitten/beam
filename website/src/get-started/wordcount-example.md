@@ -90,7 +90,7 @@ To view the full code in Python, see
 
 {:.language-go}
 To view the full code in Go, see
-**[wordcount_minimal.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
+**[minimal_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/minimal_wordcount/minimal_wordcount.go).**
 
 **Key Concepts:**
 
@@ -1148,7 +1148,7 @@ unbounded datasets. If your dataset has a fixed number of elements, it is a boun
 dataset and all of the data can be processed together. For bounded datasets,
 the question to ask is "Do I have all of the data?" If data continuously
 arrives (such as an endless stream of game scores in the
-[Mobile gaming example](https://beam.apache.org/get-started/mobile-gaming-example/),
+[Mobile gaming example]({{ site.baseurl }}/get-started/mobile-gaming-example/),
 it is an unbounded dataset. An unbounded dataset is never available for
 processing at any one time, so the data must be processed using a streaming
 pipeline that runs continuously. The dataset will only be complete up to a
@@ -1390,7 +1390,7 @@ To view the full code in Python, see
 
 This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-[`beam.io.ReadStringsFromPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
+[`beam.io.ReadStringsFromPubSub`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
 
 ```java
   // This example is not currently available for the Beam SDK for Java.
@@ -1416,7 +1416,7 @@ outputs.
 
 This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using [`beam.io.WriteStringsToPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
+using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
 
 ```java
   // This example is not currently available for the Beam SDK for Java.
