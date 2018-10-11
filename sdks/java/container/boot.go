@@ -104,6 +104,9 @@ func main() {
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
 	}
 	for _, md := range artifacts {
+		if strings.HasPrefix(md.Name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
+		  continue
+		}
 		cp = append(cp, filepath.Join(dir, filepath.FromSlash(md.Name)))
 	}
 
