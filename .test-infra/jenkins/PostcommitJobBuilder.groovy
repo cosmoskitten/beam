@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties as cjp
+import CommonJobProperties as commonJobProperties
 
 /**
  * This class is to be used for defining jobs for post- and pre-commit tests.
@@ -35,6 +35,15 @@ class PostcommitJobBuilder {
     this.job = null
   }
 
+  /**
+   * Set the job details.
+   *
+   * @param nameBase Job name for the postcommit job, a _PR suffix added if the trigger is set.
+   * @param triggerPhrase Phrase to trigger jobs, empty to not have a trigger.
+   * @param githubUiHint Short description in the github UI.
+   * @param scope Delegate for the job.
+   * @param jobDefinition Closure for the job.
+   */
   static void postCommitJob(nameBase,
                             triggerPhrase,
                             githubUiHint,
@@ -42,19 +51,29 @@ class PostcommitJobBuilder {
                             jobDefinition = {}) {
     PostcommitJobBuilder jb = new PostcommitJobBuilder(scope, jobDefinition)
     jb.defineAutoPostCommitJob(nameBase)
-    jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
+    if (triggerPhrase) {
+      jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
+    }
   }
 
   void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
-      cjp.setAutoJob delegate
+      commonJobProperties.setAutoJob delegate, '0 */6 * * *', 'commits@beam.apache.org', true
     }
+
     autoBuilds.with(jobDefinition)
   }
 
   private void defineGhprbTriggeredJob(name, triggerPhrase, githubUiHint, triggerOnPrCommit) {
     def ghprbBuilds = scope.job(name) {
-      cjp.setPullRequestBuildTrigger(
+
+      // Execute concurrent builds if necessary.
+      concurrentBuild()
+      throttleConcurrentBuilds {
+        maxTotal(3)
+      }
+
+      commonJobProperties.setPullRequestBuildTrigger(
         delegate,
         githubUiHint,
         triggerPhrase,

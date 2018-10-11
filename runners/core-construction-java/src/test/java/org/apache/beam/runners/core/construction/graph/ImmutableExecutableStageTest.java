@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
@@ -44,12 +45,14 @@ import org.junit.runners.JUnit4;
 public class ImmutableExecutableStageTest {
   @Test
   public void ofFullComponentsOnlyHasStagePTransforms() throws Exception {
-    Environment env = Environment.newBuilder().setUrl("foo").build();
+    Environment env = Environments.createDockerEnvironment("foo");
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
             .putInputs("side_input", "sideInput.in")
+            .putInputs("timer", "timer.pc")
             .putOutputs("output", "output.out")
+            .putOutputs("timer", "timer.pc")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -57,11 +60,14 @@ public class ImmutableExecutableStageTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
+                            .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
+                            .putTimerSpecs("timer", RunnerApi.TimerSpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
     PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
+    PCollection timer = PCollection.newBuilder().setUniqueName("timer.pc").build();
     PCollection output = PCollection.newBuilder().setUniqueName("output.out").build();
 
     Components components =
@@ -70,6 +76,7 @@ public class ImmutableExecutableStageTest {
             .putTransforms("other_pt", PTransform.newBuilder().setUniqueName("other").build())
             .putPcollections("input.out", input)
             .putPcollections("sideInput.in", sideInput)
+            .putPcollections("timer.pc", timer)
             .putPcollections("output.out", output)
             .putEnvironments("foo", env)
             .build();
@@ -78,12 +85,19 @@ public class ImmutableExecutableStageTest {
     SideInputReference sideInputRef =
         SideInputReference.of(
             transformNode, "side_input", PipelineNode.pCollection("sideInput.in", sideInput));
+    UserStateReference userStateRef =
+        UserStateReference.of(
+            transformNode, "user_state", PipelineNode.pCollection("input.out", input));
+    TimerReference timerRef =
+        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.pc", timer));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,
             env,
             PipelineNode.pCollection("input.out", input),
             Collections.singleton(sideInputRef),
+            Collections.singleton(userStateRef),
+            Collections.singleton(timerRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
 
