@@ -103,7 +103,7 @@ class PrecommitJobBuilder {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
           commonJobProperties.setGradleSwitches(delegate)
-          if (ghprbPullId) {
+          if (hasProperty('ghprbPullId')) {
             switches('-PgithubPullRequestId=${ghprbPullId}')
           }
           if (nameBase == 'Java') {
