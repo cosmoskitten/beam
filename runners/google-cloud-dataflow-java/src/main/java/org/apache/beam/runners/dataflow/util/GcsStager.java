@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import io.netty.util.internal.StringUtil;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -54,11 +55,15 @@ public class GcsStager implements Stager {
     checkNotNull(options.getStagingLocation());
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
-
+    String dataflowWorkerJar = options.getDataflowWorkerJar();
     List<String> filesToStage = options.getFilesToStage();
 
     if (windmillBinary != null) {
       filesToStage.add("windmill_main=" + windmillBinary);
+    }
+
+    if (!StringUtil.isNullOrEmpty(dataflowWorkerJar)) {
+      filesToStage.add("dataflow_worker.jar=" + dataflowWorkerJar);
     }
 
     return stageFiles(filesToStage);
