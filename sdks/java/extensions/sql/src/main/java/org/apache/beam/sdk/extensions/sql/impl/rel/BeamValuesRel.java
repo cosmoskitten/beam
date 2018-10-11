@@ -64,12 +64,12 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     super(cluster, rowType, tuples, traits);
   }
 
+  @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     double rowCnt = mq.getRowCount(this);
     return planner.getCostFactory().makeCost(rowCnt, 1, 0);
   }
   
-  @Override
   public Map<String, String> getPipelineOptions() {
     return ImmutableMap.of();
   }
