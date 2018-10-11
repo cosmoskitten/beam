@@ -1402,8 +1402,6 @@ class FnApiMetrics(metrics.metric.MetricResults):
             self.DISTRIBUTIONS: distributions,
             self.GAUGES: gauges}
 
-# TODO figure out if we need this to return metrics?
-# Which layer needs this?
 class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
