@@ -383,7 +383,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       }
 
       for (Node predecessorOutput : input.predecessors(node)) {
-        pTransform.putInputs("fakeInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
+        pTransform.putInputs(
+          "fakeInput" + idGenerator.get(), nodesToPCollections.get(predecessorOutput));
       }
 
       for (Edge edge : input.outEdges(node)) {
