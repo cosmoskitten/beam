@@ -426,6 +426,36 @@ class BundleProcessor(object):
     finally:
       self.state_sampler.stop_if_still_running()
 
+  def metrics(self):
+    # DEPRECATED
+    return beam_fn_api_pb2.Metrics(
+        # TODO(robertwb): Rename to progress?
+        ptransforms={
+            transform_id:
+            self._fix_output_tags(transform_id, op.progress_metrics())
+            for transform_id, op in self.ops.items()})
+
+  def _fix_output_tags(self, transform_id, metrics):
+    # DEPRECATED
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    # Outputs are still referred to by index, not by name, in many Operations.
+    # However, if there is exactly one output, we can fix up the name here.
+    def fix_only_output_tag(actual_output_tag, mapping):
+      if len(mapping) == 1:
+        fake_output_tag, count = only_element(list(mapping.items()))
+        if fake_output_tag != actual_output_tag:
+          del mapping[fake_output_tag]
+          mapping[actual_output_tag] = count
+    if len(actual_output_tags) == 1:
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.processed_elements.measured.output_element_counts)
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.active_elements.measured.output_element_counts)
+    return metrics
+
   def monitoring_infos(self):
     """Returns the list of MonitoringInfos collected processing this bundle."""
     # Construct a new dict first to remove duplciates.

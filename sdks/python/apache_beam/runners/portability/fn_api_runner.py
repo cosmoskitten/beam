@@ -1523,11 +1523,12 @@ class FnApiMetrics(metrics.metric.MetricResults):
               for k, v in self._gauges.items()
               if self.matches(filter, k)]
 
-    return {'counters': counters,
-            'distributions': distributions,
-            'gauges': gauges}
+    return {self.COUNTERS: counters,
+            self.DISTRIBUTIONS: distributions,
+            self.GAUGES: gauges}
 
-
+# TODO figure out if we need this to return metrics?
+# Which layer needs this?
 class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
@@ -1546,7 +1547,7 @@ class RunnerResult(runner.PipelineResult):
     return self._metrics
 
   def monitoring_metrics(self):
-    """Returns a queryable oject including all metrics."""
+    """Returns a queryable object including all metrics."""
     if self._monitoring_metrics is None:
       self._monitoring_metrics = FnApiMetrics(
           self._monitoring_infos_by_stage, user_metrics_only=False)

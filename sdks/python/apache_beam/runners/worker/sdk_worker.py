@@ -238,6 +238,7 @@ class SdkWorker(object):
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+            metrics=processor.metrics(),
             monitoring_infos=processor.monitoring_infos()))
 
   def process_bundle_progress(self, request, instruction_id):
@@ -246,6 +247,7 @@ class SdkWorker(object):
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
+            metrics=processor.metrics() if processor else None,
             monitoring_infos=processor.monitoring_infos() if processor else []))
 
 
