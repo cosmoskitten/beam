@@ -1,21 +1,21 @@
 package databaseio
 
 import (
-	"strings"
-	"fmt"
 	"database/sql"
+	"fmt"
 	"golang.org/x/net/context"
+	"strings"
 )
 
 type writer struct {
-	batchSize int
-	table string
-	sqlTemplate string
+	batchSize    int
+	table        string
+	sqlTemplate  string
 	valueTempate string
-	binding []interface{}
-	columnCount int
-	recordCount int
-	totalCount int
+	binding      []interface{}
+	columnCount  int
+	recordCount  int
+	totalCount   int
 }
 
 func (w *writer) add(record []interface{}) error {
@@ -28,9 +28,8 @@ func (w *writer) add(record []interface{}) error {
 	return nil
 }
 
-
-func (w *writer) write(db *sql.DB, ctx context.Context) error {
-	values := strings.Repeat(w.valueTempate +",", w.recordCount)
+func (w *writer) write(ctx context.Context, db *sql.DB) error {
+	values := strings.Repeat(w.valueTempate+",", w.recordCount)
 	SQL := w.sqlTemplate + string(values[:len(values)-1])
 	resultSet, err := db.ExecContext(ctx, SQL, w.binding...)
 	if err != nil {
@@ -45,34 +44,31 @@ func (w *writer) write(db *sql.DB, ctx context.Context) error {
 	return nil
 }
 
-
-func (w *writer) writeBatchIfNeeded(db *sql.DB, ctx context.Context) error {
+func (w *writer) writeBatchIfNeeded(ctx context.Context, db *sql.DB) error {
 	if w.recordCount >= w.batchSize {
-		return w.write(db, ctx)
+		return w.write(ctx, db)
 	}
 	return nil
 }
 
-
-func (w *writer) writeIfNeeded(db *sql.DB, ctx context.Context) error {
+func (w *writer) writeIfNeeded(ctx context.Context, db *sql.DB) error {
 	if w.recordCount >= 0 {
-		return w.write(db, ctx)
+		return w.write(ctx, db)
 	}
 	return nil
 }
 
-
-func newWriter(batchSize int, table string, columns []string) (*writer, error){
+func newWriter(batchSize int, table string, columns []string) (*writer, error) {
 	if len(columns) == 0 {
 		return nil, fmt.Errorf("columns were empty")
 	}
 	values := strings.Repeat("?,", len(columns))
 	return &writer{
-		batchSize:batchSize,
-		columnCount: len(columns),
-		table: table,
-		binding: make([]interface{}, 0),
-		sqlTemplate:fmt.Sprintf("INSERT INTO %v(%v) VALUES", table, strings.Join(columns, ",")),
-		valueTempate:fmt.Sprintf("(%s)", values[:len(values)-1]),
+		batchSize:    batchSize,
+		columnCount:  len(columns),
+		table:        table,
+		binding:      make([]interface{}, 0),
+		sqlTemplate:  fmt.Sprintf("INSERT INTO %v(%v) VALUES", table, strings.Join(columns, ",")),
+		valueTempate: fmt.Sprintf("(%s)", values[:len(values)-1]),
 	}, nil
 }

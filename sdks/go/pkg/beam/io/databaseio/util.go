@@ -1,10 +1,10 @@
 package databaseio
 
 import (
+	"database/sql"
+	"fmt"
 	"reflect"
 	"strings"
-	"fmt"
-	"database/sql"
 )
 
 //represents a record mapper
@@ -27,20 +27,20 @@ func newQueryRecordMapper(columns []string, columnTypes []*sql.ColumnType, recor
 	var mappedFieldIndex = make([]int, recordType.NumField())
 	for i, column := range columns {
 		fieldIndex, ok := indexedFields[column]
-		if ! ok {
+		if !ok {
 			fieldIndex, ok = indexedFields[strings.ToLower(column)]
 		}
-		if ! ok {
+		if !ok {
 			fieldIndex, ok = indexedFields[strings.Replace(strings.ToLower(column), "_", "", strings.Count(column, "_"))]
 		}
-		if ! ok {
+		if !ok {
 			return nil, fmt.Errorf("failed to matched a %v field for SQL column: %v", recordType, column)
 		}
 		mappedFieldIndex[i] = fieldIndex
 	}
 	var record = make([]interface{}, recordType.NumField())
 	var mapper = func(value reflect.Value) ([]interface{}, error) {
-		value = value.Elem()//T = *T
+		value = value.Elem() //T = *T
 		for i, fieldIndex := range mappedFieldIndex {
 			record[i] = value.Field(fieldIndex).Addr().Interface()
 		}
@@ -48,7 +48,6 @@ func newQueryRecordMapper(columns []string, columnTypes []*sql.ColumnType, recor
 	}
 	return mapper, nil
 }
-
 
 //newQueryRecordMapper creates a new record mapped
 func newWriterRecordMapper(columns []string, recordType reflect.Type) (recordMapper, error) {
@@ -67,13 +66,13 @@ func newWriterRecordMapper(columns []string, recordType reflect.Type) (recordMap
 	var mappedFieldIndex = make([]int, len(columns))
 	for i, column := range columns {
 		fieldIndex, ok := indexedFields[column]
-		if ! ok {
+		if !ok {
 			fieldIndex, ok = indexedFields[strings.ToLower(column)]
 		}
-		if ! ok {
+		if !ok {
 			fieldIndex, ok = indexedFields[strings.Replace(strings.ToLower(column), "_", "", strings.Count(column, "_"))]
 		}
-		if ! ok {
+		if !ok {
 			return nil, fmt.Errorf("failed to matched a %v field for SQL column: %v", recordType, column)
 		}
 		mappedFieldIndex[i] = fieldIndex
@@ -91,4 +90,3 @@ func newWriterRecordMapper(columns []string, recordType reflect.Type) (recordMap
 	}
 	return mapper, nil
 }
-

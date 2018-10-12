@@ -2,12 +2,12 @@ package databaseio
 
 import (
 	"context"
-	"fmt"
-	"reflect"
 	"database/sql"
+	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"strings"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"reflect"
+	"strings"
 )
 
 func init() {
@@ -72,7 +72,7 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 		reflectVal := reflect.New(f.Type.T)
 
 		if mapper == nil {
-			columns, err := rows.Columns();
+			columns, err := rows.Columns()
 			if err != nil {
 				return err
 			}
@@ -113,8 +113,6 @@ func WriteWithBatchSize(s beam.Scope, batchSize int, driver, dsn, table string, 
 	post := beam.GroupByKey(s, pre)
 	beam.ParDo0(s, &writeFn{Driver: driver, Dsn: dsn, Table: table, Columns: columns, BatchSize: batchSize, Type: beam.EncodedType{T: t}}, post)
 }
-
-
 
 type writeFn struct {
 	// Project is the project
@@ -157,7 +155,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return fmt.Errorf("failed to discover column: %v, %v", f.Table, err)
 	}
 
-	mapper, err := newWriterRecordMapper(columns, f.Type.T);
+	mapper, err := newWriterRecordMapper(columns, f.Type.T)
 	if err != nil {
 		return fmt.Errorf("failed to create record mapper: %v", err)
 	}
@@ -169,17 +167,17 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	for iter(&val) {
 		record, err := mapper(reflect.ValueOf(val))
 		if err != nil {
-			return fmt.Errorf("failed to map record %T: %v", val,  err)
+			return fmt.Errorf("failed to map record %T: %v", val, err)
 		}
-		if err = writer.add(record);err != nil {
+		if err = writer.add(record); err != nil {
 			return err
 		}
-		if err := writer.writeBatchIfNeeded(db, ctx);err != nil {
+		if err := writer.writeBatchIfNeeded(ctx, db); err != nil {
 			return err
 		}
 	}
 
-	if err := writer.writeIfNeeded(db, ctx);err != nil {
+	if err := writer.writeIfNeeded(ctx, db); err != nil {
 		return err
 	}
 
