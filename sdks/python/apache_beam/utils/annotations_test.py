@@ -41,25 +41,6 @@ class AnnotationTests(unittest.TestCase):
                           ('instead', True),
                           ('Do this', True)])
 
-  def test_deprecated_with_since_current_message_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @deprecated(since='v.1', current='multiply', extra_message='Do this')
-      class Class_test_deprecated_with_since_current_message:
-        fooo = 'lol'
-        def foo(self):
-          return 'lol'
-      foo = Class_test_deprecated_with_since_current_message()
-      foo.foo()
-      self.check_annotation(
-          warning=w, warning_size=1,
-          warning_type=DeprecationWarning,
-          fnc_name='Class_test_deprecated_with_since_current_message',
-          annotation_type='deprecated',
-          label_check_list=[('since', True),
-                            ('instead', True),
-                            ('Do this', True)])
-
-
   def test_deprecated_with_since_current(self):
     with warnings.catch_warnings(record=True) as w:
       @deprecated(since='v.1', current='multiply')
@@ -73,23 +54,6 @@ class AnnotationTests(unittest.TestCase):
         annotation_type='deprecated',
         label_check_list=[('since', True),
                           ('instead', True)])
-
-
-  def test_deprecated_with_since_current_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @deprecated(since='v.1', current='multiply')
-      class Class_test_deprecated_with_since_current():
-        fooo = 'lol'
-        def foo(self):
-          return 'lol'
-      foo = Class_test_deprecated_with_since_current()
-      foo.foo()
-      self.check_annotation(warning=w, warning_size=1,
-                            warning_type=DeprecationWarning,
-                            fnc_name='Class_test_deprecated_with_since_current',
-                            annotation_type='deprecated',
-                            label_check_list=[('since', True),
-                                              ('instead', True)])
 
   def test_deprecated_without_current(self):
     with warnings.catch_warnings(record=True) as w:
@@ -105,22 +69,6 @@ class AnnotationTests(unittest.TestCase):
         label_check_list=[('since', True),
                           ('instead', False)])
 
-  def test_deprecated_without_current_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @deprecated(since='v.1')
-      class Class_test_deprecated_without_current():
-        fooo = 'lol'
-        def foo(self):
-          return 'lol'
-      foo = Class_test_deprecated_without_current()
-      foo.foo()
-      self.check_annotation(warning=w, warning_size=1,
-                            warning_type=DeprecationWarning,
-                            fnc_name='Class_test_deprecated_without_current',
-                            annotation_type='deprecated',
-                            label_check_list=[('since', True),
-                                              ('instead', False)])
-
   def test_deprecated_without_since_should_fail(self):
     with warnings.catch_warnings(record=True) as w:
       with self.assertRaises(TypeError):
@@ -131,7 +79,6 @@ class AnnotationTests(unittest.TestCase):
         fnc_test_deprecated_without_since_should_fail()
       assert not w
 
-<<<<<<< HEAD
   def test_deprecated_without_since_custom_should_fail(self):
     with warnings.catch_warnings(record=True) as w:
       with self.assertRaises(TypeError):
@@ -139,19 +86,6 @@ class AnnotationTests(unittest.TestCase):
         def fnc_test_deprecated_without_since_custom_should_fail():
           return 'lol'
         fnc_test_deprecated_without_since_custom_should_fail()
-=======
-  def test_deprecated_without_since_should_fail_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      with self.assertRaises(TypeError):
-
-        @deprecated()
-        class Class_test_deprecated_without_since_should_fail():
-          fooo = 'lol'
-          def foo(self):
-            return 'lol'
-        foo = Class_test_deprecated_without_since_should_fail()
-        foo.foo()
->>>>>>> ae3ee47cf9e131cf66644532022178d559d9237d
       assert not w
 
   def test_experimental_with_current_message(self):
@@ -164,23 +98,6 @@ class AnnotationTests(unittest.TestCase):
           warning=w, warning_size=1,
           warning_type=FutureWarning,
           obj_name='fnc_test_experimental_with_current_message',
-          annotation_type='experimental',
-          label_check_list=[('instead', True),
-                            ('Do this', True)])
-
-  def test_experimental_with_current_message_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @experimental(current='multiply', extra_message='Do this')
-      class Class_test_experimental_with_current_message():
-        fooo = 'lol'
-        def foo(self):
-            return 'lol'
-      foo = Class_test_experimental_with_current_message()
-      foo.foo()
-      self.check_annotation(
-          warning=w, warning_size=1,
-          warning_type=FutureWarning,
-          fnc_name='Class_test_experimental_with_current_message',
           annotation_type='experimental',
           label_check_list=[('instead', True),
                             ('Do this', True)])
@@ -198,21 +115,6 @@ class AnnotationTests(unittest.TestCase):
         annotation_type='experimental',
         label_check_list=[('instead', True)])
 
-  def test_experimental_with_current_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @experimental(current='multiply')
-      class Class_test_experimental_with_current():
-        fooo = 'lol'
-        def foo(self):
-            return 'lol'
-      foo = Class_test_experimental_with_current()
-      foo.foo()
-      self.check_annotation(warning=w, warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='Class_test_experimental_with_current',
-                            annotation_type='experimental',
-                            label_check_list=[('instead', True)])
-
   def test_experimental_without_current(self):
     with warnings.catch_warnings(record=True) as w:
       @experimental()
@@ -225,21 +127,6 @@ class AnnotationTests(unittest.TestCase):
         obj_name='fnc_test_experimental_without_current',
         annotation_type='experimental',
         label_check_list=[('instead', False)])
-
-  def test_experimental_without_current_class(self):
-    with warnings.catch_warnings(record=True) as w:
-      @experimental()
-      class Class_test_experimental_without_current():
-        fooo = 'lol'
-        def foo(self):
-            return 'lol'
-      foo = Class_test_experimental_without_current()
-      foo.foo()
-      self.check_annotation(warning=w, warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='Class_test_experimental_without_current',
-                            annotation_type='experimental',
-                            label_check_list=[('instead', False)])
 
   def test_frequency(self):
     """Tests that the filter 'once' is sufficient to print once per
@@ -325,7 +212,7 @@ class AnnotationTests(unittest.TestCase):
         .replace('%extra%',''))
 
 
-  def test_enforce_custom_since_decapretaded_must_fail(self):
+  def test_enforce_custom_since_deprecated_must_fail(self):
     """Tests since replacement string inclusion on the
     custom message for the decapreted string. If no
     since replacement string is given, the annotation must fail"""
@@ -420,39 +307,6 @@ class AnnotationTests(unittest.TestCase):
           annotation_type='experimental',
           label_check_list=[('instead', True),
                             ('Do this', True)])
-
-
-  def test_frequency_class(self):
-    """Tests that the filter 'once' is sufficient to print once per
-    warning independently of location."""
-    with warnings.catch_warnings(record=True) as w:
-      @experimental()
-      class Class_test_annotate_frequency():
-        fooo = 'lol'
-        def foo(self):
-            return 'lol'
-
-      @experimental()
-      class Class2_test_annotate_frequency():
-        fooo = 'lol'
-        def foo(self):
-            return 'lol'
-      foo = Class_test_annotate_frequency()
-      foo.foo()
-      foo1 = Class_test_annotate_frequency()
-      foo1.foo()
-      foo2 = Class2_test_annotate_frequency()
-      foo2.foo()
-      self.check_annotation(warning=[w[0]], warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='Class_test_annotate_frequency',
-                            annotation_type='experimental',
-                            label_check_list=[])
-      self.check_annotation(warning=[w[1]], warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='Class2_test_annotate_frequency',
-                            annotation_type='experimental',
-                            label_check_list=[])
 
   # helper function
   def check_annotation(self, warning, warning_size, warning_type, obj_name,
