@@ -537,6 +537,45 @@ class FnApiRunnerTest(unittest.TestCase):
       return False
 
     try:
+      # TODO(ajamato): Delete this block after deleting the legacy metrics code.
+      # Test the DEPRECATED legacy metrics
+      pregbk_metrics, postgbk_metrics = list(
+          res._metrics_by_stage.values())
+      if 'Create/Read' not in pregbk_metrics.ptransforms:
+        # The metrics above are actually unordered. Swap.
+        pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
+      self.assertEqual(
+          4,
+          pregbk_metrics.ptransforms['Create/Read']
+          .processed_elements.measured.output_element_counts['out'])
+      self.assertEqual(
+          4,
+          pregbk_metrics.ptransforms['Map(sleep)']
+          .processed_elements.measured.output_element_counts['None'])
+      self.assertLessEqual(
+          4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
+          pregbk_metrics.ptransforms['Map(sleep)']
+          .processed_elements.measured.total_time_spent)
+      self.assertEqual(
+          1,
+          postgbk_metrics.ptransforms['GroupByKey/Read']
+          .processed_elements.measured.output_element_counts['None'])
+
+      # The actual stage name ends up being something like 'm_out/lamdbda...'
+      m_out, = [
+          metrics for name, metrics in list(postgbk_metrics.ptransforms.items())
+          if name.startswith('m_out')]
+      self.assertEqual(
+          5,
+          m_out.processed_elements.measured.output_element_counts['None'])
+      self.assertEqual(
+          1,
+          m_out.processed_elements.measured.output_element_counts['once'])
+      self.assertEqual(
+          2,
+          m_out.processed_elements.measured.output_element_counts['twice'])
+
+      # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):

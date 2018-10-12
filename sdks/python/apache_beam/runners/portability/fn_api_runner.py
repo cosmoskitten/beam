@@ -1006,6 +1006,7 @@ class FnApiRunner(runner.PipelineRunner):
       controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
     else:
       controller = FnApiRunner.DirectController()
+    metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
     try:
@@ -1014,12 +1015,13 @@ class FnApiRunner(runner.PipelineRunner):
         stage_results = self.run_stage(
             controller, pipeline_components, stage,
             pcoll_buffers, safe_coders)
+        metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
         monitoring_infos_by_stage[stage.name] = (
             stage_results.process_bundle.monitoring_infos)
     finally:
       controller.close()
     return RunnerResult(
-        runner.PipelineState.DONE, monitoring_infos_by_stage)
+        runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
   def run_stage(
       self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
@@ -1529,9 +1531,10 @@ class FnApiMetrics(metrics.metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
-  def __init__(self, state, monitoring_infos_by_stage):
+  def __init__(self, state, monitoring_infos_by_stage, metrics_by_stage):
     super(RunnerResult, self).__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
+    self._metrics_by_stage = metrics_by_stage
     self._metrics = None
     self._monitoring_metrics = None
 
