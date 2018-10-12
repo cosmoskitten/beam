@@ -51,6 +51,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
@@ -58,6 +59,8 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
@@ -65,6 +68,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Description;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -272,6 +276,30 @@ public class SpannerIOWriteTest implements Serializable {
     pipeline.run();
 
     verifyBatches(batch(m(1L)), batch(m(2L)));
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTestStream.class})
+  public void streamingWrites() throws Exception {
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(2L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(3L), m(4L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(5L), m(6L))
+            .advanceWatermarkToInfinity();
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
   }
 
   @Test
