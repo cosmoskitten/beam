@@ -441,6 +441,7 @@ class BundleProcessor(object):
         self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
     # Outputs are still referred to by index, not by name, in many Operations.
     # However, if there is exactly one output, we can fix up the name here.
+
     def fix_only_output_tag(actual_output_tag, mapping):
       if len(mapping) == 1:
         fake_output_tag, count = only_element(list(mapping.items()))
@@ -942,4 +943,3 @@ def create(factory, transform_id, transform_proto, mapping_fn_spec, consumers):
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       MapWindows())
-
