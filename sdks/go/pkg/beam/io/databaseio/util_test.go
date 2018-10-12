@@ -66,7 +66,7 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 		return
 	}
 	aUser := &User{
-		Id:          2,
+		ID:          2,
 		NameTest:    "abc",
 		Random:      1.6,
 		DateOfBirth: time.Now(),
