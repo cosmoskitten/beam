@@ -55,11 +55,10 @@ python setup.py nosetests \
 
 from __future__ import absolute_import
 
-import unittest
 import json
 import logging
-
 import time
+import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics

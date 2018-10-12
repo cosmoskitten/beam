@@ -68,6 +68,7 @@ from __future__ import absolute_import
 import json
 import logging
 import unittest
+
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.test_pipeline import TestPipeline
