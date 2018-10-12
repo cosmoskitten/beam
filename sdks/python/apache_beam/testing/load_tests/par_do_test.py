@@ -52,6 +52,9 @@ python setup.py nosetests \
     --tests apache_beam.testing.load_tests.par_do_test
 
 """
+
+from __future__ import absolute_import
+
 import unittest
 import json
 import logging
@@ -87,7 +90,6 @@ class ParDoTest(unittest.TestCase):
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('iterations')
     self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
-
 
   class _MeasureTime(beam.DoFn):
     def __init__(self):
@@ -134,10 +136,11 @@ class ParDoTest(unittest.TestCase):
       result.wait_until_finish()
       metrics = result.metrics().query()
       for counter in metrics['counters']:
-        print("Counter: %s", counter)
+        logging.info("Counter: %s", counter)
 
       for dist in metrics['distributions']:
-        print("Distribution: %s", dist)
+        logging.info("Distribution: %s", dist)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -50,6 +50,8 @@ python setup.py nosetests \
 
 """
 
+from __future__ import absolute_import
+
 import unittest
 import json
 import logging
@@ -95,6 +97,7 @@ class CombineTest(unittest.TestCase):
       )
 
       p.run().wait_until_finish()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)

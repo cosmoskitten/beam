@@ -63,6 +63,8 @@ python setup.py nosetests \
 
 """
 
+from __future__ import absolute_import
+
 import json
 import logging
 import unittest
@@ -73,8 +75,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 INPUT_TAG = 'pc1'
 CO_INPUT_TAG = 'pc2'
 
-class CoGroupByKeyTest(unittest.TestCase):
 
+class CoGroupByKeyTest(unittest.TestCase):
 
   def parseTestPipelineOptions(self, options):
     return {
@@ -131,6 +133,7 @@ class CoGroupByKeyTest(unittest.TestCase):
       )
 
       p.run().wait_until_finish()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
