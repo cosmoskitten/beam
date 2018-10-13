@@ -18,6 +18,10 @@
 package databaseio
 
 import (
+<<<<<<< HEAD
+=======
+	"github.com/stretchr/testify/assert"
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 	"reflect"
 	"testing"
 	"time"
@@ -34,12 +38,18 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 	}
 
 	mapper, err := newQueryMapper([]string{"id", "name", "random", "date_of_birth"}, nil, reflect.TypeOf(User{}))
+<<<<<<< HEAD
 	if err != nil {
 		t.Fatalf("Expected nil, but got: %#v", err)
+=======
+	if !assert.Nil(t, err) {
+		return
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 	}
 
 	aUser := &User{}
 	record, err := mapper(reflect.ValueOf(aUser))
+<<<<<<< HEAD
 	if err != nil {
 		t.Fatalf("Expected nil, but got: %#v", err)
 	}
@@ -69,13 +79,40 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 	*dob = now
 
 	if want := (&User{
+=======
+	if !assert.Nil(t, err) {
+		return
+	}
+	id, ok := record[0].(*int)
+	assert.True(t, ok)
+	*id = 10
+
+	name, ok := record[1].(*string)
+	assert.True(t, ok)
+	*name = "test"
+
+	random, ok := record[2].(*float64)
+	assert.True(t, ok)
+	*random = 1.2
+
+	dob, ok := record[3].(*time.Time)
+	assert.True(t, ok)
+	now := time.Now()
+	*dob = now
+
+	assert.EqualValues(t, &User{
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 		ID:          *id,
 		DateOfBirth: *dob,
 		NameTest:    *name,
 		Random:      *random,
+<<<<<<< HEAD
 	}); !reflect.DeepEqual(aUser, want) {
 		t.Errorf("got %v, want %v", aUser, want)
 	}
+=======
+	}, aUser)
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 }
 
 func Test_writerRecordMapperProvider(t *testing.T) {
@@ -88,8 +125,13 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 	}
 
 	mapper, err := newWriterRowMapper([]string{"id", "name", "random", "date_of_birth"}, reflect.TypeOf(User{}))
+<<<<<<< HEAD
 	if err != nil {
 		t.Fatalf("Expected nil, but got: %#v", err)
+=======
+	if !assert.Nil(t, err) {
+		return
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 	}
 	aUser := &User{
 		ID:          2,
@@ -98,6 +140,7 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 		DateOfBirth: time.Now(),
 	}
 	record, err := mapper(reflect.ValueOf(aUser))
+<<<<<<< HEAD
 	if err != nil {
 		t.Fatalf("Expected nil, but got: %#v", err)
 	}
@@ -113,4 +156,14 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 	if record[3] != aUser.DateOfBirth {
 		t.Errorf("got %v, want %v", record[3], aUser.DateOfBirth)
 	}
+=======
+	if !assert.Nil(t, err) {
+		return
+	}
+	assert.EqualValues(t, 2, record[0])
+	assert.EqualValues(t, "abc", record[1])
+	assert.EqualValues(t, 1.6, record[2])
+	assert.EqualValues(t, aUser.DateOfBirth, record[3])
+
+>>>>>>> [BEAM-5729] added database/sql based reader and writer
 }
