@@ -62,8 +62,8 @@ import org.joda.time.Instant;
  * reading from the queue:
  *
  * <pre>{@code
- * pipeline.apply(
- *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withQueue("QUEUE")
+ * PCollection<RabbitMqMessage> messages = pipeline.apply(
+ *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withQueue("QUEUE"))
  *
  * }</pre>
  *
@@ -71,13 +71,13 @@ import org.joda.time.Instant;
  * instead of directly from a queue:
  *
  * <pre>{@code
- * pipeline.apply(
- *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE");
+ * PCollection<RabbitMqMessage> messages = pipeline.apply(
+ *   RabbitMqIO.read().withUri("amqp://user:password@localhost:5672").withExchange("EXCHANGE", "fanout", "QUEUE"));
  * }</pre>
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
  *
- * <p>{@link RabbitMqIO} {@link Write} can send {@code byte[]} to a RabbitMQ server queue or
+ * <p>{@link RabbitMqIO} {@link Write} can send {@link RabbitMqMessage} to a RabbitMQ server queue or
  * exchange.
  *
  * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ URI.
