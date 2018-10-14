@@ -176,16 +176,7 @@ public class RabbitMqIOTest implements Serializable {
     Connection connection = connectionFactory.newConnection();
     Channel channel = connection.createChannel();
     channel.queueDeclare("TEST", true, false, false, null);
-    Consumer consumer =
-        new DefaultConsumer(channel) {
-          @Override
-          public void handleDelivery(
-              String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-              throws IOException {
-            String message = new String(body, "UTF-8");
-            received.add(message);
-          }
-        };
+    Consumer consumer = new TestConsumer(channel, received);
     channel.basicConsume("TEST", true, consumer);
 
     p.run();
@@ -224,16 +215,7 @@ public class RabbitMqIOTest implements Serializable {
     channel.exchangeDeclare("WRITE", "fanout");
     String queueName = channel.queueDeclare().getQueue();
     channel.queueBind(queueName, "WRITE", "");
-    Consumer consumer =
-        new DefaultConsumer(channel) {
-          @Override
-          public void handleDelivery(
-              String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-              throws IOException {
-            String message = new String(body, "UTF-8");
-            received.add(message);
-          }
-        };
+    Consumer consumer = new TestConsumer(channel, received);
     channel.basicConsume(queueName, true, consumer);
 
     p.run();
@@ -265,5 +247,23 @@ public class RabbitMqIOTest implements Serializable {
     return IntStream.range(0, maxNumRecords)
         .mapToObj(i -> ("Test " + i).getBytes(StandardCharsets.UTF_8))
         .collect(Collectors.toList());
+  }
+
+  private static class TestConsumer extends DefaultConsumer {
+
+    private final List<String> received;
+
+    public TestConsumer(Channel channel, List<String> received) {
+      super(channel);
+      this.received = received;
+    }
+
+    @Override
+    public void handleDelivery(
+        String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+        throws IOException {
+      String message = new String(body, "UTF-8");
+      received.add(message);
+    }
   }
 }
