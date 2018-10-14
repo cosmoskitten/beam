@@ -77,8 +77,8 @@ import org.joda.time.Instant;
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
  *
- * <p>{@link RabbitMqIO} {@link Write} can send {@link RabbitMqMessage} to a RabbitMQ server queue or
- * exchange.
+ * <p>{@link RabbitMqIO} {@link Write} can send {@link RabbitMqMessage} to a RabbitMQ server queue
+ * or exchange.
  *
  * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ URI.
  *
@@ -448,7 +448,7 @@ public class RabbitMqIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+        QueueingConsumer.Delivery delivery = consumer.nextDelivery(10000);
         if (source.spec.useCorrelationId()) {
           String correlationId = delivery.getProperties().getCorrelationId();
           if (correlationId == null) {
