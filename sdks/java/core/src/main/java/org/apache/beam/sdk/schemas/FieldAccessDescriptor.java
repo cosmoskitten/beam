@@ -26,8 +26,10 @@ import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -39,6 +41,8 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 /**
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
  * type need to be accessed for processing.
+ *
+ * <p>This class always puts the selected fields in a deterministic order.
  */
 @Experimental(Kind.SCHEMAS)
 @AutoValue
@@ -57,6 +61,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
     abstract Builder setNestedFieldsAccessedByName(
         Map<String, FieldAccessDescriptor> nestedFieldsAccessedByName);
 
+    abstract Builder setFieldInsertionOrder(boolean insertionOrder);
+
     abstract FieldAccessDescriptor build();
   }
 
@@ -70,11 +76,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
   abstract Map<String, FieldAccessDescriptor> getNestedFieldsAccessedByName();
 
+  abstract boolean getFieldInsertionOrder();
+
   abstract Builder toBuilder();
 
   static Builder builder() {
     return new AutoValue_FieldAccessDescriptor.Builder()
         .setAllFields(false)
+        .setFieldInsertionOrder(false)
         .setFieldIdsAccessed(Collections.emptySet())
         .setFieldNamesAccessed(Collections.emptySet())
         .setNestedFieldsAccessedById(Collections.emptyMap())
@@ -105,7 +114,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldNames(Iterable<String> fieldNames) {
-    return builder().setFieldNamesAccessed(Sets.newTreeSet(fieldNames)).build();
+    return builder().setFieldNamesAccessed(Sets.newLinkedHashSet(fieldNames)).build();
   }
 
   /**
@@ -127,7 +136,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * in a recursive {@link FieldAccessDescriptor}.
    */
   public static FieldAccessDescriptor withFieldIds(Iterable<Integer> ids) {
-    return builder().setFieldIdsAccessed(Sets.newTreeSet(ids)).build();
+    return builder().setFieldIdsAccessed(Sets.newLinkedHashSet(ids)).build();
   }
 
   /** Return an empty {@link FieldAccessDescriptor}. */
@@ -165,6 +174,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return toBuilder().setNestedFieldsAccessedByName(newNestedFieldAccess).build();
   }
 
+  /**
+   * By default, fields are sorted by name. If this is set, they will instead be sorted by insertion
+   * order. All sorting happens in the {@link #resolve(Schema)} method.
+   */
+  public FieldAccessDescriptor withOrderByFieldInsertionOrder() {
+    return toBuilder().setFieldInsertionOrder(true).build();
+  }
+
   public boolean allFields() {
     return getAllFields();
   }
@@ -177,6 +194,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return getNestedFieldsAccessedById();
   }
 
+  // After resolution, fields are always ordered by their field name.
   public FieldAccessDescriptor resolve(Schema schema) {
     Set<Integer> resolvedFieldIdsAccessed = resolveFieldIdsAccessed(schema);
     Map<Integer, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
@@ -198,7 +216,15 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   private Set<Integer> resolveFieldIdsAccessed(Schema schema) {
-    Set<Integer> fieldIds = Sets.newTreeSet();
+    Set<Integer> fieldIds;
+    if (getFieldInsertionOrder()) {
+      fieldIds = Sets.newLinkedHashSet();
+    } else {
+      // Make sure that resolved fields are always ordered by their field name.
+      Function<Integer, String> nameOf = (Function<Integer, String> & Serializable) schema::nameOf;
+      fieldIds = Sets.newTreeSet(Comparator.comparing(nameOf));
+    }
+
     for (int fieldId : getFieldIdsAccessed()) {
       fieldIds.add(validateFieldId(schema, fieldId));
     }
@@ -233,7 +259,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   private Map<Integer, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
-    Map<Integer, FieldAccessDescriptor> nestedFields = Maps.newTreeMap();
+    Map<Integer, FieldAccessDescriptor> nestedFields;
+    if (getFieldInsertionOrder()) {
+      nestedFields = Maps.newLinkedHashMap();
+    } else {
+      // Make sure that resolved fields are always ordered by their field name.
+      Function<Integer, String> nameOf = (Function<Integer, String> & Serializable) schema::nameOf;
+      nestedFields = Maps.newTreeMap(Comparator.comparing(nameOf));
+    }
 
     nestedFields.putAll(
         getNestedFieldsAccessedByName()
