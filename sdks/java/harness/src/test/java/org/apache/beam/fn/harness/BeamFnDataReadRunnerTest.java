@@ -136,25 +136,36 @@ public class BeamFnDataReadRunnerTest {
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
 
-    new BeamFnDataReadRunner.Factory<String>()
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            mockBeamFnDataClient,
-            null /* beamFnStateClient */,
-            "pTransformId",
-            pTransform,
-            Suppliers.ofInstance(bundleId)::get,
-            ImmutableMap.of(
-                localOutputId,
-                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
-            COMPONENTS.getCodersMap(),
-            COMPONENTS.getWindowingStrategiesMap(),
-            consumers,
-            startFunctions::add,
-            finishFunctions::add,
-            null /* splitListener */);
+    BeamFnDataReadRunner<String> readRunner =
+        new BeamFnDataReadRunner.Factory<String>()
+            .createRunnerForPTransform(
+                PipelineOptionsFactory.create(),
+                mockBeamFnDataClient,
+                null /* beamFnStateClient */,
+                "pTransformId",
+                pTransform,
+                Suppliers.ofInstance(bundleId)::get,
+                ImmutableMap.of(
+                    localOutputId,
+                    RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
+                COMPONENTS.getCodersMap(),
+                COMPONENTS.getWindowingStrategiesMap(),
+                consumers,
+                startFunctions::add,
+                finishFunctions::add,
+                null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
+
+    Future<?> future =
+        executor.submit(
+            () -> {
+              try {
+                readRunner.blockTillReadFinishes();
+              } catch (Exception e) {
+                fail(e.toString());
+              }
+            });
 
     InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(completionFuture);
@@ -172,13 +183,16 @@ public class BeamFnDataReadRunnerTest {
             eq(CODER),
             consumerCaptor.capture());
 
+    // Completion future must be completed before readRunner.blockTillReadFinishes() will return.
+    completionFuture.complete();
+
     consumerCaptor.getValue().accept(valueInGlobalWindow("TestValue"));
+    future.get(); // Wait for the thread invoking readRunner.blockTillReadFinishes() to terminate.
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
 
-    completionFuture.complete();
     Iterables.getOnlyElement(finishFunctions).run();
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
