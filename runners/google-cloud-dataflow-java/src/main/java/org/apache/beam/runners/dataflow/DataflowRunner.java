@@ -879,9 +879,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
 
-    if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
-      newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
-    }
     Job jobResult;
     try {
       jobResult = dataflowClient.createJob(newJob);
