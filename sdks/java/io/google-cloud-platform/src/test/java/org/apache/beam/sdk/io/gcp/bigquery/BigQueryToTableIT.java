@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -293,8 +294,10 @@ public class BigQueryToTableIT {
   @Test
   public void testNewTypesQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupNewTypesQueryTest();
-    this.options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
+    List<String> experiments = new ArrayList<>();
+    experiments.add("enable_custom_bigquery_sink");
+    experiments.add("enable_custom_bigquery_source");
+    this.options.setExperiments(experiments);
 
     this.runBigQueryToTablePipeline();
 
@@ -304,8 +307,10 @@ public class BigQueryToTableIT {
   @Test
   public void testLegacyQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupLegacyQueryTest();
-    this.options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
+    List<String> experiments = new ArrayList<>();
+    experiments.add("enable_custom_bigquery_sink");
+    experiments.add("enable_custom_bigquery_source");
+    this.options.setExperiments(experiments);
 
     this.runBigQueryToTablePipeline();
 
@@ -315,8 +320,10 @@ public class BigQueryToTableIT {
   @Test
   public void testStandardQueryWithoutReshuffleWithCustom() throws Exception {
     this.setupStandardQueryTest();
-    this.options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
+    List<String> experiments = new ArrayList<>();
+    experiments.add("enable_custom_bigquery_sink");
+    experiments.add("enable_custom_bigquery_source");
+    this.options.setExperiments(experiments);
 
     this.runBigQueryToTablePipeline();
 
