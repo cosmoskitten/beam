@@ -87,7 +87,7 @@ public class PortableTimersExecutionTest implements Serializable {
     flinkJobExecutor.shutdown();
   }
 
-  @Test(timeout = 60_000)
+  @Test(timeout = 600_000)
   public void testTimerExecution() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setRunner(CrashingRunner.class);
