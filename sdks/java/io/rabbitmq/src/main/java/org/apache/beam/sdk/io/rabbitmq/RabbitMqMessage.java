@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.QueueingConsumer;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Date;
@@ -66,6 +67,25 @@ public class RabbitMqMessage implements Serializable {
     userId = null;
     appId = null;
     clusterId = null;
+  }
+
+  public RabbitMqMessage(String routingKey, QueueingConsumer.Delivery delivery) {
+    this.routingKey = routingKey;
+    body = delivery.getBody();
+    contentType = delivery.getProperties().getContentType();
+    contentEncoding = delivery.getProperties().getContentEncoding();
+    headers = delivery.getProperties().getHeaders();
+    deliveryMode = delivery.getProperties().getDeliveryMode();
+    priority = delivery.getProperties().getPriority();
+    correlationId = delivery.getProperties().getCorrelationId();
+    replyTo = delivery.getProperties().getReplyTo();
+    expiration = delivery.getProperties().getExpiration();
+    messageId = delivery.getProperties().getMessageId();
+    timestamp = delivery.getProperties().getTimestamp();
+    type = delivery.getProperties().getType();
+    userId = delivery.getProperties().getUserId();
+    appId = delivery.getProperties().getAppId();
+    clusterId = delivery.getProperties().getClusterId();
   }
 
   public RabbitMqMessage(
