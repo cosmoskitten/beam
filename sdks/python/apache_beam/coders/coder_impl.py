@@ -300,12 +300,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(NONE_TYPE)
     elif t is int:
       # In Python 3, an int may be larger than 64 bits.
-      # Note that an OverflowError on stream.write_var_int64 would happen
-      # *after* the marker byte is written, so we must check earlier.
+      # We need to check whether value fits into a 64 bit integer before
+      # writing the marker byte.
       try:
-        # This may throw an overflow error when compiled.
+        # In Cython-compiled code this will throw an overflow error
+        # when value does not fit into int64.
         int_value = value
-        # Otherwise, we must check ourselves.
+        # If Cython is not used, we must do a (slower) check ourselves.
         if not is_compiled:
           if not fits_in_64_bits(value):
             raise OverflowError()
