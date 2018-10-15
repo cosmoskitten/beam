@@ -409,6 +409,9 @@ public class HadoopFormatIO {
        * <p>This type is useful especially for processing unbounded windowed data but can be used
        * also for batch processing.
        *
+       * <p>Supports only {@link PCollection} with {@link DefaultTrigger}ing and without allowed
+       * lateness
+       *
        * @param configurationTransformation configuration transformation interface
        * @return Created write function
        * @throws NullPointerException when {@code configurationTransformation} is {@code null}
