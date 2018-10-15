@@ -38,9 +38,9 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.qpid.server.Broker;
 import org.apache.qpid.server.BrokerOptions;
 import org.junit.AfterClass;
@@ -95,9 +95,18 @@ public class RabbitMqIOTest implements Serializable {
                 .withUri("amqp://guest:guest@localhost:" + port)
                 .withQueue("READ")
                 .withMaxNumRecords(maxNumRecords));
-    PCollection<byte[]> output = raw.apply(ParDo.of(new ConverterFn()));
+    PCollection<String> output =
+        raw.apply(
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (RabbitMqMessage message) ->
+                        new String(message.getBody(), StandardCharsets.UTF_8)));
 
-    List<byte[]> records = generateRecords(maxNumRecords);
+    List<String> records =
+        generateRecords(maxNumRecords)
+            .stream()
+            .map(record -> new String(record, StandardCharsets.UTF_8))
+            .collect(Collectors.toList());
     PAssert.that(output).containsInAnyOrder(records);
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -108,8 +117,8 @@ public class RabbitMqIOTest implements Serializable {
       connection = connectionFactory.newConnection();
       channel = connection.createChannel();
       channel.queueDeclare("READ", false, false, false, null);
-      for (byte[] record : records) {
-        channel.basicPublish("", "READ", null, record);
+      for (String record : records) {
+        channel.basicPublish("", "READ", null, record.getBytes(StandardCharsets.UTF_8));
       }
 
       p.run();
@@ -132,9 +141,18 @@ public class RabbitMqIOTest implements Serializable {
                 .withUri("amqp://guest:guest@localhost:" + port)
                 .withExchange("READEXCHANGE", "fanout", "test")
                 .withMaxNumRecords(maxNumRecords));
-    PCollection<byte[]> output = raw.apply(ParDo.of(new ConverterFn()));
+    PCollection<String> output =
+        raw.apply(
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (RabbitMqMessage message) ->
+                        new String(message.getBody(), StandardCharsets.UTF_8)));
 
-    List<byte[]> records = generateRecords(maxNumRecords);
+    List<String> records =
+        generateRecords(maxNumRecords)
+            .stream()
+            .map(record -> new String(record, StandardCharsets.UTF_8))
+            .collect(Collectors.toList());
     PAssert.that(output).containsInAnyOrder(records);
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -268,16 +286,6 @@ public class RabbitMqIOTest implements Serializable {
       if (connection != null) {
         connection.close();
       }
-    }
-  }
-
-  private static class ConverterFn extends DoFn<RabbitMqMessage, byte[]> {
-    ConverterFn() {}
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      RabbitMqMessage message = c.element();
-      c.output(message.getBody());
     }
   }
 
