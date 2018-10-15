@@ -102,17 +102,25 @@ public class RabbitMqIOTest implements Serializable {
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = connectionFactory.newConnection();
-    Channel channel = connection.createChannel();
-    channel.queueDeclare("READ", false, false, false, null);
-    for (byte[] record : records) {
-      channel.basicPublish("", "READ", null, record);
+    Connection connection = null;
+    Channel channel = null;
+    try {
+      connection = connectionFactory.newConnection();
+      channel = connection.createChannel();
+      channel.queueDeclare("READ", false, false, false, null);
+      for (byte[] record : records) {
+        channel.basicPublish("", "READ", null, record);
+      }
+
+      p.run();
+    } finally {
+      if (channel != null) {
+        channel.close();
+      }
+      if (connection != null) {
+        connection.close();
+      }
     }
-
-    p.run();
-
-    channel.close();
-    connection.close();
   }
 
   @Test(timeout = 60 * 1000)
@@ -131,32 +139,44 @@ public class RabbitMqIOTest implements Serializable {
 
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = connectionFactory.newConnection();
-    final Channel channel = connection.createChannel();
-    channel.exchangeDeclare("READEXCHANGE", "fanout");
-    Thread publisher =
-        new Thread(
-            () -> {
-              try {
-                Thread.sleep(5000);
-              } catch (Exception e) {
-                LOG.error(e.getMessage(), e);
-              }
-              for (int i = 0; i < 10; i++) {
+    Connection connection = null;
+    Channel channel = null;
+    try {
+      connection = connectionFactory.newConnection();
+      channel = connection.createChannel();
+      channel.exchangeDeclare("READEXCHANGE", "fanout");
+      Channel finalChannel = channel;
+      Thread publisher =
+          new Thread(
+              () -> {
                 try {
-                  channel.basicPublish(
-                      "READEXCHANGE", "test", null, ("Test " + i).getBytes(StandardCharsets.UTF_8));
+                  Thread.sleep(5000);
                 } catch (Exception e) {
                   LOG.error(e.getMessage(), e);
                 }
-              }
-            });
-    publisher.start();
-    p.run();
-    publisher.join();
-
-    channel.close();
-    connection.close();
+                for (int i = 0; i < 10; i++) {
+                  try {
+                    finalChannel.basicPublish(
+                        "READEXCHANGE",
+                        "test",
+                        null,
+                        ("Test " + i).getBytes(StandardCharsets.UTF_8));
+                  } catch (Exception e) {
+                    LOG.error(e.getMessage(), e);
+                  }
+                }
+              });
+      publisher.start();
+      p.run();
+      publisher.join();
+    } finally {
+      if (channel != null) {
+        channel.close();
+      }
+      if (connection != null) {
+        connection.close();
+      }
+    }
   }
 
   @Test
@@ -173,25 +193,33 @@ public class RabbitMqIOTest implements Serializable {
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = connectionFactory.newConnection();
-    Channel channel = connection.createChannel();
-    channel.queueDeclare("TEST", true, false, false, null);
-    Consumer consumer = new TestConsumer(channel, received);
-    channel.basicConsume("TEST", true, consumer);
+    Connection connection = null;
+    Channel channel = null;
+    try {
+      connection = connectionFactory.newConnection();
+      channel = connection.createChannel();
+      channel.queueDeclare("TEST", true, false, false, null);
+      Consumer consumer = new TestConsumer(channel, received);
+      channel.basicConsume("TEST", true, consumer);
 
-    p.run();
+      p.run();
 
-    while (received.size() < maxNumRecords) {
-      Thread.sleep(500);
+      while (received.size() < maxNumRecords) {
+        Thread.sleep(500);
+      }
+
+      assertEquals(maxNumRecords, received.size());
+      for (int i = 0; i < maxNumRecords; i++) {
+        assertTrue(received.contains("Test " + i));
+      }
+    } finally {
+      if (channel != null) {
+        channel.close();
+      }
+      if (connection != null) {
+        connection.close();
+      }
     }
-
-    assertEquals(maxNumRecords, received.size());
-    for (int i = 0; i < maxNumRecords; i++) {
-      assertTrue(received.contains("Test " + i));
-    }
-
-    channel.close();
-    connection.close();
   }
 
   @Test
@@ -210,27 +238,35 @@ public class RabbitMqIOTest implements Serializable {
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
     connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = connectionFactory.newConnection();
-    Channel channel = connection.createChannel();
-    channel.exchangeDeclare("WRITE", "fanout");
-    String queueName = channel.queueDeclare().getQueue();
-    channel.queueBind(queueName, "WRITE", "");
-    Consumer consumer = new TestConsumer(channel, received);
-    channel.basicConsume(queueName, true, consumer);
+    Connection connection = null;
+    Channel channel = null;
+    try {
+      connection = connectionFactory.newConnection();
+      channel = connection.createChannel();
+      channel.exchangeDeclare("WRITE", "fanout");
+      String queueName = channel.queueDeclare().getQueue();
+      channel.queueBind(queueName, "WRITE", "");
+      Consumer consumer = new TestConsumer(channel, received);
+      channel.basicConsume(queueName, true, consumer);
 
-    p.run();
+      p.run();
 
-    while (received.size() < maxNumRecords) {
-      Thread.sleep(500);
+      while (received.size() < maxNumRecords) {
+        Thread.sleep(500);
+      }
+
+      assertEquals(maxNumRecords, received.size());
+      for (int i = 0; i < maxNumRecords; i++) {
+        assertTrue(received.contains("Test " + i));
+      }
+    } finally {
+      if (channel != null) {
+        channel.close();
+      }
+      if (connection != null) {
+        connection.close();
+      }
     }
-
-    assertEquals(maxNumRecords, received.size());
-    for (int i = 0; i < maxNumRecords; i++) {
-      assertTrue(received.contains("Test " + i));
-    }
-
-    channel.close();
-    connection.close();
   }
 
   private static class ConverterFn extends DoFn<RabbitMqMessage, byte[]> {
