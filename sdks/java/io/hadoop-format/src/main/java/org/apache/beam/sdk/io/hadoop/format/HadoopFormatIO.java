@@ -25,11 +25,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -44,6 +42,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -64,6 +63,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -550,6 +550,8 @@ public class HadoopFormatIO {
     private PCollectionView<Configuration> createConfigViewAndSetupJob(
         PCollection<KV<KeyT, ValueT>> input) {
 
+      verifyInputWindowing(input);
+
       TypeDescriptor<Configuration> configType = new TypeDescriptor<Configuration>() {};
       input
           .getPipeline()
@@ -558,14 +560,29 @@ public class HadoopFormatIO {
 
       PCollection<Configuration> config = createConfiguration(input);
 
-      PCollectionView<Configuration> configView =
-          config
-              .apply("ValidateConfiguration", ParDo.of(new ConfigurationValidatorFn()))
-              .apply("ValidateInput", ParDo.of(new InputValidatorFn<>(input.getTypeDescriptor())))
-              .apply("SetupWriteJob", ParDo.of(new SetupJobFn()))
-              .apply(View.asSingleton());
+      return config
+          .apply("ValidateConfiguration", ParDo.of(new ConfigurationValidatorFn()))
+          .apply("ValidateInput", ParDo.of(new InputValidatorFn<>(input.getTypeDescriptor())))
+          .apply("SetupWriteJob", ParDo.of(new SetupJobFn()))
+          .apply(View.asSingleton());
+    }
 
-      return configView;
+    private void verifyInputWindowing(PCollection<KV<KeyT, ValueT>> input) {
+      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)) {
+        checkArgument(
+            !input.getWindowingStrategy().equals(WindowingStrategy.globalDefault()),
+            "Cannot work with %s and GLOBAL %s",
+            PCollection.IsBounded.UNBOUNDED,
+            WindowingStrategy.class.getSimpleName());
+        checkArgument(
+            input.getWindowingStrategy().getTrigger().getClass().equals(DefaultTrigger.class),
+            "Cannot work with %s trigger. Write works correctly only with %s",
+            input.getWindowingStrategy().getTrigger().getClass().getSimpleName(),
+            DefaultTrigger.class.getSimpleName());
+        checkArgument(
+            input.getWindowingStrategy().getAllowedLateness().equals(Duration.ZERO),
+            "Write does not allow late data.");
+      }
     }
 
     /**
@@ -577,14 +594,6 @@ public class HadoopFormatIO {
      * @see Write.Builder#withConfigurationTransform(ConfigurationTransform)
      */
     private PCollection<Configuration> createConfiguration(PCollection<KV<KeyT, ValueT>> input) {
-
-      if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
-          && input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())) {
-        throw new IllegalStateException(
-            String.format(
-                "Cannot work with %s and GLOBAL %s",
-                PCollection.IsBounded.UNBOUNDED, WindowingStrategy.class.getSimpleName()));
-      }
 
       PCollection<Configuration> config;
       if (getConfiguration() != null) {
@@ -604,10 +613,6 @@ public class HadoopFormatIO {
       }
 
       return config;
-    }
-
-    public static <KeyT, ValueT> Builder<KeyT, ValueT> builder() {
-      return new AutoValue_HadoopFormatIO_Write.Builder<>();
     }
   }
 
@@ -738,6 +743,19 @@ public class HadoopFormatIO {
 
     int getTaskId() {
       return taskAttemptContext.getTaskAttemptID().getTaskID().getId();
+    }
+
+    String getJobId() {
+      return taskAttemptContext.getJobID().getJtIdentifier();
+    }
+
+    void abortTask() {
+      try {
+        outputCommitter.abortTask(taskAttemptContext);
+      } catch (IOException e) {
+        throw new IllegalStateException(
+            String.format("Unable to abort task %s of job %s", getTaskId(), getJobId()));
+      }
     }
 
     private RecordWriter<KeyT, ValueT> initRecordWriter(
@@ -998,9 +1016,10 @@ public class HadoopFormatIO {
    */
   private static class WriteFn<KeyT, ValueT> extends DoFn<KV<Integer, KV<KeyT, ValueT>>, Integer> {
 
-    // Transient properties because they are used only for one bundle
-    private transient Map<Integer, TaskContext<KeyT, ValueT>> bundleTaskContextMap;
-    private transient Map<Integer, Set<BoundedWindow>> task2BoundedWindows;
+    // Transient property because they are used only for one bundle
+    /** Key by combination of Window and TaskId because different windows can use same TaskId. */
+    private transient Map<KV<BoundedWindow, Integer>, TaskContext<KeyT, ValueT>>
+        bundleTaskContextMap;
 
     private PCollectionView<Configuration> configView;
 
@@ -1012,46 +1031,55 @@ public class HadoopFormatIO {
     @StartBundle
     public void startBundle() {
       bundleTaskContextMap = new HashMap<>();
-      task2BoundedWindows = new HashMap<>();
     }
 
     @ProcessElement
     public void processElement(
-        @Element KV<Integer, KV<KeyT, ValueT>> element, ProcessContext c, BoundedWindow b)
-        throws IOException, InterruptedException {
+        @Element KV<Integer, KV<KeyT, ValueT>> element, ProcessContext c, BoundedWindow b) {
 
       Integer taskID = element.getKey();
+      KV<BoundedWindow, Integer> win2TaskId = KV.of(b, taskID);
 
       TaskContext<KeyT, ValueT> taskContext =
-          bundleTaskContextMap.computeIfAbsent(taskID, tID -> setupTask(tID, c));
+          bundleTaskContextMap.computeIfAbsent(win2TaskId, w2t -> setupTask(w2t.getValue(), c));
 
       write(element.getValue(), taskContext);
-
-      Set<BoundedWindow> taskWindows =
-          task2BoundedWindows.computeIfAbsent(taskID, (key) -> new HashSet<>());
-      taskWindows.add(b);
     }
 
     @FinishBundle
-    public void finishBundle(FinishBundleContext c) throws IOException, InterruptedException {
+    public void finishBundle(FinishBundleContext c) {
       if (bundleTaskContextMap == null) {
         return;
       }
 
-      for (TaskContext<KeyT, ValueT> taskContext : bundleTaskContextMap.values()) {
-        taskContext.getRecordWriter().close(taskContext.getTaskAttemptContext());
-        taskContext.getOutputCommitter().commitTask(taskContext.getTaskAttemptContext());
+      for (Map.Entry<KV<BoundedWindow, Integer>, TaskContext<KeyT, ValueT>> entry :
+          bundleTaskContextMap.entrySet()) {
+        TaskContext<KeyT, ValueT> taskContext = entry.getValue();
 
-        LOGGER.info(
-            "Task with id {} of job {} was successfully committed!",
-            taskContext.getTaskId(),
-            taskContext.getTaskAttemptContext().getJobID().getJtIdentifier());
-      }
+        try {
+          taskContext.getRecordWriter().close(taskContext.getTaskAttemptContext());
+          taskContext.getOutputCommitter().commitTask(taskContext.getTaskAttemptContext());
 
-      for (Map.Entry<Integer, Set<BoundedWindow>> taskId2Window : task2BoundedWindows.entrySet()) {
-        Integer tId = taskId2Window.getKey();
-        taskId2Window.getValue().forEach(w -> c.output(tId, w.maxTimestamp(), w));
+          LOGGER.info(
+              "Task with id {} of job {} was successfully committed!",
+              taskContext.getTaskId(),
+              taskContext.getTaskAttemptContext().getJobID().getJtIdentifier());
+        } catch (Exception e) {
+          processTaskException(taskContext, e);
+        }
+
+        BoundedWindow window = entry.getKey().getKey();
+        c.output(taskContext.getTaskId(), window.maxTimestamp(), window);
       }
+    }
+
+    private void processTaskException(TaskContext<KeyT, ValueT> taskContext, Exception e) {
+      LOGGER.warn(
+          "Task with id {} of job {} failed. Will abort task.",
+          taskContext.getTaskId(),
+          taskContext.getJobId());
+      taskContext.abortTask();
+      throw new IllegalArgumentException(e);
     }
 
     /**
@@ -1059,15 +1087,15 @@ public class HadoopFormatIO {
      *
      * @param kv Iterable of pairs to write
      * @param taskContext taskContext
-     * @throws IOException if write problems occurred
-     * @throws InterruptedException if the write thread was interrupted
      */
-    private void write(KV<KeyT, ValueT> kv, TaskContext<KeyT, ValueT> taskContext)
-        throws IOException, InterruptedException {
+    private void write(KV<KeyT, ValueT> kv, TaskContext<KeyT, ValueT> taskContext) {
 
-      RecordWriter<KeyT, ValueT> recordWriter = taskContext.getRecordWriter();
-
-      recordWriter.write(kv.getKey(), kv.getValue());
+      try {
+        RecordWriter<KeyT, ValueT> recordWriter = taskContext.getRecordWriter();
+        recordWriter.write(kv.getKey(), kv.getValue());
+      } catch (Exception e) {
+        processTaskException(taskContext, e);
+      }
     }
 
     /**
@@ -1086,9 +1114,8 @@ public class HadoopFormatIO {
 
       try {
         taskContext.getOutputCommitter().setupTask(taskContext.getTaskAttemptContext());
-      } catch (IOException e) {
-        throw new IllegalStateException(
-            String.format("Unexpected exception thrown during task %s setup", taskId), e);
+      } catch (Exception e) {
+        processTaskException(taskContext, e);
       }
 
       LOGGER.info(
