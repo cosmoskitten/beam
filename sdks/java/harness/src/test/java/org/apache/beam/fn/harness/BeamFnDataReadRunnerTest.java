@@ -122,6 +122,9 @@ public class BeamFnDataReadRunnerTest {
 
   @Test
   public void testCreatingAndProcessingBeamFnDataReadRunner() throws Exception {
+    InboundDataClient bundle1Future = CompletableFutureInboundDataClient.create();
+    when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(bundle1Future);
+
     String bundleId = "57";
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
@@ -136,25 +139,38 @@ public class BeamFnDataReadRunnerTest {
     RunnerApi.PTransform pTransform =
         RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
 
-    new BeamFnDataReadRunner.Factory<String>()
-        .createRunnerForPTransform(
-            PipelineOptionsFactory.create(),
-            mockBeamFnDataClient,
-            null /* beamFnStateClient */,
-            "pTransformId",
-            pTransform,
-            Suppliers.ofInstance(bundleId)::get,
-            ImmutableMap.of(
-                localOutputId,
-                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
-            COMPONENTS.getCodersMap(),
-            COMPONENTS.getWindowingStrategiesMap(),
-            consumers,
-            startFunctions::add,
-            finishFunctions::add,
-            null /* splitListener */);
+    BeamFnDataReadRunner<String> readRunner =
+        new BeamFnDataReadRunner.Factory<String>()
+            .createRunnerForPTransform(
+                PipelineOptionsFactory.create(),
+                mockBeamFnDataClient,
+                null /* beamFnStateClient */,
+                "pTransformId",
+                pTransform,
+                Suppliers.ofInstance(bundleId)::get,
+                ImmutableMap.of(
+                    localOutputId,
+                    RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
+                COMPONENTS.getCodersMap(),
+                COMPONENTS.getWindowingStrategiesMap(),
+                consumers,
+                startFunctions::add,
+                finishFunctions::add,
+                null /* splitListener */);
 
     verifyZeroInteractions(mockBeamFnDataClient);
+
+    Future<?> future =
+        executor.submit(
+            () -> {
+              try {
+                readRunner.blockTillReadFinishes();
+              } catch (Exception e) {
+                bundle1Future.fail(e);
+              } finally {
+                bundle1Future.complete();
+              }
+            });
 
     InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(any(), any(), any(), any())).thenReturn(completionFuture);
