@@ -142,6 +142,9 @@ public class QueueingBeamFnDataClientTest {
   @Test
   public void testBasicInboundConsumerBehaviour() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
+    CountDownLatch receiveAllValuesA = new CountDownLatch(3);
+    CountDownLatch receiveAllValuesB = new CountDownLatch(2);
+
     Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
     Collection<WindowedValue<String>> inboundValuesB = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
