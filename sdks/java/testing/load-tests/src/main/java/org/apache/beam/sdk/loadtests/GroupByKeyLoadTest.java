@@ -57,12 +57,12 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To run it manually, use the following command:
  *
  * <pre>
- *    ./gradlew run -p sdks/java/load-tests -PloadTest.args='
+ *    ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *      --fanout=1
  *      --iterations=1
  *      --sourceOptions={"numRecords":1000,...}
  *      --stepOptions={"outputRecordsPerInputRecord":2...}'
- *  </pre>
+ * </pre>
  */
 public class GroupByKeyLoadTest {
 
