@@ -49,6 +49,14 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     this.idcs = new ConcurrentHashMap<>();
   }
 
+  /**
+   * Registers the following inbound stream consumer for the provided instruction id and target.
+   *
+   * <p>The provided coder is used to decode elements on the inbound stream. The decoded elements
+   * are passed to the provided consumer. Any failure during decoding or processing of the element
+   * will complete the returned future exceptionally. On successful termination of the stream
+   * (signaled by an empty data block), the returned future is completed successfully.
+   */
   @Override
   public <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
@@ -116,6 +124,15 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     }
   }
 
+  /**
+   * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
+   *
+   * <p>The provided coder is used to encode elements on the outbound stream.
+   *
+   * <p>Closing the returned receiver signals the end of the stream.
+   *
+   * <p>The returned closeable receiver is not thread safe.
+   */
   @Override
   public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,

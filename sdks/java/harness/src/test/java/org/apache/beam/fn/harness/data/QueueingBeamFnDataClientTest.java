@@ -144,6 +144,7 @@ public class QueueingBeamFnDataClientTest {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
     CountDownLatch receiveAllValuesA = new CountDownLatch(3);
     CountDownLatch receiveAllValuesB = new CountDownLatch(2);
+
     Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
     Collection<WindowedValue<String>> inboundValuesB = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
@@ -202,7 +203,6 @@ public class QueueingBeamFnDataClientTest {
                 outboundServerObserver.get().onNext(ELEMENTS_B_1);
               });
 
-      // This can be compeleted before we get values?
       InboundDataClient readFutureB =
           queueingClient.receive(
               apiServiceDescriptor,
