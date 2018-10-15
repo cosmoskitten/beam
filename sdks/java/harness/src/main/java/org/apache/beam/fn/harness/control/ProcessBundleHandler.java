@@ -300,6 +300,8 @@ public class ProcessBundleHandler {
       }
     }
 
+    // TODO do we add metrics to this progress response?
+
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
