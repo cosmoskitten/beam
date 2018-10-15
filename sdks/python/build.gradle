@@ -114,7 +114,7 @@ def toxTask = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', "set -o pipefail && . ${envdir}/bin/activate && tox ${tox_opts} -e $tox_env | tee ${outputs.files[0].path}"
+        args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e $tox_env && touch ${outputs.files[0].path}"
       }
     }
     inputs.files pythonSdkDeps
