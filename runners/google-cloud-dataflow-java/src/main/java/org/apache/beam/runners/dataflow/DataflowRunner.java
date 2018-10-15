@@ -862,6 +862,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setReplaceJobId(jobIdToUpdate);
     }
+    if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
+      newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
+    }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
     // will be downloaded from GCS by the service.
@@ -876,9 +879,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setStepsLocation(stagedGraph.getLocation());
     }
 
-    if (options.getCreateFromSnapshot() != null && !options.getCreateFromSnapshot().isEmpty()) {
-      newJob.setCreatedFromSnapshotId(options.getCreateFromSnapshot());
-    }
     Job jobResult;
     try {
       jobResult = dataflowClient.createJob(newJob);
