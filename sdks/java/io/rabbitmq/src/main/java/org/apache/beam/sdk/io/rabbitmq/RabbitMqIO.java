@@ -464,24 +464,7 @@ public class RabbitMqIO {
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
         checkpointMark.sessionIds.add(deliveryTag);
 
-        current =
-            new RabbitMqMessage(
-                source.spec.routingKey(),
-                delivery.getBody(),
-                delivery.getProperties().getContentType(),
-                delivery.getProperties().getContentEncoding(),
-                delivery.getProperties().getHeaders(),
-                delivery.getProperties().getDeliveryMode(),
-                delivery.getProperties().getPriority(),
-                delivery.getProperties().getCorrelationId(),
-                delivery.getProperties().getReplyTo(),
-                delivery.getProperties().getExpiration(),
-                delivery.getProperties().getMessageId(),
-                delivery.getProperties().getTimestamp(),
-                delivery.getProperties().getType(),
-                delivery.getProperties().getUserId(),
-                delivery.getProperties().getAppId(),
-                delivery.getProperties().getClusterId());
+        current = new RabbitMqMessage(source.spec.routingKey(), delivery);
         currentTimestamp = new Instant(delivery.getProperties().getTimestamp());
         if (currentTimestamp.isBefore(checkpointMark.oldestTimestamp)) {
           checkpointMark.oldestTimestamp = currentTimestamp;
