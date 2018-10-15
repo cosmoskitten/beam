@@ -24,11 +24,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.SynchronousQueue;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.EnqueuingFnDataReceiver;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -50,6 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data to all
@@ -128,13 +132,18 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final FnDataReceiver<WindowedValue<OutputT>> receiver;
+  private final FnDataReceiver<WindowedValue<OutputT>> enqueueElementReceiver;
+  private final FnDataReceiver<WindowedValue<OutputT>> elementReceiver;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
   private final Coder<WindowedValue<OutputT>> coder;
   private final BeamFnApi.Target inputTarget;
 
+  private final SynchronousQueue<WindowedValue<OutputT>> queue;
+
   private InboundDataClient readFuture;
+
+
 
   BeamFnDataReadRunner(
       RunnerApi.PTransform grpcReadNode,
@@ -150,7 +159,9 @@ public class BeamFnDataReadRunner<OutputT> {
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
-    this.receiver = MultiplexingFnDataReceiver.forConsumers(consumers);
+    this.elementReceiver = MultiplexingFnDataReceiver.forConsumers(consumers);
+    this.queue = new SynchronousQueue<>();
+    this.enqueueElementReceiver = new EnqueuingFnDataReceiver<WindowedValue<OutputT>>(this.queue);
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -173,7 +184,7 @@ public class BeamFnDataReadRunner<OutputT> {
             apiServiceDescriptor,
             LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
             coder,
-            receiver);
+            enqueueElementReceiver);
   }
 
   public void blockTillReadFinishes() throws Exception {
@@ -181,6 +192,24 @@ public class BeamFnDataReadRunner<OutputT> {
         "Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(),
         inputTarget);
-    readFuture.awaitCompletion();
+
+    boolean draining = false;
+    while (true) {
+      WindowedValue<OutputT> val = this.queue.poll(50, TimeUnit.MILLISECONDS);
+      if (val != null) {
+        // Call receiver.
+        elementReceiver.accept(val);
+      } else if (draining) {
+        break;
+      }
+      if (readFuture.isDone()) {
+        // Note SynchronousQueue does not have a valid implementation for:
+        // peek, take, size, remainingCapacity, isEmpty. So these cannot be used
+        // for draining.
+        // Instead, poll once more, until we fail, which addresses a potential race
+        // where the readFuture is completed, and we just timed out reading the last element.
+        draining = true;
+      }
+    }
   }
 }
