@@ -117,6 +117,8 @@ task validatesRunnerTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
+
   ])
 
   // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -160,6 +162,7 @@ task googleCloudPlatformIntegrationTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
@@ -185,6 +188,7 @@ task examplesJavaIntegrationTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
@@ -212,6 +216,7 @@ task coreSDKJavaIntegrationTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowTempRoot}",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
+          "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'

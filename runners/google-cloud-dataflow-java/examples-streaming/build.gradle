@@ -46,6 +46,7 @@ task preCommit(type: Test) {
      "--tempRoot=${gcsTempRoot}",
      "--runner=TestDataflowRunner",
      "--dataflowWorkerJar=${dataflowWorkerJar}",
+     "--workerHarnessContainerImage=",
      "--streaming=true",
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
