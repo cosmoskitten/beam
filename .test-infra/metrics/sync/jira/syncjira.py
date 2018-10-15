@@ -64,17 +64,16 @@ jiraIssuesTableName = 'jira_issues'
 
 jiraIssuesCreateTableQuery = f"""
 create table {jiraIssuesTableName} (
-id varchar NOT NULL,
-url varchar,
-summary varchar,
-status varchar,
+id integer PRIMARY KEY,
+key varchar,
 creator varchar,
 assignee varchar,
+status varchar,
+labels varchar,
+summary varchar,
 created TIMESTAMP,
-updated TIMESTAMP,
-fixed_date TIMESTAMP,
-primary key(id)
-)"""
+resolutiondate TIMESTAMP)
+"""
 
 jiraIssuesMetadataTableName = 'jira_issues_metadata'
 
@@ -90,7 +89,8 @@ def fetchIssues(startTime, startAt = 0):
   # time format 0001-01-01 00:01   ==> "yyyy-mm-dd hh:mm"
   url = (f'https://issues.apache.org/jira/rest/api/latest/search?'
          f'jql=project=BEAM '
-         f'AND updated > "{startTimeStr}"'
+         f'AND updated > "{startTimeStr} "'
+         f'AND component=test-failures'
          f'&maxResults=100&startAt={startAt}')
   print(url)
 
@@ -142,11 +142,10 @@ def updateLastSyncTimestamp(timestamp):
   connection = initDBConnection()
   cursor = connection.cursor()
 
-  minTimestamp = datetime(1970, 1, 1)
   cleanupQuery = f"delete from {jiraIssuesMetadataTableName}"
   cursor.execute(cleanupQuery)
-  insertDummyTimestampSqlQuery = f"insert into {jiraIssuesMetadataTableName} values (%s)"
-  cursor.execute(insertDummyTimestampSqlQuery, [minTimestamp])
+  insertTimestampSqlQuery = f"insert into {jiraIssuesMetadataTableName} values (%s)"
+  cursor.execute(insertTimestampSqlQuery, [timestamp])
 
   cursor.close()
   connection.commit()
@@ -166,80 +165,72 @@ def fetchLastSyncTime():
   return result
 
 
-def fetchBuildsForJob(jobUrl):
-  durFields = ('blockedDurationMillis,buildableDurationMillis,'
-               'buildingDurationMillis,executingTimeMillis,queuingDurationMillis,'
-               'totalDurationMillis,waitingDurationMillis')
-  fields = (f'result,timestamp,id,url,builtOn,building,duration,'
-            f'estimatedDuration,fullDisplayName,actions[{durFields}]')
-  url = f'{jobUrl}api/json?depth=1&tree=builds[{fields}]'
-  r = requests.get(url)
-  return r.json()[u'builds']
-
-
-def buildRowValuesArray(jobName, build):
-  timings = next((x
-                  for x in build[u'actions']
-                  if (u'_class' in x)
-                    and (x[u'_class'] == u'jenkins.metrics.impl.TimeInQueueAction')),
-                 None)
-  values = [jobName,
-          int(build[u'id']),
-          build[u'url'],
-          build[u'result'],
-          datetime.fromtimestamp(build[u'timestamp'] / 1000),
-          build[u'builtOn'],
-          build[u'duration'],
-          build[u'estimatedDuration'],
-          build[u'fullDisplayName'],
-          timings[u'blockedDurationMillis'] if timings is not None else -1,
-          timings[u'buildableDurationMillis'] if timings is not None else -1,
-          timings[u'buildingDurationMillis'] if timings is not None else -1,
-          timings[u'executingTimeMillis'] if timings is not None else -1,
-          timings[u'queuingDurationMillis'] if timings is not None else -1,
-          timings[u'totalDurationMillis'] if timings is not None else -1,
-          timings[u'waitingDurationMillis'] if timings is not None else -1]
+def buildRowValuesArray(issue):
+  fields = issue['fields']
+  values = [issue['id'],
+            issue['key'],
+            fields['creator']['name'],
+            fields['assignee']['name'] if fields['assignee'] is not None else None,
+            fields['status']['name'],
+            fields['labels'],
+            fields['summary'],
+            fields['created'],
+            fields['resolutiondate']
+            ]
   return values
 
 
 def insertRow(cursor, rowValues):
-  cursor.execute(f'insert into {jiraTFIssuesTableName} values (%s, %s, %s, %s,'
-                  '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', rowValues)
+  print(len(rowValues))
+  insertClause = (f'insert into {jiraIssuesTableName} values (%s, %s, %s, %s, %s, %s, %s, %s, %s)'
+                  f'''ON CONFLICT (id) DO UPDATE
+                    set 
+                      id = excluded.id,
+                      key = excluded.key,
+                      creator = excluded.creator,
+                      assignee = excluded.assignee,
+                      status = excluded.status,
+                      labels = excluded.labels,
+                      summary = excluded.summary,
+                      created = excluded.created,
+                      resolutiondate = excluded.resolutiondate'''
+  )
+                      
+  cursor.execute(insertClause, rowValues)
 
 
 def fetchNewData():
+  currentTimestamp = datetime.now()
   lastSyncTimestamp = fetchLastSyncTime()
+  print(lastSyncTimestamp)
 
   startAt = 0
   total = 1
-  fetchedCount = 0
 
-  while (startAt + fetchedCount) < total:
-    startAt += fetchedCount
+  while (startAt < total):
     queryResult = fetchIssues(lastSyncTimestamp, startAt)
+
     newIssues = queryResult['issues']
     fetchedCount = len(newIssues)
+
+    startAt += fetchedCount
     total = queryResult['total']
 
+    connection = initDBConnection()
+    cursor = connection.cursor()
+
     for issue in newIssues:
-      syncedJobId = syncedJobs[newJobName] if newJobName in syncedJobs else -1
-      if newJobLastBuildId > syncedJobId:
-        builds = fetchBuildsForJob(newJobUrl)
-        builds = [x for x in builds if int(x[u'id']) > syncedJobId]
-  
-        connection = initDBConnection()
-        cursor = connection.cursor()
-  
-        for build in builds:
-          if build[u'building']:
-            continue;
-          rowValues = buildRowValuesArray(newJobName, build)
-          print("inserting", newJobName, build[u'id'])
-          insertRow(cursor, rowValues)
-  
-        cursor.close()
-        connection.commit()
-        connection.close()  # For some reason .commit() doesn't push data
+      rowValues = buildRowValuesArray(issue) # TODO implement
+      print("inserting", rowValues)
+      insertRow(cursor, rowValues)
+
+    cursor.close()
+    connection.commit()
+    connection.close() 
+
+  updateLastSyncTimestamp(currentTimestamp)
+  lastSyncTimestamp = fetchLastSyncTime()
+  print(lastSyncTimestamp)
 
 def probeJiraIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
