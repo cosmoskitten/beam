@@ -29,6 +29,9 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
@@ -61,12 +64,30 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.LoggerFactory;
 
 /** Tests for the {@link ReferenceRunner}. */
 @RunWith(JUnit4.class)
 public class ReferenceRunnerTest implements Serializable {
+  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(ReferenceRunnerTest.class);
+
+  static {
+    Logger root = Logger.getLogger("");
+    root.setLevel(Level.ALL);
+    for (Handler handler : root.getHandlers()) {
+      handler.setLevel(Level.ALL);
+    }
+  }
+
   @Test
   public void pipelineExecution() throws Exception {
+    LOG.error("==================ajamato pipelineExecution start===========================");
+    LOG.debug("ajamato debug");
+    LOG.trace("ajamato trace");
+    LOG.info("ajamato info");
+    LOG.warn("ajamato warn");
+    LOG.error("ajamato error");
+
     Pipeline p = Pipeline.create();
     TupleTag<KV<String, Integer>> food = new TupleTag<>();
     TupleTag<Integer> originals = new TupleTag<Integer>() {};
@@ -117,10 +138,14 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
+    LOG.error("======================ajamato pipelineExecution end=============================");
   }
 
   @Test
   public void testGBK() throws Exception {
+    LOG.error("========================ajamato testGBK start========================");
+    LOG.debug("ajamato debug");
+    LOG.trace("ajamato trace");
     Pipeline p = Pipeline.create();
 
     PAssert.that(
@@ -146,6 +171,7 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
+    LOG.error("======================ajamato testGBK end===========================");
   }
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
@@ -179,6 +205,7 @@ public class ReferenceRunnerTest implements Serializable {
   @Test
   @Ignore("TODO: BEAM-3743")
   public void testSDF() throws Exception {
+    LOG.error("==========================ajamato testSDF start=======================");
     Pipeline p = Pipeline.create();
 
     PCollection<KV<String, Integer>> res =
@@ -209,5 +236,6 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
+    LOG.error("====================ajamato testSDF end========================");
   }
 }
