@@ -183,8 +183,9 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteQueue() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        IntStream.range(0, maxNumRecords)
-            .mapToObj(i -> new RabbitMqMessage(("Test " + i).getBytes(StandardCharsets.UTF_8)))
+        generateRecords(maxNumRecords)
+            .stream()
+            .map(bytes -> new RabbitMqMessage(bytes))
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
@@ -226,8 +227,9 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteExchange() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
-        IntStream.range(0, maxNumRecords)
-            .mapToObj(i -> new RabbitMqMessage(("Test " + i).getBytes(StandardCharsets.UTF_8)))
+        generateRecords(maxNumRecords)
+            .stream()
+            .map(bytes -> new RabbitMqMessage(bytes))
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
