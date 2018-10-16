@@ -200,7 +200,6 @@ task preCommit() {
   dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
-  dependsOn "directRunnerIT"
   dependsOn "precommitIT"
 
 }
