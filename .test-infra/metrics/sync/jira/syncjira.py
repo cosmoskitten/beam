@@ -9,7 +9,7 @@
 #    http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# Queries Jenkins to collect metrics and pu them in bigquery.
+# Queries Jira to collect metrics and put them in postgresql.
 import os
 import psycopg2
 import re
@@ -25,11 +25,11 @@ from xml.etree import ElementTree
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
 # Actual host should be used for production.
-import subprocess
-cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
-host = cmd_out.split(" ")[2]
+# import subprocess
+# cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
+# host = cmd_out.split(" ")[2]
 
-# host = os.environ['DB_HOST']
+host = os.environ['DB_HOST']
 port = os.environ['DB_PORT']
 dbname = os.environ['DB_DBNAME']
 dbusername = os.environ['DB_DBUSERNAME']
@@ -179,7 +179,6 @@ def insertRow(cursor, rowValues):
 def fetchNewData():
   currentTimestamp = datetime.now()
   lastSyncTimestamp = fetchLastSyncTime()
-  print(lastSyncTimestamp)
 
   startAt = 0
   total = 1
@@ -197,17 +196,15 @@ def fetchNewData():
     cursor = connection.cursor()
 
     for issue in newIssues:
-      rowValues = buildRowValuesArray(issue) # TODO implement
-      print("inserting", rowValues)
+      rowValues = buildRowValuesArray(issue)
       insertRow(cursor, rowValues)
 
     cursor.close()
     connection.commit()
-    connection.close() 
+    connection.close()
 
   updateLastSyncTimestamp(currentTimestamp)
   lastSyncTimestamp = fetchLastSyncTime()
-  print(lastSyncTimestamp)
 
 
 def probeJiraIsUp():
@@ -234,8 +231,9 @@ if __name__ == '__main__':
       print("Jira is unavailable, skipping fetching data.")
       continue
     else:
+      print("Start fetching data.")
       fetchNewData()
-      print("Fetched data.")
+      print("Done fetching data.")
     print("Sleeping for 5 min.")
     sys.stdout.flush()
     time.sleep(5 * 60)
