@@ -60,37 +60,43 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 		return fmt.Errorf("failed to prepare query: %v, %v", f.Query, err)
 	}
 	defer statement.Close()
-
 	rows, err := statement.QueryContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run query: %v, %v", f.Query, err)
 	}
 	defer rows.Close()
-	var mapper recordMapper
+	var mapper rowMapper
+	var columns []string
 
 	for rows.Next() {
-		reflectVal := reflect.New(f.Type.T)
-
+		reflectRow := reflect.New(f.Type.T)
+		row := reflectRow.Interface() // row : *T
 		if mapper == nil {
-			columns, err := rows.Columns()
+			columns, err = rows.Columns()
 			if err != nil {
 				return err
 			}
 			columnsTypes, _ := rows.ColumnTypes()
-			if mapper, err = newQueryRecordMapper(columns, columnsTypes, f.Type.T); err != nil {
-				return fmt.Errorf("failed to create record mapper: %v", err)
+			if mapper, err = newQueryMapper(columns, columnsTypes, f.Type.T); err != nil {
+				return fmt.Errorf("failed to create rowValues mapper: %v", err)
 			}
 		}
-		record, err := mapper(reflectVal)
+		rowValues, err := mapper(reflectRow)
 		if err != nil {
 			return err
 		}
-		err = rows.Scan(record...)
+		err = rows.Scan(rowValues...)
 		if err != nil {
 			return fmt.Errorf("failed to scan %v, %v", f.Query, err)
 		}
-		val := reflectVal.Interface()                 // val : *T
-		emit(reflect.ValueOf(val).Elem().Interface()) // emit(*val)
+		if loader, ok := row.(MapLoader); ok {
+			asDereferenceSlice(rowValues)
+			loader.LoadMap(asMap(columns, rowValues))
+		} else if loader, ok := row.(SliceLoader); ok {
+			asDereferenceSlice(rowValues)
+			loader.LoadSlice(rowValues)
+		}
+		emit(reflect.ValueOf(row).Elem().Interface()) // emit(*row)
 	}
 	return nil
 }
@@ -155,9 +161,9 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return fmt.Errorf("failed to discover column: %v, %v", f.Table, err)
 	}
 
-	mapper, err := newWriterRecordMapper(columns, f.Type.T)
+	mapper, err := newWriterRowMapper(columns, f.Type.T)
 	if err != nil {
-		return fmt.Errorf("failed to create record mapper: %v", err)
+		return fmt.Errorf("failed to create row mapper: %v", err)
 	}
 	writer, err := newWriter(f.BatchSize, f.Table, columns)
 	if err != nil {
@@ -165,11 +171,22 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	}
 	var val beam.X
 	for iter(&val) {
-		record, err := mapper(reflect.ValueOf(val))
-		if err != nil {
-			return fmt.Errorf("failed to map record %T: %v", val, err)
+		var row []interface{}
+		var data map[string]interface{}
+		if writer, ok := val.(Writer); ok {
+			if data, err = writer.SaveData(); err == nil {
+				row = make([]interface{}, len(columns))
+				for i, column := range columns {
+					row[i] = data[column]
+				}
+			}
+		} else {
+			row, err = mapper(reflect.ValueOf(val))
 		}
-		if err = writer.add(record); err != nil {
+		if err != nil {
+			return fmt.Errorf("failed to map row %T: %v", val, err)
+		}
+		if err = writer.add(row); err != nil {
 			return err
 		}
 		if err := writer.writeBatchIfNeeded(ctx, db); err != nil {
@@ -181,6 +198,6 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return err
 	}
 
-	log.Infof(ctx, "written %v record(s) into %v", writer.totalCount, f.Table)
+	log.Infof(ctx, "written %v row(s) into %v", writer.totalCount, f.Table)
 	return nil
 }

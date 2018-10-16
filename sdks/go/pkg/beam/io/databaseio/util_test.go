@@ -17,7 +17,7 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 		Random      float64
 	}
 
-	mapper, err := newQueryRecordMapper([]string{"id", "name", "random", "date_of_birth"}, nil, reflect.TypeOf(User{}))
+	mapper, err := newQueryMapper([]string{"id", "name", "random", "date_of_birth"}, nil, reflect.TypeOf(User{}))
 	if !assert.Nil(t, err) {
 		return
 	}
@@ -61,7 +61,7 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 		Random      float64
 	}
 
-	mapper, err := newWriterRecordMapper([]string{"id", "name", "random", "date_of_birth"}, reflect.TypeOf(User{}))
+	mapper, err := newWriterRowMapper([]string{"id", "name", "random", "date_of_birth"}, reflect.TypeOf(User{}))
 	if !assert.Nil(t, err) {
 		return
 	}

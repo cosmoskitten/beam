@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+// A Writer returns a row of data to be inserted into a table.
+type Writer interface {
+	SaveData() (map[string]interface{}, error)
+}
+
 type writer struct {
 	batchSize    int
 	table        string
@@ -14,45 +19,45 @@ type writer struct {
 	valueTempate string
 	binding      []interface{}
 	columnCount  int
-	recordCount  int
+	rowCount     int
 	totalCount   int
 }
 
-func (w *writer) add(record []interface{}) error {
-	w.recordCount++
+func (w *writer) add(row []interface{}) error {
+	w.rowCount++
 	w.totalCount++
-	if len(record) != w.columnCount {
-		return fmt.Errorf("expected %v record values, but had: %v", w.columnCount, len(record))
+	if len(row) != w.columnCount {
+		return fmt.Errorf("expected %v row values, but had: %v", w.columnCount, len(row))
 	}
-	w.binding = append(w.binding, record...)
+	w.binding = append(w.binding, row...)
 	return nil
 }
 
 func (w *writer) write(ctx context.Context, db *sql.DB) error {
-	values := strings.Repeat(w.valueTempate+",", w.recordCount)
+	values := strings.Repeat(w.valueTempate+",", w.rowCount)
 	SQL := w.sqlTemplate + string(values[:len(values)-1])
 	resultSet, err := db.ExecContext(ctx, SQL, w.binding...)
 	if err != nil {
 		return err
 	}
 	affected, _ := resultSet.RowsAffected()
-	if int(affected) != w.recordCount {
-		return fmt.Errorf("expected to write: %v, but written: %v", w.recordCount, affected)
+	if int(affected) != w.rowCount {
+		return fmt.Errorf("expected to write: %v, but written: %v", w.rowCount, affected)
 	}
 	w.binding = []interface{}{}
-	w.recordCount = 0
+	w.rowCount = 0
 	return nil
 }
 
 func (w *writer) writeBatchIfNeeded(ctx context.Context, db *sql.DB) error {
-	if w.recordCount >= w.batchSize {
+	if w.rowCount >= w.batchSize {
 		return w.write(ctx, db)
 	}
 	return nil
 }
 
 func (w *writer) writeIfNeeded(ctx context.Context, db *sql.DB) error {
-	if w.recordCount >= 0 {
+	if w.rowCount >= 0 {
 		return w.write(ctx, db)
 	}
 	return nil
