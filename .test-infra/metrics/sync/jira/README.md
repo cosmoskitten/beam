@@ -17,5 +17,11 @@
     under the License.
 -->
 # Running script locally
+You can either run it via docker-compose that is located in .test-infra/metrics/
+or run manually via docker. Below is insturctions for running script with
+docker.
+
 1. Build container `docker build -t syncjenkins .`
-2. `docker run -it --rm --name sync -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e "JENSYNC_PORT=5432" -e "JENSYNC_DBNAME=beam_metrics" -e "JENSYNC_DBUSERNAME=admin" -e "JENSYNC_DBPWD=<password>" syncjira python syncjira.py`
+2. Edit script to initialize db host via subprocess.
+3. `docker run -it --rm --name sync -v "$PWD":/usr/src/myapp -w /usr/src/myapp -e "DB_PORT=5432" -e "DB_DBNAME=beam_metrics" -e "DB_DBUSERNAME=admin" -e "DB_DBPWD=<password>" syncjira python syncjira.py`
+
