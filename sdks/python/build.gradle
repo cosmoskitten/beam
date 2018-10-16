@@ -200,6 +200,9 @@ task preCommit() {
   dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
+  dependsOn "directRunnerIT"
+  dependsOn "presubmitIT"
+
 }
 
 task installGcpTest(dependsOn: 'setupVirtualenv') {
@@ -222,6 +225,26 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ./scripts/run_postcommit.sh IT streaming TestDirectRunner"
+    }
+  }
+}
+
+task presubmitIT(dependsOn: ['installGcpTest', 'sdist']) {
+  doLast {
+    // List of integration tests running in Python PreCommit.
+    def precommitTests = [
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+    ]
+    def testOpts = [
+        "--tests=${precommitTests.join(',')}",
+        "--processes=4",
+        "--process-timeout=1800",   // Total timeout includes all tests run.
+    ]
+
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_integration_test.sh --test_opts \"${testOpts.join(' ')}\""
     }
   }
 }
