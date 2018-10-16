@@ -23,9 +23,10 @@ This can only be used with the flink runner.
 import json
 
 from apache_beam import PTransform
-from apache_beam import pvalue
 from apache_beam import Windowing
+from apache_beam import pvalue
 from apache_beam.transforms.window import GlobalWindows
+
 
 class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
@@ -55,8 +56,8 @@ class FlinkStreamingImpulseSource(PTransform):
     return self
 
   def set_message_count(self, message_count):
-    """If non-zero, the stream will produce only this many total messages. Otherwise
-    produces an unbounded number of messages.
+    """If non-zero, the stream will produce only this many total messages.
+    Otherwise produces an unbounded number of messages.
     """
     self.config["message_count"] = message_count
     return self
