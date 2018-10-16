@@ -22,31 +22,6 @@ from datetime import datetime, timedelta
 from xml.etree import ElementTree
 
 
-# list projects           : https://issues.apache.org/jira/rest/api/latest/project
-# beam project            : https://issues.apache.org/jira/rest/api/latest/project/BEAM
-# test-failures component : https://issues.apache.org/jira/rest/api/latest/component/12334203
-# issue search            : https://issues.apache.org/jira/rest/api/latest/search?jql=component=test-failures AND assignee=ardagan
-
-# https://issues.apache.org/jira/rest/api/latest/search?jql=component=test-failures AND status=open AND updated > "0001-01-01 00:01"
-# https://issues.apache.org/jira/rest/api/latest/search?jql=component=testing AND updated > "0001-01-01 00:01"&startAt=1690
-# https://issues.apache.org/jira/rest/api/latest/search?jql=component=testing AND updated > "0001-01-01 00:01"&startAt=1
-# https://issues.apache.org/jira/rest/api/latest/search?jql=component=testing AND updated > "0001-01-01 00:01"&startAt=51&maxResults=50
-
-
-# https://issues.apache.org/jira/rest/api/latest/search?jql=component=test-failures AND status=open AND updated > "0001-01-01 00:01"&maxResults=50&startAt=0
-
-
-# What I want for each issue in test-failures:
-# id
-# link
-# status
-# creator
-# assignee
-# updated
-# created
-# fixed date
-
-
 # Keeping this as reference for localhost debug
 # Fetching docker host machine ip for testing purposes.
 # Actual host should be used for production.
@@ -54,11 +29,11 @@ import subprocess
 cmd_out = subprocess.check_output(["ip", "route", "show"]).decode("utf-8")
 host = cmd_out.split(" ")[2]
 
-# host = os.environ['JENSYNC_HOST']
-port = os.environ['JENSYNC_PORT']
-dbname = os.environ['JENSYNC_DBNAME']
-dbusername = os.environ['JENSYNC_DBUSERNAME']
-dbpassword = os.environ['JENSYNC_DBPWD']
+# host = os.environ['DB_HOST']
+port = os.environ['DB_PORT']
+dbname = os.environ['DB_DBNAME']
+dbusername = os.environ['DB_DBUSERNAME']
+dbpassword = os.environ['DB_DBPWD']
 
 jiraIssuesTableName = 'jira_issues'
 
@@ -84,7 +59,6 @@ lastsynctime TIMESTAMP
 """
 
 def fetchIssues(startTime, startAt = 0):
-
   startTimeStr = startTime.strftime("%Y-%m-%d %H:%M")
   # time format 0001-01-01 00:01   ==> "yyyy-mm-dd hh:mm"
   url = (f'https://issues.apache.org/jira/rest/api/latest/search?'
@@ -138,6 +112,7 @@ def initDBTablesIfNeeded():
 
   connection.close()
 
+
 def updateLastSyncTimestamp(timestamp):
   connection = initDBConnection()
   cursor = connection.cursor()
@@ -150,6 +125,7 @@ def updateLastSyncTimestamp(timestamp):
   cursor.close()
   connection.commit()
   connection.close()
+
 
 def fetchLastSyncTime():
   connection = initDBConnection()
@@ -182,20 +158,21 @@ def buildRowValuesArray(issue):
 
 def insertRow(cursor, rowValues):
   print(len(rowValues))
-  insertClause = (f'insert into {jiraIssuesTableName} values (%s, %s, %s, %s, %s, %s, %s, %s, %s)'
-                  f'''ON CONFLICT (id) DO UPDATE
-                    set 
-                      id = excluded.id,
-                      key = excluded.key,
-                      creator = excluded.creator,
-                      assignee = excluded.assignee,
-                      status = excluded.status,
-                      labels = excluded.labels,
-                      summary = excluded.summary,
-                      created = excluded.created,
-                      resolutiondate = excluded.resolutiondate'''
+  insertClause = (f'''insert into {jiraIssuesTableName}
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (id) DO UPDATE
+                     set
+                       id = excluded.id,
+                       key = excluded.key,
+                       creator = excluded.creator,
+                       assignee = excluded.assignee,
+                       status = excluded.status,
+                       labels = excluded.labels,
+                       summary = excluded.summary,
+                       created = excluded.created,
+                       resolutiondate = excluded.resolutiondate'''
   )
-                      
+
   cursor.execute(insertClause, rowValues)
 
 
@@ -232,8 +209,11 @@ def fetchNewData():
   lastSyncTimestamp = fetchLastSyncTime()
   print(lastSyncTimestamp)
 
+
 def probeJiraIsUp():
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+  # This is close enough for Jira
   result = sock.connect_ex(('issues.apache.org', 443))
   return True if result == 0 else False
 
