@@ -98,6 +98,9 @@ class StateSampler(statesampler_impl.StateSampler):
     super(StateSampler, self).start()
     self.started = True
 
+  def reset(self):
+    super(StateSampler, self).reset()
+
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
