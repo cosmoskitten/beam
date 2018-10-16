@@ -35,8 +35,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
@@ -89,7 +87,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -164,7 +161,8 @@ public class FlinkStreamingPortablePipelineTranslator
     void translate(String id, RunnerApi.Pipeline pipeline, T t);
   }
 
-  private static final String STREAMING_IMPULSE_TRANSFORM_URL = "flink:transform:streaming_impulse:v1";
+  private static final String STREAMING_IMPULSE_TRANSFORM_URL =
+      "flink:transform:streaming_impulse:v1";
 
   private final Map<String, PTransformTranslator<StreamingTranslationContext>>
       urnToTransformTranslator;
@@ -418,7 +416,8 @@ public class FlinkStreamingPortablePipelineTranslator
   public static class IsFlinkNativeTransform implements NativeTransforms.IsNativeTransform {
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
-      return STREAMING_IMPULSE_TRANSFORM_URL.equals(PTransformTranslation.urnForTransformOrNull(pTransform));
+      return STREAMING_IMPULSE_TRANSFORM_URL.equals(
+          PTransformTranslation.urnForTransformOrNull(pTransform));
     }
   }
 
@@ -435,7 +434,7 @@ public class FlinkStreamingPortablePipelineTranslator
       intervalMillis = config.path("interval_ms").asInt(100);
       messageCount = config.path("message_count").asInt(0);
     } catch (IOException e) {
-        throw new RuntimeException("Failed to parse configuration for streaming impulse", e);
+      throw new RuntimeException("Failed to parse configuration for streaming impulse", e);
     }
 
     DataStreamSource<WindowedValue<byte[]>> source =
@@ -445,7 +444,6 @@ public class FlinkStreamingPortablePipelineTranslator
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
   }
-
 
   private <T> void translateAssignWindows(
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
