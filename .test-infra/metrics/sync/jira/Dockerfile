@@ -25,4 +25,4 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-CMD python ./syncjenkins.py
+CMD python ./syncjira.py
