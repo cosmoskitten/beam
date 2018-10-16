@@ -201,7 +201,7 @@ task preCommit() {
   dependsOn "testGcp"
   dependsOn "lint"
   dependsOn "directRunnerIT"
-  dependsOn "presubmitIT"
+  dependsOn "precommitIT"
 
 }
 
@@ -229,7 +229,7 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
   }
 }
 
-task presubmitIT(dependsOn: ['installGcpTest', 'sdist']) {
+task precommitIT(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     // List of integration tests running in Python PreCommit.
     def precommitTests = [
