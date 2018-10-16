@@ -203,10 +203,10 @@ class Stager(object):
       self.stage_artifact(pickled_session_file, staged_path)
       resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
-    if hasattr(setup_options, 'sdk_location'):
+    sdk_loc = getattr(setup_options, 'sdk_location', None)
+    if sdk_loc is not None:
 
-      if (setup_options.sdk_location == 'default') or Stager._is_remote_path(
-          setup_options.sdk_location):
+      if (sdk_loc == 'default') or Stager._is_remote_path(sdk_loc):
         # If --sdk_location is not specified then the appropriate package
         # will be obtained from PyPI (https://pypi.python.org) based on the
         # version of the currently running SDK. If the option is
@@ -216,36 +216,34 @@ class Stager(object):
         # Unit tests running in the 'python setup.py test' context will
         # not have the sdk_location attribute present and therefore we
         # will not stage SDK.
-        sdk_remote_location = 'pypi' if (setup_options.sdk_location == 'default'
+        sdk_remote_location = 'pypi' if (sdk_loc == 'default'
                                         ) else setup_options.sdk_location
         resources.extend(
             self._stage_beam_sdk(sdk_remote_location, staging_location,
                                  temp_dir))
-      elif setup_options.sdk_location == 'container':
+      elif sdk_loc == 'container':
         # Use the SDK that's built into the container, rather than re-staging
         # it.
         pass
       else:
         # This branch is also used by internal tests running with the SDK built
         # at head.
-        if os.path.isdir(setup_options.sdk_location):
+        if os.path.isdir(sdk_loc):
           # TODO(angoenka): remove reference to Dataflow
-          sdk_path = os.path.join(setup_options.sdk_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+          sdk_path = os.path.join(sdk_loc, names.DATAFLOW_SDK_TARBALL_FILE)
         else:
-          sdk_path = setup_options.sdk_location
+          sdk_path = sdk_loc
 
         if os.path.isfile(sdk_path):
           logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
           staged_path = FileSystems.join(
               staging_location,
-              Stager._desired_sdk_filename_in_staging_location(
-                  setup_options.sdk_location))
+              Stager._desired_sdk_filename_in_staging_location(sdk_loc))
           self.stage_artifact(sdk_path, staged_path)
           _, sdk_staged_filename = FileSystems.split(staged_path)
           resources.append(sdk_staged_filename)
         else:
-          if setup_options.sdk_location == 'default':
+          if sdk_loc == 'default':
             raise RuntimeError('Cannot find default Beam SDK tar file "%s"'
                                % sdk_path)
           elif not setup_options.sdk_location:
@@ -257,11 +255,11 @@ class Stager(object):
                 'the --sdk_location command-line option.' % sdk_path)
 
     worker_options = options.view_as(WorkerOptions)
-    if hasattr(worker_options, 'dataflow_worker_jar') and \
-        worker_options.dataflow_worker_jar:
+    dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
+    if dataflow_worker_jar is not None:
       jar_staged_filename = 'dataflow-worker.jar'
       staged_path = FileSystems.join(staging_location, jar_staged_filename)
-      self.stage_artifact(worker_options.dataflow_worker_jar, staged_path)
+      self.stage_artifact(dataflow_worker_jar, staged_path)
       resources.append(jar_staged_filename)
 
     # Delete all temp files created while staging job resources.
