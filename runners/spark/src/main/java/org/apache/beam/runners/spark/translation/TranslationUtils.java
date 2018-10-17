@@ -30,7 +30,6 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -350,7 +349,9 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>,
+          ValueAndCoderKryoSerializable<WindowedValue<?>>>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
@@ -366,7 +367,9 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>, TupleTag<?>, WindowedValue<?>>
+  public static PairFunction<
+          Tuple2<TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>, TupleTag<?>,
+          WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;

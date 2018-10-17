@@ -31,6 +31,7 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
   public void registerClasses(Kryo kryo) {
     // MicrobatchSource is serialized as data and may not be Kryo-serializable.
     kryo.register(MicrobatchSource.class, new StatelessJavaSerializer());
-    kryo.register(ValueAndCoderKryoSerializable.class, new DefaultSerializers.KryoSerializableSerializer());
+    kryo.register(
+        ValueAndCoderKryoSerializable.class, new DefaultSerializers.KryoSerializableSerializer());
   }
 }
