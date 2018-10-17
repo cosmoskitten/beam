@@ -25,16 +25,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -120,13 +125,28 @@ public class GroupByKeyLoadTest {
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applySyntheticStep(input, branch, syntheticStep)
+          .apply(ParDo.of(new Monitor()))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(
               format("Ungroup and reiterate (%s)", branch),
               ParDo.of(new UngroupAndReiterate(options.getIterations())));
     }
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    printMetrics(result);
+  }
+
+  private static void printMetrics(PipelineResult result) {
+    MetricsReader resultMetrics = new MetricsReader(result, "gbk");
+
+    long totalBytes = resultMetrics.getCounterMetric("totalBytes.count", -1);
+    long startTime = resultMetrics.getStartTimeMetric(System.currentTimeMillis(), "runtime");
+    long endTime = resultMetrics.getEndTimeMetric(System.currentTimeMillis(), "runtime");
+
+    System.out.println(String.format("Total bytes: %s", totalBytes));
+    System.out.println(String.format("Total time (millis): %s", endTime - startTime));
   }
 
   private static PCollection<KV<byte[], byte[]>> applySyntheticStep(
@@ -170,6 +190,21 @@ public class GroupByKeyLoadTest {
           }
         }
       }
+    }
+  }
+
+  private static class Monitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
+
+    private static final String NAMESPACE = "gbk";
+
+    private final Distribution timeDistribution = Metrics.distribution(NAMESPACE, "runtime");
+    private final Counter totalBytes = Metrics.counter(NAMESPACE, "totalBytes.count");
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      timeDistribution.update(System.currentTimeMillis());
+      totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
+      c.output(c.element());
     }
   }
 }
