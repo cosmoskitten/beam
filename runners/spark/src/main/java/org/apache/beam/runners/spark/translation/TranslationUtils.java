@@ -350,13 +350,13 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
+  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
       return new Tuple2<>(
-          tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
+          tupleTag, new ValueAndCoderKryoSerializable<>(windowedValue, coderMap.get(tupleTag)));
     };
   }
 
@@ -366,13 +366,12 @@ public final class TranslationUtils {
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
    */
-  public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
+  public static PairFunction<Tuple2<TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>, TupleTag<?>, WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
-      byte[] windowedByteValue = tuple2._2;
-      return new Tuple2<>(
-          tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
+      ValueAndCoderKryoSerializable<WindowedValue<?>> windowedByteValue = tuple2._2;
+      return new Tuple2<>(tupleTag, windowedByteValue.get(coderMap.get(tupleTag)));
     };
   }
 
@@ -383,6 +382,6 @@ public final class TranslationUtils {
    * @return true if the level is memory only
    */
   public static boolean avoidRddSerialization(StorageLevel level) {
-    return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
+    return level.equals(StorageLevel.MEMORY_ONLY());
   }
 }
