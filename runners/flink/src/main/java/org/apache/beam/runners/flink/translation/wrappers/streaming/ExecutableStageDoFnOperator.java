@@ -24,11 +24,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
@@ -43,6 +50,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -52,19 +60,22 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ExecutableStageDoFnOperator basic functional implementation without side inputs and user state.
- * SDK harness interaction code adopted from {@link
- * org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}. TODO: Evaluate
- * reuse All operators in the non-portable streaming translation are based on {@link DoFnOperator}.
- * This implies dependency on {@link DoFnRunner}, which is not required for portable pipeline. TODO:
- * Multiple element bundle execution The operator (like old non-portable runner) executes every
- * element as separate bundle, which will be even more expensive with SDK harness container.
+ * ExecutableStageDoFnOperator basic functional implementation. SDK harness interaction code adopted
+ * from {@link org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}.
+ *
+ * <p>TODO: Evaluate reuse All operators in the non-portable streaming translation are based on
+ * {@link DoFnOperator}. This implies dependency on {@link DoFnRunner}, which is not required for
+ * portable pipeline.
+ *
+ * <p>TODO: Multiple element bundle execution The operator (like old non-portable runner) executes
+ * every element as separate bundle, which will be even more expensive with SDK harness container.
  * Refactor for above should be looked into once streaming side inputs (and push back) take shape.
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
@@ -100,7 +111,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
       FlinkExecutableStageContext.Factory contextFactory,
-      Map<String, TupleTag<?>> outputMap) {
+      Map<String, TupleTag<?>> outputMap,
+      Coder keyCoder,
+      KeySelector<WindowedValue<InputT>, ?> keySelector) {
     super(
         new NoOpDoFn(),
         stepName,
@@ -114,8 +127,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         sideInputTagMapping,
         sideInputs,
         options,
-        null /*keyCoder*/,
-        null /* key selector */);
+        keyCoder,
+        keySelector);
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
@@ -135,14 +148,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
 
-    stateRequestHandler = getStateRequestHandler(executableStage);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
+    stateRequestHandler = getStateRequestHandler(executableStage);
     progressHandler = BundleProgressHandler.unsupported();
     outputQueue = new LinkedBlockingQueue<>();
   }
 
   private StateRequestHandler getStateRequestHandler(ExecutableStage executableStage) {
 
+    final StateRequestHandler sideInputStateHandler;
     if (executableStage.getSideInputs().size() > 0) {
       checkNotNull(super.sideInputHandler);
       StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
@@ -150,13 +164,80 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               FlinkStreamingSideInputHandlerFactory.forStage(
                   executableStage, sideInputIds, super.sideInputHandler));
       try {
-        return StateRequestHandlers.forSideInputHandlerFactory(
-            ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
+        sideInputStateHandler =
+            StateRequestHandlers.forSideInputHandlerFactory(
+                ProcessBundleDescriptors.getSideInputs(executableStage), sideInputHandlerFactory);
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to initialize SideInputHandler", e);
       }
     } else {
-      return StateRequestHandler.unsupported();
+      sideInputStateHandler = StateRequestHandler.unsupported();
+    }
+
+    final StateRequestHandler userStateRequestHandler;
+    if (executableStage.getUserStates().size() > 0) {
+      if (keyedStateInternals == null) {
+        throw new IllegalStateException("Input must be keyed when user state is used");
+      }
+      userStateRequestHandler =
+          StateRequestHandlers.forBagUserStateHandlerFactory(
+              stageBundleFactory.getProcessBundleDescriptor(),
+              new BagUserStateFactory(keyedStateInternals));
+    } else {
+      userStateRequestHandler = StateRequestHandler.unsupported();
+    }
+
+    EnumMap<TypeCase, StateRequestHandler> handlerMap = new EnumMap<>(TypeCase.class);
+    handlerMap.put(TypeCase.MULTIMAP_SIDE_INPUT, sideInputStateHandler);
+    handlerMap.put(TypeCase.BAG_USER_STATE, userStateRequestHandler);
+
+    return StateRequestHandlers.delegateBasedUponType(handlerMap);
+  }
+
+  private static class BagUserStateFactory
+      implements StateRequestHandlers.BagUserStateHandlerFactory {
+
+    private final StateInternals stateInternals;
+
+    private BagUserStateFactory(StateInternals stateInternals) {
+      this.stateInternals = stateInternals;
+    }
+
+    @Override
+    public <K, V, W extends BoundedWindow>
+        StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+            String pTransformId,
+            String userStateId,
+            Coder<K> keyCoder,
+            Coder<V> valueCoder,
+            Coder<W> windowCoder) {
+      return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+        @Override
+        public Iterable<V> get(K key, W window) {
+          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+          BagState<V> bagState =
+              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+          return bagState.read();
+        }
+
+        @Override
+        public void append(K key, W window, Iterator<V> values) {
+          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+          BagState<V> bagState =
+              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+          while (values.hasNext()) {
+            bagState.add(values.next());
+          }
+        }
+
+        @Override
+        public void clear(K key, W window) {
+          StateNamespace namespace = StateNamespaces.window(windowCoder, window);
+          BagState<V> bagState =
+              stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+          bagState.clear();
+        }
+      };
     }
   }
 
