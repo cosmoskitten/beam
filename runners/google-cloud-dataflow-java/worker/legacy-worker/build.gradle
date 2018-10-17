@@ -178,6 +178,10 @@ compileJava {
     source project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").sourceSets.main.java.srcDirs
 }
 
+compileTestJava {
+    source project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").sourceSets.test.java.srcDirs
+}
+
 dependencies {
     sdk_provided_dependencies.each {
         provided(it)
