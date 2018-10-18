@@ -83,13 +83,13 @@ public class WindowedWordCountIT {
     PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
-  @Test
-  public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
-    WindowedWordCountITOptions options = batchOptions();
-    // This is the default value, but make it explicit.
-    options.setNumShards(null);
-    testWindowedWordCountPipeline(options);
-  }
+  // @Test
+  // public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
+  //   WindowedWordCountITOptions options = batchOptions();
+  //   // This is the default value, but make it explicit.
+  //   options.setNumShards(null);
+  //   testWindowedWordCountPipeline(options);
+  // }
 
   @Test
   public void testWindowedWordCountInBatchStaticSharding() throws Exception {
