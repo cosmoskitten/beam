@@ -220,6 +220,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         LOG.debug(String.format("Sending value: %s", element));
         // TODO(BEAM-4681): Add support to Flink to support portable timers.
         Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()).accept(element);
+        emitResults();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -233,11 +234,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public void finishBundle() {
       try {
         // TODO: it would be nice to emit results as they arrive, can thread wait non-blocking?
-        // RemoteBundle close blocks until all results are received
+        // close blocks until all results are received
         remoteBundle.close();
+        emitResults();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    private void emitResults() {
       KV<String, OutputT> result;
       while ((result = outputQueue.poll()) != null) {
         outputManager.output(outputMap.get(result.getKey()), (WindowedValue) result.getValue());
