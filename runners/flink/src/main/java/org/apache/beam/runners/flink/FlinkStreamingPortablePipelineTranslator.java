@@ -93,6 +93,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
+
 /** Translate an unbounded portable pipeline representation into a Flink pipeline representation. */
 public class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
@@ -785,17 +787,6 @@ public class FlinkStreamingPortablePipelineTranslator
     @Override
     public WindowedValue<KV<Void, T>> map(WindowedValue<T> value) {
       return value.withValue(KV.of(null, value.getValue()));
-    }
-  }
-
-  static <T> Coder<WindowedValue<T>> instantiateCoder(
-      String collectionId, RunnerApi.Components components) {
-    PipelineNode.PCollectionNode collectionNode =
-        PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
-    try {
-      return WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
     }
   }
 }
