@@ -63,7 +63,7 @@ public class PortableStateExecutionTest implements Serializable {
 
   @Parameters
   public static Object[] data() {
-    return new Object[] {true};
+    return new Object[] {true, false};
   }
 
   @Parameter public boolean isStreaming;
