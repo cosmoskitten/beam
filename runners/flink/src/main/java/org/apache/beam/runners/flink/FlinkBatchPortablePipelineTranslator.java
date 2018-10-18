@@ -86,6 +86,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 
 /**
  * A translator that translates bounded portable pipelines into executable Flink pipelines.
@@ -333,19 +334,29 @@ public class FlinkBatchPortablePipelineTranslator
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    FlinkExecutableStageFunction<InputT> function =
-        new FlinkExecutableStageFunction<>(
-            stagePayload,
-            context.getJobInfo(),
-            outputMap,
-            FlinkExecutableStageContext.factory(context.getPipelineOptions()));
 
     DataSet<WindowedValue<InputT>> inputDataSet =
         context.getDataSetOrThrow(stagePayload.getInput());
 
-    MapPartitionOperator<WindowedValue<InputT>, RawUnionValue> taggedDataset =
-        new MapPartitionOperator<>(
-            inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+    final boolean stateful = stagePayload.getUserStatesCount() > 0;
+    final FlinkExecutableStageFunction<InputT> function =
+        new FlinkExecutableStageFunction<>(
+            stagePayload,
+            context.getJobInfo(),
+            outputMap,
+            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
+            stateful);
+
+    final SingleInputUdfOperator taggedDataset;
+    if (stateful) {
+      taggedDataset =
+          new GroupReduceOperator<>(
+              inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+    } else {
+      taggedDataset =
+          new MapPartitionOperator<>(
+              inputDataSet, typeInformation, function, transform.getTransform().getUniqueName());
+    }
 
     for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
       String collectionId =
@@ -372,7 +383,7 @@ public class FlinkBatchPortablePipelineTranslator
       // no-op sink to each to make sure they are materialized by Flink. However, some SDK-executed
       // stages have no runner-visible output after fusion. We handle this case by adding a sink
       // here.
-      taggedDataset.output(new DiscardingOutputFormat());
+      taggedDataset.output(new DiscardingOutputFormat<>());
     }
   }
 
