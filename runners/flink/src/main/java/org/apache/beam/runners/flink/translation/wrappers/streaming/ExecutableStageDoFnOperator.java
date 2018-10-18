@@ -209,7 +209,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         remoteBundle =
             stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to process remote bundle", e);
       }
     }
 
