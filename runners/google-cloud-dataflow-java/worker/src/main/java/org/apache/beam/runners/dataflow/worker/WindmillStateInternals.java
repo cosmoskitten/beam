@@ -609,7 +609,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
       // Don't reuse the localAdditions object; we don't want future changes to it to
       // modify the value of cachedValues.
-      localAdditions = new ArrayList<T>();
+      localAdditions = new ArrayList<>();
 
       return commitBuilder.buildPartial();
     }
