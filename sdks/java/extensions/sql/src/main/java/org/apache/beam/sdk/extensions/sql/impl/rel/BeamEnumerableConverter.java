@@ -176,7 +176,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<Object>();
+    Queue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -200,7 +200,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<Object>();
+    Queue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
