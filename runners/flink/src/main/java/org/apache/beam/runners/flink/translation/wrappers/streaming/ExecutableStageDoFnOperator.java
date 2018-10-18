@@ -238,7 +238,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         remoteBundle.close();
         emitResults();
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to finish bundle", e);
       }
     }
 
