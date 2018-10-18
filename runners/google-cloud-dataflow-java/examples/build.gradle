@@ -89,6 +89,9 @@ task preCommitFnApiWorker(type: Test) {
   forkEvery 1
   maxParallelForks 4
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  useJUnit {
+    excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
+  }
 }
 
 task preCommit() {
