@@ -61,6 +61,8 @@ task preCommitLegacyWorker(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
 }
 
+project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
+project.rootProject.ext.set("docker-tag","${dockerTag}")
 evaluationDependsOn(":beam-sdks-java-container")
 
 task buildAndPushDockerContainer(type:Exec) {
@@ -69,8 +71,6 @@ task buildAndPushDockerContainer(type:Exec) {
 }
 
 task preCommitFnApiWorker(type: Test) {
-  project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
-  project.rootProject.ext.set("docker-tag","${dockerTag}")
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
   dependsOn buildAndPushDockerContainer
 
