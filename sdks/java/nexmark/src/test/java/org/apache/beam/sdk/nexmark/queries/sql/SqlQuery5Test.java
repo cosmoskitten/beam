@@ -33,8 +33,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SqlQuery5}. */
+@RunWith(JUnit4.class)
 public class SqlQuery5Test {
 
   private static final NexmarkConfiguration config = new NexmarkConfiguration();
