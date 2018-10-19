@@ -18,15 +18,26 @@ from __future__ import absolute_import
 
 import sys
 import os
+import json
 import tempfile
 import unittest
 
+from apache_beam import Create
+from apache_beam import Map
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+from apache_beam.io.parquetio import WriteToParquet
+from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import _create_parquet_source
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+import hamcrest as hc
 
 class TestParquet(unittest.TestCase):
   _temp_files = []
@@ -65,9 +76,9 @@ class TestParquet(unittest.TestCase):
                                          'favorite_color': 'Green'}]
 
   SCHEMA = pa.schema([
-      ('name', pa.string()),
-      ('favorite_number', pa.int32()),
-      ('favorite_color', pa.string())
+      ('name', pa.binary()),
+      ('favorite_number', pa.int64()),
+      ('favorite_color', pa.binary())
   ])
 
   def _record_to_columns(self, records, schema):
@@ -120,3 +131,33 @@ class TestParquet(unittest.TestCase):
     file_name = self._write_data()
     expected_result = self.RECORDS
     self._run_parquet_test(file_name, expected_result)
+
+  def test_source_display_data(self):
+    file_name = 'some_parquet_source'
+    source = \
+        _create_parquet_source(
+            file_name,
+            validate=False
+        )
+    dd = DisplayData.create_from(source)
+
+    expected_items = [
+        DisplayDataItemMatcher('compression', 'auto'),
+        DisplayDataItemMatcher('file_pattern', file_name)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_sink_transform(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      # this temp file is not deleted after teardown.
+      path = dst.name
+      with TestPipeline() as p:
+          p \
+          | Create(self.RECORDS) \
+          | WriteToParquet(path, self.SCHEMA)
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquet(path + '*') \
+            | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
