@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -346,13 +347,48 @@ public abstract class Row implements Serializable {
       return false;
     }
     Row other = (Row) o;
-    return Objects.equals(getSchema(), other.getSchema())
-        && Objects.equals(getValues(), other.getValues());
+
+    if (!Objects.equals(getSchema(), other.getSchema())) {
+      return false;
+    }
+
+    Iterator e1 = getValues().iterator();
+    Iterator e2 = other.getValues().iterator();
+    while (e1.hasNext() && e2.hasNext()) {
+      Object o1 = e1.next();
+      Object o2 = e2.next();
+
+      if (o1 instanceof byte[]) {
+        if (!Arrays.equals((byte[]) o1, (byte[]) o2)) {
+          return false;
+        }
+      } else if (!(o1 == null ? o2 == null : o1.equals(o2))) {
+        return false;
+      }
+    }
+
+    return !(e1.hasNext() || e2.hasNext());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getValues());
+    if (getSchema() == null || getSchema().getFieldCount() == 0) {
+      return 0;
+    }
+
+    int result = 1;
+
+    result = 31 * result + getSchema().hashCode();
+
+    for (Object element : getValues()) {
+      if (element instanceof byte[]) {
+        result = 31 * result + Arrays.hashCode((byte[]) element);
+      } else {
+        result = 31 * result + (element == null ? 0 : element.hashCode());
+      }
+    }
+
+    return result;
   }
 
   @Override
