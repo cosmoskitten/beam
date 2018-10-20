@@ -32,9 +32,10 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1', current='multiply', extra_message='Do this')
       def fnc_test_deprecated_with_since_current_message():
         return 'lol'
+      warnings.simplefilter("once")
       fnc_test_deprecated_with_since_current_message()
       self.check_annotation(
-          warning=w, warning_size=1,
+          warning=w,
           warning_type=DeprecationWarning,
           fnc_name='fnc_test_deprecated_with_since_current_message',
           annotation_type='deprecated',
@@ -47,8 +48,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1', current='multiply')
       def fnc_test_deprecated_with_since_current():
         return 'lol'
+      warnings.simplefilter("once")
       fnc_test_deprecated_with_since_current()
-      self.check_annotation(warning=w, warning_size=1,
+      self.check_annotation(warning=w,
                             warning_type=DeprecationWarning,
                             fnc_name='fnc_test_deprecated_with_since_current',
                             annotation_type='deprecated',
@@ -60,8 +62,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1')
       def fnc_test_deprecated_without_current():
         return 'lol'
+      warnings.simplefilter("once")
       fnc_test_deprecated_without_current()
-      self.check_annotation(warning=w, warning_size=1,
+      self.check_annotation(warning=w,
                             warning_type=DeprecationWarning,
                             fnc_name='fnc_test_deprecated_without_current',
                             annotation_type='deprecated',
@@ -85,7 +88,7 @@ class AnnotationTests(unittest.TestCase):
         return 'lol'
       fnc_test_experimental_with_current_message()
       self.check_annotation(
-          warning=w, warning_size=1,
+          warning=w,
           warning_type=FutureWarning,
           fnc_name='fnc_test_experimental_with_current_message',
           annotation_type='experimental',
@@ -98,7 +101,7 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_with_current():
         return 'lol'
       fnc_test_experimental_with_current()
-      self.check_annotation(warning=w, warning_size=1,
+      self.check_annotation(warning=w,
                             warning_type=FutureWarning,
                             fnc_name='fnc_test_experimental_with_current',
                             annotation_type='experimental',
@@ -110,41 +113,15 @@ class AnnotationTests(unittest.TestCase):
       def fnc_test_experimental_without_current():
         return 'lol'
       fnc_test_experimental_without_current()
-      self.check_annotation(warning=w, warning_size=1,
+      self.check_annotation(warning=w,
                             warning_type=FutureWarning,
                             fnc_name='fnc_test_experimental_without_current',
                             annotation_type='experimental',
                             label_check_list=[('instead', False)])
 
-  def test_frequency(self):
-    """Tests that the filter 'once' is sufficient to print once per
-    warning independently of location."""
-    with warnings.catch_warnings(record=True) as w:
-      @experimental()
-      def fnc_test_annotate_frequency():
-        return 'lol'
-
-      @experimental()
-      def fnc2_test_annotate_frequency():
-        return 'lol'
-      fnc_test_annotate_frequency()
-      fnc_test_annotate_frequency()
-      fnc2_test_annotate_frequency()
-      self.check_annotation(warning=[w[0]], warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='fnc_test_annotate_frequency',
-                            annotation_type='experimental',
-                            label_check_list=[])
-      self.check_annotation(warning=[w[1]], warning_size=1,
-                            warning_type=FutureWarning,
-                            fnc_name='fnc2_test_annotate_frequency',
-                            annotation_type='experimental',
-                            label_check_list=[])
-
   # helper function
-  def check_annotation(self, warning, warning_size, warning_type, fnc_name,
+  def check_annotation(self, warning, warning_type, fnc_name,
                        annotation_type, label_check_list):
-    self.assertEqual(1, warning_size)
     self.assertTrue(issubclass(warning[-1].category, warning_type))
     self.assertIn(fnc_name + ' is ' + annotation_type, str(warning[-1].message))
     for label in label_check_list:
