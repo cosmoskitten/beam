@@ -41,6 +41,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import hamcrest as hc
 
+
 class TestParquet(unittest.TestCase):
   _temp_files = []
 
