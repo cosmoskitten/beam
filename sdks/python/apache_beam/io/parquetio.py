@@ -33,6 +33,7 @@ from pyarrow.parquet import ParquetWriter
 
 __all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
 
+
 class ReadFromParquet(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      parquetfiles."""
