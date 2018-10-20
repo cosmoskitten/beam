@@ -28,7 +28,9 @@ from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
 from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.io.parquetio import ReadFromParquet
+from apache_beam.io.parquetio import ReadAllFromParquet
 from apache_beam.io.parquetio import _create_parquet_source
+from apache_beam.io.parquetio import _create_parquet_sink
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -57,6 +59,9 @@ class TestParquet(unittest.TestCase):
     for path in self._temp_files:
       if os.path.exists(path):
         os.remove(path)
+        parent = os.path.dirname(path)
+        if not os.listdir(parent):
+          os.rmdir(parent)
     self._temp_files = []
 
   RECORDS = [{'name': 'Thomas',
@@ -85,7 +90,7 @@ class TestParquet(unittest.TestCase):
     col_list = []
     for n in schema.names:
       column = []
-      for r in self.RECORDS:
+      for r in records:
         column.append(r[n])
       col_list.append(column)
     return col_list
@@ -93,6 +98,7 @@ class TestParquet(unittest.TestCase):
   def _write_data(self,
                   directory=None,
                   prefix=tempfile.template,
+                  row_group_size=1000,
                   codec='none',
                   count=len(RECORDS)):
 
@@ -105,7 +111,7 @@ class TestParquet(unittest.TestCase):
       col_data = self._record_to_columns(data, self.SCHEMA)
       col_array = map(pa.array, col_data)
       table = pa.Table.from_arrays(col_array, self.SCHEMA.names)
-      pq.write_table(table, f, compression=codec)
+      pq.write_table(table, f, row_group_size=row_group_size, compression=codec)
 
       self._temp_files.append(f.name)
       return f.name
@@ -146,14 +152,90 @@ class TestParquet(unittest.TestCase):
         DisplayDataItemMatcher('file_pattern', file_name)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_read_display_data(self):
+    file_name = 'some_parquet_source'
+    read = \
+      ReadFromParquet(
+          file_name,
+          validate=False)
+    dd = DisplayData.create_from(read)
+
+    expected_items = [
+        DisplayDataItemMatcher('compression', 'auto'),
+        DisplayDataItemMatcher('file_pattern', file_name)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_sink_display_data(self):
+    file_name = 'some_parquet_sink'
+    sink = _create_parquet_sink(
+        file_name,
+        self.SCHEMA,
+        'none',
+        1,
+        '.end',
+        0,
+        None,
+        'application/x-parquet')
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+      DisplayDataItemMatcher(
+          'schema',
+          str(self.SCHEMA)),
+      DisplayDataItemMatcher(
+          'file_pattern',
+          'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
+      DisplayDataItemMatcher(
+          'codec',
+          'none'),
+      DisplayDataItemMatcher(
+          'compression',
+          'uncompressed')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_write_display_data(self):
+    file_name = 'some_parquet_sink'
+    write = WriteToParquet(file_name, self.SCHEMA)
+    dd = DisplayData.create_from(write)
+    expected_items = [
+      DisplayDataItemMatcher(
+          'schema',
+          str(self.SCHEMA)),
+      DisplayDataItemMatcher(
+          'file_pattern',
+          'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
+      DisplayDataItemMatcher(
+          'codec',
+          'none'),
+      DisplayDataItemMatcher(
+          'compression',
+          'uncompressed')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
-      # this temp file is not deleted after teardown.
       path = dst.name
       with TestPipeline() as p:
           p \
           | Create(self.RECORDS) \
-          | WriteToParquet(path, self.SCHEMA)
+          | WriteToParquet(
+                path, self.SCHEMA, num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        # json used for stable sortability
+        readback = \
+            p \
+            | ReadFromParquet(path) \
+            | Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_snappy(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+          p \
+          | Create(self.RECORDS) \
+          | WriteToParquet(
+                path, self.SCHEMA, codec='snappy',
+                num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
@@ -161,3 +243,64 @@ class TestParquet(unittest.TestCase):
             | ReadFromParquet(path + '*') \
             | Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_read_reentrant(self):
+    file_name = self._write_data()
+    source = _create_parquet_source(file_name)
+    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
+
+  def test_read_multiple_row_group(self):
+    file_name = self._write_data(count=12000)
+    expected_result = self.RECORDS * 2000
+    self._run_parquet_test(file_name, expected_result)
+
+  def test_sink_transform_multiple_row_group(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with TestPipeline() as p:
+        p \
+        | Create(self.RECORDS * 2000) \
+        | WriteToParquet(
+              path, self.SCHEMA, num_shards=1, codec='snappy',
+              shard_name_template='', row_group_size=3000)
+      self.assertEqual(pq.read_metadata(path).num_row_groups, 4)
+
+  def test_read_all_from_parquet_single_file(self):
+    path = self._write_data()
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([path]) \
+          | ReadAllFromParquet(),
+          equal_to(self.RECORDS))
+
+  def test_read_all_from_parquet_many_single_files(self):
+    path1 = self._write_data()
+    path2 = self._write_data()
+    path3 = self._write_data()
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([path1, path2, path3]) \
+          | ReadAllFromParquet(),
+          equal_to(self.RECORDS * 3))
+
+  def test_read_all_from_parquet_file_pattern(self):
+    file_pattern = self._write_pattern(5)
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern]) \
+          | ReadAllFromParquet(),
+          equal_to(self.RECORDS * 5))
+
+  def test_read_all_from_parquet_many_file_patterns(self):
+    file_pattern1 = self._write_pattern(5)
+    file_pattern2 = self._write_pattern(2)
+    file_pattern3 = self._write_pattern(3)
+    with TestPipeline() as p:
+      assert_that(
+          p \
+          | Create([file_pattern1, file_pattern2, file_pattern3]) \
+          | ReadAllFromParquet(),
+          equal_to(self.RECORDS * 10))

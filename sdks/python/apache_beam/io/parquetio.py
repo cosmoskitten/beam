@@ -80,7 +80,7 @@ class ReadAllFromParquet(PTransform):
         min_bundle_size=min_bundle_size
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
-        True, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
+        False, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
         source_from_file)
 
     self.label = label
@@ -144,7 +144,7 @@ class WriteToParquet(PTransform):
         file_name_suffix use default values.
       schema: The schema to use, as type of pyarrow.Schema
       codec: The codec to use for block-level compression. Any string supported
-        by the Parquet specification is accepted.
+        by the pyarrow specification is accepted.
       row_group_size: The number of records in each row group.
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
@@ -232,10 +232,11 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     self._codec = codec
     self._row_group_size = row_group_size
     self._buffer = [[] for _ in range(len(schema.names))]
+    self._file_handle = None
 
   def open(self, temp_path):
-    file_handle = super(_ParquetSink, self).open(temp_path)
-    return ParquetWriter(file_handle, self._schema, compression=self._codec)
+    self._file_handle = super(_ParquetSink, self).open(temp_path)
+    return ParquetWriter(self._file_handle, self._schema, compression=self._codec)
 
   def write_record(self, writer, value):
     if len(self._buffer[0]) >= self._row_group_size:
@@ -249,6 +250,9 @@ class _ParquetSink(filebasedsink.FileBasedSink):
       self._write_buffer(writer)
 
     writer.close()
+    if self._file_handle:
+      self._file_handle.close()
+      self._file_handle = None
 
   def display_data(self):
     res = super(_ParquetSink, self).display_data()
