@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.google.common.base.Preconditions;
 import java.util.Optional;
-import org.apache.beam.sdk.extensions.euphoria.core.client.operator.CompositeOperator;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Operator;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -45,16 +44,10 @@ public class OperatorTransform<InputT, OutputT, OperatorT extends Operator<Outpu
       final PCollection<OutputT> output =
           inputs.apply(
               operator.getName().orElseGet(() -> operator.getClass().getName()),
-              new OperatorTransform<>(operator, maybeTranslator.get()));
+              new OperatorTransform<>(operator, maybeTranslator.orElse(null)));
       Preconditions.checkState(
-          output.getTypeDescriptor() != null, "Translator should always return typed PCollection.");
+          output.getTypeDescriptor() != null, "Translator should always return a typed PCollection.");
       return output;
-    }
-
-    if (operator instanceof CompositeOperator) {
-      @SuppressWarnings("unchecked")
-      final CompositeOperator<InputT, OutputT> castedOperator = (CompositeOperator) operator;
-      return castedOperator.expand(inputs);
     }
 
     throw new IllegalStateException(
