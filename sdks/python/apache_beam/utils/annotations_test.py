@@ -32,7 +32,9 @@ class AnnotationTests(unittest.TestCase):
       @deprecated(since='v.1', current='multiply', extra_message='Do this')
       def fnc_test_deprecated_with_since_current_message():
         return 'lol'
-      warnings.simplefilter("once")
+      # In python2, the test framework by default adds an ignore filtering rule.
+      # Turn warning on (by using either once or always) here to enable testing.
+      warnings.simplefilter("always")
       fnc_test_deprecated_with_since_current_message()
       self.check_annotation(
           warning=w,
