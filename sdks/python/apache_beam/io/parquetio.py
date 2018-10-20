@@ -236,7 +236,8 @@ class _ParquetSink(filebasedsink.FileBasedSink):
 
   def open(self, temp_path):
     self._file_handle = super(_ParquetSink, self).open(temp_path)
-    return ParquetWriter(self._file_handle, self._schema, compression=self._codec)
+    return ParquetWriter(
+        self._file_handle, self._schema, compression=self._codec)
 
   def write_record(self, writer, value):
     if len(self._buffer[0]) >= self._row_group_size:

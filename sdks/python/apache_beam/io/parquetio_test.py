@@ -178,18 +178,18 @@ class TestParquet(unittest.TestCase):
         'application/x-parquet')
     dd = DisplayData.create_from(sink)
     expected_items = [
-      DisplayDataItemMatcher(
-          'schema',
-          str(self.SCHEMA)),
-      DisplayDataItemMatcher(
-          'file_pattern',
-          'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
-      DisplayDataItemMatcher(
-          'codec',
-          'none'),
-      DisplayDataItemMatcher(
-          'compression',
-          'uncompressed')]
+        DisplayDataItemMatcher(
+            'schema',
+            str(self.SCHEMA)),
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
+        DisplayDataItemMatcher(
+            'codec',
+            'none'),
+        DisplayDataItemMatcher(
+            'compression',
+            'uncompressed')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_display_data(self):
@@ -197,28 +197,29 @@ class TestParquet(unittest.TestCase):
     write = WriteToParquet(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
     expected_items = [
-      DisplayDataItemMatcher(
-          'schema',
-          str(self.SCHEMA)),
-      DisplayDataItemMatcher(
-          'file_pattern',
-          'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
-      DisplayDataItemMatcher(
-          'codec',
-          'none'),
-      DisplayDataItemMatcher(
-          'compression',
-          'uncompressed')]
+        DisplayDataItemMatcher(
+            'schema',
+            str(self.SCHEMA)),
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
+        DisplayDataItemMatcher(
+            'codec',
+            'none'),
+        DisplayDataItemMatcher(
+            'compression',
+            'uncompressed')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
-          p \
-          | Create(self.RECORDS) \
-          | WriteToParquet(
-                path, self.SCHEMA, num_shards=1, shard_name_template='')
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
@@ -231,11 +232,12 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
-          p \
-          | Create(self.RECORDS) \
-          | WriteToParquet(
-                path, self.SCHEMA, codec='snappy',
-                num_shards=1, shard_name_template='')
+        # pylint: disable=expression-not-assigned
+        p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA, codec='snappy',
+            num_shards=1, shard_name_template='')
       with TestPipeline() as p:
         # json used for stable sortability
         readback = \
@@ -258,11 +260,12 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       with TestPipeline() as p:
+        # pylint: disable=expression-not-assigned
         p \
         | Create(self.RECORDS * 2000) \
         | WriteToParquet(
-              path, self.SCHEMA, num_shards=1, codec='snappy',
-              shard_name_template='', row_group_size=3000)
+            path, self.SCHEMA, num_shards=1, codec='snappy',
+            shard_name_template='', row_group_size=3000)
       self.assertEqual(pq.read_metadata(path).num_row_groups, 4)
 
   def test_read_all_from_parquet_single_file(self):
