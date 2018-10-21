@@ -610,7 +610,7 @@ public class PubsubIO {
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
     @Nullable
-    abstract PubsubClient.PubsubClientFactory getFactory();
+    abstract PubsubClient.PubsubClientFactory getClientFactory();
 
     @Nullable
     abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
@@ -877,7 +877,7 @@ public class PubsubIO {
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
     @Nullable
-    abstract PubsubClient.PubsubClientFactory getFactory();
+    abstract PubsubClient.PubsubClientFactory getClientFactory();
 
     /** the batch size for bulk submissions to pubsub. */
     @Nullable
@@ -1023,7 +1023,7 @@ public class PubsubIO {
               .apply(MapElements.via(getFormatFn()))
               .apply(
                   new PubsubUnboundedSink(
-                      Optional.ofNullable(getFactory()).orElse(FACTORY),
+                      Optional.ofNullable(getClientFactory()).orElse(FACTORY),
                       NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
                       getTimestampAttribute(),
                       getIdAttribute(),
@@ -1073,7 +1073,7 @@ public class PubsubIO {
 
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            Optional.ofNullable(getFactory())
+            Optional.ofNullable(getClientFactory())
                 .orElse(FACTORY)
                 .newClient(
                     getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
