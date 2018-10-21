@@ -633,9 +633,11 @@ public class PubsubIO {
           .build();
     }
 
-    /** The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the
-     * {@link PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
-     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link PubsubGrpcClientFactory}.
+    /**
+     * The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the {@link
+     * PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link
+     * PubsubGrpcClientFactory}.
      */
     public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
       return toBuilder().setClientFactory(factory).build();
@@ -815,9 +817,11 @@ public class PubsubIO {
           .build();
     }
 
-    /** The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the
-     * {@link PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
-     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link PubsubGrpcClientFactory}.
+    /**
+     * The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the {@link
+     * PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link
+     * PubsubGrpcClientFactory}.
      */
     public Write<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
       return toBuilder().setClientFactory(factory).build();
