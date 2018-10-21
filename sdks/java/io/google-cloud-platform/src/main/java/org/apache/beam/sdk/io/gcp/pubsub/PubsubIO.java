@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -535,6 +536,9 @@ public class PubsubIO {
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
     @Nullable
+    abstract PubsubClient.PubsubClientFactory getFactory();
+
+    @Nullable
     abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
 
     /** The name of the message attribute to read timestamps from. */
@@ -572,6 +576,8 @@ public class PubsubIO {
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
+
+      abstract Builder<T> setClientFactory(PubsubClient.PubsubClientFactory factory);
 
       abstract Read<T> build();
     }
@@ -625,6 +631,14 @@ public class PubsubIO {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
+    }
+
+    /** The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the
+     * {@link PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link PubsubGrpcClientFactory}.
+     */
+    public Read<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
+      return toBuilder().setClientFactory(factory).build();
     }
 
     /**
@@ -705,7 +719,7 @@ public class PubsubIO {
               : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
       PubsubUnboundedSource source =
           new PubsubUnboundedSource(
-              FACTORY,
+              Optional.ofNullable(getFactory()).orElse(FACTORY),
               null /* always get project from runtime PipelineOptions */,
               topicPath,
               subscriptionPath,
@@ -739,6 +753,9 @@ public class PubsubIO {
 
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
+
+    @Nullable
+    abstract PubsubClient.PubsubClientFactory getFactory();
 
     /** the batch size for bulk submissions to pubsub. */
     @Nullable
@@ -776,6 +793,8 @@ public class PubsubIO {
 
       abstract Builder<T> setFormatFn(SimpleFunction<T, PubsubMessage> formatFn);
 
+      abstract Builder<T> setClientFactory(PubsubClient.PubsubClientFactory factory);
+
       abstract Write<T> build();
     }
 
@@ -794,6 +813,14 @@ public class PubsubIO {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
+    }
+
+    /** The default client to write to Pub/Sub is the {@link PubsubJsonClient}, created by the
+     * {@link PubsubJsonClient.PubsubJsonClientFactory}. This function allows to change the Pub/Sub client
+     * by providing another {@link PubsubClient.PubsubClientFactory} like the {@link PubsubGrpcClientFactory}.
+     */
+    public Write<T> withClientFactory(PubsubClient.PubsubClientFactory factory) {
+      return toBuilder().setClientFactory(factory).build();
     }
 
     /**
@@ -874,7 +901,7 @@ public class PubsubIO {
               .apply(MapElements.via(getFormatFn()))
               .apply(
                   new PubsubUnboundedSink(
-                      FACTORY,
+                      Optional.ofNullable(getFactory()).orElse(FACTORY),
                       NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
                       getTimestampAttribute(),
                       getIdAttribute(),
@@ -924,8 +951,10 @@ public class PubsubIO {
 
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            FACTORY.newClient(
-                getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
+            Optional.ofNullable(getFactory())
+                .orElse(FACTORY)
+                .newClient(
+                    getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
       }
 
       @ProcessElement
