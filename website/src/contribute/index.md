@@ -63,6 +63,9 @@ you want to be assigned issues, a PMC member can add you to the project contribu
 group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
 to ask to be added as a contributor in the Beam issue tracker.
 
+Anyone can browse the [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
+If you wish to contribute changes, please request edit access on the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+
 ## Contributing code
 
 Discussons about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
@@ -88,7 +91,8 @@ For large changes (you may be asked to create a design doc
 ([template](https://s.apache.org/beam-design-doc-template),
 [examples](https://s.apache.org/beam-design-docs))).
 
-Documentation happens at [https://github.com/apache/beam-site](https://github.com/apache/beam-site)
+Documentation happens at
+[https://github.com/apache/beam/tree/master/website](https://github.com/apache/beam/tree/master/website)
 and contributions are welcome.
 
 Large contributions require a signed [Individual Contributor License
@@ -255,7 +259,10 @@ Currently this is a manual process. Tracking bug for automating this:
 For each file to be reviewed, look for an OWNERS file in its directory. Pick a
 single reviewer from that file. If the directory doesn't contain an OWNERS file,
 go up a directory. Keep going until you find one. Try to limit the number of
-reviewers to 2 per PR if possible, to minimize reviewer load.
+reviewers to 2 per PR if possible, to minimize reviewer load. Comment on your PR
+tagging the reviewer as follows:
+
+    R: @reviewer
 
 ### Adding yourself as a reviewer
 
@@ -328,8 +335,9 @@ Work is in progress to add Python 3 support to Beam.  Current goal is to make Be
 
  - [Proposal](https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE)
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
+ - [Python 3 Conversion Quick Start Guide](https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA)
 
-Contributions are welcome! If you are interested to help, you can select a subpackage to port and assign yourself the corresponding issue. Comment on the issue if you cannot assign it yourself.
+Contributions are welcome! If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself.
 When submitting a new PR, please tag [@RobbeSneyders](https://github.com/robbesneyders), [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
 
 ### Next Java LTS version support (Java 11 / 18.9)
