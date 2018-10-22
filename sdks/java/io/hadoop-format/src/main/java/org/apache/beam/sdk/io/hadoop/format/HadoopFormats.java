@@ -86,12 +86,26 @@ final class HadoopFormats {
     return createTaskAttemptContext(conf, taskAttemptID);
   }
 
-  //TODO doc
+  /**
+   * Creates {@link TaskAttemptContext}.
+   *
+   * @param conf cofniguration
+   * @param taskAttemptID taskAttemptId
+   * @return new {@link TaskAttemptContext}
+   */
   static TaskAttemptContext createTaskAttemptContext(
       Configuration conf, TaskAttemptID taskAttemptID) {
     return new TaskAttemptContextImpl(conf, taskAttemptID);
   }
 
+  /**
+   * Creates new {@link TaskAttemptID}.
+   *
+   * @param jobID jobId
+   * @param taskId taskId
+   * @param attemptId attemptId
+   * @return new {@link TaskAttemptID}
+   */
   static TaskAttemptID createTaskAttemptID(JobID jobID, int taskId, int attemptId) {
     final TaskID tId = createTaskID(jobID, taskId);
     return new TaskAttemptID(tId, attemptId);
