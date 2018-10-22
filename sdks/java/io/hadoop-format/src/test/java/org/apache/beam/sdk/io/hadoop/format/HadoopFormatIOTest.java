@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -42,6 +43,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
@@ -51,10 +53,12 @@ import org.mockito.runners.MockitoJUnitRunner;
 public class HadoopFormatIOTest {
 
   private static final int REDUCERS_COUNT = 2;
+  private static final String LOCKS_FOLDER_NAME = "locks";
   private static Configuration conf;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Before
   public void setUp() {
@@ -70,6 +74,7 @@ public class HadoopFormatIOTest {
     conf.setClass(MRJobConfig.OUTPUT_KEY_CLASS, keyClass, Object.class);
     conf.setClass(MRJobConfig.OUTPUT_VALUE_CLASS, valueClass, Object.class);
     conf.setInt(MRJobConfig.NUM_REDUCES, REDUCERS_COUNT);
+    conf.set(MRJobConfig.ID, String.valueOf(1));
     return conf;
   }
 
@@ -81,9 +86,12 @@ public class HadoopFormatIOTest {
    */
   @Test
   public void testWriteObjectCreationFailsIfConfigurationIsNull() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Configuration can not be null");
-    HadoopFormatIO.<Text, Employee>write().withConfiguration(null);
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("Hadoop configuration cannot be null");
+    HadoopFormatIO.<Text, Employee>write()
+        .withConfiguration(null)
+        .withPartitioning()
+        .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
   }
 
   /**
@@ -98,7 +106,10 @@ public class HadoopFormatIOTest {
     configuration.setClass(HadoopFormatIO.OUTPUT_VALUE_CLASS, Employee.class, Object.class);
 
     HadoopFormatIO.Write<Text, Employee> writeWithWrongConfig =
-        HadoopFormatIO.<Text, Employee>write().withConfiguration(configuration);
+        HadoopFormatIO.<Text, Employee>write()
+            .withConfiguration(configuration)
+            .withPartitioning()
+            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
 
     p.apply(Create.of(TestEmployeeDataSet.getEmployeeData()))
         .setTypeDescriptor(
@@ -123,15 +134,25 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR, TextOutputFormat.class, OutputFormat.class);
     configuration.setClass(HadoopFormatIO.OUTPUT_VALUE_CLASS, Employee.class, Object.class);
 
-    p.apply(Create.of(TestEmployeeDataSet.getEmployeeData()))
-        .setTypeDescriptor(
-            TypeDescriptors.kvs(new TypeDescriptor<Text>() {}, new TypeDescriptor<Employee>() {}))
-        .apply("Write", HadoopFormatIO.<Text, Employee>write().withConfiguration(configuration));
+    runValidationPipeline(configuration);
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("Configuration must contain \"mapreduce.job.output.key.class\"");
 
     p.run().waitUntilFinish();
+  }
+
+  private void runValidationPipeline(Configuration configuration) {
+    p.apply(Create.of(TestEmployeeDataSet.getEmployeeData()))
+        .setTypeDescriptor(
+            TypeDescriptors.kvs(new TypeDescriptor<Text>() {}, new TypeDescriptor<Employee>() {}))
+        .apply(
+            "Write",
+            HadoopFormatIO.<Text, Employee>write()
+                .withConfiguration(configuration)
+                .withPartitioning()
+                .withExternalSynchronization(
+                    new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
   }
 
   /**
@@ -146,10 +167,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR, TextOutputFormat.class, OutputFormat.class);
     configuration.setClass(HadoopFormatIO.OUTPUT_KEY_CLASS, Text.class, Object.class);
 
-    p.apply(Create.of(TestEmployeeDataSet.getEmployeeData()))
-        .setTypeDescriptor(
-            TypeDescriptors.kvs(new TypeDescriptor<Text>() {}, new TypeDescriptor<Employee>() {}))
-        .apply("Write", HadoopFormatIO.<Text, Employee>write().withConfiguration(configuration));
+    runValidationPipeline(configuration);
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("Configuration must contain \"mapreduce.job.output.value.class\"");
@@ -157,8 +175,31 @@ public class HadoopFormatIOTest {
     p.run().waitUntilFinish();
   }
 
+  /**
+   * This test validates functionality of {@link
+   * HadoopFormatIO.Write.Builder#withConfiguration(Configuration) withConfiguration(Configuration)}
+   * function when job id is not provided by the user in configuration.
+   */
+  @Test
+  public void testWriteValidationFailsMissingJobIDInConf() {
+    Configuration configuration = new Configuration();
+    configuration.setClass(
+        HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR, TextOutputFormat.class, OutputFormat.class);
+    configuration.setClass(HadoopFormatIO.OUTPUT_KEY_CLASS, Text.class, Object.class);
+    configuration.setClass(HadoopFormatIO.OUTPUT_VALUE_CLASS, Employee.class, Object.class);
+    configuration.set(HadoopFormatIO.OUTPUT_DIR, tmpFolder.getRoot().getAbsolutePath());
+
+    runValidationPipeline(configuration);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage("Configuration must contain \"mapreduce.job.id\"");
+
+    p.run().waitUntilFinish();
+  }
+
   @Test
   public void testWritingData() throws IOException {
+    conf.set(HadoopFormatIO.OUTPUT_DIR, tmpFolder.getRoot().getAbsolutePath());
     List<KV<Text, Employee>> data = TestEmployeeDataSet.getEmployeeData();
     PCollection<KV<Text, Employee>> input =
         p.apply(Create.of(data))
@@ -166,7 +207,13 @@ public class HadoopFormatIOTest {
                 TypeDescriptors.kvs(
                     new TypeDescriptor<Text>() {}, new TypeDescriptor<Employee>() {}));
 
-    input.apply("Write", HadoopFormatIO.<Text, Employee>write().withConfiguration(conf));
+    input.apply(
+        "Write",
+        HadoopFormatIO.<Text, Employee>write()
+            .withConfiguration(conf)
+            .withPartitioning()
+            .withExternalSynchronization(
+                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
     p.run();
 
     List<KV<Text, Employee>> writtenOutput = EmployeeOutputFormat.getWrittenOutput();
@@ -182,6 +229,7 @@ public class HadoopFormatIOTest {
   @Test
   public void testWritingDataFailInvalidKeyType() {
 
+    conf.set(HadoopFormatIO.OUTPUT_DIR, tmpFolder.getRoot().getAbsolutePath());
     List<KV<String, Employee>> data = new ArrayList<>();
     data.add(KV.of("key", new Employee("name", "address")));
     PCollection<KV<String, Employee>> input =
@@ -193,13 +241,20 @@ public class HadoopFormatIOTest {
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage(String.class.getName());
 
-    input.apply("Write", HadoopFormatIO.<String, Employee>write().withConfiguration(conf));
+    input.apply(
+        "Write",
+        HadoopFormatIO.<String, Employee>write()
+            .withConfiguration(conf)
+            .withPartitioning()
+            .withExternalSynchronization(
+                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
     p.run().waitUntilFinish();
   }
 
   @Test
   public void testWritingDataFailInvalidValueType() {
 
+    conf.set(HadoopFormatIO.OUTPUT_DIR, tmpFolder.getRoot().getAbsolutePath());
     List<KV<Text, Text>> data = new ArrayList<>();
     data.add(KV.of(new Text("key"), new Text("value")));
     TypeDescriptor<Text> textTypeDescriptor = new TypeDescriptor<Text>() {};
@@ -210,7 +265,13 @@ public class HadoopFormatIOTest {
     thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage(Text.class.getName());
 
-    input.apply("Write", HadoopFormatIO.<Text, Text>write().withConfiguration(conf));
+    input.apply(
+        "Write",
+        HadoopFormatIO.<Text, Text>write()
+            .withConfiguration(conf)
+            .withPartitioning()
+            .withExternalSynchronization(
+                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
 
     p.run().waitUntilFinish();
   }
@@ -218,12 +279,15 @@ public class HadoopFormatIOTest {
   /**
    * This test validates functionality of {@link
    * HadoopFormatIO.Write#populateDisplayData(DisplayData.Builder)
-   * populateDisplayData(DisplayData.Builder)}.
+   * populateDisplayData(DisplayData.WriteBuilder)}.
    */
   @Test
   public void testWriteDisplayData() {
     HadoopFormatIO.Write<String, String> write =
-        HadoopFormatIO.<String, String>write().withConfiguration(conf);
+        HadoopFormatIO.<String, String>write()
+            .withConfiguration(conf)
+            .withPartitioning()
+            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(
@@ -243,5 +307,11 @@ public class HadoopFormatIOTest {
         hasDisplayItem(
             HadoopFormatIO.PARTITIONER_CLASS_ATTR,
             HadoopFormats.DEFAULT_PARTITIONER_CLASS_ATTR.getName()));
+  }
+
+  private String getLocksDirPath() {
+    return Paths.get(tmpFolder.getRoot().getAbsolutePath(), LOCKS_FOLDER_NAME)
+        .toAbsolutePath()
+        .toString();
   }
 }

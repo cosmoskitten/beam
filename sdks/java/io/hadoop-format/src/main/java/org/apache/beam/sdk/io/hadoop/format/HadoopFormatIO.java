@@ -15,15 +15,16 @@
 package org.apache.beam.sdk.io.hadoop.format;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -60,6 +61,7 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
@@ -80,6 +82,7 @@ import org.slf4j.LoggerFactory;
  * {@link OutputFormat} classes, but the following properties must be set for all OutputFormats:
  *
  * <ul>
+ *   <li>{@code mapreduce.job.id}: The of the write job. E.g.: end timestamp of window.
  *   <li>{@code mapreduce.job.outputformat.class}: The {@link OutputFormat} class used to connect to
  *       your data sink of choice.
  *   <li>{@code mapreduce.job.output.key.class}: The key class passed to the {@link OutputFormat} in
@@ -88,10 +91,10 @@ import org.slf4j.LoggerFactory;
  *       OutputFormat} in {@code mapreduce.job.outputformat.class}.
  *   <li>{@code mapreduce.job.reduces}: Number of reduce tasks. Value is equal to number of write
  *       tasks which will be genarated. This property is not required for {@link
- *       Write.Builder#withConfigurationWithoutPartitioning(Configuration)} write.
+ *       Write.PartitionedWriterBuilder#withoutPartitioning()} write.
  *   <li>{@code mapreduce.job.partitioner.class}: Hadoop partitioner class which will be used for
  *       distributing of records among partitions. This property is not required for {@link
- *       Write.Builder#withConfigurationWithoutPartitioning(Configuration)} write.
+ *       Write.PartitionedWriterBuilder#withoutPartitioning()} write.
  * </ul>
  *
  * <b>Note:</b> All mentioned values have appropriate constants. E.g.: {@link
@@ -132,98 +135,188 @@ import org.slf4j.LoggerFactory;
 public class HadoopFormatIO {
   private static final Logger LOGGER = LoggerFactory.getLogger(HadoopFormatIO.class);
 
+  /** {@link MRJobConfig#OUTPUT_FORMAT_CLASS_ATTR}. */
   public static final String OUTPUT_FORMAT_CLASS_ATTR = MRJobConfig.OUTPUT_FORMAT_CLASS_ATTR;
+
+  /** {@link MRJobConfig#OUTPUT_KEY_CLASS}. */
   public static final String OUTPUT_KEY_CLASS = MRJobConfig.OUTPUT_KEY_CLASS;
+
+  /** {@link MRJobConfig#OUTPUT_VALUE_CLASS}. */
   public static final String OUTPUT_VALUE_CLASS = MRJobConfig.OUTPUT_VALUE_CLASS;
+
+  /** {@link MRJobConfig#NUM_REDUCES}. */
   public static final String NUM_REDUCES = MRJobConfig.NUM_REDUCES;
+
+  /** {@link MRJobConfig#PARTITIONER_CLASS_ATTR}. */
   public static final String PARTITIONER_CLASS_ATTR = MRJobConfig.PARTITIONER_CLASS_ATTR;
 
+  /** {@link MRJobConfig#ID}. */
+  public static final String JOB_ID = MRJobConfig.ID;
+
+  /** {@link MRJobConfig#MAPREDUCE_JOB_DIR}. */
+  public static final String OUTPUT_DIR = FileOutputFormat.OUTDIR;
+
+  /** Default "reduce" function for extraction of one Configuration. */
+  public static final Combine.IterableCombineFn<Configuration> DEFAULT_CONFIG_COMBINE_FN =
+      Combine.IterableCombineFn.of(
+          (configurations) -> {
+            Iterable<Configuration> filtered = Iterables.filter(configurations, Objects::nonNull);
+            return Iterables.getFirst(filtered, null);
+          });
+
   /**
-   * Creates an uninitialized {@link HadoopFormatIO.Write.Builder}. Before use, the {@code Write}
-   * must be initialized with a {@link Write.Builder#withConfiguration(Configuration)} or {@link
-   * Write.Builder#withConfigurationTransform(ConfigurationTransform)} or {@link
-   * Write.Builder#withConfigurationWithoutPartitioning(Configuration)} that specifies the sink.
+   * Creates an {@link Write.Builder} for creation of Write Transformation. Before creation of the
+   * transformation, chain of builders must be set.
    *
    * @param <KeyT> Type of keys to be written.
    * @param <ValueT> Type of values to be written.
    * @return Write builder
    */
   public static <KeyT, ValueT> Write.Builder<KeyT, ValueT> write() {
-    return new AutoValue_HadoopFormatIO_Write.Builder<>();
+    return new Write.Builder<>();
   }
 
   /**
-   * Interface for client definition of so called {@link Configuration} "Map-Reduce" operation
-   * defined by methods {@link #getConfigTransform()} and {@link #getConfigCombineFn()}
-   *
-   * <p>Client can define operations which will produce one particular configuration from the input
-   * data by this interface. Generated configuration will be then used during writing of data into
-   * one of the hadoop output formats.
-   *
-   * <p>This interface enables defining of special {@link Configuration} for every particular
-   * window.
-   *
-   * @param <KeyT> Key type of writing data
-   * @param <ValueT> Value type of writing data
+   * Provides mechanism for acquiring locks related to the job. Serves as source of unique events
+   * among the job.
    */
-  @FunctionalInterface
-  interface ConfigurationTransform<KeyT, ValueT> {
-
-    /** Default "reduce" function for extraction of one Configuration. */
-    Combine.IterableCombineFn<Configuration> DEFAULT_CONFIG_COMBINE_FN =
-        Combine.IterableCombineFn.of(
-            (configurations) -> {
-              Iterable<Configuration> filtered = Iterables.filter(configurations, Objects::nonNull);
-              return Iterables.getFirst(filtered, null);
-            });
+  interface ExternalSynchronization extends Serializable {
 
     /**
-     * "Map" function which should transform one {@link KV} pair into hadoop {@link Configuration}.
+     * Tries to acquire lock for given job.
      *
-     * <p><b>Note:</b> Default implementation of {@link #getConfigCombineFn()} requires that from
-     * {@link KV} pair will be produced at least one {@link Configuration}
-     *
-     * @return transform function
+     * @param conf configuration bounded with given job.
+     * @return {@code true} if the lock was acquired, {@code false} otherwise.
      */
-    PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollection<Configuration>>
-        getConfigTransform();
+    boolean tryAcquireJobLock(Configuration conf);
 
     /**
-     * "Reduce" function which collects all {@link Configuration}s created via {@link
-     * #getConfigTransform()} and returns only one particular configuration that will be used for
-     * storing of all {@link KV} pairs.
+     * Deletes lock ids bounded with given job if any exists.
      *
-     * @see #DEFAULT_CONFIG_COMBINE_FN
-     * @return Combine function
+     * @param conf hadoop configuration of given job.
      */
-    default CombineFnBase.GlobalCombineFn<Configuration, ?, Configuration> getConfigCombineFn() {
-      return DEFAULT_CONFIG_COMBINE_FN;
-    }
+    void releaseJobIdLock(Configuration conf);
+
+    /**
+     * Creates {@link TaskID} with unique id among given job.
+     *
+     * @param conf hadoop configuration of given job.
+     * @return {@link TaskID} with unique id among given job.
+     */
+    TaskID acquireTaskIdLock(Configuration conf);
+
+    /**
+     * Creates unique {@link TaskAttemptID} for given taskId.
+     *
+     * @param conf configuration of given task and job
+     * @param taskId id of the task
+     * @return Unique {@link TaskAttemptID} for given taskId.
+     */
+    TaskAttemptID acquireTaskAttemptIdLock(Configuration conf, int taskId);
   }
 
   /**
-   * Default implementation of Configuration transform. It requires only particular {@link
-   * PTransform} to be specified.
+   * Implementation of {@link ExternalSynchronization} which registers locks in the HDFS. Requires
    *
-   * @param <KeyT> Key type which should be written
-   * @param <ValueT> Value type which should be written
+   * <p>{@code locksDir} to be specified. This directory MUST be different that directory which is
+   * possibly stored under {@code "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise
+   * setup of job will fail because the directory will exist before job setup.
    */
-  private static class DefaultConfigurationTransform<KeyT, ValueT>
-      implements ConfigurationTransform<KeyT, ValueT> {
+  public static class HDFSSynchronization implements ExternalSynchronization {
 
-    private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollection<Configuration>>
-        configTransform;
+    private static final String LOCKS_DIR_TASK_PATTERN = "%s";
+    private static final String LOCKS_DIR_TASK_ATTEMPT_PATTERN = LOCKS_DIR_TASK_PATTERN + "_%s";
+    private static final String LOCKS_DIR_JOB_FILENAME = "_job";
 
-    public DefaultConfigurationTransform(
-        PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollection<Configuration>>
-            configTransform) {
-      this.configTransform = configTransform;
+    private static final transient Random RANDOM_GEN = new Random();
+
+    private final String locksDir;
+
+    /**
+     * Creates instance of {@link HDFSSynchronization}.
+     *
+     * @param locksDir directory where locks will be stored. This directory MUST be different that
+     *     directory which is possibly stored under {@code
+     *     "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise setup of job will fail
+     *     because the directory will exist before job setup.
+     */
+    public HDFSSynchronization(String locksDir) {
+      this.locksDir = locksDir;
     }
 
     @Override
-    public PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollection<Configuration>>
-        getConfigTransform() {
-      return configTransform;
+    public boolean tryAcquireJobLock(Configuration conf) {
+      Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
+
+      return tryCreateFile(conf, path);
+    }
+
+    @Override
+    public void releaseJobIdLock(Configuration conf) {
+      Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
+
+      try {
+        if (FileSystem.get(conf).delete(path, true)) {
+          LOGGER.info("Delete of lock directory {} was successful", path);
+        } else {
+          LOGGER.warn("Delete of lock directory {} was unsuccessful", path);
+        }
+
+      } catch (IOException e) {
+        String formattedExceptionMessage =
+            String.format("Delete of lock directory %s was unsuccessful", path);
+        LOGGER.warn(formattedExceptionMessage, e);
+        throw new IllegalStateException(formattedExceptionMessage, e);
+      }
+    }
+
+    @Override
+    public TaskID acquireTaskIdLock(Configuration conf) {
+      JobID jobId = HadoopFormats.getJobId(conf);
+      boolean lockAcquired = false;
+      int taskIdCandidate = 0;
+
+      while (!lockAcquired) {
+        taskIdCandidate = RANDOM_GEN.nextInt(Integer.MAX_VALUE);
+        Path path = new Path(locksDir, String.format(LOCKS_DIR_TASK_PATTERN, taskIdCandidate));
+        lockAcquired = tryCreateFile(conf, path);
+      }
+
+      return HadoopFormats.createTaskID(jobId, taskIdCandidate);
+    }
+
+    @Override
+    public TaskAttemptID acquireTaskAttemptIdLock(Configuration conf, int taskId) {
+      JobID jobId = HadoopFormats.getJobId(conf);
+      int taskAttemptCandidate = 0;
+      boolean taskAttemptAcquired = false;
+
+      while (!taskAttemptAcquired) {
+        taskAttemptCandidate++;
+        Path path =
+            new Path(
+                locksDir,
+                String.format(LOCKS_DIR_TASK_ATTEMPT_PATTERN, taskId, taskAttemptCandidate));
+        taskAttemptAcquired = tryCreateFile(conf, path);
+      }
+
+      return HadoopFormats.createTaskAttemptID(jobId, taskId, taskAttemptCandidate);
+    }
+
+    private boolean tryCreateFile(Configuration conf, Path path) {
+      try {
+        FileSystem fileSystem = FileSystem.get(conf);
+
+        try {
+          return fileSystem.createNewFile(path);
+        } catch (FileAlreadyExistsException | org.apache.hadoop.fs.FileAlreadyExistsException e) {
+          return false;
+        }
+
+      } catch (IOException e) {
+        throw new IllegalStateException(
+            String.format("Creation of file on path %s failed", path), e);
+      }
     }
   }
 
@@ -288,54 +381,54 @@ public class HadoopFormatIO {
    * @param <ValueT> Type of values to be written.
    * @see HadoopFormatIO
    */
-  @AutoValue
-  public abstract static class Write<KeyT, ValueT>
-      extends PTransform<PCollection<KV<KeyT, ValueT>>, PDone> {
+  public static class Write<KeyT, ValueT> extends PTransform<PCollection<KV<KeyT, ValueT>>, PDone> {
+
+    @Nullable private transient Configuration configuration;
 
     @Nullable
-    public abstract Configuration getConfiguration();
+    private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+        configTransform;
 
-    @Nullable
-    public abstract ConfigurationTransform<KeyT, ValueT> getConfigTransform();
+    private ExternalSynchronization externalSynchronization;
 
-    public abstract boolean isWithPartitioning();
+    private boolean withPartitioning;
+
+    public Write(
+        @Nullable Configuration configuration,
+        @Nullable
+            PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+                configTransform,
+        ExternalSynchronization externalSynchronization,
+        boolean withPartitioning) {
+      this.configuration = configuration;
+      this.configTransform = configTransform;
+      this.externalSynchronization = externalSynchronization;
+      this.withPartitioning = withPartitioning;
+    }
 
     /**
-     * Builder for Write transformation.
+     * Builder for partitioning determining.
      *
-     * @param <KeyT> Key write type
-     * @param <ValueT> Value write type
+     * @param <KeyT> Key type to write
+     * @param <ValueT> Value type to write
      */
-    @AutoValue.Builder
-    public abstract static class Builder<KeyT, ValueT> {
-
-      public abstract Builder<KeyT, ValueT> setConfiguration(Configuration newConfiguration);
-
-      public abstract Builder<KeyT, ValueT> setConfigTransform(
-          ConfigurationTransform<KeyT, ValueT> newConfigTransform);
-
-      public abstract Builder<KeyT, ValueT> setWithPartitioning(boolean newWithPartitioning);
-
-      abstract Write<KeyT, ValueT> build();
+    public interface PartitionedWriterBuilder<KeyT, ValueT> {
 
       /**
-       * Writes to the sink using the options provided by the given hadoop configuration.
+       * Writes to the sink with partitioning by Task Id.
        *
-       * <p><b>Note:</b> Works only for {@link
-       * org.apache.beam.sdk.values.PCollection.IsBounded#BOUNDED} {@link PCollection} with global
-       * {@link WindowingStrategy}.
+       * <p>Following Hadoop configuration properties are required with this option:
        *
-       * @param configuration hadoop configuration.
-       * @return Created write function
-       * @throws IllegalArgumentException when the configuration is null
+       * <ul>
+       *   <li>{@code mapreduce.job.reduces}: Number of reduce tasks. Value is equal to number of
+       *       write tasks which will be genarated.
+       *   <li>{@code mapreduce.job.partitioner.class}: Hadoop partitioner class which will be used
+       *       for distributing of records among partitions.
+       * </ul>
+       *
+       * @return WriteBuilder for write transformation
        */
-      @SuppressWarnings("unchecked")
-      public Write<KeyT, ValueT> withConfiguration(Configuration configuration)
-          throws IllegalArgumentException {
-        checkArgument(Objects.nonNull(configuration), "Configuration can not be null");
-
-        return setConfiguration(new Configuration(configuration)).setWithPartitioning(true).build();
-      }
+      ExternallySynchrnoizedBuilder<KeyT, ValueT> withPartitioning();
 
       /**
        * Writes to the sink without need to partition output into specified number of partitions.
@@ -347,64 +440,55 @@ public class HadoopFormatIO {
        * org.apache.beam.sdk.values.PCollection.IsBounded#BOUNDED} {@link PCollection} with global
        * {@link WindowingStrategy}.
        *
-       * @param configuration hadoop configuration
-       * @return Created write function
-       * @throws IllegalArgumentException when the configuration is null
+       * @return WriteBuilder for write transformation
        */
-      public Write<KeyT, ValueT> withConfigurationWithoutPartitioning(Configuration configuration)
-          throws IllegalArgumentException {
-        checkArgument(Objects.nonNull(configuration), "Configuration can not be null");
+      ExternallySynchrnoizedBuilder withoutPartitioning();
+    }
 
-        return setConfiguration(new Configuration(configuration))
-            .setWithPartitioning(false)
-            .build();
-      }
+    /**
+     * Builder for External Synchronization defining.
+     *
+     * @param <KeyT> Key type to write
+     * @param <ValueT> Value type to write
+     */
+    public interface ExternallySynchrnoizedBuilder<KeyT, ValueT> {
+
+      /**
+       * Specifies class which will provide external synchronization required for hadoop write
+       * operation.
+       *
+       * @param externalSynchronization provider of external synchronization
+       * @return Write transformation
+       */
+      Write<KeyT, ValueT> withExternalSynchronization(
+          ExternalSynchronization externalSynchronization);
+    }
+
+    /**
+     * Main builder of Write transformation.
+     *
+     * @param <KeyT> Key type to write
+     * @param <ValueT> Value type to write
+     */
+    public interface WriteBuilder<KeyT, ValueT> {
+
+      /**
+       * Writes to the sink using the options provided by the given hadoop configuration.
+       *
+       * <p><b>Note:</b> Works only for {@link
+       * org.apache.beam.sdk.values.PCollection.IsBounded#BOUNDED} {@link PCollection} with global
+       * {@link WindowingStrategy}.
+       *
+       * @param config hadoop configuration.
+       * @return WriteBuilder with set configuration
+       * @throws NullPointerException when the configuration is null
+       * @see HadoopFormatIO for required hadoop {@link Configuration} properties
+       */
+      PartitionedWriterBuilder withConfiguration(Configuration config);
 
       /**
        * Writes to the sink using configuration created by provided {@code
        * configurationTransformation}.
-       *
-       * <p>Parameter {@code configurationTransformation} should provide way how to transform input
-       * data into {@link PCollection} of hadoop configurations.
-       *
-       * <p>PCollection of configuration is then reduced to one by {@link
-       * ConfigurationTransform#DEFAULT_CONFIG_COMBINE_FN}
-       *
-       * <p>This type is useful especially for processing unbounded windowed data but can be used *
-       * also for batch processing.
-       *
-       * @param configurationTransformation transformation of input data into hadoop configurations
-       * @return Created write function
-       * @throws NullPointerException when {@code configurationTransformation} is {@code null}
-       * @see DefaultConfigurationTransform
-       * @see Write.Builder#withConfigurationTransform(ConfigurationTransform)
-       */
-      public Write<KeyT, ValueT> withConfigurationTransform(
-          PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollection<Configuration>>
-              configurationTransformation)
-          throws NullPointerException {
-
-        requireNonNull(configurationTransformation, "Configuration transformation can not be null");
-
-        setConfigTransform(() -> configurationTransformation).setWithPartitioning(true).build();
-
-        return setConfigTransform(new DefaultConfigurationTransform<>(configurationTransformation))
-            .build();
-      }
-
-      /**
-       * Writes to the sink using configuration created by provided {@code
-       * configurationTransformation}.
-       *
-       * <p>{@link ConfigurationTransform} should provide workflow how to extract one particular
-       * configuration from input data.
-       *
-       * <ul>
-       *   <li>Method {@link ConfigurationTransform#getConfigTransform()} transforms input data into
-       *       set of configurations
-       *   <li>Method {@link ConfigurationTransform#getConfigCombineFn()} reduces set of
-       *       configurations into one particular configuration which will be used for data writing
-       * </ul>
        *
        * <p>This type is useful especially for processing unbounded windowed data but can be used
        * also for batch processing.
@@ -412,17 +496,71 @@ public class HadoopFormatIO {
        * <p>Supports only {@link PCollection} with {@link DefaultTrigger}ing and without allowed
        * lateness
        *
-       * @param configurationTransformation configuration transformation interface
-       * @return Created write function
+       * @param configTransform configuration transformation interface
+       * @return WriteBuilder with set configuration transformation
        * @throws NullPointerException when {@code configurationTransformation} is {@code null}
+       * @see HadoopFormatIO for required hadoop {@link Configuration} properties
        */
-      public Write<KeyT, ValueT> withConfigurationTransform(
-          ConfigurationTransform<KeyT, ValueT> configurationTransformation)
-          throws NullPointerException {
+      ExternallySynchrnoizedBuilder withConfigurationTransform(
+          PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+              configTransform);
+    }
 
-        requireNonNull(configurationTransformation, "Configuration transformation can not be null");
+    /**
+     * Implementation of all builders.
+     *
+     * @param <KeyT> Key type to write
+     * @param <ValueT> Value type to write
+     */
+    static class Builder<KeyT, ValueT>
+        implements WriteBuilder<KeyT, ValueT>,
+            PartitionedWriterBuilder<KeyT, ValueT>,
+            ExternallySynchrnoizedBuilder<KeyT, ValueT> {
 
-        return setConfigTransform(configurationTransformation).setWithPartitioning(true).build();
+      private Configuration configuration;
+      private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+          configTransform;
+      private ExternalSynchronization externalSynchronization;
+      private boolean isWithPartitioning;
+
+      @Override
+      public PartitionedWriterBuilder<KeyT, ValueT> withConfiguration(Configuration config) {
+        checkNotNull(config, "Hadoop configuration cannot be null");
+        this.configuration = config;
+        return this;
+      }
+
+      @Override
+      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withConfigurationTransform(
+          PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+              configTransform) {
+        checkNotNull(configTransform, "Configuration transformation cannot be null");
+        this.configTransform = configTransform;
+        return this;
+      }
+
+      @Override
+      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withPartitioning() {
+        this.isWithPartitioning = true;
+        return this;
+      }
+
+      @Override
+      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withoutPartitioning() {
+        this.isWithPartitioning = false;
+        return this;
+      }
+
+      @Override
+      public Write<KeyT, ValueT> withExternalSynchronization(
+          ExternalSynchronization externalSynchronization) {
+        checkNotNull(externalSynchronization, "External synchronization cannot be null");
+        this.externalSynchronization = externalSynchronization;
+        return new Write<>(
+            this.configuration,
+            this.configTransform,
+            this.externalSynchronization,
+            this.isWithPartitioning);
       }
     }
 
@@ -432,7 +570,7 @@ public class HadoopFormatIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      Configuration hadoopConfig = getConfiguration();
+      Configuration hadoopConfig = configuration;
       if (hadoopConfig != null) {
         builder.addIfNotNull(
             DisplayData.item(OUTPUT_FORMAT_CLASS_ATTR, hadoopConfig.get(OUTPUT_FORMAT_CLASS_ATTR))
@@ -460,12 +598,20 @@ public class HadoopFormatIO {
       if (input.isBounded().equals(PCollection.IsBounded.UNBOUNDED)
           || !input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())) {
         checkArgument(
-            getConfigTransform() != null,
+            configTransform != null,
             "Writing of unbounded data can be processed only with configuration transformation provider. See %s.withConfigurationTransform()",
             Write.class);
       }
 
-      PCollectionView<Configuration> configView = createConfigViewAndSetupJob(input);
+      verifyInputWindowing(input);
+
+      TypeDescriptor<Configuration> configType = new TypeDescriptor<Configuration>() {};
+      input
+          .getPipeline()
+          .getCoderRegistry()
+          .registerCoderForType(configType, new ConfigurationCoder());
+
+      PCollectionView<Configuration> configView = createConfigurationView(input);
 
       return processJob(input, configView);
     }
@@ -498,19 +644,29 @@ public class HadoopFormatIO {
       TypeDescriptor<Iterable<Integer>> iterableIntType =
           TypeDescriptors.iterables(TypeDescriptors.integers());
 
+      PCollection<KV<KeyT, ValueT>> validatedInput =
+          input.apply(
+              ParDo.of(
+                      new SetupJobFn<>(
+                          externalSynchronization, configView, input.getTypeDescriptor()))
+                  .withSideInputs(configView));
+
       PCollection<KV<Integer, KV<KeyT, ValueT>>> writeData =
-          isWithPartitioning()
-              ? input.apply("GroupDataByPartition", new GroupDataByPartition<>(configView))
-              : input.apply(
+          withPartitioning
+              ? validatedInput.apply("GroupDataByPartition", new GroupDataByPartition<>(configView))
+              : validatedInput.apply(
                   "PrepareNonPartitionedTasks",
-                  ParDo.of(new PrepareNonPartitionedTasksFn<KeyT, ValueT>(configView))
+                  ParDo.of(
+                          new PrepareNonPartitionedTasksFn<KeyT, ValueT>(
+                              configView, externalSynchronization))
                       .withSideInputs(configView));
 
       PCollection<Iterable<Integer>> collectedFinishedWrites =
           writeData
               .apply(
                   "Write",
-                  ParDo.of(new WriteFn<KeyT, ValueT>(configView)).withSideInputs(configView))
+                  ParDo.of(new WriteFn<KeyT, ValueT>(configView, externalSynchronization))
+                      .withSideInputs(configView))
               .setTypeDescriptor(TypeDescriptors.integers())
               .apply(
                   "CollectWriteTasks",
@@ -518,11 +674,12 @@ public class HadoopFormatIO {
                       .withoutDefaults())
               .setTypeDescriptor(iterableIntType);
 
-      if (!isWithPartitioning()) {
+      if (!withPartitioning) {
         collectedFinishedWrites =
             collectedFinishedWrites.apply(
                 "FinishNonPartitionedTasks",
-                ParDo.of(new FinishNonPartitionedTasksFn(configView)).withSideInputs(configView));
+                ParDo.of(new FinishNonPartitionedTasksFn(configView, externalSynchronization))
+                    .withSideInputs(configView));
       }
 
       return PDone.in(
@@ -531,43 +688,6 @@ public class HadoopFormatIO {
                   "CommitWriteJob",
                   ParDo.of(new CommitJobFn<Integer>(configView)).withSideInputs(configView))
               .getPipeline());
-    }
-
-    /**
-     * Creates configuration view based on provided Configuration ({@link
-     * Write.Builder#withConfiguration(Configuration)}) or based on input data and provided
-     * transformation function ({@link
-     * Write.Builder#withConfigurationTransform(ConfigurationTransform)}.
-     *
-     * <p>Following operations are also done before configuration view creation:
-     *
-     * <ul>
-     *   <li>Validation of configuration ({@link ConfigurationValidatorFn})
-     *   <li>Validation of input data ({@link InputValidatorFn})
-     *   <li>Setups start of the write job ({@link SetupJobFn})
-     * </ul>
-     *
-     * @param input input data
-     * @return Singleton view of {@link Configuration}
-     */
-    private PCollectionView<Configuration> createConfigViewAndSetupJob(
-        PCollection<KV<KeyT, ValueT>> input) {
-
-      verifyInputWindowing(input);
-
-      TypeDescriptor<Configuration> configType = new TypeDescriptor<Configuration>() {};
-      input
-          .getPipeline()
-          .getCoderRegistry()
-          .registerCoderForType(configType, new ConfigurationCoder());
-
-      PCollection<Configuration> config = createConfiguration(input);
-
-      return config
-          .apply("ValidateConfiguration", ParDo.of(new ConfigurationValidatorFn()))
-          .apply("ValidateInput", ParDo.of(new InputValidatorFn<>(input.getTypeDescriptor())))
-          .apply("SetupWriteJob", ParDo.of(new SetupJobFn()))
-          .apply(View.asSingleton());
     }
 
     private void verifyInputWindowing(PCollection<KV<KeyT, ValueT>> input) {
@@ -589,124 +709,29 @@ public class HadoopFormatIO {
     }
 
     /**
-     * Creates PCollection with one configuration based on the set source of the configuration.
+     * Creates {@link PCollectionView} with one {@link Configuration} based on the set source of the
+     * configuration.
      *
      * @param input input data
-     * @return PCollection with single {@link Configuration}
-     * @see Write.Builder#withConfiguration(Configuration)
-     * @see Write.Builder#withConfigurationTransform(ConfigurationTransform)
+     * @return PCollectionView with single {@link Configuration}
+     * @see Builder#withConfiguration(Configuration)
+     * @see Builder#withConfigurationTransform(PTransform)
      */
-    private PCollection<Configuration> createConfiguration(PCollection<KV<KeyT, ValueT>> input) {
+    private PCollectionView<Configuration> createConfigurationView(
+        PCollection<KV<KeyT, ValueT>> input) {
 
-      PCollection<Configuration> config;
-      if (getConfiguration() != null) {
+      PCollectionView<Configuration> config;
+      if (configuration != null) {
         config =
             input
                 .getPipeline()
-                .apply("CreateOutputConfig", Create.<Configuration>of(getConfiguration()))
-                .apply(Combine.globally(ConfigurationTransform.DEFAULT_CONFIG_COMBINE_FN));
-      } else if (getConfigTransform() != null) {
-        config =
-            input
-                .apply("TransformDataIntoConfig", getConfigTransform().getConfigTransform())
-                .apply(
-                    Combine.globally(getConfigTransform().getConfigCombineFn()).withoutDefaults());
+                .apply("CreateOutputConfig", Create.<Configuration>of(configuration))
+                .apply(View.<Configuration>asSingleton().withDefaultValue(configuration));
       } else {
-        throw new IllegalStateException("Configuration reaching method was not set!");
+        config = input.apply("TransformDataIntoConfig", configTransform);
       }
 
       return config;
-    }
-  }
-
-  /**
-   * Validates Configuration whether has all required properties and sets default values if missing.
-   */
-  private static class ConfigurationValidatorFn extends DoFn<Configuration, Configuration> {
-
-    @DoFn.ProcessElement
-    public void processElement(
-        @DoFn.Element Configuration conf, OutputReceiver<Configuration> receiver) {
-      Configuration validatedConf = new Configuration(conf);
-      validateConfiguration(validatedConf);
-      fillDefaultPropertiesIfMissing(validatedConf);
-
-      receiver.output(validatedConf);
-    }
-
-    private void fillDefaultPropertiesIfMissing(Configuration conf) {
-      conf.setIfUnset(NUM_REDUCES, String.valueOf(HadoopFormats.DEFAULT_NUM_REDUCERS));
-      conf.setIfUnset(
-          PARTITIONER_CLASS_ATTR, HadoopFormats.DEFAULT_PARTITIONER_CLASS_ATTR.getName());
-    }
-
-    /**
-     * Validates that the mandatory configuration properties such as OutputFormat class,
-     * OutputFormat key and value classes are provided in the Hadoop configuration.
-     */
-    private void validateConfiguration(Configuration conf) {
-
-      checkArgument(conf != null, "Configuration can not be null");
-      checkArgument(
-          conf.get(OUTPUT_FORMAT_CLASS_ATTR) != null,
-          "Configuration must contain \"" + OUTPUT_FORMAT_CLASS_ATTR + "\"");
-      checkArgument(
-          conf.get(OUTPUT_KEY_CLASS) != null,
-          "Configuration must contain \"" + OUTPUT_KEY_CLASS + "\"");
-      checkArgument(
-          conf.get(OUTPUT_VALUE_CLASS) != null,
-          "Configuration must contain \"" + OUTPUT_VALUE_CLASS + "\"");
-    }
-  }
-
-  /**
-   * Validates input data whether have correctly specified {@link TypeDescriptor}s of input data and
-   * if the {@link TypeDescriptor}s match with output types set in the hadoop {@link Configuration}.
-   *
-   * @param <KeyT> Key Type of input data
-   * @param <ValueT> Value Type of input data
-   */
-  private static class InputValidatorFn<KeyT, ValueT> extends DoFn<Configuration, Configuration> {
-
-    private TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor;
-
-    /** @param inputTypeDescriptor Type descriptor of input data */
-    InputValidatorFn(TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor) {
-      this.inputTypeDescriptor = inputTypeDescriptor;
-    }
-
-    @SuppressWarnings("unchecked")
-    @DoFn.ProcessElement
-    public void processElement(
-        @DoFn.Element Configuration configuration, OutputReceiver<Configuration> receiver) {
-      TypeDescriptor<KeyT> outputFormatKeyClass =
-          (TypeDescriptor<KeyT>) TypeDescriptor.of(configuration.getClass(OUTPUT_KEY_CLASS, null));
-      TypeDescriptor<ValueT> outputFormatValueClass =
-          (TypeDescriptor<ValueT>)
-              TypeDescriptor.of(configuration.getClass(OUTPUT_VALUE_CLASS, null));
-
-      checkArgument(
-          inputTypeDescriptor != null,
-          "Input %s must be set!",
-          TypeDescriptor.class.getSimpleName());
-      checkArgument(
-          KV.class.equals(inputTypeDescriptor.getRawType()),
-          "%s expects %s as input type.",
-          Write.class.getSimpleName(),
-          KV.class);
-      checkArgument(
-          inputTypeDescriptor.equals(
-              TypeDescriptors.kvs(outputFormatKeyClass, outputFormatValueClass)),
-          "%s expects following %ss: KV(Key: %s, Value: %s) but following %ss are set: KV(Key: %s, Value: %s)",
-          Write.class.getSimpleName(),
-          TypeDescriptor.class.getSimpleName(),
-          outputFormatKeyClass.getRawType(),
-          outputFormatValueClass.getRawType(),
-          TypeDescriptor.class.getSimpleName(),
-          inputTypeDescriptor.resolveType(KV.class.getTypeParameters()[0]),
-          inputTypeDescriptor.resolveType(KV.class.getTypeParameters()[1]));
-
-      receiver.output(configuration);
     }
   }
 
@@ -724,9 +749,11 @@ public class HadoopFormatIO {
     private TaskAttemptContext taskAttemptContext;
 
     TaskContext(int taskId, Configuration conf) {
+      this(HadoopFormats.createTaskAttemptID(HadoopFormats.getJobId(conf), taskId, 0), conf);
+    }
 
-      JobID jobID = HadoopFormats.getJobId(conf);
-      taskAttemptContext = HadoopFormats.createTaskContext(conf, jobID, taskId);
+    TaskContext(TaskAttemptID taskAttempt, Configuration conf) {
+      taskAttemptContext = HadoopFormats.createTaskAttemptContext(conf, taskAttempt);
       outputFormatObj = HadoopFormats.createOutputFormatFromConfig(conf);
       outputCommitter = initOutputCommitter(outputFormatObj, conf, taskAttemptContext);
       recordWriter = initRecordWriter(outputFormatObj, taskAttemptContext);
@@ -792,6 +819,18 @@ public class HadoopFormatIO {
 
       return outputCommitter;
     }
+
+    @Override
+    public String toString() {
+      return "TaskContext{"
+          + "jobId="
+          + getJobId()
+          + ", taskId="
+          + getTaskId()
+          + ", attemptId="
+          + taskAttemptContext.getTaskAttemptID().getId()
+          + '}';
+    }
   }
 
   private static class ConfigurationCoder extends AtomicCoder<Configuration> {
@@ -814,53 +853,144 @@ public class HadoopFormatIO {
   }
 
   /**
-   * Setups start of the {@link OutputFormat} job for given window. Stores id of started job in
-   * configuration. This configuration is then provided as view to all workers.
+   * DoFn with following responsibilities:
    *
-   * <p>Job setup should be called only once per window
+   * <ul>
+   *   <li>Validates configuration - checks whether all required properties are set.
+   *   <li>Validates types of input PCollection elements.
+   *   <li>Setups start of the {@link OutputFormat} job for given window.
+   * </ul>
    *
-   * <p>{@link JobID#getJtIdentifier()} of the created job is equal to {@link
-   * BoundedWindow#maxTimestamp()} millis of the current window.
+   * <p>Logic of the setup job is called only for the very first element of the instance. All other
+   * elements are directly sent to next processing.
    */
-  private static class SetupJobFn extends DoFn<Configuration, Configuration> {
+  private static class SetupJobFn<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>, KV<KeyT, ValueT>> {
 
-    /**
-     * Creates job, sets it as running, stores jobId in configuration and sends configuration to
-     * output.
-     *
-     * @param config received config
-     * @param receiver output receiver
-     * @param window info about window
-     */
+    private ExternalSynchronization externalSynchronization;
+    private PCollectionView<Configuration> configView;
+    private TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor;
+    private boolean isSetupJobAttempted;
+
+    public SetupJobFn(
+        ExternalSynchronization externalSynchronization,
+        PCollectionView<Configuration> configView,
+        TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor) {
+      this.externalSynchronization = externalSynchronization;
+      this.configView = configView;
+      this.inputTypeDescriptor = inputTypeDescriptor;
+    }
+
+    @Setup
+    public void setup() {
+      isSetupJobAttempted = false;
+    }
+
     @DoFn.ProcessElement
     public void processElement(
-        @DoFn.Element Configuration config,
-        OutputReceiver<Configuration> receiver,
-        BoundedWindow window) {
+        @DoFn.Element KV<KeyT, ValueT> element,
+        OutputReceiver<KV<KeyT, ValueT>> receiver,
+        BoundedWindow window,
+        ProcessContext c) {
 
-      Configuration hadoopConf = new Configuration(config);
+      receiver.output(element);
 
-      JobID jobId = HadoopFormats.createJobId(String.valueOf(window.maxTimestamp().getMillis()));
+      if (isSetupJobAttempted) {
+        // setup of job was already attempted
+        return;
+      }
 
-      hadoopConf.set(MRJobConfig.ID, jobId.getJtIdentifier());
+      Configuration conf = c.sideInput(configView);
 
-      setupJob(jobId, hadoopConf);
+      // validate configuration and input
+      // must be done first, because in all later operations are required assumptions from
+      // validation
+      validateConfiguration(conf);
+      validateInputData(conf);
 
-      receiver.output(hadoopConf);
+      boolean isJobLockAcquired = externalSynchronization.tryAcquireJobLock(conf);
+      isSetupJobAttempted = true;
 
-      LOGGER.info(
-          "Job with id {} successfully configured from window with max timestamp {}.",
-          jobId.getJtIdentifier(),
-          window.maxTimestamp());
+      if (!isJobLockAcquired) {
+        // some parallel execution acquired task
+        return;
+      }
+
+      try {
+        // setup job
+        JobID jobId = HadoopFormats.getJobId(conf);
+
+        trySetupJob(jobId, conf, window);
+
+      } catch (Exception e) {
+        //        externalSynchronization.releaseJobIdLock(conf);
+        throw new IllegalStateException(e);
+      }
     }
 
     /**
-     * Setups the hadoop write job as running.
+     * Validates that the mandatory configuration properties such as OutputFormat class,
+     * OutputFormat key and value classes are provided in the Hadoop configuration.
+     */
+    private void validateConfiguration(Configuration conf) {
+
+      checkArgument(conf != null, "Configuration can not be null");
+      checkArgument(
+          conf.get(OUTPUT_FORMAT_CLASS_ATTR) != null,
+          "Configuration must contain \"" + OUTPUT_FORMAT_CLASS_ATTR + "\"");
+      checkArgument(
+          conf.get(OUTPUT_KEY_CLASS) != null,
+          "Configuration must contain \"" + OUTPUT_KEY_CLASS + "\"");
+      checkArgument(
+          conf.get(OUTPUT_VALUE_CLASS) != null,
+          "Configuration must contain \"" + OUTPUT_VALUE_CLASS + "\"");
+      checkArgument(conf.get(JOB_ID) != null, "Configuration must contain \"" + JOB_ID + "\"");
+    }
+
+    /**
+     * Validates input data whether have correctly specified {@link TypeDescriptor}s of input data
+     * and if the {@link TypeDescriptor}s match with output types set in the hadoop {@link
+     * Configuration}.
+     *
+     * @param conf hadoop config
+     */
+    @SuppressWarnings("unchecked")
+    private void validateInputData(Configuration conf) {
+      TypeDescriptor<KeyT> outputFormatKeyClass =
+          (TypeDescriptor<KeyT>) TypeDescriptor.of(conf.getClass(OUTPUT_KEY_CLASS, null));
+      TypeDescriptor<ValueT> outputFormatValueClass =
+          (TypeDescriptor<ValueT>) TypeDescriptor.of(conf.getClass(OUTPUT_VALUE_CLASS, null));
+
+      checkArgument(
+          inputTypeDescriptor != null,
+          "Input %s must be set!",
+          TypeDescriptor.class.getSimpleName());
+      checkArgument(
+          KV.class.equals(inputTypeDescriptor.getRawType()),
+          "%s expects %s as input type.",
+          Write.class.getSimpleName(),
+          KV.class);
+      checkArgument(
+          inputTypeDescriptor.equals(
+              TypeDescriptors.kvs(outputFormatKeyClass, outputFormatValueClass)),
+          "%s expects following %ss: KV(Key: %s, Value: %s) but following %ss are set: KV(Key: %s, Value: %s)",
+          Write.class.getSimpleName(),
+          TypeDescriptor.class.getSimpleName(),
+          outputFormatKeyClass.getRawType(),
+          outputFormatValueClass.getRawType(),
+          TypeDescriptor.class.getSimpleName(),
+          inputTypeDescriptor.resolveType(KV.class.getTypeParameters()[0]),
+          inputTypeDescriptor.resolveType(KV.class.getTypeParameters()[1]));
+    }
+
+    /**
+     * Setups the hadoop write job as running. There is possibility that some parallel worker
+     * already did setup. in this case {@link FileAlreadyExistsException} is catch.
      *
      * @param jobId jobId
      * @param conf hadoop configuration
+     * @param window window
      */
-    private void setupJob(JobID jobId, Configuration conf) {
+    private void trySetupJob(JobID jobId, Configuration conf, BoundedWindow window) {
       try {
         TaskAttemptContext setupTaskContext = HadoopFormats.createSetupTaskContext(conf, jobId);
         OutputFormat<?, ?> jobOutputFormat = HadoopFormats.createOutputFormatFromConfig(conf);
@@ -868,6 +998,13 @@ public class HadoopFormatIO {
         jobOutputFormat.checkOutputSpecs(setupTaskContext);
         jobOutputFormat.getOutputCommitter(setupTaskContext).setupJob(setupTaskContext);
 
+        LOGGER.info(
+            "Job with id {} successfully configured from window with max timestamp {}.",
+            jobId.getJtIdentifier(),
+            window.maxTimestamp());
+
+      } catch (FileAlreadyExistsException e) {
+        LOGGER.info("Job was already set by other worker. Skipping rest of the setup.");
       } catch (Exception e) {
         throw new RuntimeException("Unable to setup job.", e);
       }
@@ -922,7 +1059,8 @@ public class HadoopFormatIO {
   private static class AssignTaskFn<KeyT, ValueT>
       extends DoFn<KV<KeyT, ValueT>, KV<Integer, KV<KeyT, ValueT>>> {
 
-    PCollectionView<Configuration> configView;
+    private PCollectionView<Configuration> configView;
+    private ExternalSynchronization externalSynchronization;
 
     // Transient properties because they are used only for one bundle
     /** Cache of created TaskIDs for given bundle. */
@@ -946,8 +1084,8 @@ public class HadoopFormatIO {
     public void startBundle() {
       partitionToTaskContext = new HashMap<>();
       partitioner = null;
-      reducersCount = null;
       jobId = null;
+      reducersCount = null;
     }
 
     @ProcessElement
@@ -1019,15 +1157,19 @@ public class HadoopFormatIO {
    */
   private static class WriteFn<KeyT, ValueT> extends DoFn<KV<Integer, KV<KeyT, ValueT>>, Integer> {
 
+    private final PCollectionView<Configuration> configView;
+    private final ExternalSynchronization externalSynchronization;
+
     // Transient property because they are used only for one bundle
     /** Key by combination of Window and TaskId because different windows can use same TaskId. */
     private transient Map<KV<BoundedWindow, Integer>, TaskContext<KeyT, ValueT>>
         bundleTaskContextMap;
 
-    private PCollectionView<Configuration> configView;
-
-    WriteFn(PCollectionView<Configuration> configView) {
+    WriteFn(
+        PCollectionView<Configuration> configView,
+        ExternalSynchronization externalSynchronization) {
       this.configView = configView;
+      this.externalSynchronization = externalSynchronization;
     }
 
     /** Deletes cached map from previous bundle. */
@@ -1063,10 +1205,7 @@ public class HadoopFormatIO {
           taskContext.getRecordWriter().close(taskContext.getTaskAttemptContext());
           taskContext.getOutputCommitter().commitTask(taskContext.getTaskAttemptContext());
 
-          LOGGER.info(
-              "Task with id {} of job {} was successfully committed!",
-              taskContext.getTaskId(),
-              taskContext.getTaskAttemptContext().getJobID().getJtIdentifier());
+          LOGGER.info("Write task for {} was successfully committed!", taskContext);
         } catch (Exception e) {
           processTaskException(taskContext, e);
         }
@@ -1077,10 +1216,7 @@ public class HadoopFormatIO {
     }
 
     private void processTaskException(TaskContext<KeyT, ValueT> taskContext, Exception e) {
-      LOGGER.warn(
-          "Task with id {} of job {} failed. Will abort task.",
-          taskContext.getTaskId(),
-          taskContext.getJobId());
+      LOGGER.warn("Write task for {} failed. Will abort task.", taskContext);
       taskContext.abortTask();
       throw new IllegalArgumentException(e);
     }
@@ -1112,8 +1248,10 @@ public class HadoopFormatIO {
     private TaskContext<KeyT, ValueT> setupTask(Integer taskId, ProcessContext c)
         throws IllegalStateException {
 
-      Configuration conf = c.sideInput(configView);
-      TaskContext<KeyT, ValueT> taskContext = new TaskContext<>(taskId, conf);
+      final Configuration conf = c.sideInput(configView);
+      TaskAttemptID taskAttemptID = externalSynchronization.acquireTaskAttemptIdLock(conf, taskId);
+
+      TaskContext<KeyT, ValueT> taskContext = new TaskContext<>(taskAttemptID, conf);
 
       try {
         taskContext.getOutputCommitter().setupTask(taskContext.getTaskAttemptContext());
@@ -1132,7 +1270,7 @@ public class HadoopFormatIO {
 
   /**
    * Registers task ID for each bundle without need to group data by taskId. Every bundle reserves
-   * its own taskId via {@link TaskLocks} class.
+   * its own taskId via particular implementation of {@link ExternalSynchronization} class.
    *
    * @param <KeyT> Type of keys to be written.
    * @param <ValueT> Type of values to be written.
@@ -1140,11 +1278,16 @@ public class HadoopFormatIO {
   private static class PrepareNonPartitionedTasksFn<KeyT, ValueT>
       extends DoFn<KV<KeyT, ValueT>, KV<Integer, KV<KeyT, ValueT>>> {
 
-    private Integer taskId;
-    private final PCollectionView<Configuration> configView;
+    private transient TaskID taskId;
 
-    private PrepareNonPartitionedTasksFn(PCollectionView<Configuration> configView) {
+    private final PCollectionView<Configuration> configView;
+    private final ExternalSynchronization externalSynchronization;
+
+    private PrepareNonPartitionedTasksFn(
+        PCollectionView<Configuration> configView,
+        ExternalSynchronization externalSynchronization) {
       this.configView = configView;
+      this.externalSynchronization = externalSynchronization;
     }
 
     @DoFn.StartBundle
@@ -1160,10 +1303,10 @@ public class HadoopFormatIO {
 
       if (taskId == null) {
         Configuration conf = c.sideInput(configView);
-        taskId = TaskLocks.registerRandomTaskLock(conf);
+        taskId = externalSynchronization.acquireTaskIdLock(conf);
       }
 
-      output.output(KV.of(taskId, element));
+      output.output(KV.of(taskId.getId(), element));
     }
   }
 
@@ -1171,77 +1314,21 @@ public class HadoopFormatIO {
   private static class FinishNonPartitionedTasksFn
       extends DoFn<Iterable<Integer>, Iterable<Integer>> {
 
-    private PCollectionView<Configuration> configView;
+    private final PCollectionView<Configuration> configView;
+    private final ExternalSynchronization externalSynchronization;
 
-    private FinishNonPartitionedTasksFn(PCollectionView<Configuration> configView) {
+    private FinishNonPartitionedTasksFn(
+        PCollectionView<Configuration> configView,
+        ExternalSynchronization externalSynchronization) {
       this.configView = configView;
+      this.externalSynchronization = externalSynchronization;
     }
 
     @ProcessElement
     public void processElement(@Element Iterable<Integer> finishedTasks, ProcessContext c) {
       Configuration conf = c.sideInput(configView);
-      TaskLocks.removeAllLocks(conf);
+      externalSynchronization.releaseJobIdLock(conf);
       c.output(finishedTasks);
-    }
-  }
-
-  private static final class TaskLocks {
-
-    private static final String LOCKS_DIR_NAME = "_locks/";
-
-    private static final Random RANDOM_GEN = new Random();
-
-    private TaskLocks() {}
-
-    static int registerRandomTaskLock(Configuration conf) {
-      try {
-        String basePath = conf.get(FileOutputFormat.OUTDIR);
-        FileSystem fileSystem = FileSystem.get(conf);
-
-        while (true) {
-
-          int taskIdCandidate = RANDOM_GEN.nextInt(Integer.MAX_VALUE);
-          Path path = new Path(basePath, LOCKS_DIR_NAME + taskIdCandidate);
-
-          try {
-            boolean newFile = fileSystem.createNewFile(path);
-
-            if (newFile) {
-              LOGGER.info("Lock for task with id {} was successfully created.", taskIdCandidate);
-
-              return taskIdCandidate;
-            } else {
-              occupiedLog(taskIdCandidate);
-            }
-
-          } catch (IOException e) {
-            occupiedLog(taskIdCandidate);
-          }
-        }
-
-      } catch (IOException e) {
-        throw new RuntimeException("Problem occurred during registering task lock.", e);
-      }
-    }
-
-    private static void occupiedLog(int taskIdCandidate) {
-      LOGGER.info(
-          "Lock for task with id {} was already occupied. Will try to generate new one.",
-          taskIdCandidate);
-    }
-
-    static void removeAllLocks(Configuration conf) {
-      Path path = new Path(conf.get(FileOutputFormat.OUTDIR), LOCKS_DIR_NAME);
-      try {
-        if (FileSystem.get(conf).delete(path, true)) {
-          LOGGER.info("Delete of lock directory {} was successful", path);
-        } else {
-          LOGGER.warn("Delete of lock directory {} was unsuccessful", path);
-        }
-
-      } catch (IOException e) {
-        LOGGER.warn(String.format("Delete of lock directory %s was unsuccessful", path), e);
-      }
     }
   }
 }

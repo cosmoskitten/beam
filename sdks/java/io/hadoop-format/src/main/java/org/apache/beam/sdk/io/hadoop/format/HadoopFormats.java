@@ -68,7 +68,7 @@ final class HadoopFormats {
    */
   static TaskAttemptContext createSetupTaskContext(Configuration conf, JobID jobID) {
     final TaskID taskId = new TaskID(jobID, TaskType.JOB_SETUP, 0);
-    return new TaskAttemptContextImpl(conf, new TaskAttemptID(taskId, 0));
+    return createTaskAttemptContext(conf, new TaskAttemptID(taskId, 0));
   }
 
   /**
@@ -80,9 +80,21 @@ final class HadoopFormats {
    * @param taskNumber number of the task (should be unique across one job)
    * @return new {@link TaskAttemptContext}
    */
-  static TaskAttemptContext createTaskContext(Configuration conf, JobID jobID, int taskNumber) {
-    final TaskID taskId = createTaskID(jobID, taskNumber);
-    return new TaskAttemptContextImpl(conf, new TaskAttemptID(taskId, 0));
+  static TaskAttemptContext createTaskAttemptContext(
+      Configuration conf, JobID jobID, int taskNumber) {
+    TaskAttemptID taskAttemptID = createTaskAttemptID(jobID, taskNumber, 0);
+    return createTaskAttemptContext(conf, taskAttemptID);
+  }
+
+  //TODO doc
+  static TaskAttemptContext createTaskAttemptContext(
+      Configuration conf, TaskAttemptID taskAttemptID) {
+    return new TaskAttemptContextImpl(conf, taskAttemptID);
+  }
+
+  static TaskAttemptID createTaskAttemptID(JobID jobID, int taskId, int attemptId) {
+    final TaskID tId = createTaskID(jobID, taskId);
+    return new TaskAttemptID(tId, attemptId);
   }
 
   /**
@@ -105,7 +117,7 @@ final class HadoopFormats {
    */
   static TaskAttemptContext createCleanupTaskContext(Configuration conf, JobID jobID) {
     final TaskID taskId = new TaskID(jobID, TaskType.JOB_CLEANUP, 0);
-    return new TaskAttemptContextImpl(conf, new TaskAttemptID(taskId, 0));
+    return createTaskAttemptContext(conf, new TaskAttemptID(taskId, 0));
   }
 
   /**
