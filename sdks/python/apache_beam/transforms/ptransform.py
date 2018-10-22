@@ -37,7 +37,6 @@ FlatMap processing functions.
 from __future__ import absolute_import
 
 import copy
-import inspect
 import itertools
 import operator
 import os
@@ -60,6 +59,7 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
@@ -753,8 +753,10 @@ class _PTransformFnPTransform(PTransform):
     # .with_output_types() methods.
     kwargs = dict(self._kwargs)
     args = tuple(self._args)
+
+    # TODO(BEAM-5878) Support keyword-only arguments.
     try:
-      if 'type_hints' in inspect.getargspec(self._fn).args:
+      if 'type_hints' in getfullargspec(self._fn).args:
         args = (self.get_type_hints(),) + args
     except TypeError:
       # Might not be a function.
