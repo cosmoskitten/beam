@@ -67,16 +67,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ExecutableStageDoFnOperator basic functional implementation. SDK harness interaction code adopted
- * from {@link org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}.
+ * This operator is the streaming equivalent of the {@link
+ * org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}. It sends all
+ * received elements to the SDK harness and emits the received back elements to the downstream
+ * operators. It also takes care of handling side inputs and state.
  *
- * <p>TODO: Evaluate reuse All operators in the non-portable streaming translation are based on
- * {@link DoFnOperator}. This implies dependency on {@link DoFnRunner}, which is not required for
- * portable pipeline.
+ * <p>TODO Integrate support for timers
  *
- * <p>TODO: Multiple element bundle execution The operator (like old non-portable runner) executes
- * every element as separate bundle, which will be even more expensive with SDK harness container.
- * Refactor for above should be looked into once streaming side inputs (and push back) take shape.
+ * <p>TODO Integrate support for progress updates and metrics
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
