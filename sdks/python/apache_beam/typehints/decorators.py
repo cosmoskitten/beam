@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -87,6 +86,7 @@ from __future__ import absolute_import
 
 import inspect
 import types
+import sys
 from builtins import next
 from builtins import object
 from builtins import zip
@@ -120,7 +120,11 @@ _original_getargspec = inspect.getargspec
 
 def getargspec(func):
   try:
-    return _original_getargspec(func)
+    if sys.version_info[0] <= 2:
+      return _original_getargspec(func)
+    else:
+      args, varargs, varkw, defaults, _, _, _ = inspect.getfullargspec(func)
+      return inspect.ArgSpec(args, varargs, varkw, defaults)
   except TypeError:
     if isinstance(func, type):
       argspec = getargspec(func.__init__)
@@ -128,7 +132,12 @@ def getargspec(func):
       return argspec
     elif callable(func):
       try:
-        return _original_getargspec(func.__call__)
+        if sys.version_info[0] <= 2:
+          return _original_getargspec(func.__call__)
+        else:
+          args, varargs, varkw, defaults, _, _, _ = inspect.getfullargspec(
+              func.__call__)
+          return inspect.ArgSpec(args, varargs, varkw, defaults)
       except TypeError:
         # Return an ArgSpec with at least one positional argument,
         # and any number of other (positional or keyword) arguments
