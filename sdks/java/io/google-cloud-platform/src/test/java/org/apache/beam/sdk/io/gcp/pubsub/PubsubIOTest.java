@@ -278,8 +278,8 @@ public class PubsubIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("topic", topic));
   }
 }
