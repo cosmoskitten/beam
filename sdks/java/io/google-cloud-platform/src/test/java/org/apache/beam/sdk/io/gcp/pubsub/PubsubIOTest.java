@@ -278,7 +278,7 @@ public class PubsubIOTest {
 
   @Test
   public void testPrimitiveWriteDisplayData() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    DisplayDataEvaluator valuator = DisplayDataEvaluator.create();
     PubsubIO.Write<?> write = PubsubIO.writeStrings().to("projects/project/topics/topic");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
@@ -465,8 +465,8 @@ public class PubsubIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 }
