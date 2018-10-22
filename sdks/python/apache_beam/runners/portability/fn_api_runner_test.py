@@ -40,9 +40,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
-from apache_beam.transforms.core import KV
-from apache_beam.transforms.core import K
-from apache_beam.transforms.core import V
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -264,15 +261,6 @@ class FnApiRunnerTest(unittest.TestCase):
     index_state_spec = userstate.CombiningValueStateSpec(
         'index', beam.coders.VarIntCoder(), sum)
 
-    # We want to use type hints which do not work with the Create transform
-    class SimpleCreate(beam.DoFn):
-      def __init__(self, input, *args, **kwargs):
-        self.inputs = inputs
-
-      def process(self, _impulse):
-        for input in self.inputs:
-          yield input
-
     # TODO(ccy): State isn't detected with Map/FlatMap.
     class AddIndex(beam.DoFn):
       def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
@@ -288,11 +276,7 @@ class FnApiRunnerTest(unittest.TestCase):
                 ('B', 'b', 3)]
 
     with self.create_pipeline() as p:
-      assert_that(p
-                  | beam.Impulse()
-                  # Type hint is necessary for stateful DoFns to use KvCoder
-                  | beam.ParDo(SimpleCreate(inputs)).with_output_types(KV[K, V])
-                  | beam.ParDo(AddIndex()),
+      assert_that(p | beam.Create(inputs) | beam.ParDo(AddIndex()),
                   equal_to(expected))
 
   @unittest.skipIf(sys.version_info[0] == 3 and
