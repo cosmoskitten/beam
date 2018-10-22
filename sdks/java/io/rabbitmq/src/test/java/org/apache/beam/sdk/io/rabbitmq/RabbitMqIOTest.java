@@ -172,7 +172,7 @@ public class RabbitMqIOTest implements Serializable {
                 } catch (Exception e) {
                   LOG.error(e.getMessage(), e);
                 }
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < maxNumRecords; i++) {
                   try {
                     finalChannel.basicPublish(
                         "READEXCHANGE",
