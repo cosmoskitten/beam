@@ -133,6 +133,7 @@ def getargspec(func):
       return argspec
     elif callable(func):
       try:
+        # Does not work correctly on Python 3.
         if sys.version_info[0] <= 2:
           return _original_getargspec(func.__call__)
         else:
