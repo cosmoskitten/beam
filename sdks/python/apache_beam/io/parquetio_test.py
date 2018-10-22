@@ -16,30 +16,30 @@
 #
 from __future__ import absolute_import
 
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
 import unittest
+
+import hamcrest as hc
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
-from apache_beam.io.parquetio import WriteToParquet
-from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import ReadAllFromParquet
-from apache_beam.io.parquetio import _create_parquet_source
+from apache_beam.io.parquetio import ReadFromParquet
+from apache_beam.io.parquetio import WriteToParquet
 from apache_beam.io.parquetio import _create_parquet_sink
+from apache_beam.io.parquetio import _create_parquet_source
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
-import pyarrow as pa
-import pyarrow.parquet as pq
-import hamcrest as hc
 
 
 class TestParquet(unittest.TestCase):

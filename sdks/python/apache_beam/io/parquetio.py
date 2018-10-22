@@ -17,19 +17,19 @@
 """ Parquet IO: TODO
 """
 
-from apache_beam.transforms import PTransform
-from apache_beam.io import filebasedsource
-from apache_beam.io import filebasedsink
-from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.iobase import Read
-from apache_beam.io.iobase import Write
-from apache_beam.io.range_trackers import OffsetRangeTracker
-
 from functools import partial
 
 import pyarrow as pa
 from pyarrow.parquet import ParquetFile
 from pyarrow.parquet import ParquetWriter
+
+from apache_beam.io import filebasedsink
+from apache_beam.io import filebasedsource
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.iobase import Read
+from apache_beam.io.iobase import Write
+from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.transforms import PTransform
 
 __all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
 
