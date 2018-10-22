@@ -224,11 +224,11 @@ public class PubsubIOTest {
   public void testReadWithPubsubGrpcClientFactory() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Read<String> read =
-            PubsubIO.readStrings()
-                    .fromTopic(StaticValueProvider.of(topic))
-                    .withClientFactory(PubsubGrpcClient.FACTORY)
-                    .withTimestampAttribute("myTimestamp")
-                    .withIdAttribute("myId");
+        PubsubIO.readStrings()
+            .fromTopic(StaticValueProvider.of(topic))
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -266,21 +266,20 @@ public class PubsubIOTest {
         hasItem(hasDisplayItem("topic")));
   }
 
-
   @Test
   public void testWriteWithPubsubGrpcClientFactory() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Write<?> write =
-            PubsubIO.writeStrings()
-                    .to(topic)
-                    .withClientFactory(PubsubGrpcClient.FACTORY)
-                    .withTimestampAttribute("myTimestamp")
-                    .withIdAttribute("myId");
+        PubsubIO.writeStrings()
+            .to(topic)
+            .withClientFactory(PubsubGrpcClient.FACTORY)
+            .withTimestampAttribute("myTimestamp")
+            .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("topic", topic));
   }
 }
