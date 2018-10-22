@@ -32,14 +32,19 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.commons.collections.ListUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -49,7 +54,6 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.hamcrest.MatcherAssert;
 import org.joda.time.Duration;
@@ -63,6 +67,7 @@ public class HadoopFormatIOSequenceFileTest {
 
   private static final Instant START_TIME = new Instant(0);
   private static final String TEST_FOLDER_NAME = "test";
+  private static final String LOCKS_FOLDER_NAME = "locks";
   private static final int REDUCERS_COUNT = 2;
 
   private static final List<String> SENTENCES =
@@ -74,8 +79,8 @@ public class HadoopFormatIOSequenceFileTest {
           "Hello from second window",
           "First event from second window");
 
-  private static final List<String> ON_TIME_EVENTS = SENTENCES.subList(0, 4);
-  private static final List<String> LATE_EVENTS = SENTENCES.subList(4, 6);
+  private static final List<String> FIRST_WIN_WORDS = SENTENCES.subList(0, 4);
+  private static final List<String> SECOND_WIN_WORDS = SENTENCES.subList(4, 6);
   public static final Duration WINDOW_DURATION = Duration.standardMinutes(1);
   public static final SerializableFunction<KV<String, Long>, KV<Text, LongWritable>>
       KV_STR_INT_2_TXT_LONGWRITABLE =
@@ -91,7 +96,6 @@ public class HadoopFormatIOSequenceFileTest {
   }
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
-
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
@@ -105,9 +109,15 @@ public class HadoopFormatIOSequenceFileTest {
             Text.class,
             LongWritable.class,
             outputDir,
-            REDUCERS_COUNT);
+            REDUCERS_COUNT,
+            "0");
 
-    executeBatchTest(HadoopFormatIO.<Text, LongWritable>write().withConfiguration(conf), outputDir);
+    executeBatchTest(
+        HadoopFormatIO.<Text, LongWritable>write()
+            .withConfiguration(conf)
+            .withPartitioning()
+            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())),
+        outputDir);
   }
 
   @Test
@@ -120,10 +130,14 @@ public class HadoopFormatIOSequenceFileTest {
             Text.class,
             LongWritable.class,
             outputDir,
-            REDUCERS_COUNT);
+            REDUCERS_COUNT,
+            "0");
 
     executeBatchTest(
-        HadoopFormatIO.<Text, LongWritable>write().withConfigurationWithoutPartitioning(conf),
+        HadoopFormatIO.<Text, LongWritable>write()
+            .withConfiguration(conf)
+            .withoutPartitioning()
+            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())),
         outputDir);
   }
 
@@ -162,11 +176,17 @@ public class HadoopFormatIOSequenceFileTest {
         .toString();
   }
 
+  private String getLocksDirPath() {
+    return Paths.get(tmpFolder.getRoot().getAbsolutePath(), LOCKS_FOLDER_NAME)
+        .toAbsolutePath()
+        .toString();
+  }
+
   private Stream<KV<Text, LongWritable>> extractResultsFromFile(String fileName) {
     try (SequenceFileRecordReader<Text, LongWritable> reader = new SequenceFileRecordReader<>()) {
       Path path = new Path(fileName);
       TaskAttemptContext taskContext =
-          HadoopFormats.createTaskContext(new Configuration(), new JobID("readJob", 0), 0);
+          HadoopFormats.createTaskAttemptContext(new Configuration(), new JobID("readJob", 0), 0);
       reader.initialize(
           new FileSplit(path, 0L, Long.MAX_VALUE, new String[] {"localhost"}), taskContext);
       List<KV<Text, LongWritable>> result = new ArrayList<>();
@@ -189,9 +209,10 @@ public class HadoopFormatIOSequenceFileTest {
       Class<?> keyClass,
       Class<?> valueClass,
       String path,
-      Integer reducersCount) {
+      Integer reducersCount,
+      String jobId) {
 
-    return getConfiguration(outputFormatClass, keyClass, valueClass, path, reducersCount);
+    return getConfiguration(outputFormatClass, keyClass, valueClass, path, reducersCount, jobId);
   }
 
   private static Configuration getConfiguration(
@@ -199,14 +220,16 @@ public class HadoopFormatIOSequenceFileTest {
       Class<?> keyClass,
       Class<?> valueClass,
       String path,
-      Integer reducersCount) {
+      Integer reducersCount,
+      String jobId) {
     Configuration conf = new Configuration();
 
     conf.setClass(HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR, outputFormatClass, OutputFormat.class);
     conf.setClass(HadoopFormatIO.OUTPUT_KEY_CLASS, keyClass, Object.class);
     conf.setClass(HadoopFormatIO.OUTPUT_VALUE_CLASS, valueClass, Object.class);
     conf.setInt(HadoopFormatIO.NUM_REDUCES, reducersCount);
-    conf.set(FileOutputFormat.OUTDIR, path);
+    conf.set(HadoopFormatIO.OUTPUT_DIR, path);
+    conf.set(HadoopFormatIO.JOB_ID, jobId);
     return conf;
   }
 
@@ -216,40 +239,47 @@ public class HadoopFormatIOSequenceFileTest {
     TestStream<String> stringsStream =
         TestStream.create(StringUtf8Coder.of())
             .advanceWatermarkTo(START_TIME)
-            .addElements(event(ON_TIME_EVENTS.get(0), 2L))
+            .addElements(event(FIRST_WIN_WORDS.get(0), 2L))
             .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(27L)))
             .addElements(
-                event(ON_TIME_EVENTS.get(1), 25L),
-                event(ON_TIME_EVENTS.get(2), 18L),
-                event(ON_TIME_EVENTS.get(3), 28L))
-            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(108)))
-            .addElements(event(LATE_EVENTS.get(0), 0L), event(LATE_EVENTS.get(1), 2L))
+                event(FIRST_WIN_WORDS.get(1), 25L),
+                event(FIRST_WIN_WORDS.get(2), 18L),
+                event(FIRST_WIN_WORDS.get(3), 28L))
+            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(35)))
+            .addElements(event(SECOND_WIN_WORDS.get(0), 0L), event(SECOND_WIN_WORDS.get(1), 31L))
             .advanceWatermarkToInfinity();
 
     String outputDirPath = getOutputDirPath();
 
-    pipeline
-        .apply(stringsStream)
-        .apply(Window.into(FixedWindows.of(WINDOW_DURATION)))
-        .apply(ParDo.of(new ConvertToLowerCaseFn()))
-        .apply(new WordCount.CountWords())
-        .apply(
-            "ConvertToHadoopFormat",
-            ParDo.of(new ConvertToHadoopFormatFn<>(KV_STR_INT_2_TXT_LONGWRITABLE)))
-        .setTypeDescriptor(
-            TypeDescriptors.kvs(
-                new TypeDescriptor<Text>() {}, new TypeDescriptor<LongWritable>() {}))
-        .apply(
-            HadoopFormatIO.<Text, LongWritable>write()
-                .withConfigurationTransform(
-                    ParDo.of(new ConfigProvider<>(outputDirPath, Text.class, LongWritable.class))));
+    PCollection<KV<Text, LongWritable>> dataToWrite =
+        pipeline
+            .apply(stringsStream)
+            .apply(Window.into(FixedWindows.of(WINDOW_DURATION)))
+            .apply(ParDo.of(new ConvertToLowerCaseFn()))
+            .apply(new WordCount.CountWords())
+            .apply(
+                "ConvertToHadoopFormat",
+                ParDo.of(new ConvertToHadoopFormatFn<>(KV_STR_INT_2_TXT_LONGWRITABLE)))
+            .setTypeDescriptor(
+                TypeDescriptors.kvs(
+                    new TypeDescriptor<Text>() {}, new TypeDescriptor<LongWritable>() {}));
+
+    ConfigTransform<Text, LongWritable> configurationTransformation =
+        new ConfigTransform<>(outputDirPath, Text.class, LongWritable.class);
+
+    dataToWrite.apply(
+        HadoopFormatIO.<Text, LongWritable>write()
+            .withConfigurationTransform(configurationTransformation)
+            .withExternalSynchronization(
+                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
 
     pipeline.run().waitUntilFinish();
 
     Map<String, Long> values = loadWrittenDataAsMap(outputDirPath);
 
     MatcherAssert.assertThat(
-        values.entrySet(), equalTo(computeWordCounts(ON_TIME_EVENTS).entrySet()));
+        values.entrySet(),
+        equalTo(computeWordCounts(ListUtils.union(FIRST_WIN_WORDS, SECOND_WIN_WORDS)).entrySet()));
   }
 
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
@@ -289,24 +319,58 @@ public class HadoopFormatIOSequenceFileTest {
     }
   }
 
-  private static class ConfigProvider<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>, Configuration> {
+  //  private static class ConfigProvider<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>,
+  // Configuration> {
+  //
+  //    private String outputDirPath;
+  //    private Class<?> keyClass;
+  //    private Class<?> valueClass;
+  //
+  //    ConfigProvider(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {
+  //      this.outputDirPath = outputDirPath;
+  //      this.keyClass = keyClass;
+  //      this.valueClass = valueClass;
+  //    }
+  //
+  //    @DoFn.ProcessElement
+  //    public void processElement(OutputReceiver<Configuration> receiver) {
+  //
+  //      receiver.output(
+  //          createWriteConf(
+  //              SequenceFileOutputFormat.class, keyClass, valueClass, outputDirPath,
+  // REDUCERS_COUNT));
+  //    }
+  //  }
+
+  private static class ConfigTransform<KeyT, ValueT>
+      extends PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
 
     private String outputDirPath;
     private Class<?> keyClass;
     private Class<?> valueClass;
+    private int windowNum = 0;
 
-    ConfigProvider(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {
+    private ConfigTransform(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {
       this.outputDirPath = outputDirPath;
       this.keyClass = keyClass;
       this.valueClass = valueClass;
     }
 
-    @DoFn.ProcessElement
-    public void processElement(OutputReceiver<Configuration> receiver) {
+    @Override
+    public PCollectionView<Configuration> expand(PCollection<? extends KV<KeyT, ValueT>> input) {
 
-      receiver.output(
+      Configuration conf =
           createWriteConf(
-              SequenceFileOutputFormat.class, keyClass, valueClass, outputDirPath, REDUCERS_COUNT));
+              SequenceFileOutputFormat.class,
+              keyClass,
+              valueClass,
+              outputDirPath,
+              REDUCERS_COUNT,
+              String.valueOf(windowNum++));
+      return input
+          .getPipeline()
+          .apply(Create.<Configuration>of(conf))
+          .apply(View.<Configuration>asSingleton().withDefaultValue(conf));
     }
   }
 }
