@@ -26,12 +26,13 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -1170,7 +1171,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Collections.sort(counts);
     int n = counts.size();
     if (n < 5) {
-      NexmarkUtils.console("Query%d: only %d samples", model.configuration.query, n);
+      NexmarkUtils.console("Query%s: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(
           "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
@@ -1249,7 +1250,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
         // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
         // so, set parallelism. Also set the output path where to write log files.
-        if (configuration.query == 10) {
+        if (configuration.query == NexmarkQueryName.TEN) {
           String path = null;
           if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
             path = logsDir(now.getMillis());
@@ -1294,76 +1295,75 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private NexmarkQueryModel getNexmarkQueryModel() {
-    List<NexmarkQueryModel> models = createQueryModels();
+    Map<NexmarkQueryName, NexmarkQueryModel> models = createQueryModels();
     return models.get(configuration.query);
   }
 
   private NexmarkQuery getNexmarkQuery() {
-    List<NexmarkQuery> queries = createQueries();
-
-    if (configuration.query >= queries.size()) {
-      return null;
-    }
-
+    Map<NexmarkQueryName, NexmarkQuery> queries = createQueries();
     return queries.get(configuration.query);
   }
 
-  private List<NexmarkQueryModel> createQueryModels() {
+  private Map<NexmarkQueryName, NexmarkQueryModel> createQueryModels() {
     return isSql() ? createSqlQueryModels() : createJavaQueryModels();
   }
 
-  private List<NexmarkQueryModel> createSqlQueryModels() {
-    return Arrays.asList(null, null, null, null, null, null, null, null, null, null, null, null);
+  private Map<NexmarkQueryName, NexmarkQueryModel> createSqlQueryModels() {
+    return ImmutableMap.of();
   }
 
-  private List<NexmarkQueryModel> createJavaQueryModels() {
-    return Arrays.asList(
-        new Query0Model(configuration),
-        new Query1Model(configuration),
-        new Query2Model(configuration),
-        new Query3Model(configuration),
-        new Query4Model(configuration),
-        new Query5Model(configuration),
-        new Query6Model(configuration),
-        new Query7Model(configuration),
-        new Query8Model(configuration),
-        new Query9Model(configuration),
-        null,
-        null,
-        null);
+  private Map<NexmarkQueryName, NexmarkQueryModel> createJavaQueryModels() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQueryModel>builder()
+        .put(NexmarkQueryName.ZERO, new Query0Model(configuration))
+        .put(NexmarkQueryName.ONE, new Query1Model(configuration))
+        .put(NexmarkQueryName.TWO, new Query2Model(configuration))
+        .put(NexmarkQueryName.THREE, new Query3Model(configuration))
+        .put(NexmarkQueryName.FOUR, new Query4Model(configuration))
+        .put(NexmarkQueryName.FIVE, new Query5Model(configuration))
+        .put(NexmarkQueryName.SIX, new Query6Model(configuration))
+        .put(NexmarkQueryName.SEVEN, new Query7Model(configuration))
+        .put(NexmarkQueryName.EIGHT, new Query8Model(configuration))
+        .put(NexmarkQueryName.NINE, new Query9Model(configuration))
+        .build();
   }
 
-  private List<NexmarkQuery> createQueries() {
+  private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
     return isSql() ? createSqlQueries() : createJavaQueries();
   }
 
-  private List<NexmarkQuery> createSqlQueries() {
-    return Arrays.asList(
-        new NexmarkSqlQuery(configuration, new SqlQuery0()),
-        new NexmarkSqlQuery(configuration, new SqlQuery1()),
-        new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)),
-        new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)),
-        null,
-        new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)),
-        null,
-        new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)));
+  private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(NexmarkQueryName.ZERO, new NexmarkSqlQuery(configuration, new SqlQuery0()))
+        .put(NexmarkQueryName.ONE, new NexmarkSqlQuery(configuration, new SqlQuery1()))
+        .put(
+            NexmarkQueryName.TWO,
+            new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
+        .put(
+            NexmarkQueryName.THREE,
+            new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)))
+        .put(
+            NexmarkQueryName.FOUR, new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)))
+        .put(
+            NexmarkQueryName.FIVE, new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)))
+        .build();
   }
 
-  private List<NexmarkQuery> createJavaQueries() {
-    return Arrays.asList(
-        new Query0(configuration),
-        new Query1(configuration),
-        new Query2(configuration),
-        new Query3(configuration),
-        new Query4(configuration),
-        new Query5(configuration),
-        new Query6(configuration),
-        new Query7(configuration),
-        new Query8(configuration),
-        new Query9(configuration),
-        new Query10(configuration),
-        new Query11(configuration),
-        new Query12(configuration));
+  private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(NexmarkQueryName.ZERO, new Query0(configuration))
+        .put(NexmarkQueryName.ONE, new Query1(configuration))
+        .put(NexmarkQueryName.TWO, new Query2(configuration))
+        .put(NexmarkQueryName.THREE, new Query3(configuration))
+        .put(NexmarkQueryName.FOUR, new Query4(configuration))
+        .put(NexmarkQueryName.FIVE, new Query5(configuration))
+        .put(NexmarkQueryName.SIX, new Query6(configuration))
+        .put(NexmarkQueryName.SEVEN, new Query7(configuration))
+        .put(NexmarkQueryName.EIGHT, new Query8(configuration))
+        .put(NexmarkQueryName.NINE, new Query9(configuration))
+        .put(NexmarkQueryName.TEN, new Query10(configuration))
+        .put(NexmarkQueryName.ELEVEN, new Query11(configuration))
+        .put(NexmarkQueryName.TWELVE, new Query12(configuration))
+        .build();
   }
 
   private static class PubsubMessageEventDoFn extends DoFn<PubsubMessage, Event> {
