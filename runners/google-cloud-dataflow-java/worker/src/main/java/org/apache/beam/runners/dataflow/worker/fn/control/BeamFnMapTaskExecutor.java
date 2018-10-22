@@ -600,8 +600,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
   /** Whether the given error is likely to go away (e.g. the bundle has not started). */
   private static boolean isTransientProgressError(String msg) {
-    return msg.contains("Process bundle request not yet scheduled")
-        || msg.contains("Unknown process bundle instruction")
-        || msg.contains("unstarted operation");
+    return msg != null
+        && (msg.contains("Process bundle request not yet scheduled")
+            || msg.contains("Unknown process bundle instruction")
+            || msg.contains("unstarted operation"));
   }
 }
