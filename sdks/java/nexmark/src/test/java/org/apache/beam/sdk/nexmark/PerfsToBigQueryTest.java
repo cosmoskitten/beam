@@ -42,7 +42,7 @@ import org.junit.rules.TemporaryFolder;
 /** Test class for BigQuery sinks. */
 public class PerfsToBigQueryTest {
 
-  private static final int QUERY = 1;
+  private static final NexmarkQueryName QUERY = NexmarkQueryName.CURRENCY_CONVERSION;
   private NexmarkOptions options;
   private FakeDatasetService fakeDatasetService = new FakeDatasetService();
   private FakeJobService fakeJobService = new FakeJobService();
