@@ -266,7 +266,6 @@ public class PubsubIOTest {
         hasItem(hasDisplayItem("topic")));
   }
 
-
   @Test
   public void testWriteWithPubsubGrpcClientFactory() {
     String topic = "projects/project/topics/topic";
