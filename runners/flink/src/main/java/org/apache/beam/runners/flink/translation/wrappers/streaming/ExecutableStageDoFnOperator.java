@@ -22,7 +22,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -61,6 +63,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -180,7 +183,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       userStateRequestHandler =
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
-              new BagUserStateFactory(keyedStateInternals));
+              new BagUserStateFactory(keyedStateInternals, getKeyedStateBackend()));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
@@ -196,9 +199,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       implements StateRequestHandlers.BagUserStateHandlerFactory {
 
     private final StateInternals stateInternals;
+    private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
 
-    private BagUserStateFactory(StateInternals stateInternals) {
+    private BagUserStateFactory(
+        StateInternals stateInternals, KeyedStateBackend<ByteBuffer> keyedStateBackend) {
+
       this.stateInternals = stateInternals;
+      this.keyedStateBackend = keyedStateBackend;
     }
 
     @Override
@@ -212,6 +219,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
         @Override
         public Iterable<V> get(K key, W window) {
+          prepareStateBackend(key, keyCoder);
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
           BagState<V> bagState =
               stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
@@ -220,6 +228,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
         @Override
         public void append(K key, W window, Iterator<V> values) {
+          prepareStateBackend(key, keyCoder);
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
           BagState<V> bagState =
               stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
@@ -230,13 +239,39 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
         @Override
         public void clear(K key, W window) {
+          prepareStateBackend(key, keyCoder);
           StateNamespace namespace = StateNamespaces.window(windowCoder, window);
           BagState<V> bagState =
               stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
           bagState.clear();
         }
+
+        private void prepareStateBackend(K key, Coder<K> keyCoder) {
+          ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          try {
+            keyCoder.encode(key, baos);
+          } catch (IOException e) {
+            throw new RuntimeException("Failed to encode key for Flink state backend", e);
+          }
+          keyedStateBackend.setCurrentKey(ByteBuffer.wrap(baos.toByteArray()));
+        }
       };
     }
+  }
+
+  @Override
+  public void setKeyContextElement1(StreamRecord record) throws Exception {
+    // Note: This is only relevant when we have a stateful DoFn.
+    // We want to control the key of the state backend ourselves and
+    // we must avoid any concurrent setting of the current active key.
+    // By overwriting this, we also prevent unnecessary serialization
+    // as the key has to be encoded as a byte array.
+  }
+
+  @Override
+  public void setCurrentKey(Object key) {
+    throw new IllegalStateException(
+        "This should never be called. Current key for StateBackend should be set manually.");
   }
 
   @Override
