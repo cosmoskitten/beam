@@ -91,7 +91,7 @@ public class BeamFnDataReadRunner<OutputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers, //FnDataReceiver has PcollectionSize and elem count. ajamato
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
