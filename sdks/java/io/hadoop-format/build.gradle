@@ -77,15 +77,24 @@ dependencies {
 }
 
 def runnerClass = "org.apache.beam.runners.spark.TestSparkRunner"
-tasks.create(name: "sparkRunner", type: Test) {
+task sparkRunner(type: Test) {
+  group = "Verification"
   def beamTestPipelineOptions = [
           "--project=hadoop-format",
           "--tempRoot=/tmp/hadoop-format/",
+          "--streaming=false",
           "--runner=" + runnerClass,
+          "--enableSparkMetricSinks=false",
   ]
   classpath = configurations.sparkRunner
   include "**/HadoopFormatIOSequenceFileTest.class"
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
   forkEvery 1
   maxParallelForks 4
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
 }

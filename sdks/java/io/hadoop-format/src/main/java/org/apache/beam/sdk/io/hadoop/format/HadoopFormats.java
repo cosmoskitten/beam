@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.lib.partition.HashPartitioner;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
 /** Utility class for working with Hadoop related objects. */
-public final class HadoopFormats {
+final class HadoopFormats {
 
   private static final int DEFAULT_JOB_NUMBER = 0;
   static final Class<HashPartitioner> DEFAULT_PARTITIONER_CLASS_ATTR = HashPartitioner.class;
@@ -66,7 +66,7 @@ public final class HadoopFormats {
    * @param jobID jobId of the created {@link TaskAttemptContext}
    * @return new setup {@link TaskAttemptContext}
    */
-  public static TaskAttemptContext createSetupTaskContext(Configuration conf, JobID jobID) {
+  static TaskAttemptContext createSetupTaskContext(Configuration conf, JobID jobID) {
     final TaskID taskId = new TaskID(jobID, TaskType.JOB_SETUP, 0);
     return createTaskAttemptContext(conf, new TaskAttemptID(taskId, 0));
   }
@@ -80,7 +80,7 @@ public final class HadoopFormats {
    * @param taskNumber number of the task (should be unique across one job)
    * @return new {@link TaskAttemptContext}
    */
-  public static TaskAttemptContext createTaskAttemptContext(
+  static TaskAttemptContext createTaskAttemptContext(
       Configuration conf, JobID jobID, int taskNumber) {
     TaskAttemptID taskAttemptID = createTaskAttemptID(jobID, taskNumber, 0);
     return createTaskAttemptContext(conf, taskAttemptID);
@@ -93,7 +93,7 @@ public final class HadoopFormats {
    * @param taskAttemptID taskAttemptId
    * @return new {@link TaskAttemptContext}
    */
-  public static TaskAttemptContext createTaskAttemptContext(
+  static TaskAttemptContext createTaskAttemptContext(
       Configuration conf, TaskAttemptID taskAttemptID) {
     return new TaskAttemptContextImpl(conf, taskAttemptID);
   }
@@ -106,7 +106,7 @@ public final class HadoopFormats {
    * @param attemptId attemptId
    * @return new {@link TaskAttemptID}
    */
-  public static TaskAttemptID createTaskAttemptID(JobID jobID, int taskId, int attemptId) {
+  static TaskAttemptID createTaskAttemptID(JobID jobID, int taskId, int attemptId) {
     final TaskID tId = createTaskID(jobID, taskId);
     return new TaskAttemptID(tId, attemptId);
   }
@@ -118,7 +118,7 @@ public final class HadoopFormats {
    * @param taskNumber number of the task (should be unique across one job)
    * @return new {@link TaskID} for given {@link JobID}
    */
-  public static TaskID createTaskID(JobID jobID, int taskNumber) {
+  static TaskID createTaskID(JobID jobID, int taskNumber) {
     return new TaskID(jobID, TaskType.REDUCE, taskNumber);
   }
 
@@ -129,7 +129,7 @@ public final class HadoopFormats {
    * @param jobID jobId of the created {@link TaskID}
    * @return new cleanup {@link TaskID} for given {@link JobID}
    */
-  public static TaskAttemptContext createCleanupTaskContext(Configuration conf, JobID jobID) {
+  static TaskAttemptContext createCleanupTaskContext(Configuration conf, JobID jobID) {
     final TaskID taskId = new TaskID(jobID, TaskType.JOB_CLEANUP, 0);
     return createTaskAttemptContext(conf, new TaskAttemptID(taskId, 0));
   }
@@ -146,8 +146,8 @@ public final class HadoopFormats {
    *     unable to construct.
    */
   @SuppressWarnings("unchecked")
-  public static <KeyT, ValueT> OutputFormat<KeyT, ValueT> createOutputFormatFromConfig(
-      Configuration conf) throws IllegalArgumentException {
+  static <KeyT, ValueT> OutputFormat<KeyT, ValueT> createOutputFormatFromConfig(Configuration conf)
+      throws IllegalArgumentException {
     return (OutputFormat<KeyT, ValueT>)
         createInstanceFromConfig(
             conf, MRJobConfig.OUTPUT_FORMAT_CLASS_ATTR, null, OutputFormat.class);
@@ -162,7 +162,7 @@ public final class HadoopFormats {
    * @return new {@link Partitioner}
    */
   @SuppressWarnings("unchecked")
-  public static <KeyT, ValueT> Partitioner<KeyT, ValueT> getPartitioner(Configuration conf) {
+  static <KeyT, ValueT> Partitioner<KeyT, ValueT> getPartitioner(Configuration conf) {
     return (Partitioner<KeyT, ValueT>)
         createInstanceFromConfig(
             conf,
@@ -217,8 +217,14 @@ public final class HadoopFormats {
    * @param conf hadoop {@link Configuration}
    * @return JobID created from {@link Configuration}
    */
-  public static JobID getJobId(Configuration conf) {
-    return new JobID(conf.get(MRJobConfig.ID), DEFAULT_JOB_NUMBER);
+  static JobID getJobId(Configuration conf) {
+    String jobJtIdentifier =
+        Preconditions.checkNotNull(
+            conf.get(MRJobConfig.ID),
+            "Configuration must contain jobID under key \"%s\".",
+            HadoopFormatIO.JOB_ID);
+
+    return new JobID(jobJtIdentifier, DEFAULT_JOB_NUMBER);
   }
 
   /**
@@ -228,7 +234,7 @@ public final class HadoopFormats {
    * @param conf hadoop {@link Configuration}
    * @return configured count of reducers
    */
-  public static int getReducersCount(Configuration conf) {
+  static int getReducersCount(Configuration conf) {
     return conf.getInt(MRJobConfig.NUM_REDUCES, DEFAULT_NUM_REDUCERS);
   }
 }

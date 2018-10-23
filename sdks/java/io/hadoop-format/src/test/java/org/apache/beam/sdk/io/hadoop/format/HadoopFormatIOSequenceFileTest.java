@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -84,8 +83,8 @@ public class HadoopFormatIOSequenceFileTest {
 
   private static final List<String> FIRST_WIN_WORDS = SENTENCES.subList(0, 4);
   private static final List<String> SECOND_WIN_WORDS = SENTENCES.subList(4, 6);
-  public static final Duration WINDOW_DURATION = Duration.standardMinutes(1);
-  public static final SerializableFunction<KV<String, Long>, KV<Text, LongWritable>>
+  private static final Duration WINDOW_DURATION = Duration.standardMinutes(1);
+  private static final SerializableFunction<KV<String, Long>, KV<Text, LongWritable>>
       KV_STR_INT_2_TXT_LONGWRITABLE =
           (KV<String, Long> element) ->
               KV.of(new Text(element.getKey()), new LongWritable(element.getValue()));
@@ -98,14 +97,20 @@ public class HadoopFormatIOSequenceFileTest {
         .collect(Collectors.toMap(Function.identity(), s -> 1L, Long::sum));
   }
 
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule
+  public TemporaryFolder tmpFolder =
+      new TemporaryFolder() {
+        @Override
+        protected void after() {}
+      };
+
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void batchTest() {
 
-    String outputDir = getOutputDirPath();
+    String outputDir = getOutputDirPath("batchTest");
 
     Configuration conf =
         createWriteConf(
@@ -125,8 +130,9 @@ public class HadoopFormatIOSequenceFileTest {
   }
 
   @Test
+  @Category(ValidatesRunner.class)
   public void batchTestWithoutPartitioner() {
-    String outputDir = getOutputDirPath();
+    String outputDir = getOutputDirPath("batchTestWithoutPartitioner");
 
     Configuration conf =
         createWriteConf(
@@ -174,8 +180,8 @@ public class HadoopFormatIOSequenceFileTest {
         .collect(Collectors.toList());
   }
 
-  private String getOutputDirPath() {
-    return Paths.get(tmpFolder.getRoot().getAbsolutePath(), TEST_FOLDER_NAME)
+  private String getOutputDirPath(String testName) {
+    return Paths.get(tmpFolder.getRoot().getAbsolutePath(), TEST_FOLDER_NAME + "/" + testName)
         .toAbsolutePath()
         .toString();
   }
@@ -253,7 +259,7 @@ public class HadoopFormatIOSequenceFileTest {
             .addElements(event(SECOND_WIN_WORDS.get(0), 0L), event(SECOND_WIN_WORDS.get(1), 31L))
             .advanceWatermarkToInfinity();
 
-    String outputDirPath = getOutputDirPath();
+    String outputDirPath = getOutputDirPath("streamTest");
 
     PCollection<KV<Text, LongWritable>> dataToWrite =
         pipeline
@@ -288,7 +294,11 @@ public class HadoopFormatIOSequenceFileTest {
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
     return loadWrittenData(outputDirPath)
         .stream()
-        .collect(Collectors.toMap(kv -> kv.getKey().toString(), kv -> kv.getValue().get()));
+        .collect(
+            Collectors.toMap(
+                kv -> kv.getKey().toString(),
+                kv -> kv.getValue().get(),
+                (first, second) -> first + second));
   }
 
   private <T> TimestampedValue<T> event(T eventValue, Long timestamp) {
