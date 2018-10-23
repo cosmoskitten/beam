@@ -332,9 +332,14 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
-//  dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
-//  dependsOn examplesJavaLegacyWorkerIntegrationTest
-//  dependsOn coreSDKJavaLegacyWorkerIntegrationTest
+  dependsOn googleCloudPlatformLegacyWorkerIntegrationTest
+  dependsOn examplesJavaLegacyWorkerIntegrationTest
+  dependsOn coreSDKJavaLegacyWorkerIntegrationTest
+}
+
+task postCommitFnApi {
+  group = "Verification"
+  description = "Various integration tests using the Dataflow FnApi runner."
   dependsOn googleCloudPlatformFnApiWorkerIntegrationTest
   dependsOn examplesJavaFnApiWorkerIntegrationTest
   dependsOn coreSDKJavaFnApiWorkerIntegrationTest
