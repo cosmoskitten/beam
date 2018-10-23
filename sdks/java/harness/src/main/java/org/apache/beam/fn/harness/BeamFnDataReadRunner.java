@@ -55,7 +55,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data to all
  * receivers in a specified output map.
@@ -91,7 +90,7 @@ public class BeamFnDataReadRunner<OutputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers, //FnDataReceiver has PcollectionSize and elem count. ajamato
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
@@ -196,7 +195,7 @@ public class BeamFnDataReadRunner<OutputT> {
         break;
       }
       if (readFuture.isDone()) {
-        // Note SynchronousQueue does not have a valid implementation for:
+        // SynchronousQueue does not have a valid implementation for:
         // peek, take, size, remainingCapacity, isEmpty. So these cannot be used
         // for draining.
         // Instead, poll once more, until we fail, which addresses a potential race

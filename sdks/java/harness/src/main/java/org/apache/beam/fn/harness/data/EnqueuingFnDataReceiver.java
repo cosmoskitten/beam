@@ -21,10 +21,8 @@ package org.apache.beam.fn.harness.data;
 import java.util.concurrent.SynchronousQueue;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
-
 /**
- * A {@link FnDataReceiver} which forwards all received inputs to a collection of {@link
- * FnDataReceiver receivers}.
+ * A {@link FnDataReceiver} which forwards all received inputs to a SynchronousQueue.
  */
 public class EnqueuingFnDataReceiver<T> implements FnDataReceiver<T> {
 
