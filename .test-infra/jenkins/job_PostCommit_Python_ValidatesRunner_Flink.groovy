@@ -29,6 +29,21 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+          delegate,
+          'Python ValidatesRunner Flink',
+          "Run Python ValidatesRunner Flink")
+
+  parameters {
+    nodeParam('TEST_HOST') {
+      description("Select test host beam6")
+      defaultNodes('beam6')
+      allowedNodes('beam6')
+      trigger('multiSelectionDisallowed')
+      eligibility('IgnoreOfflineNodeEligibility')
+    }
+  }
+
   // Execute gradle task to test Python Flink Portable Runner.
   steps {
     gradle {
