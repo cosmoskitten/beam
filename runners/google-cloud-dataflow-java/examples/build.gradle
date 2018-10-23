@@ -22,9 +22,16 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(publish: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
-evaluationDependsOn(":beam-examples-java")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-legacy-worker")
-evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+def evaluationDependsOnList = [
+  ":beam-examples-java",
+  ":beam-runners-google-cloud-dataflow-java-legacy-worker",
+  ":beam-runners-google-cloud-dataflow-java-fn-api-worker",
+  ":beam-sdks-java-container",
+]
+
+evaluationDependsOnList.each {
+  evaluationDependsOn it
+}
 
 configurations { dataflowRunnerPreCommit }
 
@@ -36,9 +43,11 @@ dependencies {
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
-def dockerImageRoot = "us.gcr.io/${gcpProject}/java-examples-it"
+def dockerImageRoot = project.findProperty('dockerImageRoot')?: "us.gcr.io/${gcpProject}/java-examples-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
+def dockerImageName = "${dockerImageContainer}:${dockerTag}"
+def defaultDockerImageName = containerImageName(name: "java")
 
 task preCommitLegacyWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
@@ -61,13 +70,16 @@ task preCommitLegacyWorker(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
 }
 
-project.rootProject.ext.set("docker-repository-root", "${dockerImageRoot}")
-project.rootProject.ext.set("docker-tag","${dockerTag}")
-evaluationDependsOn(":beam-sdks-java-container")
-
-task buildAndPushDockerContainer(type:Exec) {
+task buildAndPushDockerContainer() {
   dependsOn ":beam-sdks-java-container:docker"
-  commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+    }
+  }
 }
 
 task preCommitFnApiWorker(type: Test) {
@@ -80,7 +92,7 @@ task preCommitFnApiWorker(type: Test) {
           "--tempRoot=${gcsTempRoot}",
           "--runner=TestDataflowRunner",
           "--dataflowWorkerJar=${dataflowWorkerJar}",
-          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+          "--workerHarnessContainerImage=${dockerImageName}",
           "--experiments=beam_fn_api",
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
