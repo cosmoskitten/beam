@@ -24,7 +24,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.hadoop.format.synchronization.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.inputformat.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.TestEmployeeDataSet;
 import org.apache.beam.sdk.testing.TestPipeline;

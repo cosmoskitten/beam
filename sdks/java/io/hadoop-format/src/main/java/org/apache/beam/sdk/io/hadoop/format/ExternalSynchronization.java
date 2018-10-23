@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.hadoop.format.synchronization;
+package org.apache.beam.sdk.io.hadoop.format;
 
 import java.io.Serializable;
 import org.apache.hadoop.conf.Configuration;
