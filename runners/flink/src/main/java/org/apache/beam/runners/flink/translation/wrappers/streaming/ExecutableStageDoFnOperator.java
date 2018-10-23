@@ -168,6 +168,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         @SuppressWarnings("unused")
             AutoCloseable closable = stageContext) {
       // DoFnOperator generates another "bundle" for the final watermark
+      // https://issues.apache.org/jira/browse/BEAM-5816
       super.dispose();
     }
     stageContext = null;
