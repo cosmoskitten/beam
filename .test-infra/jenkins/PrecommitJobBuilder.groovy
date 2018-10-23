@@ -103,10 +103,10 @@ class PrecommitJobBuilder {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
           commonJobProperties.setGradleSwitches(delegate)
-	  if (nameBase == 'Java') {
+          if (nameBase == 'Java') {
             // BEAM-5035: Parallel builds are very flaky
             switches('--no-parallel')
-	  }
+          }
         }
       }
     }
