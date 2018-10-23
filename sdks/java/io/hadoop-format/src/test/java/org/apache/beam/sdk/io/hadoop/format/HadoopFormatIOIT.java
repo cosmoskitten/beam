@@ -29,6 +29,7 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+import org.apache.beam.sdk.io.hadoop.format.synchronization.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.inputformat.TestRowDBWritable;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.testing.PAssert;
@@ -145,7 +146,7 @@ public class HadoopFormatIOIT {
                 .withConfiguration(hadoopConfiguration.get())
                 .withPartitioning()
                 .withExternalSynchronization(
-                    new HadoopFormatIO.HDFSSynchronization(tmpFolder.getRoot().getAbsolutePath())));
+                    new HDFSSynchronization(tmpFolder.getRoot().getAbsolutePath())));
 
     writePipeline.run().waitUntilFinish();
 

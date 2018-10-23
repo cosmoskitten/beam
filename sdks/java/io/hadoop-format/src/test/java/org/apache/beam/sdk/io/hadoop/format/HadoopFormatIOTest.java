@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.hadoop.format.synchronization.HDFSSynchronization;
 import org.apache.beam.sdk.io.hadoop.inputformat.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.TestEmployeeDataSet;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -91,7 +92,7 @@ public class HadoopFormatIOTest {
     HadoopFormatIO.<Text, Employee>write()
         .withConfiguration(null)
         .withPartitioning()
-        .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
+        .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath()));
   }
 
   /**
@@ -109,7 +110,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.<Text, Employee>write()
             .withConfiguration(configuration)
             .withPartitioning()
-            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath()));
 
     p.apply(Create.of(TestEmployeeDataSet.getEmployeeData()))
         .setTypeDescriptor(
@@ -151,8 +152,7 @@ public class HadoopFormatIOTest {
             HadoopFormatIO.<Text, Employee>write()
                 .withConfiguration(configuration)
                 .withPartitioning()
-                .withExternalSynchronization(
-                    new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
+                .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
   }
 
   /**
@@ -212,8 +212,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.<Text, Employee>write()
             .withConfiguration(conf)
             .withPartitioning()
-            .withExternalSynchronization(
-                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
     p.run();
 
     List<KV<Text, Employee>> writtenOutput = EmployeeOutputFormat.getWrittenOutput();
@@ -246,8 +245,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.<String, Employee>write()
             .withConfiguration(conf)
             .withPartitioning()
-            .withExternalSynchronization(
-                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
     p.run().waitUntilFinish();
   }
 
@@ -270,8 +268,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.<Text, Text>write()
             .withConfiguration(conf)
             .withPartitioning()
-            .withExternalSynchronization(
-                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
 
     p.run().waitUntilFinish();
   }
@@ -287,7 +284,7 @@ public class HadoopFormatIOTest {
         HadoopFormatIO.<String, String>write()
             .withConfiguration(conf)
             .withPartitioning()
-            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath()));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath()));
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(
