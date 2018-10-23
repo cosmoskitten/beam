@@ -94,9 +94,11 @@ task preCommitFnApiWorker(type: Test) {
           "--dataflowWorkerJar=${dataflowWorkerJar}",
           "--workerHarnessContainerImage=${dockerImageName}",
           "--experiments=beam_fn_api",
+          "--defaultWorkerLogLevel=DEBUG",
+          "--maxNumWorkers=1"
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
-  include "**/WordCountIT.class"
+//  include "**/WordCountIT.class"
   include "**/WindowedWordCountIT.class"
   forkEvery 1
   maxParallelForks 4
