@@ -1,8 +1,8 @@
 package org.apache.beam.sdk.io.hadoop.format;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Random;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -24,9 +24,10 @@ public class HDFSSynchronization implements ExternalSynchronization {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HDFSSynchronization.class);
 
-  private static final String LOCKS_DIR_TASK_PATTERN = "%s";
+  private static final String LOCKS_DIR_PATTERN = "%s/";
+  private static final String LOCKS_DIR_TASK_PATTERN = LOCKS_DIR_PATTERN + "%s";
   private static final String LOCKS_DIR_TASK_ATTEMPT_PATTERN = LOCKS_DIR_TASK_PATTERN + "_%s";
-  private static final String LOCKS_DIR_JOB_FILENAME = "_job";
+  private static final String LOCKS_DIR_JOB_FILENAME = LOCKS_DIR_PATTERN + "_job";
 
   private static final transient Random RANDOM_GEN = new Random();
 
@@ -46,14 +47,14 @@ public class HDFSSynchronization implements ExternalSynchronization {
 
   @Override
   public boolean tryAcquireJobLock(Configuration conf) {
-    Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
+    Path path = new Path(locksDir, String.format(LOCKS_DIR_JOB_FILENAME, getJobJtIdentifier(conf)));
 
     return tryCreateFile(conf, path);
   }
 
   @Override
   public void releaseJobIdLock(Configuration conf) {
-    Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
+    Path path = new Path(locksDir, String.format(LOCKS_DIR_JOB_FILENAME, getJobJtIdentifier(conf)));
 
     try {
       if (FileSystem.get(conf).delete(path, true)) {
@@ -78,7 +79,10 @@ public class HDFSSynchronization implements ExternalSynchronization {
 
     while (!lockAcquired) {
       taskIdCandidate = RANDOM_GEN.nextInt(Integer.MAX_VALUE);
-      Path path = new Path(locksDir, String.format(LOCKS_DIR_TASK_PATTERN, taskIdCandidate));
+      Path path =
+          new Path(
+              locksDir,
+              String.format(LOCKS_DIR_TASK_PATTERN, getJobJtIdentifier(conf), taskIdCandidate));
       lockAcquired = tryCreateFile(conf, path);
     }
 
@@ -87,6 +91,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
 
   @Override
   public TaskAttemptID acquireTaskAttemptIdLock(Configuration conf, int taskId) {
+    String jobJtIdentifier = getJobJtIdentifier(conf);
     JobID jobId = HadoopFormats.getJobId(conf);
     int taskAttemptCandidate = 0;
     boolean taskAttemptAcquired = false;
@@ -96,7 +101,8 @@ public class HDFSSynchronization implements ExternalSynchronization {
       Path path =
           new Path(
               locksDir,
-              String.format(LOCKS_DIR_TASK_ATTEMPT_PATTERN, taskId, taskAttemptCandidate));
+              String.format(
+                  LOCKS_DIR_TASK_ATTEMPT_PATTERN, jobJtIdentifier, taskId, taskAttemptCandidate));
       taskAttemptAcquired = tryCreateFile(conf, path);
     }
 
@@ -116,5 +122,14 @@ public class HDFSSynchronization implements ExternalSynchronization {
     } catch (IOException e) {
       throw new IllegalStateException(String.format("Creation of file on path %s failed", path), e);
     }
+  }
+
+  private String getJobJtIdentifier(Configuration conf) {
+    JobID job =
+        Preconditions.checkNotNull(
+            HadoopFormats.getJobId(conf),
+            "Configuration must contain jobID under key %s.",
+            HadoopFormatIO.JOB_ID);
+    return job.getJtIdentifier();
   }
 }
