@@ -18,20 +18,17 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.io.hadoop.format.synchronization.ExternalSynchronization;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -51,8 +48,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.MRJobConfig;
@@ -156,14 +151,6 @@ public class HadoopFormatIO {
   /** {@link MRJobConfig#MAPREDUCE_JOB_DIR}. */
   public static final String OUTPUT_DIR = FileOutputFormat.OUTDIR;
 
-  /** Default "reduce" function for extraction of one Configuration. */
-  public static final Combine.IterableCombineFn<Configuration> DEFAULT_CONFIG_COMBINE_FN =
-      Combine.IterableCombineFn.of(
-          (configurations) -> {
-            Iterable<Configuration> filtered = Iterables.filter(configurations, Objects::nonNull);
-            return Iterables.getFirst(filtered, null);
-          });
-
   /**
    * Creates an {@link Write.Builder} for creation of Write Transformation. Before creation of the
    * transformation, chain of builders must be set.
@@ -174,150 +161,6 @@ public class HadoopFormatIO {
    */
   public static <KeyT, ValueT> Write.Builder<KeyT, ValueT> write() {
     return new Write.Builder<>();
-  }
-
-  /**
-   * Provides mechanism for acquiring locks related to the job. Serves as source of unique events
-   * among the job.
-   */
-  interface ExternalSynchronization extends Serializable {
-
-    /**
-     * Tries to acquire lock for given job.
-     *
-     * @param conf configuration bounded with given job.
-     * @return {@code true} if the lock was acquired, {@code false} otherwise.
-     */
-    boolean tryAcquireJobLock(Configuration conf);
-
-    /**
-     * Deletes lock ids bounded with given job if any exists.
-     *
-     * @param conf hadoop configuration of given job.
-     */
-    void releaseJobIdLock(Configuration conf);
-
-    /**
-     * Creates {@link TaskID} with unique id among given job.
-     *
-     * @param conf hadoop configuration of given job.
-     * @return {@link TaskID} with unique id among given job.
-     */
-    TaskID acquireTaskIdLock(Configuration conf);
-
-    /**
-     * Creates unique {@link TaskAttemptID} for given taskId.
-     *
-     * @param conf configuration of given task and job
-     * @param taskId id of the task
-     * @return Unique {@link TaskAttemptID} for given taskId.
-     */
-    TaskAttemptID acquireTaskAttemptIdLock(Configuration conf, int taskId);
-  }
-
-  /**
-   * Implementation of {@link ExternalSynchronization} which registers locks in the HDFS. Requires
-   *
-   * <p>{@code locksDir} to be specified. This directory MUST be different that directory which is
-   * possibly stored under {@code "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise
-   * setup of job will fail because the directory will exist before job setup.
-   */
-  public static class HDFSSynchronization implements ExternalSynchronization {
-
-    private static final String LOCKS_DIR_TASK_PATTERN = "%s";
-    private static final String LOCKS_DIR_TASK_ATTEMPT_PATTERN = LOCKS_DIR_TASK_PATTERN + "_%s";
-    private static final String LOCKS_DIR_JOB_FILENAME = "_job";
-
-    private static final transient Random RANDOM_GEN = new Random();
-
-    private final String locksDir;
-
-    /**
-     * Creates instance of {@link HDFSSynchronization}.
-     *
-     * @param locksDir directory where locks will be stored. This directory MUST be different that
-     *     directory which is possibly stored under {@code
-     *     "mapreduce.output.fileoutputformat.outputdir"} key. Otherwise setup of job will fail
-     *     because the directory will exist before job setup.
-     */
-    public HDFSSynchronization(String locksDir) {
-      this.locksDir = locksDir;
-    }
-
-    @Override
-    public boolean tryAcquireJobLock(Configuration conf) {
-      Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
-
-      return tryCreateFile(conf, path);
-    }
-
-    @Override
-    public void releaseJobIdLock(Configuration conf) {
-      Path path = new Path(locksDir, LOCKS_DIR_JOB_FILENAME);
-
-      try {
-        if (FileSystem.get(conf).delete(path, true)) {
-          LOGGER.info("Delete of lock directory {} was successful", path);
-        } else {
-          LOGGER.warn("Delete of lock directory {} was unsuccessful", path);
-        }
-
-      } catch (IOException e) {
-        String formattedExceptionMessage =
-            String.format("Delete of lock directory %s was unsuccessful", path);
-        LOGGER.warn(formattedExceptionMessage, e);
-        throw new IllegalStateException(formattedExceptionMessage, e);
-      }
-    }
-
-    @Override
-    public TaskID acquireTaskIdLock(Configuration conf) {
-      JobID jobId = HadoopFormats.getJobId(conf);
-      boolean lockAcquired = false;
-      int taskIdCandidate = 0;
-
-      while (!lockAcquired) {
-        taskIdCandidate = RANDOM_GEN.nextInt(Integer.MAX_VALUE);
-        Path path = new Path(locksDir, String.format(LOCKS_DIR_TASK_PATTERN, taskIdCandidate));
-        lockAcquired = tryCreateFile(conf, path);
-      }
-
-      return HadoopFormats.createTaskID(jobId, taskIdCandidate);
-    }
-
-    @Override
-    public TaskAttemptID acquireTaskAttemptIdLock(Configuration conf, int taskId) {
-      JobID jobId = HadoopFormats.getJobId(conf);
-      int taskAttemptCandidate = 0;
-      boolean taskAttemptAcquired = false;
-
-      while (!taskAttemptAcquired) {
-        taskAttemptCandidate++;
-        Path path =
-            new Path(
-                locksDir,
-                String.format(LOCKS_DIR_TASK_ATTEMPT_PATTERN, taskId, taskAttemptCandidate));
-        taskAttemptAcquired = tryCreateFile(conf, path);
-      }
-
-      return HadoopFormats.createTaskAttemptID(jobId, taskId, taskAttemptCandidate);
-    }
-
-    private boolean tryCreateFile(Configuration conf, Path path) {
-      try {
-        FileSystem fileSystem = FileSystem.get(conf);
-
-        try {
-          return fileSystem.createNewFile(path);
-        } catch (FileAlreadyExistsException | org.apache.hadoop.fs.FileAlreadyExistsException e) {
-          return false;
-        }
-
-      } catch (IOException e) {
-        throw new IllegalStateException(
-            String.format("Creation of file on path %s failed", path), e);
-      }
-    }
   }
 
   /**
@@ -428,7 +271,7 @@ public class HadoopFormatIO {
        *
        * @return WriteBuilder for write transformation
        */
-      ExternallySynchrnoizedBuilder<KeyT, ValueT> withPartitioning();
+      ExternalSynchronizationBuilder<KeyT, ValueT> withPartitioning();
 
       /**
        * Writes to the sink without need to partition output into specified number of partitions.
@@ -442,7 +285,7 @@ public class HadoopFormatIO {
        *
        * @return WriteBuilder for write transformation
        */
-      ExternallySynchrnoizedBuilder withoutPartitioning();
+      ExternalSynchronizationBuilder withoutPartitioning();
     }
 
     /**
@@ -451,7 +294,7 @@ public class HadoopFormatIO {
      * @param <KeyT> Key type to write
      * @param <ValueT> Value type to write
      */
-    public interface ExternallySynchrnoizedBuilder<KeyT, ValueT> {
+    public interface ExternalSynchronizationBuilder<KeyT, ValueT> {
 
       /**
        * Specifies class which will provide external synchronization required for hadoop write
@@ -501,7 +344,7 @@ public class HadoopFormatIO {
        * @throws NullPointerException when {@code configurationTransformation} is {@code null}
        * @see HadoopFormatIO for required hadoop {@link Configuration} properties
        */
-      ExternallySynchrnoizedBuilder withConfigurationTransform(
+      ExternalSynchronizationBuilder withConfigurationTransform(
           PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
               configTransform);
     }
@@ -515,7 +358,7 @@ public class HadoopFormatIO {
     static class Builder<KeyT, ValueT>
         implements WriteBuilder<KeyT, ValueT>,
             PartitionedWriterBuilder<KeyT, ValueT>,
-            ExternallySynchrnoizedBuilder<KeyT, ValueT> {
+            ExternalSynchronizationBuilder<KeyT, ValueT> {
 
       private Configuration configuration;
       private PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
@@ -531,7 +374,7 @@ public class HadoopFormatIO {
       }
 
       @Override
-      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withConfigurationTransform(
+      public ExternalSynchronizationBuilder<KeyT, ValueT> withConfigurationTransform(
           PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
               configTransform) {
         checkNotNull(configTransform, "Configuration transformation cannot be null");
@@ -540,13 +383,13 @@ public class HadoopFormatIO {
       }
 
       @Override
-      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withPartitioning() {
+      public ExternalSynchronizationBuilder<KeyT, ValueT> withPartitioning() {
         this.isWithPartitioning = true;
         return this;
       }
 
       @Override
-      public ExternallySynchrnoizedBuilder<KeyT, ValueT> withoutPartitioning() {
+      public ExternalSynchronizationBuilder<KeyT, ValueT> withoutPartitioning() {
         this.isWithPartitioning = false;
         return this;
       }

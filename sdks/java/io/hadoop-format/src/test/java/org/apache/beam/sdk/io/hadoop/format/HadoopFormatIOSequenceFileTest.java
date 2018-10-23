@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.hadoop.format.synchronization.HDFSSynchronization;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
@@ -60,6 +62,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests {@link HadoopFormatIO} output with batch and stream pipeline. */
@@ -99,6 +102,7 @@ public class HadoopFormatIOSequenceFileTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
+  @Category(NeedsRunner.class)
   public void batchTest() {
 
     String outputDir = getOutputDirPath();
@@ -116,7 +120,7 @@ public class HadoopFormatIOSequenceFileTest {
         HadoopFormatIO.<Text, LongWritable>write()
             .withConfiguration(conf)
             .withPartitioning()
-            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())),
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())),
         outputDir);
   }
 
@@ -137,7 +141,7 @@ public class HadoopFormatIOSequenceFileTest {
         HadoopFormatIO.<Text, LongWritable>write()
             .withConfiguration(conf)
             .withoutPartitioning()
-            .withExternalSynchronization(new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())),
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())),
         outputDir);
   }
 
@@ -270,8 +274,7 @@ public class HadoopFormatIOSequenceFileTest {
     dataToWrite.apply(
         HadoopFormatIO.<Text, LongWritable>write()
             .withConfigurationTransform(configurationTransformation)
-            .withExternalSynchronization(
-                new HadoopFormatIO.HDFSSynchronization(getLocksDirPath())));
+            .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
 
     pipeline.run().waitUntilFinish();
 
@@ -318,29 +321,6 @@ public class HadoopFormatIOSequenceFileTest {
       return super.getOutputTypeDescriptor();
     }
   }
-
-  //  private static class ConfigProvider<KeyT, ValueT> extends DoFn<KV<KeyT, ValueT>,
-  // Configuration> {
-  //
-  //    private String outputDirPath;
-  //    private Class<?> keyClass;
-  //    private Class<?> valueClass;
-  //
-  //    ConfigProvider(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {
-  //      this.outputDirPath = outputDirPath;
-  //      this.keyClass = keyClass;
-  //      this.valueClass = valueClass;
-  //    }
-  //
-  //    @DoFn.ProcessElement
-  //    public void processElement(OutputReceiver<Configuration> receiver) {
-  //
-  //      receiver.output(
-  //          createWriteConf(
-  //              SequenceFileOutputFormat.class, keyClass, valueClass, outputDirPath,
-  // REDUCERS_COUNT));
-  //    }
-  //  }
 
   private static class ConfigTransform<KeyT, ValueT>
       extends PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
