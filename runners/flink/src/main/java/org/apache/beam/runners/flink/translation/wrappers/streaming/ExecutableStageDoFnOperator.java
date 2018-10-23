@@ -67,13 +67,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This operator is the streaming equivalent of the
- * {@link org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}.
- * It sends all received elements to the SDK harness and emits the received back elements
- * to the downstream operators. It also takes care of handling side inputs and state.
+ * This operator is the streaming equivalent of the {@link
+ * org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction}. It sends all
+ * received elements to the SDK harness and emits the received back elements to the downstream
+ * operators. It also takes care of handling side inputs and state.
  *
- * TODO Integrate support for timers
- * TODO Integrate support for progress updates and metrics
+ * <p>TODO Integrate support for timers
+ *
+ * <p>TODO Integrate support for progress updates and metrics
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
 
