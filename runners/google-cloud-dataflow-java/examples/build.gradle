@@ -106,7 +106,10 @@ task preCommitFnApiWorker(type: Test) {
   }
 }
 
-task preCommit() {
+task preCommit () {
   dependsOn preCommitLegacyWorker
+}
+
+task preCommitFnApi () {
   dependsOn preCommitFnApiWorker
 }
