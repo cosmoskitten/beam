@@ -179,10 +179,12 @@ import org.slf4j.LoggerFactory;
  * Write#withMaxNumMutations(long) withMaxNumMutations()}. Setting either to a small value or zero
  * disables batching.
  *
- * <p>Note that the maximum size of a single transaction is 20,000 mutated cells - including cells
- * in indexes. If you have a large number of indexes and are getting exceptions with message:
- * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt> you will need to specify a
- * smaller number of {@code MaxNumMutations}.
+ * <p>Note that the <a
+ * href="https://cloud.google.com/spanner/quotas#limits_for_creating_reading_updating_and_deleting_data">maximum
+ * size of a single transaction</a> is 20,000 mutated cells - including cells in indexes. If you
+ * have a large number of indexes and are getting exceptions with message: <tt>INVALID_ARGUMENT: The
+ * transaction contains too many mutations</tt> you will need to specify a smaller number of {@code
+ * MaxNumMutations}.
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
  * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
@@ -196,25 +198,28 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Database Schema Preparation</h3>
  *
- * <p>The write transform reads the database schema on pipeline start. If the schema is created as
- * part of the same pipeline, this transform needs to wait until the schema has been created. Use
- * {@link Write#withSchemaReadySignal(PCollection)} to pass a {@link PCollection} which will be used
- * with {@link Wait#on(PCollection[])} to prevent the schema from being read until it is ready.
+ * <p>The Write transform reads the database schema on pipeline start. If the schema is created as
+ * part of the same pipeline, this transform needs to wait until this has happened. Use {@link
+ * Write#withSchemaReadySignal(PCollection)} to pass a signal {@link PCollection} which will be used
+ * with {@link Wait.OnSignal} to prevent the schema from being read until it is ready. The Write
+ * transform will be paused until the signal {@link PCollection} is closed.
  *
  * <h3>Transactions</h3>
  *
  * <p>The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
  *
  * <ul>
- *   <li>Mutations are not submitted atomically;
- *   <li>A mutation is applied at least once;
+ *   <li>Individual Mutations are submitted atomically, but all Mutations are not submitted in the
+ *       same transaction.
+ *   <li>A Mutation is applied at least once;
  *   <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
  *       rolled back.
  * </ul>
  *
  * <p>Use {@link MutationGroup MutationGroups} with the {@link WriteGrouped} transform to ensure
  * that a small set mutations is bundled together. It is guaranteed that mutations in a {@link
- * MutationGroup} are submitted in the same transaction.
+ * MutationGroup} are submitted in the same transaction. Note that a MutationGroup must not exceed
+ * the Spanner transaction limits.
  *
  * <pre>{@code
  * // Earlier in the pipeline, create a PCollection of MutationGroups to be written to Cloud Spanner.
@@ -228,7 +233,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Streaming Support</h3>
  *
  * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
- * the write order of individual {@link MutationGroup} objects is not guaranteed.
+ * the write order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
@@ -807,7 +812,9 @@ public class SpannerIO {
       return new WriteGrouped(this);
     }
 
-    /** Specifies the batch size limit (max number of bytes mutated per batch). */
+    /**
+     * Specifies the batch size limit (max number of bytes mutated per batch). Default value is 1MB
+     */
     public Write withBatchSizeBytes(long batchSizeBytes) {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
     }
@@ -817,24 +824,33 @@ public class SpannerIO {
       return toBuilder().setFailureMode(failureMode).build();
     }
 
-    /** Specifies the cell mutation limit (maxumum number of mutated cells per batch). */
+    /**
+     * Specifies the cell mutation limit (maximum number of mutated cells per batch). Default value
+     * is 5000
+     */
     public Write withMaxNumMutations(long maxNumMutations) {
       return toBuilder().setMaxNumMutations(maxNumMutations).build();
     }
 
     /**
-     * Specifies an input PCollection that can be used with a {@code Wait.on(signal)} to indicate
-     * when the database schema is ready. To be used when the schema creation is part of the
-     * pipeline to prevent the connector reading the schema too early.
+     * Specifies an optional input PCollection that can be used as the signal for {@link
+     * Wait.OnSignal} to indicate when the database schema is ready to be read.
+     *
+     * <p>To be used when the database schema is created by another section of the pipeline, this
+     * causes this transform to wait until the {@code signal PCollection} has been closed before
+     * reading the schema from the database.
+     *
+     * @see Wait.OnSignal
      */
     public Write withSchemaReadySignal(PCollection signal) {
       return toBuilder().setSchemaReadySignal(signal).build();
     }
 
     /**
-     * Specifies the multiple of max mutation size that is used to select a set of mutations to sort
-     * by key for batching. This uses local disk on the workers, so large values can cause out of
-     * space errors.
+     * Specifies the multiple of max mutation (in terms of both bytes per batch and cells per batch)
+     * that is used to select a set of mutations to sort by key for batching. This sort uses local
+     * memory on the workers, so using large values can cause out of memory errors. Default value is
+     * 1000.
      */
     public Write withGroupingFactor(int groupingFactor) {
       return toBuilder().setGroupingFactor(groupingFactor).build();
