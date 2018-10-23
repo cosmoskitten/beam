@@ -59,7 +59,6 @@ dependencies {
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow project(path: ":beam-vendor-java-grpc-v1", configuration: "shadow")
