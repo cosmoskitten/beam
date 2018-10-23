@@ -25,10 +25,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.io.hadoop.format.synchronization.ExternalSynchronization;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -77,7 +77,7 @@ import org.slf4j.LoggerFactory;
  * {@link OutputFormat} classes, but the following properties must be set for all OutputFormats:
  *
  * <ul>
- *   <li>{@code mapreduce.job.id}: The of the write job. E.g.: end timestamp of window.
+ *   <li>{@code mapreduce.job.id}: The identifier of the write job. E.g.: end timestamp of window.
  *   <li>{@code mapreduce.job.outputformat.class}: The {@link OutputFormat} class used to connect to
  *       your data sink of choice.
  *   <li>{@code mapreduce.job.output.key.class}: The key class passed to the {@link OutputFormat} in
@@ -118,12 +118,41 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing using {@link HadoopFormatIO}</h3>
  *
+ * <h4>Batch writing</h4>
+ *
  * <pre>{@code
- * Pipeline p = ...; // Create pipeline.
- * // Read data only with Hadoop configuration.
- * p.apply("read",
- *     HadoopFormatIO.<OutputFormatKeyClass, OutputFormatKeyClass>write()
- *              .withConfiguration(myHadoopConfiguration);
+ * //Data which will we want to write
+ * PCollection<KV<Text, LongWritable>> boundedWordsCount = ...
+ *
+ * //Hadoop configuration for write
+ * //We have partitioned write, so Partitioner and reducers count have to be set - see withPartitioning() javadoc
+ * Configuration myHadoopConfiguration = ...
+ * //path to directory with locks
+ * String locksDirPath = ...;
+ *
+ * boundedWordsCount.apply(
+ *     "writeBatch",
+ *     HadoopFormatIO.<Text, LongWritable>write()
+ *         .withConfiguration(myHadoopConfiguration)
+ *         .withPartitioning()
+ *         .withExternalSynchronization(new HDFSSynchronization(locksDirPath)));
+ * }</pre>
+ *
+ * <h4>Stream writing</h4>
+ *
+ * <pre>{@code
+ *    // Data which will we want to write
+ *   PCollection<KV<Text, LongWritable>> unboundedWordsCount = ...;
+ *   // Transformation which transforms data of one window into one hadoop configuration
+ *   PTransform<PCollection<? extends KV<Text, LongWritable>>, PCollectionView<Configuration>>
+ *       configTransform = ...;
+ *
+ *   unboundedWordsCount.apply(
+ *       "writeStream",
+ *       HadoopFormatIO.<Text, LongWritable>write()
+ *           .withConfigurationTransform(configTransform)
+ *           .withExternalSynchronization(new HDFSSynchronization(locksDirPath)));
+ * }
  * }</pre>
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -159,7 +188,7 @@ public class HadoopFormatIO {
    * @param <ValueT> Type of values to be written.
    * @return Write builder
    */
-  public static <KeyT, ValueT> Write.Builder<KeyT, ValueT> write() {
+  public static <KeyT, ValueT> Write.WriteBuilder<KeyT, ValueT> write() {
     return new Write.Builder<>();
   }
 
@@ -591,10 +620,6 @@ public class HadoopFormatIO {
     private OutputFormat<KeyT, ValueT> outputFormatObj;
     private TaskAttemptContext taskAttemptContext;
 
-    TaskContext(int taskId, Configuration conf) {
-      this(HadoopFormats.createTaskAttemptID(HadoopFormats.getJobId(conf), taskId, 0), conf);
-    }
-
     TaskContext(TaskAttemptID taskAttempt, Configuration conf) {
       taskAttemptContext = HadoopFormats.createTaskAttemptContext(conf, taskAttempt);
       outputFormatObj = HadoopFormats.createOutputFormatFromConfig(conf);
@@ -714,7 +739,7 @@ public class HadoopFormatIO {
     private TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor;
     private boolean isSetupJobAttempted;
 
-    public SetupJobFn(
+    SetupJobFn(
         ExternalSynchronization externalSynchronization,
         PCollectionView<Configuration> configView,
         TypeDescriptor<KV<KeyT, ValueT>> inputTypeDescriptor) {
@@ -903,7 +928,6 @@ public class HadoopFormatIO {
       extends DoFn<KV<KeyT, ValueT>, KV<Integer, KV<KeyT, ValueT>>> {
 
     private PCollectionView<Configuration> configView;
-    private ExternalSynchronization externalSynchronization;
 
     // Transient properties because they are used only for one bundle
     /** Cache of created TaskIDs for given bundle. */
@@ -1054,7 +1078,7 @@ public class HadoopFormatIO {
         }
 
         BoundedWindow window = entry.getKey().getKey();
-        c.output(taskContext.getTaskId(), window.maxTimestamp(), window);
+        c.output(taskContext.getTaskId(), Objects.requireNonNull(window).maxTimestamp(), window);
       }
     }
 

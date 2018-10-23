@@ -1,8 +1,8 @@
-package org.apache.beam.sdk.io.hadoop.format.synchronization;
+package org.apache.beam.sdk.io.hadoop.format;
 
 import java.io.IOException;
 import java.util.Random;
-import org.apache.beam.sdk.io.hadoop.format.HadoopFormats;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
