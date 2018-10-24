@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -135,6 +136,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.contextFactory = contextFactory;
     this.outputMap = outputMap;
     this.sideInputIds = sideInputIds;
+
+    // Never chain because chaining could break concurrent element processing and state access
+    setChainingStrategy(ChainingStrategy.NEVER);
   }
 
   @Override
