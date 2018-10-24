@@ -253,6 +253,10 @@ task communityMetricsPreCommit() {
   dependsOn ":beam-test-infra-metrics:preCommit"
 }
 
+task communityMetricsProber() {
+  dependsOn ":beam-test-infra-metrics:checkProber"
+}
+
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
   dependsOn ":beam-sdks-python:dependencyUpdates"
