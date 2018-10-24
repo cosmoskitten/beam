@@ -130,19 +130,14 @@ class SplittableRemoteStageEvaluatorFactory implements TransformEvaluatorFactory
                   BundleFactoryOutputReceiverFactory.create(
                       bundleFactory, stage.getComponents(), outputs::add),
                   StateRequestHandler.unsupported(),
+                  // TODO: Wire in splitting via a split listener
                   new BundleProgressHandler() {
                     @Override
                     public void onProgress(ProcessBundleProgressResponse progress) {
-                      if (progress.hasSplit()) {
-                        feeder.split(progress.getSplit());
-                      }
                     }
 
                     @Override
                     public void onCompleted(ProcessBundleResponse response) {
-                      if (response.hasSplit()) {
-                        feeder.split(response.getSplit());
-                      }
                     }
                   });
       this.mainInput = Iterables.getOnlyElement(bundle.getInputReceivers().values());

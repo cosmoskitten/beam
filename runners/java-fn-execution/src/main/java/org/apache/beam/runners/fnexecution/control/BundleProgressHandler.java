@@ -33,21 +33,15 @@ public interface BundleProgressHandler {
   /** Handles the bundle's completion report. */
   void onCompleted(ProcessBundleResponse response);
 
-  /** Returns a handler that ignores metrics and throws on splits (as splits can not be ignored). */
-  static BundleProgressHandler unsupported() {
+  /** Returns a handler that ignores metrics. */
+  static BundleProgressHandler ignored() {
     return new BundleProgressHandler() {
       @Override
       public void onProgress(ProcessBundleProgressResponse progress) {
-        if (progress.hasSplit()) {
-          throw new UnsupportedOperationException("Splitting not yet supported");
-        }
       }
 
       @Override
       public void onCompleted(ProcessBundleResponse response) {
-        if (response.hasSplit()) {
-          throw new UnsupportedOperationException("Splitting not yet supported");
-        }
       }
     };
   }
