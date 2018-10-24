@@ -33,9 +33,9 @@ artifact includes all Apache Beam Java SDK examples."""
  * for details.
  */
 // TODO: Add apexRunner - https://issues.apache.org/jira/browse/BEAM-3583
-def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
-for (String runner : preCommitRunners) {
-  configurations.create(runner + "PreCommit")
+def runnerPreCommits = ["directRunnerPreCommit", "flinkRunnerPreCommit", "sparkRunnerPreCommit"]
+for (String runnerPreCommit : runnerPreCommits) {
+  configurations.create(runnerPreCommit)
 }
 configurations.sparkRunnerPreCommit {
   // Ban certain dependencies to prevent a StackOverflow within Spark
@@ -70,9 +70,9 @@ dependencies {
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
-  for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadowTest"))
+  for (String runnerPreCommit : runnerPreCommits) {
+    delegate.add(runnerPreCommit, project(path: ":beam-examples-java", configuration: "shadow"))
+    delegate.add(runnerPreCommit, project(path: ":beam-examples-java", configuration: "shadowTest"))
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
   // apexRunnerPreCommit project(path: ":beam-runners-apex", configuration: "shadow")
@@ -91,25 +91,25 @@ dependencies {
  * Create a ${runner}PreCommit task for each runner which runs a set
  * of integration tests for WordCount and WindowedWordCount.
  */
-def preCommitRunnerClass = [
-  apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
-  directRunner: "org.apache.beam.runners.direct.DirectRunner",
-  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
-  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
+def runnerPreCommitClass = [
+  apexRunnerPreCommit: "org.apache.beam.runners.apex.TestApexRunner",
+  directRunnerPreCommit: "org.apache.beam.runners.direct.DirectRunner",
+  flinkRunnerPreCommit: "org.apache.beam.runners.flink.TestFlinkRunner",
+  sparkRunnerPreCommit: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-for (String runner : preCommitRunners) {
-  tasks.create(name: runner + "PreCommit", type: Test) {
+for (String runnerPreCommit : runnerPreCommits) {
+  tasks.create(name: runnerPreCommit, type: Test) {
     def preCommitBeamTestPipelineOptions = [
        "--project=${gcpProject}",
        "--tempRoot=${gcsTempRoot}",
-       "--runner=" + preCommitRunnerClass[runner],
+       "--runner=" + runnerPreCommitClass[runner],
     ]
-    classpath = configurations."${runner}PreCommit"
+    classpath = configurations."${runnerPreCommit}"
     include "**/WordCountIT.class"
-    if (!"sparkRunner".equals(runner)) {
+    if (!"sparkRunnerPreCommit".equals(runnerPreCommit)) {
       include "**/WindowedWordCountIT.class"
     }
     forkEvery 1
@@ -120,8 +120,8 @@ for (String runner : preCommitRunners) {
 
 /* Define a common precommit task which depends on all the individual precommits. */
 task preCommit() {
-  for (String runner : preCommitRunners) {
-    dependsOn runner + "PreCommit"
+  for (String runnerPreCommit : runnerPreCommits) {
+    dependsOn runnerPreCommit
   }
 }
 
