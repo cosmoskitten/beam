@@ -651,7 +651,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   @SqlOperatorTest(name = "COUNT", kind = "COUNT")
   public void testCount() {
     ExpressionChecker checker =
-        new ExpressionChecker().addExpr("COUNT(*)", 4L).addExpr("COUNT(1)", 4L);
+        new ExpressionChecker().addExpr("COUNT(3)", 4L).addExpr("COUNT(1)", 4L);
     checker.buildRunAndCheck(getAggregationTestPCollection());
   }
 
