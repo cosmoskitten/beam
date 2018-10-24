@@ -182,6 +182,8 @@ include "beam-vendor-java-grpc-v1"
 project(":beam-vendor-java-grpc-v1").dir = file("vendor/java-grpc-v1")
 include "beam-vendor-sdks-java-extensions-protobuf"
 project(":beam-vendor-sdks-java-extensions-protobuf").dir = file("vendor/sdks-java-extensions-protobuf")
+include "beam-vendor-guava-20"
+project(":beam-vendor-guava-20").dir = file("vendor/guava-20")
 include "beam-website"
 project(":beam-website").dir = file("website")
 include "beam-runners-google-cloud-dataflow-java-legacy-worker"

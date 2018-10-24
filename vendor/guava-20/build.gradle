@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-apply from: project(':').file('build_rules.gradle')
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 
+description = "Apache Beam :: Vendored Dependencies :: Guava 20"
 
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
 
-description = "Apache Beam :: Vendored Dependencies :: Guava :: 20"
+project.dependencies {
+  compile "com.google.guava:guava:20.0"
+}
 
-vendoredJavaLibrary(
-    project,
-    "com.google.guava:guava:20.0",
-    "guava.v20", [
-        "com.google.common",
-        "com.google.thirdparty"
-    ])
+project.shadowJar {
+  relocate "com.google.common", "org.apache.beam.vendor.guava20.com.google.common"
+  relocate "com.google.thirdparty", "org.apache.beam.vendor.guava20.com.google.thirdparty"
+}
