@@ -407,6 +407,7 @@ public class HadoopFormatIO {
           PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
               configTransform) {
         checkNotNull(configTransform, "Configuration transformation cannot be null");
+        this.isWithPartitioning = true;
         this.configTransform = configTransform;
         return this;
       }
@@ -501,8 +502,6 @@ public class HadoopFormatIO {
      *   <li>Otherwise creation of TaskId via {@link PrepareNonPartitionedTasksFn} where locks are
      *       created for each task id
      *   <li>Writing of {@link KV} records via {@link WriteFn}
-     *   <li>Global collecting of all finished Task Ids (and with locks cleaning via {@link
-     *       FinishNonPartitionedTasksFn} if partitioning is disabled )
      *   <li>Committing of whole job via {@link CommitJobFn}
      * </ul>
      *
@@ -546,19 +545,12 @@ public class HadoopFormatIO {
                       .withoutDefaults())
               .setTypeDescriptor(iterableIntType);
 
-      if (!withPartitioning) {
-        collectedFinishedWrites =
-            collectedFinishedWrites.apply(
-                "FinishNonPartitionedTasks",
-                ParDo.of(new FinishNonPartitionedTasksFn(configView, externalSynchronization))
-                    .withSideInputs(configView));
-      }
-
       return PDone.in(
           collectedFinishedWrites
               .apply(
                   "CommitWriteJob",
-                  ParDo.of(new CommitJobFn<Integer>(configView)).withSideInputs(configView))
+                  ParDo.of(new CommitJobFn<Integer>(configView, externalSynchronization))
+                      .withSideInputs(configView))
               .getPipeline());
     }
 
@@ -701,6 +693,7 @@ public class HadoopFormatIO {
     }
   }
 
+  /** Coder of configuration instances. */
   private static class ConfigurationCoder extends AtomicCoder<Configuration> {
 
     @Override
@@ -880,16 +873,20 @@ public class HadoopFormatIO {
   }
 
   /**
-   * Commits whole write job. This function must be called only once for one write job.
+   * Commits whole write job.
    *
    * @param <T> type of TaskId identifier
    */
   private static class CommitJobFn<T> extends DoFn<Iterable<T>, Void> {
 
-    PCollectionView<Configuration> configView;
+    private PCollectionView<Configuration> configView;
+    private ExternalSynchronization externalSynchronization;
 
-    CommitJobFn(PCollectionView<Configuration> configView) {
+    CommitJobFn(
+        PCollectionView<Configuration> configView,
+        ExternalSynchronization externalSynchronization) {
       this.configView = configView;
+      this.externalSynchronization = externalSynchronization;
     }
 
     @ProcessElement
@@ -905,6 +902,9 @@ public class HadoopFormatIO {
      * @param config hadoop config
      */
     private void cleanupJob(Configuration config) {
+
+      externalSynchronization.releaseJobIdLock(config);
+
       JobID jobID = HadoopFormats.getJobId(config);
       TaskAttemptContext cleanupTaskContext = HadoopFormats.createCleanupTaskContext(config, jobID);
       OutputFormat<?, ?> outputFormat = HadoopFormats.createOutputFormatFromConfig(config);
@@ -1174,28 +1174,6 @@ public class HadoopFormatIO {
       }
 
       output.output(KV.of(taskId.getId(), element));
-    }
-  }
-
-  /** Finishes whole job for writing without hash function. */
-  private static class FinishNonPartitionedTasksFn
-      extends DoFn<Iterable<Integer>, Iterable<Integer>> {
-
-    private final PCollectionView<Configuration> configView;
-    private final ExternalSynchronization externalSynchronization;
-
-    private FinishNonPartitionedTasksFn(
-        PCollectionView<Configuration> configView,
-        ExternalSynchronization externalSynchronization) {
-      this.configView = configView;
-      this.externalSynchronization = externalSynchronization;
-    }
-
-    @ProcessElement
-    public void processElement(@Element Iterable<Integer> finishedTasks, ProcessContext c) {
-      Configuration conf = c.sideInput(configView);
-      externalSynchronization.releaseJobIdLock(conf);
-      c.output(finishedTasks);
     }
   }
 }
