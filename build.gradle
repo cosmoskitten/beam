@@ -245,14 +245,16 @@ task websitePreCommit() {
 }
 
 task communityMetricsPreCommit() {
-  dependsOn ":rat"
   dependsOn ":beam-test-infra-metrics:preCommit"
+}
+
+task communityMetricsProber() {
+  dependsOn ":beam-test-infra-metrics:checkProber"
 }
 
 task javaExamplesDataflowPrecommit() {
   dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
   dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
-}
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
