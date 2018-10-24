@@ -195,8 +195,8 @@ task javaPreCommit() {
 }
 
 task javaPreCommitFnApi() {
-  dependsOn ":rat"
-  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
+//  dependsOn ":rat"
+//  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:build"
   dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommitFnApi"
 }
 
