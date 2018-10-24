@@ -270,8 +270,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   public void setCurrentKey(Object key) {
-    throw new IllegalStateException(
-        "This should never be called. Current key for StateBackend should be set manually.");
+    throw new UnsupportedOperationException(
+        "Current key for state backend can only be set by state requests from SDK workers.");
   }
 
   @Override
