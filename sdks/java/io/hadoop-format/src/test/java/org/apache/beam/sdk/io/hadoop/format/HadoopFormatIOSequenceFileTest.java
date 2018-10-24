@@ -166,7 +166,7 @@ public class HadoopFormatIOSequenceFileTest {
                 new TypeDescriptor<Text>() {}, new TypeDescriptor<LongWritable>() {}))
         .apply(write);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
 
     Map<String, Long> results = loadWrittenDataAsMap(outputDir);
 
@@ -256,7 +256,7 @@ public class HadoopFormatIOSequenceFileTest {
                 event(FIRST_WIN_WORDS.get(1), 25L),
                 event(FIRST_WIN_WORDS.get(2), 18L),
                 event(FIRST_WIN_WORDS.get(3), 28L))
-            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(65)))
+            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(65L)))
             .addElements(event(SECOND_WIN_WORDS.get(0), 61L), event(SECOND_WIN_WORDS.get(1), 63L))
             .advanceWatermarkToInfinity();
 
@@ -283,7 +283,7 @@ public class HadoopFormatIOSequenceFileTest {
             .withConfigurationTransform(configurationTransformation)
             .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())));
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
 
     Map<String, Long> values = loadWrittenDataAsMap(outputDirPath);
 
