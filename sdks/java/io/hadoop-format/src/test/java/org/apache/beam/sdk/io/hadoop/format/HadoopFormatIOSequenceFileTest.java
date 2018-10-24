@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.commons.collections.ListUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -59,6 +58,7 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.hamcrest.MatcherAssert;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -97,12 +97,7 @@ public class HadoopFormatIOSequenceFileTest {
         .collect(Collectors.toMap(Function.identity(), s -> 1L, Long::sum));
   }
 
-  @Rule
-  public TemporaryFolder tmpFolder =
-      new TemporaryFolder() {
-        @Override
-        protected void after() {}
-      };
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -127,6 +122,9 @@ public class HadoopFormatIOSequenceFileTest {
             .withPartitioning()
             .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())),
         outputDir);
+
+    Assert.assertEquals(
+        "In lock folder shouldn't be any file", 0, new File(getLocksDirPath()).list().length);
   }
 
   @Test
@@ -149,6 +147,9 @@ public class HadoopFormatIOSequenceFileTest {
             .withoutPartitioning()
             .withExternalSynchronization(new HDFSSynchronization(getLocksDirPath())),
         outputDir);
+
+    Assert.assertEquals(
+        "In lock folder shouldn't be any file", 0, new File(getLocksDirPath()).list().length);
   }
 
   private void executeBatchTest(HadoopFormatIO.Write<Text, LongWritable> write, String outputDir) {
@@ -255,8 +256,8 @@ public class HadoopFormatIOSequenceFileTest {
                 event(FIRST_WIN_WORDS.get(1), 25L),
                 event(FIRST_WIN_WORDS.get(2), 18L),
                 event(FIRST_WIN_WORDS.get(3), 28L))
-            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(35)))
-            .addElements(event(SECOND_WIN_WORDS.get(0), 0L), event(SECOND_WIN_WORDS.get(1), 31L))
+            .advanceWatermarkTo(START_TIME.plus(Duration.standardSeconds(65)))
+            .addElements(event(SECOND_WIN_WORDS.get(0), 61L), event(SECOND_WIN_WORDS.get(1), 63L))
             .advanceWatermarkToInfinity();
 
     String outputDirPath = getOutputDirPath("streamTest");
@@ -287,8 +288,10 @@ public class HadoopFormatIOSequenceFileTest {
     Map<String, Long> values = loadWrittenDataAsMap(outputDirPath);
 
     MatcherAssert.assertThat(
-        values.entrySet(),
-        equalTo(computeWordCounts(ListUtils.union(FIRST_WIN_WORDS, SECOND_WIN_WORDS)).entrySet()));
+        values.entrySet(), equalTo(computeWordCounts(FIRST_WIN_WORDS).entrySet()));
+
+    Assert.assertEquals(
+        "In lock folder shouldn't be any file", 0, new File(getLocksDirPath()).list().length);
   }
 
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
