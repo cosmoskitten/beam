@@ -21,7 +21,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java Examples Dataflow',
-    gradleTask: ':beam-runners-google-cloud-dataflow-java-examples:preCommit',
+    gradleTask: ':javaExamplesDataflowPreCommit",
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',

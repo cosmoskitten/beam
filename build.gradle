@@ -247,6 +247,10 @@ task websitePreCommit() {
   dependsOn ":beam-website:preCommit"
 }
 
+task javaExamplesDataflowPrecommit() {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples:preCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java-examples-streaming:preCommit"
+}
 
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
