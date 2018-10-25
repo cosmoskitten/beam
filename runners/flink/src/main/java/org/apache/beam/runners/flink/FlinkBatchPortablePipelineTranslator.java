@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableMap;
@@ -623,16 +624,5 @@ public class FlinkBatchPortablePipelineTranslator
             pruningFunction,
             String.format("%s/out.%d", transformName, unionTag));
     context.addDataSet(collectionId, pruningOperator);
-  }
-
-  private static <T> Coder<WindowedValue<T>> instantiateCoder(
-      String collectionId, RunnerApi.Components components) {
-    PipelineNode.PCollectionNode collectionNode =
-        PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
-    try {
-      return WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not instantiate Coder", e);
-    }
   }
 }
