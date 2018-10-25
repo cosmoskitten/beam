@@ -100,9 +100,9 @@ public class GroupCombineFunctions {
     //---- InputT: I
     JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
 
-//    if (inputRDDBytes.isEmpty()) {
-//      return Optional.absent();
-//    }
+    if (inputRDDBytes.isEmpty()) {
+      return Optional.absent();
+    }
 
     /*Itr<WV<A>>*/
     /*Itr<WV<A>>>*/
