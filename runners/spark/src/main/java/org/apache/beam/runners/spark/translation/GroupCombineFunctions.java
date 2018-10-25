@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -99,10 +100,6 @@ public class GroupCombineFunctions {
     //---- InputT: I
     JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
 
-    if (inputRDDBytes.isEmpty()) {
-      return Optional.absent();
-    }
-
     /*Itr<WV<A>>*/
     /*Itr<WV<A>>>*/
     /*Itr<WV<A>>>*/
@@ -131,7 +128,13 @@ public class GroupCombineFunctions {
               return CoderHelpers.toByteArray(merged, iterAccumCoder);
             });
 
-    return Optional.of(CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder));
+    final Iterable<WindowedValue<AccumT>> result = CoderHelpers
+        .fromByteArray(accumulatedBytes, iterAccumCoder);
+    if (Iterables.isEmpty(result)) {
+      return Optional.absent();
+    } else {
+      return Optional.of(result);
+    }
   }
 
   /**
