@@ -131,9 +131,9 @@ class TestParquet(unittest.TestCase):
     file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
     return file_name_prefix + os.path.sep + 'mytemp*'
 
-  def _run_parquet_test(self, pattern, desired_bundle_size, perform_splitting,
-                        expected_result):
-    source = _create_parquet_source(pattern)
+  def _run_parquet_test(self, pattern, columns, desired_bundle_size,
+                        perform_splitting, expected_result):
+    source = _create_parquet_source(pattern, columns=columns)
     if perform_splitting:
       assert desired_bundle_size
       sources_info = [
@@ -153,12 +153,12 @@ class TestParquet(unittest.TestCase):
   def test_read_without_splitting(self):
     file_name = self._write_data()
     expected_result = self.RECORDS
-    self._run_parquet_test(file_name, None, False, expected_result)
+    self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_read_with_splitting(self):
     file_name = self._write_data()
     expected_result = self.RECORDS
-    self._run_parquet_test(file_name, 100, True, expected_result)
+    self._run_parquet_test(file_name, None, 100, True, expected_result)
 
   def test_source_display_data(self):
     file_name = 'some_parquet_source'
@@ -276,12 +276,12 @@ class TestParquet(unittest.TestCase):
   def test_read_without_splitting_multiple_row_group(self):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
-    self._run_parquet_test(file_name, None, False, expected_result)
+    self._run_parquet_test(file_name, None, None, False, expected_result)
 
   def test_read_with_splitting_multiple_row_group(self):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
-    self._run_parquet_test(file_name, 10000, True, expected_result)
+    self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
   def test_split_points(self):
     file_name = self._write_data(count=12000, row_group_size=3000)
@@ -312,6 +312,11 @@ class TestParquet(unittest.TestCase):
     # When reading records of last group, range_tracker.split_points() should
     # return (3, 1)
     self.assertEquals(split_points_report[-10:], [(3, 1)] * 10)
+
+  def test_selective_columns(self):
+    file_name = self._write_data()
+    expected_result = [{'name': r['name']} for r in self.RECORDS]
+    self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):
     with tempfile.NamedTemporaryFile() as dst:

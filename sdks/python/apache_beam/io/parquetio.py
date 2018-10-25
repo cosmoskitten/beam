@@ -51,14 +51,16 @@ class ReadFromParquet(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):
+  def __init__(self, file_pattern=None, min_bundle_size=0,
+               validate=True, columns=None):
     """Initialize :class:`ReadFromParquet`.
     """
     super(ReadFromParquet, self).__init__()
     self._source = _create_parquet_source(
         file_pattern,
         min_bundle_size,
-        validate=validate
+        validate=validate,
+        columns=columns
     )
 
   def expand(self, pvalue):
@@ -79,6 +81,7 @@ class ReadAllFromParquet(PTransform):
 
   def __init__(self, min_bundle_size=0,
                desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+               columns=None,
                label='ReadAllFiles'):
     """Initializes ``ReadAllFromParquet``.
 
@@ -91,7 +94,8 @@ class ReadAllFromParquet(PTransform):
     super(ReadAllFromParquet, self).__init__()
     source_from_file = partial(
         _create_parquet_source,
-        min_bundle_size=min_bundle_size
+        min_bundle_size=min_bundle_size,
+        columns=columns
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
         True, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
@@ -105,12 +109,14 @@ class ReadAllFromParquet(PTransform):
 
 def _create_parquet_source(file_pattern=None,
                            min_bundle_size=None,
-                           validate=False):
+                           validate=False,
+                           columns=None):
   return \
     _ParquetSource(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
-        validate=validate
+        validate=validate,
+        columns=columns
     )
 
 
@@ -140,6 +146,13 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
+  def __init__(self, file_pattern, min_bundle_size, validate, columns):
+    super(_ParquetSource, self).__init__(
+        file_pattern=file_pattern,
+        min_bundle_size=min_bundle_size,
+        validate=validate
+    )
+    self._columns = columns
 
   def read_records(self, file_name, range_tracker):
     next_block_start = -1
@@ -169,7 +182,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
       number_of_row_groups = _ParquetUtils.get_number_of_row_groups(pf)
 
       while range_tracker.try_claim(next_block_start):
-        table = pf.read_row_group(index)
+        table = pf.read_row_group(index, self._columns)
 
         if index + 1 < number_of_row_groups:
           index = index + 1
