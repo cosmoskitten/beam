@@ -35,6 +35,7 @@
 #     sdk_location  -> Python tar ball location. Glob is accepted.
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
+#     streaming     -> True if a streaming job.
 #     pipeline_opts -> List of space separateed pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
@@ -66,6 +67,7 @@ GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 SDK_LOCATION=dist/apache-beam-*.tar.gz
 NUM_WORKERS=1
 SLEEP_SECS=20
+STREAMING=false
 
 # Default test (nose) options.
 # Default test sets are full integration tests.
@@ -102,6 +104,11 @@ case $key in
         ;;
     --sleep_secs)
         SLEEP_SECS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --streaming)
+        STREAMING="$2"
         shift # past argument
         shift # past value
         ;;
@@ -166,6 +173,12 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--num_workers=$NUM_WORKERS"
     "--sleep_secs=$SLEEP_SECS"
   )
+
+  # Add --streaming flag to pipeline option if specified from command line
+  if [[ "$STREAMING" = true ]]; then
+    opts+=("--streaming")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
