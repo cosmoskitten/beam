@@ -31,6 +31,7 @@ from apache_beam import Create
 from apache_beam import Map
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.parquetio import ReadAllFromParquet
 from apache_beam.io.parquetio import ReadFromParquet
 from apache_beam.io.parquetio import WriteToParquet
@@ -130,15 +131,34 @@ class TestParquet(unittest.TestCase):
     file_name_prefix = file_name[:file_name.rfind(os.path.sep)]
     return file_name_prefix + os.path.sep + 'mytemp*'
 
-  def _run_parquet_test(self, pattern, expected_result):
+  def _run_parquet_test(self, pattern, desired_bundle_size, perform_splitting,
+                        expected_result):
     source = _create_parquet_source(pattern)
-    read_records = source_test_utils.read_from_source(source, None, None)
-    self.assertCountEqual(expected_result, read_records)
+    if perform_splitting:
+      assert desired_bundle_size
+      sources_info = [
+          (split.source, split.start_position, split.stop_position)
+          for split in source.split(desired_bundle_size=desired_bundle_size)
+      ]
+      if len(sources_info) < 2:
+        raise ValueError('Test is trivial. Please adjust it so that at least '
+                         'two splits get generated')
 
-  def test_read(self):
+      source_test_utils.assert_sources_equal_reference_source(
+          (source, None, None), sources_info)
+    else:
+      read_records = source_test_utils.read_from_source(source, None, None)
+      self.assertCountEqual(expected_result, read_records)
+
+  def test_read_without_splitting(self):
     file_name = self._write_data()
     expected_result = self.RECORDS
-    self._run_parquet_test(file_name, expected_result)
+    self._run_parquet_test(file_name, None, False, expected_result)
+
+  def test_read_with_splitting(self):
+    file_name = self._write_data()
+    expected_result = self.RECORDS
+    self._run_parquet_test(file_name, 100, True, expected_result)
 
   def test_source_display_data(self):
     file_name = 'some_parquet_source'
@@ -253,10 +273,45 @@ class TestParquet(unittest.TestCase):
     source = _create_parquet_source(file_name)
     source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
-  def test_read_multiple_row_group(self):
+  def test_read_without_splitting_multiple_row_group(self):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
-    self._run_parquet_test(file_name, expected_result)
+    self._run_parquet_test(file_name, None, False, expected_result)
+
+  def test_read_with_splitting_multiple_row_group(self):
+    file_name = self._write_data(count=12000)
+    expected_result = self.RECORDS * 2000
+    self._run_parquet_test(file_name, 10000, True, expected_result)
+
+  def test_split_points(self):
+    file_name = self._write_data(count=12000, row_group_size=3000)
+    source = _create_parquet_source(file_name)
+
+    splits = [
+        split
+        for split in source.split(desired_bundle_size=float('inf'))
+    ]
+    assert len(splits) == 1
+
+    range_tracker = splits[0].source.get_range_tracker(
+        splits[0].start_position, splits[0].stop_position)
+
+    split_points_report = []
+
+    for _ in splits[0].source.read(range_tracker):
+      split_points_report.append(range_tracker.split_points())
+
+    # There are a total of four row groups. Each row group has 3000 records.
+
+    # When reading records of the first group, range_tracker.split_points()
+    # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+    self.assertEquals(
+        split_points_report[:10],
+        [(0, RangeTracker.SPLIT_POINTS_UNKNOWN)] * 10)
+
+    # When reading records of last group, range_tracker.split_points() should
+    # return (3, 1)
+    self.assertEquals(split_points_report[-10:], [(3, 1)] * 10)
 
   def test_sink_transform_multiple_row_group(self):
     with tempfile.NamedTemporaryFile() as dst:
