@@ -1523,7 +1523,7 @@ bigquery_v2_messages.TableSchema):
 
   def expand(self, pcoll):
     if self.table_reference.projectId is None:
-      self.table_reference.projectId = pcoll.pipeline.options.view_as(
+      self.table_reference.projectId = pcoll.pipeline._options.view_as(
           GoogleCloudOptions).project
     bigquery_write_fn = BigQueryWriteFn(
         table_id=self.table_reference.tableId,

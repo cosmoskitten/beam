@@ -103,13 +103,13 @@ class PortableRunner(runner.PipelineRunner):
           ).SerializeToString())
 
   def run_pipeline(self, pipeline):
-    portable_options = pipeline.options.view_as(PortableOptions)
+    portable_options = pipeline._options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
-    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
-      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+    if pipeline._options.view_as(SetupOptions).sdk_location == 'default':
+      pipeline._options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
       docker = DockerizedJobServer()

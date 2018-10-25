@@ -177,7 +177,7 @@ class WriteToBigQuery(beam.PTransform):
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def expand(self, pcoll):
-    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    project = pcoll.pipeline._options.view_as(GoogleCloudOptions).project
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(

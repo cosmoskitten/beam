@@ -805,7 +805,7 @@ class DataflowRunner(PipelineRunner):
       # Consider native Read to be a primitive for dataflow.
       return beam.pvalue.PCollection(pbegin.pipeline)
     else:
-      options = pbegin.pipeline.options.view_as(DebugOptions)
+      options = pbegin.pipeline._options.view_as(DebugOptions)
       if options.experiments and 'beam_fn_api' in options.experiments:
         # Expand according to FnAPI primitives.
         return self.apply_PTransform(transform, pbegin)
@@ -820,7 +820,7 @@ class DataflowRunner(PipelineRunner):
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
-    standard_options = transform_node.inputs[0].pipeline.options.view_as(
+    standard_options = transform_node.inputs[0].pipeline._options.view_as(
         StandardOptions)
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
@@ -974,7 +974,7 @@ class DataflowRunner(PipelineRunner):
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
     elif transform.sink.format == 'pubsub':
       standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+          transform_node.inputs[0].pipeline._options.view_as(StandardOptions))
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')

@@ -362,7 +362,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.testing.test_stream import TestStream
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(pipeline.options))
+    pipeline.replace_all(_get_transform_overrides(pipeline._options))
 
     # If the TestStream I/O is used, use a mock test clock.
     class _TestStreamUsageVisitor(PipelineVisitor):
