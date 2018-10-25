@@ -559,6 +559,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
+        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
+        // as intellij is adding this, see https://issues.apache.org/jira/browse/BEAM-5176
+        options.compilerArgs -= ["-Xlint:deprecation"]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
