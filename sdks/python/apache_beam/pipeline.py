@@ -618,12 +618,15 @@ class Pipeline(object):
     # (and corresponding outputs).
     # Currently we only upgrade to KV pairs.  If there is a need for more
     # general shapes, potential conflicts will have to be resolved.
+    # We also only handle single-input, and (for fixing the output) single
+    # output, which is sufficient.
     class ForceKvInputTypes(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if transform_node.transform and transform_node.transform.runner_api_requires_keyed_input():
+        if (transform_node.transform
+            and transform_node.transform.runner_api_requires_keyed_input()):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)

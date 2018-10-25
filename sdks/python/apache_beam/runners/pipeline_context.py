@@ -128,6 +128,10 @@ class PipelineContext(object):
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
 
+  # If fake coders are requested, return a pickled version of the element type
+  # rather than an actual coder. The element type is required for some runners,
+  # as well as performing a round-trip through protos.
+  # TODO(BEAM-2717): Remove once this is no longer needed.
   def coder_id_from_element_type(self, element_type):
     if self.use_fake_coders:
       return pickler.dumps(element_type)

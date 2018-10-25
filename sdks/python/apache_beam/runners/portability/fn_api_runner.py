@@ -34,11 +34,8 @@ import grpc
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import coders
 from apache_beam import metrics
-from apache_beam.coders import WindowedValueCoder
-from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
-from apache_beam.internal import pickler
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
@@ -966,8 +963,8 @@ class FnApiRunner(runner.PipelineRunner):
     # Some SDK workers require windowed coders for their PCollections.
     # TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
     for pcoll in pipeline_components.pcollections.values():
-      if pipeline_components.coders[
-          pcoll.coder_id].spec.spec.urn != common_urns.coders.WINDOWED_VALUE.urn:
+      if pipeline_components.coders[pcoll.coder_id
+          ].spec.spec.urn != common_urns.coders.WINDOWED_VALUE.urn:
         pcoll.coder_id = windowed_coder_id(
             pcoll.coder_id,
             pipeline_components.windowing_strategies[
