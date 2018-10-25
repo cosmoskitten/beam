@@ -39,9 +39,9 @@ from pyarrow.parquet import ParquetWriter
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
-from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.transforms import PTransform
 
 __all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'WriteToParquet']
@@ -94,7 +94,7 @@ class ReadAllFromParquet(PTransform):
         min_bundle_size=min_bundle_size
     )
     self._read_all_files = filebasedsource.ReadAllFiles(
-        False, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
+        True, CompressionTypes.AUTO, desired_bundle_size, min_bundle_size,
         source_from_file)
 
     self.label = label
@@ -110,9 +110,31 @@ def _create_parquet_source(file_pattern=None,
     _ParquetSource(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
-        validate=validate,
-        splittable=False
+        validate=validate
     )
+
+
+class _ParquetUtils(object):
+  @staticmethod
+  def find_first_row_group_index(pf, start_offset):
+    for i in range(_ParquetUtils.get_number_of_row_groups(pf)):
+      row_group_start_offset = _ParquetUtils.get_offset(pf, i)
+      if row_group_start_offset >= start_offset:
+        return i
+    return -1
+
+  @staticmethod
+  def get_offset(pf, row_group_index):
+    first_column_metadata =\
+      pf.metadata.row_group(row_group_index).column(0)
+    if first_column_metadata.has_dictionary_page:
+      return first_column_metadata.dictionary_page_offset
+    else:
+      return first_column_metadata.data_page_offset
+
+  @staticmethod
+  def get_number_of_row_groups(pf):
+    return pf.metadata.num_row_groups
 
 
 class _ParquetSource(filebasedsource.FileBasedSource):
@@ -120,14 +142,41 @@ class _ParquetSource(filebasedsource.FileBasedSource):
   """
 
   def read_records(self, file_name, range_tracker):
-    if (range_tracker.start_position() != 0 or
-        range_tracker.stop_position() != OffsetRangeTracker.OFFSET_INFINITY):
-      raise ValueError("parquet source is not splittable.")
+    next_block_start = -1
+
+    def split_points_unclaimed(stop_position):
+      if next_block_start >= stop_position:
+        # Next block starts at or after the suggested stop position. Hence
+        # there will not be split points to be claimed for the range ending at
+        # suggested stop position.
+        return 0
+      return RangeTracker.SPLIT_POINTS_UNKNOWN
+
+    range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
+
+    start_offset = range_tracker.start_position()
+    if start_offset is None:
+      start_offset = 0
+
     with self.open_file(file_name) as f:
       pf = ParquetFile(f)
-      # read the row groups one by one to reduce the memory usage.
-      for i in range(pf.num_row_groups):
-        table = pf.read_row_group(i)
+
+      index = _ParquetUtils.find_first_row_group_index(pf, start_offset)
+      if index != -1:
+        next_block_start = _ParquetUtils.get_offset(pf, index)
+      else:
+        next_block_start = range_tracker.stop_position()
+      number_of_row_groups = _ParquetUtils.get_number_of_row_groups(pf)
+
+      while range_tracker.try_claim(next_block_start):
+        table = pf.read_row_group(index)
+
+        if index + 1 < number_of_row_groups:
+          index = index + 1
+          next_block_start = _ParquetUtils.get_offset(pf, index)
+        else:
+          next_block_start = range_tracker.stop_position()
+
         num_rows = table.num_rows
         data_items = table.to_pydict().items()
         for n in range(num_rows):
