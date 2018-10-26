@@ -91,7 +91,7 @@ public final class BeamTableUtils {
   }
 
   public static Object autoCastField(Schema.Field field, Object rawObj) {
-    if (rawObj == null) {
+    if (rawObj == null || rawObj.equals("")) {
       if (!field.getNullable()) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
       }
