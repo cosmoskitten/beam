@@ -115,7 +115,7 @@ public class ListCoderTest {
   @Test
   public void testStructuralValueDecodeEncodeEqual() throws Exception {
     ListCoder<byte[]> coder = ListCoder.of(ByteArrayCoder.of());
-    List<byte[]> value = Collections.singletonList(new byte[] { 1, 2, 3, 4});
+    List<byte[]> value = Collections.singletonList(new byte[] {1, 2, 3, 4});
 
     CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
   }

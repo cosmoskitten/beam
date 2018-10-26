@@ -217,7 +217,7 @@ public class RowCoderTest {
   @Test
   public void testStructuralValueArrayOfBytes() throws Exception {
     FieldType fieldType = FieldType.array(FieldType.BYTES);
-    List<byte[]> map = Collections.singletonList(new byte[] { 1, 2, 3, 4});
+    List<byte[]> map = Collections.singletonList(new byte[] {1, 2, 3, 4});
 
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
     Row row = Row.withSchema(schema).addValue(map).build();
