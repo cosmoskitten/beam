@@ -94,7 +94,7 @@ public class MapCoderTest {
   @Test
   public void testStructuralValueDecodeEncodeEqual() throws Exception {
     MapCoder<byte[], Integer> coder = MapCoder.of(ByteArrayCoder.of(), VarIntCoder.of());
-    Map<byte[], Integer> value = Collections.singletonMap(new byte[] { 1, 2, 3, 4}, 1);
+    Map<byte[], Integer> value = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
 
     CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
   }
