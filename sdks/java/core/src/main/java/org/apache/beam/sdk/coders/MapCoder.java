@@ -149,15 +149,23 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   }
 
   @Override
+  public boolean consistentWithEquals() {
+    return keyCoder.consistentWithEquals() && valueCoder.consistentWithEquals();
+  }
+
   public Object structuralValue(final Map<K, V> value) {
-    List<Object> ret = new ArrayList<>(2 * value.size());
+    if (consistentWithEquals()) {
+      return value;
+    } else {
+      List<Object> ret = new ArrayList<>(2 * value.size());
 
-    for (Map.Entry<K, V> entry : value.entrySet()) {
-      ret.add(keyCoder.structuralValue(entry.getKey()));
-      ret.add(valueCoder.structuralValue(entry.getValue()));
+      for (Map.Entry<K, V> entry : value.entrySet()) {
+        ret.add(keyCoder.structuralValue(entry.getKey()));
+        ret.add(valueCoder.structuralValue(entry.getValue()));
+      }
+
+      return ret;
     }
-
-    return ret;
   }
 
   @Override
