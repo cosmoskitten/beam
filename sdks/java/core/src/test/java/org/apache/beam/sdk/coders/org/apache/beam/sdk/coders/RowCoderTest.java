@@ -17,16 +17,10 @@
  */
 package org.apache.beam.sdk.coders.org.apache.beam.sdk.coders;
 
-import static org.junit.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -146,7 +140,6 @@ public class RowCoderTest {
                         .build()))
             .build();
     RowCoder coder = RowCoder.of(schema);
-
 
     coder.verifyDeterministic();
   }
