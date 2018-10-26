@@ -101,6 +101,8 @@ def pythonSdkDeps = files(
     fileTree(dir: 'apache_beam', includes: ['**/*.py', '**/*.pyx', '**/*.pxd']),
     fileTree(dir: 'apache_beam/testing/data'),
     fileTree(dir: "${project.rootDir}/model"),
+    fileTree(dir: 'scripts'),
+    ".pylintrc",
     "MANIFEST.in",
     "gen_protos.py",
     "setup.cfg",
@@ -114,11 +116,11 @@ def toxTask = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e $tox_env && touch ${outputs.files[0].path}"
+        args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e $tox_env"
       }
     }
     inputs.files pythonSdkDeps
-    outputs.file "${project.buildDir}/tox-${tox_env}.log"
+    outputs.files fileTree(dir: "${project.rootDir}/sdks/python/target/.tox/${tox_env}/log/")
   }
 }
 
