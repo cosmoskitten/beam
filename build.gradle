@@ -234,6 +234,7 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":beam-sdks-python:preCommit"
+  dependsOn ":beam-sdks-python-precommit-dataflow:precommitIT"
 }
 
 task pythonPostCommit() {

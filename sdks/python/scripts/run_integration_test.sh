@@ -63,7 +63,7 @@
 PROJECT=apache-beam-testing
 RUNNER=TestDataflowRunner
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
-SDK_LOCATION=dist/apache-beam-*.tar.gz
+SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
 SLEEP_SECS=20
 
@@ -143,8 +143,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Create a tarball if not exists
-  SDK_LOCATION=$(find ${SDK_LOCATION})
-  if [[ ! -f $SDK_LOCATION ]]; then
+  if [[ $(find ${SDK_LOCATION}) ]]; then
+    SDK_LOCATION=$(find ${SDK_LOCATION})
+  else
     python setup.py -q sdist
     SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
   fi
