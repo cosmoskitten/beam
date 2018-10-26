@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -40,13 +41,6 @@ import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
 public class RowCoderTest {
-
-  void checkEncodeDecode(Row row) throws IOException {
-    RowCoder coder = RowCoder.of(row.getSchema());
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    coder.encode(row, out);
-    assertEquals(row, coder.decode(new ByteArrayInputStream(out.toByteArray())));
-  }
 
   @Test
   public void testPrimitiveTypes() throws Exception {
@@ -71,7 +65,8 @@ public class RowCoderTest {
             .addValues(
                 (byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str", dateTime, false)
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -82,14 +77,16 @@ public class RowCoderTest {
 
     Row nestedRow = Row.withSchema(nestedSchema).addValues(18, "foobar").build();
     Row row = Row.withSchema(schema).addValues(42, nestedRow).build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
   public void testArrays() throws Exception {
     Schema schema = Schema.builder().addArrayField("f_array", FieldType.STRING).build();
     Row row = Row.withSchema(schema).addArray("one", "two", "three", "four").build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -104,7 +101,8 @@ public class RowCoderTest {
                 Row.withSchema(nestedSchema).addValues(2, "two").build(),
                 Row.withSchema(nestedSchema).addValues(3, "three").build())
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test
@@ -118,7 +116,8 @@ public class RowCoderTest {
                 Lists.newArrayList(5, 6, 7, 8),
                 Lists.newArrayList(9, 10, 11, 12))
             .build();
-    checkEncodeDecode(row);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }
 
   @Test(expected = NonDeterministicException.class)
@@ -147,6 +146,7 @@ public class RowCoderTest {
                         .build()))
             .build();
     RowCoder coder = RowCoder.of(schema);
+
 
     coder.verifyDeterministic();
   }
