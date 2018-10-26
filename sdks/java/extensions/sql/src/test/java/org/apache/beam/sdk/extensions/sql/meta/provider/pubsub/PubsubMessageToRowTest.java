@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -55,7 +56,11 @@ public class PubsubMessageToRowTest implements Serializable {
 
   @Test
   public void testConvertsMessages() {
-    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
+    Schema payloadSchema =
+        Schema.builder()
+            .addNullableField("id", FieldType.INT32)
+            .addNullableField("name", FieldType.STRING)
+            .build();
 
     Schema messageSchema =
         Schema.builder()
@@ -94,6 +99,75 @@ public class PubsubMessageToRowTest implements Serializable {
                 .build(),
             Row.withSchema(messageSchema)
                 .addValues(ts(4), map("dttr", "vdl"), row(payloadSchema, 8, "qaz"))
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testConvertMessagesWithSpeicalValues() {
+    Schema payloadSchema =
+        Schema.builder()
+            .addNullableField("id", FieldType.INT32)
+            .addNullableField("float_field", FieldType.FLOAT)
+            .addNullableField("double_field", FieldType.DOUBLE)
+            .build();
+
+    Schema messageSchema =
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addRowField("payload", payloadSchema)
+            .build();
+
+    PCollection<Row> rows =
+        pipeline
+            .apply(
+                "create",
+                Create.timestamped(
+                    message(
+                        1,
+                        map("attr", "val"),
+                        "{ \"id\" : 3, \"float_field\" : null, \"double_field\" : null }"),
+                    message(
+                        2,
+                        map("bttr", "vbl"),
+                        "{ \"id\" : 4, \"float_field\" : NaN, \"double_field\" : NaN }"),
+                    message(
+                        3,
+                        map("bttr", "vbl"),
+                        "{ \"id\" : 5, \"float_field\" : Infinity, \"double_field\" : Infinity }"),
+                    message(
+                        3,
+                        map("bttr", "vbl"),
+                        "{ \"id\" : 5, \"float_field\" : -Infinity, \"double_field\" : -Infinity }")))
+            .apply(
+                "convert",
+                ParDo.of(
+                    PubsubMessageToRow.builder()
+                        .messageSchema(messageSchema)
+                        .useDlq(false)
+                        .build()));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(messageSchema)
+                .addValues(ts(1), map("attr", "val"), row(payloadSchema, 3, null, null))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(2), map("bttr", "vbl"), row(payloadSchema, 4, Float.NaN, Double.NaN))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(
+                    ts(3),
+                    map("bttr", "vbl"),
+                    row(payloadSchema, 5, Float.POSITIVE_INFINITY, Double.POSITIVE_INFINITY))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(
+                    ts(3),
+                    map("bttr", "vbl"),
+                    row(payloadSchema, 5, Float.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY))
                 .build());
 
     pipeline.run();
@@ -157,8 +231,8 @@ public class PubsubMessageToRowTest implements Serializable {
     pipeline.run();
   }
 
-  private Row row(Schema schema, int id, String name) {
-    return Row.withSchema(schema).addValues(id, name).build();
+  private Row row(Schema schema, Object... objects) {
+    return Row.withSchema(schema).addValues(objects).build();
   }
 
   private Map<String, String> map(String attr, String val) {

@@ -112,7 +112,9 @@ class RowJsonValueExtractors {
                     // Or an integer number which allows lossless conversion to float
                     || (jsonNode.isIntegralNumber()
                         && jsonNode.canConvertToInt()
-                        && jsonNode.asInt() == (int) (float) jsonNode.asInt()))
+                        && jsonNode.asInt() == (int) (float) jsonNode.asInt())
+                    || Float.isNaN(jsonNode.floatValue())
+                    || Float.isInfinite(jsonNode.floatValue()))
         .build();
   }
 
@@ -137,7 +139,9 @@ class RowJsonValueExtractors {
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode
                             .decimalValue()
-                            .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
+                            .equals(BigDecimal.valueOf(jsonNode.doubleValue())))
+                    || Double.isNaN(jsonNode.doubleValue())
+                    || Double.isInfinite(jsonNode.doubleValue()))
         .build();
   }
 

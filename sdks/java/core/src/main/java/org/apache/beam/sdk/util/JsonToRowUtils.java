@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser.Feature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -36,6 +37,7 @@ public class JsonToRowUtils {
 
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(module);
+    objectMapper.enable(Feature.ALLOW_NON_NUMERIC_NUMBERS);
 
     return objectMapper;
   }

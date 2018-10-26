@@ -118,6 +118,10 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
     }
 
     if (fieldValue.isJsonNull()) {
+      if (fieldValue.isArrayType()) {
+        throw new UnsupportedRowJsonException(
+            "ARRAY Field '" + fieldValue.name() + "' cannot be NULL");
+      }
       return null;
     }
 
