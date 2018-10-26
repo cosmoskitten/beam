@@ -27,14 +27,14 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.coders.CoderTestUtils;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.Ignore;
+import org.junit.Assume;
 import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
@@ -151,26 +151,45 @@ public class RowCoderTest {
   }
 
   @Test
-  public void testConsistentWithEqualsBytesField() {
+  public void testConsistentWithEqualsBytesField() throws Exception {
+    Schema schema = Schema.of(Schema.Field.of("f1", FieldType.BYTES));
+    Row row1 = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
+    Row row2 = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
+    RowCoder coder = RowCoder.of(schema);
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testStructuralValueBytesField() throws Exception {
     Schema schema = Schema.of(Schema.Field.of("f1", FieldType.BYTES));
     Row row = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
     RowCoder coder = RowCoder.of(schema);
 
-    CoderTestUtils.testConsistentWithEquals(coder, row);
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, row);
   }
 
   @Test
-  public void testStructuralValueBytesField() {
-    Schema schema = Schema.of(Schema.Field.of("f1", FieldType.BYTES));
-    Row row = Row.withSchema(schema).addValue(new byte[] {1, 2, 3, 4}).build();
+  public void testConsistentWithEqualsMapWithBytesKeyField() throws Exception {
+    FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
     RowCoder coder = RowCoder.of(schema);
 
-    CoderTestUtils.testStructuralValueConsistentWithEquals(coder, row);
+    Map<byte[], Integer> map1 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row1 = Row.withSchema(schema).addValue(map1).build();
+
+    Map<byte[], Integer> map2 = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+    Row row2 = Row.withSchema(schema).addValue(map2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
   }
 
   @Test
-  @Ignore // TODO should it even be possible to create rows with such schema?
-  public void testConsistentWithEqualsMapWithBytesKeyField() {
+  public void testStructuralValueMapWithBytesKeyField() throws Exception {
     FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
     Map<byte[], Integer> map = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
 
@@ -178,18 +197,6 @@ public class RowCoderTest {
     Row row = Row.withSchema(schema).addValue(map).build();
     RowCoder coder = RowCoder.of(schema);
 
-    CoderTestUtils.testConsistentWithEquals(coder, row);
-  }
-
-  @Test
-  public void testStructuralValueMapWithBytesKeyField() {
-    FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
-    Map<byte[], Integer> map = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
-
-    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
-    Row row = Row.withSchema(schema).addValue(map).build();
-    RowCoder coder = RowCoder.of(schema);
-
-    CoderTestUtils.testStructuralValueConsistentWithEquals(coder, row);
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, row);
   }
 }
