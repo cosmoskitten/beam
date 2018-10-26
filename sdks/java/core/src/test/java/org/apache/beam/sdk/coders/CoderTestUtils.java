@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+/** Utils for testing coders. */
 public class CoderTestUtils {
 
   public static <T> void testConsistentWithEquals(Coder<T> coder, T example) {
