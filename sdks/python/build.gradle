@@ -25,7 +25,7 @@ apply plugin: "base"
 task test {}
 check.dependsOn test
 
-def envdir = "${project.buildDir}/gradleenv"
+ext.envdir = "${project.buildDir}/gradleenv"
 def tox_opts = "-c tox.ini --recreate"
 
 task setupVirtualenv {
@@ -41,7 +41,7 @@ task setupVirtualenv {
   // Gradle will delete outputs whenever it thinks they are stale. Putting a
   // specific binary here could make gradle delete it while pip will believe
   // the package is fully installed.
-  outputs.dirs(envdir)
+  outputs.dirs(project.ext.envdir)
 }
 
 configurations { distConfig }
@@ -200,7 +200,7 @@ task preCommit() {
   dependsOn "testPython3"
   dependsOn "testGcp"
   dependsOn "lint"
-  dependsOn "precommitIT"
+//  dependsOn "precommitIT"
 
 }
 
