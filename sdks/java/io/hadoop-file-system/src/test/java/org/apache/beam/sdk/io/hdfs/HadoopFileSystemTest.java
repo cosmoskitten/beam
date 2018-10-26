@@ -300,7 +300,7 @@ public class HadoopFileSystemTest {
         ImmutableList.of(testPath("missingFile")), ImmutableList.of(testPath("testFileA")));
   }
 
-  /** Test that rename overwrites existing files */
+  /** Test that rename overwrites existing files. */
   @Test
   public void testRenameExistingDestination() throws Exception {
     create("testFileA", "testDataA".getBytes(StandardCharsets.UTF_8));
