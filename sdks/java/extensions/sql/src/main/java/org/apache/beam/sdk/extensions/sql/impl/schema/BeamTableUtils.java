@@ -91,8 +91,9 @@ public final class BeamTableUtils {
   }
 
   public static Object autoCastField(Schema.Field field, Object rawObj) {
-    if (rawObj == null) {
-      if (!field.getNullable()) {
+    if (rawObj == null || rawObj.equals("")) {
+      // ARRAY is not nullable
+      if (!field.getNullable() || field.getType().getTypeName().equals(TypeName.ARRAY)) {
         throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
       }
       return null;
@@ -121,14 +122,39 @@ public final class BeamTableUtils {
         case INT64:
           return Long.valueOf(raw);
         case FLOAT:
-          return Float.valueOf(raw);
         case DOUBLE:
-          return Double.valueOf(raw);
+          return castFloatingPointNumberFields(type, raw);
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", type));
       }
     }
     return rawObj;
+  }
+
+  private static Object castFloatingPointNumberFields(TypeName type, String raw) {
+    if (type.equals(TypeName.FLOAT)) {
+      switch (raw) {
+        case "+INF":
+          return Float.POSITIVE_INFINITY;
+        case "-INF":
+          return Float.NEGATIVE_INFINITY;
+        case "NAN":
+          return Float.NaN;
+        default:
+          return Float.valueOf(raw);
+      }
+    } else {
+      switch (raw) {
+        case "+INF":
+          return Double.POSITIVE_INFINITY;
+        case "-INF":
+          return Double.NEGATIVE_INFINITY;
+        case "NAN":
+          return Double.NaN;
+        default:
+          return Double.valueOf(raw);
+      }
+    }
   }
 }

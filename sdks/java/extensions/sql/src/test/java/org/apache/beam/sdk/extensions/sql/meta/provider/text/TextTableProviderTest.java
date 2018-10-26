@@ -52,10 +52,18 @@ public class TextTableProviderTest {
       };
 
   private static final String SQL_CSV_SCHEMA = "(f_string VARCHAR, f_int INT)";
+  private static final String SQL_CSV_SCHEMA_FLOATING_POINT_NUMBERS =
+      "(f_float FLOAT, f_double DOUBLE)";
+
   private static final Schema CSV_SCHEMA =
       Schema.builder()
           .addNullableField("f_string", Schema.FieldType.STRING)
           .addNullableField("f_int", Schema.FieldType.INT32)
+          .build();
+  private static final Schema CSV_SCHEMA_FLOATING_POINT_NUMBERS =
+      Schema.builder()
+          .addNullableField("f_float", Schema.FieldType.FLOAT)
+          .addNullableField("f_double", Schema.FieldType.DOUBLE)
           .build();
 
   private static final Schema LINES_SCHEMA = Schema.builder().addStringField("f_string").build();
@@ -151,6 +159,53 @@ public class TextTableProviderTest {
         .containsInAnyOrder(
             Row.withSchema(CSV_SCHEMA).addValues("hello", 13).build(),
             Row.withSchema(CSV_SCHEMA).addValues("goodbye", 42).build());
+    pipeline.run();
+  }
+
+  @Test
+  public void testExplicitCsvNullableColumn() throws Exception {
+    Files.write(
+        tempFolder.newFile("test.csv").toPath(), ",13\n\ngoodbye,\n".getBytes(Charsets.UTF_8));
+
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            SQL_CSV_SCHEMA, tempFolder.getRoot()));
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM test"));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(CSV_SCHEMA).addValues(null, 13).build(),
+            Row.withSchema(CSV_SCHEMA).addValues("goodbye", null).build());
+    pipeline.run();
+  }
+
+  @Test
+  public void testExplicitCsvFloatingPointNumberSpecialValues() throws Exception {
+    Files.write(
+        tempFolder.newFile("test.csv").toPath(),
+        "+INF,NAN\n\n-INF,-INF\n".getBytes(Charsets.UTF_8));
+
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new TextTableProvider());
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE test %s TYPE text LOCATION '%s/*' TBLPROPERTIES '{\"format\":\"csv\"}'",
+            SQL_CSV_SCHEMA_FLOATING_POINT_NUMBERS, tempFolder.getRoot()));
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM test"));
+
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(CSV_SCHEMA_FLOATING_POINT_NUMBERS)
+                .addValues(Float.POSITIVE_INFINITY, Double.NaN)
+                .build(),
+            Row.withSchema(CSV_SCHEMA_FLOATING_POINT_NUMBERS)
+                .addValues(Float.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY)
+                .build());
     pipeline.run();
   }
 
