@@ -23,6 +23,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -145,6 +146,18 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(
         this, "Ordering of entries in a Map may be non-deterministic.");
+  }
+
+  @Override
+  public Object structuralValue(final Map<K, V> value) {
+    List<Object> ret = new ArrayList<>(2 * value.size());
+
+    for (Map.Entry<K, V> entry : value.entrySet()) {
+      ret.add(keyCoder.structuralValue(entry.getKey()));
+      ret.add(valueCoder.structuralValue(entry.getValue()));
+    }
+
+    return ret;
   }
 
   @Override

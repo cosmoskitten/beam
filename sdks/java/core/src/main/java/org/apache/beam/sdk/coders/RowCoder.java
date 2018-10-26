@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -134,6 +135,20 @@ public class RowCoder extends CustomCoder<Row> {
             .collect(Collectors.toList());
 
     Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
+  }
+
+  @Override
+  public Object structuralValue(final Row row) {
+    List<Object> ret = new ArrayList<>(row.getFieldCount());
+
+    for (int i = 0; i < row.getFieldCount(); i++) {
+      Object value = row.getValue(i);
+      Coder<Object> coder = coderForFieldType(getSchema().getField(i).getType());
+
+      ret.add(coder.structuralValue(value));
+    }
+
+    return ret;
   }
 
   @Override
