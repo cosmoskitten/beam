@@ -57,7 +57,7 @@ public class MapCoderTest {
   }
 
   @Test
-  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+  public void testCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
         MapCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
@@ -89,5 +89,13 @@ public class MapCoderTest {
     TypeDescriptor<Map<Integer, String>> typeDescriptor =
         new TypeDescriptor<Map<Integer, String>>() {};
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(typeDescriptor));
+  }
+
+  @Test
+  public void testStructuralValueDecodeEncodeEqual() throws Exception {
+    MapCoder<byte[], Integer> coder = MapCoder.of(ByteArrayCoder.of(), VarIntCoder.of());
+    Map<byte[], Integer> value = Collections.singletonMap(new byte[] { 1, 2, 3, 4}, 1);
+
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, value);
   }
 }
