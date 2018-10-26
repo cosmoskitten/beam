@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -194,6 +195,36 @@ public class RowCoderTest {
   public void testStructuralValueMapWithBytesKeyField() throws Exception {
     FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
     Map<byte[], Integer> map = Collections.singletonMap(new byte[] {1, 2, 3, 4}, 1);
+
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    Row row = Row.withSchema(schema).addValue(map).build();
+    RowCoder coder = RowCoder.of(schema);
+
+    CoderProperties.structuralValueDecodeEncodeEqual(coder, row);
+  }
+
+  @Test
+  @Ignore // TODO should it even be possible to create rows with such schema?
+  public void testConsistentWithEqualsArrayOfBytes() throws Exception {
+    FieldType fieldType = FieldType.array(FieldType.BYTES);
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    RowCoder coder = RowCoder.of(schema);
+
+    List<byte[]> list1 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    Row row1 = Row.withSchema(schema).addValue(list1).build();
+
+    List<byte[]> list2 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    Row row2 = Row.withSchema(schema).addValue(list2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testStructuralValueArrayOfBytes() throws Exception {
+    FieldType fieldType = FieldType.array(FieldType.BYTES);
+    List<byte[]> map = Collections.singletonList(new byte[] { 1, 2, 3, 4});
 
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
     Row row = Row.withSchema(schema).addValue(map).build();
