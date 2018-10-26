@@ -34,9 +34,10 @@ dependencies {
     testCompile library.java.slf4j_api
     testCompile library.java.hamcrest_core
     testCompile library.java.hamcrest_library
-    testCompile library.java.mockito_core
+    testCompile library.java.powermock
     testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
     testCompile project(':beam-runners-direct-java')
+
 }
 
 tasks.withType(JavaCompile) {
