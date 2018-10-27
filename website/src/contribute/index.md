@@ -126,10 +126,13 @@ as a Jira contributor so that I can assign issues to myself. My ASF Jira Usernam
        $ ./gradlew -p sdks/java/io/cassandra check
        $ ./gradlew -p runners/flink check
 
-1. Depending on the area you are updating, review tips for [Java]({{ site.baseurl }}/contribute/java-tips/),
-   [Python]({{ site.baseurl }}/contribute/python-tips/), [Go]({{ site.baseurl }}/contribute/go-tips/),
-   [Website]({{ site.baseurl }}/contribute/website-tips/), [Gradle]({{ site.baseurl }}/contribute/gradle-tips/),
-   or [Jenkins]({{ site.baseurl }}/contribute/jenkins-tips/).
+1. Depending on the area you are updating, review tips for
+   - [Java]({{ site.baseurl }}/contribute/java-tips/)
+   - [Python]({{ site.baseurl }}/contribute/python-tips/)
+   - [Go]({{ site.baseurl }}/contribute/go-tips/)
+   - [Website]({{ site.baseurl }}/contribute/website-tips/)
+   - [Gradle]({{ site.baseurl }}/contribute/gradle-tips/)
+   - [Jenkins]({{ site.baseurl }}/contribute/jenkins-tips/)
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change
