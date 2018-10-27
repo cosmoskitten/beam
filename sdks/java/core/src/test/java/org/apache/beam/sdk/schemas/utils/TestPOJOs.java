@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -512,29 +513,33 @@ public class TestPOJOs {
   public static class POJOWithByteArray {
     public byte[] bytes1;
     public ByteBuffer bytes2;
+    public StructuralByteArray bytes3;
 
-    public POJOWithByteArray(byte[] bytes1, ByteBuffer bytes2) {
+    public POJOWithByteArray(byte[] bytes1, ByteBuffer bytes2, StructuralByteArray bytes3) {
       this.bytes1 = bytes1;
       this.bytes2 = bytes2;
+      this.bytes3 = bytes3;
     }
 
     public POJOWithByteArray() {}
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
       if (this == o) {
         return true;
       }
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      POJOWithByteArray that = (POJOWithByteArray) o;
-      return Arrays.equals(bytes1, that.bytes1) && Objects.equals(bytes2, that.bytes2);
+      final POJOWithByteArray that = (POJOWithByteArray) o;
+      return Arrays.equals(bytes1, that.bytes1)
+          && Objects.equals(bytes2, that.bytes2)
+          && Objects.equals(bytes3, that.bytes3);
     }
 
     @Override
     public int hashCode() {
-      int result = Objects.hash(bytes2);
+      int result = Objects.hash(bytes2, bytes3);
       result = 31 * result + Arrays.hashCode(bytes1);
       return result;
     }
@@ -542,5 +547,9 @@ public class TestPOJOs {
 
   /** The schema for {@link POJOWithByteArray}. * */
   public static final Schema POJO_WITH_BYTE_ARRAY_SCHEMA =
-      Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+      Schema.builder()
+          .addByteArrayField("bytes1")
+          .addByteArrayField("bytes2")
+          .addByteArrayField("bytes3")
+          .build();
 }

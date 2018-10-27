@@ -31,6 +31,10 @@ public class StructuralByteArray {
     this.value = value;
   }
 
+  public static StructuralByteArray wrap(byte[] value) {
+    return new StructuralByteArray(value);
+  }
+
   public byte[] getValue() {
     return value;
   }

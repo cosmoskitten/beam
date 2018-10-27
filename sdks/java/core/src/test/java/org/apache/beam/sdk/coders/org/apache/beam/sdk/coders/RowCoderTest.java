@@ -31,7 +31,6 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /** Unit tests for {@link RowCoder}. */
@@ -167,7 +166,6 @@ public class RowCoderTest {
   }
 
   @Test
-  @Ignore // TODO should it even be possible to create rows with such schema?
   public void testConsistentWithEqualsMapWithBytesKeyField() throws Exception {
     FieldType fieldType = FieldType.map(FieldType.BYTES, FieldType.INT32);
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
@@ -197,7 +195,6 @@ public class RowCoderTest {
   }
 
   @Test
-  @Ignore // TODO should it even be possible to create rows with such schema?
   public void testConsistentWithEqualsArrayOfBytes() throws Exception {
     FieldType fieldType = FieldType.array(FieldType.BYTES);
     Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
@@ -207,6 +204,25 @@ public class RowCoderTest {
     Row row1 = Row.withSchema(schema).addValue(list1).build();
 
     List<byte[]> list2 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    Row row2 = Row.withSchema(schema).addValue(list2).build();
+
+    Assume.assumeTrue(coder.consistentWithEquals());
+
+    CoderProperties.coderConsistentWithEquals(coder, row1, row2);
+  }
+
+  @Test
+  public void testConsistentWithEqualsArrayOfArrayOfBytes() throws Exception {
+    FieldType fieldType = FieldType.array(FieldType.array(FieldType.BYTES));
+    Schema schema = Schema.of(Schema.Field.of("f1", fieldType));
+    RowCoder coder = RowCoder.of(schema);
+
+    List<byte[]> innerList1 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    List<List<byte[]>> list1 = Collections.singletonList(innerList1);
+    Row row1 = Row.withSchema(schema).addValue(list1).build();
+
+    List<byte[]> innerList2 = Collections.singletonList(new byte[] {1, 2, 3, 4});
+    List<List<byte[]>> list2 = Collections.singletonList(innerList2);
     Row row2 = Row.withSchema(schema).addValue(list2).build();
 
     Assume.assumeTrue(coder.consistentWithEquals());

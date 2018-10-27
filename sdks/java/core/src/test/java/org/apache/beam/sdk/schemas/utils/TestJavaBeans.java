@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.DefaultSchema;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -726,10 +727,12 @@ public class TestJavaBeans {
   public static class BeanWithByteArray {
     private byte[] bytes1;
     private ByteBuffer bytes2;
+    private StructuralByteArray bytes3;
 
-    public BeanWithByteArray(byte[] bytes1, ByteBuffer bytes2) {
+    public BeanWithByteArray(byte[] bytes1, ByteBuffer bytes2, StructuralByteArray bytes3) {
       this.bytes1 = bytes1;
       this.bytes2 = bytes2;
+      this.bytes3 = bytes3;
     }
 
     public BeanWithByteArray() {}
@@ -750,27 +753,41 @@ public class TestJavaBeans {
       this.bytes2 = bytes2;
     }
 
+    public StructuralByteArray getBytes3() {
+      return bytes3;
+    }
+
+    public void setBytes3(StructuralByteArray bytes3) {
+      this.bytes3 = bytes3;
+    }
+
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
       if (this == o) {
         return true;
       }
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      BeanWithByteArray that = (BeanWithByteArray) o;
-      return Arrays.equals(bytes1, that.bytes1) && Objects.equals(bytes2, that.bytes2);
+      final BeanWithByteArray that = (BeanWithByteArray) o;
+      return Arrays.equals(getBytes1(), that.getBytes1())
+          && Objects.equals(getBytes2(), that.getBytes2())
+          && Objects.equals(getBytes3(), that.getBytes3());
     }
 
     @Override
     public int hashCode() {
-      int result = Objects.hash(bytes2);
-      result = 31 * result + Arrays.hashCode(bytes1);
+      int result = Objects.hash(getBytes2(), getBytes3());
+      result = 31 * result + Arrays.hashCode(getBytes1());
       return result;
     }
   }
 
   /** The schema for {@link BeanWithByteArray}. * */
   public static final Schema BEAN_WITH_BYTE_ARRAY_SCHEMA =
-      Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+      Schema.builder()
+          .addByteArrayField("bytes1")
+          .addByteArrayField("bytes2")
+          .addByteArrayField("bytes3")
+          .build();
 }

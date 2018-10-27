@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -141,14 +142,14 @@ public class JavaBeanUtilsTest {
     assertEquals(true, getters.get(5).get(simpleBean));
     assertEquals(DateTime.parse("1979-03-14").toInstant(), getters.get(6).get(simpleBean));
     assertEquals(DateTime.parse("1979-03-15").toInstant(), getters.get(7).get(simpleBean));
-    assertArrayEquals(
+    assertEquals(
         "Unexpected bytes",
-        "bytes1".getBytes(Charset.defaultCharset()),
-        (byte[]) getters.get(8).get(simpleBean));
-    assertArrayEquals(
+        StructuralByteArray.wrap("bytes1".getBytes(Charset.defaultCharset())),
+        getters.get(8).get(simpleBean));
+    assertEquals(
         "Unexpected bytes",
-        "bytes2".getBytes(Charset.defaultCharset()),
-        (byte[]) getters.get(9).get(simpleBean));
+        StructuralByteArray.wrap("bytes2".getBytes(Charset.defaultCharset())),
+        getters.get(9).get(simpleBean));
     assertEquals(new BigDecimal(42), getters.get(10).get(simpleBean));
     assertEquals("stringBuilder", getters.get(11).get(simpleBean).toString());
   }
@@ -167,8 +168,12 @@ public class JavaBeanUtilsTest {
     setters.get(5).set(simpleBean, true);
     setters.get(6).set(simpleBean, DateTime.parse("1979-03-14").toInstant());
     setters.get(7).set(simpleBean, DateTime.parse("1979-03-15").toInstant());
-    setters.get(8).set(simpleBean, "bytes1".getBytes(Charset.defaultCharset()));
-    setters.get(9).set(simpleBean, "bytes2".getBytes(Charset.defaultCharset()));
+    setters
+        .get(8)
+        .set(simpleBean, StructuralByteArray.wrap("bytes1".getBytes(Charset.defaultCharset())));
+    setters
+        .get(9)
+        .set(simpleBean, StructuralByteArray.wrap("bytes2".getBytes(Charset.defaultCharset())));
     setters.get(10).set(simpleBean, new BigDecimal(42));
     setters.get(11).set(simpleBean, "stringBuilder");
 
@@ -230,10 +235,13 @@ public class JavaBeanUtilsTest {
     BeanWithByteArray bean = new BeanWithByteArray();
     List<FieldValueSetter> setters =
         JavaBeanUtils.getSetters(BeanWithByteArray.class, BEAN_WITH_BYTE_ARRAY_SCHEMA);
-    setters.get(0).set(bean, "field1".getBytes(Charset.defaultCharset()));
-    setters.get(1).set(bean, "field2".getBytes(Charset.defaultCharset()));
+    setters.get(0).set(bean, StructuralByteArray.wrap("field1".getBytes(Charset.defaultCharset())));
+    setters.get(1).set(bean, StructuralByteArray.wrap("field2".getBytes(Charset.defaultCharset())));
+    setters.get(2).set(bean, StructuralByteArray.wrap("field3".getBytes(Charset.defaultCharset())));
 
     assertArrayEquals("not equal", "field1".getBytes(Charset.defaultCharset()), bean.getBytes1());
     assertEquals(ByteBuffer.wrap("field2".getBytes(Charset.defaultCharset())), bean.getBytes2());
+    assertEquals(
+        StructuralByteArray.wrap("field3".getBytes(Charset.defaultCharset())), bean.getBytes3());
   }
 }

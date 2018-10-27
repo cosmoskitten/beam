@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,7 +43,7 @@ public class RowCoder extends CustomCoder<Row> {
   static final ImmutableMap<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
           .put(TypeName.BYTE, ByteCoder.of())
-          .put(TypeName.BYTES, ByteArrayCoder.of())
+          .put(TypeName.BYTES, StructuralByteArrayCoder.of())
           .put(TypeName.INT16, BigEndianShortCoder.of())
           .put(TypeName.INT32, VarIntCoder.of())
           .put(TypeName.INT64, VarLongCoder.of())
@@ -135,20 +134,6 @@ public class RowCoder extends CustomCoder<Row> {
             .collect(Collectors.toList());
 
     Coder.verifyDeterministic(this, "All fields must have deterministic encoding", coders);
-  }
-
-  @Override
-  public Object structuralValue(final Row row) {
-    List<Object> ret = new ArrayList<>(row.getFieldCount());
-
-    for (int i = 0; i < row.getFieldCount(); i++) {
-      Object value = row.getValue(i);
-      Coder<Object> coder = coderForFieldType(getSchema().getField(i).getType());
-
-      ret.add(coder.structuralValue(value));
-    }
-
-    return ret;
   }
 
   @Override

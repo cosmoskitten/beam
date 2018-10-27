@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.FieldValueGetterFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -220,7 +221,13 @@ public abstract class Row implements Serializable {
    */
   @Nullable
   public byte[] getBytes(int idx) {
-    return getValue(idx);
+    StructuralByteArray value = getValue(idx);
+
+    if (value == null) {
+      return null;
+    } else {
+      return value.getValue();
+    }
   }
 
   /**
@@ -338,21 +345,21 @@ public abstract class Row implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(final Object o) {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof Row)) {
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
     Row other = (Row) o;
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
+        && Objects.equals(getValues(), other.getValues());
   }
 
   @Override
   public int hashCode() {
-    return Arrays.deepHashCode(new Object[] {getSchema(), getValues().toArray()});
+    return 31 * getSchema().hashCode() + getValues().hashCode();
   }
 
   @Override
@@ -517,9 +524,11 @@ public abstract class Row implements Serializable {
             break;
           case BYTES:
             if (value instanceof ByteBuffer) {
-              return ((ByteBuffer) value).array();
+              return new StructuralByteArray(((ByteBuffer) value).array());
             } else if (value instanceof byte[]) {
-              return (byte[]) value;
+              return new StructuralByteArray((byte[]) value);
+            } else if (value instanceof StructuralByteArray) {
+              return value;
             }
             break;
           case INT16:

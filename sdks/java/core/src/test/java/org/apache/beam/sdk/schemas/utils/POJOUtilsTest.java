@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -59,6 +60,8 @@ public class POJOUtilsTest {
   static final byte[] BYTE_ARRAY = "byteArray".getBytes(Charset.defaultCharset());
   static final ByteBuffer BYTE_BUFFER =
       ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
+  static final StructuralByteArray STRUCTURAL_BYTE_ARRAY =
+      StructuralByteArray.wrap("byteArray".getBytes(Charset.defaultCharset()));
 
   @Test
   public void testNullables() {
@@ -137,9 +140,14 @@ public class POJOUtilsTest {
     assertEquals(true, getters.get(5).get(simplePojo));
     assertEquals(DATE.toInstant(), getters.get(6).get(simplePojo));
     assertEquals(INSTANT, getters.get(7).get(simplePojo));
-    assertArrayEquals("Unexpected bytes", BYTE_ARRAY, (byte[]) getters.get(8).get(simplePojo));
     assertArrayEquals(
-        "Unexpected bytes", BYTE_BUFFER.array(), (byte[]) getters.get(9).get(simplePojo));
+        "Unexpected bytes",
+        BYTE_ARRAY,
+        ((StructuralByteArray) getters.get(8).get(simplePojo)).getValue());
+    assertArrayEquals(
+        "Unexpected bytes",
+        BYTE_BUFFER.array(),
+        ((StructuralByteArray) getters.get(9).get(simplePojo)).getValue());
     assertEquals(new BigDecimal(42), getters.get(10).get(simplePojo));
     assertEquals("stringBuilder", getters.get(11).get(simplePojo));
   }
@@ -158,8 +166,8 @@ public class POJOUtilsTest {
     setters.get(5).set(simplePojo, true);
     setters.get(6).set(simplePojo, DATE.toInstant());
     setters.get(7).set(simplePojo, INSTANT);
-    setters.get(8).set(simplePojo, BYTE_ARRAY);
-    setters.get(9).set(simplePojo, BYTE_BUFFER.array());
+    setters.get(8).set(simplePojo, StructuralByteArray.wrap(BYTE_ARRAY));
+    setters.get(9).set(simplePojo, StructuralByteArray.wrap(BYTE_BUFFER.array()));
     setters.get(10).set(simplePojo, new BigDecimal(42));
     setters.get(11).set(simplePojo, "stringBuilder");
 
@@ -214,10 +222,12 @@ public class POJOUtilsTest {
     POJOWithByteArray pojo = new POJOWithByteArray();
     List<FieldValueSetter> setters =
         POJOUtils.getSetters(POJOWithByteArray.class, POJO_WITH_BYTE_ARRAY_SCHEMA);
-    setters.get(0).set(pojo, BYTE_ARRAY);
-    setters.get(1).set(pojo, BYTE_BUFFER.array());
+    setters.get(0).set(pojo, StructuralByteArray.wrap(BYTE_ARRAY));
+    setters.get(1).set(pojo, StructuralByteArray.wrap(BYTE_BUFFER.array()));
+    setters.get(2).set(pojo, STRUCTURAL_BYTE_ARRAY);
 
     assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
     assertEquals(BYTE_BUFFER, pojo.bytes2);
+    assertEquals(STRUCTURAL_BYTE_ARRAY, pojo.bytes3);
   }
 }

@@ -44,6 +44,7 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.sdk.coders.StructuralByteArray;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -63,6 +64,8 @@ class ByteBuddyUtils {
   private static final ForLoadedType LIST_TYPE = new ForLoadedType(List.class);
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
+  private static final ForLoadedType STRUCTURAL_BYTE_ARRAY_TYPE =
+      new ForLoadedType(StructuralByteArray.class);
 
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
@@ -100,6 +103,8 @@ class ByteBuddyUtils {
         return convertMap(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
         return convertDateTime(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(byte[].class))) {
+        return convertByteArray(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
@@ -120,6 +125,8 @@ class ByteBuddyUtils {
     protected abstract T convertDateTime(TypeDescriptor<?> type);
 
     protected abstract T convertByteBuffer(TypeDescriptor<?> type);
+
+    protected abstract T convertByteArray(TypeDescriptor<?> type);
 
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
@@ -168,8 +175,13 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected Type convertByteArray(final TypeDescriptor<?> type) {
+      return StructuralByteArray.class;
+    }
+
+    @Override
     protected Type convertByteBuffer(TypeDescriptor<?> type) {
-      return byte[].class;
+      return StructuralByteArray.class;
     }
 
     @Override
@@ -286,9 +298,26 @@ class ByteBuddyUtils {
     }
 
     @Override
+    protected StackManipulation convertByteArray(final TypeDescriptor<?> type) {
+      // Generate the following code:
+      // return StructuralByteArray.wrap(value);
+
+      return new Compound(
+          readValue,
+          // Create a new ByteBuffer that wraps this byte[].
+          MethodInvocation.invoke(
+              STRUCTURAL_BYTE_ARRAY_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("wrap")
+                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
     protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
       // Generate the following code:
-      // return value.array();
+      // return StructuralByteArray.wrap(value.array());
 
       // We must extract the array from the ByteBuffer before returning.
       // NOTE: we only support array-backed byte buffers in these POJOs. Others (e.g. mmaped
@@ -300,6 +329,13 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()),
+          MethodInvocation.invoke(
+              STRUCTURAL_BYTE_ARRAY_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("wrap")
+                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }
 
@@ -445,14 +481,39 @@ class ByteBuddyUtils {
     }
 
     @Override
-    protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+    protected StackManipulation convertByteArray(final TypeDescriptor<?> type) {
       // Generate the following code:
-      // return ByteBuffer.wrap((byte[]) value);
-
-      // We currently assume that a byte[] setter will always accept a parameter of type byte[].
+      // return value.getValue();
       return new Compound(
           readValue,
-          TypeCasting.to(BYTE_ARRAY_TYPE),
+          TypeCasting.to(STRUCTURAL_BYTE_ARRAY_TYPE),
+          MethodInvocation.invoke(
+              STRUCTURAL_BYTE_ARRAY_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("getValue")
+                          .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertByteBuffer(TypeDescriptor<?> type) {
+      // Generate the following code:
+      // return ByteBuffer.wrap(value.getValue());
+
+      // We currently assume that a StructuralByteArray setter will always accept a parameter of
+      // type StructuralByteArray.
+      return new Compound(
+          readValue,
+          TypeCasting.to(STRUCTURAL_BYTE_ARRAY_TYPE),
+          // Unwrap StructuralByteArray to byte[].
+          MethodInvocation.invoke(
+              STRUCTURAL_BYTE_ARRAY_TYPE
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("getValue")
+                          .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()),
           // Create a new ByteBuffer that wraps this byte[].
           MethodInvocation.invoke(
               BYTE_BUFFER_TYPE
