@@ -23,7 +23,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -158,11 +157,11 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     if (consistentWithEquals()) {
       return value;
     } else {
-      List<Object> ret = new ArrayList<>(2 * value.size());
+      Map<Object, Object> ret = Maps.newHashMapWithExpectedSize(value.size());
 
       for (Map.Entry<K, V> entry : value.entrySet()) {
-        ret.add(keyCoder.structuralValue(entry.getKey()));
-        ret.add(valueCoder.structuralValue(entry.getValue()));
+        ret.put(
+            keyCoder.structuralValue(entry.getKey()), valueCoder.structuralValue(entry.getValue()));
       }
 
       return ret;
