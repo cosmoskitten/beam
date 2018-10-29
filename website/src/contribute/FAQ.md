@@ -22,7 +22,7 @@ limitations under the License.
 
 Frequently asked questions about contributing to Apache Beam.
 
-<!-- TODO(BEAM-5737): Move this to confluence wiki
+<!-- TODO(BEAM-5737): Move this to confluence wiki -->
 
 ### Who do I ask if I am stuck?
 
