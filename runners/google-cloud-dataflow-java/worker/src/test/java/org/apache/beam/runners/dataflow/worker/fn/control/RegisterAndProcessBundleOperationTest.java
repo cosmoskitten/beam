@@ -83,6 +83,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -619,6 +620,7 @@ public class RegisterAndProcessBundleOperationTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-5907")
   public void testProcessingBundleHandlesMultimapSideInputRequests() throws Exception {
     Supplier<String> idGenerator = makeIdGeneratorStartingFrom(777L);
     ExecutorService executorService = Executors.newCachedThreadPool();
