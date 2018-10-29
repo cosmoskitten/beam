@@ -22,14 +22,12 @@ limitations under the License.
 
 Frequently asked questions about contributing to Apache Beam.
 
+<!-- TODO(BEAM-5737): Move this to confluence wiki
+
 ### Who do I ask if I am stuck?
 
 Either email [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/) or chat
 on [Slack]({{ site.baseurl }}/community/contact-us/).
-
-### How do I join the dev email list?
-
-Send a blank email to dev-subscribe@beam.apache.org.
 
 ### Why can't I assign a jira issue to myself?
 
@@ -69,7 +67,7 @@ tagging the reviewer as follows:
 
     R: @reviewer
 
-### Adding yourself as a reviewer
+### Opt-in to reviewing pull requests
 
 Find the deepest sub-directory that contains the files you want to be a reviewer
 for and add your Github username under `reviewers` in the OWNERS file (create a

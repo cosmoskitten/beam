@@ -83,7 +83,9 @@ To contribute code, you need
    [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 1. Assign the issue to yourself. To get the permission to do so, email
    the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
-   to introduce yourself and to be added as a contributor in the Beam issue tracker. For example:
+   to introduce yourself and to be added as a contributor in the Beam issue tracker including your
+   ASF Jira Username. For example [this welcome email](
+   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E)
 
        Hi, my name is <your name>. I am interested in contributing <what> to the Apache Beam SDK. I'd like to be added
 as a Jira contributor so that I can assign issues to myself. My ASF Jira Username is <username>.
@@ -153,10 +155,12 @@ as a Jira contributor so that I can assign issues to myself. My ASF Jira Usernam
    tests consume shared development resources.
 1. Pull requests can only be merged by a
    [beam committer]({{ site.baseurl }}/contribute/team/).
-   To find a committer for your area, look for similar code merges or ask on
-   [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
+   To find a committer for your area, either:
+    - look in the OWNERS file of the directory where you changed files, or
+    - an look for similar code merges, or
+    - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
-   Use @mention in the pull request to notify a reviewer.
+   Use `R: @username` in the pull request to notify a reviewer.
 1. If you don't get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
    request.
 

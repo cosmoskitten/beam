@@ -59,5 +59,5 @@ For example, to create a pull request:
 
 1. Browse to the URL of your forked repository and propose a pull request.
 
-1. Find a committer to review, and @mention them in the review comments
+1. Find a committer to review, and mention the them by adding `R: @username` to the review comments
 

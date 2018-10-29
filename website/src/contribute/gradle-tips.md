@@ -36,7 +36,7 @@ The mapping of directory to project name is in
 To troubleshoot issues:
 - the `--info` flag adds verbose logging
 - the `--stacktrace` flag adds a stacktrace on failures
-- the `--scan` flag creates a web scan page
+- the `--scan` flag creates a [Gradle Build Scan](https://guides.gradle.org/creating-build-scans/)
 
 Most re-usable steps are in [BeamModulePlugin.groovy](
 https://github.com/apache/beam/blob/master/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy).
