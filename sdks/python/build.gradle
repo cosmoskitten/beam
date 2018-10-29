@@ -19,6 +19,8 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
+evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
+
 def tox_opts = "-c tox.ini --recreate"
 
 task buildPython(dependsOn: 'setupVirtualenv') {
@@ -261,11 +263,19 @@ task validatesRunnerBatchTests(dependsOn: 'installGcpTest') {
 }
 
 task validatesRunnerStreamingTests(dependsOn: 'installGcpTest') {
+  dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
+
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
+
   doLast {
     exec {
       executable 'sh'
       // TODO(BEAM-3544,BEAM-5025): Disable tests with sickbay-streaming tag.
-      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' streaming"
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_postcommit.sh ValidatesRunner,'!sickbay-streaming' " +
+              "streaming TestDataflowRunner " +
+              "${dataflowTempRoot} ${dataflowProject}  ${dataflowWorkerJar} "
     }
   }
 }
