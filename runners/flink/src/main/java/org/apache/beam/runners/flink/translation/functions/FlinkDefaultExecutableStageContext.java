@@ -18,12 +18,12 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
@@ -72,14 +72,16 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
   }
 
   private static class JobFactoryState {
-    private final AtomicInteger counter = new AtomicInteger(0);
+    private int index = 0;
     private final List<ReferenceCountingFlinkExecutableStageContextFactory> factories =
         new ArrayList<>();
     private final int maxFactories;
 
     private JobFactoryState(int maxFactories) {
+      Preconditions.checkArgument(maxFactories >= 0, "sdk_worker_parallelism must be >= 0");
+
       if (maxFactories == 0) {
-        // Default to num_cores - 1 so that we leave some resources available for the java process
+        // if this is 0, use the auto behavior of num_cores - 1 so that we leave some resources available for the java process
         this.maxFactories = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
       } else {
         this.maxFactories = maxFactories;
@@ -87,15 +89,21 @@ class FlinkDefaultExecutableStageContext implements FlinkExecutableStageContext,
     }
 
     private synchronized FlinkExecutableStageContext.Factory getFactory() {
-      int count = counter.getAndIncrement();
-
-      if (count < maxFactories) {
-        factories.add(
+      ReferenceCountingFlinkExecutableStageContextFactory factory;
+      // If we haven't yet created maxFactories factories, create a new one. Otherwise use an
+      // existing one from factories.
+      if (factories.size() < maxFactories) {
+        factory =
             ReferenceCountingFlinkExecutableStageContextFactory.create(
-                FlinkDefaultExecutableStageContext::create));
+                FlinkDefaultExecutableStageContext::create);
+        factories.add(factory);
+      } else {
+        factory = factories.get(index);
       }
 
-      return factories.get(count % maxFactories);
+      index = (index + 1) % maxFactories;
+
+      return factory;
     }
   }
 
