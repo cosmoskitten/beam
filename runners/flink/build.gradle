@@ -46,7 +46,7 @@ configurations {
   validatesRunner
 }
 
-def flink_version = "1.5.3"
+def flink_version = "1.5.5"
 
 dependencies {
   compile library.java.guava
@@ -60,12 +60,15 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.commons_compress
   shadow library.java.args4j
-  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
-  shadow "org.apache.flink:flink-core:$flink_version"
-  shadow "org.apache.flink:flink-metrics-core:$flink_version"
-  shadow "org.apache.flink:flink-java:$flink_version"
-  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
-  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  // This module is not published for Flink 1.5.5, but it can be safely excluded because
+  // it is only a marker module required at Flink build time.
+  def excludeForceShading = { exclude group: 'org.apache.flink', module: 'force-shading' }
+  shadow "org.apache.flink:flink-clients_2.11:$flink_version", excludeForceShading
+  shadow "org.apache.flink:flink-core:$flink_version", excludeForceShading
+  shadow "org.apache.flink:flink-metrics-core:$flink_version", excludeForceShading
+  shadow "org.apache.flink:flink-java:$flink_version", excludeForceShading
+  shadow "org.apache.flink:flink-runtime_2.11:$flink_version", excludeForceShading
+  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version", excludeForceShading
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
@@ -77,10 +80,10 @@ dependencies {
   shadowTest library.java.slf4j_simple
   shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest "org.apache.flink:flink-core:$flink_version:tests", excludeForceShading
+  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests", excludeForceShading
+  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests", excludeForceShading
+  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version", excludeForceShading
   shadowTest project(":beam-sdks-java-harness")
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
