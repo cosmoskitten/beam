@@ -47,24 +47,24 @@ job('beam_Dependency_Check') {
             ' && bash .test-infra/jenkins/dependency_check/generate_report.sh')
   }
 
-  wrappers{
-    credentialsBinding {
-        usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
-    }
-  }
+//  wrappers{
+//    credentialsBinding {
+//        usernamePassword('BEAM_JIRA_BOT_USERNAME', 'BEAM_JIRA_BOT_PASSWORD', 'beam-jira-bot')
+//    }
+//  }
     
   def date = new Date().format('yyyy-MM-dd')
   publishers {
-    extendedEmail {
-      triggers {
-        always {
-          recipientList('dev@beam.apache.org')
-          contentType('text/html')
-          subject("Beam Dependency Check Report (${date})")
-          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
-        }
-      }
-    }
+//    extendedEmail {
+//      triggers {
+//        always {
+//          recipientList('dev@beam.apache.org')
+//          contentType('text/html')
+//          subject("Beam Dependency Check Report (${date})")
+//          content('''${FILE, path="src/build/dependencyUpdates/beam-dependency-check-report.html"}''')
+//        }
+//      }
+//    }
     archiveArtifacts {
       pattern('src/build/dependencyUpdates/beam-dependency-check-report.html')
       onlyIfSuccessful()
