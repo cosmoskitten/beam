@@ -108,6 +108,9 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   @Test
   public void testUdf() throws Exception {
     Schema resultType = Schema.builder().addInt32Field("f_int").addInt32Field("cubicvalue").build();
+    Schema resultType2 =
+        Schema.builder().addInt64Field("f_long").addInt64Field("cubicLongValue").build();
+
     Row row = Row.withSchema(resultType).addValues(2, 8).build();
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
@@ -133,6 +136,15 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         Schema.builder().addInt32Field("f_int").addStringField("sub_string").build();
     Row subStrRow = Row.withSchema(subStrSchema).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
+
+    String sql4 =
+        "SELECT f_long, cubic1(f_long) as cubicLongValue FROM PCOLLECTION WHERE f_long = 1000";
+    PCollection<Row> result4 =
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
+            .apply("testUdf4", SqlTransform.query(sql4).registerUdf("cubic1", CubicInteger.class));
+
+    Row longRow = Row.withSchema(resultType2).addValues(1000L, 1000L * 1000L * 1000L).build();
+    PAssert.that(result4).containsInAnyOrder(longRow);
 
     pipeline.run().waitUntilFinish();
   }
@@ -235,6 +247,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   /** An example UDF for test. */
   public static class CubicInteger implements BeamSqlUdf {
     public static Integer eval(Integer input) {
+      return input * input * input;
+    }
+
+    public static Long eval(Long input) {
       return input * input * input;
     }
   }
