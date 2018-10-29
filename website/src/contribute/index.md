@@ -75,7 +75,9 @@ To contribute code, you need
 
 ## Submitting your first code change
 
-1. Subscribe to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/).
+1. Consider subscribing to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/), especially
+   if you plan to make more than one change or the change will be large. All decisions happen on the
+   public dev list.
 1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
 1. (Optionally) Join the [#beam channel of the ASF slack]({{ site.baseurl}}/community/contact-us/).
 1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
@@ -86,10 +88,6 @@ To contribute code, you need
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](
    https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E)
-
-       Hi, my name is <your name>. I am interested in contributing <what> to the Apache Beam SDK. I'd like to be added
-as a Jira contributor so that I can assign issues to myself. My ASF Jira Username is <username>.
-
 1. If your change is large or it is your first change, it is a good idea to
    [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
 1. For large changes create a design doc
