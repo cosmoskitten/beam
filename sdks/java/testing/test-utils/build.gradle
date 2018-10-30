@@ -24,6 +24,8 @@ description = "Apache Beam :: SDKs :: Java :: Test Utils"
 dependencies {
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.guava
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow 'com.google.cloud:google-cloud-bigquery:1.48.0'
 
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
