@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
@@ -77,7 +77,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<Integer, Set<Integer>>> getOutput(Dataset<Integer> input) {
+          protected PCollection<KV<Integer, Set<Integer>>> getOutput(PCollection<Integer> input) {
             return ReduceByKey.of(input)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
@@ -113,7 +113,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<Set<Integer>> getOutput(Dataset<Integer> input) {
+          protected PCollection<Set<Integer>> getOutput(PCollection<Integer> input) {
             return ReduceByKey.of(input)
                 .keyBy(e -> e % 2)
                 .valueBy(e -> e)
@@ -146,9 +146,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   //          }
   //
   //          @Override
-  //          protected Dataset<List<KV<Integer, List<Integer>>>> getOutput(Dataset<Integer>
+  //          protected PCollection<List<KV<Integer, List<Integer>>>> getOutput(PCollection<Integer>
   // input) {
-  //            Dataset<KV<Integer, List<Integer>>> reducedByWindow =
+  //            PCollection<KV<Integer, List<Integer>>> reducedByWindow =
   //                ReduceByKey.of(input)
   //                    .keyBy(e -> e % 2)
   //                    .valueBy(e -> e)
@@ -197,7 +197,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<KV<Integer, Long>, KV<Integer, Long>>() {
 
           @Override
-          protected Dataset<KV<Integer, Long>> getOutput(Dataset<KV<Integer, Long>> input) {
+          protected PCollection<KV<Integer, Long>> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             return ReduceByKey.of(input)
                 .keyBy(KV::getKey)
@@ -269,7 +269,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<Integer, KV<Integer, Long>>() {
 
           @Override
-          protected Dataset<KV<Integer, Long>> getOutput(Dataset<Integer> input) {
+          protected PCollection<KV<Integer, Long>> getOutput(PCollection<Integer> input) {
             @SuppressWarnings("unchecked")
             final WindowFn<Object, CountWindow> windowFn = (WindowFn) new TestWindowFn();
             return ReduceByKey.of(input)
@@ -354,7 +354,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<String, Long>> getOutput(Dataset<String> input) {
+          protected PCollection<KV<String, Long>> getOutput(PCollection<String> input) {
             return ReduceByKey.of(input)
                 .keyBy(e -> e, TypeDescriptor.of(String.class))
                 .valueBy(e -> 1L, TypeDescriptor.of(Long.class))
@@ -398,7 +398,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<String, List<Long>>> getOutput(Dataset<KV<String, Long>> input) {
+          protected PCollection<KV<String, List<Long>>> getOutput(
+              PCollection<KV<String, Long>> input) {
             return ReduceByKey.of(input)
                 .keyBy(KV::getKey)
                 .valueBy(KV::getValue)
@@ -439,7 +440,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<String, Long>> getOutput(Dataset<KV<String, Long>> input) {
+          protected PCollection<KV<String, Long>> getOutput(PCollection<KV<String, Long>> input) {
             return ReduceByKey.of(input)
                 .keyBy(KV::getKey)
                 .valueBy(KV::getValue)
@@ -487,10 +488,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   //          }
   //
   //          @Override
-  //          protected Dataset<Triple<TimeInterval, Integer, Set<String>>> getOutput(
-  //              Dataset<KV<String, Integer>> input) {
+  //          protected PCollection<Triple<TimeInterval, Integer, Set<String>>> getOutput(
+  //              PCollection<KV<String, Integer>> input) {
   //            input = AssignEventTime.of(input).using(KV::getValue).output();
-  //            Dataset<KV<Integer, Set<String>>> reduced =
+  //            PCollection<KV<Integer, Set<String>>> reduced =
   //                ReduceByKey.of(input)
   //                    .keyBy(e -> e.getKey().charAt(0) - '0')
   //                    .valueBy(KV::getKey)
@@ -535,7 +536,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         new AbstractTestCase<KV<Word, Long>, KV<Word, Long>>() {
 
           @Override
-          protected Dataset<KV<Word, Long>> getOutput(Dataset<KV<Word, Long>> input) {
+          protected PCollection<KV<Word, Long>> getOutput(PCollection<KV<Word, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             return ReduceByKey.of(input)
                 .keyBy(KV::getKey)
@@ -592,7 +593,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
 
           @Override
-          protected Dataset<KV<Integer, Integer>> getOutput(Dataset<Integer> input) {
+          protected PCollection<KV<Integer, Integer>> getOutput(PCollection<Integer> input) {
             return ReduceByKey.named("test")
                 .of(input)
                 .keyBy(e -> e % 2)
