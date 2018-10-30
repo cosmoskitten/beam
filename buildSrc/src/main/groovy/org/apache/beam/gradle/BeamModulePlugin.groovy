@@ -802,6 +802,7 @@ class BeamModulePlugin implements Plugin<Project> {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
                 include "**/*.class"
+                exclude "META-INF/**" // BEAM-5919: Exclude module-info.class for Java 9 build support
                 exclude "org/apache/beam/**"
               }
               if (exposedClasses.files) {
