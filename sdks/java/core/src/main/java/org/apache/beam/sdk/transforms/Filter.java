@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.Collections;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * {@code PTransform}s for filtering from a {@code PCollection} the elements satisfying a predicate,
@@ -27,7 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <T> the type of the values in the input {@code PCollection}, and the type of the elements
  *     in the output {@code PCollection}
  */
-public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
+public class Filter<T> extends MapperBase<T, T> {
 
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
@@ -180,8 +184,30 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   private Filter(SerializableFunction<T, Boolean> predicate, String predicateDescription) {
+    super(
+        null, // name is null for backwards compatibility
+        wrapResultAsIterable(predicate),
+        null, // Filter implements custom DisplayData logic, so no originalFn needed
+        TypeDescriptors.inputOf(predicate),
+        TypeDescriptors.inputOf(predicate));
     this.predicate = predicate;
     this.predicateDescription = predicateDescription;
+  }
+
+  private static <T> Contextful<Fn<T, Iterable<T>>> wrapResultAsIterable(
+      SerializableFunction<T, Boolean> predicate) {
+    if (predicate == null) {
+      return null;
+    }
+    return Contextful.fn(
+        (T element, Context c) -> {
+          if (predicate.apply(element)) {
+            return Collections.singletonList(element);
+          } else {
+            return Collections.emptyList();
+          }
+        },
+        Requirements.empty());
   }
 
   /**
@@ -190,22 +216,6 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    */
   Filter<T> described(String description) {
     return new Filter<>(predicate, description);
-  }
-
-  @Override
-  public PCollection<T> expand(PCollection<T> input) {
-    return input
-        .apply(
-            ParDo.of(
-                new DoFn<T, T>() {
-                  @ProcessElement
-                  public void processElement(@Element T element, OutputReceiver<T> r) {
-                    if (predicate.apply(element)) {
-                      r.output(element);
-                    }
-                  }
-                }))
-        .setCoder(input.getCoder());
   }
 
   @Override
