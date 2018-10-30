@@ -27,9 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Translation provider that selects name matching translation (operator name starts same as added
- * {@link Builder#addShortNameTranslation(Class, OperatorTranslator, String)} translation). If no
- * match, then its used {@link Builder#setDefaultTranslationProvider(TranslatorProvider)}.
+ * An implementation of {@link TranslatorProvider}, which allows for custom translations of hand
+ * picked operators based on operator names.
+ *
+ * <p>It either selects specific translation or defaults to wrapped {@link TranslatorProvider}.
+ * Selection of specific translation is based on operator's name and {@link
+ * OperatorTranslator#canTranslate(Operator)} method.
+ *
+ * <p>Specific translation could be added through {@link Builder#addNameBasedTranslation(Class,
+ * OperatorTranslator, String)} method during build step. Names are considered match when an
+ * operator's name starts with given prefix.
  */
 public class NameBasedTranslatorProvider implements TranslatorProvider {
 
@@ -107,22 +114,22 @@ public class NameBasedTranslatorProvider implements TranslatorProvider {
     }
 
     /**
-     * If more translators can translate operator choose the one which starts with
-     * operator.getName() == shortName (case insensitive).
+     * Choose translator for operator, which match: operator.getName().startsWith(translationName)
+     * (case insensitive). If no match use defaultTranslationProvider.
      *
-     * @param operator to translate
-     * @param translatorClass class of translation
-     * @param shortName on which should operator name start
+     * @param operatorClass operator class
+     * @param translator instance of OperatorTranslator
+     * @param translationName name to match translator
      * @return builder
      */
-    public NameBasedTranslatorProvider.Builder addShortNameTranslation(
-        Class<? extends Operator> operator,
-        OperatorTranslator<?, ?, ?> translatorClass,
-        String shortName) {
+    public NameBasedTranslatorProvider.Builder addNameBasedTranslation(
+        Class<? extends Operator> operatorClass,
+        OperatorTranslator<?, ?, ?> translator,
+        String translationName) {
       translators.put(
-          Objects.requireNonNull(operator),
+          Objects.requireNonNull(operatorClass),
           new TranslationCandidate(
-              Objects.requireNonNull(shortName), Objects.requireNonNull(translatorClass)));
+              Objects.requireNonNull(translationName), Objects.requireNonNull(translator)));
       return this;
     }
 
