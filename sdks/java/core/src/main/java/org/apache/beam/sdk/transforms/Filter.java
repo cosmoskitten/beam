@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Collections;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.Contextful.Fn.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -194,20 +195,22 @@ public class Filter<T> extends MapperBase<T, T> {
     this.predicateDescription = predicateDescription;
   }
 
+  @Nullable
   private static <T> Contextful<Fn<T, Iterable<T>>> wrapResultAsIterable(
       SerializableFunction<T, Boolean> predicate) {
     if (predicate == null) {
       return null;
+    } else {
+      return Contextful.fn(
+          (T element, Context c) -> {
+            if (predicate.apply(element)) {
+              return Collections.singletonList(element);
+            } else {
+              return Collections.emptyList();
+            }
+          },
+          Requirements.empty());
     }
-    return Contextful.fn(
-        (T element, Context c) -> {
-          if (predicate.apply(element)) {
-            return Collections.singletonList(element);
-          } else {
-            return Collections.emptyList();
-          }
-        },
-        Requirements.empty());
   }
 
   /**

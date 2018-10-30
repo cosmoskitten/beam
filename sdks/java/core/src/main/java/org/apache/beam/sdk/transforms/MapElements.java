@@ -105,13 +105,16 @@ public class MapElements<InputT, OutputT> extends MapperBase<InputT, OutputT> {
     super("Map", wrapResultAsIterable(fn), originalFnForDisplayData, inputType, outputType);
   }
 
+  @Nullable
   private static <InputT, OutputT> Contextful<Fn<InputT, Iterable<OutputT>>> wrapResultAsIterable(
-      @Nullable Contextful<Fn<InputT, OutputT>> fn) {
+      Contextful<Fn<InputT, OutputT>> fn) {
     if (fn == null) {
       return null;
+    } else {
+      return Contextful.fn(
+          (InputT element, Context c) -> Collections
+              .singletonList(fn.getClosure().apply(element, c)),
+          fn.getRequirements());
     }
-    return Contextful.fn(
-        (InputT element, Context c) -> Collections.singletonList(fn.getClosure().apply(element, c)),
-        fn.getRequirements());
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
@@ -42,7 +43,7 @@ abstract class MapperBase<InputT, OutputT>
   @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
 
   MapperBase(
-      String name,
+      @Nullable String name,
       @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
       @Nullable Object originalFnForDisplayData,
       @Nullable TypeDescriptor<InputT> inputType,
@@ -56,6 +57,8 @@ abstract class MapperBase<InputT, OutputT>
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    checkNotNull(fn, "Must specify a function on "
+        + MapperBase.this.getClass().toString() + " using .via()");
     return input.apply(
         ParDo.of(
                 new DoFn<InputT, OutputT>() {
