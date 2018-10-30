@@ -802,6 +802,7 @@ class BeamModulePlugin implements Plugin<Project> {
             project.configurations.shadow.artifacts.files.each {
               FileTree exposedClasses = project.zipTree(it).matching {
                 include "**/*.class"
+                exclude "META-INF/**" // BEAM-5919: Exclude module-info.class for Java 9 build support
                 exclude "org/apache/beam/**"
               }
               if (exposedClasses.files) {
@@ -1496,7 +1497,10 @@ artifactId=${project.name}
         inputs.files project.configurations.shadow.artifacts.files
         doLast {
           project.configurations.shadow.artifacts.files.each {
-            FileTree exportedClasses = project.zipTree(it).matching { include "org/apache/beam/vendor/**" }
+            FileTree exportedClasses = project.zipTree(it).matching {
+              include "org/apache/beam/vendor/**"
+              exclude "META-INF/**" // BEAM-5919: Exclude module-info.class for Java 9 build support
+            }
             if (exportedClasses.files) {
               throw new GradleException("$it exported classes inside of org.apache.beam.vendor namespace: ${exportedClasses.files}")
             }
