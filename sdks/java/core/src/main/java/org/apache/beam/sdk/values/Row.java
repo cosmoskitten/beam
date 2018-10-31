@@ -347,7 +347,7 @@ public abstract class Row implements Serializable {
     }
     Row other = (Row) o;
     return Objects.equals(getSchema(), other.getSchema())
-        && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
+            && Objects.deepEquals(getValues().toArray(), other.getValues().toArray());
   }
 
   @Override
@@ -412,7 +412,7 @@ public abstract class Row implements Serializable {
     }
 
     public Builder withFieldValueGetters(
-        FieldValueGetterFactory fieldValueGetterFactory, Object getterTarget) {
+            FieldValueGetterFactory fieldValueGetterFactory, Object getterTarget) {
       this.fieldValueGetterFactory = fieldValueGetterFactory;
       this.getterTarget = getterTarget;
       return this;
@@ -422,9 +422,9 @@ public abstract class Row implements Serializable {
       List<Object> verifiedValues = Lists.newArrayListWithCapacity(values.size());
       if (schema.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
-            String.format(
-                "Field count in Schema (%s) and values (%s) must match",
-                schema.getFieldNames(), values));
+                String.format(
+                        "Field count in Schema (%s) and values (%s) must match",
+                        schema.getFieldNames(), values));
       }
       for (int i = 0; i < values.size(); ++i) {
         Object value = values.get(i);
@@ -432,29 +432,23 @@ public abstract class Row implements Serializable {
         if (value == null) {
           if (!field.getNullable()) {
             throw new IllegalArgumentException(
-                String.format("Field %s is not nullable", field.getName()));
+                    String.format("Field %s is not nullable", field.getName()));
           }
           verifiedValues.add(null);
         } else {
-          verifiedValues.add(verify(value, field.getType(), field.getName(), field.getNullable()));
+          verifiedValues.add(verify(value, field.getType(), field.getName()));
         }
       }
       return verifiedValues;
     }
 
-    private Object verify(Object value, FieldType type, String fieldName, boolean nullable) {
+    private Object verify(Object value, FieldType type, String fieldName) {
       if (TypeName.ARRAY.equals(type.getTypeName())) {
-        List<Object> arrayElements =
-            verifyArray(value, type.getCollectionElementType(), fieldName, nullable);
+        List<Object> arrayElements = verifyArray(value, type.getCollectionElementType(), fieldName);
         return arrayElements;
       } else if (TypeName.MAP.equals(type.getTypeName())) {
         Map<Object, Object> mapElements =
-            verifyMap(
-                value,
-                type.getMapKeyType().getTypeName(),
-                type.getMapValueType(),
-                fieldName,
-                nullable);
+                verifyMap(value, type.getMapKeyType().getTypeName(), type.getMapValueType(), fieldName);
         return mapElements;
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
@@ -464,47 +458,37 @@ public abstract class Row implements Serializable {
     }
 
     private List<Object> verifyArray(
-        Object value, FieldType collectionElementType, String fieldName, boolean nullable) {
+            Object value, FieldType collectionElementType, String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and array type expected List class. Instead "
-                    + "class type was %s.",
-                fieldName, value.getClass()));
+                String.format(
+                        "For field name %s and array type expected List class. Instead "
+                                + "class type was %s.",
+                        fieldName, value.getClass()));
       }
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        if (listValue == null) {
-          if (nullable) {
-            throw new IllegalArgumentException(
-                String.format("Field %s is not nullable", fieldName));
-          }
-        }
-        verifiedList.add(verify(listValue, collectionElementType, fieldName, nullable));
+        verifiedList.add(verify(listValue, collectionElementType, fieldName));
       }
       return verifiedList;
     }
 
     private Map<Object, Object> verifyMap(
-        Object value,
-        TypeName keyTypeName,
-        FieldType valueType,
-        String fieldName,
-        boolean nullable) {
+            Object value, TypeName keyTypeName, FieldType valueType, String fieldName) {
       if (!(value instanceof Map)) {
         throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and map type expected Map class. Instead "
-                    + "class type was %s.",
-                fieldName, value.getClass()));
+                String.format(
+                        "For field name %s and map type expected Map class. Instead "
+                                + "class type was %s.",
+                        fieldName, value.getClass()));
       }
       Map<Object, Object> valueMap = (Map<Object, Object>) value;
       Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
       for (Entry<Object, Object> kv : valueMap.entrySet()) {
         verifiedMap.put(
-            verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
-            verify(kv.getValue(), valueType, fieldName, nullable));
+                verifyPrimitiveType(kv.getKey(), keyTypeName, fieldName),
+                verify(kv.getValue(), valueType, fieldName));
       }
       return verifiedMap;
     }
@@ -512,9 +496,9 @@ public abstract class Row implements Serializable {
     private Row verifyRow(Object value, String fieldName) {
       if (!(value instanceof Row)) {
         throw new IllegalArgumentException(
-            String.format(
-                "For field name %s expected Row type. " + "Instead class type was %s.",
-                fieldName, value.getClass()));
+                String.format(
+                        "For field name %s expected Row type. " + "Instead class type was %s.",
+                        fieldName, value.getClass()));
       }
       // No need to recursively validate the nested Row, since there's no way to build the
       // Row object without it validating.
@@ -581,12 +565,12 @@ public abstract class Row implements Serializable {
           default:
             // Shouldn't actually get here, but we need this case to satisfy linters.
             throw new IllegalArgumentException(
-                String.format("Not a primitive type for field name %s: %s", fieldName, type));
+                    String.format("Not a primitive type for field name %s: %s", fieldName, type));
         }
         throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and type %s found incorrect class type %s",
-                fieldName, type, value.getClass()));
+                String.format(
+                        "For field name %s and type %s found incorrect class type %s",
+                        fieldName, type, value.getClass()));
       }
     }
 
@@ -596,9 +580,9 @@ public abstract class Row implements Serializable {
         return ((AbstractInstant) value).toInstant();
       } else {
         throw new IllegalArgumentException(
-            String.format(
-                "For field name %s and DATETIME type got unexpected class %s ",
-                fieldName, value.getClass()));
+                String.format(
+                        "For field name %s and DATETIME type got unexpected class %s ",
+                        fieldName, value.getClass()));
       }
     }
 
@@ -623,19 +607,19 @@ public abstract class Row implements Serializable {
   /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
   public static <T> Collector<T, List<Object>, Row> toRow(Schema schema) {
     return Collector.of(
-        () -> new ArrayList<>(schema.getFieldCount()),
-        List::add,
-        (left, right) -> {
-          left.addAll(right);
-          return left;
-        },
-        values -> Row.withSchema(schema).addValues(values).build());
+            () -> new ArrayList<>(schema.getFieldCount()),
+            List::add,
+            (left, right) -> {
+              left.addAll(right);
+              return left;
+            },
+            values -> Row.withSchema(schema).addValues(values).build());
   }
 
   /** Creates a new record filled with nulls. */
   public static Row nullRow(Schema schema) {
     return Row.withSchema(schema)
-        .addValues(Collections.nCopies(schema.getFieldCount(), null))
-        .build();
+            .addValues(Collections.nCopies(schema.getFieldCount(), null))
+            .build();
   }
 }
