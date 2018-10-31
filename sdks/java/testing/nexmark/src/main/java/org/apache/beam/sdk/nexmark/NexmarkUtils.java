@@ -33,7 +33,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -59,8 +61,10 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -609,6 +613,16 @@ public class NexmarkUtils {
             c.output(c.element());
           }
         });
+  }
+
+  /** Write data to be read as a side input. */
+  public static void prepareSideInput(NexmarkConfiguration config) {
+    Pipeline p = Pipeline.create();
+    p.apply(GenerateSequence.from(0).to(config.sideInputRowCount))
+        .apply(
+            MapElements.via(new SimpleFunction<Long, String>(l -> String.format("%s,%s", l, l)) {}))
+        .apply(TextIO.write().withNumShards(config.sideInputShards).to(config.sideInputUrl));
+    p.run().waitUntilFinish();
   }
 
   /**

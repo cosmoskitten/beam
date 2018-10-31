@@ -50,6 +50,8 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.nexmark.queries.JoinToFiles;
+import org.apache.beam.sdk.nexmark.queries.JoinToFilesModel;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
 import org.apache.beam.sdk.nexmark.queries.Query0;
@@ -1199,6 +1201,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.HIGHEST_BID, new Query7Model(configuration))
         .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8Model(configuration))
         .put(NexmarkQueryName.WINNING_BIDS, new Query9Model(configuration))
+        .put(NexmarkQueryName.JOIN_TO_FILES, new JoinToFilesModel(configuration))
         .build();
   }
 
@@ -1242,6 +1245,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.LOG_TO_SHARDED_FILES, new Query10(configuration))
         .put(NexmarkQueryName.USER_SESSIONS, new Query11(configuration))
         .put(NexmarkQueryName.PROCESSING_TIME_WINDOWS, new Query12(configuration))
+        .put(NexmarkQueryName.JOIN_TO_FILES, new JoinToFiles(configuration))
         .build();
   }
 

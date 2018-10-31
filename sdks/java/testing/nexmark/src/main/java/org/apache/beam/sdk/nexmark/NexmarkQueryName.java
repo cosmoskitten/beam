@@ -39,7 +39,10 @@ public enum NexmarkQueryName {
   WINNING_BIDS(9), // Query "9"
   LOG_TO_SHARDED_FILES(10), // Query "10"
   USER_SESSIONS(11), // Query "11"
-  PROCESSING_TIME_WINDOWS(12); // Query "12"
+  PROCESSING_TIME_WINDOWS(12), // Query "12"
+
+  // Other non-numbered queries
+  JOIN_TO_FILES;
 
   private @Nullable Integer number;
 
