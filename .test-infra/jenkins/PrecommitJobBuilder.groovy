@@ -107,7 +107,7 @@ class PrecommitJobBuilder {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(gradleTask)
-          gradleSwitches.each { switches($it) }
+          gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
