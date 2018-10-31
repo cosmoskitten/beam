@@ -619,4 +619,16 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     pipeline.run();
   }
+
+  public void testWriteRetryValidRequest() throws Throwable {
+    ElasticsearchIO.Write write =
+            ElasticsearchIO.write()
+                    .withConnectionConfiguration(connectionConfiguration)
+                    .withRetryConfiguration(
+                            ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
+    pipeline.apply(Create.of(Arrays.asList(OK_REQUEST))).apply(write);
+
+    pipeline.run();
+  }
 }
