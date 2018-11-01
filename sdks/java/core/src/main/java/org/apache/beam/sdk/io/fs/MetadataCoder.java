@@ -42,6 +42,7 @@ public class MetadataCoder extends AtomicCoder<Metadata> {
     RESOURCE_ID_CODER.encode(value.resourceId(), os);
     INT_CODER.encode(value.isReadSeekEfficient() ? 1 : 0, os);
     LONG_CODER.encode(value.sizeBytes(), os);
+    LONG_CODER.encode(value.lastModified(), os);
   }
 
   @Override
@@ -49,10 +50,12 @@ public class MetadataCoder extends AtomicCoder<Metadata> {
     ResourceId resourceId = RESOURCE_ID_CODER.decode(is);
     boolean isReadSeekEfficient = INT_CODER.decode(is) == 1;
     long sizeBytes = LONG_CODER.decode(is);
+    long lastModified = LONG_CODER.decode(is);
     return Metadata.builder()
         .setResourceId(resourceId)
         .setIsReadSeekEfficient(isReadSeekEfficient)
         .setSizeBytes(sizeBytes)
+        .setLastModified(lastModified)
         .build();
   }
 

@@ -58,10 +58,11 @@ class MatchResultMatcher extends BaseMatcher<MatchResult> {
   }
 
   static MatchResultMatcher create(
-      long sizeBytes, ResourceId resourceId, boolean isReadSeekEfficient) {
+      long sizeBytes, long lastModified, ResourceId resourceId, boolean isReadSeekEfficient) {
     return create(
         MatchResult.Metadata.builder()
             .setSizeBytes(sizeBytes)
+            .setLastModified(lastModified)
             .setResourceId(resourceId)
             .setIsReadSeekEfficient(isReadSeekEfficient)
             .build());
