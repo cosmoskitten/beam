@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
@@ -248,6 +249,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
+    DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));
+    ret.setLastModifiedMillis(lastModified.getValue());
     return ret.build();
   }
 
