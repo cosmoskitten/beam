@@ -102,6 +102,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
                     .setResourceId(new HadoopResourceId(uri))
                     .setIsReadSeekEfficient(true)
                     .setSizeBytes(fileStatus.getLen())
+                    .setLastModified(fileStatus.getModificationTime())
                     .build());
           }
         }

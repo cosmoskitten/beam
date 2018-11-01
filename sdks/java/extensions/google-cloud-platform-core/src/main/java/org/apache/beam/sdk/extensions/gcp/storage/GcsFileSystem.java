@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -248,6 +250,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
+    DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));
+    ret.setLastModified(lastModified.getValue());
     return ret.build();
   }
 
