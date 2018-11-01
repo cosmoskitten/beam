@@ -17,5 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.udf;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 /** BeamBuiltinFunctionClass interface. */
-interface BeamBuiltinFunctionClass {}
+public abstract class BeamBuiltinFunctionProvider {
+  public Map<String, List<Method>> getBuiltinMethods() {
+    List<Method> methods = Arrays.asList(getClass().getMethods());
+    return methods
+        .stream()
+        .filter(BeamBuiltinFunctionProvider::isUDF)
+        .collect(
+            Collectors.groupingBy(method -> method.getDeclaredAnnotation(UDF.class).funcName()));
+  }
+
+  private static boolean isUDF(Method m) {
+    return m.getDeclaredAnnotation(UDF.class) != null;
+  }
+}
