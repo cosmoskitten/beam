@@ -57,6 +57,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -316,9 +317,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       for (S3ObjectSummary objectSummary : result.getObjectSummaries()) {
         // Filter against regex.
         if (wildcardRegexp.matcher(objectSummary.getKey()).matches()) {
+          objectSummary.getLastModified();
           S3ResourceId expandedPath =
               S3ResourceId.fromComponents(objectSummary.getBucketName(), objectSummary.getKey())
-                  .withSize(objectSummary.getSize());
+                  .withSize(objectSummary.getSize())
+                  .withLastModified(objectSummary.getLastModified());
           LOG.debug("Expanded S3 object path {}", expandedPath);
           expandedPaths.add(expandedPath);
         }
@@ -382,10 +385,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     checkArgument(path.getSize().isPresent(), "path has size");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
+
     return MatchResult.Metadata.builder()
         .setIsReadSeekEfficient(isReadSeekEfficient)
         .setResourceId(path)
         .setSizeBytes(path.getSize().get())
+        .setLastModified(path.getLastModified().transform(Date::getTime).or(0L))
         .build();
   }
 
