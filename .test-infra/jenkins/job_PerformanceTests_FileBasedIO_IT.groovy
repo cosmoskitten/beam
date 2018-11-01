@@ -94,14 +94,6 @@ for (testConfiguration in testsConfigurations) {
     create_filebasedio_performance_test_job(testConfiguration)
 }
 
-steps {
-    gradle {
-        rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(':beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar')
-        commonJobProperties.setGradleSwitches(delegate)
-    }
-}
-
 private void create_filebasedio_performance_test_job(testConfiguration) {
 
     // This job runs the file-based IOs performance tests on PerfKit Benchmarker.
@@ -143,6 +135,15 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_extra_properties: '["filesystem=gcs"]',
                 bigquery_table       : testConfiguration.bqTable,
         ]
+
+        steps {
+            gradle {
+                rootBuildScriptDir(commonJobProperties.checkoutDir)
+                tasks(':beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar')
+                commonJobProperties.setGradleSwitches(delegate)
+            }
+        }
+
         commonJobProperties.buildPerformanceTest(delegate, argMap)
     }
 }
