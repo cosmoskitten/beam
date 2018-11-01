@@ -19,22 +19,51 @@ package org.apache.beam.sdk.extensions.sql.impl.udf;
 
 import com.google.auto.service.AutoService;
 
-/**
- * SINH(X)
- *
- * <p>Computes the hyperbolic sine of X. Generates an error if an overflow occurs.
- */
-@AutoService(BeamBuiltinFunctionClass.class)
-public class HyperbolicSine implements BeamBuiltinFunctionClass {
-  private static final String SQL_FUNCTION_NAME = "SINH";
+/** TrigonometricFunctions. */
+@AutoService(BeamBuiltinFunctionProvider.class)
+public class BuiltinTrigonometricFunctions extends BeamBuiltinFunctionProvider {
 
+  /**
+   * COSH(X)
+   *
+   * <p>Computes the hyperbolic cosine of X. Generates an error if an overflow occurs.
+   */
   // TODO: handle overflow
-  @UserDefinedFunctionAnnotation(
-    funcName = SQL_FUNCTION_NAME,
+  @UDF(
+    funcName = "COSH",
+    parameterArray = {Double.class},
+    returnType = Double.class
+  )
+  public Double cosh(Double o) {
+    return Math.cosh(o);
+  }
+
+  /**
+   * SINH(X)
+   *
+   * <p>Computes the hyperbolic sine of X. Generates an error if an overflow occurs.
+   */
+  // TODO: handle overflow
+  @UDF(
+    funcName = "SINH",
     parameterArray = {Double.class},
     returnType = Double.class
   )
   public Double sinh(Double o) {
     return Math.sinh(o);
+  }
+
+  /**
+   * TANH(X)
+   *
+   * <p>Computes hyperbolic tangent of X. Does not fail.
+   */
+  @UDF(
+    funcName = "TANH",
+    parameterArray = {Double.class},
+    returnType = Double.class
+  )
+  public Double tanh(Double o) {
+    return Math.tanh(o);
   }
 }

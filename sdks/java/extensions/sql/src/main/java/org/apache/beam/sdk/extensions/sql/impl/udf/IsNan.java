@@ -26,11 +26,11 @@ import com.google.auto.service.AutoService;
  *
  * <p>Output: Boolean
  */
-@AutoService(BeamBuiltinFunctionClass.class)
-public class IsNan implements BeamBuiltinFunctionClass {
+@AutoService(BeamBuiltinFunctionProvider.class)
+public class IsNan extends BeamBuiltinFunctionProvider {
   private static final String SQL_FUNCTION_NAME = "IS_NAN";
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
     parameterArray = {Float.class},
     returnType = Boolean.class
@@ -39,7 +39,7 @@ public class IsNan implements BeamBuiltinFunctionClass {
     return Float.isNaN(value);
   }
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
     parameterArray = {Double.class},
     returnType = Boolean.class

@@ -27,11 +27,11 @@ import com.google.auto.service.AutoService;
  *
  * <p>Output: Boolean
  */
-@AutoService(BeamBuiltinFunctionClass.class)
-public class IsInf implements BeamBuiltinFunctionClass {
+@AutoService(BeamBuiltinFunctionProvider.class)
+public class IsInf extends BeamBuiltinFunctionProvider {
   private static final String SQL_FUNCTION_NAME = "IS_INF";
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
     parameterArray = {Double.class},
     returnType = Boolean.class
@@ -40,7 +40,7 @@ public class IsInf implements BeamBuiltinFunctionClass {
     return Double.isInfinite(value);
   }
 
-  @UserDefinedFunctionAnnotation(
+  @UDF(
     funcName = SQL_FUNCTION_NAME,
     parameterArray = {Float.class},
     returnType = Boolean.class
