@@ -289,9 +289,16 @@ class CommonJobProperties {
 
     context.steps {
        shell("echo 'AAAAAA'")
-       gradle(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
+       gradle()
+       gradle {
+         rootBuildScriptDir(commonJobProperties.checkoutDir)
+         tasks(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
+         // commonJobProperties.setGradleSwitches(delegate)
+       }
 
         // Clean up environment.
+        shell("rm -rf ${perfkit_root}")
+
         shell("rm -rf ${perfkit_root}")
         shell("rm -rf ${perfkit_env}")
 
