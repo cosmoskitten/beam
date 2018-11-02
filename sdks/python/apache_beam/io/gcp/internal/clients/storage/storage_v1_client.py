@@ -20,6 +20,8 @@
 
 from __future__ import absolute_import
 
+import sys
+
 from apitools.base.py import base_api
 
 from apache_beam.io.gcp.internal.clients.storage import \
@@ -45,7 +47,7 @@ class StorageV1(base_api.BaseApiClient):
                get_credentials=True, http=None, model=None,
                log_request=False, log_response=False,
                credentials_args=None, default_global_params=None,
-               additional_http_headers=None):
+               additional_http_headers=None, response_encoding=None):
     """Create a new storage handle."""
     url = url or u'https://www.googleapis.com/storage/v1/'
     super(StorageV1, self).__init__(
@@ -54,7 +56,8 @@ class StorageV1(base_api.BaseApiClient):
         log_request=log_request, log_response=log_response,
         credentials_args=credentials_args,
         default_global_params=default_global_params,
-        additional_http_headers=additional_http_headers)
+        additional_http_headers=additional_http_headers,
+        response_encoding=response_encoding or get_response_encoding())
     self.bucketAccessControls = self.BucketAccessControlsService(self)
     self.buckets = self.BucketsService(self)
     self.channels = self.ChannelsService(self)
@@ -1041,3 +1044,8 @@ class StorageV1(base_api.BaseApiClient):
       config = self.GetMethodConfig('WatchAll')
       return self._RunMethod(
           config, request, global_params=global_params)
+
+
+def get_response_encoding():
+  """Determine whether to encode response content based on Python version."""
+  return None if sys.version_info[0] < 3 else 'utf8'
