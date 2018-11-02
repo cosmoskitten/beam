@@ -56,7 +56,7 @@ public class JoinToFilesModel extends NexmarkQueryModel {
           new Bid(
               bid.auction,
               bid.bidder,
-              bid.price * 89 / 100,
+              bid.price,
               bid.dateTime,
               String.valueOf(bid.bidder % configuration.sideInputRowCount));
       TimestampedValue<Bid> result =

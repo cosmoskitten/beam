@@ -85,7 +85,7 @@ public class JoinToFiles extends NexmarkQuery {
                             new Bid(
                                 bid.auction,
                                 bid.bidder,
-                                (bid.price * 89) / 100,
+                                bid.price,
                                 bid.dateTime,
                                 c.sideInput(sideInputMap)
                                     .get(bid.bidder % configuration.sideInputRowCount)));

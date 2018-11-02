@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
+import com.google.common.collect.Iterables;
 import java.util.Random;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.PipelineResult;
@@ -24,11 +28,18 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.nexmark.model.Bid;
+import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.junit.After;
 import org.junit.Before;
@@ -42,6 +53,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JoinToFilesTest {
   private static final NexmarkConfiguration config = NexmarkConfiguration.DEFAULT.copy();
+
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Before
   public void setupConfig() {
@@ -57,6 +70,9 @@ public class JoinToFilesTest {
             String.format(
                     "%s/JoinToFiles-%s", p.getOptions().getTempLocation(), new Random().nextInt()), false);
     config.sideInputUrl = sideInputResourceId.toString();
+
+    NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
+    NexmarkUtils.prepareSideInput(config);
   }
 
   @After
@@ -68,13 +84,9 @@ public class JoinToFilesTest {
             .collect(Collectors.toList()));
   }
 
-  @Rule public TestPipeline p = TestPipeline.create();
-
   /** Test {@code query} matches {@code model}. */
   private void queryMatchesModel(
       String name, NexmarkQuery query, NexmarkQueryModel model, boolean streamingMode) {
-    NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
-    NexmarkUtils.prepareSideInput(config);
     PCollection<TimestampedValue<KnownSize>> results;
     if (streamingMode) {
       results =
@@ -85,6 +97,26 @@ public class JoinToFilesTest {
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();
     result.waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void joinToFilesInputOutputSameEvents() {
+    PCollection<Event> input = p.apply(NexmarkUtils.batchEventsSource(config));
+    PCollection<Bid> justBids = input.apply(NexmarkQuery.JUST_BIDS);
+    PCollection<Long> bidCount = justBids.apply("Count Bids", Count.globally());
+
+    PCollection<TimestampedValue<KnownSize>> output = input.apply(new JoinToFiles(config));
+    PCollection<Long> outputCount = output.apply("Count outputs", Count.globally());
+
+    PAssert.that(PCollectionList.of(bidCount).and(outputCount).apply(Flatten.pCollections()))
+        .satisfies(
+            counts -> {
+              assertThat(Iterables.size(counts), equalTo(2));
+              assertThat(Iterables.get(counts, 0), equalTo(Iterables.get(counts, 1)));
+              return null;
+            });
+    p.run();
   }
 
   @Test
