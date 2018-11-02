@@ -280,6 +280,7 @@ class DisplayDataItem(object):
     return False
 
   def __ne__(self, other):
+    # Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):

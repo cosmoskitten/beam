@@ -94,6 +94,10 @@ class DummyClass(object):
       return True
     return False
 
+  def __ne__(self, other):
+    # Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return hash(type(self))
 

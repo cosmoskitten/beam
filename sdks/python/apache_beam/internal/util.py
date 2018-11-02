@@ -54,6 +54,10 @@ class ArgumentPlaceholder(object):
     """
     return isinstance(other, ArgumentPlaceholder)
 
+  def __ne__(self, other):
+    # Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return hash(type(self))
 

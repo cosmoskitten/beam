@@ -62,6 +62,7 @@ class NameContext(object):
     return self.step_name == other.step_name
 
   def __ne__(self, other):
+    # Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
@@ -104,6 +105,7 @@ class DataflowNameContext(NameContext):
             self.system_name == other.system_name)
 
   def __ne__(self, other):
+    # Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):

@@ -77,6 +77,10 @@ class PubsubMessage(object):
         self.data == other.data and
         self.attributes == other.attributes)
 
+  def __ne__(self, other):
+    # Needed for Python 2 compatibility.
+    return not self == other
+
   def __repr__(self):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 

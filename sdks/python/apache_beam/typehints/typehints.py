@@ -178,6 +178,10 @@ class TypeConstraint(object):
       else:
         visitor(t, visitor_arg)
 
+  def __ne__(self, other):
+    # Needed for Python 2 compatibility.
+    return not self == other
+
 
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):

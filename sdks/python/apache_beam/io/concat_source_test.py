@@ -83,6 +83,7 @@ class RangeSource(iobase.BoundedSource):
             and self._split_freq == other._split_freq)
 
   def __ne__(self, other):
+    # Needed for Python 2 compatibility.
     return not self == other
 
 
