@@ -291,7 +291,7 @@ class CommonJobProperties {
        shell("echo 'AAAAAA'")
        gradle()
        gradle {
-         rootBuildScriptDir(commonJobProperties.checkoutDir)
+         rootBuildScriptDir(checkoutDir)
          tasks(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
          // commonJobProperties.setGradleSwitches(delegate)
        }
