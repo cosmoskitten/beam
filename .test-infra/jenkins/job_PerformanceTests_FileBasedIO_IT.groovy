@@ -90,6 +90,7 @@ def testsConfigurations = [
         ]
 ]
 
+
 for (testConfiguration in testsConfigurations) {
     create_filebasedio_performance_test_job(testConfiguration)
 }
@@ -137,10 +138,10 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         ]
 
         steps {
+            shell("echo 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'")
+
             gradle {
-                rootBuildScriptDir(commonJobProperties.checkoutDir)
                 tasks(':beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar')
-                commonJobProperties.setGradleSwitches(delegate)
             }
         }
 
