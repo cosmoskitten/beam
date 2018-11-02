@@ -122,6 +122,15 @@ class PipelineRunner(object):
   provide a new implementation for clear_pvalue(), which is used to wipe out
   materialized values in order to reduce footprint.
   """
+  def __init__(self):
+    self._options = None
+
+  def set_options(self, options):
+    self._options = options
+
+  @property
+  def options(self):
+    return self._options
 
   def run(self, transform, options=None):
     """Run the given transform or callable with this runner.

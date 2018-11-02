@@ -60,6 +60,7 @@ class PortableRunner(runner.PipelineRunner):
   """
 
   def __init__(self, is_embedded_fnapi_runner=False):
+    super(PortableRunner, self).__init__()
     self.is_embedded_fnapi_runner = is_embedded_fnapi_runner
 
   @staticmethod
@@ -103,13 +104,13 @@ class PortableRunner(runner.PipelineRunner):
           ).SerializeToString())
 
   def run_pipeline(self, pipeline):
-    portable_options = pipeline.options.view_as(PortableOptions)
+    portable_options = self._options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
-    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
-      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+    if self._options.view_as(SetupOptions).sdk_location == 'default':
+      self._options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
       docker = DockerizedJobServer()
@@ -145,7 +146,7 @@ class PortableRunner(runner.PipelineRunner):
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-               for k, v in pipeline._options.get_all_options().items()
+               for k, v in self._options.get_all_options().items()
                if v is not None}
 
     channel = grpc.insecure_channel(job_endpoint)
@@ -175,7 +176,7 @@ class PortableRunner(runner.PipelineRunner):
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
           prepare_response.staging_session_token)
       retrieval_token, _ = stager.stage_job_resources(
-          pipeline._options,
+          self._options,
           staging_location='')
     else:
       retrieval_token = None

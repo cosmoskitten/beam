@@ -54,6 +54,7 @@ class InteractiveRunner(runners.PipelineRunner):
       render_option: (str) this parameter decides how the pipeline graph is
           rendered. See display.pipeline_graph_renderer for available options.
     """
+    super(InteractiveRunner, self).__init__()
     self._underlying_runner = (underlying_runner
                                or direct_runner.DirectRunner())
     self._cache_manager = cache.FileBasedCacheManager(cache_dir)

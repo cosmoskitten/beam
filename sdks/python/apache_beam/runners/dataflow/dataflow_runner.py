@@ -90,6 +90,7 @@ class DataflowRunner(PipelineRunner):
   ]
 
   def __init__(self, cache=None):
+    super(DataflowRunner, self).__init__()
     # Cache of CloudWorkflowStep protos generated while the runner
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
@@ -323,7 +324,7 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(pipeline._options):
+    if apiclient._use_fnapi(self._options):
       pipeline.visit(self.side_input_visitor())
 
     # Performing configured PTransform overrides.  Note that this is currently
@@ -336,7 +337,7 @@ class DataflowRunner(PipelineRunner):
         return_context=True)
 
     # Add setup_options for all the BeamPlugin imports
-    setup_options = pipeline._options.view_as(SetupOptions)
+    setup_options = self._options.view_as(SetupOptions)
     plugins = BeamPlugin.get_all_plugin_paths()
     if setup_options.beam_plugins is not None:
       plugins = list(set(plugins + setup_options.beam_plugins))
@@ -344,15 +345,15 @@ class DataflowRunner(PipelineRunner):
 
     # Elevate "min_cpu_platform" to pipeline option, but using the existing
     # experiment.
-    debug_options = pipeline._options.view_as(DebugOptions)
-    worker_options = pipeline._options.view_as(WorkerOptions)
+    debug_options = self._options.view_as(DebugOptions)
+    worker_options = self._options.view_as(WorkerOptions)
     if worker_options.min_cpu_platform:
       experiments = ["min_cpu_platform=%s" % worker_options.min_cpu_platform]
       if debug_options.experiments is not None:
         experiments = list(set(experiments + debug_options.experiments))
       debug_options.experiments = experiments
 
-    self.job = apiclient.Job(pipeline._options, self.proto_pipeline)
+    self.job = apiclient.Job(self._options, self.proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -365,18 +366,17 @@ class DataflowRunner(PipelineRunner):
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run_pipeline(pipeline)
 
-    test_options = pipeline._options.view_as(TestOptions)
+    test_options = self._options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
     if test_options.dry_run:
       return None
 
     # Get a Dataflow API client and set its options
-    self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline._options)
+    self.dataflow_client = apiclient.DataflowApplicationClient(self._options)
 
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
-      if not apiclient._use_fnapi(pipeline._options):
+      if not apiclient._use_fnapi(self._options):
         logging.fatal(
             'Typical end users should not use this worker jar feature. '
             'It can only be used when fnapi is enabled.')
@@ -510,8 +510,7 @@ class DataflowRunner(PipelineRunner):
     return step
 
   def run_Impulse(self, transform_node):
-    standard_options = (
-        transform_node.outputs[None].pipeline._options.view_as(StandardOptions))
+    standard_options = self._options.view_as(StandardOptions)
     step = self._add_step(
         TransformNames.READ, transform_node.full_label, transform_node)
     if standard_options.streaming:
@@ -558,7 +557,7 @@ class DataflowRunner(PipelineRunner):
     # Make sure this is the WriteToBigQuery class that we expected
     if not isinstance(transform, beam.io.WriteToBigQuery):
       return self.apply_PTransform(transform, pcoll)
-    standard_options = pcoll.pipeline._options.view_as(StandardOptions)
+    standard_options = self._options.view_as(StandardOptions)
     if standard_options.streaming:
       if (transform.write_disposition ==
           beam.io.BigQueryDisposition.WRITE_TRUNCATE):
@@ -672,7 +671,7 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     transform_id = self.proto_context.transforms.get_id(transform_node)
-    if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
+    if (apiclient._use_fnapi(self._options)
         and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
       # Patch side input ids to be unique across a given pipeline.
       if (label_renames and
@@ -755,7 +754,7 @@ class DataflowRunner(PipelineRunner):
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
     from apache_beam.runners.dataflow.internal import apiclient
-    if apiclient._use_fnapi(transform_node.inputs[0].pipeline._options):
+    if apiclient._use_fnapi(self._options):
       # Fnapi pipelines send the transform ID of the CombineValues transform's
       # parent composite because Dataflow expects the ID of a CombinePerKey
       # transform.
@@ -797,7 +796,7 @@ class DataflowRunner(PipelineRunner):
       # Consider native Read to be a primitive for dataflow.
       return beam.pvalue.PCollection(pbegin.pipeline)
     else:
-      options = pbegin.pipeline.options.view_as(DebugOptions)
+      options = self._options.view_as(DebugOptions)
       if options.experiments and 'beam_fn_api' in options.experiments:
         # Expand according to FnAPI primitives.
         return self.apply_PTransform(transform, pbegin)
@@ -812,8 +811,7 @@ class DataflowRunner(PipelineRunner):
     # TODO(mairbek): refactor if-else tree to use registerable functions.
     # Initialize the source specific properties.
 
-    standard_options = transform_node.inputs[0].pipeline.options.view_as(
-        StandardOptions)
+    standard_options = self._options.view_as(StandardOptions)
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
       source_dict = {}
@@ -965,8 +963,7 @@ class DataflowRunner(PipelineRunner):
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
     elif transform.sink.format == 'pubsub':
-      standard_options = (
-          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+      standard_options = self._options.view_as(StandardOptions)
       if not standard_options.streaming:
         raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
