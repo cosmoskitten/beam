@@ -289,11 +289,13 @@ class CommonJobProperties {
 
     context.steps {
        shell("echo 'AAAAAA'")
+       shell("echo ${checkoutDir}")
+
        gradle()
        gradle {
          rootBuildScriptDir(checkoutDir)
          tasks(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
-         // commonJobProperties.setGradleSwitches(delegate)
+         setGradleSwitches(delegate)
        }
 
         // Clean up environment.
