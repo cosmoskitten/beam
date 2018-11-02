@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.nexmark.queries;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
@@ -113,6 +114,7 @@ public class JoinToFilesTest {
         .satisfies(
             counts -> {
               assertThat(Iterables.size(counts), equalTo(2));
+              assertThat(Iterables.get(counts, 0), greaterThan(0L));
               assertThat(Iterables.get(counts, 0), equalTo(Iterables.get(counts, 1)));
               return null;
             });
