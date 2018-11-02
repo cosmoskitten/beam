@@ -863,6 +863,7 @@ artifactId=${project.name}
 
           dependsOn project.generatePomPropertiesFileForMavenJavaPublication
           into("META-INF/maven/${project.group}/${project.name}") { from "${pomPropertiesFile}" }
+          // environment "SHADOW_JAR_FILE", ""
         }
 
         // Only build artifacts for archives if we are publishing
@@ -1216,6 +1217,8 @@ artifactId=${project.name}
       //  -DintegrationTestRunner=<runner to be used for testing, eg. dataflow>
       //
       // There are more options with default values that can be tweaked if needed (see below).
+      def allPipelineOptions = ${configuration.integrationTestPipelineOptions}
+      allPipelineOptions.add(" --workerHarnessContainerImage=")
       project.task('performanceTest', type: Exec) {
 
         // PerfKitBenchmarker needs to work in the Beam's root directory,
@@ -1236,7 +1239,7 @@ artifactId=${project.name}
                 "--kubectl=${configuration.kubectl}",
                 "--beam_kubernetes_scripts=${configuration.kubernetesScripts}",
 
-                "--beam_it_options=${configuration.integrationTestPipelineOptions}",
+                "--beam_it_options=${allPipelineOptions}",
                 "--beam_options_config_file=${configuration.optionsConfigFile}",
 
                 "--beam_it_class=${configuration.integrationTest}",
