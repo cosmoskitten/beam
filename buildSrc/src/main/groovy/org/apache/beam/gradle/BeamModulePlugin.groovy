@@ -1217,8 +1217,10 @@ artifactId=${project.name}
       //  -DintegrationTestRunner=<runner to be used for testing, eg. dataflow>
       //
       // There are more options with default values that can be tweaked if needed (see below).
-      def allPipelineOptions = ${configuration.integrationTestPipelineOptions}
-      allPipelineOptions.add(" --workerHarnessContainerImage=")
+      def allPipelineOptions = configuration.integrationTestPipelineOptions
+      allPipelineOptions = allPipelineOptions.substring(0, allPipelineOptions.length() - 1)
+      allPipelineOptions = allPipelineOptions + ', "--workerHarnessContainerImage="' + ']'
+      print "ZZZZZZZZZZZ${allPipelineOptions}"
       project.task('performanceTest', type: Exec) {
 
         // PerfKitBenchmarker needs to work in the Beam's root directory,
