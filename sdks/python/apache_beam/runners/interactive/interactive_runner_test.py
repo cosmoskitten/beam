@@ -105,6 +105,10 @@ class InteractiveRunnerTest(unittest.TestCase):
 
   def test_session(self):
     class MockPipelineRunner(object):
+      @property
+      def options(self):
+        return None
+
       def __init__(self):
         self._in_session = False
 
