@@ -38,7 +38,9 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse as avro_parser # avro-python3 library for python3
+  Parse = lambda x: avro_parser(x.decode("utf-8")) \
+      if isinstance(x, bytes) else avro_parser(x)
 except ImportError:
   from avro.schema import parse as Parse # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
