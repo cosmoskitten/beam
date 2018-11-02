@@ -293,8 +293,12 @@ class CommonJobProperties {
          rootBuildScriptDir(checkoutDir)
          tasks(":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar")
          /*
-            At this place if we can get shadowJar.archivePath from gradle build,
-            then we can pass the path to pkbArgs in the following.
+            Option 1. At this place if we can get shadowJar.archivePath from
+            gradle build, then we can pass the path to pkbArgs down below.
+
+            Option 2. Reversed way. If we can pass a file name to gradle as
+            shadowjar.ArchivePath. But that requies looking into the ShadowJar
+            3rd party package we are using. 
           */
        }
 
