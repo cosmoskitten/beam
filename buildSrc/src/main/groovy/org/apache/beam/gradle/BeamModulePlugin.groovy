@@ -1218,8 +1218,10 @@ artifactId=${project.name}
       //
       // There are more options with default values that can be tweaked if needed (see below).
       def allPipelineOptions = configuration.integrationTestPipelineOptions
-      allPipelineOptions = allPipelineOptions.substring(0, allPipelineOptions.length() - 1)
-      allPipelineOptions = allPipelineOptions + ', "--workerHarnessContainerImage="' + ']'
+      if (allPipelineOptions) {
+        allPipelineOptions = allPipelineOptions.substring(0, allPipelineOptions.length() - 1)
+        allPipelineOptions = allPipelineOptions + ', "--workerHarnessContainerImage="' + ']'
+      }
       print "ZZZZZZZZZZZ${allPipelineOptions}"
       project.task('performanceTest', type: Exec) {
 
