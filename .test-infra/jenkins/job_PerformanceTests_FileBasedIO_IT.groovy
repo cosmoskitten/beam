@@ -137,16 +137,6 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 bigquery_table       : testConfiguration.bqTable,
         ]
 
-        job ("Build Worker Jar") {
-          steps {
-              shell("echo 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'")
-
-              gradle {
-                  tasks(':beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar')
-              }
-          }
-        }
-
         commonJobProperties.buildPerformanceTest(delegate, argMap)
     }
 }

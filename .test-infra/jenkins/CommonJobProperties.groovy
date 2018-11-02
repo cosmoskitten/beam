@@ -288,6 +288,9 @@ class CommonJobProperties {
     def perfkit_env = makePathAbsolute("env/.perfkit_env")
 
     context.steps {
+       shell("AAAAAA")
+       gradle ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+
         // Clean up environment.
         shell("rm -rf ${perfkit_root}")
         shell("rm -rf ${perfkit_env}")
