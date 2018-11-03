@@ -21,6 +21,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -62,12 +65,15 @@ public class ClickHouseIOTest {
 
   @Test
   public void testInt64() throws Exception {
-    Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT64));
-    Row row1 = Row.withSchema(schema).addValue(1L).build();
-    Row row2 = Row.withSchema(schema).addValue(2L).build();
-    Row row3 = Row.withSchema(schema).addValue(3L).build();
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.INT64),
+            Schema.Field.of("f1", Schema.FieldType.INT64));
+    Row row1 = Row.withSchema(schema).addValue(1L).addValue(2L).build();
+    Row row2 = Row.withSchema(schema).addValue(2L).addValue(4L).build();
+    Row row3 = Row.withSchema(schema).addValue(3L).addValue(6L).build();
 
-    executeSql("CREATE TABLE test_int64 (f0 Int64) ENGINE=Log");
+    executeSql("CREATE TABLE test_int64 (f0 Int64, f1 Int64) ENGINE=Log");
 
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
@@ -79,8 +85,22 @@ public class ClickHouseIOTest {
 
     pipeline.run().waitUntilFinish();
 
-    long sum = executeQueryAsLong("SELECT SUM(f0) FROM test_int64");
+    long sum0 = executeQueryAsLong("SELECT SUM(f0) FROM test_int64");
+    long sum1 = executeQueryAsLong("SELECT SUM(f1) FROM test_int64");
 
-    Assert.assertEquals(6L, sum);
+    Assert.assertEquals(6L, sum0);
+    Assert.assertEquals(12L, sum1);
+  }
+
+  @Test
+  public void testInsertSql() {
+    List<TableSchema.Column> columns =
+        Arrays.asList(
+            TableSchema.Column.of("f0", ColumnType.INT64),
+            TableSchema.Column.of("f1", ColumnType.INT64));
+
+    String expected = "INSERT INTO \"test_table\" (\"f0\", \"f1\")";
+
+    ClickHouseIO.WriteFn.insertSql(TableSchema.of(columns), "test_table");
   }
 }
