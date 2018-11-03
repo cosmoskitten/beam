@@ -24,13 +24,16 @@ ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+//  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core")
   shadow library.java.joda_time
   shadow "ru.yandex.clickhouse:clickhouse-jdbc:0.1.42"
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+//  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testCompile "org.testcontainers:clickhouse:1.9.1"
 }
