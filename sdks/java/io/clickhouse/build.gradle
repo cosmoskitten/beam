@@ -17,13 +17,23 @@
  */
 
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature()
+applyJavaNature(
+    // javacc generated code produces lint warnings
+    disableLintWarnings: ['dep-ann']
+)
+
+apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.yandex)."
 
+compileJavacc {
+  arguments = [static: "false"]
+}
+
 dependencies {
   compile library.java.guava
+  javacc "net.java.dev.javacc:javacc:4.0"
 //  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core")
   shadow library.java.joda_time
