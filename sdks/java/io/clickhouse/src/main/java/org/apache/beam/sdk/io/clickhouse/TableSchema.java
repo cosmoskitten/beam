@@ -26,15 +26,25 @@ import org.apache.beam.sdk.annotations.Experimental;
 
 /** A descriptor for ClickHouse table schema. */
 @Experimental(Experimental.Kind.SCHEMAS)
+@AutoValue
 public abstract class TableSchema implements Serializable {
 
   abstract List<Column> columns();
 
+  public static TableSchema of(List<Column> columns) {
+    return new AutoValue_TableSchema(columns);
+  }
+
   /** A column in ClickHouse table. */
+  @AutoValue
   public abstract static class Column implements Serializable {
     abstract String name();
 
     abstract ColumnType columnType();
+
+    public static Column of(String name, ColumnType columnType) {
+      return new AutoValue_TableSchema_Column(name, columnType);
+    }
   }
 
   /** An enumeration of possible types in ClickHouse. */
