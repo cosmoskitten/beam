@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.clickhouse;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
-import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for {@link TableSchema}. */
@@ -89,5 +88,17 @@ public class TableSchemaTest {
   @Test
   public void testParseString() {
     assertEquals(ColumnType.STRING, ColumnType.parse("String"));
+  }
+
+  @Test
+  public void testParseArray() {
+    assertEquals(ColumnType.array(ColumnType.STRING), ColumnType.parse("Array(String)"));
+  }
+
+  @Test
+  public void testParseArrayOfArrays() {
+    assertEquals(
+        ColumnType.array(ColumnType.array(ColumnType.STRING)),
+        ColumnType.parse("Array(Array(String))"));
   }
 }
