@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.io.StringReader;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /** A descriptor for ClickHouse table schema. */
@@ -37,6 +39,7 @@ public abstract class TableSchema implements Serializable {
 
   /** An enumeration of possible types in ClickHouse. */
   public enum TypeName {
+    // Primitive types
     DATE,
     DATETIME,
     FLOAT32,
@@ -49,7 +52,9 @@ public abstract class TableSchema implements Serializable {
     UINT16,
     UINT32,
     UINT64,
-    UINT8
+    UINT8,
+    // Composite types
+    ARRAY
   }
 
   /** A descriptor for a column type. */
@@ -71,12 +76,42 @@ public abstract class TableSchema implements Serializable {
 
     public abstract TypeName typeName();
 
+    @Nullable
+    public abstract ColumnType arrayElementType();
+
     public static ColumnType of(TypeName typeName) {
-      return new AutoValue_TableSchema_ColumnType(typeName);
+      return ColumnType.builder().typeName(typeName).build();
+    }
+
+    public static ColumnType array(ColumnType arrayElementType) {
+      return ColumnType.builder()
+          .typeName(TypeName.ARRAY)
+          .arrayElementType(arrayElementType)
+          .build();
     }
 
     public static ColumnType parse(String str) {
-      return ColumnType.of(TypeName.valueOf(str.toUpperCase()));
+      try {
+        return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
+                new StringReader(str))
+            .parse();
+      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
+        throw new IllegalArgumentException("failed to parse", e);
+      }
+    }
+
+    public static Builder builder() {
+      return new AutoValue_TableSchema_ColumnType.Builder();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      public abstract Builder typeName(TypeName typeName);
+
+      public abstract Builder arrayElementType(ColumnType arrayElementType);
+
+      public abstract ColumnType build();
     }
   }
 }
