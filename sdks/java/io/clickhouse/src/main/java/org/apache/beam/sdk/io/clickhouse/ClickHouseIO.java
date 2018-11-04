@@ -24,23 +24,28 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Days;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.yandex.clickhouse.ClickHouseConnection;
 import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.clickhouse.ClickHouseStatement;
@@ -49,34 +54,18 @@ import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 /** An IO to write to ClickHouse. */
 public class ClickHouseIO {
 
-  /** This {@link DoFn} reads table schemas from ClickHouse. */
+  /** A {@link PTransform} to write to ClickHouse. */
   @AutoValue
-  public abstract static class ReadTableSchemaFn extends DoFn<Void, TableSchema> {
-    private ClickHouseConnection connection;
-
+  public abstract static class Write extends PTransform<PCollection<Row>, PDone> {
     public abstract String jdbcUrl();
 
     public abstract String table();
 
-    public static ReadTableSchemaFn of(String jdbcUrl, String table) {
-      return new AutoValue_ClickHouseIO_ReadTableSchemaFn(jdbcUrl, table);
-    }
-
-    @Setup
-    public void setup() throws SQLException {
-      connection = new ClickHouseDataSource(jdbcUrl()).getConnection();
-    }
-
-    @Teardown
-    public void tearDown() throws Exception {
-      connection.close();
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws SQLException {
-      ResultSet rs = null;
-      try (Statement statement = connection.createStatement()) {
-        rs = statement.executeQuery("DESCRIBE TABLE " + table());
+    public static TableSchema getTableSchema(String jdbcUrl, String table) {
+      ResultSet rs;
+      try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
+          Statement statement = connection.createStatement()) {
+        rs = statement.executeQuery("DESCRIBE TABLE " + table);
         List<TableSchema.Column> columns = new ArrayList<>();
 
         while (rs.next()) {
@@ -88,35 +77,20 @@ public class ClickHouseIO {
           columns.add(TableSchema.Column.of(name, columnType));
         }
 
-        c.output(TableSchema.of(columns));
-      } finally {
-        // findbugs doesn't like double resources
-        if (rs != null) {
-          rs.close();
-        }
+        // findbugs doesn't like it in try block
+        rs.close();
+
+        return TableSchema.of(columns);
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
       }
     }
-  }
-
-  /** A {@link PTransform} to write to ClickHouse. */
-  @AutoValue
-  public abstract static class Write extends PTransform<PCollection<Row>, PDone> {
-    public abstract String jdbcUrl();
-
-    public abstract String table();
 
     @Override
     public PDone expand(PCollection<Row> input) {
-      PCollection<Void> schemaSeed =
-          input.getPipeline().apply("Create Seed", Create.of((Void) null));
+      TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
 
-      PCollectionView<TableSchema> schemaView =
-          schemaSeed
-              .apply("Read Table Schema", ParDo.of(ReadTableSchemaFn.of(jdbcUrl(), table())))
-              .apply("Table Schema View", View.asSingleton());
-
-      input.apply(
-          ParDo.of(WriteFn.create(jdbcUrl(), table(), schemaView)).withSideInputs(schemaView));
+      input.apply(ParDo.of(WriteFn.create(jdbcUrl(), table(), tableSchema)));
 
       return PDone.in(input.getPipeline());
     }
@@ -138,17 +112,23 @@ public class ClickHouseIO {
 
   @AutoValue
   abstract static class WriteFn extends DoFn<Row, Void> {
+    private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
 
     private ClickHouseConnection connection;
+    private ClickHouseStatement statement;
+
+    private ExecutorService executor;
+    private BlockingQueue<Row> queue;
+    private AtomicBoolean bundleFinished;
+    private Future<?> insert;
 
     public abstract String jdbcUrl();
 
     public abstract String table();
 
-    public abstract PCollectionView<TableSchema> schema();
+    public abstract TableSchema schema();
 
-    public static WriteFn create(
-        String jdbcUrl, String table, PCollectionView<TableSchema> schema) {
+    public static WriteFn create(String jdbcUrl, String table, TableSchema schema) {
       return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema);
     }
 
@@ -248,35 +228,82 @@ public class ClickHouseIO {
       return "INSERT INTO " + quoteIdentifier(table) + " (" + columnsStr + ")";
     }
 
-    public void write(TableSchema schema, Iterator<Row> rows) throws SQLException {
-
-      try (ClickHouseStatement statement = connection.createStatement()) {
-        statement.sendRowBinaryStream(
-            insertSql(schema, table()),
-            stream -> {
-              while (rows.hasNext()) {
-                Row row = rows.next();
-                writeRow(stream, schema, row);
-              }
-            });
-      }
-    }
-
     @Setup
     public void setup() throws SQLException {
       connection = new ClickHouseDataSource(jdbcUrl()).getConnection();
+      executor = Executors.newSingleThreadExecutor();
+      queue = new ArrayBlockingQueue<>(1024);
+      bundleFinished = new AtomicBoolean(false);
+    }
+
+    @StartBundle
+    public void startBundle(StartBundleContext context) throws SQLException {
+      statement = connection.createStatement();
+      bundleFinished.set(false);
+
+      insert =
+          executor.submit(
+              () -> {
+                try {
+                  statement.sendRowBinaryStream(
+                      insertSql(schema(), table()),
+                      stream -> {
+                        while (true) {
+                          Row row = null;
+                          try {
+                            row = queue.poll(1, TimeUnit.SECONDS);
+                          } catch (InterruptedException e) {
+                            break; // time to go
+                          }
+
+                          if (row == null) {
+                            if (bundleFinished.get() && queue.isEmpty()) {
+                              // bundle is finished and queue is drained, time to go
+                              break;
+                            } else {
+                              // timeout, let's try again
+                            }
+                          } else {
+                            writeRow(stream, schema(), row);
+                          }
+                        }
+                      });
+                  statement.close();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                } finally {
+                  try {
+                    if (!statement.isClosed()) {
+                      // happens only if statement wasn't closed in the end of the previous block
+                      statement.close();
+                    }
+                  } catch (SQLException e) {
+                    LOG.error("Failed to close statement", e);
+                  }
+                }
+              });
+    }
+
+    @FinishBundle
+    public void finishBundle() throws ExecutionException, InterruptedException {
+      bundleFinished.set(true);
+      insert.get(); // drain queue
     }
 
     @Teardown
     public void tearDown() throws Exception {
+      bundleFinished.set(true);
+      executor.shutdown();
       connection.close();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws SQLException {
-      Row row = c.element();
-      TableSchema schema = c.sideInput(schema());
-      write(schema, Collections.singletonList(row).iterator());
+    public void processElement(ProcessContext c) throws InterruptedException, ExecutionException {
+      while (!queue.offer(c.element(), 1, TimeUnit.SECONDS)) {
+        if (insert.isDone()) {
+          insert.get(); // can only happen due to exception, let's throw it
+        }
+      }
     }
   }
 }
