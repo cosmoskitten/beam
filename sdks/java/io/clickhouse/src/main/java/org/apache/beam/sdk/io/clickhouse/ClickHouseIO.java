@@ -38,6 +38,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.Days;
+import org.joda.time.Instant;
 import ru.yandex.clickhouse.ClickHouseConnection;
 import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.clickhouse.ClickHouseStatement;
@@ -149,11 +151,69 @@ public class ClickHouseIO {
       return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema);
     }
 
+    private static final Instant EPOCH_INSTANT = new Instant(0L);
+
     public static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
         throws IOException {
-      for (int i = 0; i < schema.columns().size(); i++) {
-        long value = row.getInt64(i);
-        stream.writeInt64(value);
+      for (TableSchema.Column column : schema.columns()) {
+        switch (column.columnType().typeName()) {
+          case FLOAT32:
+            stream.writeFloat32(row.getFloat(column.name()));
+            break;
+
+          case FLOAT64:
+            stream.writeFloat64(row.getDouble(column.name()));
+            break;
+
+          case INT8:
+            stream.writeInt8(row.getByte(column.name()));
+            break;
+
+          case INT16:
+            stream.writeInt16(row.getInt16(column.name()));
+            break;
+
+          case INT32:
+            stream.writeInt32(row.getInt32(column.name()));
+            break;
+
+          case INT64:
+            stream.writeInt64(row.getInt64(column.name()));
+            break;
+
+          case STRING:
+            stream.writeString(row.getString(column.name()));
+            break;
+
+          case UINT8:
+            stream.writeUInt8(row.getInt16(column.name()));
+            break;
+
+          case UINT16:
+            stream.writeUInt16(row.getInt32(column.name()));
+            break;
+
+          case UINT32:
+            stream.writeUInt32(row.getInt64(column.name()));
+            break;
+
+          case UINT64:
+            stream.writeUInt64(row.getInt64(column.name()));
+            break;
+
+          case DATE:
+            Days epochDays = Days.daysBetween(EPOCH_INSTANT, row.getDateTime(column.name()));
+            stream.writeUInt16(epochDays.getDays());
+            break;
+
+          case DATETIME:
+            long epochSeconds = row.getDateTime(column.name()).toInstant().getMillis() / 1000L;
+            stream.writeUInt32(epochSeconds);
+            break;
+
+          case ARRAY:
+            throw new IllegalArgumentException("not supported");
+        }
       }
     }
 
