@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
@@ -69,9 +70,7 @@ public class ClickHouseIOTest {
   @Test
   public void testInt64() throws Exception {
     Schema schema =
-        Schema.of(
-            Schema.Field.of("f0", Schema.FieldType.INT64),
-            Schema.Field.of("f1", Schema.FieldType.INT64));
+        Schema.of(Schema.Field.of("f0", FieldType.INT64), Schema.Field.of("f1", FieldType.INT64));
     Row row1 = Row.withSchema(schema).addValue(1L).addValue(2L).build();
     Row row2 = Row.withSchema(schema).addValue(2L).addValue(4L).build();
     Row row3 = Row.withSchema(schema).addValue(3L).addValue(6L).build();
@@ -96,22 +95,52 @@ public class ClickHouseIOTest {
   }
 
   @Test
+  public void testArrayOfArrayOfInt64() throws Exception {
+    Schema schema =
+        Schema.of(Schema.Field.of("f0", FieldType.array(FieldType.array(FieldType.INT64))));
+    Row row1 =
+        Row.withSchema(schema)
+            .addValue(
+                Arrays.asList(Arrays.asList(1L, 2L), Arrays.asList(2L, 3L), Arrays.asList(3L, 4L)))
+            .build();
+
+    executeSql("CREATE TABLE test_array_of_array_of_int64 (f0 Array(Array(Int64))) ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1).withRowSchema(schema))
+        .apply(
+            ClickHouseIO.Write.builder()
+                .table("test_array_of_array_of_int64")
+                .jdbcUrl(clickhouse.getJdbcUrl())
+                .build());
+
+    pipeline.run().waitUntilFinish();
+
+    long sum0 =
+        executeQueryAsLong(
+            "SELECT SUM(arraySum(arrayMap(x -> arraySum(x), f0))) "
+                + "FROM test_array_of_array_of_int64");
+
+    assertEquals(15L, sum0);
+  }
+
+  @Test
   public void testPrimitiveTypes() throws Exception {
     Schema schema =
         Schema.of(
-            Schema.Field.of("f0", Schema.FieldType.DATETIME),
-            Schema.Field.of("f1", Schema.FieldType.DATETIME),
-            Schema.Field.of("f2", Schema.FieldType.FLOAT),
-            Schema.Field.of("f3", Schema.FieldType.DOUBLE),
-            Schema.Field.of("f4", Schema.FieldType.BYTE),
-            Schema.Field.of("f5", Schema.FieldType.INT16),
-            Schema.Field.of("f6", Schema.FieldType.INT32),
-            Schema.Field.of("f7", Schema.FieldType.INT64),
-            Schema.Field.of("f8", Schema.FieldType.STRING),
-            Schema.Field.of("f9", Schema.FieldType.INT16),
-            Schema.Field.of("f10", Schema.FieldType.INT32),
-            Schema.Field.of("f11", Schema.FieldType.INT64),
-            Schema.Field.of("f12", Schema.FieldType.INT64));
+            Schema.Field.of("f0", FieldType.DATETIME),
+            Schema.Field.of("f1", FieldType.DATETIME),
+            Schema.Field.of("f2", FieldType.FLOAT),
+            Schema.Field.of("f3", FieldType.DOUBLE),
+            Schema.Field.of("f4", FieldType.BYTE),
+            Schema.Field.of("f5", FieldType.INT16),
+            Schema.Field.of("f6", FieldType.INT32),
+            Schema.Field.of("f7", FieldType.INT64),
+            Schema.Field.of("f8", FieldType.STRING),
+            Schema.Field.of("f9", FieldType.INT16),
+            Schema.Field.of("f10", FieldType.INT32),
+            Schema.Field.of("f11", FieldType.INT64),
+            Schema.Field.of("f12", FieldType.INT64));
     Row row1 =
         Row.withSchema(schema)
             .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
@@ -172,6 +201,90 @@ public class ClickHouseIOTest {
       assertEquals("10", rs.getString("f10"));
       assertEquals("11", rs.getString("f11"));
       assertEquals("12", rs.getString("f12"));
+    }
+  }
+
+  @Test
+  public void testArrayOfPrimitiveTypes() throws Exception {
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("f0", FieldType.array(FieldType.DATETIME)),
+            Schema.Field.of("f1", FieldType.array(FieldType.DATETIME)),
+            Schema.Field.of("f2", FieldType.array(FieldType.FLOAT)),
+            Schema.Field.of("f3", FieldType.array(FieldType.DOUBLE)),
+            Schema.Field.of("f4", FieldType.array(FieldType.BYTE)),
+            Schema.Field.of("f5", FieldType.array(FieldType.INT16)),
+            Schema.Field.of("f6", FieldType.array(FieldType.INT32)),
+            Schema.Field.of("f7", FieldType.array(FieldType.INT64)),
+            Schema.Field.of("f8", FieldType.array(FieldType.STRING)),
+            Schema.Field.of("f9", FieldType.array(FieldType.INT16)),
+            Schema.Field.of("f10", FieldType.array(FieldType.INT32)),
+            Schema.Field.of("f11", FieldType.array(FieldType.INT64)),
+            Schema.Field.of("f12", FieldType.array(FieldType.INT64)));
+    Row row1 =
+        Row.withSchema(schema)
+            .addArray(
+                new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC),
+                new DateTime(2031, 10, 1, 0, 0, 0, DateTimeZone.UTC))
+            .addArray(
+                new DateTime(2030, 10, 9, 8, 7, 6, DateTimeZone.UTC),
+                new DateTime(2031, 10, 9, 8, 7, 6, DateTimeZone.UTC))
+            .addArray(2.2f, 3.3f)
+            .addArray(3.3, 4.4)
+            .addArray((byte) 4, (byte) 5)
+            .addArray((short) 5, (short) 6)
+            .addArray(6, 7)
+            .addArray(7L, 8L)
+            .addArray("eight", "nine")
+            .addArray((short) 9, (short) 10)
+            .addArray(10, 11)
+            .addArray(11L, 12L)
+            .addArray(12L, 13L)
+            .build();
+
+    executeSql(
+        "CREATE TABLE test_array_of_primitive_types ("
+            + "f0  Array(Date),"
+            + "f1  Array(DateTime),"
+            + "f2  Array(Float32),"
+            + "f3  Array(Float64),"
+            + "f4  Array(Int8),"
+            + "f5  Array(Int16),"
+            + "f6  Array(Int32),"
+            + "f7  Array(Int64),"
+            + "f8  Array(String),"
+            + "f9  Array(UInt8),"
+            + "f10 Array(UInt16),"
+            + "f11 Array(UInt32),"
+            + "f12 Array(UInt64)"
+            + ") ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1).withRowSchema(schema))
+        .apply(
+            ClickHouseIO.Write.builder()
+                .table("test_array_of_primitive_types")
+                .jdbcUrl(clickhouse.getJdbcUrl())
+                .build());
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_array_of_primitive_types")) {
+      rs.next();
+
+      assertEquals("['2030-10-01','2031-10-01']", rs.getString("f0"));
+      assertEquals("['2030-10-09 08:07:06','2031-10-09 08:07:06']", rs.getString("f1"));
+      assertEquals("[2.2,3.3]", rs.getString("f2"));
+      assertEquals("[3.3,4.4]", rs.getString("f3"));
+      assertEquals("[4,5]", rs.getString("f4"));
+      assertEquals("[5,6]", rs.getString("f5"));
+      assertEquals("[6,7]", rs.getString("f6"));
+      assertEquals("[7,8]", rs.getString("f7"));
+      assertEquals("['eight','nine']", rs.getString("f8"));
+      assertEquals("[9,10]", rs.getString("f9"));
+      assertEquals("[10,11]", rs.getString("f10"));
+      assertEquals("[11,12]", rs.getString("f11"));
+      assertEquals("[12,13]", rs.getString("f12"));
     }
   }
 
