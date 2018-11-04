@@ -114,3 +114,4 @@ if __name__ == '__main__':
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
+  logging.info('Finished Flink runner tests')
