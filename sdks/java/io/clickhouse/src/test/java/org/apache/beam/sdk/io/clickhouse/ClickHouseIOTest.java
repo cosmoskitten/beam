@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import static org.junit.Assert.assertEquals;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,7 +30,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
-import org.junit.Assert;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,8 +91,88 @@ public class ClickHouseIOTest {
     long sum0 = executeQueryAsLong("SELECT SUM(f0) FROM test_int64");
     long sum1 = executeQueryAsLong("SELECT SUM(f1) FROM test_int64");
 
-    Assert.assertEquals(6L, sum0);
-    Assert.assertEquals(12L, sum1);
+    assertEquals(6L, sum0);
+    assertEquals(12L, sum1);
+  }
+
+  @Test
+  public void testPrimitiveTypes() throws Exception {
+    Schema schema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.DATETIME),
+            Schema.Field.of("f1", Schema.FieldType.DATETIME),
+            Schema.Field.of("f2", Schema.FieldType.FLOAT),
+            Schema.Field.of("f3", Schema.FieldType.DOUBLE),
+            Schema.Field.of("f4", Schema.FieldType.BYTE),
+            Schema.Field.of("f5", Schema.FieldType.INT16),
+            Schema.Field.of("f6", Schema.FieldType.INT32),
+            Schema.Field.of("f7", Schema.FieldType.INT64),
+            Schema.Field.of("f8", Schema.FieldType.STRING),
+            Schema.Field.of("f9", Schema.FieldType.INT16),
+            Schema.Field.of("f10", Schema.FieldType.INT32),
+            Schema.Field.of("f11", Schema.FieldType.INT64),
+            Schema.Field.of("f12", Schema.FieldType.INT64));
+    Row row1 =
+        Row.withSchema(schema)
+            .addValue(new DateTime(2030, 10, 1, 0, 0, 0, DateTimeZone.UTC))
+            .addValue(new DateTime(2030, 10, 9, 8, 7, 6, DateTimeZone.UTC))
+            .addValue(2.2f)
+            .addValue(3.3)
+            .addValue((byte) 4)
+            .addValue((short) 5)
+            .addValue(6)
+            .addValue(7L)
+            .addValue("eight")
+            .addValue((short) 9)
+            .addValue(10)
+            .addValue(11L)
+            .addValue(12L)
+            .build();
+
+    executeSql(
+        "CREATE TABLE test_primitive_types ("
+            + "f0  Date,"
+            + "f1  DateTime,"
+            + "f2  Float32,"
+            + "f3  Float64,"
+            + "f4  Int8,"
+            + "f5  Int16,"
+            + "f6  Int32,"
+            + "f7  Int64,"
+            + "f8  String,"
+            + "f9  UInt8,"
+            + "f10 UInt16,"
+            + "f11 UInt32,"
+            + "f12 UInt64"
+            + ") ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1).withRowSchema(schema))
+        .apply(
+            ClickHouseIO.Write.builder()
+                .table("test_primitive_types")
+                .jdbcUrl(clickhouse.getJdbcUrl())
+                .build());
+
+    pipeline.run().waitUntilFinish();
+
+    try (ResultSet rs = executeQuery("SELECT * FROM test_primitive_types")) {
+      rs.next();
+
+      assertEquals("2030-10-01", rs.getString("f0"));
+      assertEquals("2030-10-09 08:07:06", rs.getString("f1"));
+      assertEquals("2.2", rs.getString("f2"));
+      assertEquals("3.3", rs.getString("f3"));
+      assertEquals("4", rs.getString("f4"));
+      assertEquals("5", rs.getString("f5"));
+      assertEquals("6", rs.getString("f6"));
+      assertEquals("7", rs.getString("f7"));
+      assertEquals("eight", rs.getString("f8"));
+      assertEquals("9", rs.getString("f9"));
+      assertEquals("10", rs.getString("f10"));
+      assertEquals("11", rs.getString("f11"));
+      assertEquals("12", rs.getString("f12"));
+    }
   }
 
   @Test
@@ -101,6 +184,6 @@ public class ClickHouseIOTest {
 
     String expected = "INSERT INTO \"test_table\" (\"f0\", \"f1\")";
 
-    ClickHouseIO.WriteFn.insertSql(TableSchema.of(columns), "test_table");
+    assertEquals(expected, ClickHouseIO.WriteFn.insertSql(TableSchema.of(columns), "test_table"));
   }
 }
