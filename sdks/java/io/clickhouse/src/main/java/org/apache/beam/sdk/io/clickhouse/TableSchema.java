@@ -54,15 +54,15 @@ public abstract class TableSchema implements Serializable {
     DATETIME,
     FLOAT32,
     FLOAT64,
+    INT8,
     INT16,
     INT32,
     INT64,
-    INT8,
     STRING,
+    UINT8,
     UINT16,
     UINT32,
     UINT64,
-    UINT8,
     // Composite types
     ARRAY
   }
@@ -74,15 +74,15 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType DATETIME = ColumnType.of(TypeName.DATETIME);
     public static final ColumnType FLOAT32 = ColumnType.of(TypeName.FLOAT32);
     public static final ColumnType FLOAT64 = ColumnType.of(TypeName.FLOAT64);
+    public static final ColumnType INT8 = ColumnType.of(TypeName.INT8);
     public static final ColumnType INT16 = ColumnType.of(TypeName.INT16);
     public static final ColumnType INT32 = ColumnType.of(TypeName.INT32);
     public static final ColumnType INT64 = ColumnType.of(TypeName.INT64);
-    public static final ColumnType INT8 = ColumnType.of(TypeName.INT8);
     public static final ColumnType STRING = ColumnType.of(TypeName.STRING);
+    public static final ColumnType UINT8 = ColumnType.of(TypeName.UINT8);
     public static final ColumnType UINT16 = ColumnType.of(TypeName.UINT16);
     public static final ColumnType UINT32 = ColumnType.of(TypeName.UINT32);
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
-    public static final ColumnType UINT8 = ColumnType.of(TypeName.UINT8);
 
     public abstract TypeName typeName();
 
