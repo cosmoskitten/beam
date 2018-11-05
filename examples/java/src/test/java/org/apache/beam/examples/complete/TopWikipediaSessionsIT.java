@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.examples.complete;
 
 import java.util.Date;
@@ -36,7 +35,7 @@ public class TopWikipediaSessionsIT {
 
   private static final String DEFAULT_INPUT_10_FILES =
       "gs://apache-beam-samples/wikipedia_edits/wiki_data-00000000000*.json";
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "a7f0c50b895d0a2e37b78c3f94eadcfb11a647a6";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "61262b08503338bfe4e36b0791958d65e6070933";
 
   /** PipelineOptions for the TopWikipediaSessions integration test. */
   public interface TopWikipediaSessionsITOptions

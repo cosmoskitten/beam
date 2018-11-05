@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -136,7 +135,7 @@ public class PTransformTranslation {
     TransformTranslator<?> transformTranslator =
         Iterables.find(
             KNOWN_TRANSLATORS,
-            (translator) -> translator.canTranslate(appliedPTransform.getTransform()),
+            translator -> translator.canTranslate(appliedPTransform.getTransform()),
             DefaultUnknownTransformTranslator.INSTANCE);
     return transformTranslator.translate(appliedPTransform, subtransforms, components);
   }
@@ -164,7 +163,7 @@ public class PTransformTranslation {
     TransformTranslator<?> transformTranslator =
         Iterables.find(
             KNOWN_TRANSLATORS,
-            (translator) -> translator.canTranslate(transform),
+            translator -> translator.canTranslate(transform),
             DefaultUnknownTransformTranslator.INSTANCE);
     return ((TransformTranslator) transformTranslator).getUrn(transform);
   }

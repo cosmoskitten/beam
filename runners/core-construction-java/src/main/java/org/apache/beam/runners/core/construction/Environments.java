@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,7 +50,7 @@ public class Environments {
           .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
           .build();
 
-  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
+  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = transform -> null;
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
