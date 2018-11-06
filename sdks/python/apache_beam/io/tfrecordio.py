@@ -71,17 +71,15 @@ class _TFRecordUtil(object):
 
     Args:
       value: A string for which we compute the crc.
-      crc32c_fn: A function that can compute a crc32c.
-        This is a performance hook that also helps with testing. Callers are
-        not expected to make use of it directly.
+      crc32c_fn: A function that can compute a crc32c. This is a performance
+        hook that also helps with testing. Callers are not expected to make use
+        of it directly.
+
     Returns:
       Masked crc32c checksum.
     """
 
-    if isinstance(value, bytes):
-      crc = crc32c_fn(value)
-    else:
-      crc = crc32c_fn(value.encode('utf-8'))
+    crc = crc32c_fn(value)
     return (((crc >> 15) | (crc << 17)) + 0xa282ead8) & 0xffffffff
 
   @staticmethod
@@ -98,12 +96,13 @@ class _TFRecordUtil(object):
       file_handle: The file to write to.
       value: A string content of the record.
     """
-    encoded_length = struct.pack('<Q', len(value))
+    bytes_value = value if isinstance(value, bytes) else value.encode('utf-8')
+    encoded_length = struct.pack('<Q', len(bytes_value))
     file_handle.write(b''.join([
         encoded_length,
         struct.pack('<I', cls._masked_crc32c(encoded_length)),  #
-        value if isinstance(value, bytes) else value.encode('utf-8'),
-        struct.pack('<I', cls._masked_crc32c(value))
+        bytes_value,
+        struct.pack('<I', cls._masked_crc32c(bytes_value))
     ]))
 
   @classmethod
@@ -112,6 +111,7 @@ class _TFRecordUtil(object):
 
     Args:
       file_handle: The file to read from.
+
     Returns:
       None if EOF is reached; the paylod of the record otherwise.
     Raises:
@@ -155,11 +155,7 @@ class _TFRecordSource(FileBasedSource):
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
 
-  def __init__(self,
-               file_pattern,
-               coder,
-               compression_type,
-               validate):
+  def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
     super(_TFRecordSource, self).__init__(
         file_pattern=file_pattern,
@@ -170,8 +166,8 @@ class _TFRecordSource(FileBasedSource):
 
   def read_records(self, file_name, offset_range_tracker):
     if offset_range_tracker.start_position():
-      raise ValueError('Start position not 0:%s' %
-                       offset_range_tracker.start_position())
+      raise ValueError(
+          'Start position not 0:%s' % offset_range_tracker.start_position())
 
     current_offset = offset_range_tracker.start_position()
     with self.open_file(file_name) as file_handle:
@@ -186,41 +182,43 @@ class _TFRecordSource(FileBasedSource):
           yield self._coder.decode(record)
 
 
-def _create_tfrecordio_source(
-    file_pattern=None, coder=None, compression_type=None):
+def _create_tfrecordio_source(file_pattern=None,
+                              coder=None,
+                              compression_type=None):
   # We intentionally disable validation for ReadAll pattern so that reading does
   # not fail for globs (elements) that are empty.
-  return _TFRecordSource(file_pattern, coder, compression_type,
-                         validate=False)
+  return _TFRecordSource(file_pattern, coder, compression_type, validate=False)
 
 
 class ReadAllFromTFRecord(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
 
-  def __init__(
-      self,
-      coder=coders.BytesCoder(),
-      compression_type=CompressionTypes.AUTO,
-      **kwargs):
+  def __init__(self,
+               coder=coders.BytesCoder(),
+               compression_type=CompressionTypes.AUTO,
+               **kwargs):
     """Initialize the ``ReadAllFromTFRecord`` transform.
 
     Args:
       coder: Coder used to decode each record.
-      compression_type: Used to handle compressed input files. Default value
-          is CompressionTypes.AUTO, in which case the file_path's extension will
-          be used to detect the compression.
+      compression_type: Used to handle compressed input files. Default value is
+        CompressionTypes.AUTO, in which case the file_path's extension will be
+        used to detect the compression.
       **kwargs: optional args dictionary. These are passed through to parent
         constructor.
     """
     super(ReadAllFromTFRecord, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_tfrecordio_source, compression_type=compression_type,
+        _create_tfrecordio_source,
+        compression_type=compression_type,
         coder=coder)
     # Desired and min bundle sizes do not matter since TFRecord files are
     # unsplittable.
     self._read_all_files = ReadAllFiles(
-        splittable=False, compression_type=compression_type,
-        desired_bundle_size=0, min_bundle_size=0,
+        splittable=False,
+        compression_type=compression_type,
+        desired_bundle_size=0,
+        min_bundle_size=0,
         source_from_file=source_from_file)
 
   def expand(self, pvalue):
@@ -241,11 +239,11 @@ class ReadFromTFRecord(PTransform):
     Args:
       file_pattern: A file glob pattern to read TFRecords from.
       coder: Coder used to decode each record.
-      compression_type: Used to handle compressed input files. Default value
-          is CompressionTypes.AUTO, in which case the file_path's extension will
-          be used to detect the compression.
+      compression_type: Used to handle compressed input files. Default value is
+        CompressionTypes.AUTO, in which case the file_path's extension will be
+        used to detect the compression.
       validate: Boolean flag to verify that the files exist during the pipeline
-          creation time.
+        creation time.
       **kwargs: optional args dictionary. These are passed through to parent
         constructor.
 
@@ -305,16 +303,16 @@ class WriteToTFRecord(PTransform):
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
         default value will be used.
-      shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
-      compression_type: Used to handle compressed output files. Typical value
-          is CompressionTypes.AUTO, in which case the file_path's extension will
-          be used to detect the compression.
+      shard_name_template: A template string containing placeholders for the
+        shard number and shard count. When constructing a filename for a
+        particular shard number, the upper-case letters 'S' and 'N' are replaced
+        with the 0-padded shard number and shard count respectively. This
+        argument can be '' in which case it behaves as if num_shards was set to
+        1 and only one file will be generated. The default pattern used is
+        '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+      compression_type: Used to handle compressed output files. Typical value is
+        CompressionTypes.AUTO, in which case the file_path's extension will be
+        used to detect the compression.
       **kwargs: Optional args dictionary. These are passed through to parent
         constructor.
 
