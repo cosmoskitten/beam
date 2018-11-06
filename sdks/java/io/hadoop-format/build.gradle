@@ -34,8 +34,6 @@ configurations.sparkRunner {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
-def log4j_version = "2.6.2"
-
 // Ban dependencies from the test runtime classpath
 configurations.testRuntimeClasspath {
   // Ban hive-exec and mesos since they bundle protobuf without repackaging
@@ -51,6 +49,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
+  provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
