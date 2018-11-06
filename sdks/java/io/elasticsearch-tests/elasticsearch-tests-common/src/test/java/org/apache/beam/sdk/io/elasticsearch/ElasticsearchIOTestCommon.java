@@ -622,14 +622,16 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   public void testWriteRetryValidRequest() throws Throwable {
     List<String> data =
-            ElasticSearchIOTestUtils.createDocuments(
-                    numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticSearchIOTestUtils.createDocuments(
+            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
-            .apply(Create.of(data))
-            .apply(ElasticsearchIO.write()
-                    .withConnectionConfiguration(connectionConfiguration)
-                    .withRetryConfiguration(ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
-                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE)));
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withRetryConfiguration(
+                    ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                        .withRetryPredicate(CUSTOM_RETRY_PREDICATE)));
     pipeline.run();
 
     long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);

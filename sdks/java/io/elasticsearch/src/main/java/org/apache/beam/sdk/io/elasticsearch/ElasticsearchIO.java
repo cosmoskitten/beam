@@ -1222,8 +1222,7 @@ public class ElasticsearchIO {
                 spec.getConnectionConfiguration().getType());
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        response =
-            restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
+        response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
         responseEntity = new BufferedHttpEntity(response.getEntity());
         if (spec.getRetryConfiguration() != null
             && spec.getRetryConfiguration().getRetryPredicate().test(responseEntity)) {
