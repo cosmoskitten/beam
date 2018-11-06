@@ -106,7 +106,7 @@ public final class BeamTableUtils {
         return rawObj;
       }
     } else if (type.isDateType()) {
-      return DateTime.parse(rawObj.toString());
+      return new DateTime(rawObj);
     } else if (type.isNumericType()
         && ((rawObj instanceof String)
             || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL))) {
