@@ -78,7 +78,7 @@ public class BeamFnDataInboundObserver<T>
       while (inputStream.available() > 0) {
         counter += 1;
         WindowedValue<T> value = coder.decode(inputStream);
-        consumer.accept(value);
+        consumer.accept(value); // We block here immediately, since we haven't called the drain code yet.
       }
     } catch (Exception e) {
       readFuture.fail(e);
@@ -87,6 +87,7 @@ public class BeamFnDataInboundObserver<T>
 
   @Override
   public void awaitCompletion() throws Exception {
+    // ajamato. This is called when closing the ActiveBundle.
     readFuture.awaitCompletion();
   }
 

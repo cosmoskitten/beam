@@ -86,6 +86,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
             null, outboundObserverFactory, inbound -> outboundElementObserver);
+    // TODO ajamato, close the BeamFnDataGrpcMultiplexer.
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
       additionalMultiplexers.offer(multiplexer);

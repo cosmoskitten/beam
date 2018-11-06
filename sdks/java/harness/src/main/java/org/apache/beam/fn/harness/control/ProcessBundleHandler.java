@@ -50,6 +50,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleSplit.DelayedApplica
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
@@ -61,6 +62,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -150,6 +152,9 @@ public class ProcessBundleHandler {
       Consumer<ThrowingRunnable> addFinishFunction,
       BundleSplitListener splitListener)
       throws IOException {
+    // Ajamato, we setup the consumers here.
+    // Don't 'much here, the start and ifnish calls should be the same. Focus on changing the routing to
+    // the consumers.
 
     // Recursively ensure that all consumers of the output PCollection have been created.
     // Since we are creating the consumers first, we know that the we are building the DAG
@@ -228,8 +233,18 @@ public class ProcessBundleHandler {
 
     ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
 
+    //  TODO ajamato figure out where the InstructionRequest is instantiated. And why it has two different
+    // apiDescriptors
+
+    ApiServiceDescriptor apiServiceDescriptor = null;
+
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
+    LOG.info("ajamato bundleDescriptor.getStateApiServiceDescriptor '" +
+        bundleDescriptor.getStateApiServiceDescriptor() + "'");
+    // TODO ajamato, why is bundleDescriptor.getStateApiServiceDescriptor null here?
+    // ajamato(*) BUG Part1 IS HERE. bundleDescriptor.getStateApiServiceDescriptor() is being used as a key
+    // but it is empty. So it differs from where its used in BeamFnDataWriteRunner.
     try (HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
@@ -256,6 +271,24 @@ public class ProcessBundleHandler {
       // Create a BeamFnStateClient
       for (Map.Entry<String, RunnerApi.PTransform> entry :
           bundleDescriptor.getTransformsMap().entrySet()) {
+
+        // TODO make sure these are all equivalent, and grab one, if nto then error out.
+        // use this to get to the multiplexer
+        // AJAMATO added TODO why does this throw an exception???
+
+        // AJAMATO added DONE
+        if (RemoteGrpcPortWrite.isSinkPtransform(entry.getValue())) {
+          RemoteGrpcPortWrite rgpw = RemoteGrpcPortWrite.fromPTransform(entry.getValue());
+          if (apiServiceDescriptor == null) {
+            apiServiceDescriptor = rgpw.getPort().getApiServiceDescriptor();
+          }
+
+          if (!apiServiceDescriptor.equals(rgpw.getPort().getApiServiceDescriptor())) {
+            throw new Exception("Bundle Failure: All PTransforms require equivalent " +
+                "ApiServiceDescriptors.");
+          }
+        }
+
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
@@ -265,6 +298,8 @@ public class ProcessBundleHandler {
           continue;
         }
 
+        // ajamato entry.getValue() is a PTransform, which is used to get the apiServiceDescriptor
+        // in BeamFnDataWriteRunner
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
             entry.getKey(),
@@ -279,15 +314,33 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
+      if (apiServiceDescriptor == null) {
+        throw new Exception("No ApiServiceDescriptor specified.");
+      }
+
       // Already in reverse topological order so we don't need to do anything.
       for (ThrowingRunnable startFunction : startFunctions) {
-        LOG.debug("Starting function {}", startFunction);
-        startFunction.run();
+        LOG.info("Starting function {}", startFunction);
+        startFunction.run(); // ajamato. This call constructs the BeamFnDataGrpcMultiplexer.
       }
+
+      // TODO ajamato(*)(1) before calling finish function
+      // call into the BeamFnDataGrpC client and ask it to drain the queue.
+      // TODO, isn't it odd that we need to pass in the apiServiceDescriptor?
+      LOG.info("ajamato call beamFnDataClient.drainAndBlock '" + bundleDescriptor.getStateApiServiceDescriptor() + "'" +
+          " apiServiceDescriptor: " + System.identityHashCode(bundleDescriptor.getStateApiServiceDescriptor()));
+      //beamFnDataClient.drainAndBlock(bundleDescriptor.getStateApiServiceDescriptor(),
+      //    request.getInstructionId());
+      // TODO(BEAM-5972). Make sure that the apiServiceDescriptor is the same.
+      // throughout all references in the InstructionRequest
+      beamFnDataClient.drainAndBlock(apiServiceDescriptor, request.getInstructionId());
+
+      // TODO ajamato(*)(4) Figure out if we have a bug, not calling close.
+      // on the BeamFnDataGrpcMultiplexer.
 
       // Need to reverse this since we want to call finish in topological order.
       for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-        LOG.debug("Finishing function {}", finishFunction);
+        LOG.info("Finishing function {}", finishFunction);
         finishFunction.run();
       }
       if (!allPrimaries.isEmpty()) {

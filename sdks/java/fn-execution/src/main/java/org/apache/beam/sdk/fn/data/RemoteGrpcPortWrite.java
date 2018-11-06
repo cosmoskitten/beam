@@ -56,8 +56,15 @@ public abstract class RemoteGrpcPortWrite {
         "Expected exactly one output, got %s",
         pTransform.getOutputsCount());
     RemoteGrpcPort port = RemoteGrpcPort.parseFrom(pTransform.getSpec().getPayload());
+    // ajamato(*) BUG PART 3. This is a serialized proto. it contains the RemoteGrpcPort
+    // which contains the ApiServiceDescriptor.
+    // This is different from the one on the ProcessBundleDescriptor.
     String inputPCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
     return writeToPort(inputPCollectionId, port);
+  }
+
+  public static boolean isSinkPtransform(PTransform pTransform) {
+    return URN.equals(pTransform.getSpec().getUrn());
   }
 
   abstract String getInputPCollectionId();

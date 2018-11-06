@@ -21,12 +21,17 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.vendor.grpc.v1.io.grpc.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
  * service is bound to the {@link GrpcFnServer}.
  */
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcFnServer.class);
+
+
   /**
    * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
    */
@@ -54,6 +59,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
+    LOG.info("ajamato apiServiceDescriptor " + apiServiceDescriptor);
   }
 
   /**

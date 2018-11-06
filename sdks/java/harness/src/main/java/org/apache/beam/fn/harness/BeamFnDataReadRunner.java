@@ -25,8 +25,6 @@ import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
@@ -52,21 +50,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-/** A {@link FnDataReceiver} which forwards all received inputs to a SynchronousQueue. */
-class EnqueuingFnDataReceiver<T> implements FnDataReceiver<T> {
-
-  private final SynchronousQueue<T> queue;
-
-  public EnqueuingFnDataReceiver(SynchronousQueue<T> queue) {
-    this.queue = queue;
-  }
-
-  @Override
-  public void accept(T input) throws Exception {
-    this.queue.put(input);
-  }
-}
 
 /**
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data to all
@@ -145,14 +128,11 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final FnDataReceiver<WindowedValue<OutputT>> enqueueElementReceiver;
-  private final FnDataReceiver<WindowedValue<OutputT>> elementReceiver;
+  private final FnDataReceiver<WindowedValue<OutputT>> receiver;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
   private final Coder<WindowedValue<OutputT>> coder;
   private final BeamFnApi.Target inputTarget;
-
-  private final SynchronousQueue<WindowedValue<OutputT>> queue;
 
   private InboundDataClient readFuture;
 
@@ -170,9 +150,7 @@ public class BeamFnDataReadRunner<OutputT> {
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
-    this.elementReceiver = MultiplexingFnDataReceiver.forConsumers(consumers);
-    this.queue = new SynchronousQueue<>();
-    this.enqueueElementReceiver = new EnqueuingFnDataReceiver<WindowedValue<OutputT>>(this.queue);
+    this.receiver = MultiplexingFnDataReceiver.forConsumers(consumers);
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -195,7 +173,7 @@ public class BeamFnDataReadRunner<OutputT> {
             apiServiceDescriptor,
             LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
             coder,
-            enqueueElementReceiver);
+            receiver);
   }
 
   public void blockTillReadFinishes() throws Exception {
@@ -203,21 +181,7 @@ public class BeamFnDataReadRunner<OutputT> {
         "Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(),
         inputTarget);
-
-    boolean draining = false;
-    while (true) {
-      WindowedValue<OutputT> val = this.queue.poll(50, TimeUnit.MILLISECONDS);
-      if (val != null) {
-        // Call receiver.
-        elementReceiver.accept(val);
-      }
-      if (readFuture.isDone()) {
-        // Note: There is no need to drain, since the readFuture cannot be set to done by the
-        // BeamFnDataClient until the last element of the queue has been poll()-ed already.
-        // This is because of the use of the SynchronousQueue, which cannot return from a put()
-        // call until the element has been removed with a call to poll().
-        break;
-      }
-    }
+    // ajamato(*) BUG HERE,. This never get compelted.
+    readFuture.awaitCompletion();
   }
 }

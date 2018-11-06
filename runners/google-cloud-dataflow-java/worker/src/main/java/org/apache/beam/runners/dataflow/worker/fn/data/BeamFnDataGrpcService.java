@@ -252,6 +252,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
             OutboundObserverFactory.trivial(),
             (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
                 streamObserverFactory.apply(outboundObserver));
+    // TODO ajamato, why isn't this closed?
     // First client that connects completes this future
     getClientFuture(sdkWorkerId).complete(multiplexer);
     try {
