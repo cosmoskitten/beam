@@ -27,10 +27,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
  */
 @AutoValue
 public abstract class TimerReference {
-
   /** Create a timer reference. */
-  public static TimerReference of(PipelineNode.PTransformNode transform, String localName) {
-    return new AutoValue_TimerReference(transform, localName);
+  public static TimerReference of(
+      PipelineNode.PTransformNode transform,
+      String localName,
+      PipelineNode.PCollectionNode collection) {
+    return new AutoValue_TimerReference(transform, localName, collection);
   }
 
   /** Create a timer reference from a TimerId proto and components. */
@@ -38,12 +40,19 @@ public abstract class TimerReference {
       RunnerApi.ExecutableStagePayload.TimerId timerId, RunnerApi.Components components) {
     String transformId = timerId.getTransformId();
     String localName = timerId.getLocalName();
+    String collectionId = components.getTransformsOrThrow(transformId).getInputsOrThrow(localName);
     RunnerApi.PTransform transform = components.getTransformsOrThrow(transformId);
-    return of(PipelineNode.pTransform(transformId, transform), localName);
+    RunnerApi.PCollection collection = components.getPcollectionsOrThrow(collectionId);
+    return of(
+        PipelineNode.pTransform(transformId, transform),
+        localName,
+        PipelineNode.pCollection(collectionId, collection));
   }
 
   /** The PTransform that uses this timer. */
   public abstract PipelineNode.PTransformNode transform();
   /** The local name the referencing PTransform uses to refer to this timer. */
   public abstract String localName();
+  /** The PCollection that backs this timer. */
+  public abstract PipelineNode.PCollectionNode collection();
 }
