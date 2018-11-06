@@ -18,28 +18,20 @@
 package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.loadtests.GroupByKeyLoadTest.Options.fromJsonString;
-import static org.apache.beam.sdk.loadtests.GroupByKeyLoadTest.Options.readFromArgs;
+import static org.apache.beam.sdk.loadtests.SyntheticUtils.createStep;
+import static org.apache.beam.sdk.loadtests.SyntheticUtils.fromJsonString;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedIO.SyntheticSourceOptions;
-import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.loadtests.metrics.MetricsMonitor;
+import org.apache.beam.sdk.loadtests.metrics.MetricsPublisher;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -72,18 +64,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class GroupByKeyLoadTest {
 
   /** Pipeline options for the test. */
-  public interface Options extends PipelineOptions, ApplicationNameOptions {
-
-    @Description("Options for synthetic source")
-    @Validation.Required
-    String getSourceOptions();
-
-    void setSourceOptions(String sourceOptions);
-
-    @Description("Options for synthetic step")
-    String getStepOptions();
-
-    void setStepOptions(String stepOptions);
+  public interface Options extends LoadTestOptions {
 
     @Description("The number of GroupByKey operations to perform in parallel (fanout)")
     @Default.Integer(1)
@@ -96,27 +77,15 @@ public class GroupByKeyLoadTest {
     Integer getIterations();
 
     void setIterations(Integer iterations);
-
-    static Options readFromArgs(String[] args) {
-      return PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    }
-
-    static <T extends SyntheticOptions> T fromJsonString(String json, Class<T> type)
-        throws IOException {
-      ObjectMapper mapper = new ObjectMapper();
-      T result = mapper.readValue(json, type);
-      result.validate();
-      return result;
-    }
   }
 
   public static void main(String[] args) throws IOException {
-    Options options = readFromArgs(args);
+    Options options = LoadTestOptions.readFromArgs(args, Options.class);
 
     SyntheticSourceOptions sourceOptions =
         fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
 
-    Optional<SyntheticStep> syntheticStep = createSyntheticStep(options);
+    Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -124,8 +93,8 @@ public class GroupByKeyLoadTest {
         pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
-      applySyntheticStep(input, branch, syntheticStep)
-          .apply(ParDo.of(new Monitor()))
+      SyntheticUtils.applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
+          .apply(ParDo.of(new MetricsMonitor("gbk")))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
           .apply(
               format("Ungroup and reiterate (%s)", branch),
@@ -135,37 +104,7 @@ public class GroupByKeyLoadTest {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    printMetrics(result);
-  }
-
-  private static void printMetrics(PipelineResult result) {
-    MetricsReader resultMetrics = new MetricsReader(result, "gbk");
-
-    long totalBytes = resultMetrics.getCounterMetric("totalBytes.count", -1);
-    long startTime = resultMetrics.getStartTimeMetric(System.currentTimeMillis(), "runtime");
-    long endTime = resultMetrics.getEndTimeMetric(System.currentTimeMillis(), "runtime");
-
-    System.out.println(String.format("Total bytes: %s", totalBytes));
-    System.out.println(String.format("Total time (millis): %s", endTime - startTime));
-  }
-
-  private static PCollection<KV<byte[], byte[]>> applySyntheticStep(
-      PCollection<KV<byte[], byte[]>> input, int branch, Optional<SyntheticStep> syntheticStep) {
-
-    if (syntheticStep.isPresent()) {
-      return input.apply(format("Synthetic step (%s)", branch), ParDo.of(syntheticStep.get()));
-    } else {
-      return input;
-    }
-  }
-
-  private static Optional<SyntheticStep> createSyntheticStep(Options options) throws IOException {
-    if (options.getStepOptions() != null && !options.getStepOptions().isEmpty()) {
-      return Optional.of(
-          new SyntheticStep(fromJsonString(options.getStepOptions(), SyntheticStep.Options.class)));
-    } else {
-      return Optional.empty();
-    }
+    MetricsPublisher.toConsole(result, "gbk");
   }
 
   private static class UngroupAndReiterate
@@ -190,21 +129,6 @@ public class GroupByKeyLoadTest {
           }
         }
       }
-    }
-  }
-
-  private static class Monitor extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
-
-    private static final String NAMESPACE = "gbk";
-
-    private final Distribution timeDistribution = Metrics.distribution(NAMESPACE, "runtime");
-    private final Counter totalBytes = Metrics.counter(NAMESPACE, "totalBytes.count");
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      timeDistribution.update(System.currentTimeMillis());
-      totalBytes.inc(c.element().getKey().length + c.element().getValue().length);
-      c.output(c.element());
     }
   }
 }
