@@ -589,12 +589,12 @@ class ElasticsearchIOTestCommon implements Serializable {
     HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
     Response response1 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
-    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1));
+    assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
     HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
     Response response2 =
         restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
-    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2));
+    assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
   }
 
   /**
@@ -621,14 +621,21 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   public void testWriteRetryValidRequest() throws Throwable {
-    ElasticsearchIO.Write write =
-            ElasticsearchIO.write()
+    List<String> data =
+            ElasticSearchIOTestUtils.createDocuments(
+                    numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline
+            .apply(Create.of(data))
+            .apply(ElasticsearchIO.write()
                     .withConnectionConfiguration(connectionConfiguration)
-                    .withRetryConfiguration(
-                            ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
-                                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE));
-    pipeline.apply(Create.of(Arrays.asList(OK_REQUEST))).apply(write);
-
+                    .withRetryConfiguration(ElasticsearchIO.RetryConfiguration.create(MAX_ATTEMPTS, Duration.millis(35000))
+                    .withRetryPredicate(CUSTOM_RETRY_PREDICATE)));
     pipeline.run();
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
+    assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 }
