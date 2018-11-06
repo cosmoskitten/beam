@@ -1178,6 +1178,7 @@ artifactId=${project.name}
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
           testCompile it.project(path: ":beam-runners-google-cloud-dataflow-java", configuration: 'shadowTest')
+          shadow it.project(path: ":beam-runners-google-cloud-dataflow-java-legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
