@@ -18,7 +18,11 @@
 This is ParDo load test with Synthetic Source. Besides of the standard
 input options there are additional options:
 * number_of_counter_operations - number of pardo operations
-* metrics_project_id - the gcp project in case of saving metrics in big query
+* metrics_project_id (optional) - the gc project in case of saving metrics
+in Big Query,
+in case of lack of option metrics won't be saved
+* output (optional) - destination to save output, in case of no option
+output won't be written
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
@@ -26,6 +30,7 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
     --number_of_counter_operations=1000
+    --output=gc
     --metrics_project_id=big-query-project
     --input_options='{
     \"num_records\": 300,
@@ -71,7 +76,7 @@ import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsCollector
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import count_metrics
+from apache_beam.testing.load_tests.load_test_metrics_utils import _CountMetrics
 from apache_beam.testing.test_pipeline import TestPipeline
 
 NAMESPACE = 'pardo'
@@ -116,7 +121,7 @@ class ParDoTest(unittest.TestCase):
       )
 
   class _GetElement(beam.DoFn):
-    @count_metrics(namespace=NAMESPACE, counter_name=COUNTER_LABEL)
+    @_CountMetrics(namespace=NAMESPACE, counter_name=COUNTER_LABEL)
     def process(self, element):
       yield element
 

@@ -147,7 +147,8 @@ class MeasureTime(beam.DoFn):
     yield element
 
 
-class count_metrics(object):
+# Decorator to add counter metrics which counts elements lenght to method
+class _CountMetrics(object):
   def __init__(self, namespace, counter_name):
     self.counter = Metrics.counter(namespace, counter_name)
 
@@ -160,3 +161,5 @@ class count_metrics(object):
       return fn(*args)
 
     return decorated
+
+count_metrics = _CountMetrics

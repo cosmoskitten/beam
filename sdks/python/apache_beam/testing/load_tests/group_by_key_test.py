@@ -15,7 +15,14 @@
 # limitations under the License.
 #
 """
-To run test on DirectRunner
+This is GroupByKey load test with Synthetic Source. Besides of the standard
+input options there are additional options:
+* metrics_project_id (optional) - the gcp project in case of saving metrics
+in Big Query,
+in case of lack of option metrics won't be saved
+* input_options - options for Synthetic Sources.
+
+Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
