@@ -169,7 +169,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       } else if (isDateNode(type, value)) {
         // does this actually make sense?
         // Calcite actually treat Calendar as the java type of Date Literal
-        ret = BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
+        ret = BeamSqlPrimitive.of(type, new DateTime(value));
       } else {
         // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
