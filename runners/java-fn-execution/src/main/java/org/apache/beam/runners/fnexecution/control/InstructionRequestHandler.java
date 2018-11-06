@@ -19,6 +19,8 @@ package org.apache.beam.runners.fnexecution.control;
 
 import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import java.util.concurrent.CompletionStage;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /** Interface for any function that can handle a Fn API {@link BeamFnApi.InstructionRequest}. */
 public interface InstructionRequestHandler extends AutoCloseable {

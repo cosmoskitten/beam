@@ -56,6 +56,7 @@ public class BeamFnControlClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnControlClient.class);
   private static final BeamFnApi.InstructionRequest POISON_PILL =
       BeamFnApi.InstructionRequest.newBuilder().setInstructionId(FAKE_INSTRUCTION_ID).build();
+  // ajamato, this one get's called.
 
   private final StreamObserver<BeamFnApi.InstructionResponse> outboundObserver;
   private final BlockingDeque<BeamFnApi.InstructionRequest> bufferedInstructions;
@@ -135,6 +136,7 @@ public class BeamFnControlClient {
   public void processInstructionRequests(Executor executor)
       throws InterruptedException, ExecutionException {
     BeamFnApi.InstructionRequest request;
+    //TODO ajamato(*). BUG HERE This pointson pill is never sent so we never terminate. Why not?????
     while (!Objects.equals((request = bufferedInstructions.take()), POISON_PILL)) {
       BeamFnApi.InstructionRequest currentRequest = request;
       executor.execute(
