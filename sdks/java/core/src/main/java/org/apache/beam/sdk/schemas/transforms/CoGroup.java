@@ -75,6 +75,37 @@ import org.apache.beam.sdk.values.TupleTag;
  * Standard join types (inner join, outer join, etc.) can be accomplished by expanding the cross
  * product of these arrays in various ways.
  *
+ * <p>To put it in other words, the key schema is convertible to the following POJO:
+ *
+ * <pre>{@code
+ * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * public class JoinedKey {
+ *   public String user;
+ *   public String country;
+ * }
+ *
+ * PCollection<JoinedKey> keys = joined
+ *     .apply(Keys.create())
+ *     .apply(Convert.to(JoinedKey.class));
+ * </pre>
+ *
+ * The value schema is convertible to the following POJO:
+ *
+ * <pre>{@code
+ * {@literal @}DefaultSchema(JavaFieldSchema.class)
+ * public class JoinedValue {
+ *   // The below lists contain all values from each of the three inputs that match on the given
+ *   // key.
+ *   public List<Input1Type> input1;
+ *   public List<Input2Type> input2;
+ *   public List<Input3Type> input3;
+ * }
+ *
+ * PCollection<JoinedValue> values = joined
+ *     .apply(Values.create())
+ *     .apply(Convert.to(JoinedValue.class));
+ * </pre>
+ *
  * <p>It's also possible to join between different fields in two inputs, as long as the types of
  * those fields match. In this case, fields must be specified for every input PCollection. For
  * example:
@@ -87,6 +118,7 @@ import org.apache.beam.sdk.values.TupleTag;
  *     .byFieldNames(input1Tag, "referringUser"))
  *     .byFieldNames(input2Tag, "user"));
  * }</pre>
+ *
  */
 public class CoGroup {
   /**
