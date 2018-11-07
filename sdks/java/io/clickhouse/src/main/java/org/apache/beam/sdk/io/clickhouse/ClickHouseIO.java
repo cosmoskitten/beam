@@ -19,12 +19,16 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -34,7 +38,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -49,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import ru.yandex.clickhouse.ClickHouseConnection;
 import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.clickhouse.ClickHouseStatement;
+import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** An IO to write to ClickHouse. */
@@ -61,6 +68,9 @@ public class ClickHouseIO {
 
     public abstract String table();
 
+    @Nullable
+    public abstract Properties properties();
+
     public static TableSchema getTableSchema(String jdbcUrl, String table) {
       ResultSet rs;
       try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
@@ -71,10 +81,12 @@ public class ClickHouseIO {
         while (rs.next()) {
           String name = rs.getString("name");
           String type = rs.getString("type");
+          String defaultTypeStr = rs.getString("default_type");
 
           ColumnType columnType = ColumnType.parse(type);
+          DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
-          columns.add(TableSchema.Column.of(name, columnType));
+          columns.add(TableSchema.Column.of(name, columnType, defaultType));
         }
 
         // findbugs doesn't like it in try block
@@ -89,8 +101,9 @@ public class ClickHouseIO {
     @Override
     public PDone expand(PCollection<Row> input) {
       TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
+      Properties properties = properties() == null ? new Properties() : properties();
 
-      input.apply(ParDo.of(WriteFn.create(jdbcUrl(), table(), tableSchema)));
+      input.apply(ParDo.of(WriteFn.create(jdbcUrl(), table(), tableSchema, properties)));
 
       return PDone.in(input.getPipeline());
     }
@@ -106,7 +119,40 @@ public class ClickHouseIO {
 
       public abstract Builder table(String table);
 
+      public abstract Builder properties(final Properties properties);
+
       public abstract Write build();
+    }
+  }
+
+  public static ClickHouseProperties properties() {
+    return new ClickHouseProperties();
+  }
+
+  static class ClickHouseProperties implements Serializable {
+    private final Properties properties = new Properties();
+
+    public ClickHouseProperties maxBlockSize(int value) {
+      return set(ClickHouseQueryParam.MAX_BLOCK_SIZE, value);
+    }
+
+    public ClickHouseProperties maxInsertBlockSize(long value) {
+      return set(ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, value);
+    }
+
+    public ClickHouseProperties set(ClickHouseQueryParam param, Object value) {
+      Preconditions.checkArgument(param.getClazz().isInstance(value));
+      properties.put(param, value);
+      return this;
+    }
+
+    public ClickHouseProperties set(String param, Object value) {
+      properties.put(param, value);
+      return this;
+    }
+
+    public Properties build() {
+      return properties;
     }
   }
 
@@ -128,8 +174,10 @@ public class ClickHouseIO {
 
     public abstract TableSchema schema();
 
-    public static WriteFn create(String jdbcUrl, String table, TableSchema schema) {
-      return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema);
+    public abstract Properties properties();
+
+    public static WriteFn create(String jdbcUrl, String table, TableSchema schema, Properties properties) {
+      return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema, properties);
     }
 
     private static final Instant EPOCH_INSTANT = new Instant(0L);
@@ -206,7 +254,9 @@ public class ClickHouseIO {
     public static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
         throws IOException {
       for (TableSchema.Column column : schema.columns()) {
-        writeValue(stream, column.columnType(), row.getValue(column.name()));
+        if (!column.optional()) {
+          writeValue(stream, column.columnType(), row.getValue(column.name()));
+        }
       }
     }
 
@@ -223,6 +273,7 @@ public class ClickHouseIO {
           schema
               .columns()
               .stream()
+              .filter(x -> !x.optional())
               .map(x -> quoteIdentifier(x.name()))
               .collect(Collectors.joining(", "));
       return "INSERT INTO " + quoteIdentifier(table) + " (" + columnsStr + ")";
@@ -230,7 +281,7 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
-      connection = new ClickHouseDataSource(jdbcUrl()).getConnection();
+      connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
       executor = Executors.newSingleThreadExecutor();
       queue = new ArrayBlockingQueue<>(1024);
       bundleFinished = new AtomicBoolean(false);
