@@ -46,16 +46,24 @@ public abstract class TableSchema implements Serializable {
     @Nullable
     abstract DefaultType defaultType();
 
-    public boolean optional() {
-      return defaultType() != null;
+    @Nullable
+    public abstract Object defaultValue();
+
+    public boolean materializedOrAlias() {
+      return DefaultType.MATERIALIZED.equals(defaultType())
+          || DefaultType.ALIAS.equals(defaultType());
     }
 
     public static Column of(String name, ColumnType columnType) {
-      return of(name, columnType, null);
+      return of(name, columnType, null, null);
     }
 
-    public static Column of(String name, ColumnType columnType, @Nullable DefaultType defaultType) {
-      return new AutoValue_TableSchema_Column(name, columnType, defaultType);
+    public static Column of(
+        String name,
+        ColumnType columnType,
+        @Nullable DefaultType defaultType,
+        @Nullable Object defaultValue) {
+      return new AutoValue_TableSchema_Column(name, columnType, defaultType, defaultValue);
     }
   }
 
@@ -110,18 +118,27 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType UINT32 = ColumnType.of(TypeName.UINT32);
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
 
+    // ClickHouse doesn't allow nested nullables, so boolean flag is enough
+    abstract boolean nullable();
+
     public abstract TypeName typeName();
 
     @Nullable
     public abstract ColumnType arrayElementType();
 
     public static ColumnType of(TypeName typeName) {
-      return ColumnType.builder().typeName(typeName).build();
+      return ColumnType.builder().typeName(typeName).nullable(false).build();
+    }
+
+    public static ColumnType nullable(TypeName typeName) {
+      return ColumnType.builder().typeName(typeName).nullable(true).build();
     }
 
     public static ColumnType array(ColumnType arrayElementType) {
       return ColumnType.builder()
           .typeName(TypeName.ARRAY)
+          // ClickHouse doesn't allow nullable arrays
+          .nullable(false)
           .arrayElementType(arrayElementType)
           .build();
     }
@@ -131,6 +148,40 @@ public abstract class TableSchema implements Serializable {
         return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
                 new StringReader(str))
             .parse();
+      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
+        throw new IllegalArgumentException("failed to parse", e);
+      }
+    }
+
+    public static Object parseDefaultExpression(ColumnType columnType, String str) {
+      try {
+        String value =
+            new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
+                    new StringReader(str))
+                .parseDefaultExpression();
+
+        switch (columnType.typeName()) {
+          case INT8:
+            return Byte.valueOf(value);
+          case INT16:
+            return Short.valueOf(value);
+          case INT32:
+            return Integer.valueOf(value);
+          case INT64:
+            return Long.valueOf(value);
+          case STRING:
+            return value;
+          case UINT8:
+            return Short.valueOf(value);
+          case UINT16:
+            return Integer.valueOf(value);
+          case UINT32:
+            return Long.valueOf(value);
+          case UINT64:
+            return Long.valueOf(value);
+          default:
+            throw new UnsupportedOperationException("Unsupported type: " + columnType);
+        }
       } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
         throw new IllegalArgumentException("failed to parse", e);
       }
@@ -146,6 +197,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder typeName(TypeName typeName);
 
       public abstract Builder arrayElementType(ColumnType arrayElementType);
+
+      public abstract Builder nullable(boolean nullable);
 
       public abstract ColumnType build();
     }

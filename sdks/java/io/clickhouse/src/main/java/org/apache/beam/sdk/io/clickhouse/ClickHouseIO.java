@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.clickhouse;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
@@ -27,7 +28,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -82,11 +82,20 @@ public class ClickHouseIO {
           String name = rs.getString("name");
           String type = rs.getString("type");
           String defaultTypeStr = rs.getString("default_type");
+          String defaultExpression = rs.getString("default_expression");
 
           ColumnType columnType = ColumnType.parse(type);
           DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
 
-          columns.add(TableSchema.Column.of(name, columnType, defaultType));
+          Object defaultValue;
+          if (DefaultType.DEFAULT.equals(defaultType)
+              && !Strings.isNullOrEmpty(defaultExpression)) {
+            defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
+          } else {
+            defaultValue = null;
+          }
+
+          columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
         }
 
         // findbugs doesn't like it in try block
@@ -176,13 +185,25 @@ public class ClickHouseIO {
 
     public abstract Properties properties();
 
-    public static WriteFn create(String jdbcUrl, String table, TableSchema schema, Properties properties) {
+    public static WriteFn create(
+        String jdbcUrl, String table, TableSchema schema, Properties properties) {
       return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema, properties);
     }
 
     private static final Instant EPOCH_INSTANT = new Instant(0L);
 
     @SuppressWarnings("unchecked")
+    public static void writeNullableValue(
+        ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
+
+      if (value == null) {
+        stream.writeByte((byte) 1);
+      } else {
+        stream.writeByte((byte) 0);
+        writeValue(stream, columnType, value);
+      }
+    }
+
     public static void writeValue(
         ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
 
@@ -254,8 +275,14 @@ public class ClickHouseIO {
     public static void writeRow(ClickHouseRowBinaryStream stream, TableSchema schema, Row row)
         throws IOException {
       for (TableSchema.Column column : schema.columns()) {
-        if (!column.optional()) {
-          writeValue(stream, column.columnType(), row.getValue(column.name()));
+        if (!column.materializedOrAlias()) {
+          Object value = row.getValue(column.name());
+
+          if (column.columnType().nullable()) {
+            writeNullableValue(stream, column.columnType(), value);
+          } else {
+            writeValue(stream, column.columnType(), value);
+          }
         }
       }
     }
@@ -273,7 +300,7 @@ public class ClickHouseIO {
           schema
               .columns()
               .stream()
-              .filter(x -> !x.optional())
+              .filter(x -> !x.materializedOrAlias())
               .map(x -> quoteIdentifier(x.name()))
               .collect(Collectors.joining(", "));
       return "INSERT INTO " + quoteIdentifier(table) + " (" + columnsStr + ")";
