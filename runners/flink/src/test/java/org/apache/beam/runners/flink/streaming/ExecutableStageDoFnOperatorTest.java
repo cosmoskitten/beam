@@ -125,7 +125,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     Exception expected = new RuntimeException(new Exception());
     doThrow(expected).when(bundle).close();
@@ -149,7 +149,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("pCollectionId", receiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
     WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
@@ -211,6 +211,9 @@ public class ExecutableStageDoFnOperatorTest {
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
     StageBundleFactory stageBundleFactory =
         new StageBundleFactory() {
+
+          private boolean onceEmitted;
+
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
@@ -225,7 +228,7 @@ public class ExecutableStageDoFnOperatorTest {
               @Override
               public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
                 return ImmutableMap.of(
-                    "pCollectionId",
+                    "input",
                     input -> {
                       /* Ignore input*/
                     });
@@ -233,10 +236,14 @@ public class ExecutableStageDoFnOperatorTest {
 
               @Override
               public void close() throws Exception {
+                if (onceEmitted) {
+                  return;
+                }
                 // Emit all values to the runner when the bundle is closed.
                 receiverFactory.create(mainOutput.getId()).accept(three);
                 receiverFactory.create(additionalOutput1.getId()).accept(four);
                 receiverFactory.create(additionalOutput2.getId()).accept(five);
+                onceEmitted = true;
               }
             };
           }
@@ -291,6 +298,11 @@ public class ExecutableStageDoFnOperatorTest {
         new OneInputStreamOperatorTestHarness<>(operator);
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
