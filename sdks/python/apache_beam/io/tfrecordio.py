@@ -101,13 +101,12 @@ class _TFRecordUtil(object):
       file_handle: The file to write to.
       value: A string content of the record.
     """
-    bytes_value = value if isinstance(value, bytes) else value.encode('utf-8')
-    encoded_length = struct.pack('<Q', len(bytes_value))
+    encoded_length = struct.pack(b'<Q', len(value))
     file_handle.write(b''.join([
         encoded_length,
-        struct.pack('<I', cls._masked_crc32c(encoded_length)),  #
-        bytes_value,
-        struct.pack('<I', cls._masked_crc32c(bytes_value))
+        struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
+        value,
+        struct.pack(b'<I', cls._masked_crc32c(value))
     ]))
 
   @classmethod
