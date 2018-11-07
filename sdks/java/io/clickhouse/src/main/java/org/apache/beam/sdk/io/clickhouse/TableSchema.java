@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.io.StringReader;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 
@@ -42,8 +43,19 @@ public abstract class TableSchema implements Serializable {
 
     abstract ColumnType columnType();
 
+    @Nullable
+    abstract DefaultType defaultType();
+
+    public boolean optional() {
+      return defaultType() != null;
+    }
+
     public static Column of(String name, ColumnType columnType) {
-      return new AutoValue_TableSchema_Column(name, columnType);
+      return of(name, columnType, null);
+    }
+
+    public static Column of(String name, ColumnType columnType, @Nullable DefaultType defaultType) {
+      return new AutoValue_TableSchema_Column(name, columnType, defaultType);
     }
   }
 
@@ -65,6 +77,20 @@ public abstract class TableSchema implements Serializable {
     UINT64,
     // Composite types
     ARRAY
+  }
+
+  public enum DefaultType {
+    DEFAULT,
+    MATERIALIZED,
+    ALIAS;
+
+    public static Optional<DefaultType> parse(String str) {
+      if ("".equals(str)) {
+        return Optional.empty();
+      } else {
+        return Optional.of(valueOf(str));
+      }
+    }
   }
 
   /** A descriptor for a column type. */
