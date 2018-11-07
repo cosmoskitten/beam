@@ -25,4 +25,18 @@ class NexmarkBigqueryProperties {
                                          '--resourceNameMode=QUERY_RUNNER_AND_MODE',
                                          '--exportSummaryToBigQuery=true',
                                          '--tempLocation=gs://temp-storage-for-perf-tests/nexmark'].join(' ')
+
+
+    static String getBigQueryArgs(def context) {
+        def bigQueryDataset
+
+        context.steps {
+            def masterHeadSha = sh(returnStdout: true, script: 'git rev-parse master').trim()
+
+            shell("echo ${masterHeadSha}")
+            bigQueryDataset = (masterHeadSha == '${sha}') ? "nexmark" : "nexmark_pull_requests"
+        }
+
+        return nexmarkBigQueryArgs.join("--bigQueryDataset=${bigQueryDataset}")
+    }
 }
