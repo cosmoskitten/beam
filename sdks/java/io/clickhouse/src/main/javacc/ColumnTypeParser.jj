@@ -7,12 +7,17 @@ PARSER_BEGIN(ColumnTypeParser)
 package org.apache.beam.sdk.io.clickhouse.impl.parser;
 
 import static org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import static org.apache.beam.sdk.io.clickhouse.TableSchema.TypeName;
 
 @SuppressWarnings({"unchecked", "static"})
 public class ColumnTypeParser {
 
     public ColumnType parse() throws ParseException {
         return columnType();
+    }
+
+    public String parseDefaultExpression() throws ParseException {
+        return defaultExpression();
     }
 
 }
@@ -26,6 +31,12 @@ SKIP:
     "\n" |
     "\r" |
     "\t"
+}
+
+TOKEN :
+{
+      < STRING_LITERAL : "\'"  ("\\" ~[] | ~["\'","\\"])* "\'" >
+    | < INTEGER_LITERAL: (("-")? (["0"-"9"])+) >
 }
 
 TOKEN :
@@ -44,33 +55,97 @@ TOKEN :
   | < UINT16   : "UINT16" >
   | < UINT32   : "UINT32" >
   | < UINT64   : "UINT64" >
+  | < NULLABLE : "NULLABLE" >
   | < LPAREN   : "(" >
   | < RPAREN   : ")" >
+  | < CAST     : "CAST" >
+  | < AS       : "AS" >
 }
 
 public ColumnType columnType() :
 {
     ColumnType ct;
+    TypeName type;
 }
 {
     (
-          <STRING>   { ct = ColumnType.STRING;   }
-        | <DATE>     { ct = ColumnType.DATE;     }
-        | <DATETIME> { ct = ColumnType.DATETIME; }
-        | <FLOAT32>  { ct = ColumnType.FLOAT32;  }
-        | <FLOAT64>  { ct = ColumnType.FLOAT64;  }
-        | <INT8>     { ct = ColumnType.INT8;     }
-        | <INT16>    { ct = ColumnType.INT16;    }
-        | <INT32>    { ct = ColumnType.INT32;    }
-        | <INT64>    { ct = ColumnType.INT64;    }
-        | <UINT8>    { ct = ColumnType.UINT8;    }
-        | <UINT16>   { ct = ColumnType.UINT16;   }
-        | <UINT32>   { ct = ColumnType.UINT32;   }
-        | <UINT64>   { ct = ColumnType.UINT64;   }
+          ct = primitive()
         | ct = array()
+        | ct = nullable()
     )
     {
         return ct;
+    }
+}
+
+public String defaultExpression() :
+{
+    String value;
+}
+{
+    (
+        <CAST> <LPAREN> (value = expr()) <AS> columnType() <RPAREN>
+    )
+    {
+        return value;
+    }
+}
+
+private String expr() :
+{
+    Token token;
+}
+{
+    (
+          ( token = <STRING_LITERAL>  )
+        | ( token = <INTEGER_LITERAL> )
+    )
+    {
+        String str = token.toString();
+        // FIXME don't know how to do proper string parsing with escaping
+        if (str.startsWith("'")) {
+            return str.substring(1, str.length() - 1);
+        }
+        return str;
+    }
+}
+
+private TypeName typeName() :
+{
+}
+{
+    (
+          <STRING>   { return TypeName.STRING;   }
+        | <DATE>     { return TypeName.DATE;     }
+        | <DATETIME> { return TypeName.DATETIME; }
+        | <FLOAT32>  { return TypeName.FLOAT32;  }
+        | <FLOAT64>  { return TypeName.FLOAT64;  }
+        | <INT8>     { return TypeName.INT8;     }
+        | <INT16>    { return TypeName.INT16;    }
+        | <INT32>    { return TypeName.INT32;    }
+        | <INT64>    { return TypeName.INT64;    }
+        | <UINT8>    { return TypeName.UINT8;    }
+        | <UINT16>   { return TypeName.UINT16;   }
+        | <UINT32>   { return TypeName.UINT32;   }
+        | <UINT64>   { return TypeName.UINT64;   }
+    )
+}
+
+private ColumnType primitive() :
+{
+    TypeName type;
+}
+{
+    (type = typeName()) { return ColumnType.of(type); }
+}
+
+private ColumnType nullable() :
+{
+    TypeName type;
+}
+{
+    (<NULLABLE> <LPAREN> (type = typeName()) <RPAREN>) {
+        return ColumnType.nullable(type);
     }
 }
 
