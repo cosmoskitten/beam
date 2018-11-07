@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -555,6 +556,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       output receiver for outputting elements to the default output.
    *   <li>If one of the parameters is of type {@link MultiOutputReceiver}, then it will be passed
    *       an output receiver for outputting to multiple tagged outputs.
+   *    <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed
+   *       a mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    *   <li>It must return {@code void}.
    * </ul>
    *
@@ -725,14 +731,26 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into multiple parts to
    * be processed in parallel.
    *
-   * <p>Signature: {@code List<RestrictionT> splitRestriction( InputT element, RestrictionT
-   * restriction);}
+   * <p>The signature of this method must satisfy the following constraints:
+   * <ul>
+   *   <li>One of its parameters must be the {@code InputT} element.
+   *   <li>One of its parameters must be the restriction.
+   *   <li>One of its parameters must be the output receiver for restrictions.
+   *   <li>If one of its input parameters is of type {@link Backlog}, then splitting the restriction
+   *   should attempt to take the backlog information into account. If the backlog is known, each
+   *   split should return a restriction with an approximate amount of work bounded by the backlog.
+   *   In the case of an unbounded restriction, at most one of the splits can represent the
+   *   unbounded portion of work. If the backlog that is specified is unknown, it is up to the SDK
+   *   to choose a number of splits of approximately equally sized portions with potentially one
+   *   of those splits representing the unbounded portion of work.
+   * </ul>
+   * <p>Signature: {@code splitRestriction(InputT element, RestrictionT
+   * restriction, <optional>Backlog backlog</optional>, OutputReceiver<RestrictionT> receiver);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
-   * defining the method and returning {@code Collections.singletonList(restriction)}).
+   * defining the method and outputting {@code Collections.singletonList(restriction)}).
    *
-   * <p>TODO: Introduce a parameter for controlling granularity of splitting, e.g. numParts. TODO:
-   * Make the InputT parameter optional.
+   * <p>TODO: Make the InputT parameter optional.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -838,4 +856,29 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {}
+
+  /**
+   * A parameter that is accessible during {@link StartBundle @StartBundle},
+   * {@link ProcessElement @ProcessElement} and {@link FinishBundle @FinishBundle} that allows
+   * the caller to register a callback that will be invoked after the bundle has been successfully
+   * completed and the runner has commit the output.
+   */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public interface BundleFinalizer {
+    /**
+     * The provided function will be called once the runner successfully commits the output
+     * of a bundle. Throwing during finalization represents that bundle finalization may have
+     * failed and this finalization will be discarded. The provided duration controls how long
+     * the finalization is valid for before it is garbage collected and will never be called.
+     *
+     * <p>Note that finalization is best effort and that it is expected that the external
+     * system will self recover state if finalization never happens or consistently fails. For
+     * example, a queue based system that requires message acknowledgement would replay messages
+     * if that acknowledgement was never received within a time bound.
+     *
+     * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API:
+     * How to Finalize Bundles</a> for further details.
+     */
+    void afterBundleCommit(Duration finalizationDelayLimit, ThrowingRunnable function);
+  }
 }
