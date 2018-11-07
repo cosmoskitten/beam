@@ -109,6 +109,21 @@ if __name__ == '__main__':
     def test_pardo_timers(self):
       raise unittest.SkipTest("BEAM-4681 - User timers not yet supported.")
 
+    if streaming:
+
+      def test_assert_that(self):
+        # We still want to make sure asserts fail, even if the message
+        # isn't right (BEAM-6019).
+        with self.assertRaises(Exception):
+          with self.create_pipeline() as p:
+            assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
+
+      def test_error_message_includes_stage(self):
+        raise unittest.SkipTest("BEAM-6019")
+
+      def test_error_traceback_includes_user_code(self):
+        raise unittest.SkipTest("BEAM-6019")
+
     # Inherits all other tests.
 
   # Run the tests.
