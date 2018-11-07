@@ -180,6 +180,7 @@ public class Main {
               .build();
       bigQueryClient.createTableIfNotExists(tableName, schema);
 
+      // convert millis to seconds (it's a BigQuery's requirement).
       Map<String, Object> record =
           ImmutableMap.<String, Object>builder()
               .put("timestamp", start.getMillis() / 1000)

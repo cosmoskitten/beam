@@ -76,15 +76,15 @@ public class PerfsToBigQueryTest {
     perfs.put(nexmarkConfiguration1, nexmarkPerf1);
     perfs.put(nexmarkConfiguration2, nexmarkPerf2);
 
-    long startTimestampSeconds = 1454284800000L;
-    Main.savePerfsToBigQuery(bigQueryClient, options, perfs, new Instant(startTimestampSeconds));
+    long startTimestampMilliseconds = 1454284800000L;
+    Main.savePerfsToBigQuery(bigQueryClient, options, perfs, new Instant(startTimestampMilliseconds));
 
     String tableName = NexmarkUtils.tableName(options, QUERY.getNumberOrName(), 0L, null);
     List<Map<String, ?>> rows = bigQueryClient.getRows(tableName);
 
     // savePerfsToBigQuery converts millis to seconds (it's a BigQuery's requirement).
-    assertContains(nexmarkRecord(nexmarkPerf1, startTimestampSeconds / 1000), rows);
-    assertContains(nexmarkRecord(nexmarkPerf2, startTimestampSeconds / 1000), rows);
+    assertContains(nexmarkRecord(nexmarkPerf1, startTimestampMilliseconds / 1000), rows);
+    assertContains(nexmarkRecord(nexmarkPerf2, startTimestampMilliseconds / 1000), rows);
   }
 
   private Map<String, Object> nexmarkRecord(NexmarkPerf nexmarkPerf, long startTimestampSeconds) {
