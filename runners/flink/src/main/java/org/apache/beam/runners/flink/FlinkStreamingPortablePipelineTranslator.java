@@ -562,8 +562,7 @@ public class FlinkStreamingPortablePipelineTranslator
 
     Coder keyCoder = null;
     KeySelector<WindowedValue<InputT>, ?> keySelector = null;
-    final boolean stateful = stagePayload.getUserStatesCount() > 0;
-    if (stateful) {
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
       // Stateful stages are only allowed of KV input
       Coder valueCoder =
           ((WindowedValue.FullWindowedValueCoder) windowedInputCoder).getValueCoder();
