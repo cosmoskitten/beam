@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<yandex>
+  <zookeeper replace="replace">
+    <node>
+      <host>localhost</host>
+      <port>2181</port>
+    </node>
+  </zookeeper>
+</yandex>

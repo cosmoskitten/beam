@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -25,27 +27,36 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.ClickHouseContainer;
+import org.testcontainers.containers.GenericContainer;
 
 /** Tests for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
 public class ClickHouseIOTest {
 
-  @ClassRule public static ClickHouseContainer clickhouse = new ClickHouseContainer();
   @Rule public TestPipeline pipeline = TestPipeline.create();
+  @ClassRule public static ClickHouseContainer clickhouse = new ClickHouseContainer();
 
   public void executeSql(String sql) throws SQLException {
     try (Connection connection = clickhouse.createConnection("");
@@ -287,6 +298,7 @@ public class ClickHouseIOTest {
       assertEquals("[12,13]", rs.getString("f12"));
     }
   }
+
 
   @Test
   public void testInsertSql() {
