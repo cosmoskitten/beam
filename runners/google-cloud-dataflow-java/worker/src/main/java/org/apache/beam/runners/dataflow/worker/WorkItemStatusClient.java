@@ -263,6 +263,7 @@ public class WorkItemStatusClient {
     return status;
   }
 
+  // todo this method should return List<CounterUpdate> instead of setting it to WorkitemStatus
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
@@ -270,13 +271,23 @@ public class WorkItemStatusClient {
     }
 
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
-    ImmutableList.Builder<CounterUpdate> counterUpdatesBuilder = ImmutableList.builder();
-    counterUpdatesBuilder.addAll(extractCounters(worker.getOutputCounters()));
-    counterUpdatesBuilder.addAll(extractMetrics(isFinalUpdate));
-    counterUpdatesBuilder.addAll(extractMsecCounters(isFinalUpdate));
-    counterUpdatesBuilder.addAll(worker.extractMetricUpdates());
 
-    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesBuilder.build();
+    ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
+    Iterable<CounterUpdate> newCounterUpdates;
+
+    newCounterUpdates = extractCounters(worker.getOutputCounters());
+    counterUpdatesListBuilder.addAll(newCounterUpdates);
+
+    newCounterUpdates = extractMetrics(isFinalUpdate);
+    counterUpdatesListBuilder.addAll(newCounterUpdates);
+
+    newCounterUpdates = extractMsecCounters(isFinalUpdate);
+    counterUpdatesListBuilder.addAll(newCounterUpdates);
+
+    newCounterUpdates = worker.extractMetricUpdates();
+    counterUpdatesListBuilder.addAll(newCounterUpdates);
+
+    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesListBuilder.build();
     status.setCounterUpdates(counterUpdates);
   }
 
