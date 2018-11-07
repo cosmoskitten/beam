@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -555,6 +556,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       output receiver for outputting elements to the default output.
    *   <li>If one of the parameters is of type {@link MultiOutputReceiver}, then it will be passed
    *       an output receiver for outputting to multiple tagged outputs.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    *   <li>It must return {@code void}.
    * </ul>
    *
@@ -725,14 +731,30 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} into multiple parts to
    * be processed in parallel.
    *
-   * <p>Signature: {@code List<RestrictionT> splitRestriction( InputT element, RestrictionT
-   * restriction);}
+   * <p>The signature of this method must satisfy the following constraints:
+   *
+   * <ul>
+   *   <li>One of its parameters must be the {@code InputT} element.
+   *   <li>One of its parameters must be the restriction.
+   *   <li>One of its input parameters must be of type {@link Backlog}. Splitting the restriction
+   *       should attempt to take the backlog information into account. If the backlog is known,
+   *       each split should return a restriction with an approximate amount of work bounded by the
+   *       backlog. In the case of an unbounded restriction, at most one of the splits can represent
+   *       the unbounded portion of work. If the backlog that is specified is unknown, it is up to
+   *       the SDK to choose a number of splits of approximately equally sized portions with
+   *       potentially one of those splits representing the unbounded portion of work.
+   *   <li>One of its parameters must be the output receiver for restrictions.
+   * </ul>
+   *
+   * <p>Signature: {@code splitRestriction(InputT element, RestrictionT restriction, Backlog
+   * backlog, OutputReceiver<RestrictionT> receiver);}
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
-   * defining the method and returning {@code Collections.singletonList(restriction)}).
+   * defining the method and outputting {@code Collections.singletonList(restriction)}).
    *
-   * <p>TODO: Introduce a parameter for controlling granularity of splitting, e.g. numParts. TODO:
-   * Make the InputT parameter optional.
+   * <p>TODO: Make the InputT parameter optional.
+   *
+   * <p>TODO: Make the Backlog parameter optional.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -780,7 +802,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   // This can't be put into ProcessContinuation itself due to the following problem:
   // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
   private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO);
+      new AutoValue_DoFn_ProcessContinuation(false, new Instant());
 
   /**
    * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
@@ -799,7 +821,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     /** Indicates that there is more work to be done for the current element. */
     public static ProcessContinuation resume() {
-      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO);
+      return new AutoValue_DoFn_ProcessContinuation(true, new Instant());
     }
 
     /**
@@ -809,14 +831,26 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public abstract boolean shouldResume();
 
     /**
-     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
-     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
+     * A hint that is provided to runners about when execution of this element and restriction pair
+     * should be scheduled. Runners will attempt to treat this as a lower bound but may choose not
+     * to do so. By default, the execution should be scheduled immediately.
      */
-    public abstract Duration resumeDelay();
+    public abstract Instant resumeTime();
 
-    /** Builder method to set the value of {@link #resumeDelay()}. */
+    /**
+     * Returns a new {@link ProcessContinuation} like this one but with the {@link #resumeTime()}
+     * set to {@code now() + resumeDelay}.
+     */
     public ProcessContinuation withResumeDelay(Duration resumeDelay) {
-      return new AutoValue_DoFn_ProcessContinuation(shouldResume(), resumeDelay);
+      return this.withResumeTime(new Instant().plus(resumeDelay));
+    }
+
+    /**
+     * Returns a new {@link ProcessContinuation} like this one but with the {@link #resumeTime()}
+     * set to the specified value.
+     */
+    public ProcessContinuation withResumeTime(Instant resumeTime) {
+      return new AutoValue_DoFn_ProcessContinuation(shouldResume(), resumeTime);
     }
   }
 
@@ -838,4 +872,40 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {}
+
+  /**
+   * A parameter that is accessible during {@link StartBundle @StartBundle}, {@link
+   * ProcessElement @ProcessElement} and {@link FinishBundle @FinishBundle} that allows the caller
+   * to register a callback that will be invoked after the bundle has been successfully completed
+   * and the runner has commit the output.
+   */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public interface BundleFinalizer {
+    /**
+     * The provided function will be called once the runner successfully commits the output of a
+     * bundle. Throwing during finalization represents that bundle finalization may have failed and
+     * this finalization will be discarded. The provided duration controls how long the finalization
+     * is valid for before it is garbage collected and will never be called.
+     *
+     * <p>Note that finalization is best effort and that it is expected that the external system
+     * will self recover state if finalization never happens or consistently fails. For example, a
+     * queue based system that requires message acknowledgement would replay messages if that
+     * acknowledgement was never received within a time bound.
+     *
+     * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API:
+     * How to Finalize Bundles</a> for further details.
+     */
+    void afterBundleCommit(Duration finalizationDelayLimit, Callback callback);
+
+    /**
+     * An instance of a function that will be invoked after bundle finalization.
+     *
+     * <p>Note that this function should maintain all state necessary outside of a DoFn's context to
+     * be able to perform bundle finalization and should not rely on mutable state stored within a
+     * DoFn instance.
+     */
+    interface Callback {
+      void onBundleSuccess() throws Exception;
+    }
+  }
 }
