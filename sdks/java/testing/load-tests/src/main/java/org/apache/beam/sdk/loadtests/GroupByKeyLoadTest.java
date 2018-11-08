@@ -83,15 +83,14 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
   void loadTest() throws IOException {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
-    PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply(SyntheticBoundedIO.readFrom(sourceOptions));
+    PCollection<KV<byte[], byte[]>> input = pipeline
+        .apply(SyntheticBoundedIO.readFrom(sourceOptions))
+        .apply(ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)));
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
-          .apply(ParDo.of(new MetricsMonitor(METRICS_NAMESPACE)))
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
-          .apply(
-              format("Ungroup and reiterate (%s)", branch),
+          .apply(format("Ungroup and reiterate (%s)", branch),
               ParDo.of(new UngroupAndReiterate(options.getIterations())));
     }
   }
