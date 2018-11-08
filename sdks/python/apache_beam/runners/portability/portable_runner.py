@@ -83,6 +83,8 @@ class PortableRunner(runner.PipelineRunner):
       environment_urn = common_urns.environments.DOCKER.urn
     elif portable_options.environment_type == 'PROCESS':
       environment_urn = common_urns.environments.PROCESS.urn
+    elif portable_options.environment_type == 'EXTERNAL':
+      environment_urn = common_urns.environments.EXTERNAL.urn
 
     if environment_urn == common_urns.environments.DOCKER.urn:
       docker_image = (
@@ -103,6 +105,12 @@ class PortableRunner(runner.PipelineRunner):
               arch=(config.get('arch') or ''),
               command=config.get('command'),
               env=(config.get('env') or '')
+          ).SerializeToString())
+    elif environment_urn == common_urns.environments.EXTERNAL.urn:
+      return beam_runner_api_pb2.Environment(
+          urn=common_urns.environments.EXTERNAL.urn,
+          payload=beam_runner_api_pb2.ExternalPayload(
+              url=portable_options.environment_config
           ).SerializeToString())
 
   def run_pipeline(self, pipeline):

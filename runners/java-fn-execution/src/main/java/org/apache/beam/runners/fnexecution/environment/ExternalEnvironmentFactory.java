@@ -18,7 +18,8 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -36,14 +37,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link EnvironmentFactory} which forks processes based on the parameters in the Environment.
+ * An {@link EnvironmentFactory} which forks processes based on the given URL in the Environment.
  * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
  */
-public class ProcessEnvironmentFactory implements EnvironmentFactory {
+public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ProcessEnvironmentFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
 
-  public static ProcessEnvironmentFactory create(
+  public static ExternalEnvironmentFactory create(
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
@@ -51,7 +52,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
-    return new ProcessEnvironmentFactory(
+    return new ExternalEnvironmentFactory(
         processManager,
         controlServiceServer,
         loggingServiceServer,
@@ -69,7 +70,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
 
-  private ProcessEnvironmentFactory(
+  private ExternalEnvironmentFactory(
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
@@ -92,43 +93,38 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     Preconditions.checkState(
         environment
             .getUrn()
-            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
-        "The passed environment does not contain a ProcessPayload.");
-    final RunnerApi.ProcessPayload processPayload =
-        RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
+            .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.EXTERNAL)),
+        "The passed environment does not contain an ExternalPayload.");
+    final RunnerApi.ExternalPayload externalPayload =
+        RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    String executable = processPayload.getCommand();
+    String url = externalPayload.getUrl();
     String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
     String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
     String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
-    ImmutableList<String> args =
-        ImmutableList.of(
-            String.format("--id=%s", workerId),
-            String.format("--logging_endpoint=%s", loggingEndpoint),
-            String.format("--artifact_endpoint=%s", artifactEndpoint),
-            String.format("--provision_endpoint=%s", provisionEndpoint),
-            String.format("--control_endpoint=%s", controlEndpoint));
+    ImmutableMap<String, String> args =
+        ImmutableMap.<String, String>builder()
+            .put("workerId", workerId)
+            .put("logging_endpoint", loggingEndpoint)
+            .put("artifact_endpoint", artifactEndpoint)
+            .put("provision_endpoint", provisionEndpoint)
+            .put("control_endpoint", controlEndpoint)
+            .build();
 
     LOG.debug("Creating Process for worker ID {}", workerId);
     // Wrap the blocking call to clientSource.get in case an exception is thrown.
     InstructionRequestHandler instructionHandler = null;
     try {
-      ProcessManager.RunningProcess process =
-          processManager.startProcess(workerId, executable, args, processPayload.getEnvMap());
+      ExternalEnvironment.start(url, workerId, args, args); //externalPayload.getParams());
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
         try {
-          // If the process is not alive anymore, we abort.
-          process.isAliveOrThrow();
           instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
         } catch (TimeoutException timeoutEx) {
-          LOG.info(
-              "Still waiting for startup of environment '{}' for worker id {}",
-              processPayload.getCommand(),
-              workerId);
+          LOG.info("Still waiting for startup of environment '{}' for worker id {}", url, workerId);
         } catch (InterruptedException interruptEx) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(interruptEx);
@@ -136,14 +132,14 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       }
     } catch (Exception e) {
       try {
-        processManager.stopProcess(workerId);
-      } catch (Exception processKillException) {
-        e.addSuppressed(processKillException);
+        ExternalEnvironment.stop(url, workerId);
+      } catch (IOException closeFailedException) {
+        e.addSuppressed(closeFailedException);
       }
       throw e;
     }
 
-    return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+    return ExternalEnvironment.create(url, environment, workerId, instructionHandler);
   }
 
   /** Provider of ProcessEnvironmentFactory. */

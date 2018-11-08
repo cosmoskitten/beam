@@ -1045,6 +1045,11 @@ message ProcessPayload {
   map<string, string> env = 4; // Environment variables
 }
 
+message ExternalPayload {
+  string url = 1;  // REST endpoint for passing worker params
+  map<string, string> params = 2;  // Arbitrary extra parameters to pass
+}
+
 // A specification of a user defined function.
 //
 message SdkFunctionSpec {
