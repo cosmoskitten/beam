@@ -58,9 +58,7 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -136,8 +134,13 @@ public class GcsUtil {
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
+  // Unbounded thread pool for codependent pipeline operations that will deadlock the pipeline if
+  // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
+
+  // Fixed thread pool for independent operations.
+  private final ExecutorService batchExecutorService;
 
   /** Returns the prefix portion of the glob that doesn't contain wildcards. */
   public static String getNonWildcardPrefix(String globExp) {
@@ -208,6 +211,8 @@ public class GcsUtil {
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
+    this.batchExecutorService = MoreExecutors.listeningDecorator(
+        Executors.newFixedThreadPool(MAX_CONCURRENT_BATCHES));
   }
 
   // Use this only for testing purposes.
@@ -545,20 +550,10 @@ public class GcsUtil {
     }
   }
 
-  private static void executeBatches(List<BatchRequest> batches) throws IOException {
-    ExecutorService executor =
-        MoreExecutors.listeningDecorator(
-            MoreExecutors.getExitingExecutorService(
-                new ThreadPoolExecutor(
-                    MAX_CONCURRENT_BATCHES,
-                    MAX_CONCURRENT_BATCHES,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>())));
-
+  private void executeBatches(List<BatchRequest> batches) throws IOException {
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(MoreFutures.runAsync(() -> batch.execute(), executor));
+      futures.add(MoreFutures.runAsync(() -> batch.execute(), batchExecutorService));
     }
 
     try {
@@ -571,8 +566,6 @@ public class GcsUtil {
         throw (FileNotFoundException) e.getCause();
       }
       throw new IOException("Error executing batch GCS request", e);
-    } finally {
-      executor.shutdown();
     }
   }
 
