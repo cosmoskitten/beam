@@ -122,7 +122,7 @@ public class ClickHouseIO {
     }
 
     @AutoValue.Builder
-    abstract static class Builder {
+    public abstract static class Builder {
 
       public abstract Builder jdbcUrl(String jdbcUrl);
 
@@ -138,7 +138,7 @@ public class ClickHouseIO {
     return new ClickHouseProperties();
   }
 
-  static class ClickHouseProperties implements Serializable {
+  public static class ClickHouseProperties implements Serializable {
     private final Properties properties = new Properties();
 
     public ClickHouseProperties maxBlockSize(int value) {
@@ -166,7 +166,7 @@ public class ClickHouseIO {
   }
 
   @AutoValue
-  abstract static class WriteFn extends DoFn<Row, Void> {
+  public abstract static class WriteFn extends DoFn<Row, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
 
     private ClickHouseConnection connection;
