@@ -41,7 +41,7 @@ TOKEN :
 
 TOKEN :
 {
-    < ARRAY    : "ARRAY"  >
+    < ARRAY    : "ARRAY" >
   | < DATE     : "DATE" >
   | < DATETIME : "DATETIME" >
   | < FLOAT32  : "FLOAT32" >
@@ -60,6 +60,7 @@ TOKEN :
   | < RPAREN   : ")" >
   | < CAST     : "CAST" >
   | < AS       : "AS" >
+  | < COMMA    : "," >
 }
 
 public ColumnType columnType() :
@@ -84,7 +85,8 @@ public String defaultExpression() :
 }
 {
     (
-        <CAST> <LPAREN> (value = expr()) <AS> columnType() <RPAREN>
+          <CAST> <LPAREN> (value = expr()) (   <AS> columnType() <RPAREN>
+                                             | <COMMA> <STRING_LITERAL> <RPAREN> )
     )
     {
         return value;
