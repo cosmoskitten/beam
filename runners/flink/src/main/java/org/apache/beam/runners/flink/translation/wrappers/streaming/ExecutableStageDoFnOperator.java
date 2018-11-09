@@ -512,7 +512,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     @Override
     public void onTimer(
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-      LOG.info("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
+      LOG.debug("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
       FnDataReceiver<WindowedValue<?>> timerReceiver =
           Preconditions.checkNotNull(
               remoteBundle.getInputReceivers().get(timerId),
@@ -583,7 +583,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                     (Timer) ((KV) windowedValue.getValue()).getValue(),
                     "Received null Timer from SDK harness: %s",
                     windowedValue);
-            LOG.info("Timer received: {} {}", inputCollectionId, timer);
+            LOG.debug("Timer received: {} {}", inputCollectionId, timer);
             for (Object window : windowedValue.getWindows()) {
               StateNamespace namespace =
                   StateNamespaces.window(windowCoder, (BoundedWindow) window);
