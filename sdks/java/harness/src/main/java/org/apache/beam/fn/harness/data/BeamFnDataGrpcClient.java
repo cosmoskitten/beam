@@ -149,17 +149,21 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private BeamFnDataGrpcMultiplexer getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
-    LOG.info("ajamato getClientFor(apiServiceDescriptor): " +
-        "  '" + apiServiceDescriptor +
-        "' apiServiceDescriptor: " + System.identityHashCode(apiServiceDescriptor) +
-        " this " + System.identityHashCode(this));
+    LOG.info(
+        "ajamato getClientFor(apiServiceDescriptor): "
+            + "  '"
+            + apiServiceDescriptor
+            + "' apiServiceDescriptor: "
+            + System.identityHashCode(apiServiceDescriptor)
+            + " this "
+            + System.identityHashCode(this));
     return cache.computeIfAbsent(
         apiServiceDescriptor,
         (Endpoints.ApiServiceDescriptor descriptor) ->
             new BeamFnDataGrpcMultiplexer(
                 descriptor,
                 outboundObserverFactory,
-                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
+                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
+                true)); // TODO make sure this is SDK side only
   }
-
 }

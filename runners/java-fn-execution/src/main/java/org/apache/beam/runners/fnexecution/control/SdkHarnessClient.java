@@ -260,6 +260,8 @@ public class SdkHarnessClient implements AutoCloseable {
       try {
         // We don't have to worry about the completion stage.
         if (exception == null) {
+          // TODO ajamato(*) BUG is here. We get stuck here. Is this expecting bundle processing to
+          // finish first?
           progressHandler.onCompleted(MoreFutures.get(response));
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.

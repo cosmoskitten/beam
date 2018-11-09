@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcFnServer.class);
 
-
   /**
    * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
    */

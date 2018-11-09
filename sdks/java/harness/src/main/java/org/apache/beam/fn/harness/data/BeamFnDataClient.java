@@ -62,7 +62,6 @@ public interface BeamFnDataClient {
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder);
 
-
   // TODO ajamato(*) add a drainAndBlock method.
   void drainAndBlock(ApiServiceDescriptor apiServiceDescriptor, String instructionId);
 }

@@ -49,7 +49,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
@@ -239,8 +238,10 @@ public class ProcessBundleHandler {
 
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
-    LOG.info("ajamato bundleDescriptor.getStateApiServiceDescriptor '" +
-        bundleDescriptor.getStateApiServiceDescriptor() + "'");
+    LOG.info(
+        "ajamato bundleDescriptor.getStateApiServiceDescriptor '"
+            + bundleDescriptor.getStateApiServiceDescriptor()
+            + "'");
     // TODO ajamato, why is bundleDescriptor.getStateApiServiceDescriptor null here?
     // ajamato(*) BUG Part1 IS HERE. bundleDescriptor.getStateApiServiceDescriptor() is being used as a key
     // but it is empty. So it differs from where its used in BeamFnDataWriteRunner.
@@ -283,8 +284,8 @@ public class ProcessBundleHandler {
           }
 
           if (!apiServiceDescriptor.equals(rgpw.getPort().getApiServiceDescriptor())) {
-            throw new Exception("Bundle Failure: All PTransforms require equivalent " +
-                "ApiServiceDescriptors.");
+            throw new Exception(
+                "Bundle Failure: All PTransforms require equivalent " + "ApiServiceDescriptors.");
           }
         }
 
@@ -313,9 +314,10 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
+      /* TODO is this an error or not?
       if (apiServiceDescriptor == null) {
         throw new Exception("No ApiServiceDescriptor specified.");
-      }
+      }*/
 
       // Already in reverse topological order so we don't need to do anything.
       for (ThrowingRunnable startFunction : startFunctions) {
@@ -326,13 +328,19 @@ public class ProcessBundleHandler {
       // TODO ajamato(*)(1) before calling finish function
       // call into the BeamFnDataGrpC client and ask it to drain the queue.
       // TODO, isn't it odd that we need to pass in the apiServiceDescriptor?
-      LOG.info("ajamato call beamFnDataClient.drainAndBlock '" + bundleDescriptor.getStateApiServiceDescriptor() + "'" +
-          " apiServiceDescriptor: " + System.identityHashCode(bundleDescriptor.getStateApiServiceDescriptor()));
+      LOG.info(
+          "ajamato call beamFnDataClient.drainAndBlock '"
+              + bundleDescriptor.getStateApiServiceDescriptor()
+              + "'"
+              + " apiServiceDescriptor: "
+              + System.identityHashCode(bundleDescriptor.getStateApiServiceDescriptor()));
       //beamFnDataClient.drainAndBlock(bundleDescriptor.getStateApiServiceDescriptor(),
       //    request.getInstructionId());
       // TODO(BEAM-5972). Make sure that the apiServiceDescriptor is the same.
       // throughout all references in the InstructionRequest
-      beamFnDataClient.drainAndBlock(apiServiceDescriptor, request.getInstructionId());
+      if (apiServiceDescriptor != null) {
+        beamFnDataClient.drainAndBlock(apiServiceDescriptor, request.getInstructionId());
+      }
 
       // TODO ajamato(*)(4) Figure out if we have a bug, not calling close.
       // on the BeamFnDataGrpcMultiplexer.
