@@ -75,7 +75,6 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory,
       boolean enableQueuing) {
     this.apiServiceDescriptor = apiServiceDescriptor;
-
     this.consumers = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver(enableQueuing);
     this.outboundObserver =
@@ -162,6 +161,9 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       return data.getData().isEmpty();
     }
 
+    // TODO overall error handling needs an audit and possibly we need to be creative about
+    // testing here. Maybe handleData should just throw all exceptions, and catch them
+    // and call onError in the calling code?
     private void handleData(BeamFnApi.Elements.Data data) {
       try {
         LogicalEndpoint key = LogicalEndpoint.of(data.getInstructionReference(), data.getTarget());

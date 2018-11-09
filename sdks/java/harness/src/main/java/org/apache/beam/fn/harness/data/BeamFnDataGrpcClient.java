@@ -86,9 +86,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         inputLocation.getTarget());
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    // I think that we will run in to the same issue again, since we need to drain each one?
-    // Do we need to pull up the queueing idea to this class?
-
     BeamFnDataInboundObserver<T> inboundObserver =
         BeamFnDataInboundObserver.forConsumer(coder, consumer);
     client.registerConsumer(inputLocation, inboundObserver);
