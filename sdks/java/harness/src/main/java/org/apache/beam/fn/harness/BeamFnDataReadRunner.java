@@ -181,7 +181,6 @@ public class BeamFnDataReadRunner<OutputT> {
         "Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(),
         inputTarget);
-    // ajamato(*) BUG HERE,. This never get compelted.
     readFuture.awaitCompletion();
   }
 }

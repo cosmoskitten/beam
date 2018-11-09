@@ -70,7 +70,6 @@ public class BeamFnDataGrpcMultiplexerTest {
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(values::add).build());
-    // TODO ajamato, close the BeamFnDataGrpcMultiplexer.
     multiplexer.getOutboundObserver().onNext(ELEMENTS);
     assertThat(values, contains(ELEMENTS));
   }
