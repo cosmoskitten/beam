@@ -61,8 +61,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final ConcurrentMap<LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
       consumers;
 
-  // TODO make sure this is closed properly, is this why we get the exceptions?
-  // TODO consolodate into one ctor?
+  // TODO(BEAM-5947) Make sure this is closed properly. It appears that close() is never called.
   public BeamFnDataGrpcMultiplexer(
       @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       OutboundObserverFactory outboundObserverFactory,
@@ -70,33 +69,17 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     this(apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory, false);
   }
 
-  // TODO ajamato. WHy is this constructed twice?
   public BeamFnDataGrpcMultiplexer(
       @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       OutboundObserverFactory outboundObserverFactory,
       OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory,
       boolean enableQueuing) {
     this.apiServiceDescriptor = apiServiceDescriptor;
-    LOG.info(
-        "ajamato BeamFnDataGrpcMultiplexer: '"
-            + this.apiServiceDescriptor
-            + "' this.apiServiceDescriptor "
-            + System.identityHashCode(this.apiServiceDescriptor)
-            + " enableQueuing "
-            + enableQueuing
-            + " this "
-            + System.identityHashCode(this));
 
     this.consumers = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver(enableQueuing);
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(baseOutboundObserverFactory, inboundObserver);
-    // TODO implement process bundle ids to queues.
-
-    if (this.apiServiceDescriptor == null) {
-      int breakpoint = -1;
-      //rm debug code
-    }
   }
 
   @Override
@@ -117,12 +100,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   }
 
   private CompletableFuture<Consumer<Data>> receiverFuture(LogicalEndpoint endpoint) {
-    // Ajamato this is whwere we get which consumer/BeamFnDataInboundObserver to call.
     return consumers.computeIfAbsent(
         endpoint, (LogicalEndpoint unused) -> new CompletableFuture<>());
   }
 
-  // TODO would it make sense to have an unregister?
   public void registerConsumer(
       LogicalEndpoint inputLocation, Consumer<BeamFnApi.Elements.Data> dataBytesReceiver) {
     receiverFuture(inputLocation).complete(dataBytesReceiver);
@@ -136,7 +117,6 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
   @Override
   public void close() {
-    // TODO ajamato, this does not seem to be called
     for (CompletableFuture<Consumer<BeamFnApi.Elements.Data>> receiver :
         ImmutableList.copyOf(consumers.values())) {
       // Cancel any observer waiting for the client to complete. If the receiver has already been
@@ -163,19 +143,12 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   private final class InboundObserver implements StreamObserver<BeamFnApi.Elements> {
 
-    //private final SynchronousQueue<BeamFnApi.Elements.Data> queue;
-    private final boolean enableQueuing;
-    // TODO, is this a safe usage(s) of concurrent hash map?
     private final ConcurrentHashMap<String, SynchronousQueue<Data>> instructionIdToQueue;
     private final ConcurrentHashMap<String, HashSet<Consumer<Data>>> instructionIdToConsumers;
 
     public InboundObserver(boolean enableQueuing) {
-      this.enableQueuing = enableQueuing; // TODO remove trhis var.
-      LOG.info("ajamato InboundObserver " + System.identityHashCode(this));
-      //this.queue = new SynchronousQueue<>();
       this.instructionIdToQueue =
-          this.enableQueuing ? new ConcurrentHashMap<String, SynchronousQueue<Data>>() : null;
-
+          enableQueuing ? new ConcurrentHashMap<String, SynchronousQueue<Data>>() : null;
       this.instructionIdToConsumers = new ConcurrentHashMap<String, HashSet<Consumer<Data>>>();
     }
 
@@ -183,6 +156,10 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         String instructionId, Consumer<BeamFnApi.Elements.Data> consumer) {
       this.instructionIdToConsumers.putIfAbsent(instructionId, new HashSet<Consumer<Data>>());
       this.instructionIdToConsumers.get(instructionId).add(consumer);
+    }
+
+    private boolean isFinalizationData(BeamFnApi.Elements.Data data) {
+      return data.getData().isEmpty();
     }
 
     private void handleData(BeamFnApi.Elements.Data data) {
@@ -196,8 +173,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
               key);
         }
         consumer.get().accept(data);
-        // TODO rename this check to isFinalizationElement()
-        if (data.getData().isEmpty()) {
+        if (isFinalizationData(data)) {
           consumers.remove(key);
         }
         /*
@@ -221,122 +197,84 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       }
     }
 
-    /*
-    @Override
-    public void onNext(BeamFnApi.Elements value) {
-      for (BeamFnApi.Elements.Data data : value.getDataList()) {
-        handleData(data);
-      }
-    }*/
+    private boolean IsQueueingEnabled() {
+      return instructionIdToQueue != null;
+    }
 
-    // TODO concurrency issues?
-    // Need to protect all the instance vars here?
 
-    // TODO ajamato(*)(2) instead of calling accept, put messages
-    // on a queue, by adding in some key to do the consumer lookup.
-    // OR put the data in directly and do the lookup after dequeuing?
-
-    // TODO review the concurrency here. Which things did I make multithreaded?
+    // TODO please help reveiw the concurrency aspect here. Questions:
+    // - Safe use of ConcurrentHashMap?
+    // - Unnecessary use of ConcurrentHashMap?
+    // - Is there some code that can run concurrently now, which was not before?
     @Override
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          // TODO, do I need a concurrent hashmap?
-          if (this.enableQueuing) {
-            instructionIdToQueue.putIfAbsent(
-                data.getInstructionReference(), new SynchronousQueue<Data>());
-            // TODO do with one lookup
+          if (IsQueueingEnabled()) {
+            // TODO Is there a cleaner way do to this?
+            // I was trying to avoid always doing multiple lookups, and always creating
+            // a new instance on the heap
             SynchronousQueue<Data> queue = instructionIdToQueue.get(data.getInstructionReference());
-            LOG.info(
-                "ajamato ENQUEUE for "
-                    + data.getInstructionReference()
-                    + " queue "
-                    + System.identityHashCode(queue)
-                    + " this "
-                    + System.identityHashCode(this)
-                    + " EMPTY? "
-                    + data.getData().isEmpty());
-            // TODO, how do we make this throw an interrupted exception?
+            if (queue == null) {
+              instructionIdToQueue.putIfAbsent(
+                  data.getInstructionReference(), new SynchronousQueue<Data>());
+              // Lookup the queue again incase there was a race and another thread added one.
+              queue = instructionIdToQueue.get(data.getInstructionReference());
+            }
+
+            // TODO, how do we make this throw an interrupted exception? And when should we
+            // do this?
+            // TODO is there any concurrency issue here? Can multiple threads call onNext?
+            // What happens when two threads use the SymetricQueue.
             queue.put(data);
           } else {
             handleData(data);
           }
 
         } catch (Exception e) {
-          // pass TODO.
-          LOG.error("ajamato SOMETHING WENT WRONG", e);
-          // call onerror?
           outboundObserver.onError(e);
         }
       }
     }
 
-    // TODO ajamato(*)(1) Add a function here to drain the queue and call it in
-    // ProcessBundleHandler.
     public void drainAndBlock(String instructionId) {
-      assert this.enableQueuing;
       int numConsumersComplete = 0;
-
-      // TODO probably a way to do this without using the heap every time.
-      instructionIdToQueue.putIfAbsent(instructionId, new SynchronousQueue<Data>());
       SynchronousQueue<Data> queue = instructionIdToQueue.get(instructionId);
-      // Can we ask all the consumers if they are all done?
-      LOG.error(
-          "ajamato drainAndBlock using queue: "
-              + instructionId
-              + " queue "
-              + System.identityHashCode(queue)
-              + " this "
-              + System.identityHashCode(this));
+      if (queue == null) {
+        instructionIdToQueue.putIfAbsent(instructionId, new SynchronousQueue<Data>());
+        // Lookup the queue again incase there was a race and another thread added one.
+        queue = instructionIdToQueue.get(instructionId);
+      }
+
       while (true) {
         try {
           BeamFnApi.Elements.Data data = null;
           data = queue.poll(50, TimeUnit.MILLISECONDS);
           if (data == null) {
-            LOG.error(
-                "ajamato drainAndBlock no data, continue: "
-                    + instructionId
-                    + " queue "
-                    + System.identityHashCode(queue)
-                    + " this "
-                    + System.identityHashCode(this));
             continue;
           } else {
-            LOG.error(
-                "ajamato DEQUEUED for "
-                    + data.getInstructionReference()
-                    + " using id: "
-                    + instructionId
-                    + " queue "
-                    + System.identityHashCode(queue)
-                    + " this "
-                    + System.identityHashCode(this)
-                    + " EMPTY? "
-                    + data.getData().isEmpty());
             handleData(data);
           }
 
-          if (data.getData().isEmpty()) {
+          if (isFinalizationData(data)) {
             // Empty data indicates that the stream of data for this instruction is
-            // terminated.
-            LOG.error("ajamato drainAndBlock DONE " + instructionId);
+            // terminated. Exit once we receive a
             numConsumersComplete++;
             // TODO Assumes we register before we start to block here
-            // is this safe?
+            // is this a safe guarantee to rely on?
+            // Can we lookup the consumers and check for done status instead of counting?
             if (numConsumersComplete == this.instructionIdToConsumers.get(instructionId).size()) {
               break;
             }
           }
         } catch (Exception e) {
-          // pass TODO.
-          LOG.error("ajamato SOMETHING WENT WRONG ", e);
-          // TOOD, should we break here?
+          // Should this be in the loop or outside?
           outboundObserver.onError(e);
         }
       }
-      LOG.error("ajamato drainAndBlock RETURNING " + instructionId);
       // Remove this queue, as it is no longer needed.
       instructionIdToQueue.remove(instructionId);
+      instructionIdToConsumers.remove(instructionId);
     }
 
     @Override
