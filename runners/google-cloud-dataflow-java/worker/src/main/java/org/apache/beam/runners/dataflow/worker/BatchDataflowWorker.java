@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDo
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
+import org.apache.beam.runners.dataflow.worker.graph.CreateExecutableStageNodeFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceNodeLocationsFunction;
@@ -214,14 +215,19 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
-          pipeline == null
-              ? RegisterNodeFunction.withoutPipeline(
-                  IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
-              : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
+      if (DataflowRunner.hasExperiment(options, "use_shared_lib")) {
+        sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, IdGenerator::generate);
+      } else {
+        sdkFusedStage =
+            pipeline == null
+                ? RegisterNodeFunction.withoutPipeline(
+                    IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                : RegisterNodeFunction.forPipeline(
+                    pipeline,
+                    IdGenerator::generate,
+                    sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+      }
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
