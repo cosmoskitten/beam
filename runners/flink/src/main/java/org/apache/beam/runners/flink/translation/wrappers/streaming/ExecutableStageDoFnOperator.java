@@ -85,8 +85,6 @@ import org.slf4j.LoggerFactory;
  * received elements to the SDK harness and emits the received back elements to the downstream
  * operators. It also takes care of handling side inputs and state.
  *
- * <p>TODO Integrate support for timers
- *
  * <p>TODO Integrate support for progress updates and metrics
  */
 public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<InputT, OutputT> {
