@@ -390,7 +390,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     //    soon as the current bundle is finished.
     //
     // Approach 1) is the easiest, yet 2) gives better throughput due
-    // to the bundle getting cut on every watermark. So we have
+    // to the bundle not getting cut on every watermark. So we have
     // implemented 2) below.
     //
     if (sdkHarnessRunner.isBundleInProgress()) {
