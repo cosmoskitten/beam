@@ -101,7 +101,7 @@ public class ClickHouseIO {
         // findbugs doesn't like it in try block
         rs.close();
 
-        return TableSchema.of(columns);
+        return TableSchema.of(columns.toArray(new TableSchema.Column[0]));
       } catch (SQLException e) {
         throw new RuntimeException(e);
       }
@@ -121,6 +121,7 @@ public class ClickHouseIO {
       return new AutoValue_ClickHouseIO_Write.Builder();
     }
 
+    /** Builder for {@link Write}. */
     @AutoValue.Builder
     public abstract static class Builder {
 
@@ -128,7 +129,7 @@ public class ClickHouseIO {
 
       public abstract Builder table(String table);
 
-      public abstract Builder properties(final Properties properties);
+      public abstract Builder properties(Properties properties);
 
       public abstract Write build();
     }
@@ -138,6 +139,12 @@ public class ClickHouseIO {
     return new ClickHouseProperties();
   }
 
+  /**
+   * Builder for {@link Properties} for JDBC connection.
+   *
+   * @see <a href="https://clickhouse.yandex/docs/en/single/#settings_1">ClickHouse
+   *     documentation</a>
+   */
   public static class ClickHouseProperties implements Serializable {
     private final Properties properties = new Properties();
 
@@ -166,7 +173,7 @@ public class ClickHouseIO {
   }
 
   @AutoValue
-  public abstract static class WriteFn extends DoFn<Row, Void> {
+  abstract static class WriteFn extends DoFn<Row, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
 
     private ClickHouseConnection connection;
@@ -204,6 +211,7 @@ public class ClickHouseIO {
       }
     }
 
+    @SuppressWarnings("unchecked")
     public static void writeValue(
         ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
 
@@ -281,6 +289,10 @@ public class ClickHouseIO {
           if (column.columnType().nullable()) {
             writeNullableValue(stream, column.columnType(), value);
           } else {
+            if (value == null) {
+              value = column.defaultValue();
+            }
+
             writeValue(stream, column.columnType(), value);
           }
         }

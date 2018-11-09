@@ -18,12 +18,9 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
@@ -34,72 +31,27 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.testcontainers.containers.BindMode;
-import org.testcontainers.containers.ClickHouseContainer;
-import org.testcontainers.containers.GenericContainer;
+import org.rnorth.ducttape.unreliables.Unreliables;
 
-public class AtomicInsertTest {
-  private static ClickHouseContainer clickhouse;
-  private static GenericContainer zookeeper;
-
+/** Tests for atomic/idempotent inserts for {@link ClickHouseIO}. */
+public class AtomicInsertTest extends BaseClickHouseTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
-
-  public void executeSql(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      statement.execute(sql);
-    }
-  }
-
-  public ResultSet executeQuery(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement(); ) {
-      return statement.executeQuery(sql);
-    }
-  }
-
-  public long executeQueryAsLong(String sql) throws SQLException {
-    ResultSet rs = executeQuery(sql);
-    rs.next();
-    return rs.getLong(1);
-  }
-
-  @BeforeClass
-  public static void setup() {
-    zookeeper =
-        new GenericContainer<>("zookeeper:3.3.6")
-            .withExposedPorts(2181)
-            .withNetworkAliases("zookeeper");
-    zookeeper.start();
-
-    clickhouse =
-        (ClickHouseContainer)
-            new ClickHouseContainer()
-                .withPrivilegedMode(true)
-                .withClasspathResourceMapping(
-                    "config.d/zookeeper_default.xml",
-                    "/etc/clickhouse-server/config.d/zookeeper_default.xml",
-                    BindMode.READ_ONLY);
-
-    clickhouse.start();
-  }
-
-  @AfterClass
-  public static void teardown() {
-    zookeeper.close();
-    clickhouse.close();
-  }
 
   @Test
   public void testAtomicInsert() throws SQLException {
-    Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT64));
     int size = 1000000;
+    int tryLimit = 10;
 
+    AtomicInteger failed = new AtomicInteger();
+    AtomicInteger done = new AtomicInteger();
+
+    // this statement fails with 60% chance for 1M batch size
     executeSql(
         "CREATE TABLE test_atomic_insert ("
             + "  f0 Int64, "
@@ -108,46 +60,118 @@ public class AtomicInsertTest {
             + ") = 0, '', '1') AS Int64)"
             + ") ENGINE=MergeTree ORDER BY (f0)");
 
-    Iterable<Row> bundle =
-        IntStream.range(0, size)
-            .mapToObj(x -> Row.withSchema(schema).addValue((long) x).build())
-            .collect(Collectors.toList());
-
-    int failed = 0;
-    int done = 0;
-
     pipeline
         // make sure we get one big bundle
-        .apply(Create.<Iterable<Row>>of(bundle).withCoder(IterableCoder.of(RowCoder.of(schema))))
-        .apply(Flatten.iterables())
-        .setRowSchema(schema)
+        .apply(RangeBundle.of(size))
         .apply(
             ClickHouseIO.Write.builder()
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .table("test_atomic_insert")
                 .properties(
                     ClickHouseIO.properties().maxBlockSize(size).maxInsertBlockSize(size).build())
                 .build());
 
-    do {
-      try {
-        final PipelineResult.State state = pipeline.run().waitUntilFinish();
+    Unreliables.retryUntilTrue(
+        tryLimit,
+        () -> {
+          if (safeRun()) {
+            done.incrementAndGet();
+          } else {
+            failed.incrementAndGet();
+          }
 
-        if (state == PipelineResult.State.DONE) {
-          done++;
-        } else if (state == PipelineResult.State.FAILED) {
-          failed++;
-        } else {
-          fail("Unexpected state" + state);
-        }
-      } catch (Pipeline.PipelineExecutionException e) {
-        failed++;
-      }
-
-    } while (failed == 0 || done == 0);
+          return done.get() >= 2 && failed.get() >= 1;
+        });
 
     long count = executeQueryAsLong("SELECT COUNT(*) FROM test_atomic_insert");
 
-    assertEquals(done * size, count);
+    // each insert is atomic, so we get exactly done * size elements
+    assertEquals(done.get() * size, count);
+  }
+
+  @Test
+  public void testIdempotentInsert() throws SQLException {
+    int size = 1000000;
+    int tryLimit = 10;
+
+    AtomicInteger failed = new AtomicInteger();
+    AtomicInteger done = new AtomicInteger();
+
+    // this statement fails with 60% chance for 1M batch size
+    Unreliables.retryUntilSuccess(
+        10,
+        () ->
+            executeSql(
+                "CREATE TABLE test_idempotent_insert ("
+                    + "  f0 Int64, "
+                    + "  f1 Int64 MATERIALIZED CAST(if((rand() % "
+                    + size
+                    + ") = 0, '', '1') AS Int64)"
+                    + ") ENGINE=ReplicatedMergeTree('/clickHouse/tables/0/test_idempotent_insert', 'replica_0') "
+                    + "ORDER BY (f0)"));
+
+    pipeline
+        .apply(RangeBundle.of(size))
+        .apply(
+            ClickHouseIO.Write.builder()
+                .jdbcUrl(clickHouse.getJdbcUrl())
+                .table("test_idempotent_insert")
+                .properties(
+                    ClickHouseIO.properties().maxBlockSize(size).maxInsertBlockSize(size).build())
+                .build());
+
+    Unreliables.retryUntilTrue(
+        tryLimit,
+        () -> {
+          if (safeRun()) {
+            done.incrementAndGet();
+          } else {
+            failed.incrementAndGet();
+          }
+
+          return done.get() >= 2 && failed.get() >= 1;
+        });
+
+    long count = executeQueryAsLong("SELECT COUNT(*) FROM test_idempotent_insert");
+
+    // inserts should be deduplicated, so we get exactly `size` elements
+    assertEquals(size, count);
+  }
+
+  private static class RangeBundle extends PTransform<PBegin, PCollection<Row>> {
+
+    private final int size;
+
+    private RangeBundle(int size) {
+      this.size = size;
+    }
+
+    static RangeBundle of(int size) {
+      return new RangeBundle(size);
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      Schema schema = Schema.of(Schema.Field.of("f0", Schema.FieldType.INT64));
+      Iterable<Row> bundle =
+          IntStream.range(0, size)
+              .mapToObj(x -> Row.withSchema(schema).addValue((long) x).build())
+              .collect(Collectors.toList());
+
+      // make sure we get one big bundle
+      return input
+          .getPipeline()
+          .apply(Create.<Iterable<Row>>of(bundle).withCoder(IterableCoder.of(RowCoder.of(schema))))
+          .apply(Flatten.iterables())
+          .setRowSchema(schema);
+    }
+  }
+
+  private boolean safeRun() {
+    try {
+      return pipeline.run().waitUntilFinish() == PipelineResult.State.DONE;
+    } catch (Pipeline.PipelineExecutionException e) {
+      return false;
+    }
   }
 }

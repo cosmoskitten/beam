@@ -19,12 +19,8 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -33,39 +29,17 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testcontainers.containers.ClickHouseContainer;
 
 /** Tests for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
-public class ClickHouseIOTest {
+public class ClickHouseIOTest extends BaseClickHouseTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
-  @ClassRule public static ClickHouseContainer clickhouse = new ClickHouseContainer();
-
-  public void executeSql(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      statement.execute(sql);
-    }
-  }
-
-  public ResultSet executeQuery(String sql) throws SQLException {
-    try (Connection connection = clickhouse.createConnection("");
-        Statement statement = connection.createStatement(); ) {
-      return statement.executeQuery(sql);
-    }
-  }
-
-  public long executeQueryAsLong(String sql) throws SQLException {
-    ResultSet rs = executeQuery(sql);
-    rs.next();
-    return rs.getLong(1);
-  }
 
   @Test
   public void testInt64() throws Exception {
@@ -82,7 +56,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_int64")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -108,7 +82,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_nullable_int64")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -136,7 +110,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_int64_with_default")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -163,7 +137,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_array_of_array_of_int64")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -232,7 +206,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_primitive_types")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -316,7 +290,7 @@ public class ClickHouseIOTest {
         .apply(
             ClickHouseIO.Write.builder()
                 .table("test_array_of_primitive_types")
-                .jdbcUrl(clickhouse.getJdbcUrl())
+                .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
 
     pipeline.run().waitUntilFinish();
@@ -342,13 +316,13 @@ public class ClickHouseIOTest {
 
   @Test
   public void testInsertSql() {
-    List<TableSchema.Column> columns =
-        Arrays.asList(
+    TableSchema tableSchema =
+        TableSchema.of(
             TableSchema.Column.of("f0", ColumnType.INT64),
             TableSchema.Column.of("f1", ColumnType.INT64));
 
     String expected = "INSERT INTO \"test_table\" (\"f0\", \"f1\")";
 
-    assertEquals(expected, ClickHouseIO.WriteFn.insertSql(TableSchema.of(columns), "test_table"));
+    assertEquals(expected, ClickHouseIO.WriteFn.insertSql(tableSchema, "test_table"));
   }
 }

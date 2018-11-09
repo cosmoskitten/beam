@@ -20,10 +20,12 @@ package org.apache.beam.sdk.io.clickhouse;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.io.StringReader;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.Schema;
 
 /** A descriptor for ClickHouse table schema. */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -32,19 +34,75 @@ public abstract class TableSchema implements Serializable {
 
   abstract List<Column> columns();
 
-  public static TableSchema of(List<Column> columns) {
-    return new AutoValue_TableSchema(columns);
+  public static TableSchema of(Column... columns) {
+    return new AutoValue_TableSchema(Arrays.asList(columns));
+  }
+
+  public static Schema getEquivalentSchema(TableSchema tableSchema) {
+    return tableSchema
+        .columns()
+        .stream()
+        .map(
+            x -> {
+              if (x.columnType().nullable()) {
+                return Schema.Field.nullable(x.name(), getEquivalentFieldType(x.columnType()));
+              } else {
+                return Schema.Field.of(x.name(), getEquivalentFieldType(x.columnType()));
+              }
+            })
+        .collect(Schema.toSchema());
+  }
+
+  public static Schema.FieldType getEquivalentFieldType(ColumnType columnType) {
+    switch (columnType.typeName()) {
+      case DATE:
+      case DATETIME:
+        return Schema.FieldType.DATETIME;
+
+      case STRING:
+        return Schema.FieldType.STRING;
+
+      case FLOAT32:
+        return Schema.FieldType.FLOAT;
+
+      case FLOAT64:
+        return Schema.FieldType.DOUBLE;
+
+      case INT8:
+        return Schema.FieldType.BYTE;
+      case INT16:
+        return Schema.FieldType.INT16;
+      case INT32:
+        return Schema.FieldType.INT32;
+      case INT64:
+        return Schema.FieldType.INT64;
+
+      case UINT8:
+        return Schema.FieldType.INT16;
+      case UINT16:
+        return Schema.FieldType.INT32;
+      case UINT32:
+        return Schema.FieldType.INT64;
+      case UINT64:
+        return Schema.FieldType.INT64;
+
+      case ARRAY:
+        return Schema.FieldType.array(getEquivalentFieldType(columnType.arrayElementType()));
+
+      default:
+        throw new AssertionError("Unexpected type: " + columnType.typeName());
+    }
   }
 
   /** A column in ClickHouse table. */
   @AutoValue
   public abstract static class Column implements Serializable {
-    abstract String name();
+    public abstract String name();
 
-    abstract ColumnType columnType();
+    public abstract ColumnType columnType();
 
     @Nullable
-    abstract DefaultType defaultType();
+    public abstract DefaultType defaultType();
 
     @Nullable
     public abstract Object defaultValue();
@@ -87,6 +145,12 @@ public abstract class TableSchema implements Serializable {
     ARRAY
   }
 
+  /**
+   * An enumeration of possible kinds of default values in ClickHouse.
+   *
+   * @see <a href="https://clickhouse.yandex/docs/en/single/#default-values">ClickHouse
+   *     documentation</a>
+   */
   public enum DefaultType {
     DEFAULT,
     MATERIALIZED,
