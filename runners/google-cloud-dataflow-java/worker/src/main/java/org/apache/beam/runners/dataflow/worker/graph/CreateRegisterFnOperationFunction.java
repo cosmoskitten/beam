@@ -73,10 +73,10 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNo
  */
 public class CreateRegisterFnOperationFunction
     implements Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> {
-
   private final Supplier<String> idGenerator;
   private final BiFunction<String, String, Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
+  private final boolean use_shared_lib;
 
   /**
    * Constructs a function which is able to break up the instruction graph into SDK and Runner
@@ -92,10 +92,12 @@ public class CreateRegisterFnOperationFunction
   public CreateRegisterFnOperationFunction(
       Supplier<String> idGenerator,
       BiFunction<String, String, Node> portSupplier,
-      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
+      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction,
+      boolean use_shared_lib) {
     this.idGenerator = idGenerator;
     this.portSupplier = portSupplier;
     this.registerFnOperationFunction = registerFnOperationFunction;
+    this.use_shared_lib = use_shared_lib;
   }
 
   @Override
@@ -186,6 +188,10 @@ public class CreateRegisterFnOperationFunction
     Set<Node> allRunnerNodes =
         Networks.reachableNodes(
             network, Sets.union(runnerRootNodes, sdkToRunnerBoundaries), runnerToSdkBoundaries);
+    if (this.use_shared_lib) {
+      allRunnerNodes =
+          Sets.difference(allRunnerNodes, Sets.union(runnerToSdkBoundaries, sdkToRunnerBoundaries));
+    }
     MutableNetwork<Node, Edge> runnerNetwork = Graphs.inducedSubgraph(network, allRunnerNodes);
 
     // TODO: Reduce the amount of 'copying' of SDK nodes by breaking potential cycles
@@ -203,11 +209,22 @@ public class CreateRegisterFnOperationFunction
       // Create happens before relationships between all Runner and SDK nodes which are in the
       // SDK subnetwork; direction dependent on whether its a predecessor of the SDK subnetwork or
       // a successor.
-      for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
-        runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
-      }
-      for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
-        runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+      if (this.use_shared_lib) {
+        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
+          predecessor = network.predecessors(predecessor).iterator().next();
+          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
+        }
+        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
+          successor = network.successors(successor).iterator().next();
+          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+        }
+      } else {
+        for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
+          runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());
+        }
+        for (Node successor : Sets.intersection(sdkSubnetworkNodes, sdkToRunnerBoundaries)) {
+          runnerNetwork.addEdge(registerFnNode, successor, HappensBeforeEdge.create());
+        }
       }
     }
 
