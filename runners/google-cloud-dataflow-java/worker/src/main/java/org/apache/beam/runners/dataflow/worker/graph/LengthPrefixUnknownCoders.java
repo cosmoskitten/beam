@@ -31,8 +31,10 @@ import com.google.common.graph.MutableNetwork;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
@@ -74,6 +76,16 @@ public class LengthPrefixUnknownCoders {
           "kind:void");
 
   private static final String LENGTH_PREFIX_CODER_TYPE = "kind:length_prefix";
+  private static Set<Node> sdkToRunnerBoundaries = new HashSet<>();
+  private static Set<Node> runnerToSdkBoundaries = new HashSet<>();
+
+  public static Set<Node> getSdkToRunnerBoundaries() {
+    return LengthPrefixUnknownCoders.sdkToRunnerBoundaries;
+  }
+
+  public static Set<Node> getRunnerToSdkBoundaries() {
+    return LengthPrefixUnknownCoders.runnerToSdkBoundaries;
+  }
 
   @VisibleForTesting
   static final ImmutableSet<String> MERGE_WINDOWS_DO_FN =
@@ -153,7 +165,16 @@ public class LengthPrefixUnknownCoders {
                 e);
           }
         }
-        return InstructionOutputNode.create(cloudOutput);
+        InstructionOutputNode newNode = InstructionOutputNode.create(cloudOutput);
+        // The InstructionOutputNode is across the runner-sdk boundaries
+        if (network.predecessors(input).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+          runnerToSdkBoundaries.add(newNode);
+        }
+        // The InstructionOutputNode is across the sdk-runner boundaries
+        if (network.successors(input).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+          sdkToRunnerBoundaries.add(newNode);
+        }
+        return newNode;
       }
     };
   }

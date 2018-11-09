@@ -214,20 +214,23 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
+      final Boolean useSharedLibrary = DataflowRunner.hasExperiment(options, "use_shared_lib");
+      RegisterNodeFunction sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
                   IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
                   pipeline,
                   IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  useSharedLibrary);
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
               IdGenerator::generate,
               this::createPortNode,
+              sdkFusedStage,
               lengthPrefixUnknownCoders.andThen(sdkFusedStage));
 
       mapTaskToNetwork =

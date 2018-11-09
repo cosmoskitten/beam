@@ -621,14 +621,16 @@ public class StreamingDataflowWorker {
     FileSystems.setDefaultPipelineOptions(options);
 
     if (hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
+      final Boolean useSharedLibrary = DataflowRunner.hasExperiment(options, "use_shared_lib");
+      RegisterNodeFunction sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
                   IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
                   pipeline,
                   IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  useSharedLibrary);
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -639,6 +641,7 @@ public class StreamingDataflowWorker {
           new CreateRegisterFnOperationFunction(
               IdGenerator::generate,
               this::createPortNode,
+              sdkFusedStage,
               lengthPrefixUnknownCoders.andThen(sdkFusedStage));
 
       mapTaskToNetwork =

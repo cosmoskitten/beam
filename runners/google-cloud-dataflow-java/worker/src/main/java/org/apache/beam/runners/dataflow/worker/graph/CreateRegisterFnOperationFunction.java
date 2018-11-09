@@ -76,6 +76,7 @@ public class CreateRegisterFnOperationFunction
 
   private final Supplier<String> idGenerator;
   private final BiFunction<String, String, Node> portSupplier;
+  private final RegisterNodeFunction sdkFusedStage;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
 
   /**
@@ -92,9 +93,11 @@ public class CreateRegisterFnOperationFunction
   public CreateRegisterFnOperationFunction(
       Supplier<String> idGenerator,
       BiFunction<String, String, Node> portSupplier,
+      RegisterNodeFunction sdkFusedStage,
       Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
     this.idGenerator = idGenerator;
     this.portSupplier = portSupplier;
+    this.sdkFusedStage = sdkFusedStage;
     this.registerFnOperationFunction = registerFnOperationFunction;
   }
 
@@ -197,6 +200,8 @@ public class CreateRegisterFnOperationFunction
       Set<Node> sdkSubnetworkNodes =
           Networks.reachableNodes(network, ImmutableSet.of(sdkRoot), sdkToRunnerBoundaries);
       MutableNetwork<Node, Edge> sdkNetwork = Graphs.inducedSubgraph(network, sdkSubnetworkNodes);
+      sdkFusedStage.setSdkToRunnerBoundaries(LengthPrefixUnknownCoders.getSdkToRunnerBoundaries());
+      sdkFusedStage.setRunnerToSdkBoundaries(LengthPrefixUnknownCoders.getRunnerToSdkBoundaries());
       Node registerFnNode = registerFnOperationFunction.apply(sdkNetwork);
 
       runnerNetwork.addNode(registerFnNode);
