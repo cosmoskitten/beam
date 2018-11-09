@@ -296,7 +296,7 @@ public class ProcessBundleHandler {
 
       // Already in reverse topological order so we don't need to do anything.
       for (ThrowingRunnable startFunction : startFunctions) {
-        LOG.info("Starting function {}", startFunction);
+        LOG.debug("Starting function {}", startFunction);
         startFunction.run();
       }
 
@@ -311,7 +311,7 @@ public class ProcessBundleHandler {
 
       // Need to reverse this since we want to call finish in topological order.
       for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-        LOG.info("Finishing function {}", finishFunction);
+        LOG.debug("Finishing function {}", finishFunction);
         finishFunction.run();
       }
       if (!allResiduals.isEmpty()) {
