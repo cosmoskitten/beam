@@ -38,6 +38,7 @@ import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDo
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
+import org.apache.beam.runners.dataflow.worker.graph.CreateExecutableStageNodeFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceNodeLocationsFunction;
@@ -214,22 +215,34 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
-      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
-          pipeline == null
-              ? RegisterNodeFunction.withoutPipeline(
-                  IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
-              : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork;
+      Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
-          new CreateRegisterFnOperationFunction(
-              IdGenerator::generate,
-              this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
-
+      if (DataflowRunner.hasExperiment(options, "use_shared_lib") || true) {
+        sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, IdGenerator::generate);
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                IdGenerator::generate,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                true);
+      } else {
+        sdkFusedStage =
+            pipeline == null
+                ? RegisterNodeFunction.withoutPipeline(
+                    IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                : RegisterNodeFunction.forPipeline(
+                    pipeline,
+                    IdGenerator::generate,
+                    sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                IdGenerator::generate,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                false);
+      }
       mapTaskToNetwork =
           mapTaskToBaseNetwork
               .andThen(new ReplacePgbkWithPrecombineFunction())
@@ -338,6 +351,7 @@ public class BatchDataflowWorker implements Closeable {
                 sdkWorkerHarness.getControlClientHandler(),
                 sdkWorkerHarness.getDataService(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
+                sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
                 sdkWorkerHarness.getStateService(),
                 network,
                 options,

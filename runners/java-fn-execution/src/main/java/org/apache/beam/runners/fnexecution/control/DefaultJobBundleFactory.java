@@ -45,11 +45,13 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProces
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
+import org.apache.beam.runners.fnexecution.environment.StaticRemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -145,8 +147,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
               @Override
               public WrappedSdkHarnessClient load(Environment environment) throws Exception {
-                return WrappedSdkHarnessClient.wrapping(
-                    environmentCreator.apply(environment), dataServer);
+                if (dataServer != null) {
+                  return WrappedSdkHarnessClient.wrapping(
+                      environmentCreator.apply(environment), dataServer);
+                } else {
+                  return WrappedSdkHarnessClient.wrapping(
+                      (StaticRemoteEnvironment) environmentCreator.apply(environment));
+                }
               }
             });
   }
@@ -156,17 +163,34 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     WrappedSdkHarnessClient wrappedClient =
         environmentCache.getUnchecked(executableStage.getEnvironment());
     ExecutableProcessBundleDescriptor processBundleDescriptor;
-    try {
-      processBundleDescriptor =
-          ProcessBundleDescriptors.fromExecutableStage(
-              stageIdGenerator.getId(),
-              executableStage,
-              dataServer.getApiServiceDescriptor(),
-              stateServer.getApiServiceDescriptor());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    if (wrappedClient.environment.getClass() == StaticRemoteEnvironment.class) {
+      StaticRemoteEnvironment staticRemoteEnvironment =
+          (StaticRemoteEnvironment) wrappedClient.environment;
+      try {
+        processBundleDescriptor =
+            ProcessBundleDescriptors.fromExecutableStage(
+                staticRemoteEnvironment.getIdGenerator().get(),
+                executableStage,
+                staticRemoteEnvironment.getDataApiServiceDescriptor(),
+                staticRemoteEnvironment.getStateApiServiceDescriptor());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return SimpleStageBundleFactory.create(
+          wrappedClient, processBundleDescriptor, staticRemoteEnvironment.getBeamFnStateService());
+    } else {
+      try {
+        processBundleDescriptor =
+            ProcessBundleDescriptors.fromExecutableStage(
+                stageIdGenerator.getId(),
+                executableStage,
+                dataServer.getApiServiceDescriptor(),
+                stateServer.getApiServiceDescriptor());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return SimpleStageBundleFactory.create(wrappedClient, processBundleDescriptor, stateServer);
     }
-    return SimpleStageBundleFactory.create(wrappedClient, processBundleDescriptor, stateServer);
   }
 
   @Override
@@ -208,6 +232,21 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   processBundleDescriptor.getProcessBundleDescriptor(),
                   processBundleDescriptor.getRemoteInputDestinations(),
                   stateServer.getService());
+      return new SimpleStageBundleFactory(processBundleDescriptor, processor, wrappedClient);
+    }
+
+    static SimpleStageBundleFactory create(
+        WrappedSdkHarnessClient wrappedClient,
+        ExecutableProcessBundleDescriptor processBundleDescriptor,
+        StateDelegator stateService) {
+      @SuppressWarnings("unchecked")
+      BundleProcessor processor =
+          wrappedClient
+              .getClient()
+              .getProcessor(
+                  processBundleDescriptor.getProcessBundleDescriptor(),
+                  processBundleDescriptor.getRemoteInputDestinations(),
+                  stateService);
       return new SimpleStageBundleFactory(processBundleDescriptor, processor, wrappedClient);
     }
 
@@ -278,6 +317,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       return new WrappedSdkHarnessClient(environment, client);
     }
 
+    static WrappedSdkHarnessClient wrapping(StaticRemoteEnvironment environment) {
+      SdkHarnessClient client =
+          SdkHarnessClient.usingFnApiClient(
+              environment.getInstructionRequestHandler(), environment.getBeamFnDataService());
+      return new WrappedSdkHarnessClient(environment, client);
+    }
+
     private WrappedSdkHarnessClient(RemoteEnvironment environment, SdkHarnessClient client) {
       this.environment = environment;
       this.client = client;
@@ -315,39 +361,46 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     EnvironmentFactory.Provider environmentFactoryProvider =
         environmentFactoryProviderMap.get(environment.getUrn());
-    ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
 
-    this.clientPool = MapControlClientPool.create();
-    this.executor = Executors.newCachedThreadPool();
-    this.controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            FnApiControlClientPoolService.offeringClientsToPool(
-                clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
-            serverFactory);
-    this.loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    this.retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            BeamFileSystemArtifactRetrievalService.create(), serverFactory);
-    this.provisioningServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
-    this.dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
-            serverFactory);
-    this.stateServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+    if ("dataflowFakeRetrievalToken".equals(jobInfo.retrievalToken())) {
+      this.environmentFactory =
+          environmentFactoryProvider.createEnvironmentFactory(null, null, null, null, null, null);
 
-    this.environmentFactory =
-        environmentFactoryProvider.createEnvironmentFactory(
-            controlServer,
-            loggingServer,
-            retrievalServer,
-            provisioningServer,
-            clientPool,
-            stageIdGenerator);
+    } else {
+      ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
+
+      this.clientPool = MapControlClientPool.create();
+      this.executor = Executors.newCachedThreadPool();
+      this.controlServer =
+          GrpcFnServer.allocatePortAndCreateFor(
+              FnApiControlClientPoolService.offeringClientsToPool(
+                  clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+              serverFactory);
+      this.loggingServer =
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+      this.retrievalServer =
+          GrpcFnServer.allocatePortAndCreateFor(
+              BeamFileSystemArtifactRetrievalService.create(), serverFactory);
+      this.provisioningServer =
+          GrpcFnServer.allocatePortAndCreateFor(
+              StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
+      this.dataServer =
+          GrpcFnServer.allocatePortAndCreateFor(
+              GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
+              serverFactory);
+      this.stateServer =
+          GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+
+      this.environmentFactory =
+          environmentFactoryProvider.createEnvironmentFactory(
+              controlServer,
+              loggingServer,
+              retrievalServer,
+              provisioningServer,
+              clientPool,
+              stageIdGenerator);
+    }
     this.environment = environment;
   }
 }

@@ -639,7 +639,8 @@ public class StreamingDataflowWorker {
           new CreateRegisterFnOperationFunction(
               IdGenerator::generate,
               this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
@@ -1142,6 +1143,7 @@ public class StreamingDataflowWorker {
                 worker.getControlClientHandler(),
                 worker.getDataService(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
+                sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
                 worker.getStateService(),
                 mapTaskNetwork,
                 options,
