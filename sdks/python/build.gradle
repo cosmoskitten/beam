@@ -296,12 +296,17 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //
 //    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
+//  In addition an output dir can also be provided using -PoutputDir=<Path to file system>
+//
+//    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -PoutputDir=<Path to file system>
+//
 task portableWordCount(dependsOn: 'installGcpTest') {
   doLast {
     // TODO: Figure out GCS credentials and use real GCS input and output.
+    def output = project.hasProperty('outputDir') ? project.property('outputDir') : '/tmp/py-wordcount-direct'
     def options = [
             "--input=/etc/profile",
-            "--output=/tmp/py-wordcount-direct",
+            "--output=$output",
             "--runner=PortableRunner",
     ]
     if (project.hasProperty("streaming"))
