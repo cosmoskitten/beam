@@ -21,6 +21,7 @@ import atexit
 import logging
 import os
 import signal
+import subprocess
 import sys
 import time
 from subprocess import Popen
@@ -49,10 +50,11 @@ class DockerizedJobServer(object):
     # TODO This is hardcoded to Flink at the moment but should be changed
     job_server_image_name = os.environ['USER'] + \
         "-docker-apache.bintray.io/beam/flink-job-server:latest"
+    docker_path = subprocess.check_output(['which', 'docker']).strip()
     cmd = ["docker", "run",
            # We mount the docker binary and socket to be able to spin up
            # "sibling" containers for the SDK harness.
-           "-v", "/usr/local/bin/docker:/bin/docker",
+           "-v", ':'.join([docker_path, "/bin/docker"]),
            "-v", "/var/run/docker.sock:/var/run/docker.sock"]
     args = ["--job-host", self.job_host, "--job-port", str(self.job_port)]
 
