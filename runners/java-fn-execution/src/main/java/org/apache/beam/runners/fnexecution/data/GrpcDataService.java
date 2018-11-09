@@ -79,6 +79,14 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     this.outboundObserverFactory = outboundObserverFactory;
   }
 
+  @Deprecated
+  public GrpcDataService() {
+    this.connectedClient = null;
+    this.additionalMultiplexers = null;
+    this.executor = null;
+    this.outboundObserverFactory = null;
+  }
+
   @Override
   public StreamObserver<BeamFnApi.Elements> data(
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
