@@ -86,8 +86,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
         inputLocation.getTarget());
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    // TODO ajamato, close the BeamFnDataGrpcMultiplexer.
-    // TODO ajamato(*). We can have multiple of these as well?
     // I think that we will run in to the same issue again, since we need to drain each one?
     // Do we need to pull up the queueing idea to this class?
 
@@ -97,7 +95,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     return inboundObserver;
   }
 
-  // TODO ajamato(*) add a drainAndBlock method.
   @Override
   public void drainAndBlock(ApiServiceDescriptor apiServiceDescriptor, String instructionId) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
@@ -120,7 +117,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    // TODO ajamato, close the BeamFnDataGrpcMultiplexer.
     LOG.debug(
         "Creating output consumer for instruction {} and target {}",
         outputLocation.getInstructionId(),
@@ -149,14 +145,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private BeamFnDataGrpcMultiplexer getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
-    LOG.info(
-        "ajamato getClientFor(apiServiceDescriptor): "
-            + "  '"
-            + apiServiceDescriptor
-            + "' apiServiceDescriptor: "
-            + System.identityHashCode(apiServiceDescriptor)
-            + " this "
-            + System.identityHashCode(this));
     return cache.computeIfAbsent(
         apiServiceDescriptor,
         (Endpoints.ApiServiceDescriptor descriptor) ->
