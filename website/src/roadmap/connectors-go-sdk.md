@@ -20,5 +20,9 @@ limitations under the License.
 
 Roadmap for connectors developed using Go SDK.
 
-Go SDK plans to utilize currently available Java and Python connectors
+* We hope to add a Splittable DoFn implementation to Go SDK to support developing new sources. In the
+meantime bounded sources can be developed in the form of ParDos. See
+[Authoring I/O Transforms](https://beam.apache.org/documentation/io/authoring-overview/) for more details.
+
+* Go SDK plans to utilize currently available Java and Python connectors
 through cross-language transforms feature.
