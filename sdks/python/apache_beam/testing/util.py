@@ -112,8 +112,13 @@ def equal_to(expected):
   expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
+    # TODO: BEAM-5621 (see #6602), improve the comparison of dictionaries
+    try:
+      sorted_expected = sorted(expected)
+      sorted_actual = sorted(actual)
+    except TypeError:
+      sorted_expected = sorted([str(type(x)) for x in expected])
+      sorted_actual = sorted([str(type(x)) for x in actual])
     if sorted_expected != sorted_actual:
       raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
