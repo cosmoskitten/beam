@@ -149,12 +149,30 @@ public class ClickHouseIO {
   public static class ClickHouseProperties implements Serializable {
     private final Properties properties = new Properties();
 
+    /** Maximum block size for reading. */
     public ClickHouseProperties maxBlockSize(int value) {
       return set(ClickHouseQueryParam.MAX_BLOCK_SIZE, value);
     }
 
+    /** The maximum block size for insertion, if we control the creation of blocks for insertion. */
     public ClickHouseProperties maxInsertBlockSize(long value) {
       return set(ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, value);
+    }
+
+    /** If setting is enabled, insert query into distributed waits until data will be sent to all nodes in cluster. */
+    public ClickHouseProperties insertDistributedSync(boolean value) {
+      return set("insert_distributed_sync", value ? 1 : 0);
+    }
+
+    /** For INSERT queries in the replicated table, wait writing for the specified number of replicas and linearize the addition of the data. 0 - disabled. */
+    public ClickHouseProperties insertQuorum(long value) {
+      return set(ClickHouseQueryParam.INSERT_QUORUM, value);
+    }
+
+    /** For INSERT queries in the replicated table, specifies that deduplication of inserting
+     * blocks should be preformed. */
+    public ClickHouseProperties insertDeduplicate(boolean value) {
+      return set("insert_deduplicate", value ? 1L : 0L);
     }
 
     public ClickHouseProperties set(ClickHouseQueryParam param, Object value) {
