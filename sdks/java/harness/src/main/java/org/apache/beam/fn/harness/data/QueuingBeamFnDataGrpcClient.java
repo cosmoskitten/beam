@@ -51,6 +51,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
   public QueuingBeamFnDataGrpcClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
     this.queue = new SynchronousQueue<>();
+    // TODO does this need to be a concurrent hash map (set doesn't seem to exist).
     this.idcs = new HashSet<InboundDataClient>();
   }
 
@@ -76,6 +77,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
     QueueingFnDataReceiver<T> newConsumer = new QueueingFnDataReceiver<T>(consumer);
     InboundDataClient idc =
         this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, newConsumer);
+    newConsumer.idc = idc;
     this.idcs.add(idc);
     return idc;
   }
@@ -88,31 +90,33 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
     return allDone;
   }
 
+  /**
+   * Drains the internal queue of this class, by waiting for all WindowValues to
+   * be passed to thier consumers. The thread which wishes to process() the elements
+   * should call this method, as this will cause the consumers to invoke element processing.
+   * All receive() and send() calls must be made prior to calling drainAndBlock, in order
+   * to properly terminate.
+   */
   public void drainAndBlock() throws Exception {
-    int numConsumersComplete = 0;
-
+    // Note: We just throw the exception here
+    // TODO review the error handling here
     while (true) {
-      try {
-        ConsumerAndData tuple = null;
-        tuple = queue.poll(50, TimeUnit.MILLISECONDS);
-        // TODO should we implement a timeout logic here? What happens if the
-        // putting thread throws an exception?
-        if (tuple == null) {
-          continue;
-        } else {
-          // Forward to the consumers who cares about this data.
-          tuple.consumer.accept(tuple.data);
-        }
+      ConsumerAndData tuple = null;
+      tuple = queue.poll(50, TimeUnit.MILLISECONDS);
+      // TODO should we implement a timeout logic here? What happens if the
+      // putting thread throws an exception? Can we assume the InboundDataClient will be marked
+      // done?
+      if (tuple == null) {
+        continue;
+      } else {
+        // Forward to the consumers who cares about this data.
+        tuple.consumer.accept(tuple.data);
+      }
 
-        // TODO is there a possible race here? Leading to data loss?
-        // Can this be set to done, but more elements come in after?
-        if (AllDone()) {
-          break;
-        }
-      } catch (Exception e) {
-        // TODO is there some way to cancel the thread putting on the queue if we throw an
-        // exception here?
-        throw e;
+      // TODO is there a possible race here? Leading to data loss?
+      // Can this be set to done, but more elements come in after?
+      if (AllDone()) {
+        break;
       }
     }
   }
@@ -140,6 +144,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
   public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> consumer;
+    public InboundDataClient idc;
 
     public QueueingFnDataReceiver(FnDataReceiver<WindowedValue<T>> consumer) {
       this.consumer = consumer;
@@ -147,12 +152,15 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
-      try {
-        queue.put(new ConsumerAndData(this.consumer, value));
-      } catch (Exception e) {
-        // TODO notify the consumer of the error?
-        // Interrupt the queue? Notify the consumers?
-        throw e;
+      // Note: We just throw the exception here
+      // TODO please review this error handling.
+      ConsumerAndData offering = new ConsumerAndData(this.consumer, value)
+      while (!queue.offer(offering, 50, TimeUnit.MILLISECONDS)) {
+        if (idc.isDone()) {
+          // Discard the element.
+          // TODO please review this error handling case
+          break;
+        }
       }
     }
   }

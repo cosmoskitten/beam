@@ -61,6 +61,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -261,7 +262,7 @@ public class ProcessBundleHandler {
           bundleDescriptor.getTransformsMap().entrySet()) {
 
         hasSinkPtransform = hasSinkPtransform ||
-            RemoteGrpcPortWrite.URN.equals(entry.getValue().getSpec().getUrn());
+            RemoteGrpcPortRead.URN.equals(entry.getValue().getSpec().getUrn());
 
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
