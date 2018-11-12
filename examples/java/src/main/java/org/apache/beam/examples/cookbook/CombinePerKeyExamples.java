@@ -125,9 +125,7 @@ public class CombinePerKeyExamples {
       PCollection<KV<String, String>> wordAllPlays = words.apply(Combine.perKey(new ConcatWords()));
 
       // <word, all_plays>... => row...
-      PCollection<TableRow> results = wordAllPlays.apply(ParDo.of(new FormatShakespeareOutputFn()));
-
-      return results;
+      return wordAllPlays.apply(ParDo.of(new FormatShakespeareOutputFn()));
     }
   }
 

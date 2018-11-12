@@ -204,6 +204,7 @@ public class EvaluationContext {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
+      @SuppressWarnings("unchecked")
       T result = (T) pobjects.get(value);
       return result;
     }

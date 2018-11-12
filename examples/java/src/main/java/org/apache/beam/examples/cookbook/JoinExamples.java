@@ -106,19 +106,17 @@ public class JoinExamples {
                 }));
 
     // write to GCS
-    PCollection<String> formattedResults =
-        finalResultCollection.apply(
-            "Format",
-            ParDo.of(
-                new DoFn<KV<String, String>, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    String outputstring =
-                        "Country code: " + c.element().getKey() + ", " + c.element().getValue();
-                    c.output(outputstring);
-                  }
-                }));
-    return formattedResults;
+    return finalResultCollection.apply(
+        "Format",
+        ParDo.of(
+            new DoFn<KV<String, String>, String>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                String outputstring =
+                    "Country code: " + c.element().getKey() + ", " + c.element().getValue();
+                c.output(outputstring);
+              }
+            }));
   }
 
   /**
