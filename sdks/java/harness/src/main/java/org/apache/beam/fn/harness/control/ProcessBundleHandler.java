@@ -261,7 +261,7 @@ public class ProcessBundleHandler {
           bundleDescriptor.getTransformsMap().entrySet()) {
 
         hasSinkPtransform = hasSinkPtransform ||
-            RemoteGrpcPortWrite.isSinkPtransform(entry.getValue());
+            RemoteGrpcPortWrite.URN.equals(entry.getValue().getSpec().getUrn());
 
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
@@ -295,7 +295,6 @@ public class ProcessBundleHandler {
       if (hasSinkPtransform) {
         beamFnDataClient.drainAndBlock();
       }
-
 
       // Need to reverse this since we want to call finish in topological order.
       for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {

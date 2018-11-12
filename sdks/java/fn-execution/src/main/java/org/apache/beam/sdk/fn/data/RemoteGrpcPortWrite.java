@@ -60,10 +60,6 @@ public abstract class RemoteGrpcPortWrite {
     return writeToPort(inputPCollectionId, port);
   }
 
-  public static boolean isSinkPtransform(PTransform pTransform) {
-    return URN.equals(pTransform.getSpec().getUrn());
-  }
-
   abstract String getInputPCollectionId();
 
   public abstract RemoteGrpcPort getPort();

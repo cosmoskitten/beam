@@ -108,6 +108,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
+
     LOG.debug(
         "Creating output consumer for instruction {} and target {}",
         outputLocation.getInstructionId(),

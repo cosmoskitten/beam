@@ -39,8 +39,6 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed.
  * In the thread which calls drainAndBlock.
- *
- * <p>TODO: Handle closing clients that are currently not a consumer nor are being consumed.
  */
 public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
@@ -71,7 +69,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer) {
     LOG.debug(
-        "QueuingBeamFnDataGrpcClient: Registering consumer for instruction {} and target {}",
+        "Registering consumer for instruction {} and target {}",
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
@@ -97,6 +95,8 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
       try {
         ConsumerAndData tuple = null;
         tuple = queue.poll(50, TimeUnit.MILLISECONDS);
+        // TODO should we implement a timeout logic here? What happens if the
+        // putting thread throws an exception?
         if (tuple == null) {
           continue;
         } else {
@@ -104,23 +104,37 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
           tuple.consumer.accept(tuple.data);
         }
 
+        // TODO is there a possible race here? Leading to data loss?
+        // Can this be set to done, but more elements come in after?
         if (AllDone()) {
           break;
         }
       } catch (Exception e) {
-        // Should this be in the loop or outside?
-        // I think we just want to throw this? Also notify consumers?
-        LOG.error("Error", e);
+        // TODO is there some way to cancel the thread putting on the queue if we throw an
+        // exception here?
         throw e;
       }
     }
   }
 
+  /**
+   * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
+   *
+   * <p>The provided coder is used to encode elements on the outbound stream.
+   *
+   * <p>Closing the returned receiver signals the end of the stream.
+   *
+   * <p>The returned closeable receiver is not thread safe.
+   */
   @Override
   public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder) {
+    LOG.debug(
+        "Creating output consumer for instruction {} and target {}",
+        outputLocation.getInstructionId(),
+        outputLocation.getTarget());
     return this.mainClient.send(apiServiceDescriptor, outputLocation, coder);
   }
 
@@ -138,7 +152,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
       } catch (Exception e) {
         // TODO notify the consumer of the error?
         // Interrupt the queue? Notify the consumers?
-        LOG.error("QueueingFnDataReceiver ERROR ", e);
+        throw e;
       }
     }
   }
