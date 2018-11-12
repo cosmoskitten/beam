@@ -41,6 +41,10 @@ class JsonValueTest(unittest.TestCase):
   def test_string_to(self):
     self.assertEquals(JsonValue(string_value='abc'), to_json_value('abc'))
 
+  def test_bytes_to(self):
+    self.assertEquals(JsonValue(string_value='abc'),
+                      to_json_value('abc'.encode()))
+
   def test_true_to(self):
     self.assertEquals(JsonValue(boolean_value=True), to_json_value(True))
 

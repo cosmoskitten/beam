@@ -105,7 +105,9 @@ def to_json_value(obj, with_type=False):
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
     return to_json_value(get_typed_value_descriptor(obj), with_type=False)
-  elif isinstance(obj, (str, unicode)):
+  elif isinstance(obj, (str, unicode, bytes)):
+    if isinstance(obj, bytes):
+      obj = obj.decode('utf8')
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
