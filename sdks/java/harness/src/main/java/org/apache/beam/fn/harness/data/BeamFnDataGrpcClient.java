@@ -92,12 +92,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     return inboundObserver;
   }
 
-  @Override
-  public void drainAndBlock(ApiServiceDescriptor apiServiceDescriptor, String instructionId) {
-    BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    client.drainAndBlock(instructionId);
-  }
-
   /**
    * Creates a closeable consumer using the provided instruction id and target.
    *
@@ -148,7 +142,6 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
             new BeamFnDataGrpcMultiplexer(
                 descriptor,
                 outboundObserverFactory,
-                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
-                true)); // TODO make sure this is SDK side only
+                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
   }
 }

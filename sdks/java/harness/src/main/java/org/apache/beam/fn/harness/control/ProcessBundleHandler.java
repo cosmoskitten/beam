@@ -41,6 +41,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.QueuingBeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -103,7 +104,7 @@ public class ProcessBundleHandler {
 
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
-  private final BeamFnDataClient beamFnDataClient;
+  private final QueuingBeamFnDataGrpcClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
@@ -130,7 +131,7 @@ public class ProcessBundleHandler {
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
-    this.beamFnDataClient = beamFnDataClient;
+    this.beamFnDataClient = new QueuingBeamFnDataGrpcClient(beamFnDataClient);
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
@@ -228,7 +229,7 @@ public class ProcessBundleHandler {
 
     ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
 
-    ApiServiceDescriptor apiServiceDescriptor = null;
+    boolean hasSinkPtransform = false;
 
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
@@ -259,17 +260,8 @@ public class ProcessBundleHandler {
       for (Map.Entry<String, RunnerApi.PTransform> entry :
           bundleDescriptor.getTransformsMap().entrySet()) {
 
-        if (RemoteGrpcPortWrite.isSinkPtransform(entry.getValue())) {
-          RemoteGrpcPortWrite rgpw = RemoteGrpcPortWrite.fromPTransform(entry.getValue());
-          if (apiServiceDescriptor == null) {
-            apiServiceDescriptor = rgpw.getPort().getApiServiceDescriptor();
-          }
-
-          if (!apiServiceDescriptor.equals(rgpw.getPort().getApiServiceDescriptor())) {
-            throw new Exception(
-                "Bundle Failure: All PTransforms require equivalent " + "ApiServiceDescriptors.");
-          }
-        }
+        hasSinkPtransform = hasSinkPtransform ||
+            RemoteGrpcPortWrite.isSinkPtransform(entry.getValue());
 
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
@@ -300,12 +292,8 @@ public class ProcessBundleHandler {
         startFunction.run();
       }
 
-      // TODO(BEAM-5972). Make sure that the apiServiceDescriptor is the same.
-      // throughout all references in the InstructionRequest
-      if (apiServiceDescriptor != null) {
-        // If there were any ptransforms which read data, then drain their element
-        // queues in the BeamFnDataGrpcMultiplexer::InboundObserver.
-        beamFnDataClient.drainAndBlock(apiServiceDescriptor, request.getInstructionId());
+      if (hasSinkPtransform) {
+        beamFnDataClient.drainAndBlock();
       }
 
 

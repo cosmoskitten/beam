@@ -326,7 +326,7 @@ public class RemoteExecutionTest implements Serializable {
     }
 
     try (ActiveBundle bundle =
-        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
               WindowedValue.valueInGlobalWindow(
@@ -335,7 +335,7 @@ public class RemoteExecutionTest implements Serializable {
 
     try {
       try (ActiveBundle bundle =
-          processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+          processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
             .accept(
                 WindowedValue.valueInGlobalWindow(
@@ -348,7 +348,7 @@ public class RemoteExecutionTest implements Serializable {
     }
 
     try (ActiveBundle bundle =
-        processor.newBundle(outputReceivers, BundleProgressHandler.unsupported())) {
+        processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
               WindowedValue.valueInGlobalWindow(

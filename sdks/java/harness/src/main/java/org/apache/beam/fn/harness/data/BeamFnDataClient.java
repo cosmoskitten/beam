@@ -61,10 +61,4 @@ public interface BeamFnDataClient {
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder);
-
-  /**
-   * Drain all element queues and cleanup all objects created for the handling of elements for the
-   * given apiServiceDescriptor representing the data channel and the instructionId.
-   */
-  void drainAndBlock(ApiServiceDescriptor apiServiceDescriptor, String instructionId);
 }
