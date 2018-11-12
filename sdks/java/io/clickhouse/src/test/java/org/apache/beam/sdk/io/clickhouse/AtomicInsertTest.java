@@ -71,7 +71,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
         // make sure we get one big bundle
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .table("test_atomic_insert")
                 .properties(
@@ -124,7 +124,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
     pipeline
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .table("test_idempotent_insert")
                 .properties(
