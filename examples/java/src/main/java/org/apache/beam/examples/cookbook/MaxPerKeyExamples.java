@@ -108,9 +108,7 @@ public class MaxPerKeyExamples {
       PCollection<KV<Integer, Double>> tempMaxes = temps.apply(Max.doublesPerKey());
 
       // <month, max>... => row...
-      PCollection<TableRow> results = tempMaxes.apply(ParDo.of(new FormatMaxesFn()));
-
-      return results;
+      return tempMaxes.apply(ParDo.of(new FormatMaxesFn()));
     }
   }
 

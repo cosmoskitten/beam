@@ -445,22 +445,19 @@ public class Snippets {
             .and(phonesTag, phones)
             .apply(CoGroupByKey.create());
 
-    PCollection<String> contactLines =
-        results.apply(
-            ParDo.of(
-                new DoFn<KV<String, CoGbkResult>, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    KV<String, CoGbkResult> e = c.element();
-                    String name = e.getKey();
-                    Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
-                    Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
-                    String formattedResult =
-                        Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
-                    c.output(formattedResult);
-                  }
-                }));
+    return results.apply(
+        ParDo.of(
+            new DoFn<KV<String, CoGbkResult>, String>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                KV<String, CoGbkResult> e = c.element();
+                String name = e.getKey();
+                Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
+                Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
+                String formattedResult = Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
+                c.output(formattedResult);
+              }
+            }));
     // [END CoGroupByKeyTuple]
-    return contactLines;
   }
 }

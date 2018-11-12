@@ -357,26 +357,23 @@ public class TfIdf {
       // ("term frequency - inverse document frequency") score;
       // here we use a basic version that is the term frequency
       // divided by the log of the document frequency.
-      PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf =
-          wordToUriAndTfAndDf.apply(
-              "ComputeTfIdf",
-              ParDo.of(
-                  new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      String word = c.element().getKey();
-                      Double df = c.element().getValue().getOnly(dfTag);
+      return wordToUriAndTfAndDf.apply(
+          "ComputeTfIdf",
+          ParDo.of(
+              new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  String word = c.element().getKey();
+                  Double df = c.element().getValue().getOnly(dfTag);
 
-                      for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
-                        URI uri = uriAndTf.getKey();
-                        Double tf = uriAndTf.getValue();
-                        Double tfIdf = tf * Math.log(1 / df);
-                        c.output(KV.of(word, KV.of(uri, tfIdf)));
-                      }
-                    }
-                  }));
-
-      return wordToUriAndTfIdf;
+                  for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
+                    URI uri = uriAndTf.getKey();
+                    Double tf = uriAndTf.getValue();
+                    Double tfIdf = tf * Math.log(1 / df);
+                    c.output(KV.of(word, KV.of(uri, tfIdf)));
+                  }
+                }
+              }));
     }
 
     // Instantiate Logger.

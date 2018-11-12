@@ -270,8 +270,7 @@ public class TrafficRoutes {
       fields.add(new TableFieldSchema().setName("avg_speed").setType("FLOAT"));
       fields.add(new TableFieldSchema().setName("slowdown_event").setType("BOOLEAN"));
       fields.add(new TableFieldSchema().setName("window_timestamp").setType("TIMESTAMP"));
-      TableSchema schema = new TableSchema().setFields(fields);
-      return schema;
+      return new TableSchema().setFields(fields);
     }
   }
 
@@ -293,9 +292,7 @@ public class TrafficRoutes {
       PCollection<KV<String, RouteInfo>> stats = timeGroup.apply(ParDo.of(new GatherStats()));
 
       // Format the results for writing to BigQuery
-      PCollection<TableRow> results = stats.apply(ParDo.of(new FormatStatsFn()));
-
-      return results;
+      return stats.apply(ParDo.of(new FormatStatsFn()));
     }
   }
 

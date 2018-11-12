@@ -114,35 +114,32 @@ public class GameStats extends LeaderBoard {
           sumScores.apply(Values.create()).apply(Mean.<Integer>globally().asSingletonView());
 
       // Filter the user sums using the global mean.
-      PCollection<KV<String, Integer>> filtered =
-          sumScores.apply(
-              "ProcessAndFilter",
-              ParDo
-                  // use the derived mean total score as a side input
-                  .of(
-                      new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-                        private final Counter numSpammerUsers =
-                            Metrics.counter("main", "SpammerUsers");
+      return sumScores.apply(
+          "ProcessAndFilter",
+          ParDo
+              // use the derived mean total score as a side input
+              .of(
+                  new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+                    private final Counter numSpammerUsers = Metrics.counter("main", "SpammerUsers");
 
-                        @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          Integer score = c.element().getValue();
-                          Double gmc = c.sideInput(globalMeanScore);
-                          if (score > (gmc * SCORE_WEIGHT)) {
-                            LOG.info(
-                                "user "
-                                    + c.element().getKey()
-                                    + " spammer score "
-                                    + score
-                                    + " with mean "
-                                    + gmc);
-                            numSpammerUsers.inc();
-                            c.output(c.element());
-                          }
-                        }
-                      })
-                  .withSideInputs(globalMeanScore));
-      return filtered;
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      Integer score = c.element().getValue();
+                      Double gmc = c.sideInput(globalMeanScore);
+                      if (score > (gmc * SCORE_WEIGHT)) {
+                        LOG.info(
+                            "user "
+                                + c.element().getKey()
+                                + " spammer score "
+                                + score
+                                + " with mean "
+                                + gmc);
+                        numSpammerUsers.inc();
+                        c.output(c.element());
+                      }
+                    }
+                  })
+              .withSideInputs(globalMeanScore));
     }
   }
   // [END DocInclude_AbuseDetect]

@@ -279,8 +279,7 @@ public class TrafficMaxLaneFlow {
       fields.add(new TableFieldSchema().setName("total_flow").setType("INTEGER"));
       fields.add(new TableFieldSchema().setName("window_timestamp").setType("TIMESTAMP"));
       fields.add(new TableFieldSchema().setName("recorded_timestamp").setType("STRING"));
-      TableSchema schema = new TableSchema().setFields(fields);
-      return schema;
+      return new TableSchema().setFields(fields);
     }
   }
 
@@ -296,9 +295,7 @@ public class TrafficMaxLaneFlow {
       PCollection<KV<String, LaneInfo>> flowMaxes = flowInfo.apply(Combine.perKey(new MaxFlow()));
 
       // <stationId, max lane flow info>... => row...
-      PCollection<TableRow> results = flowMaxes.apply(ParDo.of(new FormatMaxesFn()));
-
-      return results;
+      return flowMaxes.apply(ParDo.of(new FormatMaxesFn()));
     }
   }
 
