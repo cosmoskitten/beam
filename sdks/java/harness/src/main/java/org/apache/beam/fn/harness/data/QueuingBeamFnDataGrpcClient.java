@@ -17,13 +17,9 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,10 +31,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed.
- * In the thread which calls drainAndBlock.
+ * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed. In
+ * the thread which calls drainAndBlock.
  */
 public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
@@ -91,11 +86,10 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   /**
-   * Drains the internal queue of this class, by waiting for all WindowValues to
-   * be passed to thier consumers. The thread which wishes to process() the elements
-   * should call this method, as this will cause the consumers to invoke element processing.
-   * All receive() and send() calls must be made prior to calling drainAndBlock, in order
-   * to properly terminate.
+   * Drains the internal queue of this class, by waiting for all WindowValues to be passed to thier
+   * consumers. The thread which wishes to process() the elements should call this method, as this
+   * will cause the consumers to invoke element processing. All receive() and send() calls must be
+   * made prior to calling drainAndBlock, in order to properly terminate.
    */
   public void drainAndBlock() throws Exception {
     // Note: We just throw the exception here
@@ -154,7 +148,7 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
     public void accept(WindowedValue<T> value) throws Exception {
       // Note: We just throw the exception here
       // TODO please review this error handling.
-      ConsumerAndData offering = new ConsumerAndData(this.consumer, value)
+      ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
       while (!queue.offer(offering, 50, TimeUnit.MILLISECONDS)) {
         if (idc.isDone()) {
           // Discard the element.
@@ -168,10 +162,9 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
 class ConsumerAndData<T> {
   public FnDataReceiver<WindowedValue<T>> consumer;
-  public WindowedValue<T>  data;
+  public WindowedValue<T> data;
 
-  public ConsumerAndData(
-      FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T>  data) {
+  public ConsumerAndData(FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T> data) {
     this.consumer = receiver;
     this.data = data;
   }
