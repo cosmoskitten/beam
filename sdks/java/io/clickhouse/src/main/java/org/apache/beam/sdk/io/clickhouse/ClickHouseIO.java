@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
@@ -175,6 +176,8 @@ public class ClickHouseIO {
   @AutoValue
   abstract static class WriteFn extends DoFn<Row, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
+    private static final Instant EPOCH_INSTANT = new Instant(0L);
+    private static final int QUEUE_SIZE = 1024;
 
     private ClickHouseConnection connection;
     private ClickHouseStatement statement;
@@ -197,7 +200,6 @@ public class ClickHouseIO {
       return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema, properties);
     }
 
-    private static final Instant EPOCH_INSTANT = new Instant(0L);
 
     @SuppressWarnings("unchecked")
     public static void writeNullableValue(
@@ -321,15 +323,22 @@ public class ClickHouseIO {
     @Setup
     public void setup() throws SQLException {
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
-      executor = Executors.newSingleThreadExecutor();
-      queue = new ArrayBlockingQueue<>(1024);
+      executor = Executors.newSingleThreadExecutor(
+          new ThreadFactoryBuilder().setNameFormat("clickhouse-jdbc-%d").build());
+      queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
       bundleFinished = new AtomicBoolean(false);
     }
 
     @StartBundle
-    public void startBundle(StartBundleContext context) throws SQLException {
+    public void startBundle() throws SQLException {
       statement = connection.createStatement();
       bundleFinished.set(false);
+
+      // When bundle starts, we open statement and stream data in bundle.
+      // When we finish bundle, we close statement.
+
+      // For streaming, we create a background thread for http client,
+      // and we feed it through BlockingQueue.
 
       insert =
           executor.submit(
@@ -339,7 +348,7 @@ public class ClickHouseIO {
                       insertSql(schema(), table()),
                       stream -> {
                         while (true) {
-                          Row row = null;
+                          Row row;
                           try {
                             row = queue.poll(1, TimeUnit.SECONDS);
                           } catch (InterruptedException e) {
@@ -391,7 +400,8 @@ public class ClickHouseIO {
     public void processElement(ProcessContext c) throws InterruptedException, ExecutionException {
       while (!queue.offer(c.element(), 1, TimeUnit.SECONDS)) {
         if (insert.isDone()) {
-          insert.get(); // can only happen due to exception, let's throw it
+          insert.get(); // can happen due to exception, get() will throw it
+          throw new AssertionError("Invariant failed");
         }
       }
     }

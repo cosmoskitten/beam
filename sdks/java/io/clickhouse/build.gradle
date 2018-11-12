@@ -34,12 +34,10 @@ compileJavacc {
 dependencies {
   compile library.java.guava
   javacc "net.java.dev.javacc:javacc:4.0"
-//  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow "ru.yandex.clickhouse:clickhouse-jdbc:0.1.42"
-//  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-runners-direct-java")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
