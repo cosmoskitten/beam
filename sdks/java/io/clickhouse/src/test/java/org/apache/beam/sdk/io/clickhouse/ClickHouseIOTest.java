@@ -56,7 +56,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_int64")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
@@ -82,7 +82,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_nullable_int64")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
@@ -110,7 +110,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_int64_with_default")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
@@ -137,7 +137,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_array_of_array_of_int64")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
@@ -206,7 +206,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_primitive_types")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
@@ -290,7 +290,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
         .apply(
-            ClickHouseIO.Write.builder()
+            ClickHouseIO.Write.<Row>builder()
                 .table("test_array_of_primitive_types")
                 .jdbcUrl(clickHouse.getJdbcUrl())
                 .build());
