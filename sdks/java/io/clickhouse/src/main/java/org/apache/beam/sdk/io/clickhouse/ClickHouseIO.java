@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -60,6 +61,7 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** An IO to write to ClickHouse. */
+@Experimental(Experimental.Kind.SCHEMAS)
 public class ClickHouseIO {
 
   /** A {@link PTransform} to write to ClickHouse. */

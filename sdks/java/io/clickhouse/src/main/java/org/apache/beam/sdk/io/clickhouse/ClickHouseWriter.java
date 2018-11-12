@@ -2,6 +2,7 @@ package org.apache.beam.sdk.io.clickhouse;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Days;
@@ -10,6 +11,7 @@ import org.joda.time.ReadableInstant;
 import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** Writes Rows and field values using {@link ClickHouseRowBinaryStream}. */
+@Experimental(Experimental.Kind.SCHEMAS)
 public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 
