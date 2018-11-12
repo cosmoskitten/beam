@@ -124,6 +124,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       JobInfo jobInfo,
       FlinkExecutableStageContext.Factory contextFactory,
       Map<String, TupleTag<?>> outputMap,
+      WindowingStrategy windowingStrategy,
       Coder keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector) {
     super(
@@ -135,7 +136,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         mainOutputTag,
         additionalOutputTags,
         outputManagerFactory,
-        WindowingStrategy.globalDefault() /* unused */,
+        windowingStrategy,
         sideInputTagMapping,
         sideInputs,
         options,

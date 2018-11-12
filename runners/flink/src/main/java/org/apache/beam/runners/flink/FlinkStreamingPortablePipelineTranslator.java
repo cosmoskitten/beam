@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -600,6 +601,7 @@ public class FlinkStreamingPortablePipelineTranslator
             context.getJobInfo(),
             FlinkExecutableStageContext.factory(context.getPipelineOptions()),
             collectionIdToTupleTag,
+            getWindowingStrategy(inputPCollectionId, components),
             keyCoder,
             keySelector);
 
