@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -43,22 +42,19 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.Days;
-import org.joda.time.Instant;
-import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.clickhouse.ClickHouseConnection;
 import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.clickhouse.ClickHouseStatement;
 import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
-import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** An IO to write to ClickHouse. */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -66,7 +62,7 @@ public class ClickHouseIO {
 
   /** A {@link PTransform} to write to ClickHouse. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<Row>, PDone> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     public abstract String jdbcUrl();
 
     public abstract String table();
@@ -111,7 +107,7 @@ public class ClickHouseIO {
     }
 
     @Override
-    public PDone expand(PCollection<Row> input) {
+    public PDone expand(PCollection<T> input) {
       TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
       Properties properties = properties() == null ? new Properties() : properties();
 
@@ -120,21 +116,21 @@ public class ClickHouseIO {
       return PDone.in(input.getPipeline());
     }
 
-    public static Builder builder() {
-      return new AutoValue_ClickHouseIO_Write.Builder();
+    public static <T> Builder<T> builder() {
+      return new AutoValue_ClickHouseIO_Write.Builder<>();
     }
 
     /** Builder for {@link Write}. */
     @AutoValue.Builder
-    public abstract static class Builder {
+    public abstract static class Builder<T> {
 
-      public abstract Builder jdbcUrl(String jdbcUrl);
+      public abstract Builder<T> jdbcUrl(String jdbcUrl);
 
-      public abstract Builder table(String table);
+      public abstract Builder<T> table(String table);
 
-      public abstract Builder properties(Properties properties);
+      public abstract Builder<T> properties(Properties properties);
 
-      public abstract Write build();
+      public abstract Write<T> build();
     }
   }
 
@@ -151,28 +147,61 @@ public class ClickHouseIO {
   public static class ClickHouseProperties implements Serializable {
     private final Properties properties = new Properties();
 
-    /** Maximum block size for reading. */
+    /**
+     * Recommendation for what size of block (in number of rows) to load from tables.
+     *
+     * @see <a href="https://clickhouse.yandex/docs/en/single/#max_block_size">ClickHouse
+     *     documentation</a>
+     * @param value number of rows
+     * @return builder
+     */
     public ClickHouseProperties maxBlockSize(int value) {
       return set(ClickHouseQueryParam.MAX_BLOCK_SIZE, value);
     }
 
-    /** The maximum block size for insertion, if we control the creation of blocks for insertion. */
+    /**
+     * The maximum block size for insertion, if we control the creation of blocks for insertion.
+     *
+     * @see <a href="https://clickhouse.yandex/docs/en/single/#max_insert_block_size">ClickHouse
+     *     documentation</a>
+     * @param value number of rows
+     * @return builder
+     */
     public ClickHouseProperties maxInsertBlockSize(long value) {
       return set(ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, value);
     }
 
-    /** If setting is enabled, insert query into distributed waits until data will be sent to all nodes in cluster. */
+    /**
+     * If setting is enabled, insert query into distributed waits until data will be sent to all
+     * nodes in cluster.
+     *
+     * @param value true to enable
+     * @return builder
+     */
     public ClickHouseProperties insertDistributedSync(boolean value) {
       return set("insert_distributed_sync", value ? 1 : 0);
     }
 
-    /** For INSERT queries in the replicated table, wait writing for the specified number of replicas and linearize the addition of the data. 0 - disabled. */
+    /**
+     * For INSERT queries in the replicated table, wait writing for the specified number of replicas
+     * and linearize the addition of the data. 0 - disabled.
+     *
+     * @see <a href="https://clickhouse.yandex/docs/en/single/#insert_quorum">ClickHouse
+     *     documentation</a>
+     * @param value number of replicas, 0 for disabling
+     * @return builder
+     */
     public ClickHouseProperties insertQuorum(long value) {
       return set(ClickHouseQueryParam.INSERT_QUORUM, value);
     }
 
-    /** For INSERT queries in the replicated table, specifies that deduplication of inserting
-     * blocks should be preformed. */
+    /**
+     * For INSERT queries in the replicated table, specifies that deduplication of inserting blocks
+     * should be preformed.
+     *
+     * @param value true to enable
+     * @return builder
+     */
     public ClickHouseProperties insertDeduplicate(boolean value) {
       return set("insert_deduplicate", value ? 1L : 0L);
     }
@@ -194,7 +223,7 @@ public class ClickHouseIO {
   }
 
   @AutoValue
-  abstract static class WriteFn extends DoFn<Row, Void> {
+  abstract static class WriteFn<T> extends DoFn<T, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
     private static final int QUEUE_SIZE = 1024;
 
@@ -206,6 +235,12 @@ public class ClickHouseIO {
     private AtomicBoolean bundleFinished;
     private Future<?> insert;
 
+    // TODO: This should be the same as resolved so that Beam knows which fields
+    // are being accessed. Currently Beam only supports wildcard descriptors.
+    // Once BEAM-4457 is fixed, fix this.
+    @FieldAccess("filterFields")
+    final FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
+
     public abstract String jdbcUrl();
 
     public abstract String table();
@@ -214,9 +249,9 @@ public class ClickHouseIO {
 
     public abstract Properties properties();
 
-    public static WriteFn create(
+    public static <T> WriteFn<T> create(
         String jdbcUrl, String table, TableSchema schema, Properties properties) {
-      return new AutoValue_ClickHouseIO_WriteFn(jdbcUrl, table, schema, properties);
+      return new AutoValue_ClickHouseIO_WriteFn<>(jdbcUrl, table, schema, properties);
     }
 
     static String quoteIdentifier(String identifier) {
@@ -241,8 +276,9 @@ public class ClickHouseIO {
     @Setup
     public void setup() throws SQLException {
       connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
-      executor = Executors.newSingleThreadExecutor(
-          new ThreadFactoryBuilder().setNameFormat("clickhouse-jdbc-%d").build());
+      executor =
+          Executors.newSingleThreadExecutor(
+              new ThreadFactoryBuilder().setNameFormat("clickhouse-jdbc-%d").build());
       queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
       bundleFinished = new AtomicBoolean(false);
     }
@@ -315,8 +351,9 @@ public class ClickHouseIO {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws InterruptedException, ExecutionException {
-      while (!queue.offer(c.element(), 1, TimeUnit.SECONDS)) {
+    public void processElement(@FieldAccess("filterFields") Row input)
+        throws InterruptedException, ExecutionException {
+      while (!queue.offer(input, 1, TimeUnit.SECONDS)) {
         if (insert.isDone()) {
           insert.get(); // can happen due to exception, get() will throw it
           throw new AssertionError("Invariant failed");
