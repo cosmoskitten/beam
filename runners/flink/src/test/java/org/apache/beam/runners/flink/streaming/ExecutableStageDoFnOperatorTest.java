@@ -55,6 +55,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.Struct;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -362,6 +363,7 @@ public class ExecutableStageDoFnOperatorTest {
             jobInfo,
             FlinkExecutableStageContext.factory(options),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
+            WindowingStrategy.globalDefault(),
             null,
             null);
 
@@ -401,6 +403,7 @@ public class ExecutableStageDoFnOperatorTest {
             jobInfo,
             contextFactory,
             createOutputMap(mainOutput, additionalOutputs),
+            WindowingStrategy.globalDefault(),
             null,
             null);
 
