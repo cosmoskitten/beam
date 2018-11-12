@@ -172,24 +172,20 @@ public class FilterExamples {
       // By using a side input to pass in the filtering criteria, we can use a value
       // that is computed earlier in pipeline execution.
       // We'll only output readings with temperatures below this mean.
-      PCollection<TableRow> filteredRows =
-          monthFilteredRows.apply(
-              "ParseAndFilter",
-              ParDo.of(
-                      new DoFn<TableRow, TableRow>() {
-                        @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          Double meanTemp =
-                              Double.parseDouble(c.element().get("mean_temp").toString());
-                          Double gTemp = c.sideInput(globalMeanTemp);
-                          if (meanTemp < gTemp) {
-                            c.output(c.element());
-                          }
-                        }
-                      })
-                  .withSideInputs(globalMeanTemp));
-
-      return filteredRows;
+      return monthFilteredRows.apply(
+          "ParseAndFilter",
+          ParDo.of(
+                  new DoFn<TableRow, TableRow>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      Double meanTemp = Double.parseDouble(c.element().get("mean_temp").toString());
+                      Double gTemp = c.sideInput(globalMeanTemp);
+                      if (meanTemp < gTemp) {
+                        c.output(c.element());
+                      }
+                    }
+                  })
+              .withSideInputs(globalMeanTemp));
     }
   }
 
@@ -228,8 +224,7 @@ public class FilterExamples {
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("day").setType("INTEGER"));
     fields.add(new TableFieldSchema().setName("mean_temp").setType("FLOAT"));
-    TableSchema schema = new TableSchema().setFields(fields);
-    return schema;
+    return new TableSchema().setFields(fields);
   }
 
   public static void main(String[] args) throws Exception {
