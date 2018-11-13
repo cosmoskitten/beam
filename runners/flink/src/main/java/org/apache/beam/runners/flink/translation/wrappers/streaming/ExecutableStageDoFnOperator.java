@@ -394,9 +394,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     //    To avoid latency, we should process this watermark again as
     //    soon as the current bundle is finished.
     //
-    // Approach 1) is the easiest, yet 2) gives better throughput due
-    // to the bundle not getting cut on every watermark. So we have
-    // implemented 2) below.
+    // Approach 1) is the easiest and gives better latency, yet 2)
+    // gives better throughput due to the bundle not getting cut on
+    // every watermark. So we have implemented 2) below.
     //
     if (sdkHarnessRunner.isBundleInProgress()) {
       if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
