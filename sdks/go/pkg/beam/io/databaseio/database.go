@@ -145,7 +145,7 @@ type writeFn struct {
 	Table string `json:"table"`
 	// Columns to inserts, if empty then all columns
 	Columns []string `json:"columns"`
-	//Batch size
+	//BatchSize size
 	BatchSize int `json:"batchSize"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
