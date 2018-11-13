@@ -382,8 +382,12 @@ public class QueryablePipeline {
             localName -> {
               String transformId = transform.getId();
               PTransform transformProto = components.getTransformsOrThrow(transformId);
+              String collectionId = transform.getTransform().getInputsOrThrow(localName);
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
               return TimerReference.of(
-                  PipelineNode.pTransform(transformId, transformProto), localName);
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
             })
         .collect(Collectors.toSet());
   }

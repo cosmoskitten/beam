@@ -88,7 +88,8 @@ public class ImmutableExecutableStageTest {
     UserStateReference userStateRef =
         UserStateReference.of(
             transformNode, "user_state", PipelineNode.pCollection("input.out", input));
-    TimerReference timerRef = TimerReference.of(transformNode, "timer");
+    TimerReference timerRef =
+        TimerReference.of(transformNode, "timer", PipelineNode.pCollection("timer.pc", timer));
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.ofFullComponents(
             components,
