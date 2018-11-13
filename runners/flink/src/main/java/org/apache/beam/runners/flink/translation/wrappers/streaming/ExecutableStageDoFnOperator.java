@@ -165,6 +165,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     stateRequestHandler = getStateRequestHandler(executableStage);
     progressHandler = BundleProgressHandler.ignored();
 
+    // This will call {@code createWrappingDoFnRunner} which needs the above dependencies.
     super.open();
   }
 
