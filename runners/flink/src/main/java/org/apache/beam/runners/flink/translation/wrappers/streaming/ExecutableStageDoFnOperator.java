@@ -573,49 +573,51 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           // process regular elements
           outputManager.output(tag, windowedValue);
         } else {
-          // process timer elements
-          // TODO This is ugly. There should be an easier way to retrieve the
-          String timerPCollectionId =
-              inputCollectionId.substring(0, inputCollectionId.length() - ".out:0".length());
-          TimerReference timerReference = timerReferenceMap.get(timerPCollectionId);
-          if (timerReference != null) {
-            Timer timer =
-                Preconditions.checkNotNull(
-                    (Timer) ((KV) windowedValue.getValue()).getValue(),
-                    "Received null Timer from SDK harness: %s",
-                    windowedValue);
-            LOG.debug("Timer received: {} {}", inputCollectionId, timer);
-            for (Object window : windowedValue.getWindows()) {
-              StateNamespace namespace =
-                  StateNamespaces.window(windowCoder, (BoundedWindow) window);
-              TimerSpec timerSpec = extractTimerSpec(timerReference);
-              TimerInternals.TimerData timerData =
-                  TimerInternals.TimerData.of(
-                      timerPCollectionId,
-                      namespace,
-                      timer.getTimestamp(),
-                      timerSpec.getTimeDomain());
-              timerDataConsumer.accept(windowedValue, timerData);
-            }
-          } else {
-            throw new IllegalStateException(
-                String.format(Locale.ENGLISH, "Unknown PCollectionId %s", inputCollectionId));
+          final String timerPCollectionId = extractTimerCollectionId(inputCollectionId);
+          TimerSpec timerSpec = extractTimerSpec(timerPCollectionId);
+          Timer timer =
+              Preconditions.checkNotNull(
+                  (Timer) ((KV) windowedValue.getValue()).getValue(),
+                  "Received null Timer from SDK harness: %s",
+                  windowedValue);
+          LOG.debug("Timer received: {} {}", inputCollectionId, timer);
+          for (Object window : windowedValue.getWindows()) {
+            StateNamespace namespace =
+                StateNamespaces.window(windowCoder, (BoundedWindow) window);
+            TimerInternals.TimerData timerData =
+                TimerInternals.TimerData.of(
+                    timerPCollectionId,
+                    namespace,
+                    timer.getTimestamp(),
+                    timerSpec.getTimeDomain());
+            timerDataConsumer.accept(windowedValue, timerData);
           }
         }
       }
     }
 
-    private TimerSpec extractTimerSpec(TimerReference timerReference) {
-      String transformId = timerReference.transform().getId();
-      Map<String, ProcessBundleDescriptors.TimerSpec> stringTimerSpecMap =
-          Preconditions.checkNotNull(
-              stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().get(transformId),
-              "No TimerSpec found in transform %s",
-              transformId);
+    private static String extractTimerCollectionId(String pCollectionId) {
+      // TODO This is ugly. There should be an easier way to retrieve the timer collection id
+      final int outSuffixLength = ".out:0".length();
+      org.apache.flink.util.Preconditions.checkState(pCollectionId.length() > outSuffixLength);
+      return pCollectionId.substring(0, pCollectionId.length() - outSuffixLength);
+    }
+
+    private TimerSpec extractTimerSpec(String timerPCollectionId) {
+      TimerReference timerReference = timerReferenceMap.get(timerPCollectionId);
+      org.apache.flink.util.Preconditions.checkNotNull(
+          timerReferenceMap.get(timerPCollectionId),
+          "Unknown PCollectionId %s",
+          timerPCollectionId);
+      Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecs =
+          stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs();
+      Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap =
+          timerSpecs.get(timerReference.transform().getId());
       String timerName = timerReference.localName();
-      return Preconditions.checkNotNull(
-              stringTimerSpecMap.get(timerName), "No TimerSpec found for timer %s", timerName)
-          .getTimerSpec();
+      ProcessBundleDescriptors.TimerSpec timerSpec =
+          org.apache.flink.util.Preconditions.checkNotNull(
+              transformTimerMap.get(timerName), "No TimerSpec found for timer %s", timerName);
+      return timerSpec.getTimerSpec();
     }
 
     @Override
