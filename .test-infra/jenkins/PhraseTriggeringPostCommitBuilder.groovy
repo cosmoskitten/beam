@@ -17,12 +17,12 @@
  */
 
 /**
- * This class is to be used for defining postcommit jobs that are only phrase-triggered.
+ * This class is to be used for defining postcommit jobs that are phrase-triggered only.
  *
- * Purpose of this class is to define common strategies and reporting/building paramereters
+ * Purpose of this class is to define common strategies and reporting/building parameters
  * for pre- and post- commit test jobs and unify them across the project.
  */
-class PhraseTriggeringPostcommitJobBuilder extends PostcommitJobBuilder {
+class PhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder {
   static void postCommitJob(nameBase,
                             triggerPhrase,
                             githubUiHint,

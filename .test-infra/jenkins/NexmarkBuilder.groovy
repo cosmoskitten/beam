@@ -16,8 +16,21 @@
  * limitations under the License.
  */
 
-// contains Big query related properties for Nexmark runs
+
+import CommonJobProperties as commonJobProperties
+
+// Class for building nexmark jobs and suites.
 class NexmarkBuilder {
+
+  private static Map<String, Object> defaultOptions = [
+          'bigQueryTable'          : 'nexmark',
+          'project'                : 'apache-beam-io-testing',
+          'resourceNameMode'       : 'QUERY_RUNNER_AND_MODE',
+          'exportSummaryToBigQuery': true,
+          'tempLocation'           : 'gs://temp-storage-for-perf-tests/nexmark',
+          'manageResources'        : false,
+          'monitorJobs'            : true
+  ]
 
   enum Runner {
     DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
@@ -34,76 +47,57 @@ class NexmarkBuilder {
     }
   }
 
-  enum Mode {
-    STREAMING,
-    BATCH
-
-    boolean isStreaming() {
-      return this == STREAMING
-    }
-  }
-
   enum TriggeringContext {
     PR,
     POST_COMMIT
   }
 
-  enum QueryLanguage {
-    JAVA,
-    SQL
+  static void standardJob(context, Runner runner, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
+    Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+
+    options.put('streaming', false)
+    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, options)
+
+    options.put('streaming', true)
+    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, options)
+
+    options.put('queryLanguage', 'sql')
+
+    options.put('streaming', false)
+    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, options)
+
+    options.put('streaming', true)
+    suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, options)
   }
 
-  void job(def context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
+  private
+  static Map<String, Object> getFullOptions(Map<String, Object> jobSpecificOptions, Runner runner, TriggeringContext triggeringContext) {
+    Map<String, Object> options = defaultOptions + jobSpecificOptions
+
+    options.put('runner', runner.option)
+    options.put('bigQueryDataset', determineBigQueryDataset(triggeringContext))
+    options
+  }
+
+
+  static void suite(context, String title, Runner runner, Map<String, Object> options) {
     context.steps {
-      nexmark.suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
-      nexmark.suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
+      shell("echo *** RUN ${title} ***")
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':beam-sdks-java-nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-Pnexmark.runner=${runner.dependency}")
+        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+      }
     }
   }
 
-  void suite(def context,
-             String title,
-             Runner runner,
-             List<String> runnerSpecificOptions,
-             Mode mode,
-             TriggeringContext triggeringContext,
-             QueryLanguage queryLanguage = QueryLanguage.JAVA) {
-    context.shell("echo *** RUN ${title} ***")
-    context.gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
-      commonJobProperties.setGradleSwitches(context)
-      switches('-Pnexmark.runner=' + runner.dependency +
-              ' -Pnexmark.args="' + pipelineOptions(runner, mode, determineBigQueryDataset(triggeringContext), runnerSpecificOptions, queryLanguage))
-    }
+  private static String parseOptions(Map<String, Object> options) {
+    options.collect { "--${it.key}=${it.value.toString()}" }.join(' ')
   }
 
   private static String determineBigQueryDataset(TriggeringContext triggeringContext) {
     triggeringContext == TriggeringContext.PR ? "nexmark_PRs" : "nexmark"
-  }
-
-  private
-  static String pipelineOptions(Runner runner, Mode mode, String bqDataset,
-                                List<String> runnerSpecificOptions, QueryLanguage queryLanguage) {
-    def options = ['--bigQueryTable=nexmark',
-                   "--bigQueryDataset=${bqDataset}",
-                   '--project=apache-beam-testing',
-                   '--resourceNameMode=QUERY_RUNNER_AND_MODE',
-                   '--exportSummaryToBigQuery=true',
-                   '--tempLocation=gs://temp-storage-for-perf-tests/nexmark',
-                   "--runner=${runner.option}",
-                   "--streaming=${mode.isStreaming()}",
-                   '--manageResources=false',
-                   '--monitorJobs=true',
-                   ]
-
-    options = options + runnerSpecificOptions
-
-    if (queryLanguage != QueryLanguage.JAVA) {
-      options.add("--queryLanguage={$queryLanguage}")
-    }
-
-    return options.join(' ')
   }
 }

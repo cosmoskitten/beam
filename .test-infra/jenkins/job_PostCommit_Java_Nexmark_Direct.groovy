@@ -17,7 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import NexmarkBuilder as nexmark
+import NexmarkBuilder as Nexmark
 import NexmarkBigqueryProperties
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
@@ -107,12 +107,10 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Di
 
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  def final DIRECT_SPECIFIC_OPTIONS = [
-          '--suite=SMOKE',
-          '--enforceEncodability=true',
-          '--enforceImmutability=true'
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite' : 'SMOKE',
+          'enforceEncodability' : true,
+          'enforceImmutability' : true
   ]
-
-  nexmark.job(delegate, Runner.DIRECT, DIRECT_SPECIFIC_OPTIONS, TriggeringContext.PR)
-
+  Nexmark.standardJob(delegate, Nexmark.Runner.DIRECT, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
 }
