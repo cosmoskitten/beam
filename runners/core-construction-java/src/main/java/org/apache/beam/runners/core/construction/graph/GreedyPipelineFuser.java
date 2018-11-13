@@ -365,6 +365,8 @@ public class GreedyPipelineFuser {
             .map(PCollectionNode::getId)
             .collect(Collectors.toSet()));
     possibleInputs.addAll(
+        stage.getTimers().stream().map(t -> t.collection().getId()).collect(Collectors.toSet()));
+    possibleInputs.addAll(
         stage
             .getSideInputs()
             .stream()
