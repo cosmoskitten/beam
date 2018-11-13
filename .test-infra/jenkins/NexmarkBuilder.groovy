@@ -53,16 +53,16 @@ class NexmarkBuilder {
     SQL
   }
 
-  void job(def context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
+  static void job(context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
     context.steps {
-      nexmark.suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
-      nexmark.suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
+      suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
+      suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
+      suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
+      suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
     }
   }
 
-  void suite(def context,
+  static void suite(context,
              String title,
              Runner runner,
              List<String> runnerSpecificOptions,
