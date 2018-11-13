@@ -107,17 +107,9 @@ public class FlinkExecutableStageFunctionTest {
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     RemoteBundle remoteBundle = Mockito.mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
-    //    ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor =
-    //        Mockito.mock(ProcessBundleDescriptors.ExecutableProcessBundleDescriptor.class);
-    //    when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
     ImmutableMap input =
         ImmutableMap.builder().put("input", Mockito.mock(FnDataReceiver.class)).build();
     when(remoteBundle.getInputReceivers()).thenReturn(input);
-    //    if (isStateful) {
-    //      stagePayload =
-    //          stagePayload.toBuilder().addUserStates(0,
-    //              ExecutableStagePayload.UserStateId.newBuilder().setLocalName("bla").build()).build();
-    //    }
   }
 
   @Test

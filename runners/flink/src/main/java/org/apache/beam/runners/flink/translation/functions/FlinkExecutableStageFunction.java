@@ -390,15 +390,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     @Override
     public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-      // TODO This is ugly. There should be an easier way to retrieve the timer collectionid
-      String timerPCollectionId =
-          pCollectionId.substring(0, pCollectionId.length() - ".out:0".length());
-      TimerReference timerReference = timerReferenceMap.get(timerPCollectionId);
-      Preconditions.checkNotNull(
-          timerReferenceMap.get(timerPCollectionId),
-          "Unknown PCollectionId %s",
-          timerPCollectionId);
-      TimerSpec timerSpec = getTimerSpec(timerReference);
+      final String timerPCollectionId = getTimerCollectionId(pCollectionId);
+      TimerSpec timerSpec = getTimerSpec(timerPCollectionId);
 
       return receivedElement -> {
         WindowedValue windowedValue = (WindowedValue) receivedElement;
@@ -418,13 +411,26 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       };
     }
 
-    private TimerSpec getTimerSpec(TimerReference timerReference) {
+    private static String getTimerCollectionId(String pCollectionId) {
+      // TODO This is ugly. There should be an easier way to retrieve the timer collectionid
+      final int outSuffixLength = ".out:0".length();
+      Preconditions.checkState(pCollectionId.length() > outSuffixLength);
+      return pCollectionId.substring(0, pCollectionId.length() - outSuffixLength);
+    }
+
+    private TimerSpec getTimerSpec(String timerPCollectionId) {
+      TimerReference timerReference = timerReferenceMap.get(timerPCollectionId);
+      Preconditions.checkNotNull(
+          timerReferenceMap.get(timerPCollectionId),
+          "Unknown PCollectionId %s",
+          timerPCollectionId);
       Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap =
           timerSpecMap.get(timerReference.transform().getId());
       String timerName = timerReference.localName();
-      return Preconditions.checkNotNull(
-              transformTimerMap.get(timerName), "No TimerSpec found for timer %s", timerName)
-          .getTimerSpec();
+      ProcessBundleDescriptors.TimerSpec timerSpec =
+          Preconditions.checkNotNull(
+              transformTimerMap.get(timerName), "No TimerSpec found for timer %s", timerName);
+      return timerSpec.getTimerSpec();
     }
   }
 
