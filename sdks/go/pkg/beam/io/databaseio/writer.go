@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// A Writer returns a row of data to be inserted into a table.
+// Writer returns a row of data to be inserted into a table.
 type Writer interface {
 	SaveData() (map[string]interface{}, error)
 }
