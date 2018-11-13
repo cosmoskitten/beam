@@ -68,8 +68,7 @@ public class QueueingBeamFnDataClientTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClientTest.class);
 
-  @Rule
-  public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
+  @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
 
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
@@ -180,12 +179,14 @@ public class QueueingBeamFnDataClientTest {
               OutboundObserverFactory.trivial());
       QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
 
-
       InboundDataClient readFutureA =
-          queueingClient.receive(apiServiceDescriptor, ENDPOINT_A, CODER,
+          queueingClient.receive(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
               (WindowedValue<String> wv) -> {
-            inboundValuesA.add(wv);
-          });
+                inboundValuesA.add(wv);
+              });
 
       waitForClientToConnect.await();
 
@@ -199,7 +200,10 @@ public class QueueingBeamFnDataClientTest {
               });
 
       InboundDataClient readFutureB =
-          queueingClient.receive(apiServiceDescriptor, ENDPOINT_B, CODER,
+          queueingClient.receive(
+              apiServiceDescriptor,
+              ENDPOINT_B,
+              CODER,
               (WindowedValue<String> wv) -> {
                 inboundValuesB.add(wv);
               });
@@ -209,7 +213,7 @@ public class QueueingBeamFnDataClientTest {
               () -> {
                 try {
                   queueingClient.drainAndBlock();
-                } catch(Exception e) {
+                } catch (Exception e) {
                   LOG.error("Failed ", e);
                   fail();
                 }
@@ -233,7 +237,6 @@ public class QueueingBeamFnDataClientTest {
       server.shutdownNow();
     }
   }
-
 
   @Test
   public void testExceptionInConsumer() throws Exception {
@@ -275,9 +278,11 @@ public class QueueingBeamFnDataClientTest {
               OutboundObserverFactory.trivial());
       QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(clientFactory);
 
-
       InboundDataClient readFutureA =
-          queueingClient.receive(apiServiceDescriptor, ENDPOINT_A, CODER,
+          queueingClient.receive(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
               (WindowedValue<String> wv) -> {
                 throw new InterruptedException("Intentionally Fail"); // Error injected here.
               });
@@ -294,7 +299,10 @@ public class QueueingBeamFnDataClientTest {
               });
 
       InboundDataClient readFutureB =
-          queueingClient.receive(apiServiceDescriptor, ENDPOINT_B, CODER,
+          queueingClient.receive(
+              apiServiceDescriptor,
+              ENDPOINT_B,
+              CODER,
               (WindowedValue<String> wv) -> {
                 inboundValuesB.add(wv);
               });
@@ -305,7 +313,7 @@ public class QueueingBeamFnDataClientTest {
                 boolean intentionallyFailed = false;
                 try {
                   queueingClient.drainAndBlock();
-                } catch(InterruptedException e) {
+                } catch (InterruptedException e) {
                   intentionallyFailed = true;
                 } catch (Exception e) {
                   LOG.error("Unintentional failure", e);
@@ -317,7 +325,7 @@ public class QueueingBeamFnDataClientTest {
       boolean intentionallyFailedA = false;
       try {
         readFutureA.awaitCompletion(); // All InboundDataClients should be completed.
-      } catch(ExecutionException e) {
+      } catch (ExecutionException e) {
         intentionallyFailedA = true;
       }
       assertTrue(intentionallyFailedA);
@@ -325,7 +333,7 @@ public class QueueingBeamFnDataClientTest {
       boolean intentionallyFailedB = false;
       try {
         readFutureB.awaitCompletion(); // All InboundDataClients should be completed.
-      } catch(ExecutionException e) {
+      } catch (ExecutionException e) {
         intentionallyFailedB = true;
       }
       assertTrue(intentionallyFailedB);
