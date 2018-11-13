@@ -116,11 +116,14 @@ def equal_to(expected):
   expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    for element in actual:
+      try:
+        expected.remove(element)
+      except ValueError:
+        raise BeamAssertException(
+          'Failed assert: %r == %r' % (expected, actual))
+    return not expected
+
   return _equal
 
 
