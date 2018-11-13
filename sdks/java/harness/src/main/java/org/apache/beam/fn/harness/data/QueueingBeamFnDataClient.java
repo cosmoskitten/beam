@@ -17,7 +17,8 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -35,19 +36,18 @@ import org.slf4j.LoggerFactory;
  * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed. In
  * the thread which calls drainAndBlock.
  */
-public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
+public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
-  private static final Logger LOG = LoggerFactory.getLogger(QueuingBeamFnDataGrpcClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
   private final SynchronousQueue<ConsumerAndData> queue;
-  private final HashSet<InboundDataClient> idcs;
+  private final ConcurrentHashMap<InboundDataClient, Object> idcs;
 
-  public QueuingBeamFnDataGrpcClient(BeamFnDataClient mainClient) {
+  public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
     this.queue = new SynchronousQueue<>();
-    // TODO does this need to be a concurrent hash map (set doesn't seem to exist).
-    this.idcs = new HashSet<InboundDataClient>();
+    this.idcs = new ConcurrentHashMap<>();
   }
 
   /**
@@ -69,20 +69,21 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
         inputLocation.getInstructionId(),
         inputLocation.getTarget());
 
-    QueueingFnDataReceiver<T> newConsumer = new QueueingFnDataReceiver<T>(consumer);
+    QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
     InboundDataClient idc =
-        this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, newConsumer);
-    newConsumer.idc = idc;
-    this.idcs.add(idc);
+        this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, queueingConsumer);
+    queueingConsumer.idc = idc;
+    this.idcs.computeIfAbsent(idc, (InboundDataClient idcToStore) -> idcToStore);
     return idc;
   }
 
-  private boolean AllDone() {
-    boolean allDone = true;
-    for (InboundDataClient idc : idcs) {
-      allDone &= idc.isDone();
+  // Returns true if all the InboundDataClients have finished or cancelled.
+  private boolean allDone() {
+    boolean done = true;
+    for (InboundDataClient idc : idcs.keySet()) {
+      done &= idc.isDone();
     }
-    return allDone;
+    return done;
   }
 
   /**
@@ -92,25 +93,28 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
    * made prior to calling drainAndBlock, in order to properly terminate.
    */
   public void drainAndBlock() throws Exception {
-    // Note: We just throw the exception here
-    // TODO review the error handling here
     while (true) {
-      ConsumerAndData tuple = null;
-      tuple = queue.poll(50, TimeUnit.MILLISECONDS);
-      // TODO should we implement a timeout logic here? What happens if the
-      // putting thread throws an exception? Can we assume the InboundDataClient will be marked
-      // done?
-      if (tuple == null) {
-        continue;
-      } else {
-        // Forward to the consumers who cares about this data.
-        tuple.consumer.accept(tuple.data);
-      }
+      try {
+        ConsumerAndData tuple = null;
+        tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
+        if (tuple == null) {
+          continue;
+        } else {
+          // Forward to the consumers who cares about this data.
+          tuple.consumer.accept(tuple.data);
+        }
 
-      // TODO is there a possible race here? Leading to data loss?
-      // Can this be set to done, but more elements come in after?
-      if (AllDone()) {
-        break;
+        // TODO is there a possible race here? Leading to data loss?
+        // Can this be set to done, but more elements come in after?
+        if (allDone()) {
+          break;
+        }
+      } catch (Exception e) {
+        LOG.error("Client failed to dequeue and process WindowValue",  e);
+        for (InboundDataClient idc : idcs.keySet()) {
+          idc.fail(e);
+        }
+        throw e;
       }
     }
   }
@@ -146,26 +150,29 @@ public class QueuingBeamFnDataGrpcClient implements BeamFnDataClient {
 
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
-      // Note: We just throw the exception here
-      // TODO please review this error handling.
-      ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
-      while (!queue.offer(offering, 50, TimeUnit.MILLISECONDS)) {
-        if (idc.isDone()) {
-          // Discard the element.
-          // TODO please review this error handling case
-          break;
+      try{
+        ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
+        while (!queue.offer(offering, 2000, TimeUnit.MILLISECONDS)) {
+          if (idc.isDone()) {
+            // If it was cancelled by the consuming side of the queue.
+            break;
+          }
         }
+      } catch (Exception e) {
+        LOG.error("Failed to insert WindowValue into the queue", e);
+        idc.fail(e);
+        throw e;
       }
     }
   }
-}
 
-class ConsumerAndData<T> {
-  public FnDataReceiver<WindowedValue<T>> consumer;
-  public WindowedValue<T> data;
+  static class ConsumerAndData<T> {
+    public FnDataReceiver<WindowedValue<T>> consumer;
+    public WindowedValue<T> data;
 
-  public ConsumerAndData(FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T> data) {
-    this.consumer = receiver;
-    this.data = data;
+    public ConsumerAndData(FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T> data) {
+      this.consumer = receiver;
+      this.data = data;
+    }
   }
 }

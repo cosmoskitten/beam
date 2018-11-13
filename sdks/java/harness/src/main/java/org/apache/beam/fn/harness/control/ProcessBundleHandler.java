@@ -41,7 +41,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.QueuingBeamFnDataGrpcClient;
+import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -104,7 +104,7 @@ public class ProcessBundleHandler {
 
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
-  private final QueuingBeamFnDataGrpcClient beamFnDataClient;
+  private final QueueingBeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
@@ -131,7 +131,7 @@ public class ProcessBundleHandler {
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
-    this.beamFnDataClient = new QueuingBeamFnDataGrpcClient(beamFnDataClient);
+    this.beamFnDataClient = new QueueingBeamFnDataClient(beamFnDataClient);
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
@@ -229,7 +229,7 @@ public class ProcessBundleHandler {
 
     ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
 
-    boolean hasSinkPtransform = false;
+    boolean hasReadPTransform = false;
 
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
@@ -260,8 +260,8 @@ public class ProcessBundleHandler {
       for (Map.Entry<String, RunnerApi.PTransform> entry :
           bundleDescriptor.getTransformsMap().entrySet()) {
 
-        hasSinkPtransform =
-            hasSinkPtransform || RemoteGrpcPortRead.URN.equals(entry.getValue().getSpec().getUrn());
+        hasReadPTransform =
+            hasReadPTransform || RemoteGrpcPortRead.URN.equals(entry.getValue().getSpec().getUrn());
 
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
@@ -292,7 +292,7 @@ public class ProcessBundleHandler {
         startFunction.run();
       }
 
-      if (hasSinkPtransform) {
+      if (hasReadPTransform) {
         beamFnDataClient.drainAndBlock();
       }
 
