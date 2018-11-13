@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-// contains Big query related properties for Nexmark runs
+
+import CommonJobProperties as commonJobProperties
+
+// Class for building nexmark jobs and suites.
 class NexmarkBuilder {
 
   enum Runner {
@@ -53,29 +56,30 @@ class NexmarkBuilder {
     SQL
   }
 
-  void job(def context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
-    context.steps {
-      nexmark.suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
-      nexmark.suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
-    }
+  static void job(context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
+      suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
+      suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
+      suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
+      suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
   }
 
-  void suite(def context,
+  static void suite(context,
              String title,
              Runner runner,
              List<String> runnerSpecificOptions,
              Mode mode,
              TriggeringContext triggeringContext,
              QueryLanguage queryLanguage = QueryLanguage.JAVA) {
-    context.shell("echo *** RUN ${title} ***")
-    context.gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
-      commonJobProperties.setGradleSwitches(context)
-      switches('-Pnexmark.runner=' + runner.dependency +
-              ' -Pnexmark.args="' + pipelineOptions(runner, mode, determineBigQueryDataset(triggeringContext), runnerSpecificOptions, queryLanguage))
+
+    context.steps {
+      shell("echo *** RUN ${title} ***")
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':beam-sdks-java-nexmark:run')
+        commonJobProperties.setGradleSwitches(context)
+        switches('-Pnexmark.runner=' + runner.dependency +
+                ' -Pnexmark.args="' + pipelineOptions(runner, mode, determineBigQueryDataset(triggeringContext), runnerSpecificOptions, queryLanguage))
+      }
     }
   }
 
