@@ -443,11 +443,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  long getPushbackWatermarkHold() {
+  protected long getPushbackWatermarkHold() {
     return pushedBackWatermark;
   }
 
-  void setPushedBackWatermark(long watermark) {
+  protected void setPushedBackWatermark(long watermark) {
     pushedBackWatermark = watermark;
   }
 
