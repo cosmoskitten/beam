@@ -18,19 +18,19 @@
 
 import org.apache.beam.gradle.GrpcVendoring
 
-description = "Apache Beam :: Vendored Dependencies :: Java :: gRPC :: v1"
-ext.summary = "Add support to Apache Beam for Vendored gRPC V1."
+apply plugin: org.apache.beam.gradle.VendorJavaPlugin
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
-applyJavaNature(enableFindbugs: false, shadowClosure: GrpcVendoring.shadowClosure(project))
+description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.13.1"
 
-// Don't force modules here because we don't want to take the shared declarations in build_rules.gradle
-// because we would like to have the freedom to choose which versions of dependencies we
-// are using for the portability APIs separate from what is being used inside other modules such as GCP.
-configurations.all { config ->
-  config.resolutionStrategy { forcedModules = []}
-}
+group = "org.apache.beam"
+version = "0.1"
 
-dependencies GrpcVendoring.dependenciesClosure(project)
-
-// TODO(BEAM-4544): Integrate intellij support into this.
+vendorJava(
+  dependencies: GrpcVendoring.dependencies(),
+  runtimeDependencies: GrpcVendoring.runtimeDependencies(),
+  relocations: GrpcVendoring.relocations(),
+  exclusions: GrpcVendoring.exclusions(),
+  artifactId: "beam-vendor-grpc-1_13_1",
+  groupId: group,
+  version: version,
+)
