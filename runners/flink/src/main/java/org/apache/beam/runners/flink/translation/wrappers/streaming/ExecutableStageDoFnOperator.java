@@ -371,7 +371,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void processWatermark(Watermark mark) throws Exception {
     // Due to the asynchronous communication with the SDK harness,
     // a bundle might still be in progress and not all items have
-    // yet been received from the SDk harness. If we just set this
+    // yet been received from the SDK harness. If we just set this
     // watermark as the new output watermark, we could violate the
     // order of the records, i.e. pending items in the SDK harness
     // could become "late" although they were "on time".
