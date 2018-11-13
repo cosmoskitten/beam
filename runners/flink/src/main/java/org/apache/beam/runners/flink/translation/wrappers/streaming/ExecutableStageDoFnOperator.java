@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -307,7 +308,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       decodedKey = keyCoder.decode(byteStream);
     } catch (IOException e) {
       throw new RuntimeException(
-          String.format(Locale.ENGLISH, "Failed to decode encoded key: %s", encodedKey));
+          String.format(
+              Locale.ENGLISH,
+              "Failed to decode encoded key: %s",
+              Arrays.toString(encodedKey.array())));
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setTimerKey(decodedKey);
@@ -371,7 +375,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   public void processWatermark(Watermark mark) throws Exception {
     // Due to the asynchronous communication with the SDK harness,
     // a bundle might still be in progress and not all items have
-    // yet been received from the SDk harness. If we just set this
+    // yet been received from the SDK harness. If we just set this
     // watermark as the new output watermark, we could violate the
     // order of the records, i.e. pending items in the SDK harness
     // could become "late" although they were "on time".
@@ -558,7 +562,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private void emitResults() {
       KV<String, OutputT> result;
       while ((result = outputQueue.poll()) != null) {
-        final String inputCollectionId = result.getKey();
+        final String inputCollectionId = Preconditions.checkNotNull(result.getKey());
         TupleTag<?> tag = outputMap.get(inputCollectionId);
         WindowedValue windowedValue =
             Preconditions.checkNotNull(
