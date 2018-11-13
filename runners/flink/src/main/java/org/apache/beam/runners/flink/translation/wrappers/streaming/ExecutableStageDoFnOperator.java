@@ -417,7 +417,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final BundleProgressHandler progressHandler;
     private final BufferedOutputManager<OutputT> outputManager;
     private final Map<String, TupleTag<?>> outputMap;
-    /** Timer PCollection id => TimerReference. */
+    /** Timer Output Pcollection id => TimerReference. */
     private final Map<String, TimerReference> timerReferenceMap;
 
     private final Coder<BoundedWindow> windowCoder;
@@ -454,7 +454,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       this.timerInternals = timerInternals;
       this.timerReferenceMap = new HashMap<>();
       for (TimerReference timer : timers) {
-        timerReferenceMap.put(timer.collection().getId(), timer);
+        timerReferenceMap.put(
+            timer.transform().getTransform().getOutputsMap().get(timer.localName()), timer);
       }
       this.windowCoder = windowCoder;
       this.outputQueue = new LinkedBlockingQueue<>();
@@ -562,42 +563,42 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private void emitResults() {
       KV<String, OutputT> result;
       while ((result = outputQueue.poll()) != null) {
-        final String inputCollectionId = Preconditions.checkNotNull(result.getKey());
-        TupleTag<?> tag = outputMap.get(inputCollectionId);
+        final String outputPCollectionId = Preconditions.checkNotNull(result.getKey());
+        TupleTag<?> tag = outputMap.get(outputPCollectionId);
         WindowedValue windowedValue =
             Preconditions.checkNotNull(
                 (WindowedValue) result.getValue(),
                 "Received a null value from the SDK harness for %s",
-                inputCollectionId);
+                outputPCollectionId);
         if (tag != null) {
           // process regular elements
           outputManager.output(tag, windowedValue);
         } else {
-          final String timerPCollectionId = extractTimerCollectionId(inputCollectionId);
-          TimerSpec timerSpec = extractTimerSpec(timerPCollectionId);
+          final String timerCollectionId = extractTimerPCollectionId(outputPCollectionId);
+          TimerSpec timerSpec = extractTimerSpec(timerCollectionId);
           Timer timer =
               Preconditions.checkNotNull(
                   (Timer) ((KV) windowedValue.getValue()).getValue(),
                   "Received null Timer from SDK harness: %s",
                   windowedValue);
-          LOG.debug("Timer received: {} {}", inputCollectionId, timer);
+          LOG.debug("Timer received: {} {}", outputPCollectionId, timer);
           for (Object window : windowedValue.getWindows()) {
             StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
             TimerInternals.TimerData timerData =
                 TimerInternals.TimerData.of(
-                    timerPCollectionId, namespace, timer.getTimestamp(), timerSpec.getTimeDomain());
+                    timerCollectionId, namespace, timer.getTimestamp(), timerSpec.getTimeDomain());
             setTimer(windowedValue, timerData);
           }
         }
       }
     }
 
-    private String extractTimerCollectionId(String pCollectionId) {
+    private String extractTimerPCollectionId(String outputPCollectionId) {
       return stageBundleFactory
           .getProcessBundleDescriptor()
           .getProcessBundleDescriptor()
           .getPcollectionsMap()
-          .get(pCollectionId)
+          .get(outputPCollectionId)
           .getUniqueName();
     }
 
