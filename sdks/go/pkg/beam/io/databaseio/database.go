@@ -50,6 +50,7 @@ type queryFn struct {
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
+	//TODO move DB Open and Close to Setup and Teardown methods or StartBundle and FinishBundle
 	db, err := sql.Open(f.Driver, f.Dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %v, %v", f.Driver, err)
@@ -67,7 +68,6 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	defer rows.Close()
 	var mapper rowMapper
 	var columns []string
-
 	for rows.Next() {
 		reflectRow := reflect.New(f.Type.T)
 		row := reflectRow.Interface() // row : *T
@@ -141,8 +141,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 		return fmt.Errorf("failed to open database: %v, %v", f.Driver, err)
 	}
 	defer db.Close()
-
-	var projection = "*"
+	projection := "*"
 	if len(f.Columns) > 0 {
 		projection = strings.Join(f.Columns, ",")
 	}

@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-//represents a record mapper
+//rowMapper represents a record mapper
 type rowMapper func(value reflect.Value) ([]interface{}, error)
 
 //newQueryMapper creates a new record mapped
 func newQueryMapper(columns []string, columnTypes []*sql.ColumnType, recordType reflect.Type) (rowMapper, error) {
-	var val = reflect.New(recordType).Interface()
+	val := reflect.New(recordType).Interface()
 	if _, isLoader := val.(MapLoader); isLoader {
 		return newQueryLoaderMapper(columns, columnTypes)
 	} else if recordType.Kind() == reflect.Struct {
@@ -42,9 +42,8 @@ func newQueryStructMapper(columns []string, recordType reflect.Type) (rowMapper,
 //newQueryStructMapper creates a new record mapper for supplied struct type
 func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowMapper, error) {
 	var record = make([]interface{}, len(columns))
-
 	var valueProviders = make([]func(index int, values []interface{}), len(columns))
-	var defaultProvider = func(index int, values []interface{}) {
+	defaultProvider := func(index int, values []interface{}) {
 		val := new(interface{})
 		values[index] = &val
 	}
@@ -58,7 +57,6 @@ func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowM
 			valueProviders[i] = func(index int, values []interface{}) {
 				val := ""
 				values[index] = &val
-
 			}
 		} else if strings.Contains(dbTypeName, "int") {
 			valueProviders[i] = func(index int, values []interface{}) {
@@ -69,13 +67,11 @@ func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowM
 			valueProviders[i] = func(index int, values []interface{}) {
 				val := 0.0
 				values[index] = &val
-
 			}
 		} else if strings.Contains(dbTypeName, "time") || strings.Contains(dbTypeName, "date") {
 			valueProviders[i] = func(index int, values []interface{}) {
 				val := time.Now()
 				values[index] = &val
-
 			}
 		} else if strings.Contains(dbTypeName, "bool") {
 			valueProviders[i] = func(index int, values []interface{}) {
@@ -89,7 +85,7 @@ func newQueryLoaderMapper(columns []string, columnTypes []*sql.ColumnType) (rowM
 			}
 		}
 	}
-	var mapper = func(value reflect.Value) ([]interface{}, error) {
+	mapper := func(value reflect.Value) ([]interface{}, error) {
 		for i := range columns {
 			valueProviders[i](i, record)
 		}
@@ -105,7 +101,7 @@ func newWriterRowMapper(columns []string, recordType reflect.Type) (rowMapper, e
 		return nil, err
 	}
 	columnCount := len(columns)
-	var mapper = func(value reflect.Value) ([]interface{}, error) {
+	mapper := func(value reflect.Value) ([]interface{}, error) {
 		var record = make([]interface{}, columnCount)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem() //T = *T
