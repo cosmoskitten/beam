@@ -118,7 +118,7 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	return nil
 }
 
-// Write writes the elements of the given PCollection<T> to bigquery, if columns left empty all table columns are used to insert into, otherwise selected
+// Write writes the elements of the given PCollection<T> to database, if columns left empty all table columns are used to insert into, otherwise selected
 func Write(s beam.Scope, driver, dsn, table string, columns []string, col beam.PCollection) {
 	t := col.Type().Type()
 	s = s.Scope(driver + ".Write")
@@ -127,8 +127,7 @@ func Write(s beam.Scope, driver, dsn, table string, columns []string, col beam.P
 	beam.ParDo0(s, &writeFn{Driver: driver, Dsn: dsn, Table: table, Columns: columns, BatchSize: writeRowLimit, Type: beam.EncodedType{T: t}}, post)
 }
 
-// WriteWithBatchSize writes the elements of the given PCollection<T> to bigquery. T is required, with batchSize
-// to be the schema type.
+// WriteWithBatchSize writes the elements of the given PCollection<T> to database with custom batch size. Batch size control number of elements in the batch INSERT statement.
 func WriteWithBatchSize(s beam.Scope, batchSize int, driver, dsn, table string, columns []string, col beam.PCollection) {
 	t := col.Type().Type()
 	s = s.Scope(driver + ".Write")
