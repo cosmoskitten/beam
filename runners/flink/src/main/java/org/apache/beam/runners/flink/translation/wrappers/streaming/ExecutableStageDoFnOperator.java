@@ -302,16 +302,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // We need to decode the key
     final ByteBuffer encodedKey = (ByteBuffer) timer.getKey();
     @SuppressWarnings("ByteBufferBackingArray")
-    ByteArrayInputStream byteStream = new ByteArrayInputStream(encodedKey.array());
+    byte[] bytes = encodedKey.array();
+    ByteArrayInputStream byteStream = new ByteArrayInputStream(bytes);
     final Object decodedKey;
     try {
       decodedKey = keyCoder.decode(byteStream);
     } catch (IOException e) {
       throw new RuntimeException(
           String.format(
-              Locale.ENGLISH,
-              "Failed to decode encoded key: %s",
-              Arrays.toString(encodedKey.array())));
+              Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(bytes)));
     }
     // Prepare the SdkHarnessRunner with the key for the timer
     sdkHarnessRunner.setTimerKey(decodedKey);
