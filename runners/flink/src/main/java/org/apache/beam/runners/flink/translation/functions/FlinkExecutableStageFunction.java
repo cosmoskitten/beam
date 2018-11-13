@@ -390,8 +390,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     @Override
     public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-      final String timerPCollectionId = getTimerCollectionId(pCollectionId);
-      TimerSpec timerSpec = getTimerSpec(timerPCollectionId);
+      final String timerPCollectionId = extractTimerCollectionId(pCollectionId);
+      TimerSpec timerSpec = extractTimerSpec(timerPCollectionId);
 
       return receivedElement -> {
         WindowedValue windowedValue = (WindowedValue) receivedElement;
@@ -411,14 +411,14 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       };
     }
 
-    private static String getTimerCollectionId(String pCollectionId) {
+    private static String extractTimerCollectionId(String pCollectionId) {
       // TODO This is ugly. There should be an easier way to retrieve the timer collectionid
       final int outSuffixLength = ".out:0".length();
       Preconditions.checkState(pCollectionId.length() > outSuffixLength);
       return pCollectionId.substring(0, pCollectionId.length() - outSuffixLength);
     }
 
-    private TimerSpec getTimerSpec(String timerPCollectionId) {
+    private TimerSpec extractTimerSpec(String timerPCollectionId) {
       TimerReference timerReference = timerReferenceMap.get(timerPCollectionId);
       Preconditions.checkNotNull(
           timerReferenceMap.get(timerPCollectionId),
@@ -429,7 +429,9 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       String timerName = timerReference.localName();
       ProcessBundleDescriptors.TimerSpec timerSpec =
           Preconditions.checkNotNull(
-              transformTimerMap.get(timerName), "No TimerSpec found for timer %s", timerName);
+              transformTimerMap.get(timerName),
+              "No TimerSpec found for timer %s",
+              timerName);
       return timerSpec.getTimerSpec();
     }
   }
