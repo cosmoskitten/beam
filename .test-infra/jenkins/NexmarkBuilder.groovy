@@ -53,7 +53,7 @@ class NexmarkBuilder {
     SQL
   }
 
-  void job(def context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
+  static void job(context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
     context.steps {
       nexmark.suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
       nexmark.suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
@@ -62,7 +62,7 @@ class NexmarkBuilder {
     }
   }
 
-  void suite(def context,
+  static void suite(context,
              String title,
              Runner runner,
              List<String> runnerSpecificOptions,
