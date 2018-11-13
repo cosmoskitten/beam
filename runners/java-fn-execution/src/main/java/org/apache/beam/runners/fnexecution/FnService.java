@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import org.apache.beam.vendor.grpc.v1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.BindableService;
 
 /** An interface sharing common behavior with services used during execution of user Fns. */
 public interface FnService extends AutoCloseable, BindableService {
