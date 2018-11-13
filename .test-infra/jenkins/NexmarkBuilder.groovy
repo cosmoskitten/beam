@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-// contains Big query related properties for Nexmark runs
+// Class for building nexmark jobs and suites.
 class NexmarkBuilder {
 
   enum Runner {
@@ -53,22 +53,23 @@ class NexmarkBuilder {
     SQL
   }
 
-  void job(def context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
+  static void job(context, Runner runner, List<String> runnerSpecificOptions, TriggeringContext triggeringContext) {
     context.steps {
-      nexmark.suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
-      nexmark.suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
-      nexmark.suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
+      suite(it, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions,  Mode.BATCH, triggeringContext)
+      suite(it, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext)
+      suite(it, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.BATCH, triggeringContext, QueryLanguage.SQL)
+      suite(it, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, runnerSpecificOptions, Mode.STREAMING, triggeringContext, QueryLanguage.SQL)
     }
   }
 
-  void suite(def context,
+  static void suite(context,
              String title,
              Runner runner,
              List<String> runnerSpecificOptions,
              Mode mode,
              TriggeringContext triggeringContext,
              QueryLanguage queryLanguage = QueryLanguage.JAVA) {
+
     context.shell("echo *** RUN ${title} ***")
     context.gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
