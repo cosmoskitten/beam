@@ -136,6 +136,7 @@ type writeFn struct {
 }
 
 func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
+	//TODO move DB Open and Close to Setup and Teardown methods or StartBundle and FinishBundle
 	db, err := sql.Open(f.Driver, f.Dsn)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %v, %v", f.Driver, err)
@@ -159,7 +160,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) 
 	if err != nil {
 		return fmt.Errorf("failed to discover column: %v, %v", f.Table, err)
 	}
-
+	//TODO move to Setup methods
 	mapper, err := newWriterRowMapper(columns, f.Type.T)
 	if err != nil {
 		return fmt.Errorf("failed to create row mapper: %v", err)
