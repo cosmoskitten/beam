@@ -88,7 +88,6 @@ func Test_writerRecordMapperProvider(t *testing.T) {
 		Random:      1.6,
 		DateOfBirth: time.Now(),
 	}
-
 	record, err := mapper(reflect.ValueOf(aUser))
 	if !assert.Nil(t, err) {
 		return
