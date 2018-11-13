@@ -385,7 +385,9 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       this.stageBundleFactory = stageBundleFactory;
       this.timerReferenceMap = new HashMap<>();
       for (TimerReference timerReference : timerReferenceCollection) {
-        timerReferenceMap.put(timerReference.collection().getId(), timerReference);
+        timerReferenceMap.put(
+            timerReference.transform().getTransform().getOutputsOrThrow(timerReference.localName()),
+            timerReference);
       }
       this.timerSpecMap = timerSpecMap;
       this.timerDataConsumer = timerDataConsumer;
