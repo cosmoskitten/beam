@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 import NexmarkBuilder as nexmark
+import NexmarkBuilder.Runner.*
+import NexmarkBuilder.TriggeringContext.*
 import NexmarkBigqueryProperties
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
