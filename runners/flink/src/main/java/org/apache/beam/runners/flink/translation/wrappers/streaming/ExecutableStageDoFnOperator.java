@@ -592,11 +592,13 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       }
     }
 
-    private static String extractTimerCollectionId(String pCollectionId) {
-      // TODO This is ugly. There should be an easier way to retrieve the timer collection id
-      final int outSuffixLength = ".out:0".length();
-      org.apache.flink.util.Preconditions.checkState(pCollectionId.length() > outSuffixLength);
-      return pCollectionId.substring(0, pCollectionId.length() - outSuffixLength);
+    private String extractTimerCollectionId(String pCollectionId) {
+      return stageBundleFactory
+          .getProcessBundleDescriptor()
+          .getProcessBundleDescriptor()
+          .getPcollectionsMap()
+          .get(pCollectionId)
+          .getUniqueName();
     }
 
     private TimerSpec extractTimerSpec(String timerPCollectionId) {
