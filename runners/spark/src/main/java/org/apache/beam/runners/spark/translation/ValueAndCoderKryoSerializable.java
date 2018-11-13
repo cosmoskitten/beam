@@ -34,7 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
- * A holder object that lets you serialize and element with a Coder with minimal space wastage.
+ * A holder object that lets you serialize an element with a Coder with minimal wasted space.
  * Supports both Kryo and Java serialization.
  *
  * <p>There are two different representations: a deserialized representation and a serialized
