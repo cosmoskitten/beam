@@ -210,6 +210,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             collector,
             outputMap,
             new TimerReceiverFactory(
+                stageBundleFactory,
                 executableStage.getTimers(),
                 stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs(),
                 (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
@@ -366,6 +367,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
   private static class TimerReceiverFactory implements OutputReceiverFactory {
 
+    private final StageBundleFactory stageBundleFactory;
     /** Timer PCollection id => TimerReference. */
     private final HashMap<String, TimerReference> timerReferenceMap;
     /** Timer PCollection id => timer name => TimerSpec. */
@@ -375,10 +377,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     private final Coder windowCoder;
 
     TimerReceiverFactory(
+        StageBundleFactory stageBundleFactory,
         Collection<TimerReference> timerReferenceCollection,
         Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecMap,
         BiConsumer<WindowedValue, TimerInternals.TimerData> timerDataConsumer,
         Coder windowCoder) {
+      this.stageBundleFactory = stageBundleFactory;
       this.timerReferenceMap = new HashMap<>();
       for (TimerReference timerReference : timerReferenceCollection) {
         timerReferenceMap.put(timerReference.collection().getId(), timerReference);
@@ -411,11 +415,13 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       };
     }
 
-    private static String extractTimerCollectionId(String pCollectionId) {
-      // TODO This is ugly. There should be an easier way to retrieve the timer collectionid
-      final int outSuffixLength = ".out:0".length();
-      Preconditions.checkState(pCollectionId.length() > outSuffixLength);
-      return pCollectionId.substring(0, pCollectionId.length() - outSuffixLength);
+    private String extractTimerCollectionId(String pCollectionId) {
+      return stageBundleFactory
+          .getProcessBundleDescriptor()
+          .getProcessBundleDescriptor()
+          .getPcollectionsMap()
+          .get(pCollectionId)
+          .getUniqueName();
     }
 
     private TimerSpec extractTimerSpec(String timerPCollectionId) {
