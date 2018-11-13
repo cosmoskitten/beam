@@ -104,8 +104,11 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           tuple.consumer.accept(tuple.data);
         }
 
-        // TODO is there a possible race here? Leading to data loss?
-        // Can this be set to done, but more elements come in after?
+        // Note: We do not expect to ever hit this point without receiving all values
+        // as (1) The InboundObserver will not be set to Done until the
+        // QueuingFnDataReceiver.accept() call returns.
+        // (2) The QueueingFnDataReceiver will not return until the value is received in
+        // drainAndBlock, because of the use of SynchronousQueue.
         if (allDone()) {
           break;
         }
