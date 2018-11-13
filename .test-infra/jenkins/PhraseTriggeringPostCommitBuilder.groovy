@@ -22,7 +22,7 @@
  * Purpose of this class is to define common strategies and reporting/building paramereters
  * for pre- and post- commit test jobs and unify them across the project.
  */
-class PhraseTriggeringPostcommitJobBuilder extends PostcommitJobBuilder {
+class PhraseTriggeringPostCommitBuilder extends PostcommitJobBuilder {
   static void postCommitJob(nameBase,
                             triggerPhrase,
                             githubUiHint,
