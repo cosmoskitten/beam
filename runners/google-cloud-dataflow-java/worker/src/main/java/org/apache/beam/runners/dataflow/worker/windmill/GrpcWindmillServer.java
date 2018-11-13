@@ -88,16 +88,16 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1.io.grpc.CallCredentials;
-import org.apache.beam.vendor.grpc.v1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.grpc.v1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.CallCredentials;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -220,12 +220,12 @@ public class GrpcWindmillServer extends WindmillServerStub {
    */
   private static class VendoredRequestMetadataCallbackAdapter
       implements com.google.auth.RequestMetadataCallback {
-    private final org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
+    private final org.apache.beam.vendor.grpc.v1_13_1.com.google.auth
             .RequestMetadataCallback
         callback;
 
     private VendoredRequestMetadataCallbackAdapter(
-        org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
+        org.apache.beam.vendor.grpc.v1_13_1.com.google.auth
                 .RequestMetadataCallback
             callback) {
       this.callback = callback;
@@ -251,7 +251,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * delegate to reduce maintenance burden.
    */
   private static class VendoredCredentialsAdapter
-      extends org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
+      extends org.apache.beam.vendor.grpc.v1_13_1.com.google.auth
           .Credentials {
     private final com.google.auth.Credentials credentials;
 
@@ -273,7 +273,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     public void getRequestMetadata(
         final URI uri,
         Executor executor,
-        final org.apache.beam.vendor.google_auth_library_credentials.v0_9_1.com.google.auth
+        final org.apache.beam.vendor.grpc.v1_13_1.com.google.auth
                 .RequestMetadataCallback
             callback) {
       credentials.getRequestMetadata(
