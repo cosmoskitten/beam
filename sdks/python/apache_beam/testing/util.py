@@ -113,14 +113,17 @@ def equal_to_per_window(expected_window_to_elements):
 # However the sorting does not go beyond top level therefore [1,2] and [2,1]
 # are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected):
-  expected = list(expected)
 
   def _equal(actual):
-    sorted_expected = sorted(expected)
-    sorted_actual = sorted(actual)
-    if sorted_expected != sorted_actual:
-      raise BeamAssertException(
-          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    expected_list = list(expected)
+    for element in actual:
+      try:
+        expected_list.remove(element)
+      except ValueError:
+        raise BeamAssertException(
+          'Failed assert: %r == %r' % (expected, actual))
+    return not expected_list
+
   return _equal
 
 
