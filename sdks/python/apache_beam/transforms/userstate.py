@@ -26,7 +26,6 @@ import itertools
 import types
 from builtins import object
 
-from apache_beam.coders import coders
 from apache_beam.coders import Coder
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
@@ -96,9 +95,7 @@ class TimerSpec(object):
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.TimerSpec(
-        time_domain=TimeDomain.to_runner_api(self.time_domain),
-        timer_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+        time_domain=TimeDomain.to_runner_api(self.time_domain))
 
 
 def on_timer(timer_spec):
