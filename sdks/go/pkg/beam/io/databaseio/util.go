@@ -10,6 +10,9 @@ import (
 func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 	var indexedFields = map[string]int{}
 	for i := 0; i < recordType.NumField(); i++ {
+		if isExported := recordType.Field(i).PkgPath == ""; !isExported {
+			continue
+		}
 		fieldName := recordType.Field(i).Name
 		indexedFields[fieldName] = i
 		indexedFields[strings.ToLower(fieldName)] = i //to account for various matching strategies
@@ -18,7 +21,7 @@ func mapFields(columns []string, recordType reflect.Type) ([]int, error) {
 			indexedFields[column] = i
 		}
 	}
-	var mappedFieldIndex = make([]int, recordType.NumField())
+	var mappedFieldIndex = make([]int, len(columns))
 	for i, column := range columns {
 		fieldIndex, ok := indexedFields[column]
 		if !ok {

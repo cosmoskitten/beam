@@ -41,7 +41,7 @@ func Test_queryRecordMapperProvider(t *testing.T) {
 
 	dob, ok := record[3].(*time.Time)
 	assert.True(t, ok)
-	var now = time.Now()
+	now := time.Now()
 	*dob = now
 
 	assert.EqualValues(t, &User{
