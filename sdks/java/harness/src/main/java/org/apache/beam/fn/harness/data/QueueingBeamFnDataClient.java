@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -113,7 +112,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           break;
         }
       } catch (Exception e) {
-        LOG.error("Client failed to dequeue and process WindowValue",  e);
+        LOG.error("Client failed to dequeue and process WindowValue", e);
         for (InboundDataClient idc : idcs.keySet()) {
           idc.fail(e);
         }
@@ -153,7 +152,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
-      try{
+      try {
         ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
         while (!queue.offer(offering, 2000, TimeUnit.MILLISECONDS)) {
           if (idc.isDone()) {
