@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BiConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -105,9 +104,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StageBundleFactory stageBundleFactory;
   private transient ExecutableStage executableStage;
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
-  // Timer key set before calling Flink's internal timer service. Used to
-  // avoid synchronizing on the state backend.
-  private transient Object keyForTimerToBeSet;
 
   public ExecutableStageDoFnOperator(
       String stepName,
@@ -295,7 +291,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   @Override
   public Object getCurrentKey() {
     // This is the key retrieved by HeapInternalTimerService when setting a Flink timer
-    return keyForTimerToBeSet;
+    return sdkHarnessRunner.getTimerKeyForRegistration();
   }
 
   @Override
@@ -314,7 +310,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               Locale.ENGLISH, "Failed to decode encoded key: %s", Arrays.toString(bytes)));
     }
     // Prepare the SdkHarnessRunner with the key for the timer
-    sdkHarnessRunner.setTimerKey(decodedKey);
+    sdkHarnessRunner.setTimerKeyForFire(decodedKey);
     super.fireTimer(timer);
   }
 
@@ -358,16 +354,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             outputMap,
             executableStage.getTimers(),
             (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(),
-            (WindowedValue<InputT> key, TimerInternals.TimerData timerData) -> {
-              try {
-                keyForTimerToBeSet = keySelector.getKey(key);
-                timerInternals.setTimer(timerData);
-              } catch (Exception e) {
-                throw new RuntimeException("Couldn't set timer", e);
-              } finally {
-                keyForTimerToBeSet = null;
-              }
-            });
+            keySelector,
+            timerInternals);
     return sdkHarnessRunner;
   }
 
@@ -433,13 +421,17 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final Map<String, TimerReference> timerReferenceMap;
 
     private final Coder<BoundedWindow> windowCoder;
-    private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerDataConsumer;
+    private final KeySelector<WindowedValue<InputT>, ?> keySelector;
+    private final TimerInternals timerInternals;
 
     private RemoteBundle remoteBundle;
     private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
     private Runnable bundleFinishedCallback;
+    // Timer key set before calling Flink's internal timer service. Used to
+    // avoid synchronizing on the state backend.
+    private Object keyForTimerToBeSet;
     // Set before calling onTimer
-    private Object beforeFireTimerKey;
+    private Object keyForTimerToBeFired;
 
     public SdkHarnessDoFnRunner(
         String mainInput,
@@ -450,19 +442,21 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         Map<String, TupleTag<?>> outputMap,
         Collection<TimerReference> timers,
         Coder<BoundedWindow> windowCoder,
-        BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerDataConsumer) {
+        KeySelector<WindowedValue<InputT>, ?> keySelector,
+        TimerInternals timerInternals) {
       this.mainInput = mainInput;
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
       this.progressHandler = progressHandler;
       this.outputManager = outputManager;
       this.outputMap = outputMap;
+      this.keySelector = keySelector;
+      this.timerInternals = timerInternals;
       this.timerReferenceMap = new HashMap<>();
       for (TimerReference timer : timers) {
         timerReferenceMap.put(timer.collection().getId(), timer);
       }
       this.windowCoder = windowCoder;
-      this.timerDataConsumer = timerDataConsumer;
       this.outputQueue = new LinkedBlockingQueue<>();
     }
 
@@ -506,7 +500,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public void onTimer(
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       Preconditions.checkNotNull(
-          beforeFireTimerKey, "Key for timer needs to be set before calling onTimer");
+          keyForTimerToBeFired, "Key for timer needs to be set before calling onTimer");
       LOG.debug("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
       FnDataReceiver<WindowedValue<?>> timerReceiver =
           Preconditions.checkNotNull(
@@ -515,7 +509,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               timerId);
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
-              KV.of(beforeFireTimerKey, Timer.of(timestamp, new byte[0])),
+              KV.of(keyForTimerToBeFired, Timer.of(timestamp, new byte[0])),
               timestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
@@ -525,7 +519,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         throw new RuntimeException(
             String.format(Locale.ENGLISH, "Failed to process timer %s", timerReceiver), e);
       } finally {
-        beforeFireTimerKey = null;
+        keyForTimerToBeFired = null;
       }
     }
 
@@ -547,8 +541,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       }
     }
 
-    void setTimerKey(Object key) {
-      this.beforeFireTimerKey = key;
+    /** Key for timer which has not been registered yet. */
+    Object getTimerKeyForRegistration() {
+      return keyForTimerToBeSet;
+    }
+
+    /** Key for timer which is about to be fired. */
+    void setTimerKeyForFire(Object key) {
+      this.keyForTimerToBeFired = key;
     }
 
     boolean isBundleInProgress() {
@@ -586,7 +586,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             TimerInternals.TimerData timerData =
                 TimerInternals.TimerData.of(
                     timerPCollectionId, namespace, timer.getTimestamp(), timerSpec.getTimeDomain());
-            timerDataConsumer.accept(windowedValue, timerData);
+            setTimer(windowedValue, timerData);
           }
         }
       }
@@ -614,6 +614,17 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           Preconditions.checkNotNull(
               transformTimerMap.get(timerName), "No TimerSpec found for timer %s", timerName);
       return timerSpec.getTimerSpec();
+    }
+
+    private void setTimer(WindowedValue timerElement, TimerInternals.TimerData timerData) {
+      try {
+        keyForTimerToBeSet = keySelector.getKey(timerElement);
+        timerInternals.setTimer(timerData);
+      } catch (Exception e) {
+        throw new RuntimeException("Couldn't set timer", e);
+      } finally {
+        keyForTimerToBeSet = null;
+      }
     }
 
     @Override
