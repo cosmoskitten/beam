@@ -63,3 +63,19 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     }
   }
 }
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Spark',
+        'Run Spark Runner Nexmark Tests', 'Direct Spark Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Spark runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite'        : 'SMOKE',
+          'streamTimeout': 60
+  ]
+
+  // Spark doesn't run streaming jobs, therefore run only batch variants.
+  Nexmark.batchOnlyJob(delegate, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+}
