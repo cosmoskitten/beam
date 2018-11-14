@@ -129,11 +129,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * not been generated.
    */
   private static final Duration STUCK_TERMINATE_DELAY = Duration.standardDays(3);
-  /** NexmarkOptions shared by all runs. */
+
+  /** NexmarkOptions for this run. */
   private final OptionT options;
 
   /** Which configuration we are running. */
-  @Nullable private NexmarkConfiguration configuration;
+  private NexmarkConfiguration configuration;
 
   /** If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null. */
   @Nullable private Monitor<Event> publisherMonitor;
@@ -157,8 +158,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   @Nullable private PubsubHelper pubsubHelper;
 
-  public NexmarkLauncher(OptionT options) {
+  public NexmarkLauncher(OptionT options, NexmarkConfiguration configuration) {
     this.options = options;
+    this.configuration = configuration;
   }
 
   /** Is this query running in streaming mode? */
@@ -1064,7 +1066,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /** Run {@code configuration} and return its performance if possible. */
   @Nullable
-  public NexmarkPerf run(NexmarkConfiguration runConfiguration) throws IOException {
+  public NexmarkPerf run() throws IOException {
     if (options.getManageResources() && !options.getMonitorJobs()) {
       throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }
@@ -1074,7 +1076,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     //
     checkState(configuration == null);
     checkState(queryName == null);
-    configuration = runConfiguration;
     if (configuration.sourceType.equals(SourceType.PUBSUB)) {
       pubsubHelper = PubsubHelper.create(options);
     }
@@ -1094,6 +1095,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }
 
       queryName = query.getName();
+
+      // Append queryName to temp location
+      if (!options.getTempLocation().equals("")) {
+        options.setTempLocation(options.getTempLocation() + "/" + queryName);
+      }
 
       NexmarkQueryModel model = getNexmarkQueryModel();
 
