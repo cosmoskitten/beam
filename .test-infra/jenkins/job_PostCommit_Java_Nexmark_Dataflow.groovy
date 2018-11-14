@@ -114,3 +114,22 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     }
   }
 }
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',
+        'Run Dataflow Runner Nexmark Tests', 'Direct Dataflow Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Dataflow runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite' : 'STRESS',
+          'numWorkers' : 4,
+          'maxNumWorkers' : 4,
+          'autoscalingAlgorithm' : 'NONE',
+          'nexmarkParallel' : 16,
+          'enforceEncodability' : true,
+          'enforceImmutability' : true
+  ]
+  Nexmark.standardJob(delegate, Nexmark.Runner.DATAFLOW, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+}
