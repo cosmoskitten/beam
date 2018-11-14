@@ -86,6 +86,7 @@ public class PipelineOptionsTest {
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getFlinkConfigDir(), is(nullValue()));
   }
 
   @Test(expected = Exception.class)
