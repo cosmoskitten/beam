@@ -21,9 +21,9 @@ Dataflow client utility functions."""
 
 from __future__ import absolute_import
 
-from builtins import object
 import codecs
 import getpass
+import io
 import json
 import logging
 import os
@@ -31,17 +31,16 @@ import re
 import tempfile
 import time
 from datetime import datetime
-import io
-import httplib2
-
-from past.builtins import unicode
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+from builtins import object
+from past.builtins import unicode
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.options.pipeline_options import DebugOptions
@@ -53,8 +52,8 @@ from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.internal import names as shared_names
 from apache_beam.runners.portability.stager import Stager
-from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import DataflowDistributionCounter
+from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
 
@@ -437,8 +436,7 @@ class DataflowApplicationClient(object):
     else:
       credentials = get_service_credentials()
 
-    # Use 60 second socket timeout avoid hangs during network flakiness.
-    http_client = httplib2.Http(timeout=60)
+    http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
         url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
