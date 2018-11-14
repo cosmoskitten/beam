@@ -145,9 +145,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   /**
    * The QueueingFnDataReceiver is a a FnDataReceiver used by the QueueingBeamFnDataClient.
    *
-   * <p>All accept()ed values will be put onto a synchronous queue will cause the calling thread
-   * to block until QueueingBeamFnDataClient.drainAndBlock() is called and removed the value from.
-   * the queue.</p>
+   * <p>All accept()ed values will be put onto a synchronous queue will cause the calling thread to
+   * block until QueueingBeamFnDataClient.drainAndBlock() is called and removed the value from. the
+   * queue.
    */
   public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> consumer;
