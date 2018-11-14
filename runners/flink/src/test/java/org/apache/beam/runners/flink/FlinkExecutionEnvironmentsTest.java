@@ -73,10 +73,11 @@ public class FlinkExecutionEnvironmentsTest {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("host:80");
+    options.setFlinkConfigDir(flinkConfDir);
 
     ExecutionEnvironment bev =
         FlinkExecutionEnvironments.createBatchExecutionEnvironment(
-            options, Collections.emptyList(), flinkConfDir);
+            options, Collections.emptyList());
 
     assertThat(options.getParallelism(), is(23));
     assertThat(bev.getParallelism(), is(23));

@@ -47,6 +47,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.internal.matchers.Null;
 
 /**
  * Tests for serialization and deserialization of {@link PipelineOptions} in {@link DoFnOperator}.
@@ -86,6 +87,7 @@ public class PipelineOptionsTest {
     assertThat(options.getMaxBundleSize(), is(1000L));
     assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED));
+    assertThat(options.getFlinkConfigDir(), Null.NULL);
   }
 
   @Test(expected = Exception.class)

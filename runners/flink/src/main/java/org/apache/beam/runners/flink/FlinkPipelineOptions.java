@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -204,4 +205,10 @@ public interface FlinkPipelineOptions
   ExecutionMode getExecutionModeForBatch();
 
   void setExecutionModeForBatch(ExecutionMode executionMode);
+
+  @Description("Directory containing Flink YAML configuration files.")
+  @Nullable
+  String getFlinkConfigDir();
+
+  void setFlinkConfigDir(@Nullable String value);
 }
