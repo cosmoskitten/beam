@@ -18,7 +18,9 @@
 
 import CommonJobProperties as commonJobProperties
 import NexmarkBigqueryProperties
+import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
+import PhraseTriggeringPostCommitBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow runner.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow',

@@ -24,7 +24,7 @@ class NexmarkBuilder {
 
   private static Map<String, Object> defaultOptions = [
           'bigQueryTable'          : 'nexmark',
-          'project'                : 'apache-beam-io-testing',
+          'project'                : 'apache-beam-testing',
           'resourceNameMode'       : 'QUERY_RUNNER_AND_MODE',
           'exportSummaryToBigQuery': true,
           'tempLocation'           : 'gs://temp-storage-for-perf-tests/nexmark',

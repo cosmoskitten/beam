@@ -17,8 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import NexmarkBuilder as Nexmark
 import NexmarkBigqueryProperties
+import NexmarkBuilder as Nexmark
 import NoPhraseTriggeringPostCommitBuilder
 import PhraseTriggeringPostCommitBuilder
 
