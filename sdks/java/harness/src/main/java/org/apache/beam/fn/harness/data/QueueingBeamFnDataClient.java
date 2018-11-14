@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
  */
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
+  private Object lock;
+
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
