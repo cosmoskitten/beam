@@ -96,9 +96,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
       try {
         ConsumerAndData tuple = null;
         tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
-        if (tuple == null) {
-          continue;
-        } else {
+        if (tuple != null) {
           // Forward to the consumers who cares about this data.
           tuple.consumer.accept(tuple.data);
         }
