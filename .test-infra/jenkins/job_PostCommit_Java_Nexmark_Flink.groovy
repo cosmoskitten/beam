@@ -98,3 +98,19 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     }
   }
 }
+
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Flink',
+        'Run Flink Runner Nexmark Tests', 'Direct Flink Nexmark Tests', this) {
+
+  description('Runs the Nexmark suite on the Flink runner against a Pull Request, on demand.')
+
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  def final JOB_SPECIFIC_OPTIONS = [
+          'suite'        : 'SMOKE',
+          'streamTimeout': 60,
+          'flinkMaster'  : 'local'
+  ]
+
+  Nexmark.standardJob(delegate, Nexmark.Runner.FLINK, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+}
