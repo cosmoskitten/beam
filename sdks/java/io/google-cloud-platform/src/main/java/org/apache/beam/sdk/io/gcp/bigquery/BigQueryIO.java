@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobI
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.client.json.JsonFactory;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
@@ -61,6 +62,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.ClusteringToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
@@ -69,6 +71,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJso
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantClusteringDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
@@ -1128,6 +1131,9 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getJsonTimePartitioning();
 
+    @Nullable
+    abstract ValueProvider<String> getJsonClustering();
+
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
@@ -1185,6 +1191,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
+
+      abstract Builder<T> setJsonClustering(ValueProvider<String> jsonClustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -1377,7 +1385,7 @@ public class BigQueryIO {
      * Allows newly created tables to include a {@link TimePartitioning} class. Can only be used
      * when writing to a single table. If {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be directly
-     * in the returned {@link TableDestination}.
+     * set in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
@@ -1399,6 +1407,28 @@ public class BigQueryIO {
     public Write<T> withJsonTimePartitioning(ValueProvider<String> partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
       return toBuilder().setJsonTimePartitioning(partitioning).build();
+    }
+
+    /**
+     * Allows writing to clustered tables. Can only be used when {@link
+     * #withTimePartitioning(TimePartitioning)} is set. If {@link #to(SerializableFunction)} or
+     * {@link #to(DynamicDestinations)} is used to write to dynamic tables, clustering can be
+     * directly set in the returned {@link TableDestination}
+     */
+    public Write<T> withClustering(Clustering clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
+    }
+
+    /** Like {@link #withClustering(Clustering)} but using a deferred {@link ValueProvider}. */
+    public Write<T> withClustering(ValueProvider<Clustering> clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return withJsonClustering(NestedValueProvider.of(clustering, new ClusteringToJson()));
+    }
+
+    public Write<T> withJsonClustering(ValueProvider<String> clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return toBuilder().setJsonClustering(clustering).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -1646,6 +1676,11 @@ public class BigQueryIO {
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
+      if (getJsonClustering() != null) {
+        checkArgument(
+            getJsonTimePartitioning() != null,
+            "Clustering can only be set on when TimePartitioning is set.");
+      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
@@ -1672,9 +1707,15 @@ public class BigQueryIO {
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
         if (getJsonTimePartitioning() != null) {
-          dynamicDestinations =
-              new ConstantTimePartitioningDestinations(
-                  dynamicDestinations, getJsonTimePartitioning());
+          if (getJsonClustering() != null) {
+            dynamicDestinations =
+                new ConstantClusteringDestinations(
+                    dynamicDestinations, getJsonTimePartitioning(), getJsonClustering());
+          } else {
+            dynamicDestinations =
+                new ConstantTimePartitioningDestinations(
+                    dynamicDestinations, getJsonTimePartitioning());
+          }
         }
       }
       return expandTyped(input, dynamicDestinations);

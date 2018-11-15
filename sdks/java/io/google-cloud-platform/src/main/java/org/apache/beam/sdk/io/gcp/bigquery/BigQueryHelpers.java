@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -607,6 +608,13 @@ public class BigQueryHelpers {
     @Override
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
+    }
+  }
+
+  static class ClusteringToJson implements SerializableFunction<Clustering, String> {
+    @Override
+    public String apply(Clustering clustering) {
+      return toJsonString(clustering);
     }
   }
 

@@ -111,7 +111,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      return TableDestinationCoderV3.of();
     }
   }
 
@@ -217,6 +217,48 @@ class DynamicDestinationsHelpers {
       return MoreObjects.toStringHelper(this)
           .add("inner", inner)
           .add("jsonTimePartitioning", jsonTimePartitioning)
+          .toString();
+    }
+  }
+
+  static class ConstantClusteringDestinations<T> extends ConstantTimePartitioningDestinations<T> {
+
+    @Nullable private final ValueProvider<String> jsonClustering;
+
+    ConstantClusteringDestinations(
+        DynamicDestinations<T, TableDestination> inner,
+        ValueProvider<String> jsonTimePartitioning,
+        ValueProvider<String> jsonClustering) {
+      super(inner, jsonTimePartitioning);
+      checkArgument(jsonClustering != null, "jsonClustering provider can not be null");
+      if (jsonClustering.isAccessible()) {
+        checkArgument(jsonClustering.get() != null, "jsonClustering can not be null");
+      }
+      this.jsonClustering = jsonClustering;
+    }
+
+    @Override
+    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+      TableDestination destination = super.getDestination(element);
+      String clustering = this.jsonClustering.get();
+      checkArgument(clustering != null, "jsonClustering can not be null");
+      return new TableDestination(
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          destination.getJsonTimePartitioning(),
+          clustering);
+    }
+
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return TableDestinationCoderV3.of();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("clustering", jsonClustering)
           .toString();
     }
   }
