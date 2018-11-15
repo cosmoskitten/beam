@@ -196,6 +196,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting static final String PIPELINE_FILE_NAME = "pipeline.pb";
+  @VisibleForTesting static final String DATAFLOW_GRAPH_FILE_NAME = "dataflow_graph.pb";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -860,6 +861,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setReplaceJobId(jobIdToUpdate);
     }
+
+    // Upload the job to GCS and remove the graph object from the API call.  The graph
+    // will be downloaded from GCS by the service.
+    if (hasExperiment(options, "upload_graph")) {
+      DataflowPackage stagedGraph =
+          options
+              .getStager()
+              .stageToFile(
+                  DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8),
+                  DATAFLOW_GRAPH_FILE_NAME);
+      newJob.getSteps().clear();
+      newJob.setStepsLocation(stagedGraph.getLocation());
+    }
+
     Job jobResult;
     try {
       jobResult = dataflowClient.createJob(newJob);
