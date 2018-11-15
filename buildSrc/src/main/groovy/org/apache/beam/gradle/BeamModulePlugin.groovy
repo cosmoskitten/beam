@@ -553,6 +553,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'options',
         'cast',
         'deprecation',
+        'fallthrough',
         'processing',
         'rawtypes',
         'serial',
