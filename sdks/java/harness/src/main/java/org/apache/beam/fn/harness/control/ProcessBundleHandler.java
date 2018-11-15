@@ -131,6 +131,10 @@ public class ProcessBundleHandler {
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
+    // I think the issue may be related to this. The original BeamFnDataClient
+    // has a lifetime outside of the whole bundle. While the QueueingBeamFnDataClient
+    // only exists for processing this bundle. Is it possible that WindowValues are still
+    // in flight after the blocks.
     this.beamFnDataClient = new QueueingBeamFnDataClient(beamFnDataClient);
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;

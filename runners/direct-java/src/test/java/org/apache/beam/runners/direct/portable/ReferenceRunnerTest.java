@@ -81,6 +81,7 @@ public class ReferenceRunnerTest implements Serializable {
 
   @Test
   public void pipelineExecution() throws Exception {
+    LOG.info("==================ajamato pipelineExecution start===========================");
     LOG.debug("ajamato debug");
     LOG.trace("ajamato trace");
     LOG.info("ajamato info");
@@ -137,13 +138,14 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
+    LOG.info("======================ajamato pipelineExecution end=============================");
   }
 
   @Test
   public void testGBK() throws Exception {
+    LOG.info("========================ajamato testGBK start========================");
     LOG.debug("ajamato debug");
     LOG.trace("ajamato trace");
-    LOG.info("ajamato testGBK start");
     Pipeline p = Pipeline.create();
 
     PAssert.that(
@@ -169,7 +171,7 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
-    LOG.info("ajamato testGBK end");
+    LOG.info("======================ajamato testGBK end===========================");
   }
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
@@ -203,6 +205,7 @@ public class ReferenceRunnerTest implements Serializable {
   @Test
   @Ignore("TODO: BEAM-3743")
   public void testSDF() throws Exception {
+    LOG.info("==========================ajamato testSDF start=======================");
     Pipeline p = Pipeline.create();
 
     PCollection<KV<String, Integer>> res =
@@ -233,5 +236,6 @@ public class ReferenceRunnerTest implements Serializable {
             PipelineTranslation.toProto(p),
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     runner.execute();
+    LOG.info("====================ajamato testSDF end========================");
   }
 }
