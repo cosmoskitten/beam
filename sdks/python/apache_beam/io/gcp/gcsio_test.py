@@ -24,12 +24,15 @@ import logging
 import os
 import random
 import sys
+import time
 import unittest
 from builtins import object
 from builtins import range
 
 import httplib2
 import mock
+
+from apache_beam import error
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -48,7 +51,7 @@ class FakeGcsClient(object):
 
   def __init__(self):
     self.objects = FakeGcsObjects()
-    # Referenced in GcsIO.batch_copy() and GcsIO.batch_delete().
+    # Referenced in GcsIO.copy_batch() and GcsIO.delete_batch().
     self._http = object()
 
 
@@ -140,19 +143,31 @@ class FakeGcsObjects(object):
 
     self.add_file(f)
 
-  def Copy(self, copy_request):  # pylint: disable=invalid-name
-    src_file = self.get_file(copy_request.sourceBucket,
-                             copy_request.sourceObject)
+  REWRITE_TOKEN = 'test_token'
+
+  def Rewrite(self, rewrite_request):  # pylint: disable=invalid-name
+    if rewrite_request.rewriteToken == self.REWRITE_TOKEN:
+      dest_object = storage.Object()
+      return storage.RewriteResponse(
+          done=True, objectSize=100, resource=dest_object,
+          totalBytesRewritten=100)
+
+    src_file = self.get_file(rewrite_request.sourceBucket,
+                             rewrite_request.sourceObject)
     if not src_file:
       raise HttpError(
           httplib2.Response({'status': '404'}), '404 Not Found',
           'https://fake/url')
-    generation = self.get_last_generation(copy_request.destinationBucket,
-                                          copy_request.destinationObject) + 1
-    dest_file = FakeFile(copy_request.destinationBucket,
-                         copy_request.destinationObject, src_file.contents,
+    generation = self.get_last_generation(rewrite_request.destinationBucket,
+                                          rewrite_request.destinationObject) + 1
+    dest_file = FakeFile(rewrite_request.destinationBucket,
+                         rewrite_request.destinationObject, src_file.contents,
                          generation)
     self.add_file(dest_file)
+    time.sleep(10)  # time.sleep and time.time are mocked below.
+    return storage.RewriteResponse(
+        done=False, objectSize=100, rewriteToken=self.REWRITE_TOKEN,
+        totalBytesRewritten=5)
 
   def Delete(self, delete_request):  # pylint: disable=invalid-name
     # Here, we emulate the behavior of the GCS service in raising a 404 error
@@ -196,9 +211,11 @@ class FakeGcsObjects(object):
 
 class FakeApiCall(object):
 
-  def __init__(self, exception):
+  def __init__(self, exception, response):
     self.exception = exception
     self.is_error = exception is not None
+    # Response for Rewrite:
+    self.response = response
 
 
 class FakeBatchApiRequest(object):
@@ -213,11 +230,12 @@ class FakeBatchApiRequest(object):
     api_calls = []
     for service, method, request in self.operations:
       exception = None
+      response = None
       try:
-        getattr(service, method)(request)
+        response = getattr(service, method)(request)
       except Exception as e:  # pylint: disable=broad-except
         exception = e
-      api_calls.append(FakeApiCall(exception))
+      api_calls.append(FakeApiCall(exception, response))
     return api_calls
 
 
@@ -257,6 +275,9 @@ class TestGCSPathParser(unittest.TestCase):
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@mock.patch.multiple('time',
+                     time=mock.MagicMock(side_effect=range(100)),
+                     sleep=mock.MagicMock())
 class TestGCSIO(unittest.TestCase):
 
   def _insert_random_file(self, client, path, size, generation=1, crc32c=None,
@@ -391,16 +412,30 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-    self.gcs.copy(src_file_name, dest_file_name)
+    self.gcs.copy(src_file_name, dest_file_name, dest_kms_key_name='kms_key')
 
     self.assertTrue(
         gcsio.parse_gcs_path(src_file_name) in self.client.objects.files)
     self.assertTrue(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
+    # Test copy of non-existent files.
     with self.assertRaisesRegexp(HttpError, r'Not Found'):
       self.gcs.copy('gs://gcsio-test/non-existent',
                     'gs://gcsio-test/non-existent-destination')
+
+  def test_copy_timeout(self):
+    src_file_name = 'gs://gcsio-test/source'
+    dest_file_name = 'gs://gcsio-test/dest'
+    file_size = 1024
+    self._insert_random_file(self.client, src_file_name, file_size)
+    self.assertTrue(
+        gcsio.parse_gcs_path(src_file_name) in self.client.objects.files)
+    self.assertFalse(
+        gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
+
+    with self.assertRaises(error.TimeoutError):
+      self.gcs.copy(src_file_name, dest_file_name, timeout_secs=0.1)
 
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
@@ -410,10 +445,10 @@ class TestGCSIO(unittest.TestCase):
     file_size = 1024
     num_files = 10
 
-    # Test copy of non-existent files.
     result = self.gcs.copy_batch(
         [(from_name_pattern % i, to_name_pattern % i)
-         for i in range(num_files)])
+         for i in range(num_files)],
+        dest_kms_key_name='kms_key')
     self.assertTrue(result)
     for i, (src, dest, exception) in enumerate(result):
       self.assertEqual(src, from_name_pattern % i)
@@ -439,6 +474,19 @@ class TestGCSIO(unittest.TestCase):
     for i in range(num_files):
       self.assertTrue(self.gcs.exists(from_name_pattern % i))
       self.assertTrue(self.gcs.exists(to_name_pattern % i))
+
+  def test_copy_batch_timeout(self):
+    gcsio.BatchApiRequest = FakeBatchApiRequest
+    from_name_pattern = 'gs://gcsio-test/src_batch_timeout_%d'
+    to_name_pattern = 'gs://gcsio-test/dst_batch_timeout_%d'
+    num_files = 10
+
+    # Test copy of non-existent files.
+    with self.assertRaises(error.TimeoutError):
+      _ = self.gcs.copy_batch(
+          [(from_name_pattern % i, to_name_pattern % i)
+           for i in range(num_files)],
+          dest_kms_key_name='kms_key', timeout_secs=0.1)
 
   def test_copytree(self):
     src_dir_name = 'gs://gcsio-test/source/'
