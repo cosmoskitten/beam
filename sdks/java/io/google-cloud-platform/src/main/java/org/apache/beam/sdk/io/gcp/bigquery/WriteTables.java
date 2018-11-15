@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -203,6 +204,7 @@ class WriteTables<DestinationT>
               jobIdPrefix,
               tableReference,
               tableDestination.getTimePartitioning(),
+              tableDestination.getClustering(),
               tableSchema,
               partitionFiles,
               writeDisposition,
@@ -327,6 +329,7 @@ class WriteTables<DestinationT>
       String jobIdPrefix,
       TableReference ref,
       TimePartitioning timePartitioning,
+      Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
@@ -342,6 +345,10 @@ class WriteTables<DestinationT>
             .setIgnoreUnknownValues(ignoreUnknownValues);
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
+      // only set clustering if timePartitioning is set
+      if (clustering != null) {
+        loadConfig.setClustering(clustering);
+      }
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(
