@@ -27,17 +27,18 @@
 #
 # Pipeline related flags:
 #     runner        -> Runner that execute pipeline job.
-#                      e.g. TestDataflowRunner, DirectRunner
+#                      e.g. TestDataflowRunner, TestDirectRunner
 #     project       -> Project name of the cloud service.
 #     gcs_location  -> Base location on GCS. Some pipeline options are
-#                      dirived from it including output, staging_location
+#                      derived from it including output, staging_location
 #                      and temp_location.
 #     sdk_location  -> Python tar ball location. Glob is accepted.
 #     num_workers   -> Number of workers.
 #     sleep_secs    -> Number of seconds to wait before verification.
 #     streaming     -> True if a streaming job.
 #     worker_jar    -> Customized worker jar for dataflow runner.
-#     pipeline_opts -> List of space separateed pipeline options. If this
+#     kms_key_name  -> Name of Cloud KMS encryption key to use in some tests.
+#     pipeline_opts -> List of space separated pipeline options. If this
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
 #                      using this flag.
@@ -70,6 +71,8 @@ NUM_WORKERS=1
 SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
+#KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test/cryptoKeyVersions/1"
+KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 # Default test (nose) options.
 # Default test sets are full integration tests.
@@ -116,6 +119,11 @@ case $key in
         ;;
     --worker_jar)
         WORKER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --kms_key_name)
+        KMS_KEY_NAME="$2"
         shift # past argument
         shift # past value
         ;;
@@ -192,10 +200,18 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--dataflow_worker_jar=$WORKER_JAR")
   fi
 
+  if [[ ! -z "$KMS_KEY_NAME" ]]; then
+    opts+=("--kms_key_name=$KMS_KEY_NAME")
+    #opts+=("--service_account_email=844138762903-compute@developer.gserviceaccount.com")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
 
+# TODO: remove
+# Print out GCP service account.
+gcloud config list || true
 
 ###########################################################################
 # Run tests and validate that jobs finish successfully.
@@ -203,4 +219,5 @@ fi
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
-  $TEST_OPTS
+  $TEST_OPTS \
+  --tests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_kms
