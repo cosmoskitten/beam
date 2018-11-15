@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.beam.sdk.state.TimeDomain.EVENT_TIME;
+import static org.apache.beam.sdk.state.TimeDomain.PROCESSING_TIME;
+import static org.apache.beam.sdk.state.TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
@@ -82,6 +85,9 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -711,6 +717,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
+    timerInternals.cleanupPendingTimer(timerData.getTimerId());
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
   }
@@ -918,6 +925,16 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   class FlinkTimerInternals implements TimerInternals {
 
+    /** Pending timers which are necessary for supporting removal of existing timers. */
+    private final MapState<String, TimerData> pendingTimersById;
+
+    private FlinkTimerInternals() {
+      MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
+          new MapStateDescriptor<>(
+              "timer-dedup", new StringSerializer(), new CoderTypeSerializer<>(timerCoder));
+      this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
+    }
+
     @Override
     public void setTimer(
         StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
@@ -927,19 +944,57 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
     @Deprecated
     @Override
-    public void setTimer(TimerData timerKey) {
-      long time = timerKey.getTimestamp().getMillis();
-      switch (timerKey.getDomain()) {
+    public void setTimer(TimerData timer) {
+      try {
+        getKeyedStateBackend().setCurrentKey(getCurrentKey());
+        removeOldTimer(timer.getTimerId());
+        registerTimer(timer);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to set timer", e);
+      }
+    }
+
+    private void registerTimer(TimerData timer) throws Exception {
+      long time = timer.getTimestamp().getMillis();
+      switch (timer.getDomain()) {
         case EVENT_TIME:
-          timerService.registerEventTimeTimer(timerKey, time);
+          timerService.registerEventTimeTimer(timer, time);
+          pendingTimersById.put(timer.getTimerId(), timer);
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.registerProcessingTimeTimer(timerKey, time);
+          timerService.registerProcessingTimeTimer(timer, time);
+          pendingTimersById.put(timer.getTimerId(), timer);
           break;
         default:
-          throw new UnsupportedOperationException(
-              "Unsupported time domain: " + timerKey.getDomain());
+          throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
+      }
+    }
+
+    private void removeOldTimer(String timerId) throws Exception {
+      TimerData oldTimer = pendingTimersById.get(timerId);
+      if (oldTimer != null) {
+        pendingTimersById.remove(timerId);
+        switch (oldTimer.getDomain()) {
+          case EVENT_TIME:
+            timerService.deleteEventTimeTimer(oldTimer, oldTimer.getTimestamp().getMillis());
+            break;
+          case PROCESSING_TIME:
+          case SYNCHRONIZED_PROCESSING_TIME:
+            timerService.deleteProcessingTimeTimer(oldTimer, oldTimer.getTimestamp().getMillis());
+            break;
+          default:
+            throw new UnsupportedOperationException(
+                "Unsupported time domain: " + oldTimer.getDomain());
+        }
+      }
+    }
+
+    void cleanupPendingTimer(String timerId) {
+      try {
+        pendingTimersById.remove(timerId);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to cleanup state with pending timers", e);
       }
     }
 
@@ -959,18 +1014,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Deprecated
     @Override
     public void deleteTimer(TimerData timerKey) {
-      long time = timerKey.getTimestamp().getMillis();
-      switch (timerKey.getDomain()) {
-        case EVENT_TIME:
-          timerService.deleteEventTimeTimer(timerKey, time);
-          break;
-        case PROCESSING_TIME:
-        case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.deleteProcessingTimeTimer(timerKey, time);
-          break;
-        default:
-          throw new UnsupportedOperationException(
-              "Unsupported time domain: " + timerKey.getDomain());
+      try {
+        removeOldTimer(timerKey.getTimerId());
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to delete timer", e);
       }
     }
 
