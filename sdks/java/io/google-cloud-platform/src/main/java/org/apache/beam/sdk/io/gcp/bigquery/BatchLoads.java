@@ -318,7 +318,7 @@ class BatchLoads<DestinationT, ElementT>
         .apply(WithKeys.of((Void) null))
         .setCoder(
             KvCoder.of(
-                VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+                VoidCoder.of(), KvCoder.of(TableDestinationCoderV3.of(), StringUtf8Coder.of())))
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(
@@ -383,7 +383,7 @@ class BatchLoads<DestinationT, ElementT>
 
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV3.of(), StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(
