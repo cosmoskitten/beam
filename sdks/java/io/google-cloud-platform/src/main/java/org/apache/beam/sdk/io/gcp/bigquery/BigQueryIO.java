@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
@@ -1128,6 +1129,9 @@ public class BigQueryIO {
     @Nullable
     abstract ValueProvider<String> getJsonTimePartitioning();
 
+    @Nullable
+    abstract Clustering getClustering();
+
     abstract CreateDisposition getCreateDisposition();
 
     abstract WriteDisposition getWriteDisposition();
@@ -1185,6 +1189,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
+
+      abstract Builder<T> setClustering(Clustering clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
 
@@ -1377,7 +1383,7 @@ public class BigQueryIO {
      * Allows newly created tables to include a {@link TimePartitioning} class. Can only be used
      * when writing to a single table. If {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be directly
-     * in the returned {@link TableDestination}.
+     * set in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
@@ -1399,6 +1405,17 @@ public class BigQueryIO {
     public Write<T> withJsonTimePartitioning(ValueProvider<String> partitioning) {
       checkArgument(partitioning != null, "partitioning can not be null");
       return toBuilder().setJsonTimePartitioning(partitioning).build();
+    }
+
+    /**
+     * Allows writing to clustered tables. Can only be used when {@link
+     * #withTimePartitioning(TimePartitioning)} is set. If {@link #to(SerializableFunction)} or
+     * {@link #to(DynamicDestinations)} is used to write to dynamic tables, clustering can be
+     * directly set in the returned {@link TableDestination}
+     */
+    public Write<T> withClustering(Clustering clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return toBuilder().setClustering(clustering).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -1644,6 +1661,11 @@ public class BigQueryIO {
             "The supplied getTableFunction object can directly set TimePartitioning."
                 + " There is no need to call BigQueryIO.Write.withTimePartitioning.");
       }
+      if (getClustering() != null) {
+        checkArgument(
+            getJsonTimePartitioning() != null,
+            "Clustering can only be set when TimePartitioning is set.");
+      }
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
@@ -1672,7 +1694,9 @@ public class BigQueryIO {
         if (getJsonTimePartitioning() != null) {
           dynamicDestinations =
               new ConstantTimePartitioningDestinations(
-                  dynamicDestinations, getJsonTimePartitioning());
+                  dynamicDestinations,
+                  getJsonTimePartitioning(),
+                  StaticValueProvider.of(BigQueryHelpers.toJsonString(getClustering())));
         }
       }
       return expandTyped(input, dynamicDestinations);
