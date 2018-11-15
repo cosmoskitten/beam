@@ -43,8 +43,14 @@ def _get_schema_field(schema_field):
       field_type=schema_field['type'],
       mode=schema_field['mode'])
 
+class BigQueryConnector(object):
+  def insert_data(self, rows_tuple):
+    job = self._bq_table.insert_data(rows=[rows_tuple])
+    if len(job) > 0 and len(job[0]['errors']) > 0:
+      for err in job[0]['errors']:
+        raise ValueError(err['message'])
 
-class BigQueryMetricsCollector(object):
+class Monitor(object):
   def __init__(self, project_name, namespace, schema_map):
     self._namespace = namespace
     bq_client = bigquery.Client(project=project_name)
@@ -84,7 +90,7 @@ class BigQueryMetricsCollector(object):
     insert_list = [timestamp] + dist_list + counters_list
     rows_tuple = tuple(self._match_inserts_by_schema(insert_list))
 
-    self.insert_metrics(rows_tuple)
+    BigQueryConnector.insert_data(rows_tuple)
 
   def _prepare_counter_metrics(self, counters):
     for counter in counters:
@@ -118,11 +124,7 @@ class BigQueryMetricsCollector(object):
         return metric['value']
     return None
 
-  def insert_metrics(self, rows_tuple):
-    job = self._bq_table.insert_data(rows=[rows_tuple])
-    if len(job) > 0 and len(job[0]['errors']) > 0:
-      for err in job[0]['errors']:
-        raise ValueError(err['message'])
+
 
   def _get_start_end_time(self, distribution):
     if distribution.key.metric.name == START_TIME_LABEL:

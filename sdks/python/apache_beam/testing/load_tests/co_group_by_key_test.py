@@ -74,7 +74,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import BigQueryMetricsCollector
+from apache_beam.testing.load_tests.load_test_metrics_utils import Monitor
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -112,7 +112,7 @@ class CoGroupByKeyTest(unittest.TestCase):
     self.bigQuery = None
     if metrics_project_id is not None:
       schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
-      self.bigQuery = BigQueryMetricsCollector(
+      self.bigQuery = Monitor(
           metrics_project_id,
           NAMESPACE,
           schema
