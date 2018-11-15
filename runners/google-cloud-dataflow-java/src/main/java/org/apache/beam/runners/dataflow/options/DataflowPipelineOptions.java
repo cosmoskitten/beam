@@ -141,6 +141,12 @@ public interface DataflowPipelineOptions
 
   void setDataflowWorkerJar(String dataflowWorkerJar);
 
+  @Description("Option to upload Dataflow Graph to staging bucket."
+          + " Use to avoid size limit on CreateJob API call.")
+  boolean getUploadGraph();
+
+  void setUploadGraph(boolean uploadGraph);
+
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);
