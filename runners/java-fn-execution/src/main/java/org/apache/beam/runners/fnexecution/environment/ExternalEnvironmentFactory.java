@@ -45,7 +45,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
 
   public static ExternalEnvironmentFactory create(
-      ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
@@ -53,7 +52,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
     return new ExternalEnvironmentFactory(
-        processManager,
         controlServiceServer,
         loggingServiceServer,
         retrievalServiceServer,
@@ -62,7 +60,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         clientSource);
   }
 
-  private final ProcessManager processManager;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
   private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
@@ -71,14 +68,12 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private final ControlClientPool.Source clientSource;
 
   private ExternalEnvironmentFactory(
-      ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
       GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
-    this.processManager = processManager;
     this.controlServiceServer = controlServiceServer;
     this.loggingServiceServer = loggingServiceServer;
     this.retrievalServiceServer = retrievalServiceServer;
@@ -153,7 +148,6 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return create(
-          ProcessManager.create(),
           controlServiceServer,
           loggingServiceServer,
           retrievalServiceServer,
