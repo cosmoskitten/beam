@@ -104,7 +104,7 @@ public class ProcessBundleHandler {
 
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
-  private final QueueingBeamFnDataClient beamFnDataClient;
+  private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
@@ -135,7 +135,8 @@ public class ProcessBundleHandler {
     // has a lifetime outside of the whole bundle. While the QueueingBeamFnDataClient
     // only exists for processing this bundle. Is it possible that WindowValues are still
     // in flight after the blocks.
-    this.beamFnDataClient = new QueueingBeamFnDataClient(beamFnDataClient);
+    // this.beamFnDataClient = new QueueingBeamFnDataClient(beamFnDataClient);
+    this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
@@ -144,6 +145,7 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
+      BeamFnDataClient queueingClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -164,6 +166,7 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            queueingClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
@@ -194,7 +197,7 @@ public class ProcessBundleHandler {
           .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
           .createRunnerForPTransform(
               options,
-              beamFnDataClient,
+              queueingClient,
               beamFnStateClient,
               pTransformId,
               pTransform,
@@ -210,8 +213,18 @@ public class ProcessBundleHandler {
     }
   }
 
+  /**
+   * Processes a bundle, running the start() process() and finish() functions. This function is
+   * called by multiple threads on the same ProcessBundleHandler object, one for each bundle that is
+   * processed
+   */
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
+    // Note: We must create one instance of the queueingClient as it is designed to handle the
+    // life of a bundle. It will insert elements onto a queue and drain them off so all
+    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
+    QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
+
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -278,6 +291,7 @@ public class ProcessBundleHandler {
 
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            queueingClient,
             entry.getKey(),
             entry.getValue(),
             request::getInstructionId,
@@ -297,7 +311,15 @@ public class ProcessBundleHandler {
       }
 
       if (hasReadPTransform) {
-        beamFnDataClient.drainAndBlock();
+        LOG.error(
+            "Call DrainAndBlock on client("
+                + System.identityHashCode(queueingClient)
+                + ") THREAD "
+                + Thread.currentThread().getId()
+                + " for instruction: "
+                + request.getInstructionId());
+        // This will trigger the process() call on each element indirectly.
+        queueingClient.drainAndBlock();
       }
 
       // Need to reverse this since we want to call finish in topological order.

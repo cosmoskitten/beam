@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import com.sun.rmi.rmid.ExecPermission;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -38,9 +37,6 @@ import org.slf4j.LoggerFactory;
  */
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
-  private final Object drainLock;
-  private int numDequeued = 0;
-
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
@@ -51,9 +47,6 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     this.mainClient = mainClient;
     this.queue = new SynchronousQueue<>();
     this.idcs = new ConcurrentHashMap<>();
-
-    drainLock = new Object();
-    numDequeued = 0;
   }
 
   /**
@@ -97,51 +90,37 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    * consumers. The thread which wishes to process() the elements should call this method, as this
    * will cause the consumers to invoke element processing. All receive() and send() calls must be
    * made prior to calling drainAndBlock, in order to properly terminate.
+   *
+   * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
+   * intended for use with a newly constructed QueueingBeamFnDataClient in
+   * ProcessBundleHandler.processBundle.
    */
-  // This code is multithreaded as well, since multiple ProcessBundleHandlers are calling this.
+  // This code is multithreaded as well, since the same ProcessBundleHandler is called by multiple
+  // threads to process each bundle.
   public void drainAndBlock() throws Exception {
     while (true) {
-      synchronized (drainLock) {
+      try {
+        ConsumerAndData tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
+        if (tuple != null) {
+          // Forward to the consumers who cares about this data.
+          tuple.consumer.accept(tuple.data);
 
-        try {
-          ConsumerAndData tuple = null;
-          tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
-          if (tuple != null) {
-            // Forward to the consumers who cares about this data.
-            //synchronized (drainLock) {
-            numDequeued++;
-            LOG.error("Dequeued " + numDequeued + " for " + System.identityHashCode(queue) +
-                " byObj " + System.identityHashCode(this) + " THREAD " +
-                Thread.currentThread().getId()
-            );
-            //}
-            tuple.consumer.accept(tuple.data);
-          } else {
-            // Note: We do not expect to ever hit this point without receiving all values
-            // as (1) The InboundObserver will not be set to Done until the
-            // QueuingFnDataReceiver.accept() call returns.
-            // (2) The QueueingFnDataReceiver will not return until the value is received in
-            // drainAndBlock, because of the use of SynchronousQueue.
-            if (allDone()) {
-              // Try once more to get a value
-              for (int i = 0; i < 2; i++) {
-                tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
-                assert tuple == null;
-                if (tuple != null) {
-                  throw new Exception("Unexpected element found");
-                }
-              }
-              break;
-            }
+        } else {
+          // Note: We do not expect to ever hit this point without receiving all values
+          // as (1) The InboundObserver will not be set to Done until the
+          // QueuingFnDataReceiver.accept() call returns.
+          // (2) The QueueingFnDataReceiver will not return until the value is received in
+          // drainAndBlock, because of the use of SynchronousQueue.
+          if (allDone()) {
+            break;
           }
-        } catch (Exception e) {
-          LOG.error("Client failed to dequeue and process WindowValue", e);
-          for (InboundDataClient idc : idcs.keySet()) {
-            idc.fail(e);
-          }
-          throw e;
         }
-
+      } catch (Exception e) {
+        LOG.error("Client failed to dequeue and process WindowValue", e);
+        for (InboundDataClient idc : idcs.keySet()) {
+          idc.fail(e);
+        }
+        throw e;
       }
     }
   }
@@ -177,43 +156,31 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> consumer;
     public InboundDataClient idc;
-    private int numEnqueued = 0;
-    private final Object lock;
 
     public QueueingFnDataReceiver(FnDataReceiver<WindowedValue<T>> consumer) {
       this.consumer = consumer;
-      this.numEnqueued = 0;
-      lock = new Object();
     }
 
-    // NOTE: accept can be called multiple times, concurrently by multiple threads.
-    // TODO ajamato.
+    /**
+     * This method is thread safe, we expect multiple threads to call this, passing in data when new
+     * data arrives via the QueueingBeamFnDataClient's mainClient.
+     */
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
-      // SUCCESS
-      synchronized (lock) {
-        numEnqueued++;
-        LOG.error("Enqueued " + numEnqueued + " for queue " + System.identityHashCode(queue) +
-            " byObj " + System.identityHashCode(this) + " THREAD " +
-            Thread.currentThread().getId());
-        System.out.flush();
-
-
-        //this.consumer.accept(value);
-        try {
-          ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
-          while (!queue.offer(offering, 2000, TimeUnit.MILLISECONDS)) {
-            if (idc.isDone()) {
-              // If it was cancelled by the consuming side of the queue.
-              break;
-            }
+      //this.consumer.accept(value);
+      try {
+        ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
+        while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
+          if (idc.isDone()) {
+            // If it was cancelled by the consuming side of the queue.
+            break;
           }
-        } catch (Exception e) {
-          LOG.error("Failed to insert WindowValue into the queue", e);
-          idc.fail(e);
-          throw e;
         }
 
+      } catch (Exception e) {
+        LOG.error("Failed to insert WindowValue into the queue", e);
+        idc.fail(e);
+        throw e;
       }
     }
   }

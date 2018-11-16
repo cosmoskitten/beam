@@ -121,8 +121,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
-/**
- * Tests the execution of a pipeline from specification time to executing a single fused stage,
+ * /** Tests the execution of a pipeline from specification time to executing a single fused stage,
  * going through pipeline fusion.
  */
 @RunWith(JUnit4.class)
