@@ -967,3 +967,30 @@ service BeamFnLogging {
     stream LogControl
   ) {}
 }
+
+
+message StartWorkerRequest {
+  string worker_id = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 4;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor provision_endpoint = 5;
+  map<string, string> params = 10;
+}
+
+message StopWorkerRequest {
+  string worker_id = 1;
+}
+
+message ExternalEnvironmentResponse {
+  string error = 1;
+}
+
+service BeamFnExternalEnvironment {
+  rpc StartWorker(StartWorkerRequest)
+    returns (ExternalEnvironmentResponse) {
+  }
+  rpc StopWorker(StopWorkerRequest)
+    returns (ExternalEnvironmentResponse) {
+  }
+}
