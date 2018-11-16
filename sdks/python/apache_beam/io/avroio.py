@@ -65,9 +65,9 @@ from apache_beam.transforms import PTransform
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from avro.schema import Parse as avro_parser # avro-python3 library for python3
-  Parse = lambda x: avro_parser(x.decode("utf-8")) \
-      if isinstance(x, bytes) else avro_parser(x)
+  from avro.schema import Parse #as avro_parser # avro-python3 library for python3
+  #Parse = lambda x: avro_parser(x.decode("utf-8")) \
+  #    if isinstance(x, bytes) else avro_parser(x)
 except ImportError:
   from avro.schema import parse as Parse # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
