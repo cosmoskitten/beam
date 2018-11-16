@@ -41,6 +41,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_GradleBuild', 'Run Java
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':javaPostCommit')
       commonJobProperties.setGradleSwitches(delegate)
+
+      // Pre-commits run in a separate Jenkins job
+      switches('--exclude-task :javaPreCommit')
+
       // Specify maven home on Jenkins, needed by Maven archetype integration tests.
       switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }

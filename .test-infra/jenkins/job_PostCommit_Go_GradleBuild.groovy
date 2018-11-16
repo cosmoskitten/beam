@@ -37,6 +37,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_GradleBuild', 'Run Go Pos
       tasks(':goPostCommit')
       commonJobProperties.setGradleSwitches(delegate)
       switches('--no-parallel')
+
+      // Pre-commits run in a separate Jenkins job
+      switches('--exclude-task :goPreCommit')
     }
   }
 }

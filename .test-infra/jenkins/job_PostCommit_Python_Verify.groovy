@@ -35,6 +35,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Verify', 'Run Python 
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':pythonPostCommit')
       commonJobProperties.setGradleSwitches(delegate)
+
+      // Pre-commits run in a separate Jenkins job
+      switches('--exclude-task :pythonPreCommit')
     }
   }
 

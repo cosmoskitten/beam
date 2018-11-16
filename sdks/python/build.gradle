@@ -411,7 +411,6 @@ task flinkValidatesRunner() {
 }
 
 task postCommit() {
-  dependsOn "preCommit"
   dependsOn "directRunnerIT"
   dependsOn "hdfsIntegrationTest"
   dependsOn "postCommitIT"
