@@ -30,8 +30,6 @@ from google.cloud.bigquery.schema import SchemaField
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 
-START_TIME_LABEL = 'runtime_start'
-END_TIME_LABEL = 'runtime_end'
 RUNTIME_LABEL = 'runtime'
 SUBMIT_TIMESTAMP_LABEL = 'submit_timestamp'
 LOAD_TEST_DATASET_NAME = 'python_load_tests'
@@ -44,36 +42,69 @@ def _get_schema_field(schema_field):
       mode=schema_field['mode'])
 
 class BigQueryConnector(object):
-  def insert_data(self, rows_tuple):
+  def __init__(self, project_name, namespace, schema_map):
+    self._namespace = namespace
+    bq_client = bigquery.Client(project=project_name)
+    schema = self._parse_schema(schema_map)
+    schema = self._prepare_schema(schema)
+    self._get_or_create_table(schema, bq_client)
+
+  def match_and_save(self, result_list):
+    rows_tuple = tuple(self._match_inserts_by_schema(result_list))
+    self._insert_data(rows_tuple)
+
+  def _match_inserts_by_schema(self, insert_list):
+    for name in insert_list:
+      yield self._get_element_by_schema(name, insert_list)
+
+  def _get_element_by_schema(self, schema_name, schema_list):
+    for metric in schema_list:
+      if metric['label'] == schema_name:
+        return metric['value']
+    return None
+
+  def _insert_data(self, rows_tuple):
     job = self._bq_table.insert_data(rows=[rows_tuple])
     if len(job) > 0 and len(job[0]['errors']) > 0:
       for err in job[0]['errors']:
         raise ValueError(err['message'])
 
-class Monitor(object):
-  def __init__(self, project_name, namespace, schema_map):
-    self._namespace = namespace
-    bq_client = bigquery.Client(project=project_name)
+  def _get_dataset(self, bq_client):
     bq_dataset = bq_client.dataset(LOAD_TEST_DATASET_NAME)
     if not bq_dataset.exists():
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
-          .format(namespace))
+            .format(self._namespace))
+    return bq_dataset
 
-    schemas = [{'name': SUBMIT_TIMESTAMP_LABEL,
-                'type': 'TIMESTAMP',
-                'mode': 'REQUIRED'}] + schema_map
+  def _get_or_create_table(self, bq_schemas, bq_client):
+    self._bq_table = self._get_dataset(bq_client).table(self._namespace, bq_schemas)
+    if self._namespace is '':
+      raise ValueError('Namespace cannot be empty.')
 
-    self._schema_names = [schema['name'] for schema in schemas]
-
-    bq_schemas = [_get_schema_field(schema) for schema in schemas]
-
-    self._bq_table = bq_dataset.table(namespace, bq_schemas)
     if not self._bq_table.exists():
       self._bq_table.create()
 
-  def save_metrics(self, result):
+  def _parse_schema(self, schema_map):
+    return [{'name': SUBMIT_TIMESTAMP_LABEL,
+                'type': 'TIMESTAMP',
+                'mode': 'REQUIRED'}] + schema_map
+
+  def _prepare_schema(self, schemas):
+    return [_get_schema_field(schema) for schema in schemas]
+
+  def _get_schema_names(self, schemas):
+    return [schema['name'] for schema in schemas]
+
+
+
+class Monitor(object):
+  def __init__(self, project_name, namespace, schema_map):
+    if project_name is not None:
+      self.bq = BigQueryConnector(project_name, namespace, schema_map)
+
+  def send_metrics(self, result):
     metrics = result.metrics().query()
     counters = metrics['counters']
     counters_list = []
@@ -88,9 +119,8 @@ class Monitor(object):
     timestamp = {'label': SUBMIT_TIMESTAMP_LABEL, 'value': time.time()}
 
     insert_list = [timestamp] + dist_list + counters_list
-    rows_tuple = tuple(self._match_inserts_by_schema(insert_list))
+    self.bq.match_and_save(insert_list)
 
-    BigQueryConnector.insert_data(rows_tuple)
 
   def _prepare_counter_metrics(self, counters):
     for counter in counters:
@@ -105,45 +135,33 @@ class Monitor(object):
 
   # prepares distributions of start and end metrics to show test runtime
   def _prepare_runtime_metrics(self, distributions):
-    dist_pivot = {}
     for dist in distributions:
       logging.info("Distribution: %s", dist)
-      dist_pivot.update(self._get_start_end_time(dist))
 
-    runtime_in_s = dist_pivot[END_TIME_LABEL] - dist_pivot[START_TIME_LABEL]
+    runtime_in_s = self._get_start_end_time(dist)
     runtime_in_s = float(runtime_in_s)
     return [{'label': RUNTIME_LABEL, 'value': runtime_in_s}]
 
-  def _match_inserts_by_schema(self, insert_list):
-    for name in self._schema_names:
-      yield self._get_element_by_schema(name, insert_list)
 
-  def _get_element_by_schema(self, schema_name, list):
-    for metric in list:
-      if metric['label'] == schema_name:
-        return metric['value']
-    return None
 
 
 
   def _get_start_end_time(self, distribution):
-    if distribution.key.metric.name == START_TIME_LABEL:
-      return {distribution.key.metric.name: distribution.committed.min}
-    elif distribution.key.metric.name == END_TIME_LABEL:
-      return {distribution.key.metric.name: distribution.committed.max}
+    start = distribution.committed.min
+    end = distribution.committed.max
+    return end - start
 
 
 class MeasureTime(beam.DoFn):
   def __init__(self, namespace):
     self.namespace = namespace
-    self.runtime_start = Metrics.distribution(self.namespace, START_TIME_LABEL)
-    self.runtime_end = Metrics.distribution(self.namespace, END_TIME_LABEL)
+    self.runtime = Metrics.distribution(self.namespace, RUNTIME_LABEL)
 
   def start_bundle(self):
-    self.runtime_start.update(time.time())
+    self.runtime.update(time.time())
 
   def finish_bundle(self):
-    self.runtime_end.update(time.time())
+    self.runtime.update(time.time())
 
   def process(self, element):
     yield element

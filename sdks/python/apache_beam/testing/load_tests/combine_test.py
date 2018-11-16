@@ -125,7 +125,7 @@ class CombineTest(unittest.TestCase):
       result = p.run()
       result.wait_until_finish()
       if self.bigQuery is not None:
-        self.bigQuery.save_metrics(result)
+        self.bigQuery.send_metrics(result)
 
 
 if __name__ == '__main__':

@@ -31,7 +31,8 @@ python setup.py nosetests \
     --test-pipeline-options="
     --number_of_counter_operations=1000
     --output=gc
-    --metrics_project_id=big-query-project
+    --project=big-query-project
+    --metrics_namespace=pardo
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -53,7 +54,7 @@ python setup.py nosetests \
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
         --output=gc
         --number_of_counter_operations=1000
-        --metrics_project_id=big-query-project
+        --metrics_namespace=pardo
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -79,7 +80,6 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import _CountMetrics
 from apache_beam.testing.test_pipeline import TestPipeline
 
-NAMESPACE = 'pardo'
 COUNTER_LABEL = "total_bytes_count"
 RUNTIME_LABEL = 'runtime'
 
@@ -109,15 +109,18 @@ class ParDoTest(unittest.TestCase):
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
-    metrics_project_id = self.pipeline.get_option('metrics_project_id')
-    self.bigQuery = None
-    if metrics_project_id is not None:
-      schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-                {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}]
-      self.bigQuery = Monitor(
+    metrics_project_id = self.pipeline.get_option('project')
+    metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.monitor = None
+    if metrics_project_id and metrics_namespace is not None:
+      measured_values = [
+        {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
+        {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
+      ]
+      self.monitor = Monitor(
           metrics_project_id,
-          NAMESPACE,
-          schema
+          metrics_namespace,
+          measured_values
       )
 
   class _GetElement(beam.DoFn):
@@ -154,8 +157,8 @@ class ParDoTest(unittest.TestCase):
       result = p.run()
       result.wait_until_finish()
 
-      if self.bigQuery is not None:
-        self.bigQuery.save_metrics(result)
+      if self.monitor is not None:
+        self.monitor.send_metrics(result)
 
 
 if __name__ == '__main__':
