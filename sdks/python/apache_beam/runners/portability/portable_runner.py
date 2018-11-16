@@ -31,6 +31,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
@@ -85,6 +86,9 @@ class PortableRunner(runner.PipelineRunner):
       environment_urn = common_urns.environments.PROCESS.urn
     elif portable_options.environment_type == 'EXTERNAL':
       environment_urn = common_urns.environments.EXTERNAL.urn
+    elif portable_options.environment_type:
+      raise ValueError(
+          'Unknown environment type: %s' % portable_options.environment_type)
 
     if environment_urn == common_urns.environments.DOCKER.urn:
       docker_image = (
@@ -110,7 +114,8 @@ class PortableRunner(runner.PipelineRunner):
       return beam_runner_api_pb2.Environment(
           urn=common_urns.environments.EXTERNAL.urn,
           payload=beam_runner_api_pb2.ExternalPayload(
-              url=portable_options.environment_config
+              endpoint=endpoints_pb2.ApiServiceDescriptor(
+                  url=portable_options.environment_config)
           ).SerializeToString())
 
   def run_pipeline(self, pipeline):

@@ -32,3 +32,5 @@ PICKLED_VIEWFN = "beam:view_fn:pickled_python_data:v1"
 IMPULSE_READ_TRANSFORM = "beam:transform:read_from_impulse_python:v1"
 
 GENERIC_COMPOSITE_TRANSFORM = "beam:transform:generic_composite:v1"
+
+EMBEDDED_PYTHON = "beam:env:embedded_python:v1"

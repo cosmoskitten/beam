@@ -174,6 +174,16 @@ class PortableRunnerTestWithGrpc(PortableRunnerTest):
   _use_grpc = True
 
 
+class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
+  _use_grpc = True
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithExternalEnv, self).create_options()
+    options.view_as(PortableOptions).environment_type = 'EXTERNAL'
+    options.view_as(PortableOptions).environment_config = 'foo'
+    return options
+
+
 @unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_grpc = True
