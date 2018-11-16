@@ -69,6 +69,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.entity.ContentType;
@@ -124,6 +125,9 @@ import org.slf4j.LoggerFactory;
  *   )
  *
  * }</pre>
+ *
+ * <p>The maximum retry timeout of the underlying ES RestClient can be set with {@code
+ * setMaxRetryTimeoutMillis()} in the ConnectionConfiguration.
  *
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()} to
  * specify the size of the write batch in number of documents or in bytes.
@@ -233,6 +237,9 @@ public class ElasticsearchIO {
 
     public abstract String getType();
 
+    @Nullable
+    public abstract Integer getMaxRetryTimeoutMillis();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -250,6 +257,8 @@ public class ElasticsearchIO {
       abstract Builder setIndex(String index);
 
       abstract Builder setType(String type);
+
+      abstract Builder setMaxRetryTimeoutMillis(Integer maxRetryTimeoutMillis);
 
       abstract ConnectionConfiguration build();
     }
@@ -329,12 +338,18 @@ public class ElasticsearchIO {
       return builder().setKeystorePassword(keystorePassword).build();
     }
 
+    public ConnectionConfiguration withMaxRetryTimeoutMillis(Integer maxRetryTimeoutMillis) {
+      checkArgument(maxRetryTimeoutMillis != null, "maxRetryTimeoutMillis can not be null");
+      return builder().setMaxRetryTimeoutMillis(maxRetryTimeoutMillis).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("address", getAddresses().toString()));
       builder.add(DisplayData.item("index", getIndex()));
       builder.add(DisplayData.item("type", getType()));
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
+      builder.addIfNotNull(DisplayData.item("maxRetryTimeoutMillis", getMaxRetryTimeoutMillis()));
     }
 
     @VisibleForTesting
@@ -374,6 +389,21 @@ public class ElasticsearchIO {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
+      if (getMaxRetryTimeoutMillis() != null) {
+        restClientBuilder.setRequestConfigCallback(
+            new RestClientBuilder.RequestConfigCallback() {
+              @Override
+              public RequestConfig.Builder customizeRequestConfig(
+                  RequestConfig.Builder requestConfigBuilder) {
+
+                return requestConfigBuilder
+                    .setConnectTimeout(getMaxRetryTimeoutMillis())
+                    .setSocketTimeout(getMaxRetryTimeoutMillis());
+              }
+            });
+        restClientBuilder.setMaxRetryTimeoutMillis(getMaxRetryTimeoutMillis());
+      }
+
       return restClientBuilder.build();
     }
   }
