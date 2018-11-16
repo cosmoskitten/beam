@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.graph.MutableNetwork;
 import java.io.Closeable;
 import java.io.IOException;
@@ -31,6 +32,10 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
@@ -54,6 +59,12 @@ import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
+import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
+import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
+import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.EmbeddedEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.slf4j.Logger;
@@ -141,6 +152,7 @@ public class BatchDataflowWorker implements Closeable {
 
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
+  private JobBundleFactory jobBundleFactory;
 
   /**
    * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
@@ -170,11 +182,28 @@ public class BatchDataflowWorker implements Closeable {
       SdkHarnessRegistry sdkHarnessRegistry,
       WorkUnitClient workUnitClient,
       DataflowWorkerHarnessOptions options) {
+    JobInfo jobInfo =
+        JobInfo.create(
+            options.getJobId(),
+            options.getJobName(),
+            "fakeToken",
+            PipelineOptionsTranslation.toProto(options));
+    JobBundleFactory jobBundleFactory =
+        DefaultJobBundleFactory.create(
+            jobInfo,
+            ImmutableMap.of(
+                BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+                new DockerEnvironmentFactory.Provider(
+                    PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())),
+                BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS),
+                new ProcessEnvironmentFactory.Provider(),
+                Environments.ENVIRONMENT_EMBEDDED, // Non Public urn for testing.
+                new EmbeddedEnvironmentFactory.Provider()));
     return new BatchDataflowWorker(
         pipeline,
         sdkHarnessRegistry,
         workUnitClient,
-        BeamFnMapTaskExecutorFactory.defaultFactory(),
+        BeamFnMapTaskExecutorFactory.defaultFactory(jobBundleFactory),
         options);
   }
 
@@ -215,9 +244,19 @@ public class BatchDataflowWorker implements Closeable {
     // TODO: this conditional -> two implementations of common interface, or
     // param/injection
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
+      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork;
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
-      if (DataflowRunner.hasExperiment(options, "use_shared_lib")) {
+      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
+          LengthPrefixUnknownCoders::forSdkNetwork;
+      if (DataflowRunner.hasExperiment(options, "use_shared_lib") || true) {
         sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, IdGenerator::generate);
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                IdGenerator::generate,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                true);
+
       } else {
         sdkFusedStage =
             pipeline == null
@@ -227,14 +266,13 @@ public class BatchDataflowWorker implements Closeable {
                     pipeline,
                     IdGenerator::generate,
                     sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+        transformToRunnerNetwork =
+            new CreateRegisterFnOperationFunction(
+                IdGenerator::generate,
+                this::createPortNode,
+                lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+                false);
       }
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
-          LengthPrefixUnknownCoders::forSdkNetwork;
-      Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
-          new CreateRegisterFnOperationFunction(
-              IdGenerator::generate,
-              this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork

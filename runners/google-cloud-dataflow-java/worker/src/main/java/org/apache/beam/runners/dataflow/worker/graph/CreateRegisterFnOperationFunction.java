@@ -77,6 +77,7 @@ public class CreateRegisterFnOperationFunction
   private final Supplier<String> idGenerator;
   private final BiFunction<String, String, Node> portSupplier;
   private final Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
+  private final boolean use_shared_lib;
 
   /**
    * Constructs a function which is able to break up the instruction graph into SDK and Runner
@@ -92,10 +93,12 @@ public class CreateRegisterFnOperationFunction
   public CreateRegisterFnOperationFunction(
       Supplier<String> idGenerator,
       BiFunction<String, String, Node> portSupplier,
-      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction) {
+      Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction,
+      boolean use_shared_lib) {
     this.idGenerator = idGenerator;
     this.portSupplier = portSupplier;
     this.registerFnOperationFunction = registerFnOperationFunction;
+    this.use_shared_lib = use_shared_lib;
   }
 
   @Override
@@ -186,6 +189,9 @@ public class CreateRegisterFnOperationFunction
     Set<Node> allRunnerNodes =
         Networks.reachableNodes(
             network, Sets.union(runnerRootNodes, sdkToRunnerBoundaries), runnerToSdkBoundaries);
+    if (this.use_shared_lib) {
+      allRunnerNodes = Sets.difference(allRunnerNodes, runnerToSdkBoundaries);
+    }
     MutableNetwork<Node, Edge> runnerNetwork = Graphs.inducedSubgraph(network, allRunnerNodes);
 
     // TODO: Reduce the amount of 'copying' of SDK nodes by breaking potential cycles

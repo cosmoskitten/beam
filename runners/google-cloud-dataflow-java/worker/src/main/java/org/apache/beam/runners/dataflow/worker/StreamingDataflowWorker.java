@@ -490,7 +490,7 @@ public class StreamingDataflowWorker {
       throws IOException {
     return new StreamingDataflowWorker(
         mapTasks,
-        BeamFnMapTaskExecutorFactory.defaultFactory(),
+        BeamFnMapTaskExecutorFactory.defaultFactory(null),
         workUnitClient,
         options.as(StreamingDataflowWorkerOptions.class),
         pipeline,
@@ -639,7 +639,8 @@ public class StreamingDataflowWorker {
           new CreateRegisterFnOperationFunction(
               IdGenerator::generate,
               this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
