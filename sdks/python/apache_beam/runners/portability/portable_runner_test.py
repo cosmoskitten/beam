@@ -68,8 +68,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       signal.alarm(self.TIMEOUT_SECS)
 
   def tearDown(self):
-    if platform.system() != 'Windows':
-      signal.alarm(0)
+    print('###teardDown')
+    #if platform.system() != 'Windows':
+    #  signal.alarm(0)
 
   @staticmethod
   def _pick_unused_port():
