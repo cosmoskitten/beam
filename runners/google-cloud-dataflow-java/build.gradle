@@ -156,6 +156,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
           "--project=${dataflowProject}",
           "--tempRoot=${dataflowValidatesTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+          "--experiments=disable_conscrypt_security_provider",
           "--workerHarnessContainerImage=",
 
   ])
