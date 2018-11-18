@@ -36,7 +36,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-flink_2.11-job-server:validatesPortableRunner')
+      tasks(':beam-runners-flink_2.11-job-server:flinkCompatibilityMatrixDocker')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }
