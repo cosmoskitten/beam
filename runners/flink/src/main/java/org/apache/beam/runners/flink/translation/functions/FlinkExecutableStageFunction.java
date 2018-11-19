@@ -414,7 +414,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
                 (Timer) ((KV) windowedValue.getValue()).getValue(),
                 "Received null Timer from SDK harness: %s",
                 receivedElement);
-        LOG.info("Timer received: {} {}", pCollectionId, timer);
+        LOG.debug("Timer received: {} {}", pCollectionId, timer);
         for (Object window : windowedValue.getWindows()) {
           StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
           TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
