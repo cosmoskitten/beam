@@ -989,7 +989,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     private String getUniqueTimerId(TimerData timer) {
-      return timer.getTimerId() + timer.getNamespace();
+      return timer.getTimerId() + timer.getNamespace().stringKey();
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
