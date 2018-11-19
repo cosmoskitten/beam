@@ -568,7 +568,7 @@ public class DoFnOperatorTest {
             outputTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-            WindowingStrategy.globalDefault(),
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -775,7 +775,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -871,7 +871,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
@@ -909,7 +909,7 @@ public class DoFnOperatorTest {
                   outputTag,
                   Collections.emptyList(),
                   new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-                  WindowingStrategy.globalDefault(),
+                  WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
                   sideInputMapping, /* side-input mapping */
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
