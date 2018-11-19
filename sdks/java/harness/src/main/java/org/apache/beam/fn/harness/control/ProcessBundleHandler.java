@@ -209,14 +209,13 @@ public class ProcessBundleHandler {
   }
 
   /**
-   * Processes a bundle, running the start() process() and finish() functions. This function is
-   * called by multiple threads on the same ProcessBundleHandler object, one for each bundle that is
-   * processed
+   * Processes a bundle, running the start(), process(), and finish() functions. This function is
+   * required to be reentrant.
    */
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
-    // Note: We must create one instance of the queueingClient as it is designed to handle the
-    // life of a bundle. It will insert elements onto a queue and drain them off so all
+    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
+    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
     // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
     QueueingBeamFnDataClient queueingClient = new QueueingBeamFnDataClient(this.beamFnDataClient);
 
