@@ -108,8 +108,7 @@ public class Main {
     try {
       // Schedule all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        NexmarkOptions optionsCopy =
-            PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
+        NexmarkOptions optionsCopy = PipelineOptionsFactory.fromArgs(args).as(NexmarkOptions.class);
         completion.submit(new Run(optionsCopy, configuration));
       }
 
