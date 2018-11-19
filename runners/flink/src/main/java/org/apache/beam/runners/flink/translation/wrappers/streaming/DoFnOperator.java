@@ -922,13 +922,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   class FlinkTimerInternals implements TimerInternals {
 
-    /** Pending timers which are necessary for supporting removal of existing timers. */
+    /**
+     * Pending Timers (=not been fired yet) by context id. The id is generated from the state
+     * namespace of the timer and the timer's id. Necessary for supporting removal of existing
+     * timers. In Flink removal of timers can only be done by providing id and time of the timer.
+     */
     private final MapState<String, TimerData> pendingTimersById;
 
     private FlinkTimerInternals() {
       MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
           new MapStateDescriptor<>(
-              "timer-dedup", new StringSerializer(), new CoderTypeSerializer<>(timerCoder));
+              "pending-timers", new StringSerializer(), new CoderTypeSerializer<>(timerCoder));
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
     }
 
