@@ -654,6 +654,19 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
         runner=fn_api_runner.FnApiRunner(use_grpc=False, bundle_repeat=3))
 
 
+import time, threading
+def print_stacks():
+  while True:
+    time.sleep(2)
+    for th in threading.enumerate():
+        print(th)
+        traceback.print_stack(sys._current_frames()[th.ident])
+        print()
+t = threading.Thread(target=print_stacks)
+t.daemon = True
+# t.start()
+# logging.getLogger().setLevel(logging.INFO)
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

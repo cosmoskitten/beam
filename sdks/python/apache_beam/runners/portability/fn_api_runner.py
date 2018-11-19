@@ -1327,7 +1327,7 @@ class FnApiRunner(runner.PipelineRunner):
               get=beam_fn_api_pb2.StateGetResponse(
                   data=self._state.blocking_get(request.state_key)))
         elif request_type == 'append':
-          self._sate.blocking_append(request.state_key, request.append.data)
+          self._state.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               append=beam_fn_api_pb2.StateAppendResponse())
@@ -1395,6 +1395,7 @@ class FnApiRunner(runner.PipelineRunner):
       self.control_server = grpc.server(
           futures.ThreadPoolExecutor(max_workers=10))
       self.control_port = self.control_server.add_insecure_port('[::]:0')
+      self.control_address = 'localhost:%s' % self.control_port
 
       # Options to have no limits (-1) on the size of the messages
       # received or sent over the data plane. The actual buffer size
@@ -1442,7 +1443,6 @@ class FnApiRunner(runner.PipelineRunner):
 
     def close(self):
       self.control_handler.done()
-      self.worker_thread.join()
       self.data_plane_handler.close()
       self.control_server.stop(5).wait()
       self.data_server.stop(5).wait()
@@ -1456,6 +1456,16 @@ class FnApiRunner(runner.PipelineRunner):
 
     def start_worker(self):
       print "START WORKER", self._external_payload
+      stub = beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentStub(
+          grpc.insecure_channel(self._external_payload.endpoint.url))
+      print "stub", stub
+      response = stub.StartWorker(
+          beam_fn_api_pb2.StartWorkerRequest(
+              control_endpoint=endpoints_pb2.ApiServiceDescriptor(
+                  url=self.control_address),
+              params=self._external_payload.params))
+      if response.error:
+          raise RuntimeError("Error starting worker: %s" % response.error)
 
 
   class ManagedGrpcController(GrpcController):
@@ -1465,11 +1475,11 @@ class FnApiRunner(runner.PipelineRunner):
       super(FnApiRunner.ManagedGrpcController, self).__init__(state)
 
     def start_worker(self):
-      control_address = 'localhost:%s' % self.control_port
       if self._sdk_harness_factory:
-        self.worker = self._sdk_harness_factory(control_address)
+        self.worker = self._sdk_harness_factory(self.control_address)
       else:
-        self.worker = sdk_worker.SdkHarness(control_address, worker_count=1)
+        self.worker = sdk_worker.SdkHarness(
+            self.control_address, worker_count=1)
 
       self.worker_thread = threading.Thread(
           name='run_worker', target=self.worker.run)
@@ -1490,14 +1500,14 @@ class ControllerManager(object):
     self._state = FnApiRunner.StateServicer() # rename?
 
   def get_controller(self, environment_id):
-    if not self._use_grpc:
-      # TODO: Obviate need for _use_grpc by correctly setting environment.
+    if not self._use_grpc or not self._environments:
+      # TODO: Obviate need for this by correctly setting environment.
       environment_id = None
       environment = beam_runner_api_pb2.Environment(
           urn=python_urns.EMBEDDED_PYTHON)
     elif environment_id is None:
       # Any environment will do.
-      environment_id = next(self._environments.keys())
+      environment_id = next(iter(self._environments.keys()))
       environment = self._environments[environment_id]
     else:
       environment = self._environments[environment_id]
@@ -1511,7 +1521,9 @@ class ControllerManager(object):
     if environment.urn == python_urns.EMBEDDED_PYTHON:
       return FnApiRunner.DirectController(self._state)
     elif environment.urn == common_urns.environments.EXTERNAL.urn:
-      return FnApiRunner.ExternalGrpcController(self._state, 'foo')
+      return FnApiRunner.ExternalGrpcController(
+          self._state,
+          proto_utils.parse_Bytes(environment.payload, beam_runner_api_pb2.ExternalPayload))
     else:
       # TODO: Use environments to control this.
       return FnApiRunner.ManagedGrpcController(

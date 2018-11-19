@@ -28,6 +28,7 @@ import threading
 import time
 import traceback
 import unittest
+from concurrent import futures
 
 import grpc
 
@@ -35,6 +36,8 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -42,6 +45,7 @@ from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
+from apache_beam.runners.worker import sdk_worker
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -177,10 +181,48 @@ class PortableRunnerTestWithGrpc(PortableRunnerTest):
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   _use_grpc = True
 
+  class BeamFnExternalEnvironmentServicer(
+      beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentServicer):
+    def StartWorker(self, start_worker_request, context):
+      logging.getLogger().setLevel(logging.INFO)
+      logging.info('starting worker %s', start_worker_request)
+      try:
+        worker = sdk_worker.SdkHarness(
+            start_worker_request.control_endpoint.url, worker_count=1)
+        worker_thread = threading.Thread(
+            name='run_worker_%s' % start_worker_request.worker_id,
+            target=worker.run)
+        worker_thread.start()
+        logging.info('started worker %s', start_worker_request.worker_id)
+        # rename
+        return beam_fn_api_pb2.ExternalEnvironmentResponse()
+      except Exception, exn:
+        return beam_fn_api_pb2.ExternalEnvironmentResponse(
+            error=str(exn))
+        raise
+
+  @classmethod
+  def setUpClass(cls):
+    print("setUpClass", cls)
+    cls._worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    cls._worker_port = cls._worker_server.add_insecure_port('[::]:0')
+    cls._worker_address = 'localhost:%s' % cls._worker_port
+    cls._worker_handler = cls.BeamFnExternalEnvironmentServicer()
+    beam_fn_api_pb2_grpc.add_BeamFnExternalEnvironmentServicer_to_server(
+        cls._worker_handler, cls._worker_server)
+    cls._worker_server.start()
+    print('listenting for worker at', cls._worker_address)
+
+  @classmethod
+  def tearDownClass(cls):
+    print("tearDownClass", cls)
+    cls._worker_server.stop(1)
+
+
   def create_options(self):
     options = super(PortableRunnerTestWithExternalEnv, self).create_options()
     options.view_as(PortableOptions).environment_type = 'EXTERNAL'
-    options.view_as(PortableOptions).environment_config = 'foo'
+    options.view_as(PortableOptions).environment_config = self._worker_address
     return options
 
 
