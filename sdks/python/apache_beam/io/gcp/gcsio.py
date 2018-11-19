@@ -28,6 +28,7 @@ import logging
 import multiprocessing
 import os
 import re
+import sys
 import threading
 import time
 import traceback
@@ -150,6 +151,11 @@ def parse_gcs_path(gcs_path, object_optional=False):
   return match.group(1), match.group(2)
 
 
+def get_response_encoding():
+  """Determine whether to encode response content based on Python version."""
+  return None if sys.version_info[0] < 3 else 'utf8'
+
+
 class GcsIOError(IOError, retry.PermanentException):
   """GCS IO error that should not be retried."""
   pass
@@ -173,7 +179,8 @@ class GcsIO(object):
         storage_client = storage.StorageV1(
             credentials=credentials,
             get_credentials=False,
-            http=get_new_http())
+            http=get_new_http(),
+            response_encoding=get_response_encoding())
         local_state.gcsio_instance = super(GcsIO, cls).__new__(cls)
         local_state.gcsio_instance.client = storage_client
       return local_state.gcsio_instance
