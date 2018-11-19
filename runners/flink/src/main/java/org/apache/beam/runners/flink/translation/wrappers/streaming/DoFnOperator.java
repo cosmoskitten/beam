@@ -949,7 +949,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       try {
         getKeyedStateBackend().setCurrentKey(getCurrentKey());
         String uniqueTimerId = getUniqueTimerId(timer);
+        // First remove any pending timers with the same context id
         removePendingTimerById(uniqueTimerId);
+        // Then add a new timer with this context id
         registerTimer(timer, uniqueTimerId);
       } catch (Exception e) {
         throw new RuntimeException("Failed to set timer", e);
@@ -988,6 +990,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       }
     }
 
+    /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
     private String getUniqueTimerId(TimerData timer) {
       return timer.getTimerId() + timer.getNamespace().stringKey();
     }
