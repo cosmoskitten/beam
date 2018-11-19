@@ -204,25 +204,15 @@ class _WindowGroupingBuffer(object):
 
 class FnApiRunner(runner.PipelineRunner):
 
-  def __init__(
-      self, use_grpc=False, sdk_harness_factory=None, bundle_repeat=0,
-      default_environment=None):
+  def __init__(self, default_environment=None, bundle_repeat=0):
     """Creates a new Fn API Runner.
 
     Args:
-      use_grpc: whether to use grpc or simply make in-process calls
-          defaults to False
-      sdk_harness_factory: callable used to instantiate customized sdk harnesses
-          typcially not set by users
       bundle_repeat: replay every bundle this many extra times, for profiling
           and debugging
     """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
-    self._use_grpc = use_grpc
-    if sdk_harness_factory and not use_grpc:
-      raise ValueError('GRPC must be used if a harness factory is provided.')
-    self._sdk_harness_factory = sdk_harness_factory
     self._default_environment = (
         default_environment
         or beam_runner_api_pb2.Environment(urn=python_urns.EMBEDDED_PYTHON))
@@ -1045,10 +1035,8 @@ class FnApiRunner(runner.PipelineRunner):
     return pipeline_components, stages, safe_coders
 
   def run_stages(self, pipeline_components, stages, safe_coders):
-    controller_manager = ControllerManager(
-        pipeline_components.environments,
-        self._use_grpc,
-        self._sdk_harness_factory)
+    worker_handler_manager = WorkerHandlerManager(
+        pipeline_components.environments)
     metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
@@ -1056,7 +1044,7 @@ class FnApiRunner(runner.PipelineRunner):
       pcoll_buffers = collections.defaultdict(list)
       for stage in stages:
         stage_results = self.run_stage(
-            controller_manager.get_controller,
+            worker_handler_manager.get_worker_handler,
             pipeline_components,
             stage,
             pcoll_buffers,
@@ -1065,19 +1053,19 @@ class FnApiRunner(runner.PipelineRunner):
         monitoring_infos_by_stage[stage.name] = (
             stage_results.process_bundle.monitoring_infos)
     finally:
-      controller_manager.close_all()
+      worker_handler_manager.close_all()
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
   def run_stage(
       self,
-      controller_factory,
+      worker_handler_factory,
       pipeline_components,
       stage,
       pcoll_buffers,
       safe_coders):
 
-    controller = controller_factory(stage.environment)
+    controller = worker_handler_factory(stage.environment)
     context = pipeline_context.PipelineContext(pipeline_components)
     data_api_service_descriptor = controller.data_api_service_descriptor()
 
@@ -1562,40 +1550,15 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
       self.worker_thread.join()
 
 
-class ManagedGrpcController(GrpcWorkerHandler):
-
-    def __init__(self, state, sdk_harness_factory):
-      self._sdk_harness_factory = sdk_harness_factory
-      super(ManagedGrpcController, self).__init__(state)
-
-    def start_worker(self):  # Don't call from __init__?
-      if self._sdk_harness_factory:
-        self.worker = self._sdk_harness_factory(self.control_address)
-      else:
-        self.worker = sdk_worker.SdkHarness(
-            self.control_address, worker_count=1)
-
-      self.worker_thread = threading.Thread(
-          name='run_worker', target=self.worker.run)
-      logging.info('starting worker')
-      self.worker_thread.start()
-
-    def stop_worker(self):
-      logging.info('waiting on worker')
-      self.worker_thread.join()
-
-
-class ControllerManager(object):
-  def __init__(self, environments, use_grpc, sdk_harness_factory):
+class WorkerHandlerManager(object):
+  def __init__(self, environments):
     self._environments = environments
-    self._use_grpc = use_grpc
-    self._sdk_harness_factory = sdk_harness_factory
     self._controllers_by_environment = {}
     self._state = FnApiRunner.StateServicer() # rename?
 
-  def get_controller(self, environment_id):
+  def get_worker_handler(self, environment_id):
     if environment_id is None:
-      # Any environment will do.
+      # Any environment will do, pick one arbitrarily.
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
 

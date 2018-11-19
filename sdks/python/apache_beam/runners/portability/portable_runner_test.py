@@ -53,6 +53,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 30
 
+  # Controls job service interaction, not sdk harness interaction.
   _use_grpc = False
   _use_subprocesses = False
 
@@ -132,13 +133,8 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def _create_job_endpoint(cls):
     if cls._use_subprocesses:
       return cls._start_local_runner_subprocess_job_service()
-    elif cls._use_grpc:
-      # Use GRPC for workers.
-      cls._servicer = LocalJobServicer(use_grpc=True)
-      return 'localhost:%d' % cls._servicer.start_grpc_server()
     else:
-      # Do not use GRPC for worker.
-      cls._servicer = LocalJobServicer(use_grpc=False)
+      cls._servicer = LocalJobServicer()
       return 'localhost:%d' % cls._servicer.start_grpc_server()
 
   @classmethod
@@ -179,7 +175,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 
 class PortableRunnerTestWithGrpc(PortableRunnerTest):
-  _use_grpc = True  # For talking to job service, not workers
+  _use_grpc = True
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):

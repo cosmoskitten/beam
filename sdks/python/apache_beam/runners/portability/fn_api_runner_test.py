@@ -52,8 +52,7 @@ else:
 class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False))
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
@@ -641,7 +640,6 @@ class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            use_grpc=True,
             default_environment=beam_runner_api_pb2.Environment(
                 urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
@@ -651,19 +649,16 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
-            use_grpc=True,
             default_environment=beam_runner_api_pb2.Environment(
                 urn=python_urns.EMBEDDED_PYTHON_GRPC,
-                payload=b'2'),
-            sdk_harness_factory=functools.partial(
-                sdk_worker.SdkHarness, worker_count=2)))
+                payload=b'2')))
 
 
 class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=False, bundle_repeat=3))
+        runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
 
 import time, threading
