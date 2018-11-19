@@ -18,10 +18,10 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -33,6 +33,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,47 +95,53 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    String url = externalPayload.getUrl();
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
-    String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
-
-    ImmutableMap<String, String> args =
-        ImmutableMap.<String, String>builder()
-            .put("workerId", workerId)
-            .put("logging_endpoint", loggingEndpoint)
-            .put("artifact_endpoint", artifactEndpoint)
-            .put("provision_endpoint", provisionEndpoint)
-            .put("control_endpoint", controlEndpoint)
+    BeamFnApi.StartWorkerRequest startWorkRequest =
+        BeamFnApi.StartWorkerRequest.newBuilder()
+            .setWorkerId(workerId)
+            .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
+            .setControlEndpoint(loggingServiceServer.getApiServiceDescriptor())
+            .setControlEndpoint(retrievalServiceServer.getApiServiceDescriptor())
+            .setControlEndpoint(provisioningServiceServer.getApiServiceDescriptor())
+            .putAllParams(externalPayload.getParamsMap())
             .build();
 
-    LOG.debug("Creating Process for worker ID {}", workerId);
-    // Wrap the blocking call to clientSource.get in case an exception is thrown.
-    InstructionRequestHandler instructionHandler = null;
-    try {
-      ExternalEnvironment.start(url, workerId, args, args); //externalPayload.getParams());
-      // Wait on a client from the gRPC server.
-      while (instructionHandler == null) {
-        try {
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
-        } catch (TimeoutException timeoutEx) {
-          LOG.info("Still waiting for startup of environment '{}' for worker id {}", url, workerId);
-        } catch (InterruptedException interruptEx) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(interruptEx);
-        }
-      }
-    } catch (Exception e) {
-      try {
-        ExternalEnvironment.stop(url, workerId);
-      } catch (IOException closeFailedException) {
-        e.addSuppressed(closeFailedException);
-      }
-      throw e;
+    LOG.debug("Requesting worker ID {}", workerId);
+    BeamFnApi.StartWorkerResponse startWorkResponse =
+        BeamFnExternalWorkerGrpc.newBlockingStub(
+                ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+            .startWorker(startWorkRequest);
+    if (!startWorkResponse.getError().isEmpty()) {
+      throw new RuntimeException(startWorkResponse.getError());
     }
 
-    return ExternalEnvironment.create(url, environment, workerId, instructionHandler);
+    // Wait on a client from the gRPC server.
+    InstructionRequestHandler instructionHandler = null;
+    while (instructionHandler == null) {
+      try {
+        instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+      } catch (TimeoutException timeoutEx) {
+        LOG.info(
+            "Still waiting for startup of environment from {} for worker id {}",
+            externalPayload.getEndpoint().getUrl(),
+            workerId);
+      } catch (InterruptedException interruptEx) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(interruptEx);
+      }
+    }
+    final InstructionRequestHandler finalInstructionHandler = instructionHandler;
+
+    return new RemoteEnvironment() {
+      @Override
+      public Environment getEnvironment() {
+        return environment;
+      }
+
+      @Override
+      public InstructionRequestHandler getInstructionRequestHandler() {
+        return finalInstructionHandler;
+      }
+    };
   }
 
   /** Provider of ProcessEnvironmentFactory. */

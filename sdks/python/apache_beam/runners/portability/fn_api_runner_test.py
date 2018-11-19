@@ -630,7 +630,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
 
 for m in dir(FnApiRunnerTest):
-  if m.startswith('test_') and m not in ('test_group_by_key',) and 'side' not in m:
+  if m.startswith('test_') and (
+      m not in ('test_group_by_key', 'test_gbk_side_input')):
     delattr(FnApiRunnerTest, m)
 
 
