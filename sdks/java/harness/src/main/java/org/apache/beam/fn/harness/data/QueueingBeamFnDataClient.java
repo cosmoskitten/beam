@@ -83,6 +83,8 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    * as this will cause the consumers to invoke element processing. All receive() and send() calls
    * must be made prior to calling drainAndBlock, in order to properly terminate.
    *
+   * <p>All {@link InboundDataClient}s will be failed if processing throws an exception.
+   *
    * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
    * intended for use with a newly constructed QueueingBeamFnDataClient in
    * {@link ProcessBundleHandler#processBundle}.
