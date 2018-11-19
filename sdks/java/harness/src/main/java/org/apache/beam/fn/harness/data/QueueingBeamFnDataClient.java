@@ -78,10 +78,10 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   /**
-   * Drains the internal queue of this class, by waiting for all WindowValues to be passed to thier
-   * consumers. The thread which wishes to process() the elements should call this method, as this
-   * will cause the consumers to invoke element processing. All receive() and send() calls must be
-   * made prior to calling drainAndBlock, in order to properly terminate.
+   * Drains the internal queue of this class, by waiting for all WindowedValues to be passed to
+   * their consumers. The thread which wishes to process() the elements should call this method,
+   * as this will cause the consumers to invoke element processing. All receive() and send() calls
+   * must be made prior to calling drainAndBlock, in order to properly terminate.
    *
    * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
    * intended for use with a newly constructed QueueingBeamFnDataClient in
@@ -106,7 +106,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           }
         }
       } catch (Exception e) {
-        LOG.error("Client failed to dequeue and process WindowValue", e);
+        LOG.error("Client failed to dequeue and process WindowedValue", e);
         for (InboundDataClient idc : idcs.keySet()) {
           idc.fail(e);
         }
