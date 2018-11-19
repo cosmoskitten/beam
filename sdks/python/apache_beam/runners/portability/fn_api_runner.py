@@ -1388,168 +1388,166 @@ class WorkerHandler(object):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedWorkerHandler(WorkerHandler):
-    """An in-memory controller for fn API control, state and data planes."""
+  """An in-memory controller for fn API control, state and data planes."""
 
-    def __init__(self, unused_payload, state):
-      super(EmbeddedWorkerHandler, self).__init__(
-          self, data_plane.InMemoryDataChannel(), state)
-      self.worker = sdk_worker.SdkWorker(
-          FnApiRunner.SingletonStateHandlerFactory(self.state),
-          data_plane.InMemoryDataChannelFactory(
-              self.data_plane_handler.inverse()), {})
-      self._uid_counter = 0
+  def __init__(self, unused_payload, state):
+    super(EmbeddedWorkerHandler, self).__init__(
+        self, data_plane.InMemoryDataChannel(), state)
+    self.worker = sdk_worker.SdkWorker(
+        FnApiRunner.SingletonStateHandlerFactory(self.state),
+        data_plane.InMemoryDataChannelFactory(
+            self.data_plane_handler.inverse()), {})
+    self._uid_counter = 0
 
-    def push(self, request):
-      if not request.instruction_id:
-        self._uid_counter += 1
-        request.instruction_id = 'control_%s' % self._uid_counter
-      logging.debug('CONTROL REQUEST %s', request)
-      response = self.worker.do_instruction(request)
-      logging.debug('CONTROL RESPONSE %s', response)
-      return ControlFuture(request.instruction_id, response)
+  def push(self, request):
+    if not request.instruction_id:
+      self._uid_counter += 1
+      request.instruction_id = 'control_%s' % self._uid_counter
+    logging.debug('CONTROL REQUEST %s', request)
+    response = self.worker.do_instruction(request)
+    logging.debug('CONTROL RESPONSE %s', response)
+    return ControlFuture(request.instruction_id, response)
 
-    def start_worker(self):
-      pass
+  def start_worker(self):
+    pass
 
-    def stop_worker(self):
-      pass
+  def stop_worker(self):
+    pass
 
-    def done(self):
-      pass
+  def done(self):
+    pass
 
-    def data_api_service_descriptor(self):
-      return None
+  def data_api_service_descriptor(self):
+    return None
 
-    def state_api_service_descriptor(self):
-      return None
+  def state_api_service_descriptor(self):
+    return None
 
 
 class GrpcWorkerHandler(WorkerHandler):
-    """An grpc based controller for fn API control, state and data planes."""
+  """An grpc based controller for fn API control, state and data planes."""
 
-    def __init__(self, state=None):
-      self.control_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10))
-      self.control_port = self.control_server.add_insecure_port('[::]:0')
-      self.control_address = 'localhost:%s' % self.control_port
+  def __init__(self, state=None):
+    self.control_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10))
+    self.control_port = self.control_server.add_insecure_port('[::]:0')
+    self.control_address = 'localhost:%s' % self.control_port
 
-      # Options to have no limits (-1) on the size of the messages
-      # received or sent over the data plane. The actual buffer size
-      # is controlled in a layer above.
-      no_max_message_sizes = [("grpc.max_receive_message_length", -1),
-                              ("grpc.max_send_message_length", -1)]
-      self.data_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10),
-          options=no_max_message_sizes)
-      self.data_port = self.data_server.add_insecure_port('[::]:0')
+    # Options to have no limits (-1) on the size of the messages
+    # received or sent over the data plane. The actual buffer size
+    # is controlled in a layer above.
+    no_max_message_sizes = [("grpc.max_receive_message_length", -1),
+                            ("grpc.max_send_message_length", -1)]
+    self.data_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10),
+        options=no_max_message_sizes)
+    self.data_port = self.data_server.add_insecure_port('[::]:0')
 
-      self.state_server = grpc.server(
-          futures.ThreadPoolExecutor(max_workers=10),
-          options=no_max_message_sizes)
-      self.state_port = self.state_server.add_insecure_port('[::]:0')
+    self.state_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10),
+        options=no_max_message_sizes)
+    self.state_port = self.state_server.add_insecure_port('[::]:0')
 
-      self.control_handler = BeamFnControlServicer()
-      beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
-          self.control_handler, self.control_server)
+    self.control_handler = BeamFnControlServicer()
+    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+        self.control_handler, self.control_server)
 
-      self.data_plane_handler = data_plane.GrpcServerDataChannel()
-      beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-          self.data_plane_handler, self.data_server)
+    self.data_plane_handler = data_plane.GrpcServerDataChannel()
+    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
+        self.data_plane_handler, self.data_server)
 
-      self.state = state
-      beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
-          FnApiRunner.GrpcStateServicer(state),
-          self.state_server)
+    self.state = state
+    beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
+        FnApiRunner.GrpcStateServicer(state),
+        self.state_server)
 
-      logging.info('starting control server on port %s', self.control_port)
-      logging.info('starting data server on port %s', self.data_port)
-      self.state_server.start()
-      self.data_server.start()
-      self.control_server.start()
+    logging.info('starting control server on port %s', self.control_port)
+    logging.info('starting data server on port %s', self.data_port)
+    self.state_server.start()
+    self.data_server.start()
+    self.control_server.start()
 
-    def data_api_service_descriptor(self):
-      return endpoints_pb2.ApiServiceDescriptor(
-          url='localhost:%s' % self.data_port)
+  def data_api_service_descriptor(self):
+    return endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%s' % self.data_port)
 
-    def state_api_service_descriptor(self):
-      return endpoints_pb2.ApiServiceDescriptor(
-          url='localhost:%s' % self.state_port)
+  def state_api_service_descriptor(self):
+    return endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%s' % self.state_port)
 
-    def close(self):
-      self.control_handler.done()
-      self.data_plane_handler.close()
-      self.control_server.stop(5).wait()
-      self.data_server.stop(5).wait()
-      self.state_server.stop(5).wait()
-      super(GrpcWorkerHandler, self).close()
+  def close(self):
+    self.control_handler.done()
+    self.data_plane_handler.close()
+    self.control_server.stop(5).wait()
+    self.data_server.stop(5).wait()
+    self.state_server.stop(5).wait()
+    super(GrpcWorkerHandler, self).close()
 
 
 @WorkerHandler.register_environment(
     common_urns.environments.EXTERNAL.urn,
     beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
-    def __init__(self, external_payload, state):
-      super(ExternalWorkerHandler, self).__init__(state)
-      self._external_payload = external_payload
+  def __init__(self, external_payload, state):
+    super(ExternalWorkerHandler, self).__init__(state)
+    self._external_payload = external_payload
 
-    def start_worker(self):
-      stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerStub(
-          grpc.insecure_channel(self._external_payload.endpoint.url))
-      response = stub.StartWorker(
-          beam_fn_api_pb2.StartWorkerRequest(
-              control_endpoint=endpoints_pb2.ApiServiceDescriptor(
-                  url=self.control_address),
-              params=self._external_payload.params))
-      if response.error:
-          raise RuntimeError("Error starting worker: %s" % response.error)
+  def start_worker(self):
+    stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerStub(
+        grpc.insecure_channel(self._external_payload.endpoint.url))
+    response = stub.StartWorker(
+        beam_fn_api_pb2.StartWorkerRequest(
+            control_endpoint=endpoints_pb2.ApiServiceDescriptor(
+                url=self.control_address),
+            params=self._external_payload.params))
+    if response.error:
+        raise RuntimeError("Error starting worker: %s" % response.error)
 
-    def stop_worker(self):
-      pass
+  def stop_worker(self):
+    pass
 
 
 @WorkerHandler.register_environment(
     python_urns.EMBEDDED_PYTHON_GRPC,
     bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, num_workers_payload, state):
+    super(EmbeddedGrpcWorkerHandler, self).__init__(state)
+    self._num_threads = int(num_workers_payload) if num_workers_payload else 1
 
-    def __init__(self, num_workers_payload, state):
-      super(EmbeddedGrpcWorkerHandler, self).__init__(state)
-      self._num_threads = int(num_workers_payload) if num_workers_payload else 1
+  def start_worker(self):
+    self.worker = sdk_worker.SdkHarness(
+        self.control_address, worker_count=self._num_threads)
+    self.worker_thread = threading.Thread(
+        name='run_worker', target=self.worker.run)
+    logging.info('starting worker')
+    self.worker_thread.start()
 
-    def start_worker(self):
-      self.worker = sdk_worker.SdkHarness(
-          self.control_address, worker_count=self._num_threads)
-      self.worker_thread = threading.Thread(
-          name='run_worker', target=self.worker.run)
-      logging.info('starting worker')
-      self.worker_thread.start()
-
-    def stop_worker(self):
-      logging.info('waiting on worker')
-      self.worker_thread.join()
+  def stop_worker(self):
+    logging.info('waiting on worker')
+    self.worker_thread.join()
 
 
 @WorkerHandler.register_environment(
     python_urns.SUBPROCESS_SDK,
     bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
+  def __init__(self, worker_command_line, state):
+    super(SubprocessSdkWorkerHandler, self).__init__(state)
+    self._worker_command_line = worker_command_line
 
-    def __init__(self, worker_command_line, state):
-      super(SubprocessSdkWorkerHandler, self).__init__(state)
-      self._worker_command_line = worker_command_line
+  def start_worker(self):
+    from apache_beam.runners.portability import local_job_service
+    self.worker = local_job_service.SubprocessSdkWorker(
+        self._worker_command_line, self.control_address)
+    self.worker_thread = threading.Thread(
+        name='run_worker', target=self.worker.run)
+    logging.info('starting worker')
+    self.worker_thread.start()
 
-    def start_worker(self):
-      from apache_beam.runners.portability import local_job_service
-      self.worker = local_job_service.SubprocessSdkWorker(
-          self._worker_command_line, self.control_address)
-      self.worker_thread = threading.Thread(
-          name='run_worker', target=self.worker.run)
-      logging.info('starting worker')
-      self.worker_thread.start()
-
-    def stop_worker(self):
-      logging.info('waiting on worker')
-      self.worker_thread.join()
+  def stop_worker(self):
+    logging.info('waiting on worker')
+    self.worker_thread.join()
 
 
 class WorkerHandlerManager(object):
