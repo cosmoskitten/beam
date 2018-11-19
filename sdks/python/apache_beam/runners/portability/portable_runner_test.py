@@ -175,8 +175,8 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
-  class BeamFnExternalEnvironmentServicer(
-      beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentServicer):
+  class BeamFnExternalWorkerServicer(
+      beam_fn_api_pb2_grpc.BeamFnExternalWorkerServicer):
     def StartWorker(self, start_worker_request, context):
       logging.getLogger().setLevel(logging.INFO)
       logging.info('starting worker %s', start_worker_request)
@@ -189,9 +189,9 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
         worker_thread.start()
         logging.info('started worker %s', start_worker_request.worker_id)
         # rename
-        return beam_fn_api_pb2.ExternalEnvironmentResponse()
+        return beam_fn_api_pb2.StartWorkerResponse()
       except Exception, exn:
-        return beam_fn_api_pb2.ExternalEnvironmentResponse(
+        return beam_fn_api_pb2.StartWorkerResponse(
             error=str(exn))
         raise
 
@@ -200,8 +200,8 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     cls._worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     cls._worker_port = cls._worker_server.add_insecure_port('[::]:0')
     cls._worker_address = 'localhost:%s' % cls._worker_port
-    cls._worker_handler = cls.BeamFnExternalEnvironmentServicer()
-    beam_fn_api_pb2_grpc.add_BeamFnExternalEnvironmentServicer_to_server(
+    cls._worker_handler = cls.BeamFnExternalWorkerServicer()
+    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerServicer_to_server(
         cls._worker_handler, cls._worker_server)
     cls._worker_server.start()
 

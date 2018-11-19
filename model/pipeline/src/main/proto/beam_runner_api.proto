@@ -1049,7 +1049,6 @@ message ProcessPayload {
 message ExternalPayload {
   ApiServiceDescriptor endpoint = 1;
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
-  string url = 100;  // XXX remove
 }
 
 // A specification of a user defined function.

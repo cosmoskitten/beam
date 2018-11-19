@@ -978,19 +978,12 @@ message StartWorkerRequest {
   map<string, string> params = 10;
 }
 
-message StopWorkerRequest {
-  string worker_id = 1;
-}
-
-message ExternalEnvironmentResponse {
+message StartWorkerResponse {
   string error = 1;
 }
 
-service BeamFnExternalEnvironment {
+service BeamFnExternalWorker {
   rpc StartWorker(StartWorkerRequest)
-    returns (ExternalEnvironmentResponse) {
-  }
-  rpc StopWorker(StopWorkerRequest)
-    returns (ExternalEnvironmentResponse) {
+    returns (StartWorkerResponse) {
   }
 }

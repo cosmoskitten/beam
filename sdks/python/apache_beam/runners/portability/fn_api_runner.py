@@ -235,7 +235,6 @@ class FnApiRunner(runner.PipelineRunner):
         default_environment=self._default_environment))
 
   def run_via_runner_api(self, pipeline_proto):
-    assert len(pipeline_proto.components.environments)
     return self.run_stages(*self.create_stages(pipeline_proto))
 
   def create_stages(self, pipeline_proto):
@@ -1141,7 +1140,7 @@ class FnApiRunner(runner.PipelineRunner):
                 side_input_id=tag,
                 window=window,
                 key=key))
-        controller.state_handler.blocking_append(state_key, elements_data)
+        controller.state.blocking_append(state_key, elements_data)
 
     def get_buffer(buffer_id):
       kind, name = split_buffer_id(buffer_id)
@@ -1174,12 +1173,12 @@ class FnApiRunner(runner.PipelineRunner):
 
     for k in range(self._bundle_repeat):
       try:
-        controller.state_handler.checkpoint()
+        controller.state.checkpoint()
         BundleManager(
             controller, lambda pcoll_id: [], process_bundle_descriptor,
             self._progress_frequency, k).process_bundle(data_input, data_output)
       finally:
-        controller.state_handler.restore()
+        controller.state.restore()
 
     result = BundleManager(
         controller, get_buffer, process_bundle_descriptor,
@@ -1353,12 +1352,18 @@ class WorkerHandler(object):
 
   _registered_environments = {}
 
-  def __init__(self, control_handler, data_plane_handler, state_handler):
+  def __init__(self, control_handler, data_plane_handler, state):
     self.control_handler = control_handler
     self.data_plane_handler = data_plane_handler
-    self.state_handler = state_handler  # rename
+    self.state = state
 
   def close(self):
+    self.stop_worker()
+
+  def start_worker(self):
+    raise NotImplementedError
+
+  def stop_worker(self):
     raise NotImplementedError
 
   def data_api_service_descriptor(self):
@@ -1385,11 +1390,11 @@ class WorkerHandler(object):
 class EmbeddedWorkerHandler(WorkerHandler):
     """An in-memory controller for fn API control, state and data planes."""
 
-    def __init__(self, unused_payload, state=None):
+    def __init__(self, unused_payload, state):
       super(EmbeddedWorkerHandler, self).__init__(
           self, data_plane.InMemoryDataChannel(), state)
       self.worker = sdk_worker.SdkWorker(
-          FnApiRunner.SingletonStateHandlerFactory(self.state_handler),
+          FnApiRunner.SingletonStateHandlerFactory(self.state),
           data_plane.InMemoryDataChannelFactory(
               self.data_plane_handler.inverse()), {})
       self._uid_counter = 0
@@ -1403,10 +1408,13 @@ class EmbeddedWorkerHandler(WorkerHandler):
       logging.debug('CONTROL RESPONSE %s', response)
       return ControlFuture(request.instruction_id, response)
 
-    def done(self):
+    def start_worker(self):
       pass
 
-    def close(self):
+    def stop_worker(self):
+      pass
+
+    def done(self):
       pass
 
     def data_api_service_descriptor(self):
@@ -1448,18 +1456,16 @@ class GrpcWorkerHandler(WorkerHandler):
       beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
           self.data_plane_handler, self.data_server)
 
-      self.state_handler = state # rename?
-      state_servicer = FnApiRunner.GrpcStateServicer(state)
+      self.state = state
       beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
-          state_servicer, self.state_server)
+          FnApiRunner.GrpcStateServicer(state),
+          self.state_server)
 
       logging.info('starting control server on port %s', self.control_port)
       logging.info('starting data server on port %s', self.data_port)
       self.state_server.start()
       self.data_server.start()
       self.control_server.start()
-
-      self.start_worker()
 
     def data_api_service_descriptor(self):
       return endpoints_pb2.ApiServiceDescriptor(
@@ -1475,7 +1481,7 @@ class GrpcWorkerHandler(WorkerHandler):
       self.control_server.stop(5).wait()
       self.data_server.stop(5).wait()
       self.state_server.stop(5).wait()
-      self.stop_worker()
+      super(GrpcWorkerHandler, self).close()
 
 
 @WorkerHandler.register_environment(
@@ -1483,11 +1489,11 @@ class GrpcWorkerHandler(WorkerHandler):
     beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
     def __init__(self, external_payload, state):
-      self._external_payload = external_payload
       super(ExternalWorkerHandler, self).__init__(state)
+      self._external_payload = external_payload
 
     def start_worker(self):
-      stub = beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentStub(
+      stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerStub(
           grpc.insecure_channel(self._external_payload.endpoint.url))
       response = stub.StartWorker(
           beam_fn_api_pb2.StartWorkerRequest(
@@ -1507,8 +1513,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
     def __init__(self, num_workers_payload, state):
-      self._num_threads = int(num_workers_payload) if num_workers_payload else 1
       super(EmbeddedGrpcWorkerHandler, self).__init__(state)
+      self._num_threads = int(num_workers_payload) if num_workers_payload else 1
 
     def start_worker(self):
       self.worker = sdk_worker.SdkHarness(
@@ -1529,8 +1535,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 
     def __init__(self, worker_command_line, state):
-      self._worker_command_line = worker_command_line
       super(SubprocessSdkWorkerHandler, self).__init__(state)
+      self._worker_command_line = worker_command_line
 
     def start_worker(self):
       from apache_beam.runners.portability import local_job_service
@@ -1549,7 +1555,7 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 class WorkerHandlerManager(object):
   def __init__(self, environments):
     self._environments = environments
-    self._controllers_by_environment = {}
+    self._cached_handlers = {}
     self._state = FnApiRunner.StateServicer() # rename?
 
   def get_worker_handler(self, environment_id):
@@ -1558,15 +1564,18 @@ class WorkerHandlerManager(object):
       environment_id = next(iter(self._environments.keys()))
     environment = self._environments[environment_id]
 
-    if environment_id not in self._controllers_by_environment:
-      self._controllers_by_environment[environment_id] = WorkerHandler.create(
-          environment, self._state)
-    return self._controllers_by_environment[environment_id]
+    worker_handler = self._cached_handlers.get(environment_id)
+    if worker_handler is None:
+      worker_handler = self._cached_handlers[
+          environment_id] = WorkerHandler.create(
+              environment, self._state)
+      worker_handler.start_worker()
+    return worker_handler
 
   def close_all(self):
-    for controller in set(self._controllers_by_environment.values()):
+    for controller in set(self._cached_handlers.values()):
       controller.close()
-    self._controllers_by_environment = {}
+    self._cached_handlers = {}
 
 
 class BundleManager(object):
