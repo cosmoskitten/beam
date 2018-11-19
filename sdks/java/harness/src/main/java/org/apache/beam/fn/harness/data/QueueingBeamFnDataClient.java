@@ -32,8 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed. In
- * the thread which calls drainAndBlock.
+ * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed in
+ * the thread which calls @{link #drainAndBlock}.
  */
 public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
@@ -49,14 +49,6 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     this.idcs = new ConcurrentHashMap<>();
   }
 
-  /**
-   * Registers the following inbound stream consumer for the provided instruction id and target.
-   *
-   * <p>The provided coder is used to decode elements on the inbound stream. The decoded elements
-   * are passed to the provided consumer. Any failure during decoding or processing of the element
-   * will complete the returned future exceptionally. On successful termination of the stream
-   * (signaled by an empty data block), the returned future is completed successfully.
-   */
   @Override
   public <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
@@ -93,7 +85,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    *
    * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
    * intended for use with a newly constructed QueueingBeamFnDataClient in
-   * ProcessBundleHandler.processBundle.
+   * {@link ProcessBundleHandler#processBundle}.
    */
   public void drainAndBlock() throws Exception {
     while (true) {
@@ -106,9 +98,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
         } else {
           // Note: We do not expect to ever hit this point without receiving all values
           // as (1) The InboundObserver will not be set to Done until the
-          // QueuingFnDataReceiver.accept() call returns.
+          // QueuingFnDataReceiver.accept() call returns and will not be invoked again.
           // (2) The QueueingFnDataReceiver will not return until the value is received in
-          // drainAndBlock, because of the use of SynchronousQueue.
+          // drainAndBlock, because of the use of the SynchronousQueue.
           if (allDone()) {
             break;
           }
@@ -123,15 +115,6 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     }
   }
 
-  /**
-   * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
-   *
-   * <p>The provided coder is used to encode elements on the outbound stream.
-   *
-   * <p>Closing the returned receiver signals the end of the stream.
-   *
-   * <p>The returned closeable receiver is not thread safe.
-   */
   @Override
   public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
@@ -147,9 +130,10 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   /**
    * The QueueingFnDataReceiver is a a FnDataReceiver used by the QueueingBeamFnDataClient.
    *
-   * <p>All accept()ed values will be put onto a synchronous queue will cause the calling thread to
-   * block until QueueingBeamFnDataClient.drainAndBlock() is called and removed the value from. the
-   * queue.
+   * <p>All {@link #accept accept()ed} values will be put onto a synchronous queue which
+   * will cause the calling thread to block until {@link QueueingBeamFnDataClient#drainAndBlock}
+   * is called. {@link QueueingBeamFnDataClient#drainAndBlock} is responsible for processing values
+   * from the queue.
    */
   public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> consumer;
@@ -174,7 +158,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           }
         }
       } catch (Exception e) {
-        LOG.error("Failed to insert WindowValue into the queue", e);
+        LOG.error("Failed to insert WindowedValue into the queue", e);
         idc.fail(e);
         throw e;
       }
