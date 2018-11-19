@@ -18,23 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
-import java.lang.reflect.Type;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to set a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map Row fields back into objet
- * fields.
- */
-@Internal
-public interface FieldValueSetter<ObjectT, ValueT> extends Serializable, FieldValueTypeInformation {
-  /** Sets the specified field on object to value. */
-  void set(ObjectT object, @Nullable ValueT value);
-
-  /** Returns the name of the field. */
-  String name();
+public interface FromRowFactory<T> extends Serializable {
+  FromRow<T> create(Schema schema);
 }
