@@ -877,6 +877,11 @@ public class KafkaIO {
   @AutoValue
   public abstract static class WriteRecords<K, V>
       extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
+    // TODO: Create the only one generic {@code Write<T>} transform which will be parameterized
+    // depending on type of input collection (KV, ProducerRecords, etc). In such case, we shouldn't
+    // have to duplicate the same API for similar transforms like {@link Write} and {@link
+    // WriteRecords}.
+
     @Nullable
     abstract String getTopic();
 
@@ -999,7 +1004,10 @@ public class KafkaIO {
      * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
      * processing messages from the past, they might be deleted immediately by Kafka after being
      * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     *
+     * @deprecated use {@code ProducerRecords} to set publish timestamp.
      */
+    @Deprecated
     public WriteRecords<K, V> withPublishTimestampFunction(
         KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction) {
       return toBuilder().setPublishTimestampFunction(timestampFunction).build();
@@ -1065,7 +1073,7 @@ public class KafkaIO {
       checkArgument(
           getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopic() != null, "withTopic() is required");
+
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
@@ -1136,6 +1144,11 @@ public class KafkaIO {
    */
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
+    // TODO: Create the only one generic {@code Write<T>} transform which will be parameterized
+    // depending on type of input collection (KV, ProducerRecords, etc). In such case, we shouldn't
+    // have to duplicate the same API for similar transforms like {@link Write} and {@link
+    // WriteRecords}.
+
     @Nullable
     abstract String getTopic();
 
@@ -1152,15 +1165,18 @@ public class KafkaIO {
       abstract Write<K, V> build();
     }
 
+    /** Used mostly to reduce using of boilerplate of wrapping {@link WriteRecords} methods. */
+    private Write<K, V> withWriteRecordsTransform(WriteRecords<K, V> transform) {
+      return toBuilder().setWriteRecordsTransform(transform).build();
+    }
+
     /**
      * Wrapper method over {@link WriteRecords#withBootstrapServers(String)}, used to keep the
      * compatibility with old API based on KV type of element.
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
-      return toBuilder()
-          .setWriteRecordsTransform(
-              getWriteRecordsTransform().withBootstrapServers(bootstrapServers))
-          .build();
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withBootstrapServers(bootstrapServers));
     }
 
     /**
@@ -1179,9 +1195,7 @@ public class KafkaIO {
      * compatibility with old API based on KV type of element.
      */
     public Write<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
-      return toBuilder()
-          .setWriteRecordsTransform(getWriteRecordsTransform().withKeySerializer(keySerializer))
-          .build();
+      return withWriteRecordsTransform(getWriteRecordsTransform().withKeySerializer(keySerializer));
     }
 
     /**
@@ -1189,9 +1203,8 @@ public class KafkaIO {
      * compatibility with old API based on KV type of element.
      */
     public Write<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
-      return toBuilder()
-          .setWriteRecordsTransform(getWriteRecordsTransform().withValueSerializer(valueSerializer))
-          .build();
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withValueSerializer(valueSerializer));
     }
 
     /**
@@ -1200,10 +1213,8 @@ public class KafkaIO {
      */
     public Write<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
-      return toBuilder()
-          .setWriteRecordsTransform(
-              getWriteRecordsTransform().withProducerFactoryFn(producerFactoryFn))
-          .build();
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withProducerFactoryFn(producerFactoryFn));
     }
 
     /**
@@ -1211,24 +1222,23 @@ public class KafkaIO {
      * with old API based on KV type of element.
      */
     public Write<K, V> withInputTimestamp() {
-      return toBuilder()
-          .setWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp())
-          .build();
+      return withWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp());
     }
 
     /**
      * Wrapper method over {@link
      * WriteRecords#withPublishTimestampFunction(KafkaPublishTimestampFunction)}, used to keep the
      * compatibility with old API based on KV type of element.
+     *
+     * @deprecated use {@link WriteRecords} and {@code ProducerRecords} to set publish timestamp.
      */
+    @Deprecated
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Write<K, V> withPublishTimestampFunction(
         KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
-      return toBuilder()
-          .setWriteRecordsTransform(
-              getWriteRecordsTransform()
-                  .withPublishTimestampFunction(new PublishTimestampFunctionKV(timestampFunction)))
-          .build();
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform()
+              .withPublishTimestampFunction(new PublishTimestampFunctionKV(timestampFunction)));
     }
 
     /**
@@ -1236,9 +1246,7 @@ public class KafkaIO {
      * with old API based on KV type of element.
      */
     public Write<K, V> withEOS(int numShards, String sinkGroupId) {
-      return toBuilder()
-          .setWriteRecordsTransform(getWriteRecordsTransform().withEOS(numShards, sinkGroupId))
-          .build();
+      return withWriteRecordsTransform(getWriteRecordsTransform().withEOS(numShards, sinkGroupId));
     }
 
     /**
@@ -1247,16 +1255,15 @@ public class KafkaIO {
      */
     public Write<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
-      return toBuilder()
-          .setWriteRecordsTransform(
-              getWriteRecordsTransform().withConsumerFactoryFn(consumerFactoryFn))
-          .build();
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withConsumerFactoryFn(consumerFactoryFn));
     }
 
     @Override
     public PDone expand(PCollection<KV<K, V>> input) {
-      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
+      checkArgument(getTopic() != null, "withTopic() is required");
 
+      KvCoder<K, V> kvCoder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
               "Kafka ProducerRecord",

@@ -58,7 +58,7 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
   @Override
   public void encode(ProducerRecord<K, V> value, OutputStream outStream) throws IOException {
     stringCoder.encode(value.topic(), outStream);
-    intCoder.encode(value.partition() != null ? value.partition() : Integer.MAX_VALUE, outStream);
+    intCoder.encode(value.partition() != null ? value.partition() : -1, outStream);
     longCoder.encode(value.timestamp() != null ? value.timestamp() : Long.MAX_VALUE, outStream);
     headerCoder.encode(toIterable(value), outStream);
     kvCoder.encode(KV.of(value.key(), value.value()), outStream);
@@ -68,7 +68,7 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
   public ProducerRecord<K, V> decode(InputStream inStream) throws IOException {
     String topic = stringCoder.decode(inStream);
     Integer partition = intCoder.decode(inStream);
-    if (partition == Integer.MAX_VALUE) {
+    if (partition == -1) {
       partition = null;
     }
 
