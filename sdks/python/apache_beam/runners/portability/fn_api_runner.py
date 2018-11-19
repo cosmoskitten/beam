@@ -22,13 +22,13 @@ from __future__ import absolute_import
 import collections
 import contextlib
 import copy
-from functools import reduce
 import logging
 import queue
 import threading
 import time
 from builtins import object
 from concurrent import futures
+from functools import reduce
 
 import grpc
 
@@ -313,6 +313,7 @@ class FnApiRunner(runner.PipelineRunner):
           self._merge_environments(self.environment, consumer.environment)
         except ValueError:
           return False
+
         def no_overlap(a, b):
           return not a.intersection(b)
         return (
@@ -1485,7 +1486,7 @@ class GrpcWorkerHandler(WorkerHandler):
 
 
 @WorkerHandler.register_environment(
-    common_urns.environments.EXTERNAL.urn,  beam_runner_api_pb2.ExternalPayload)
+    common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
   def __init__(self, external_payload, state):
     super(ExternalWorkerHandler, self).__init__(state)
@@ -1500,7 +1501,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
                 url=self.control_address),
             params=self._external_payload.params))
     if response.error:
-        raise RuntimeError("Error starting worker: %s" % response.error)
+      raise RuntimeError("Error starting worker: %s" % response.error)
 
   def stop_worker(self):
     pass

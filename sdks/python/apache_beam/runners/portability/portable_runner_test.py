@@ -222,7 +222,7 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         python_urns.SUBPROCESS_SDK)
     options.view_as(PortableOptions).environment_config = (
         b'%s -m apache_beam.runners.worker.sdk_worker_main' %
-            sys.executable)
+        sys.executable)
     return options
 
   @classmethod

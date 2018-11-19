@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import functools
 import logging
 import os
 import sys
@@ -36,7 +35,6 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -630,8 +628,9 @@ class FnApiRunnerTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+
 for m in dir(FnApiRunnerTest):
-  if m.startswith('test_') and m not in ('test_group_by_key',):
+  if m.startswith('test_') and m not in ('test_group_by_key',) and 'side' not in m:
     delattr(FnApiRunnerTest, m)
 
 
