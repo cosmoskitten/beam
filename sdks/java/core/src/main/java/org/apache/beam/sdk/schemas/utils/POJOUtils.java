@@ -20,19 +20,23 @@ package org.apache.beam.sdk.schemas.utils;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Maps;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
+import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
@@ -44,6 +48,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
@@ -92,6 +97,61 @@ public class POJOUtils {
         });
   }
 
+  // The list of constructors for a class is cached, so we only create the classes the first time
+  // getConstructor is called.
+  public static final Map<ClassWithSchema, Constructor> CACHED_CONSTRUCTORS =
+      Maps.newConcurrentMap();
+
+  public static <T> Constructor<? extends T> getConstructor(
+      Class<T> clazz, Schema schema) {
+    return CACHED_CONSTRUCTORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema), c -> createConstructor(clazz, schema));
+  }
+
+  private static <T> Constructor<? extends T> createConstructor(
+      Class<T> clazz, Schema schema) {
+    // Get the list of class fields ordered by schema.
+    Map<String, Field> fieldMap =
+        ReflectUtils.getFields(clazz)
+        .stream()
+        .collect(Collectors.toMap(Field::getName, Function.identity()));
+    List<Field> fields = schema.getFields()
+        .stream()
+        .map(f -> fieldMap.get(f.getName()))
+        .collect(Collectors.toList());
+
+    // Make all fields accessible so that we can modify them in the constructor.
+    fields.stream().forEach(f -> f.setAccessible(true));
+    List<Type> types = fields
+        .stream()
+        .map(Field::getType)
+        .map(TypeDescriptor::of)
+        .map(new ConvertType()::convert)
+        .collect(Collectors.toList());
+
+    try {
+      DynamicType.Builder<? extends T> builder =
+          BYTE_BUDDY
+              .subclass(clazz)
+              .implement(FieldValueTypeInformation.class)
+              .defineConstructor(Visibility.PUBLIC)
+              .withParameters(types)
+              .intercept(
+                  MethodCall.invoke(clazz.getDeclaredConstructor())
+                      .andThen(new ConstructInstruction(fields)));
+
+      return builder
+          .make()
+          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .getLoaded()
+          .getDeclaredConstructor(types.toArray(new Class[types.size()]));
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(
+          "Unable to generate a getter for class " + clazz + " with schema " + schema);
+    }
+  }
+
+
   /**
    * Generate the following {@link FieldValueSetter} class for the {@link Field}.
    *
@@ -135,6 +195,12 @@ public class POJOUtils {
         .intercept(FixedValue.reference(field.getName()))
         .method(ElementMatchers.named("type"))
         .intercept(FixedValue.reference(field.getType()))
+        .method(ElementMatchers.named("elementType"))
+        .intercept(ByteBuddyUtils.getArrayComponentType(TypeDescriptor.of(field.getGenericType())))
+        .method(ElementMatchers.named("mapKeyType"))
+        .intercept(ByteBuddyUtils.getMapKeyType(TypeDescriptor.of(field.getGenericType())))
+        .method(ElementMatchers.named("mapValueType"))
+        .intercept(ByteBuddyUtils.getMapValueType(TypeDescriptor.of(field.getGenericType())))
         .method(ElementMatchers.named("get"))
         .intercept(new ReadFieldInstruction(field));
   }
@@ -291,6 +357,58 @@ public class POJOUtils {
                 // Now update the field and return void.
                 FieldAccess.forField(new ForLoadedField(field)).write(),
                 MethodReturn.VOID);
+
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
+  }
+
+  // Implements a method to construct an object.
+  static class ConstructInstruction implements Implementation {
+    private List<Field> fields;
+
+    ConstructInstruction(List<Field> fields) {
+      this.fields = fields;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // this + method parameters.
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+
+        // Generate code to initialize all member variables.
+        StackManipulation stackManipulation = null;
+        for (int i = 0; i < fields.size(); ++i) {
+          Field field = fields.get(i);
+          // The instruction to read the field.
+          StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(i + 2);
+
+          // Read the object onto the stack.
+          StackManipulation updateField =
+              new StackManipulation.Compound(
+                  // Object param is offset 1.
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  // Do any conversions necessary.
+                  new ByteBuddyUtils.ConvertValueForSetter(readField)
+                      .convert(TypeDescriptor.of(field.getType())),
+                  // Now update the field and return void.
+                  FieldAccess.forField(new ForLoadedField(field)).write());
+          stackManipulation =
+              (stackManipulation == null)
+                  ? updateField
+                  : new StackManipulation.Compound(stackManipulation, updateField);
+        }
+        stackManipulation =
+            (stackManipulation == null)
+                ? MethodReturn.VOID
+                : new StackManipulation.Compound(stackManipulation, MethodReturn.VOID);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
