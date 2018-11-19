@@ -175,31 +175,10 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
-  class BeamFnExternalWorkerServicer(
-      beam_fn_api_pb2_grpc.BeamFnExternalWorkerServicer):
-    def StartWorker(self, start_worker_request, context):
-      try:
-        worker = sdk_worker.SdkHarness(
-            start_worker_request.control_endpoint.url, worker_count=1)
-        worker_thread = threading.Thread(
-            name='run_worker_%s' % start_worker_request.worker_id,
-            target=worker.run)
-        worker_thread.daemon = True
-        worker_thread.start()
-        return beam_fn_api_pb2.StartWorkerResponse()
-      except Exception, exn:
-        return beam_fn_api_pb2.StartWorkerResponse(
-            error=str(exn))
-
   @classmethod
   def setUpClass(cls):
-    cls._worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    cls._worker_port = cls._worker_server.add_insecure_port('[::]:0')
-    cls._worker_address = 'localhost:%s' % cls._worker_port
-    cls._worker_handler = cls.BeamFnExternalWorkerServicer()
-    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerServicer_to_server(
-        cls._worker_handler, cls._worker_server)
-    cls._worker_server.start()
+    cls._worker_address, cls._worker_server = (
+        portable_runner.BeamFnExternalWorkerServicer.start())
 
   @classmethod
   def tearDownClass(cls):

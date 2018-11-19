@@ -17,10 +17,12 @@
 
 from __future__ import absolute_import
 
+import functools
 import json
 import logging
 import os
 import threading
+from concurrent import futures
 
 import grpc
 
@@ -30,11 +32,15 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
+from apache_beam.runners.worker import sdk_worker
 
 __all__ = ['PortableRunner']
 
@@ -75,7 +81,13 @@ class PortableRunner(runner.PipelineRunner):
       return 'unknown'
 
   @staticmethod
-  def _create_environment(options):
+  def _worker_server_address(cleanup_callbacks):
+    address, server = BeamFnExternalWorkerServicer.start()
+    cleanup_callbacks.append(functools.partial(server.stop, 1))
+    return address
+
+  @staticmethod
+  def _create_environment(options, cleanup_callbacks=None):
     portable_options = options.view_as(PortableOptions)
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
@@ -116,7 +128,9 @@ class PortableRunner(runner.PipelineRunner):
           urn=common_urns.environments.EXTERNAL.urn,
           payload=beam_runner_api_pb2.ExternalPayload(
               endpoint=endpoints_pb2.ApiServiceDescriptor(
-                  url=portable_options.environment_config)
+                  url=(portable_options.environment_config
+                       or PortableRunner._worker_server_address(
+                           cleanup_callbacks)))
           ).SerializeToString())
     else:
       return beam_runner_api_pb2.Environment(
@@ -137,9 +151,12 @@ class PortableRunner(runner.PipelineRunner):
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
 
+    # This is needed as we start a worker server if one is requested
+    # but none is provided.
+    cleanup_callbacks = []
     proto_pipeline = pipeline.to_runner_api(
         default_environment=PortableRunner._create_environment(
-            portable_options))
+            portable_options, cleanup_callbacks))
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
@@ -191,7 +208,7 @@ class PortableRunner(runner.PipelineRunner):
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
-    return PipelineResult(job_service, run_response.job_id)
+    return PipelineResult(job_service, run_response.job_id, cleanup_callbacks)
 
 
 class PortableMetrics(metrics.metric.MetricResults):
@@ -206,15 +223,19 @@ class PortableMetrics(metrics.metric.MetricResults):
 
 class PipelineResult(runner.PipelineResult):
 
-  def __init__(self, job_service, job_id):
+  def __init__(self, job_service, job_id, cleanup_callbacks=()):
     super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
+    self._cleanup_callbacks = cleanup_callbacks
 
   def cancel(self):
-    self._job_service.Cancel(beam_job_api_pb2.CancelJobRequest(
-        job_id=self._job_id))
+    try:
+      self._job_service.Cancel(beam_job_api_pb2.CancelJobRequest(
+          job_id=self._job_id))
+    finally:
+      self._cleanup()
 
   @property
   def state(self):
@@ -267,16 +288,59 @@ class PipelineResult(runner.PipelineResult):
     t.daemon = True
     t.start()
 
-    for state_response in self._job_service.GetStateStream(
-        beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
-      self._state = self._runner_api_state_to_pipeline_state(
-          state_response.state)
-      if state_response.state in TERMINAL_STATES:
-        # Wait for any last messages.
-        t.join(10)
-        break
-    if self._state != runner.PipelineState.DONE:
-      raise RuntimeError(
-          'Pipeline %s failed in state %s: %s' % (
-              self._job_id, self._state, self._last_error_message()))
-    return self._state
+    try:
+      for state_response in self._job_service.GetStateStream(
+          beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
+        self._state = self._runner_api_state_to_pipeline_state(
+            state_response.state)
+        if state_response.state in TERMINAL_STATES:
+          # Wait for any last messages.
+          t.join(10)
+          break
+      if self._state != runner.PipelineState.DONE:
+        raise RuntimeError(
+            'Pipeline %s failed in state %s: %s' % (
+                self._job_id, self._state, self._last_error_message()))
+      return self._state
+    finally:
+      self._cleanup()
+
+  def _cleanup(self):
+    has_exception = None
+    for callback in self._cleanup_callbacks:
+      try:
+        callback()
+      except Exception as exn:
+        has_exception = True
+    self._cleanup_callbacks = ()
+    if has_exception:
+      raise
+
+
+class BeamFnExternalWorkerServicer(
+    beam_fn_api_pb2_grpc.BeamFnExternalWorkerServicer):
+
+  @classmethod
+  def start(cls):
+    worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
+    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerServicer_to_server(
+        cls(), worker_server)
+    worker_server.start()
+    return worker_address, worker_server
+
+  def StartWorker(self, start_worker_request, context):
+    try:
+      worker = sdk_worker.SdkHarness(
+          start_worker_request.control_endpoint.url,
+          worker_count=1,
+          worker_id=start_worker_request.worker_id)
+      worker_thread = threading.Thread(
+          name='run_worker_%s' % start_worker_request.worker_id,
+          target=worker.run)
+      worker_thread.daemon = True
+      worker_thread.start()
+      return beam_fn_api_pb2.StartWorkerResponse()
+    except Exception as exn:
+      return beam_fn_api_pb2.StartWorkerResponse(
+          error=str(exn))

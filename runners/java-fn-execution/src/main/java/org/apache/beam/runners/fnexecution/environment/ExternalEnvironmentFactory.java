@@ -99,9 +99,9 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         BeamFnApi.StartWorkerRequest.newBuilder()
             .setWorkerId(workerId)
             .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
-            .setControlEndpoint(loggingServiceServer.getApiServiceDescriptor())
-            .setControlEndpoint(retrievalServiceServer.getApiServiceDescriptor())
-            .setControlEndpoint(provisioningServiceServer.getApiServiceDescriptor())
+            .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
+            .setArtifactEndpoint(retrievalServiceServer.getApiServiceDescriptor())
+            .setProvisionEndpoint(provisioningServiceServer.getApiServiceDescriptor())
             .putAllParams(externalPayload.getParamsMap())
             .build();
 
