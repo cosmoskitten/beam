@@ -1485,8 +1485,7 @@ class GrpcWorkerHandler(WorkerHandler):
 
 
 @WorkerHandler.register_environment(
-    common_urns.environments.EXTERNAL.urn,
-    beam_runner_api_pb2.ExternalPayload)
+    common_urns.environments.EXTERNAL.urn,  beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
   def __init__(self, external_payload, state):
     super(ExternalWorkerHandler, self).__init__(state)
@@ -1507,9 +1506,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     pass
 
 
-@WorkerHandler.register_environment(
-    python_urns.EMBEDDED_PYTHON_GRPC,
-    bytes)
+@WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
   def __init__(self, num_workers_payload, state):
     super(EmbeddedGrpcWorkerHandler, self).__init__(state)
@@ -1520,17 +1517,13 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
         self.control_address, worker_count=self._num_threads)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
-    logging.info('starting worker')
     self.worker_thread.start()
 
   def stop_worker(self):
-    logging.info('waiting on worker')
     self.worker_thread.join()
 
 
-@WorkerHandler.register_environment(
-    python_urns.SUBPROCESS_SDK,
-    bytes)
+@WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self, worker_command_line, state):
     super(SubprocessSdkWorkerHandler, self).__init__(state)
@@ -1542,11 +1535,9 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
         self._worker_command_line, self.control_address)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
-    logging.info('starting worker')
     self.worker_thread.start()
 
   def stop_worker(self):
-    logging.info('waiting on worker')
     self.worker_thread.join()
 
 

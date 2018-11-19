@@ -168,23 +168,6 @@ class SubprocessSdkWorker(object):
       logging_server.stop(0)
 
 
-class ExternalSdkWorker(object):
-  def __init__(self, external_payload, control_address):
-    self._external_payload = external_payload
-    self._control_address = control_address
-
-  def run(self):
-    # Other services?
-    channel = grpc.insecure_channel(self._payload.endpoint.url)
-    start_work_request = beam_fn_api_pb2.StartWorkerRequest(
-        control_endpoint=self._control_address,
-        params=self._external_payload.params)
-    start_work_result = beam_fm_api_pb2_grpc.BeamFnExternalEnvironmentStub(
-        channel).StartWorker(start_work_request)
-    if start_work_result.error:
-      raise ValueError(start_work_result.error)
-
-
 class BeamJob(threading.Thread):
   """This class handles running and managing a single pipeline.
 
