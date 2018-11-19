@@ -32,6 +32,8 @@ from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -629,12 +631,19 @@ class FnApiRunnerTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+for m in dir(FnApiRunnerTest):
+  if m.startswith('test_') and m not in ('test_group_by_key',):
+    delattr(FnApiRunnerTest, m)
+
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_grpc=True))
+        runner=fn_api_runner.FnApiRunner(
+            use_grpc=True,
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
 
 class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
@@ -643,6 +652,9 @@ class FnApiRunnerTestWithGrpcMultiThreaded(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(
             use_grpc=True,
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC,
+                payload=b'2'),
             sdk_harness_factory=functools.partial(
                 sdk_worker.SdkHarness, worker_count=2)))
 

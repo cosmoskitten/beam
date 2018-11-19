@@ -62,8 +62,8 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     """
 
   def __init__(self, worker_command_line=None, use_grpc=True):
-    self._worker_command_line = worker_command_line
-    self._use_grpc = use_grpc or bool(worker_command_line)
+    self._worker_command_line = worker_command_line # unused
+    self._use_grpc = use_grpc
     self._jobs = {}
 
   def start_grpc_server(self, port=0):
@@ -78,17 +78,11 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     # For now, just use the job name as the job id.
     logging.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
-    if self._worker_command_line:
-      sdk_harness_factory = functools.partial(SubprocessSdkWorker,
-                                              self._worker_command_line)
-    else:
-      sdk_harness_factory = None
     self._jobs[preparation_id] = BeamJob(
         preparation_id,
         request.pipeline_options,
         request.pipeline,
-        use_grpc=self._use_grpc,
-        sdk_harness_factory=sdk_harness_factory)
+        use_grpc=self._use_grpc)
     logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     # TODO(angoenka): Pass an appropriate staging_session_token. The token can
     # be obtained in PutArtifactResponse from JobService

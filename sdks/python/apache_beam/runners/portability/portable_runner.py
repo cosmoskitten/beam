@@ -87,8 +87,11 @@ class PortableRunner(runner.PipelineRunner):
     elif portable_options.environment_type == 'EXTERNAL':
       environment_urn = common_urns.environments.EXTERNAL.urn
     elif portable_options.environment_type:
-      raise ValueError(
-          'Unknown environment type: %s' % portable_options.environment_type)
+      if portable_options.environment_type.startswith('beam:env:'):
+        environment_urn = portable_options.environment_type
+      else:
+        raise ValueError(
+            'Unknown environment type: %s' % portable_options.environment_type)
 
     if environment_urn == common_urns.environments.DOCKER.urn:
       docker_image = (
@@ -117,6 +120,11 @@ class PortableRunner(runner.PipelineRunner):
               endpoint=endpoints_pb2.ApiServiceDescriptor(
                   url=portable_options.environment_config)
           ).SerializeToString())
+    else:
+      return beam_runner_api_pb2.Environment(
+          urn=environment_urn,
+          payload=(portable_options.environment_config.encode('ascii')
+                   if portable_options.environment_config else None))
 
   def run_pipeline(self, pipeline):
     portable_options = pipeline.options.view_as(PortableOptions)
@@ -131,10 +139,9 @@ class PortableRunner(runner.PipelineRunner):
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
 
-    proto_context = pipeline_context.PipelineContext(
+    proto_pipeline = pipeline.to_runner_api(
         default_environment=PortableRunner._create_environment(
             portable_options))
-    proto_pipeline = pipeline.to_runner_api(context=proto_context)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.

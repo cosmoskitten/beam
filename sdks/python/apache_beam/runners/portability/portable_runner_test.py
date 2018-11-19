@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
@@ -166,6 +167,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
         'job_name': get_pipeline_name() + '_' + str(time.time())
     })
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
+    # Override the default environment type for testing.
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.EMBEDDED_PYTHON)
     return options
 
   def create_pipeline(self):
@@ -175,7 +179,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
 
 class PortableRunnerTestWithGrpc(PortableRunnerTest):
-  _use_grpc = True
+  _use_grpc = True  # For talking to job service, not workers
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
@@ -218,7 +222,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     print("tearDownClass", cls)
     cls._worker_server.stop(1)
 
-
   def create_options(self):
     options = super(PortableRunnerTestWithExternalEnv, self).create_options()
     options.view_as(PortableOptions).environment_type = 'EXTERNAL'
@@ -226,10 +229,19 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     return options
 
 
-@unittest.skip("BEAM-3040")
+#@unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
+
+  def create_options(self):
+    options = super(PortableRunnerTestWithSubprocesses, self).create_options()
+    options.view_as(PortableOptions).environment_type = (
+        python_urns.SUBPROCESS_SDK)
+    options.view_as(PortableOptions).environment_config = (
+        b'%s -m apache_beam.runners.worker.sdk_worker_main' %
+            sys.executable)
+    return options
 
   @classmethod
   def _subprocess_command(cls, port):
@@ -237,8 +249,6 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         sys.executable,
         '-m', 'apache_beam.runners.portability.local_job_service_main',
         '-p', str(port),
-        '--worker_command_line',
-        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable,
     ]
 
 
