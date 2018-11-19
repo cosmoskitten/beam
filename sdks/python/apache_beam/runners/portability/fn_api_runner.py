@@ -1487,10 +1487,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
       super(ExternalWorkerHandler, self).__init__(state)
 
     def start_worker(self):
-      print "START WORKER", self._external_payload
       stub = beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentStub(
           grpc.insecure_channel(self._external_payload.endpoint.url))
-      print "stub", stub
       response = stub.StartWorker(
           beam_fn_api_pb2.StartWorkerRequest(
               control_endpoint=endpoints_pb2.ApiServiceDescriptor(
@@ -1510,7 +1508,6 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
     def __init__(self, num_workers_payload, state):
       self._num_threads = int(num_workers_payload) if num_workers_payload else 1
-      print "HERE", self._num_threads
       super(EmbeddedGrpcWorkerHandler, self).__init__(state)
 
     def start_worker(self):
@@ -1533,7 +1530,6 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 
     def __init__(self, worker_command_line, state):
       self._worker_command_line = worker_command_line
-      print "WORKER SUBPROCESS", self._worker_command_line
       super(SubprocessSdkWorkerHandler, self).__init__(state)
 
     def start_worker(self):

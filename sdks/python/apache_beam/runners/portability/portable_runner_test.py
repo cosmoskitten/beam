@@ -54,7 +54,6 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   TIMEOUT_SECS = 30
 
   # Controls job service interaction, not sdk harness interaction.
-  _use_grpc = False
   _use_subprocesses = False
 
   def setUp(self):
@@ -174,12 +173,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
 
-class PortableRunnerTestWithGrpc(PortableRunnerTest):
-  _use_grpc = True
-
-
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
-  _use_grpc = True
 
   class BeamFnExternalEnvironmentServicer(
       beam_fn_api_pb2_grpc.BeamFnExternalEnvironmentServicer):
@@ -203,7 +197,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
   @classmethod
   def setUpClass(cls):
-    print("setUpClass", cls)
     cls._worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     cls._worker_port = cls._worker_server.add_insecure_port('[::]:0')
     cls._worker_address = 'localhost:%s' % cls._worker_port
@@ -211,11 +204,9 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
     beam_fn_api_pb2_grpc.add_BeamFnExternalEnvironmentServicer_to_server(
         cls._worker_handler, cls._worker_server)
     cls._worker_server.start()
-    print('listenting for worker at', cls._worker_address)
 
   @classmethod
   def tearDownClass(cls):
-    print("tearDownClass", cls)
     cls._worker_server.stop(1)
 
   def create_options(self):
@@ -227,7 +218,6 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 
 #@unittest.skip("BEAM-3040")
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
-  _use_grpc = True
   _use_subprocesses = True
 
   def create_options(self):
