@@ -26,10 +26,8 @@ import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -220,9 +218,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     if (getFieldInsertionOrder()) {
       fieldIds = Sets.newLinkedHashSet();
     } else {
-      // Make sure that resolved fields are always ordered by their field name.
-      Function<Integer, String> nameOf = (Function<Integer, String> & Serializable) schema::nameOf;
-      fieldIds = Sets.newTreeSet(Comparator.comparing(nameOf));
+      fieldIds = Sets.newTreeSet();
     }
 
     for (int fieldId : getFieldIdsAccessed()) {
@@ -263,9 +259,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     if (getFieldInsertionOrder()) {
       nestedFields = Maps.newLinkedHashMap();
     } else {
-      // Make sure that resolved fields are always ordered by their field name.
-      Function<Integer, String> nameOf = (Function<Integer, String> & Serializable) schema::nameOf;
-      nestedFields = Maps.newTreeMap(Comparator.comparing(nameOf));
+      nestedFields = Maps.newTreeMap();
     }
 
     nestedFields.putAll(
