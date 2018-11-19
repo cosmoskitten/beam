@@ -214,10 +214,10 @@ public class Schema implements Serializable {
     if (uuid != null && other.uuid != null && Objects.equals(uuid, other.uuid)) {
       return true;
     }
-    if (!Objects.equals(fieldIndices.values(), other.fieldIndices.values())) {
+    if (getFieldCount() != other.getFieldCount()) {
       return false;
     }
-    if (getFieldCount() != other.getFieldCount()) {
+    if (!Objects.equals(fieldIndices.values(), other.fieldIndices.values())) {
       return false;
     }
     for (int i = 0; i < getFieldCount(); ++i) {
@@ -493,7 +493,7 @@ public class Schema implements Serializable {
           && Arrays.equals(getMetadata(), other.getMetadata());
     }
 
-    /** Returns true if two FieldTypes are equal, ignoring name and description. */
+    /** Returns true if two FieldTypes are equal. */
     public boolean typesEqual(FieldType other) {
       if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
