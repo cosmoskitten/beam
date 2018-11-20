@@ -111,8 +111,8 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 
   def test_expand_with_topic(self):
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, 'a_label', with_attributes=False,
@@ -135,8 +135,8 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 
   def test_expand_with_subscription(self):
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  None, 'projects/fakeprj/subscriptions/a_subscription',
@@ -171,8 +171,8 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 
   def test_expand_with_other_options(self):
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, 'a_label', with_attributes=True,
@@ -198,8 +198,8 @@ class TestReadFromPubSubOverride(unittest.TestCase):
 class TestWriteStringsToPubSubOverride(unittest.TestCase):
   def test_expand_deprecated(self):
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/baz')
              | WriteStringsToPubSub('projects/fakeprj/topics/a_topic')
@@ -218,8 +218,8 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
 
   def test_expand(self):
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/baz')
              | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -349,8 +349,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic',
                               None, None, with_attributes=True))
@@ -370,8 +370,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
                                      None, None))
@@ -389,8 +389,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
     assert_that(pcoll, equal_to(expected_elements))
@@ -417,8 +417,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -447,8 +447,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -478,8 +478,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     pcoll = (p
              | ReadFromPubSub(
                  'projects/fakeprj/topics/a_topic', None, None,
@@ -502,8 +502,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.pull.return_value = pull_response
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | ReadFromPubSub(
              'projects/fakeprj/topics/a_topic', None, None,
@@ -515,8 +515,8 @@ class TestReadFromPubSub(unittest.TestCase):
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
     with self.assertRaisesRegexp(NotImplementedError,
                                  r'id_label is not supported'):
@@ -532,8 +532,8 @@ class TestWriteToPubSub(unittest.TestCase):
     payloads = [data]
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -547,8 +547,8 @@ class TestWriteToPubSub(unittest.TestCase):
     payloads = [data]
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
@@ -562,8 +562,8 @@ class TestWriteToPubSub(unittest.TestCase):
     payloads = [PubsubMessage(data, attributes)]
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -578,8 +578,8 @@ class TestWriteToPubSub(unittest.TestCase):
     payloads = [data]
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -594,8 +594,8 @@ class TestWriteToPubSub(unittest.TestCase):
     payloads = [PubsubMessage(data, attributes)]
 
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
@@ -604,8 +604,8 @@ class TestWriteToPubSub(unittest.TestCase):
                                  r'id_label is not supported'):
       p.run()
     options = PipelineOptions([])
-    p = TestPipeline(options=options)
     options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
     _ = (p
          | Create(payloads)
          | WriteToPubSub('projects/fakeprj/topics/a_topic',
