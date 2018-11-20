@@ -17,9 +17,12 @@
 """
 This is CoGroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
-* metrics_project_id (optional) - the gcp project in case of saving metrics
-in Big Query,
-in case of lack of option metrics won't be saved
+* project (optional) - the gcp project in case of saving
+metrics in Big Query (in case of Dataflow Runner
+it is required to specify project of runner),
+* metrics_namespace (optional) - name of BigQuery table where metrics
+will be stored,
+in case of lack of any of both options metrics won't be saved
 * input_options - options for Synthetic Sources
 * co_input_options - options for  Synthetic Sources.
 
@@ -27,7 +30,8 @@ Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
-      --metrics_project_id=big-query-project
+      --project=big-query-project
+      --metrics_namespace=co_gbk
       --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -53,7 +57,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --metrics_project_id=big-query-project
+        --metrics_namespace=co_gbk
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -82,13 +86,12 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import Monitor
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
 
 INPUT_TAG = 'pc1'
 CO_INPUT_TAG = 'pc2'
-NAMESPACE = 'co_gbk'
 RUNTIME_LABEL = 'runtime'
 
 
@@ -112,17 +115,18 @@ class CoGroupByKeyTest(unittest.TestCase):
 
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
-    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
-    self.coInputOptions = json.loads(
+    self.input_options = json.loads(self.pipeline.get_option('input_options'))
+    self.co_input_options = json.loads(
         self.pipeline.get_option('co_input_options'))
 
-    metrics_project_id = self.pipeline.get_option('metrics_project_id')
-    self.bigQuery = None
+    metrics_project_id = self.pipeline.get_option('project')
+    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_monitor = None
     if metrics_project_id is not None:
       schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
-      self.bigQuery = Monitor(
+      self.metrics_monitor = MetricsMonitor(
           metrics_project_id,
-          NAMESPACE,
+          self.metrics_namespace,
           schema
       )
 
@@ -141,28 +145,32 @@ class CoGroupByKeyTest(unittest.TestCase):
       pc1 = (p
              | 'Read ' + INPUT_TAG >> beam.io.Read(
                  synthetic_pipeline.SyntheticSource(
-                     self.parseTestPipelineOptions(self.inputOptions)))
+                     self.parseTestPipelineOptions(self.input_options)))
              | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
+             | 'Measure time: Start pc1' >> beam.ParDo(
+                 MeasureTime(self.metrics_namespace))
             )
 
       pc2 = (p
              | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
                  synthetic_pipeline.SyntheticSource(
-                     self.parseTestPipelineOptions(self.coInputOptions)))
+                     self.parseTestPipelineOptions(self.co_input_options)))
              | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(
                  lambda x: (x, x))
+             | 'Measure time: Start pc2' >> beam.ParDo(
+                 MeasureTime(self.metrics_namespace))
             )
       # pylint: disable=expression-not-assigned
       ({INPUT_TAG: pc1, CO_INPUT_TAG: pc2}
        | 'CoGroupByKey: ' >> beam.CoGroupByKey()
        | 'Consume Joined Collections' >> beam.ParDo(self._Ungroup())
-       | 'Measure time' >> beam.ParDo(MeasureTime(NAMESPACE))
+       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
       )
 
       result = p.run()
       result.wait_until_finish()
-      if self.bigQuery is not None:
-        self.bigQuery.send_metrics(result)
+      if self.metrics_monitor is not None:
+        self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

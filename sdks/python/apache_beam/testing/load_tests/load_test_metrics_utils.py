@@ -32,7 +32,6 @@ from apache_beam.metrics import Metrics
 
 RUNTIME_LABEL = 'runtime'
 SUBMIT_TIMESTAMP_LABEL = 'submit_timestamp'
-LOAD_TEST_DATASET_NAME = 'python_load_tests'
 
 
 def _get_schema_field(schema_field):
@@ -41,12 +40,16 @@ def _get_schema_field(schema_field):
       field_type=schema_field['type'],
       mode=schema_field['mode'])
 
-class BigQueryConnector(object):
-  def __init__(self, project_name, namespace, schema_map):
-    self._namespace = namespace
+class BigQueryClient(object):
+  def __init__(self, project_name, table, dataset, schema_map):
+    self._namespace = table
+
     bq_client = bigquery.Client(project=project_name)
+
     schema = self._parse_schema(schema_map)
+    self._schema_names = self._get_schema_names(schema)
     schema = self._prepare_schema(schema)
+
     self._get_or_create_table(schema, bq_client)
 
   def match_and_save(self, result_list):
@@ -54,11 +57,11 @@ class BigQueryConnector(object):
     self._insert_data(rows_tuple)
 
   def _match_inserts_by_schema(self, insert_list):
-    for name in insert_list:
+    for name in self._schema_names:
       yield self._get_element_by_schema(name, insert_list)
 
-  def _get_element_by_schema(self, schema_name, schema_list):
-    for metric in schema_list:
+  def _get_element_by_schema(self, schema_name, insert_list):
+    for metric in insert_list:
       if metric['label'] == schema_name:
         return metric['value']
     return None
@@ -69,27 +72,27 @@ class BigQueryConnector(object):
       for err in job[0]['errors']:
         raise ValueError(err['message'])
 
-  def _get_dataset(self, bq_client):
-    bq_dataset = bq_client.dataset(LOAD_TEST_DATASET_NAME)
+  def _get_dataset(self, bq_client, dataset_name):
+    bq_dataset = bq_client.dataset(dataset_name)
     if not bq_dataset.exists():
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
-            .format(self._namespace))
+          .format(self._namespace))
     return bq_dataset
 
-  def _get_or_create_table(self, bq_schemas, bq_client):
-    self._bq_table = self._get_dataset(bq_client).table(self._namespace, bq_schemas)
-    if self._namespace is '':
+  def _get_or_create_table(self, bq_schemas, bq_client, dataset):
+    self._bq_table = self._get_dataset(bq_client, dataset)\
+                         .table(self._namespace, bq_schemas)
+    if self._namespace == '':
       raise ValueError('Namespace cannot be empty.')
-
     if not self._bq_table.exists():
       self._bq_table.create()
 
   def _parse_schema(self, schema_map):
     return [{'name': SUBMIT_TIMESTAMP_LABEL,
-                'type': 'TIMESTAMP',
-                'mode': 'REQUIRED'}] + schema_map
+             'type': 'TIMESTAMP',
+             'mode': 'REQUIRED'}] + schema_map
 
   def _prepare_schema(self, schemas):
     return [_get_schema_field(schema) for schema in schemas]
@@ -98,11 +101,10 @@ class BigQueryConnector(object):
     return [schema['name'] for schema in schemas]
 
 
-
-class Monitor(object):
-  def __init__(self, project_name, namespace, schema_map):
+class MetricsMonitor(object):
+  def __init__(self, project_name, table, dataset, schema_map):
     if project_name is not None:
-      self.bq = BigQueryConnector(project_name, namespace, schema_map)
+      self.bq = BigQueryClient(project_name, table, dataset, schema_map)
 
   def send_metrics(self, result):
     metrics = result.metrics().query()
@@ -121,7 +123,6 @@ class Monitor(object):
     insert_list = [timestamp] + dist_list + counters_list
     self.bq.match_and_save(insert_list)
 
-
   def _prepare_counter_metrics(self, counters):
     for counter in counters:
       logging.info("Counter:  %s", counter)
@@ -133,23 +134,23 @@ class Monitor(object):
 
     return counters_list
 
-  # prepares distributions of start and end metrics to show test runtime
+  # distributions of start as min of mins and end as max of maxes timestamps
   def _prepare_runtime_metrics(self, distributions):
+    min_values = []
+    max_values = []
     for dist in distributions:
       logging.info("Distribution: %s", dist)
+      print("Distribution: %s", dist)
+      min_values.append(dist.committed.min)
+      max_values.append(dist.committed.max)
+    min_value = min(min_values)
+    max_value = max(max_values)
 
-    runtime_in_s = self._get_start_end_time(dist)
+    runtime_in_s = max_value - min_value
+    logging.info("Runtime: %s", runtime_in_s)
+    print("Runtime: %s", runtime_in_s)
     runtime_in_s = float(runtime_in_s)
     return [{'label': RUNTIME_LABEL, 'value': runtime_in_s}]
-
-
-
-
-
-  def _get_start_end_time(self, distribution):
-    start = distribution.committed.min
-    end = distribution.committed.max
-    return end - start
 
 
 class MeasureTime(beam.DoFn):
@@ -167,19 +168,15 @@ class MeasureTime(beam.DoFn):
     yield element
 
 
-# Decorator to add counter metrics which counts elements lenght to method
-class _CountMetrics(object):
-  def __init__(self, namespace, counter_name):
-    self.counter = Metrics.counter(namespace, counter_name)
-
-  def __call__(self, fn):
-    def decorated(*args):
+def count_bytes(counter_name):
+  def layer(f):
+    def repl(*args):
+      namespace = args[2]
+      counter = Metrics.counter(namespace, counter_name)
       element = args[1]
       _, value = element
       for i in range(len(value)):
-        self.counter.inc(i)
-      return fn(*args)
-
-    return decorated
-
-count_metrics = _CountMetrics
+        counter.inc(i)
+      return f(*args)
+    return repl
+  return layer

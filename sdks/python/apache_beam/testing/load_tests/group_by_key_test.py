@@ -17,16 +17,20 @@
 """
 This is GroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
-* metrics_project_id (optional) - the gcp project in case of saving metrics
-in Big Query,
-in case of lack of option metrics won't be saved
+* project (optional) - the gcp project in case of saving
+metrics in Big Query (in case of Dataflow Runner
+it is required to specify project of runner),
+* metrics_namespace (optional) - name of BigQuery table where metrics
+will be stored,
+in case of lack of any of both options metrics won't be saved
 * input_options - options for Synthetic Sources.
 
 Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
-    --metrics_project_id=big-query-project
+    --project=big-query-project
+    --metrics_namespace=gbk
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -46,7 +50,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --metrics_project_id=big-query-project
+        --metrics_namespace=gbk
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -67,42 +71,42 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import Monitor
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.test_pipeline import TestPipeline
 
-NAMESPACE = 'gbk'
 RUNTIME_LABEL = 'runtime'
 
 
 class GroupByKeyTest(unittest.TestCase):
   def parseTestPipelineOptions(self):
     return {
-        'numRecords': self.inputOptions.get('num_records'),
-        'keySizeBytes': self.inputOptions.get('key_size'),
-        'valueSizeBytes': self.inputOptions.get('value_size'),
+        'numRecords': self.input_options.get('num_records'),
+        'keySizeBytes': self.input_options.get('key_size'),
+        'valueSizeBytes': self.input_options.get('value_size'),
         'bundleSizeDistribution': {
-            'type': self.inputOptions.get(
+            'type': self.input_options.get(
                 'bundle_size_distribution_type', 'const'
             ),
-            'param': self.inputOptions.get('bundle_size_distribution_param', 0)
+            'param': self.input_options.get('bundle_size_distribution_param', 0)
         },
-        'forceNumInitialBundles': self.inputOptions.get(
+        'forceNumInitialBundles': self.input_options.get(
             'force_initial_num_bundles', 0
         )
     }
 
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
-    self.inputOptions = json.loads(self.pipeline.get_option('input_options'))
+    self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
-    metrics_project_id = self.pipeline.get_option('metrics_project_id')
-    self.bigQuery = None
-    if metrics_project_id is not None:
+    metrics_project_id = self.pipeline.get_option('project')
+    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_monitor = None
+    if metrics_project_id and self.metrics_namespace is not None:
       schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
-      self.bigQuery = Monitor(
+      self.metrics_monitor = MetricsMonitor(
           metrics_project_id,
-          NAMESPACE,
+          self.metrics_namespace,
           schema
       )
 
@@ -112,16 +116,18 @@ class GroupByKeyTest(unittest.TestCase):
       (p
        | beam.io.Read(synthetic_pipeline.SyntheticSource(
            self.parseTestPipelineOptions()))
-       | 'Measure time' >> beam.ParDo(MeasureTime(NAMESPACE))
+       | 'Measure time: Start' >> beam.ParDo(
+           MeasureTime(self.metrics_namespace))
        | 'GroupByKey' >> beam.GroupByKey()
        | 'Ungroup' >> beam.FlatMap(
            lambda elm: [(elm[0], v) for v in elm[1]])
+       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
       )
 
       result = p.run()
       result.wait_until_finish()
-      if self.bigQuery is not None:
-        self.bigQuery.send_metrics(result)
+      if self.metrics_monitor is not None:
+        self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':

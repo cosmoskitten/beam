@@ -18,9 +18,12 @@
 This is ParDo load test with Synthetic Source. Besides of the standard
 input options there are additional options:
 * number_of_counter_operations - number of pardo operations
-* metrics_project_id (optional) - the gc project in case of saving metrics
-in Big Query,
-in case of lack of option metrics won't be saved
+* project (optional) - the gcp project in case of saving
+metrics in Big Query (in case of Dataflow Runner
+it is required to specify project of runner),
+* metrics_namespace (optional) - name of BigQuery table where metrics
+will be stored,
+in case of lack of any of both options metrics won't be saved
 * output (optional) - destination to save output, in case of no option
 output won't be written
 * input_options - options for Synthetic Sources.
@@ -30,7 +33,7 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
     --number_of_counter_operations=1000
-    --output=gc
+    --output=gs://...
     --project=big-query-project
     --metrics_namespace=pardo
     --input_options='{
@@ -52,7 +55,7 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --output=gc
+        --output=gs://...
         --number_of_counter_operations=1000
         --metrics_namespace=pardo
         --input_options='{
@@ -75,9 +78,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import Monitor
+from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import _CountMetrics
+from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 from apache_beam.testing.test_pipeline import TestPipeline
 
 COUNTER_LABEL = "total_bytes_count"
@@ -85,7 +88,6 @@ RUNTIME_LABEL = 'runtime'
 
 
 class ParDoTest(unittest.TestCase):
-
   def parseTestPipelineOptions(self):
     return {'numRecords': self.input_options.get('num_records'),
             'keySizeBytes': self.input_options.get('key_size'),
@@ -105,28 +107,24 @@ class ParDoTest(unittest.TestCase):
 
   def setUp(self):
     self.pipeline = TestPipeline(is_integration_test=True)
+
     self.output = self.pipeline.get_option('output')
     self.iterations = self.pipeline.get_option('number_of_counter_operations')
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
     metrics_project_id = self.pipeline.get_option('project')
-    metrics_namespace = self.pipeline.get_option('metrics_namespace')
-    self.monitor = None
-    if metrics_project_id and metrics_namespace is not None:
+    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_monitor = None
+    if metrics_project_id and self.metrics_namespace is not None:
       measured_values = [
-        {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
-        {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
+          {'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'},
+          {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
       ]
-      self.monitor = Monitor(
+      self.metrics_monitor = MetricsMonitor(
           metrics_project_id,
-          metrics_namespace,
+          self.metrics_namespace,
           measured_values
       )
-
-  class _GetElement(beam.DoFn):
-    @_CountMetrics(namespace=NAMESPACE, counter_name=COUNTER_LABEL)
-    def process(self, element):
-      yield element
 
   def testParDo(self):
     if self.iterations is None:
@@ -140,25 +138,38 @@ class ParDoTest(unittest.TestCase):
                 synthetic_pipeline.SyntheticSource(
                     self.parseTestPipelineOptions()
                 ))
-            | 'Measure time' >> beam.ParDo(MeasureTime(NAMESPACE))
+            | 'Measure time: Start' >> beam.ParDo(
+                MeasureTime(self.metrics_namespace))
            )
 
       for i in range(num_runs):
-        label = 'Step: %d' % i
+        is_returning = (i == (num_runs-1))
         pc = (pc
-              | label >> beam.ParDo(self._GetElement()))
+              | 'Step: %d' % i >> beam.ParDo(
+                  self._GetElement(), self.metrics_namespace, is_returning)
+             )
 
       if self.output is not None:
-        # pylint: disable=expression-not-assigned
-        (pc
-         | "Write" >> beam.io.WriteToText(self.output)
-        )
+        pc = (pc
+              | "Write" >> beam.io.WriteToText(self.output)
+             )
+
+      # pylint: disable=expression-not-assigned
+      (pc
+       | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
+      )
 
       result = p.run()
       result.wait_until_finish()
 
-      if self.monitor is not None:
-        self.monitor.send_metrics(result)
+      if self.metrics_monitor is not None:
+        self.metrics_monitor.send_metrics(result)
+
+  class _GetElement(beam.DoFn):
+    @count_bytes(COUNTER_LABEL)
+    def process(self, element, namespace, is_returning):
+      if is_returning:
+        yield element
 
 
 if __name__ == '__main__':
