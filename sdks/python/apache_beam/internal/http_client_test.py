@@ -21,10 +21,11 @@ from __future__ import absolute_import
 import os
 import unittest
 
+from httplib2 import ProxyInfo
+
 from apache_beam.internal.http_client import DEFAULT_HTTP_TIMEOUT_SECONDS
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.http_client import proxy_info_from_environment_var
-from httplib2 import ProxyInfo
 
 
 class HttpClientTest(unittest.TestCase):
