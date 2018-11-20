@@ -154,14 +154,15 @@ public class BeamJoinTransforms {
         BeamSqlSeekableTable seekableTable,
         Schema lkpSchema,
         Schema outputSchema,
-        int factTableColSize) {
+        int factColOffset,
+        int lkpColOffset) {
       this.seekableTable = seekableTable;
       this.lkpSchema = lkpSchema;
       this.outputSchema = outputSchema;
-      joinFieldsMapping(joinCondition, factTableColSize);
+      joinFieldsMapping(joinCondition, factColOffset, lkpColOffset);
     }
 
-    private void joinFieldsMapping(RexNode joinCondition, int factTableColSize) {
+    private void joinFieldsMapping(RexNode joinCondition, int factColOffset, int lkpColOffset) {
       factJoinIdx = new ArrayList<>();
       List<Schema.Field> lkpJoinFields = new ArrayList<>();
 
@@ -169,15 +170,15 @@ public class BeamJoinTransforms {
       if ("AND".equals(call.getOperator().getName())) {
         List<RexNode> operands = call.getOperands();
         for (RexNode rexNode : operands) {
-          factJoinIdx.add(((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex());
+          factJoinIdx.add(
+              ((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex() - factColOffset);
           int lkpJoinIdx =
-              ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
-                  - factTableColSize;
+              ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex() - lkpColOffset;
           lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
-        factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
-        int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex() - factTableColSize;
+        factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex() - factColOffset);
+        int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex() - lkpColOffset;
         lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
