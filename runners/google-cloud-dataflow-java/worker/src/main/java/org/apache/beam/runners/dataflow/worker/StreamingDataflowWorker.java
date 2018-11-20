@@ -490,7 +490,7 @@ public class StreamingDataflowWorker {
       throws IOException {
     return new StreamingDataflowWorker(
         mapTasks,
-        BeamFnMapTaskExecutorFactory.defaultFactory(null),
+        BeamFnMapTaskExecutorFactory.defaultFactory(),
         workUnitClient,
         options.as(StreamingDataflowWorkerOptions.class),
         pipeline,
@@ -1143,6 +1143,7 @@ public class StreamingDataflowWorker {
                 worker.getControlClientHandler(),
                 worker.getDataService(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
+                sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
                 worker.getStateService(),
                 mapTaskNetwork,
                 options,

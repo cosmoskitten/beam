@@ -43,10 +43,14 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
@@ -84,10 +88,13 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
+import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.environment.StaticRemoteEnvironmentFactory;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -105,15 +112,12 @@ import org.slf4j.LoggerFactory;
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutorFactory.class);
-  private final JobBundleFactory jobBundleFactory;
 
-  public static BeamFnMapTaskExecutorFactory defaultFactory(JobBundleFactory jobBundleFactory) {
-    return new BeamFnMapTaskExecutorFactory(jobBundleFactory);
+  public static BeamFnMapTaskExecutorFactory defaultFactory() {
+    return new BeamFnMapTaskExecutorFactory();
   }
 
-  private BeamFnMapTaskExecutorFactory(JobBundleFactory jobBundleFactory) {
-    this.jobBundleFactory = jobBundleFactory;
-  }
+  private BeamFnMapTaskExecutorFactory() {}
 
   /**
    * Creates a new {@link DataflowMapTaskExecutor} from the given {@link MapTask} definition using
@@ -124,6 +128,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       StateDelegator beamFnStateDelegator,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
@@ -145,12 +150,31 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         network, createOutputReceiversTransform(stageName, counterSet));
 
     if (DataflowRunner.hasExperiment(
-        options.as(DataflowPipelineDebugOptions.class), "use_shared_lib") || true) {
+            options.as(DataflowPipelineDebugOptions.class), "use_shared_lib")
+        || true) {
+      JobInfo jobInfo =
+          JobInfo.create(
+              options.as(DataflowWorkerHarnessOptions.class).getJobId(),
+              options.getJobName(),
+              "dataflowFakeRetrievalToken",
+              PipelineOptionsTranslation.toProto(options));
+      JobBundleFactory jobBundleFactory =
+          DefaultJobBundleFactory.create(
+              jobInfo,
+              ImmutableMap.of(
+                  BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER),
+                  new StaticRemoteEnvironmentFactory.Provider(
+                      instructionRequestHandler,
+                      beamFnDataService,
+                      beamFnStateDelegator,
+                      dataApiServiceDescriptor,
+                      stateApiServiceDescriptor,
+                      idGenerator)));
       // If the shared_lib usage is enabled, use shared lib instead.
       Networks.replaceDirectedNetworkNodes(
           network,
           createOperationTransformForExecutableStageNode(
-              network, stageName, executionContext, this.jobBundleFactory));
+              network, stageName, executionContext, jobBundleFactory));
     } else {
       // Swap out all the RegisterFnRequest nodes with Operation nodes
       Networks.replaceDirectedNetworkNodes(

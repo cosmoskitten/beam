@@ -40,6 +40,7 @@ public interface DataflowMapTaskExecutorFactory {
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       StateDelegator beamFnStateDelegator,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,

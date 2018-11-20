@@ -100,6 +100,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       InstructionRequestHandler instructionRequestHandler,
       FnDataService beamFnDataService,
       Endpoints.ApiServiceDescriptor dataApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
       StateDelegator beamFnStateDelegator,
       MutableNetwork<Node, Edge> network,
       PipelineOptions options,
