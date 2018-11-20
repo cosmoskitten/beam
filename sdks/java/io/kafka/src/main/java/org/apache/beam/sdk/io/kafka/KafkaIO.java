@@ -160,8 +160,10 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to Kafka</h3>
  *
  * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
- * values. To configure a Kafka sink, you must specify at the minimum Kafka
- * <tt>bootstrapServers</tt>, the topic to write to, and key and value serializers. For example:
+ * values or native Kafka producer records using {@link
+ * org.apache.kafka.clients.producer.ProducerRecord}. To configure a Kafka sink, you must specify at
+ * the minimum Kafka <tt>bootstrapServers</tt>, the topic to write to, and key and value
+ * serializers. For example:
  *
  * <pre>{@code
  * PCollection<KV<Long, String>> kvColl = ...;
@@ -196,6 +198,19 @@ import org.slf4j.LoggerFactory;
  *     .withTopic("results")
  *     .withValueSerializer(StringSerializer.class) // just need serializer for value
  *     .values()
+ *   );
+ * }</pre>
+ *
+ * <p>Also, if you want to write Kafka {@link ProducerRecord} then you should use {@link
+ * KafkaIO#writeRecords()}:
+ *
+ * <pre>{@code
+ * PCollection<ProducerRecord<Long, String>> records = ...;
+ * records.apply(KafkaIO.<Long, String>writeRecords()
+ *     .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *     .withTopic("results")
+ *     .withKeySerializer(LongSerializer.class)
+ *     .withValueSerializer(StringSerializer.class)
  *   );
  * }</pre>
  *
@@ -877,10 +892,10 @@ public class KafkaIO {
   @AutoValue
   public abstract static class WriteRecords<K, V>
       extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
-    // TODO: Create the only one generic {@code Write<T>} transform which will be parameterized
-    // depending on type of input collection (KV, ProducerRecords, etc). In such case, we shouldn't
-    // have to duplicate the same API for similar transforms like {@link Write} and {@link
-    // WriteRecords}.
+    // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
+    // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
+    // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
+    // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
     @Nullable
     abstract String getTopic();
@@ -1144,10 +1159,10 @@ public class KafkaIO {
    */
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    // TODO: Create the only one generic {@code Write<T>} transform which will be parameterized
-    // depending on type of input collection (KV, ProducerRecords, etc). In such case, we shouldn't
-    // have to duplicate the same API for similar transforms like {@link Write} and {@link
-    // WriteRecords}.
+    // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
+    // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
+    // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
+    // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
     @Nullable
     abstract String getTopic();
