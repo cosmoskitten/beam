@@ -30,7 +30,6 @@ import re
 import threading
 import time
 import traceback
-
 from builtins import object
 
 from apache_beam.internal.http_client import get_new_http

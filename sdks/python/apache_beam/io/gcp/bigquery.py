@@ -123,9 +123,9 @@ import logging
 import re
 import time
 import uuid
-
 from builtins import object
 from builtins import zip
+
 from future.utils import iteritems
 from future.utils import itervalues
 from past.builtins import unicode
@@ -139,8 +139,8 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
-from apache_beam.transforms import PTransform
 from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 
