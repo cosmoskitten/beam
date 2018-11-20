@@ -22,8 +22,8 @@ public final class Restrictions {
 
   /**
    * By default all restrictions are assumed to be unbounded and it is expected that SplittableDoFn
-   * authors mark their type with this interface if the restriction produces a bounded amount of
-   * output.
+   * authors mark their restriction type with this interface if the restriction produces a bounded
+   * amount of output.
    */
   interface IsBounded {}
 }

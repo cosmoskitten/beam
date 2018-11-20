@@ -518,10 +518,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * method annotated with this must satisfy the following constraints:
    *
    * <ul>
-   *   <li>It must have exactly zero or one arguments.
-   *   <li>If it has any arguments, its only argument must be a {@link DoFn.StartBundleContext}.
+   *   <li>If one of the parameters is of type {@link DoFn.StartBundleContext}, then it will be
+   *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    * </ul>
    */
+  // TODO: Add support for bundle finalization parameter.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -645,9 +651,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * with this must satisfy the following constraints:
    *
    * <ul>
-   *   <li>It must have exactly zero or one arguments.
-   *   <li>If it has any arguments, its only argument must be a {@link DoFn.FinishBundleContext}.
+   *   <li>If one of the parameters is of type {@link DoFn.FinishBundleContext}, then it will be
+   *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
+   *       mechanism to register a callback that will be invoked after the runner successfully
+   *       commits the output of this bundle. See <a
+   *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
+   *       Finalize Bundles</a> for further details.
    * </ul>
+   *
+   * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
+   * while {@link BundleFinalizer.Callback bundle finalizer callbacks} are invoked after the runner
+   * has committed the output of a successful bundle.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -700,9 +715,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
    *
    * <p>Signature: {@code RestrictionT getInitialRestriction(InputT element);}
-   *
-   * <p>TODO: Make the InputT parameter optional.
    */
+  // TODO: Make the InputT parameter optional.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -751,11 +765,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
    * defining the method and outputting {@code Collections.singletonList(restriction)}).
-   *
-   * <p>TODO: Make the InputT parameter optional.
-   *
-   * <p>TODO: Make the Backlog parameter optional.
    */
+  // TODO: Make the InputT parameter optional.
+  // TODO: Make the Backlog parameter optional.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -802,7 +814,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   // This can't be put into ProcessContinuation itself due to the following problem:
   // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
   private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, new Instant());
+      new AutoValue_DoFn_ProcessContinuation(false, Instant.now());
 
   /**
    * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
@@ -821,7 +833,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     /** Indicates that there is more work to be done for the current element. */
     public static ProcessContinuation resume() {
-      return new AutoValue_DoFn_ProcessContinuation(true, new Instant());
+      return new AutoValue_DoFn_ProcessContinuation(true, Instant.now());
     }
 
     /**
@@ -842,7 +854,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * set to {@code now() + resumeDelay}.
      */
     public ProcessContinuation withResumeDelay(Duration resumeDelay) {
-      return this.withResumeTime(new Instant().plus(resumeDelay));
+      return this.withResumeTime(Instant.now().plus(resumeDelay));
     }
 
     /**
@@ -878,19 +890,29 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * ProcessElement @ProcessElement} and {@link FinishBundle @FinishBundle} that allows the caller
    * to register a callback that will be invoked after the bundle has been successfully completed
    * and the runner has commit the output.
+   *
+   * <p>A common usage would be to perform any acknowledgements required by an external system such
+   * as acking messages from a message queue since this callback is only invoked after the output of
+   * the bundle has been durably persisted by the runner.
+   *
+   * <p>Note that a runner may make the output of the bundle available immediately to downstream
+   * consumers without waiting for finalization to succeed. For pipelines that are sensitive to
+   * duplicate messages, they must perform output deduplication in the pipeline.
    */
+  // TODO: Add support for a deduplication PTransform.
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public interface BundleFinalizer {
     /**
-     * The provided function will be called once the runner successfully commits the output of a
-     * bundle. Throwing during finalization represents that bundle finalization may have failed and
-     * this finalization will be discarded. The provided duration controls how long the finalization
-     * is valid for before it is garbage collected and will never be called.
+     * The provided function will be called after the runner successfully commits the output of a
+     * successful bundle. Throwing during finalization represents that bundle finalization may have
+     * failed and the runner may choose to attempt finalization again. The provided duration
+     * controls how long the finalization is valid for before it is garbage collected and no longer
+     * able to be invoked.
      *
-     * <p>Note that finalization is best effort and that it is expected that the external system
-     * will self recover state if finalization never happens or consistently fails. For example, a
-     * queue based system that requires message acknowledgement would replay messages if that
-     * acknowledgement was never received within a time bound.
+     * <p>Note that finalization is best effort and it is expected that the external system will
+     * self recover state if finalization never happens or consistently fails. For example, a queue
+     * based system that requires message acknowledgement would replay messages if that
+     * acknowledgement was never received within the provided time bound.
      *
      * <p>See <a href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API:
      * How to Finalize Bundles</a> for further details.

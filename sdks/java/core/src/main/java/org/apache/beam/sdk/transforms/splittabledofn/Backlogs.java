@@ -23,6 +23,10 @@ public final class Backlogs {
    * {@link RestrictionTracker}s which can provide a backlog should implement this interface.
    * Implementations that do not implement this interface will be assumed to have an unknown
    * backlog.
+   *
+   * <p>By default, the backlog partition identifier is represented as the encoded element and
+   * restriction pair. See {@link HasPartitionedBacklog} for {@link RestrictionTracker}s that report
+   * backlogs over a shared resource.
    */
   public interface HasBacklog {
     Backlog getBacklog();
@@ -30,10 +34,8 @@ public final class Backlogs {
 
   /**
    * {@link RestrictionTracker}s which can provide a backlog that is from a shared resource such as
-   * a pubsub queue should implement this interface to provide the partition identifier. The
-   * partition identifier is used by runners to aggregate backlogs.
-   *
-   * <p>{@link RestrictionTracker}s that
+   * a message queue should implement this interface to provide the partition identifier. The
+   * partition identifier is used by runners during backlog aggregation.
    *
    * <p>This allows runners to understand as to how to aggregate backlogs.
    *

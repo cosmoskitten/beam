@@ -22,16 +22,21 @@ import java.util.Arrays;
 import javax.annotation.Nullable;
 
 /**
- * A representation for the amount of known work represented as a backlog.
+ * A representation for the amount of known work represented as a backlog. Note that backlog {@code
+ * byte[]} representations must be lexicographically comparable. Backlog {@code byte[]}
+ * representations should preferably represent a linear space and be comparable within the same
+ * partition.
  *
  * <p>It is up to each restriction tracker to convert between their natural representation of
  * outstanding work and this representation. For example:
  *
  * <ul>
  *   <li>Block based file source (e.g. Avro): From the end of the current block, the remaining
- *       number of bytes to the end of the restriction.
+ *       number of bytes to the end of the restriction represented as a big endian 64 bit unsigned
+ *       integer.
  *   <li>Pull based queue based source (e.g. Pubsub): The local/global backlog available in number
- *       of messages or number of {@code messages / bytes} that have not been processed.
+ *       of messages or number of {@code messages / bytes} that have not been processed represented
+ *       as a big endian 64 bit unsigned integer.
  *   <li>Key range based source (e.g. Shuffle, Bigtable, ...): Scale the start key to be one and end
  *       key to be zero and interpolate the position of the next splittable key as the backlog. If
  *       information about the probability density function or cumulative distribution function is
@@ -40,7 +45,10 @@ import javax.annotation.Nullable;
  *       can be used.
  * </ul>
  *
- * <p>{@link RestrictionTracker}s should implement {@link Backlogs.HasBacklog} to report a backlog.
+ * <p>{@link RestrictionTracker}s should implement {@link Backlogs.HasBacklog} to report a backlog
+ * where the element and restriction pair uniquely identify the resource. Otherwise {@link
+ * RestrictionTracker}s should implement {@link Backlogs.HasPartitionedBacklog} to report a backlog
+ * for a shared resource such as a message queue.
  *
  * <p>See <a href="https://s.apache.org/beam-bundles-backlog-splitting">Bundles w/ SplittableDoFns:
  * Backlog &amp; Splitting</a> for further details.
