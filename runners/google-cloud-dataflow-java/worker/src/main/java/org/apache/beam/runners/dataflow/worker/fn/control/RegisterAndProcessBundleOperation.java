@@ -52,6 +52,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.dataflow.worker.ByteStringCoder;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
@@ -60,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
@@ -94,9 +96,9 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private final StateDelegator beamFnStateDelegator;
   private final RegisterRequest registerRequest;
   private final Map<String, DataflowStepContext> ptransformIdToUserStepContext;
-  private final Map<String, SideInputReader> ptransformIdToSideInputReader;
   private final Table<String, String, PCollectionView<?>>
       ptransformIdToSideInputIdToPCollectionView;
+  private final StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory;
   private final ConcurrentHashMap<StateKey, BagState<ByteString>> userStateData;
 
   private @Nullable CompletionStage<InstructionResponse> registerFuture;
@@ -122,8 +124,11 @@ public class RegisterAndProcessBundleOperation extends Operation {
     this.instructionRequestHandler = instructionRequestHandler;
     this.beamFnStateDelegator = beamFnStateDelegator;
     this.registerRequest = registerRequest;
-    this.ptransformIdToSideInputReader = ptransformIdToSideInputReader;
     this.ptransformIdToSideInputIdToPCollectionView = ptransformIdToSideInputIdToPCollectionView;
+    this.sideInputHandlerFactory =
+        DataflowSideInputHandlerFactory.of(
+            ptransformIdToSideInputReader, ptransformIdToSideInputIdToPCollectionView);
+
     ImmutableMap.Builder<String, DataflowStepContext> userStepContextsMap = ImmutableMap.builder();
     for (Map.Entry<String, DataflowStepContext> entry :
         ptransformIdToSystemStepContext.entrySet()) {
@@ -381,12 +386,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     StateKey.MultimapSideInput multimapSideInputStateKey =
         stateRequest.getStateKey().getMultimapSideInput();
 
-    SideInputReader sideInputReader =
-        ptransformIdToSideInputReader.get(multimapSideInputStateKey.getPtransformId());
-    checkState(
-        sideInputReader != null,
-        String.format("Unknown PTransform '%s'", multimapSideInputStateKey.getPtransformId()));
-
     PCollectionView<Materializations.MultimapView<Object, Object>> view =
         (PCollectionView<Materializations.MultimapView<Object, Object>>)
             ptransformIdToSideInputIdToPCollectionView.get(
@@ -398,23 +397,17 @@ public class RegisterAndProcessBundleOperation extends Operation {
             "Unknown side input '%s' on PTransform '%s'",
             multimapSideInputStateKey.getSideInputId(),
             multimapSideInputStateKey.getPtransformId()));
-    checkState(
-        Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-            view.getViewFn().getMaterialization().getUrn()),
-        String.format(
-            "Unknown materialization for side input '%s' on PTransform '%s' with urn '%s'",
-            multimapSideInputStateKey.getSideInputId(),
+
+    StateRequestHandlers.SideInputHandler sideInputHandler =
+        sideInputHandlerFactory.forSideInput(
             multimapSideInputStateKey.getPtransformId(),
-            view.getViewFn().getMaterialization().getUrn()));
-    checkState(
-        view.getCoderInternal() instanceof KvCoder,
-        String.format(
-            "Materialization of side input '%s' on PTransform '%s' expects %s but received %s.",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId(),
-            KvCoder.class.getSimpleName(),
-            view.getCoderInternal().getClass().getSimpleName()));
-    Coder<Object> keyCoder = ((KvCoder) view.getCoderInternal()).getKeyCoder();
+            RunnerApi.FunctionSpec.newBuilder()
+                .setUrn(PTransformTranslation.MULTIMAP_SIDE_INPUT)
+                .build(),
+            view.getCoderInternal(),
+            view.getWindowingStrategyInternal().getWindowFn().windowCoder());
+
     Coder<Object> valueCoder = ((KvCoder) view.getCoderInternal()).getValueCoder();
 
     BoundedWindow window;
@@ -434,21 +427,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
           e);
     }
 
-    Object userKey;
-    try {
-      // TODO: Use the encoded representation of the key.
-      userKey = keyCoder.decode(multimapSideInputStateKey.getKey().newInput());
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Unable to decode user key for side input '%s' on PTransform '%s'.",
-              multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
-          e);
-    }
-
-    Materializations.MultimapView<Object, Object> sideInput = sideInputReader.get(view, window);
-    Iterable<Object> values = sideInput.get(userKey);
+    Iterable<Object> values =
+        sideInputHandler.get(multimapSideInputStateKey.getKey().toByteArray(), window);
     try {
       // TODO: Chunk the requests and use a continuation key to support side input values
       // that are larger then 2 GiBs.
