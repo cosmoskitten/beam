@@ -28,7 +28,6 @@ import threading
 import time
 import traceback
 import unittest
-from concurrent import futures
 
 import grpc
 
@@ -37,8 +36,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -46,7 +43,6 @@ from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
-from apache_beam.runners.worker import sdk_worker
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):

@@ -31,10 +31,10 @@ from apache_beam import metrics
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
@@ -311,7 +311,7 @@ class PipelineResult(runner.PipelineResult):
     for callback in self._cleanup_callbacks:
       try:
         callback()
-      except Exception as exn:
+      except Exception:
         has_exception = True
     self._cleanup_callbacks = ()
     if has_exception:
