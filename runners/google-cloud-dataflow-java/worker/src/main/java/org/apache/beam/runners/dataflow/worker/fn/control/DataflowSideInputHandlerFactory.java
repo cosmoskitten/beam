@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Table;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -29,8 +31,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import static com.google.common.base.Preconditions.checkState;
 
 public class DataflowSideInputHandlerFactory
     implements StateRequestHandlers.SideInputHandlerFactory {
@@ -61,9 +61,7 @@ public class DataflowSideInputHandlerFactory
       Coder<T> elementCoder,
       Coder<W> windowCoder) {
     SideInputReader sideInputReader = ptransformIdToSideInputReader.get(pTransformId);
-    checkState(
-        sideInputReader != null,
-        String.format("Unknown PTransform '%s'", pTransformId));
+    checkState(sideInputReader != null, String.format("Unknown PTransform '%s'", pTransformId));
 
     PCollectionView<Materializations.MultimapView<Object, Object>> view =
         (PCollectionView<Materializations.MultimapView<Object, Object>>)
@@ -71,19 +69,14 @@ public class DataflowSideInputHandlerFactory
 
     checkState(
         view != null,
-        String.format(
-            "Unknown side input '%s' on PTransform '%s'",
-            sideInputId,
-            pTransformId));
+        String.format("Unknown side input '%s' on PTransform '%s'", sideInputId, pTransformId));
 
     checkState(
         Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
             view.getViewFn().getMaterialization().getUrn()),
         String.format(
             "Unknown materialization for side input '%s' on PTransform '%s' with urn '%s'",
-            sideInputId,
-            pTransformId,
-            view.getViewFn().getMaterialization().getUrn()));
+            sideInputId, pTransformId, view.getViewFn().getMaterialization().getUrn()));
 
     checkState(
         view.getCoderInternal() instanceof KvCoder,
