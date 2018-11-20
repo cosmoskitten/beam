@@ -130,16 +130,16 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
       this.mergedWindows = new ArrayList<>();
       this.currentWindows = new ArrayList<>();
       this.mergeContext =
-          windowFn.new MergeContext() {
+          ((WindowFn) windowFn).new MergeContext() {
 
             @Override
-            public Collection<W> windows() {
+            public Collection windows() {
               return currentWindows;
             }
 
             @Override
-            public void merge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-              mergedWindows.add(KV.of(mergeResult, toBeMerged));
+            public void merge(Collection toBeMerged, BoundedWindow mergeResult) throws Exception {
+              mergedWindows.add(KV.of((W) mergeResult, (Collection<W>) toBeMerged));
             }
           };
     }
