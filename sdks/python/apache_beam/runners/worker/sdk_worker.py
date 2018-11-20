@@ -46,8 +46,9 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count, credentials=None,
-               profiler_factory=None):
+  def __init__(
+      self, control_address, worker_count, credentials=None,
+      profiler_factory=None):
     self._worker_count = worker_count
     self._worker_index = 0
     if credentials is None:

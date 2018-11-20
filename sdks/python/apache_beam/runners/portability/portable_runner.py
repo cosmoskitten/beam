@@ -31,7 +31,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import portable_stager
@@ -83,6 +82,12 @@ class PortableRunner(runner.PipelineRunner):
       environment_urn = common_urns.environments.DOCKER.urn
     elif portable_options.environment_type == 'PROCESS':
       environment_urn = common_urns.environments.PROCESS.urn
+    elif portable_options.environment_type:
+      if portable_options.environment_type.startswith('beam:env:'):
+        environment_urn = portable_options.environment_type
+      else:
+        raise ValueError(
+            'Unknown environment type: %s' % portable_options.environment_type)
 
     if environment_urn == common_urns.environments.DOCKER.urn:
       docker_image = (
@@ -104,6 +109,11 @@ class PortableRunner(runner.PipelineRunner):
               command=config.get('command'),
               env=(config.get('env') or '')
           ).SerializeToString())
+    else:
+      return beam_runner_api_pb2.Environment(
+          urn=environment_urn,
+          payload=(portable_options.environment_config.encode('ascii')
+                   if portable_options.environment_config else None))
 
   def run_pipeline(self, pipeline):
     portable_options = pipeline.options.view_as(PortableOptions)
@@ -118,10 +128,9 @@ class PortableRunner(runner.PipelineRunner):
       docker = DockerizedJobServer()
       job_endpoint = docker.start()
 
-    proto_context = pipeline_context.PipelineContext(
+    proto_pipeline = pipeline.to_runner_api(
         default_environment=PortableRunner._create_environment(
             portable_options))
-    proto_pipeline = pipeline.to_runner_api(context=proto_context)
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
