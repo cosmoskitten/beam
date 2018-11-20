@@ -87,7 +87,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * PCollection<JoinedKey> keys = joined
  *     .apply(Keys.create())
  *     .apply(Convert.to(JoinedKey.class));
- * </pre>
+ * }</pre>
  *
  * The value schema is convertible to the following POJO:
  *
@@ -104,7 +104,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * PCollection<JoinedValue> values = joined
  *     .apply(Values.create())
  *     .apply(Convert.to(JoinedValue.class));
- * </pre>
+ * }</pre>
  *
  * <p>It's also possible to join between different fields in two inputs, as long as the types of
  * those fields match. In this case, fields must be specified for every input PCollection. For
