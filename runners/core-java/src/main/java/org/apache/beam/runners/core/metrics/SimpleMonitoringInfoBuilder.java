@@ -45,7 +45,6 @@ public class SimpleMonitoringInfoBuilder {
     }
   }
 
-
   public SimpleMonitoringInfoBuilder() {
     this(true);
   }
