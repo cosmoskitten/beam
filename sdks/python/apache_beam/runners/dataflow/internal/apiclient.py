@@ -32,10 +32,11 @@ import tempfile
 import time
 from datetime import datetime
 
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
 from builtins import object
 from past.builtins import unicode
+
+from apitools.base.py import encoding
+from apitools.base.py import exceptions
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
