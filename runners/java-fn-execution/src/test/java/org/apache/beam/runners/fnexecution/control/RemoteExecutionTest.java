@@ -597,9 +597,8 @@ public class RemoteExecutionTest implements Serializable {
           actualMIs.add(builder.build());
         }
 
-        SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-        builder.setUrnForUserMetric(
-            RemoteExecutionTest.class.getName(), "counterMetric");
+        SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+        builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), "counterMetric");
         builder.setInt64Value(2);
         MonitoringInfo expectedCounter = builder.build();
 
