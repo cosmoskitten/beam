@@ -491,6 +491,8 @@ class DoOperation(Operation):
   def start(self):
     with self.scoped_start_state:
       super(DoOperation, self).start()
+      if self.user_state_context:
+        self.user_state_context.reset()
       self.dofn_runner.start()
 
   def process(self, o):
@@ -506,6 +508,8 @@ class DoOperation(Operation):
   def finish(self):
     with self.scoped_finish_state:
       self.dofn_runner.finish()
+      if self.user_state_context:
+        self.user_state_context.commit()
 
   def reset(self):
     super(DoOperation, self).reset()
