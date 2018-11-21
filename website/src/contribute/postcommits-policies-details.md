@@ -108,4 +108,4 @@ the following three questions:
 It is encouraged to bring the discussion to the dev mailing list as well. 
 Ideally, after the incident, we prefer to have discussions regarding
 whether we should extend tests in Beam repository, with the goal of
-catching the similar issue early in the future.
+catching similar issues early in the future.
