@@ -223,7 +223,7 @@ public class QueueingBeamFnDataClientTest {
                   fail();
                 }
               });
-      
+
       receiveAllValuesB.await();
       assertThat(inboundValuesB, contains(valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
