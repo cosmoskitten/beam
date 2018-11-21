@@ -132,9 +132,41 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     if (isSideInputLookupJoin()) {
       return new SideInputLookupJoin();
+    } else if (isSideInputJoin()) {
+      // if one of the sides is Bounded & the other is Unbounded
+      // then do a sideInput join
+      // when doing a sideInput join, the windowFn does not need to match
+      // Only support INNER JOIN & LEFT OUTER JOIN where left side of the join must be
+      // the unbounded
+      if (joinType == JoinRelType.FULL) {
+        throw new UnsupportedOperationException(
+            "FULL OUTER JOIN is not supported when join "
+                + "a bounded table with an unbounded table.");
+      }
+
+      BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
+      BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+
+      if ((joinType == JoinRelType.LEFT && leftRelNode.isBounded() == PCollection.IsBounded.BOUNDED)
+          || (joinType == JoinRelType.RIGHT
+              && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED)) {
+        throw new UnsupportedOperationException(
+            "LEFT side of an OUTER JOIN must be Unbounded table.");
+      }
+
+      return new SideInputJoin();
     } else {
-      return new Transform();
+      return new StandardJoin();
     }
+  }
+
+  private boolean isSideInputJoin() {
+    BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
+    BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+    return (leftRelNode.isBounded() == PCollection.IsBounded.BOUNDED
+            && rightRelNode.isBounded() == UNBOUNDED)
+        || (leftRelNode.isBounded() == UNBOUNDED
+            && rightRelNode.isBounded() == PCollection.IsBounded.BOUNDED);
   }
 
   private boolean isSideInputLookupJoin() {
@@ -200,12 +232,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     }
   }
 
-  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+  private class ExtractJoinKeys
+      extends PTransform<PCollectionList<Row>, PCollectionList<KV<Row, Row>>> {
 
     @Override
-    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+    public PCollectionList<KV<Row, Row>> expand(PCollectionList<Row> pinput) {
       BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-      final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
       Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
       Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
@@ -216,9 +248,6 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
-
-      WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
-      WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
 
       // extract the join fields
       List<Pair<Integer, Integer>> pairs =
@@ -251,45 +280,48 @@ public class BeamJoinRel extends Join implements BeamRelNode {
                           false, pairs, extractKeySchemaRight)))
               .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
 
-      // a regular join
-      if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
-              && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
-          || (leftRows.isBounded() == UNBOUNDED && rightRows.isBounded() == UNBOUNDED)) {
-        try {
-          leftWinFn.verifyCompatibility(rightWinFn);
-        } catch (IncompatibleWindowException e) {
-          throw new IllegalArgumentException(
-              "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
-        }
+      return PCollectionList.of(extractedLeftRows).and(extractedRightRows);
+    }
+  }
 
-        return standardJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
-      } else if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
-              && rightRows.isBounded() == UNBOUNDED)
-          || (leftRows.isBounded() == UNBOUNDED
-              && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)) {
-        // if one of the sides is Bounded & the other is Unbounded
-        // then do a sideInput join
-        // when doing a sideInput join, the windowFn does not need to match
-        // Only support INNER JOIN & LEFT OUTER JOIN where left side of the join must be
-        // the unbounded
-        if (joinType == JoinRelType.FULL) {
-          throw new UnsupportedOperationException(
-              "FULL OUTER JOIN is not supported when join "
-                  + "a bounded table with an unbounded table.");
-        }
+  private class SideInputJoin extends PTransform<PCollectionList<Row>, PCollection<Row>> {
 
-        if ((joinType == JoinRelType.LEFT && leftRows.isBounded() == PCollection.IsBounded.BOUNDED)
-            || (joinType == JoinRelType.RIGHT
-                && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)) {
-          throw new UnsupportedOperationException(
-              "LEFT side of an OUTER JOIN must be Unbounded table.");
-        }
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
+      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
 
-        return sideInputJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
-      } else {
-        throw new UnsupportedOperationException(
-            "The inputs to the JOIN have un-joinnable windowFns: " + leftWinFn + ", " + rightWinFn);
+      PCollectionList<KV<Row, Row>> keyedInputs = pinput.apply(new ExtractJoinKeys());
+
+      PCollection<KV<Row, Row>> extractedLeftRows = keyedInputs.get(0);
+      PCollection<KV<Row, Row>> extractedRightRows = keyedInputs.get(1);
+
+      return sideInputJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
+    }
+  }
+
+  private class StandardJoin extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
+      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
+
+      PCollectionList<KV<Row, Row>> keyedInputs = pinput.apply(new ExtractJoinKeys());
+
+      PCollection<KV<Row, Row>> extractedLeftRows = keyedInputs.get(0);
+      PCollection<KV<Row, Row>> extractedRightRows = keyedInputs.get(1);
+
+      WindowFn leftWinFn = extractedLeftRows.getWindowingStrategy().getWindowFn();
+      WindowFn rightWinFn = extractedRightRows.getWindowingStrategy().getWindowFn();
+      try {
+        leftWinFn.verifyCompatibility(rightWinFn);
+      } catch (IncompatibleWindowException e) {
+        throw new IllegalArgumentException(
+            "WindowFns must match for a bounded-vs-bounded/unbounded-vs-unbounded join.", e);
       }
+
+      return standardJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
     }
   }
 
