@@ -96,7 +96,6 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
         if (tuple != null) {
           // Forward to the consumers who cares about this data.
           tuple.consumer.accept(tuple.data);
-
         } else {
           // Note: We do not expect to ever hit this point without receiving all values
           // as (1) The InboundObserver will not be set to Done until the

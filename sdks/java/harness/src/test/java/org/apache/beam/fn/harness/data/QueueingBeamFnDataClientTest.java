@@ -142,6 +142,8 @@ public class QueueingBeamFnDataClientTest {
   @Test
   public void testBasicInboundConsumerBehaviour() throws Exception {
     CountDownLatch waitForClientToConnect = new CountDownLatch(1);
+    CountDownLatch receiveAllValuesA = new CountDownLatch(3);
+    CountDownLatch receiveAllValuesB = new CountDownLatch(2);
     Collection<WindowedValue<String>> inboundValuesA = new ConcurrentLinkedQueue<>();
     Collection<WindowedValue<String>> inboundValuesB = new ConcurrentLinkedQueue<>();
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
@@ -186,6 +188,7 @@ public class QueueingBeamFnDataClientTest {
               CODER,
               (WindowedValue<String> wv) -> {
                 inboundValuesA.add(wv);
+                receiveAllValuesA.countDown();
               });
 
       waitForClientToConnect.await();
@@ -199,6 +202,7 @@ public class QueueingBeamFnDataClientTest {
                 outboundServerObserver.get().onNext(ELEMENTS_B_1);
               });
 
+      // This can be compeleted before we get values?
       InboundDataClient readFutureB =
           queueingClient.receive(
               apiServiceDescriptor,
@@ -206,6 +210,7 @@ public class QueueingBeamFnDataClientTest {
               CODER,
               (WindowedValue<String> wv) -> {
                 inboundValuesB.add(wv);
+                receiveAllValuesB.countDown();
               });
 
       Future<?> drainElementsFuture =
@@ -219,12 +224,14 @@ public class QueueingBeamFnDataClientTest {
                 }
               });
 
-      readFutureB.awaitCompletion(); // Wait for B's values to be available
+      //readFutureB.awaitCompletion(); // Wait for B's values to be available
+      receiveAllValuesB.await();
       assertThat(inboundValuesB, contains(valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
-      readFutureA.awaitCompletion(); // Wait for A's values to be available
+      //readFutureA.awaitCompletion(); // Wait for A's values to be available
+      receiveAllValuesA.await(); // Wait for A's values to be available
       assertThat(
           inboundValuesA,
           contains(
