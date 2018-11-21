@@ -30,7 +30,8 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
     --project=big-query-project
-    --metrics_namespace=gbk
+    --metrics_dataset=python_load_tests
+    --metrics_table=gbk
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -50,7 +51,8 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --metrics_namespace=gbk
+        --metrics_dataset=python_load_tests
+        --metrics_table=gbk
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -100,15 +102,21 @@ class GroupByKeyTest(unittest.TestCase):
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
     metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    metrics_dataset = self.pipeline.get_option('metrics_dataset')
     self.metrics_monitor = None
-    if metrics_project_id and self.metrics_namespace is not None:
+    check = metrics_project_id and self.metrics_namespace and metrics_dataset is not None
+    if check:
       schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
       self.metrics_monitor = MetricsMonitor(
-          metrics_project_id,
-          self.metrics_namespace,
-          schema
+          project_name=metrics_project_id,
+          table=self.metrics_namespace,
+          dataset=metrics_dataset,
+          schema_map=schema
       )
+    else:
+      logging.error('One or more of parameters for collecting metrics are empty.'\
+                    'Metrics will not be collected')
 
   def testGroupByKey(self):
     with self.pipeline as p:

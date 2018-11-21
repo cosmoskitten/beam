@@ -40,6 +40,7 @@ def _get_schema_field(schema_field):
       field_type=schema_field['type'],
       mode=schema_field['mode'])
 
+
 class BigQueryClient(object):
   def __init__(self, project_name, table, dataset, schema_map):
     self._namespace = table
@@ -50,7 +51,7 @@ class BigQueryClient(object):
     self._schema_names = self._get_schema_names(schema)
     schema = self._prepare_schema(schema)
 
-    self._get_or_create_table(schema, bq_client)
+    self._get_or_create_table(schema, bq_client, dataset)
 
   def match_and_save(self, result_list):
     rows_tuple = tuple(self._match_inserts_by_schema(result_list))
@@ -78,7 +79,7 @@ class BigQueryClient(object):
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
-          .format(self._namespace))
+          .format(dataset_name))
     return bq_dataset
 
   def _get_or_create_table(self, bq_schemas, bq_client, dataset):
@@ -130,25 +131,25 @@ class MetricsMonitor(object):
     for counter in counters:
       counter_commited = counter.committed
       counter_label = str(counter.key.metric.name)
-      counters_list.append({'label': counter_label, 'value': counter_commited})
+      counters_list.append(
+          {'label': counter_label, 'value': counter_commited})
 
     return counters_list
 
-  # distributions of start as min of mins and end as max of maxes timestamps
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
     max_values = []
     for dist in distributions:
       logging.info("Distribution: %s", dist)
-      print("Distribution: %s", dist)
       min_values.append(dist.committed.min)
       max_values.append(dist.committed.max)
+    # finding real start
     min_value = min(min_values)
+    # finding real end
     max_value = max(max_values)
 
     runtime_in_s = max_value - min_value
     logging.info("Runtime: %s", runtime_in_s)
-    print("Runtime: %s", runtime_in_s)
     runtime_in_s = float(runtime_in_s)
     return [{'label': RUNTIME_LABEL, 'value': runtime_in_s}]
 

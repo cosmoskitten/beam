@@ -35,7 +35,8 @@ python setup.py nosetests \
     --number_of_counter_operations=1000
     --output=gs://...
     --project=big-query-project
-    --metrics_namespace=pardo
+    --metrics_dataset=python_load_tests
+    --metrics_table=pardo
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
@@ -57,7 +58,8 @@ python setup.py nosetests \
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
         --output=gs://...
         --number_of_counter_operations=1000
-        --metrics_namespace=pardo
+        --metrics_dataset=python_load_tests
+        --metrics_table=pardo
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -113,7 +115,8 @@ class ParDoTest(unittest.TestCase):
     self.input_options = json.loads(self.pipeline.get_option('input_options'))
 
     metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    metrics_dataset = self.pipeline.get_option('metrics_dataset')
     self.metrics_monitor = None
     if metrics_project_id and self.metrics_namespace is not None:
       measured_values = [
@@ -121,10 +124,14 @@ class ParDoTest(unittest.TestCase):
           {'name': COUNTER_LABEL, 'type': 'INTEGER', 'mode': 'REQUIRED'}
       ]
       self.metrics_monitor = MetricsMonitor(
-          metrics_project_id,
-          self.metrics_namespace,
-          measured_values
+          project_name=metrics_project_id,
+          table=self.metrics_namespace,
+          dataset=metrics_dataset,
+          schema_map=measured_values
       )
+    else:
+      logging.error('One or more of parameters for collecting metrics are empty.'
+                    'Metrics will not be collected')
 
   def testParDo(self):
     if self.iterations is None:

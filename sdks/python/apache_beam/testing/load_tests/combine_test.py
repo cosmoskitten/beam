@@ -29,7 +29,6 @@ Example test run on DirectRunner:
 
 python setup.py nosetests \
     --test-pipeline-options="
-    --metrics_project_id=big-query-project
     --project=big-query-project
     --metrics_dataset=python_load_tests
     --metrics_table=combine

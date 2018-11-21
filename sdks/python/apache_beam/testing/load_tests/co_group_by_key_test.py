@@ -31,7 +31,8 @@ Example test run on DirectRunner:
 python setup.py nosetests \
     --test-pipeline-options="
       --project=big-query-project
-      --metrics_namespace=co_gbk
+      --metrics_dataset=python_load_tests
+      --metrics_table=co_gbk
       --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -46,7 +47,7 @@ python setup.py nosetests \
         \"bundle_size_distribution_type\": \"const\",
         \"bundle_size_distribution_param\": 1,
         \"force_initial_num_bundles\":0}'" \
-    --tests apache_beam.testing.load_tests.co_group_by_it_test
+    --tests apache_beam.testing.load_tests.co_group_by_key_test
 
 To run test on other runner (ex. Dataflow):
 
@@ -57,7 +58,8 @@ python setup.py nosetests \
         --staging_location=gs://...
         --temp_location=gs://...
         --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --metrics_namespace=co_gbk
+        --metrics_dataset=python_load_tests
+        --metrics_table=co_gbk
         --input_options='{
         \"num_records\": 1000,
         \"key_size\": 5,
@@ -74,7 +76,7 @@ python setup.py nosetests \
         \"bundle_size_distribution_param\": 1,
         \"force_initial_num_bundles\":0
         }'" \
-    --tests apache_beam.testing.load_tests.co_group_by_it_test
+    --tests apache_beam.testing.load_tests.co_group_by_key_test
 
 """
 
@@ -120,15 +122,21 @@ class CoGroupByKeyTest(unittest.TestCase):
         self.pipeline.get_option('co_input_options'))
 
     metrics_project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_namespace')
+    self.metrics_namespace = self.pipeline.get_option('metrics_table')
+    metrics_dataset = self.pipeline.get_option('metrics_dataset')
     self.metrics_monitor = None
-    if metrics_project_id is not None:
-      schema = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
+    check = metrics_project_id and self.metrics_namespace and metrics_dataset is not None
+    if check:
+      measured_values = [{'name': RUNTIME_LABEL, 'type': 'FLOAT', 'mode': 'REQUIRED'}]
       self.metrics_monitor = MetricsMonitor(
-          metrics_project_id,
-          self.metrics_namespace,
-          schema
+          project_name=metrics_project_id,
+          table=self.metrics_namespace,
+          dataset=metrics_dataset,
+          schema_map=measured_values
       )
+    else:
+      logging.error('One or more of parameters for collecting metrics are empty.'
+                    'Metrics will not be collected')
 
   class _Ungroup(beam.DoFn):
     def process(self, element):
