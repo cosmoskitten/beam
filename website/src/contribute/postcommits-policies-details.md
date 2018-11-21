@@ -96,7 +96,7 @@ implement a new unit test that covers a problematic code branch.
 There are multiple projects depend on Beam, and contain tests that are
 outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams. 
 
-When a depending project encounters an issue caused by (a PR) in beam, 
+When an external project encounters an issue caused by (a PR) in Beam
 and in consequence, one requests for a change in the Beam repository 
 accordingly, the first thing is to create a JIRA entry that addresses 
 the following three questions:
