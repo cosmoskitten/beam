@@ -223,14 +223,12 @@ public class QueueingBeamFnDataClientTest {
                   fail();
                 }
               });
-
-      //readFutureB.awaitCompletion(); // Wait for B's values to be available
+      
       receiveAllValuesB.await();
       assertThat(inboundValuesB, contains(valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
-      //readFutureA.awaitCompletion(); // Wait for A's values to be available
       receiveAllValuesA.await(); // Wait for A's values to be available
       assertThat(
           inboundValuesA,
