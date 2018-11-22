@@ -353,7 +353,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             progressHandler,
             outputManager,
             outputMap,
-            executableStage.getTimers(),
             (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(),
             keySelector,
             timerInternals);
@@ -398,7 +397,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         sdkHarnessRunner.setBundleFinishedCallback(
             () -> {
               try {
-                processWatermark(mark);
+                LOG.debug("processing pushed back watermark: " + mark);
+                // at this point the bundle is finished, allow the watermark to pass
+                setPushedBackWatermark(mark.getTimestamp());
+                super.processWatermark(mark);
               } catch (Exception e) {
                 throw new RuntimeException(
                     "Failed to process pushed back watermark after finished bundle.", e);
@@ -442,7 +444,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         BundleProgressHandler progressHandler,
         BufferedOutputManager<OutputT> outputManager,
         Map<String, TupleTag<?>> outputMap,
-        Collection<TimerReference> timers,
         Coder<BoundedWindow> windowCoder,
         KeySelector<WindowedValue<InputT>, ?> keySelector,
         TimerInternals timerInternals) {
