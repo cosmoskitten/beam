@@ -77,9 +77,15 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 from apache_beam.testing.test_pipeline import TestPipeline
 
+try:
+  from google.cloud import bigquery as bq
+except ImportError:
+  bq = None
+
 RUNTIME_LABEL = 'runtime'
 
 
+@unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
 class CombineTest(unittest.TestCase):
   def parseTestPipelineOptions(self):
     return {

@@ -85,10 +85,16 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonito
 from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 from apache_beam.testing.test_pipeline import TestPipeline
 
+try:
+  from google.cloud import bigquery as bq
+except ImportError:
+  bq = None
+
 COUNTER_LABEL = "total_bytes_count"
 RUNTIME_LABEL = 'runtime'
 
 
+@unittest.skipIf(bq is None, 'BigQuery for storing metrics not installed')
 class ParDoTest(unittest.TestCase):
   def parseTestPipelineOptions(self):
     return {'numRecords': self.input_options.get('num_records'),

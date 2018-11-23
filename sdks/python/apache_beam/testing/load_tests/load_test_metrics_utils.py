@@ -26,6 +26,7 @@ import time
 
 from google.cloud import bigquery
 from google.cloud.bigquery.schema import SchemaField
+from google.cloud.exceptions import NotFound
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -45,13 +46,13 @@ class BigQueryClient(object):
   def __init__(self, project_name, table, dataset, schema_map):
     self._namespace = table
 
-    bq_client = bigquery.Client(project=project_name)
+    self._bq_client = bigquery.Client(project=project_name)
 
     schema = self._parse_schema(schema_map)
     self._schema_names = self._get_schema_names(schema)
     schema = self._prepare_schema(schema)
 
-    self._get_or_create_table(schema, bq_client, dataset)
+    self._get_or_create_table(schema, dataset)
 
   def match_and_save(self, result_list):
     rows_tuple = tuple(self._match_inserts_by_schema(result_list))
@@ -68,27 +69,35 @@ class BigQueryClient(object):
     return None
 
   def _insert_data(self, rows_tuple):
-    job = self._bq_table.insert_data(rows=[rows_tuple])
-    if len(job) > 0 and len(job[0]['errors']) > 0:
-      for err in job[0]['errors']:
-        raise ValueError(err['message'])
+    errors = self._bq_client.insert_rows(self._bq_table, rows=[rows_tuple])
+    if len(errors) > 0:
+      for err in errors:
+        logging.error(err['message'])
+        raise ValueError('Unable save rows in BigQuery.')
 
-  def _get_dataset(self, bq_client, dataset_name):
-    bq_dataset = bq_client.dataset(dataset_name)
-    if not bq_dataset.exists():
+  def _get_dataset(self, dataset_name):
+    bq_dataset_ref = self._bq_client.dataset(dataset_name)
+    try:
+      bq_dataset = self._bq_client.get_dataset(bq_dataset_ref)
+    except NotFound:
       raise ValueError(
           'Dataset {} does not exist in your project. '
           'You have to create table first.'
           .format(dataset_name))
     return bq_dataset
 
-  def _get_or_create_table(self, bq_schemas, bq_client, dataset):
-    self._bq_table = self._get_dataset(bq_client, dataset)\
-                         .table(self._namespace, bq_schemas)
+  def _get_or_create_table(self, bq_schemas, dataset):
     if self._namespace == '':
       raise ValueError('Namespace cannot be empty.')
-    if not self._bq_table.exists():
-      self._bq_table.create()
+
+    dataset = self._get_dataset(dataset)
+    table_ref = dataset.table(self._namespace)
+
+    try:
+      self._bq_table = self._bq_client.get_table(table_ref)
+    except NotFound:
+      table = bigquery.Table(table_ref, schema=bq_schemas)
+      self._bq_table = self._bq_client.create_table(table)
 
   def _parse_schema(self, schema_map):
     return [{'name': SUBMIT_TIMESTAMP_LABEL,
