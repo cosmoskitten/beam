@@ -197,12 +197,13 @@ class FlinkStreamingTransformTranslators {
 
       String fullName = getCurrentTransformName(context);
       try {
+        int parallelism =
+            context.getExecutionEnvironment().getMaxParallelism() > 0
+                ? context.getExecutionEnvironment().getMaxParallelism()
+                : context.getExecutionEnvironment().getParallelism();
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
-                fullName,
-                context.getPipelineOptions(),
-                rawSource,
-                context.getExecutionEnvironment().getParallelism());
+                fullName, context.getPipelineOptions(), rawSource, parallelism);
         nonDedupSource =
             context
                 .getExecutionEnvironment()
