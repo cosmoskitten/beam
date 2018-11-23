@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.spark.util.SideInputStorage.Key;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.util.SizeEstimator;
@@ -43,57 +44,29 @@ public class CachedSideInputReader implements SideInputReader {
     return new CachedSideInputReader(delegate);
   }
 
-  /**
-   * Composite key of {@link PCollectionView} and {@link BoundedWindow} used to identify
-   * materialized results.
-   *
-   * @param <T> type of result
-   */
-  private static class Key<T> {
-
-    private final PCollectionView<T> view;
-    private final BoundedWindow window;
-
-    Key(PCollectionView<T> view, BoundedWindow window) {
-      this.view = view;
-      this.window = window;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final Key<?> key = (Key<?>) o;
-      return Objects.equals(view, key.view) && Objects.equals(window, key.window);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(view, window);
-    }
-  }
-
   /** Wrapped {@link SideInputReader} which results will be cached. */
   private final SideInputReader delegate;
-
-  /** Materialized results. */
-  private final Map<Key<?>, ?> materialized = new HashMap<>();
 
   private CachedSideInputReader(SideInputReader delegate) {
     this.delegate = delegate;
   }
 
+  /**
+   * Keep references for the whole life of CachedSideInputReader otherwise sideInput needs to be
+   * de-serialized again.
+   */
+  private final Set<Key<?>> sideInputKeyReferences = new HashSet<>();
+
   @Nullable
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
-    final Map<Key<T>, T> materializedCasted = (Map) materialized;
+    final Map<Key<T>, T> materializedCasted = (Map) SideInputStorage.getMaterializedSideInputs();
+    Key<T> sideInputKey = new Key<>(view, window);
+    sideInputKeyReferences.add(sideInputKey);
+
     return materializedCasted.computeIfAbsent(
-        new Key<>(view, window),
+        sideInputKey,
         key -> {
           final T result = delegate.get(view, window);
           LOG.info(
