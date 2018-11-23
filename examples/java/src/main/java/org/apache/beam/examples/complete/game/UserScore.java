@@ -100,6 +100,10 @@ public class UserScore {
       return this.score;
     }
 
+    public Long getTimestamp() {
+      return this.timestamp;
+    }
+
     public String getKey(String keyname) {
       if ("team".equals(keyname)) {
         return this.team;
@@ -108,8 +112,39 @@ public class UserScore {
       }
     }
 
-    public Long getTimestamp() {
-      return this.timestamp;
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      GameActionInfo gameActionInfo = (GameActionInfo) o;
+
+      if (!user.equals(gameActionInfo.getUser())) {
+        return false;
+      }
+
+      if (!team.equals(gameActionInfo.getTeam())) {
+        return false;
+      }
+
+      if (!score.equals(gameActionInfo.getScore())) {
+        return false;
+      }
+
+      return timestamp.equals(gameActionInfo.getTimestamp());
+    }
+
+    @Override
+    public int hashCode() {
+      int result = user.hashCode();
+      result = 31 * result + team.hashCode();
+      result = 31 * result + score.hashCode();
+      result = 31 * result + timestamp.hashCode();
+      return result;
     }
   }
 
