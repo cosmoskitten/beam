@@ -86,7 +86,6 @@ try:
   from google.cloud import  bigquery as bq
   from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
-  from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 except ImportError:
   bq = None
 
@@ -179,6 +178,7 @@ class ParDoTest(unittest.TestCase):
         self.metrics_monitor.send_metrics(result)
 
   class _GetElement(beam.DoFn):
+    from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
     @count_bytes(COUNTER_LABEL)
     def process(self, element, namespace, is_returning):
       if is_returning:
