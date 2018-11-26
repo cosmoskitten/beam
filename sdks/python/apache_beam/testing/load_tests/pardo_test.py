@@ -80,13 +80,13 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
-from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from google.cloud import  bigquery as bq
   from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
+  from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
 except ImportError:
   bq = None
 
