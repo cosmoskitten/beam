@@ -58,11 +58,11 @@ class PaneInfo(object):
 
   def _get_encoded_byte(self):
     byte = 0
-    if self.is_first:
+    if self._is_first:
       byte |= 1
-    if self.is_last:
+    if self._is_last:
       byte |= 2
-    byte |= self.timing << 2
+    byte |= self._timing << 2
     return byte
 
   @staticmethod
