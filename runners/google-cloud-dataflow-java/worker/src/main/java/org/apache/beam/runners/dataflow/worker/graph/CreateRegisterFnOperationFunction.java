@@ -189,6 +189,7 @@ public class CreateRegisterFnOperationFunction
         Networks.reachableNodes(
             network, Sets.union(runnerRootNodes, sdkToRunnerBoundaries), runnerToSdkBoundaries);
     if (this.use_shared_lib) {
+      // When using shared library, there is no grpc node in runner graph.
       allRunnerNodes =
           Sets.difference(allRunnerNodes, Sets.union(runnerToSdkBoundaries, sdkToRunnerBoundaries));
     }
@@ -210,6 +211,8 @@ public class CreateRegisterFnOperationFunction
       // SDK subnetwork; direction dependent on whether its a predecessor of the SDK subnetwork or
       // a successor.
       if (this.use_shared_lib) {
+        // When using shared library, there is no gprc node in runner graph. Then the registerFnNode
+        // should be linked directly to 2 OutputInstruction nodes.
         for (Node predecessor : Sets.intersection(sdkSubnetworkNodes, runnerToSdkBoundaries)) {
           predecessor = network.predecessors(predecessor).iterator().next();
           runnerNetwork.addEdge(predecessor, registerFnNode, HappensBeforeEdge.create());

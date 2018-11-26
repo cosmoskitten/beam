@@ -147,12 +147,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
               @Override
               public WrappedSdkHarnessClient load(Environment environment) throws Exception {
-                if (dataServer != null) {
+                RemoteEnvironment remoteEnvironment = environmentCreator.apply(environment);
+                if (remoteEnvironment.getClass() == StaticRemoteEnvironment.class) {
                   return WrappedSdkHarnessClient.wrapping(
-                      environmentCreator.apply(environment), dataServer);
+                      (StaticRemoteEnvironment) remoteEnvironment);
                 } else {
-                  return WrappedSdkHarnessClient.wrapping(
-                      (StaticRemoteEnvironment) environmentCreator.apply(environment));
+                  return WrappedSdkHarnessClient.wrapping(remoteEnvironment, dataServer);
                 }
               }
             });

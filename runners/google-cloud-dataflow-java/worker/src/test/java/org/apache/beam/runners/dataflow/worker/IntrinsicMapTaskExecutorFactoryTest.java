@@ -173,6 +173,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             null /* beamFnDataService */,
             null, /* dataApiServiceDescriptor */
             null /* beamFnStateService */,
+            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,
@@ -264,6 +265,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             null /* beamFnDataService */,
             null, /* dataApiServiceDescriptor */
             null /* beamFnStateService */,
+            null,
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,

@@ -70,7 +70,7 @@ public class CreateRegisterFnOperationFunctionTest {
     MockitoAnnotations.initMocks(this);
     createRegisterFnOperation =
         new CreateRegisterFnOperationFunction(
-            IdGenerator::generate, portSupplier, registerFnOperationFunction);
+            IdGenerator::generate, portSupplier, registerFnOperationFunction, false);
   }
 
   @Test

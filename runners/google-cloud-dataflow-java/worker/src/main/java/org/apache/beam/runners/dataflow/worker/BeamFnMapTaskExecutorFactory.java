@@ -147,11 +147,10 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
 
     // Swap out all the InstructionOutput nodes with OutputReceiver nodes
     Networks.replaceDirectedNetworkNodes(
-        network, createOutputReceiversTransform(stageName, counterSet, network));
+        network, createOutputReceiversTransform(stageName, counterSet));
 
     if (DataflowRunner.hasExperiment(
-            options.as(DataflowPipelineDebugOptions.class), "use_shared_lib")
-        || true) {
+        options.as(DataflowPipelineDebugOptions.class), "use_shared_lib")) {
       JobInfo jobInfo =
           JobInfo.create(
               options.as(DataflowWorkerHarnessOptions.class).getJobId(),
@@ -318,7 +317,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                   (Coder) coder,
                   outputReceivers,
                   context);
-          LOG.info("[BOYUANZ LOG]: grpc read op coder {}", coder);
         } else {
           Target target =
               Target.newBuilder()
@@ -333,7 +331,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                   registerFnOperation::getProcessBundleInstructionId,
                   (Coder) coder,
                   context);
-          LOG.info("[BOYUANZ LOG]: grpc write op coder {}", coder);
         }
         return OperationNode.create(operation);
       }
@@ -662,7 +659,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
    * Returns a function which can convert {@link InstructionOutput}s into {@link OutputReceiver}s.
    */
   static Function<Node, Node> createOutputReceiversTransform(
-      final String stageName, final CounterFactory counterFactory, Network<Node, Edge> network) {
+      final String stageName, final CounterFactory counterFactory) {
     return new TypeSafeNodeFunction<InstructionOutputNode>(InstructionOutputNode.class) {
       @Override
       public Node typedApply(InstructionOutputNode input) {

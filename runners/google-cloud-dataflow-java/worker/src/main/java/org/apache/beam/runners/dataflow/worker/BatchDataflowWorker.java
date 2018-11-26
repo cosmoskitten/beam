@@ -219,7 +219,7 @@ public class BatchDataflowWorker implements Closeable {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
-      if (DataflowRunner.hasExperiment(options, "use_shared_lib") || true) {
+      if (DataflowRunner.hasExperiment(options, "use_shared_lib")) {
         sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, IdGenerator::generate);
         transformToRunnerNetwork =
             new CreateRegisterFnOperationFunction(

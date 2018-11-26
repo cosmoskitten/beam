@@ -111,8 +111,6 @@ public class CreateExecutableStageNodeFunction
 
   @Override
   public Node apply(MutableNetwork<Node, Edge> input) {
-    RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
-    componentsBuilder.mergeFrom(this.pipeline.getComponents());
     for (Node node : input.nodes()) {
       if (node instanceof RemoteGrpcPortNode
           || node instanceof ParallelInstructionNode
@@ -140,6 +138,9 @@ public class CreateExecutableStageNodeFunction
         }
       }
     }
+
+    RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
+    componentsBuilder.mergeFrom(this.pipeline.getComponents());
 
     // We start off by replacing all edges within the graph with edges that have the named
     // outputs from the predecessor step. For ParallelInstruction Source nodes and RemoteGrpcPort
@@ -175,9 +176,9 @@ public class CreateExecutableStageNodeFunction
 
     Map<Node, String> nodesToPCollections = new HashMap<>();
     ImmutableMap.Builder<String, NameContext> ptransformIdToNameContexts = ImmutableMap.builder();
-    // A filed of ExecutableStage which includes the PCollection goes to worker side.
-    Set<PCollectionNode> exexutableStageOutputs = new HashSet<>();
-    // A filed of ExecutableStage which includes the PCollection goes to runner side.
+    // A field of ExecutableStage which includes the PCollection goes to worker side.
+    Set<PCollectionNode> executableStageOutputs = new HashSet<>();
+    // A field of ExecutableStage which includes the PCollection goes to runner side.
     Set<PCollectionNode> executableStageInputs = new HashSet<>();
 
     for (InstructionOutputNode node :
@@ -232,7 +233,7 @@ public class CreateExecutableStageNodeFunction
       // Check whether this output collection has consumers from worker side when "use_shared_lib"
       // is set
       if (input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
-        exexutableStageOutputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
+        executableStageOutputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
       }
       if (input.predecessors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
         executableStageInputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
@@ -360,7 +361,7 @@ public class CreateExecutableStageNodeFunction
             executableStageUserStateReference,
             executableStageTimers,
             executableStageTransforms,
-            exexutableStageOutputs);
+            executableStageOutputs);
     return ExecutableStageNode.create(executableStage, ptransformIdToNameContexts.build());
   }
 

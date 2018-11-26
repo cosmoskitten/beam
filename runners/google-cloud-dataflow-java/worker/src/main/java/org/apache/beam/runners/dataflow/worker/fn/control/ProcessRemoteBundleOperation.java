@@ -61,7 +61,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
             public FnDataReceiver<?> create(String pCollectionId) {
               return receivedElement -> {
                 for (OutputReceiver receiver : receivers) {
-                  LOG.info("[BOYUANZ LOG]: consume element {}", receivedElement);
+                  LOG.debug("Consume element {}", receivedElement);
                   receiver.process((WindowedValue<?>) receivedElement);
                 }
               };
@@ -79,7 +79,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
   @Override
   public void process(Object inputElement) throws Exception {
-    LOG.info(String.format("[BOYUANZ LOG] Sending value: %s", inputElement));
+    LOG.debug(String.format("Sending value: %s", inputElement));
     try (Closeable scope = context.enterProcess()) {
       Iterables.getOnlyElement(remoteBundle.getInputReceivers().values())
           .accept((WindowedValue<InputT>) inputElement);
