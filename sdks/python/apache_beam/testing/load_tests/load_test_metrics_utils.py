@@ -24,12 +24,17 @@ from __future__ import absolute_import
 import logging
 import time
 
-from google.cloud import bigquery
-from google.cloud.bigquery.schema import SchemaField
-from google.cloud.exceptions import NotFound
-
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+
+try:
+  from google.cloud import bigquery
+  from google.cloud.bigquery.schema import SchemaField
+  from google.cloud.exceptions import NotFound
+except ImportError:
+  bigquery = None
+  SchemaField = None
+  NotFound = None
 
 RUNTIME_LABEL = 'runtime'
 SUBMIT_TIMESTAMP_LABEL = 'submit_timestamp'
