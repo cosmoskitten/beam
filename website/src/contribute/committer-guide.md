@@ -128,3 +128,6 @@ Instead, pull it all into the subject line:
     Merge pull request #1234: [BEAM-7873] Fix the foo bizzle bazzle
 
 If you have comments to add, put them in the body of the commit message.
+
+After merging the pull request, the committer is responsible for resolving associated JIRAs
+(and marking the "Fix Version" field).
