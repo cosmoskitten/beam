@@ -330,7 +330,7 @@ public class ProcessBundleHandler {
         // Extract user metrics and store as MonitoringInfos.
         MetricUpdates mus = metricsContainer.getUpdates();
         for (MetricUpdate<Long> mu : mus.counterUpdates()) {
-          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
           builder.setUrnForUserMetric(
               mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
           builder.setInt64Value(mu.getUpdate());

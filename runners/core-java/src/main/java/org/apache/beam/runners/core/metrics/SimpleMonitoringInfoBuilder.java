@@ -1,10 +1,12 @@
 package org.apache.beam.runners.core.metrics;
 
+import com.google.common.base.Splitter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.time.Instant;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.BeamUrns;
 
@@ -14,8 +16,37 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
+/**
+ * Simplified building of MonitoringInfo fields, allows setting one field at a time with
+ * simpler method calls, without needing to dive into the details of the nested protos.
+ *
+ * There is no need to set the type field, by setting the appropriate value field:
+ * (i.e. setInt64Value), the typeUrn field is automatically set.
+ *
+ * Additionally, if validateAndDropInvalid is set to true in the ctor, then MonitoringInfos
+ * will be returned as null when build() is called if any fields are not properly set
+ *
+ * Example Usage (ElementCount counter):
+ *
+ * SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+ * builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+ * builder.setInt64Value(1);
+ * builder.setPTransformLabel("myTransform");
+ * builder.setPCollectionLabel("myPcollection");
+ * MonitoringInfo mi = builder.build();
+ *
+ * Example Usage (ElementCount counter):
+ *
+ * SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+ * builder.setUrn(SimpleMonitoringInfoBuilder.setUrnForUserMetric("myNamespace", "myName"));
+ * builder.setInt64Value(1);
+ * MonitoringInfo mi = builder.build();
+ *
+ */
 public class SimpleMonitoringInfoBuilder {
   public static final String ELEMENT_COUNT_URN = BeamUrns.getUrn(MonitoringInfoUrns.Enum.ELEMENT_COUNT);
   public static final String START_BUNDLE_MSECS_URN = BeamUrns.getUrn(MonitoringInfoUrns.Enum.START_BUNDLE_MSECS);
@@ -32,9 +63,9 @@ public class SimpleMonitoringInfoBuilder {
 
   private final boolean validateAndDropInvalid;
 
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleMonitoringInfoBuilder.class);
+
   static {
-    // TODO don't construct this whole object every time
-    // Share this as a static ob
     for (MonitoringInfoSpecs.Enum val : MonitoringInfoSpecs.Enum.values()) {
       // Ignore the UNRECOGNIZED = -1 value;
       if (!((Enum) val).name().equals("UNRECOGNIZED")) {
@@ -64,8 +95,13 @@ public class SimpleMonitoringInfoBuilder {
     MonitoringInfoSpec spec;
     // If it's a user counter, and it has this prefix.
     if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      // TODO validate this format, check that it has a namespace and key.
       spec = SimpleMonitoringInfoBuilder.specs.get(USER_COUNTER_URN_PREFIX);
+      List<String> split = Splitter.on(':').splitToList(urn);
+      if (split.size() != 4) {
+        LOG.warn("Dropping MonitoringInfo for URN %s, UserMetric namespaces and " +
+            "name cannot contain ':' characters.", urn);
+        return false;
+      }
     } else if (!SimpleMonitoringInfoBuilder.specs.containsKey(urn)) {
       // Succeed for unknown URNs, this is an extensible metric.
       // TODO fail if in the beam namespace?
@@ -79,23 +115,18 @@ public class SimpleMonitoringInfoBuilder {
       return false;
     }
 
-    // TODO less string comparisons.
-    // TODO should we just omit this one since the builder enforces this?
+    /*
     if (spec.getTypeUrn().equals(SUM_INT64_TYPE)) {
-      //if (!this.builder.getMetricBuilder().getCounterDataBuilder().hasInt64Value()) {
-      //  return false;
-      //}
-    }
+      if (!this.builder.getMetricBuilder().getCounterDataBuilder().hasInt64Value()) {
+        return false;
+      }
+    }*/
 
-    // based on the spec type make sure the right field is set.
-    // TODO faster way to iterate/compare this?
     Set<String> requiredLabels = new HashSet<String>(spec.getRequiredLabelsList());
-    //Collections.addAll(requiredLabels, spec.getRequiredLabelsList());
-
-    if (this.builder.getLabels().equals(requiredLabels)) {
-      return false;
+    if (this.builder.getLabels().keySet().equals(requiredLabels)) {
+      return true;
     }
-    return true;
+    return false;
   }
 
 
@@ -148,6 +179,6 @@ public class SimpleMonitoringInfoBuilder {
       return null;
     }
     return this.builder.build();
-  } // TODO add validation
+  }
 
 }
