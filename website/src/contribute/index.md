@@ -165,7 +165,7 @@ To contribute code, you need
    .testinfra/jenkins, but use these sparingly because post-commit
    tests consume shared development resources.
 1. Pull requests can only be merged by a
-   [beam committer]({{ site.baseurl }}/contribute/team/).
+   [Beam committer]({{ site.baseurl }}/contribute/team/).
    To find a committer for your area, either:
     - look in the OWNERS file of the directory where you changed files, or
     - look for similar code merges, or
@@ -207,7 +207,7 @@ unassigned from the author but will stay open.
   [dev@ mailing list]({{ site.baseurl }}/community/contact-us) (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
-  [beam committer]({{ site.baseurl }}/contribute/team/).
+  [Beam committer]({{ site.baseurl }}/contribute/team/).
 
 - [Voting on a release](https://www.apache.org/foundation/voting.html). Everyone can vote. Only
   [Beam PMC]({{ site.baseurl }}/contribute/team/) members should mark their votes as binding.
@@ -216,7 +216,7 @@ unassigned from the author but will stay open.
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussions about contributing code to beam  happens on the [dev@ mailing list]({{ site.baseurl
+Discussion about contributing code to Beam happens on the [dev@ mailing list]({{ site.baseurl
 }}/community/contact-us/). Introduce yourself!
 
 Questions can be asked on the [#beam channel of the ASF slack]({{ site.baseurl
