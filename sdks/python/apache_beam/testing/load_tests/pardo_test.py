@@ -83,7 +83,7 @@ from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
-  from google.cloud import  bigquery as bq
+  from google.cloud import bigquery as bq
   from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
   from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
 except ImportError:
@@ -139,6 +139,15 @@ class ParDoTest(unittest.TestCase):
                     'are empty. Metrics will not be collected')
 
   def testParDo(self):
+
+    class _GetElement(beam.DoFn):
+      from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
+
+      @count_bytes(COUNTER_LABEL)
+      def process(self, element, namespace, is_returning):
+        if is_returning:
+          yield element
+
     if self.iterations is None:
       num_runs = 1
     else:
@@ -158,7 +167,7 @@ class ParDoTest(unittest.TestCase):
         is_returning = (i == (num_runs-1))
         pc = (pc
               | 'Step: %d' % i >> beam.ParDo(
-                  self._GetElement(), self.metrics_namespace, is_returning)
+                  _GetElement(), self.metrics_namespace, is_returning)
              )
 
       if self.output is not None:
@@ -177,12 +186,7 @@ class ParDoTest(unittest.TestCase):
       if self.metrics_monitor is not None:
         self.metrics_monitor.send_metrics(result)
 
-  class _GetElement(beam.DoFn):
-    from apache_beam.testing.load_tests.load_test_metrics_utils import count_bytes
-    @count_bytes(COUNTER_LABEL)
-    def process(self, element, namespace, is_returning):
-      if is_returning:
-        yield element
+
 
 
 if __name__ == '__main__':
