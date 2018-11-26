@@ -196,6 +196,9 @@ def run_coder_benchmarks(num_runs, input_size, seed, verbose, filter_regex):
       coder_benchmark_factory(
           coders.WindowedValueCoder(coders.FastPrimitivesCoder()),
           wv_with_multiple_windows),
+      coder_benchmark_factory(
+          coders.LengthPrefixCoder(coders.FastPrimitivesCoder()),
+          small_int)
   ]
 
   suite = [utils.BenchmarkConfig(b, input_size, num_runs) for b in benchmarks
