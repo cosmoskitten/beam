@@ -149,9 +149,11 @@ To contribute code, you need
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
 1. Add unit tests for your change
 1. When your change is ready to be reviewed and merged, create a pull request.
-   Format the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+   Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.
    This will automatically link the pull request to the issue.
+   Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+   To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.
 1. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](/contribute/testing/). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
@@ -172,6 +174,9 @@ To contribute code, you need
    Use `R: @username` in the pull request to notify a reviewer.
 1. If you don't get any response in 3 business days, email the dev@ list to ask for someone to look at your pull
    request.
+1. Review feedback typically leads to follow-up changes. Please add these changes as additional "fixup" commits to the
+   existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
+   PR accepted, multiple commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
 
 ## When will my change show up in an Apache Beam release?
 
@@ -199,7 +204,7 @@ unassigned from the author but will stay open.
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam).
   If you wish to contribute changes, please request edit access on the
-  [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+  [dev@ mailing list]({{ site.baseurl }}/community/contact-us) (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
   [beam committer]({{ site.baseurl }}/contribute/team/).
