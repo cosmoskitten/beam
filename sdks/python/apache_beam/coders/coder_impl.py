@@ -71,6 +71,11 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
+_TIME_SHIFT = 1 << 63
+MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
+MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
+
+
 class CoderImpl(object):
   """For internal use only; no backwards-compatibility guarantees."""
 
@@ -812,11 +817,6 @@ class PaneInfoCoderImpl(StreamCoderImpl):
       size += get_varint_size(value.index)
       size += get_varint_size(value.nonspeculative_index)
     return size
-
-
-_TIME_SHIFT = 1 << 63
-MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
-MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
 
 
 class WindowedValueCoderImpl(StreamCoderImpl):
