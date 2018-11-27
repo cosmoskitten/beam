@@ -356,7 +356,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         while (iterator.hasNext()) {
           OutputReceiverNode node = iterator.next();
           outputReceivers[index] = node.getOutputReceiver();
-          LOG.info("[BOYUANZ LOG]: output receiver {} coder {}", index, node.getCoder());
+          LOG.debug("output receiver {} coder {}", index, node.getCoder());
           index += 1;
         }
         return OperationNode.create(
