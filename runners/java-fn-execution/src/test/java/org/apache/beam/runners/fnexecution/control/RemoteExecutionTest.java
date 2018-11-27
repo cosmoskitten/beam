@@ -516,8 +516,7 @@ public class RemoteExecutionTest implements Serializable {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
     Optional<ExecutableStage> optionalStage =
-        Iterables.tryFind(
-            fused.getFusedStages(), (ExecutableStage stage) -> true);
+        Iterables.tryFind(fused.getFusedStages(), (ExecutableStage stage) -> true);
     checkState(optionalStage.isPresent(), "Expected a stage with side inputs.");
     ExecutableStage stage = optionalStage.get();
 
@@ -576,30 +575,31 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    BundleProgressHandler progressHandler = new BundleProgressHandler() {
-      @Override
-      public void onProgress(ProcessBundleProgressResponse progress) { }
+    BundleProgressHandler progressHandler =
+        new BundleProgressHandler() {
+          @Override
+          public void onProgress(ProcessBundleProgressResponse progress) {}
 
-      @Override
-      public void onCompleted(ProcessBundleResponse response) {
-        // Assert the timestamps are non empty then 0 them out before comparing.
-        List<MonitoringInfo> actualMIs = new ArrayList<>();
-        for (MonitoringInfo mi : response.getMonitoringInfosList()) {
-          MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-          Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
-          builder.mergeFrom(mi);
-          builder.clearTimestamp();
-          actualMIs.add(builder.build());
-        }
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            // Assert the timestamps are non empty then 0 them out before comparing.
+            List<MonitoringInfo> actualMIs = new ArrayList<>();
+            for (MonitoringInfo mi : response.getMonitoringInfosList()) {
+              MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+              Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
+              builder.mergeFrom(mi);
+              builder.clearTimestamp();
+              actualMIs.add(builder.build());
+            }
 
-        SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-        builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), "counterMetric");
-        builder.setInt64Value(2);
-        MonitoringInfo expectedCounter = builder.build();
+            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), "counterMetric");
+            builder.setInt64Value(2);
+            MonitoringInfo expectedCounter = builder.build();
 
-        assertThat(actualMIs, CoreMatchers.hasItems(expectedCounter));
-      }
-    };
+            assertThat(actualMIs, CoreMatchers.hasItems(expectedCounter));
+          }
+        };
 
     try (ActiveBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
