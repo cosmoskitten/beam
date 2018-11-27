@@ -347,8 +347,14 @@ public class CreateExecutableStageNodeFunction
 
     PCollectionNode executableInput = executableStageInputs.iterator().next();
     RunnerApi.Components executableStageComponents = componentsBuilder.build();
+
+    // Get Environment from ptransform, otherwise, use JAVA_SDK_HARNESS_ENVIRONMENT as default.
     Environment executableStageEnv =
         getEnvironmentFromPTransform(executableStageComponents, executableStageTransforms);
+    if (executableStageEnv == null) {
+      executableStageEnv = Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
+    }
+
     Set<SideInputReference> executableStageSideInputs = new HashSet<>();
     Set<TimerReference> executableStageTimers = new HashSet<>();
     Set<UserStateReference> executableStageUserStateReference = new HashSet<>();
@@ -375,6 +381,7 @@ public class CreateExecutableStageNodeFunction
         break;
       }
     }
+
     return env;
   }
 
