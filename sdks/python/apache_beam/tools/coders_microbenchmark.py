@@ -156,7 +156,8 @@ def wv_with_multiple_windows():
   return random_windowed_value(num_windows=32)
 
 
-def run_coder_benchmarks(num_runs, input_size, seed, verbose, filter_regex):
+def run_coder_benchmarks(
+    num_runs, input_size, seed, verbose, filter_regex='.*'):
   random.seed(seed)
 
   # TODO(BEAM-4441): Pick coders using type hints, for example:
