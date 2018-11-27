@@ -102,16 +102,18 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES_PY2_ONLY = [
-    'avro>=1.8.1,<2.0.0'
+    'avro>=1.8.1,<2.0.0',
+    'dill>=0.2.6,<=0.2.8.2',
 ]
 
 REQUIRED_PACKAGES_PY3_ONLY = [
-    'avro-python3>=1.8.1,<2.0.0'
+    'avro-python3>=1.8.1,<2.0.0',
+    'git+git://github.com/uqfoundation/dill.git'
+    '@c2cc750c79747c9ba06526602c5475ad29676e80'
 ]
 
 REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.6,<=0.2.8.2',
     'fastavro>=0.21.4,<0.22',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
