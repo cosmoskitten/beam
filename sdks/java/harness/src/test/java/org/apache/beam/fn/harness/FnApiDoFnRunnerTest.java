@@ -422,9 +422,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   private static class TestSideInputIsAccessibleForDownstreamCallersDoFn
       extends DoFn<String, Iterable<String>> {
-    private final Counter countedElements = Metrics.counter(
-        TestSideInputIsAccessibleForDownstreamCallersDoFn.class,
-        "countedElems");
+    private final Counter countedElements =
+        Metrics.counter(TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
 
     private final PCollectionView<Iterable<String>> iterableSideInput;
 
@@ -535,8 +534,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   @AutoValue
   public abstract static class ExpectedMetric implements Serializable {
-    static ExpectedMetric create(
-        String stepName, MetricName metricName, long value) {
+    static ExpectedMetric create(String stepName, MetricName metricName, long value) {
       return new AutoValue_FnApiDoFnRunnerTest_ExpectedMetric(stepName, metricName, value);
     }
 
@@ -549,8 +547,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   @Test
   public void testUsingMetrics() throws Exception {
-    MetricsContainerImpl metricsContainer =
-        new MetricsContainerImpl("testUsingMetrics");
+    MetricsContainerImpl metricsContainer = new MetricsContainerImpl("testUsingMetrics");
     Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
     IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
@@ -643,11 +640,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertEquals(stateData, fakeClient.getData());
 
     MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
-    MetricName metricName = MetricName.named(
-        TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
+    MetricName metricName =
+        MetricName.named(TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
     List<ExpectedMetric> expectedMetrics = new ArrayList<ExpectedMetric>();
-    expectedMetrics.add(
-        ExpectedMetric.create("testUsingMetrics", metricName, 2));
+    expectedMetrics.add(ExpectedMetric.create("testUsingMetrics", metricName, 2));
 
     closeable.close();
     MetricUpdates updates = metricsContainer.getUpdates();
