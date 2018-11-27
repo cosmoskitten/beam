@@ -102,16 +102,24 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES_PY2_ONLY = [
-    'avro>=1.8.1,<2.0.0'
+    'avro>=1.8.1,<2.0.0',
+    'dill>=0.2.6,<=0.2.8.2',
 ]
 
 REQUIRED_PACKAGES_PY3_ONLY = [
-    'avro-python3>=1.8.1,<2.0.0'
+    'avro-python3>=1.8.1,<2.0.0',
+    'dill'
 ]
+
+# TODO(BEAM-6135): Revert when new dill version released
+if sys.version_info[0] == 2:
+  DEPENDENCY_LINKS = []
+elif sys.version_info[0] >= 3:
+  DEPENDENCY_LINKS = ['git+https://github.com/uqfoundation/dill.git'
+                      '@c2cc750c79747c9ba06526602c5475ad29676e80#egg=dill']
 
 REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
-    'dill>=0.2.6,<=0.2.8.2',
     'fastavro>=0.21.4,<0.22',
     'grpcio>=1.8,<2',
     'hdfs>=2.1.0,<3.0.0',
@@ -199,6 +207,7 @@ setuptools.setup(
         'apache_beam/utils/windowed_value.py',
     ]),
     install_requires=REQUIRED_PACKAGES,
+    dependency_links=DEPENDENCY_LINKS,
     python_requires=python_requires,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
