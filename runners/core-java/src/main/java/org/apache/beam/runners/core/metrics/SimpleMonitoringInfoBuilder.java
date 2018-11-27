@@ -156,7 +156,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Sets the urn of the MonitoringInfo
+   * Sets the urn of the MonitoringInfo.
    *
    * @param urn The urn of the MonitoringInfo
    */
@@ -174,7 +174,7 @@ public class SimpleMonitoringInfoBuilder {
     this.builder.setUrn(userMetricUrn(namespace, name));
   }
 
-  /** Sets the timestamp of the MonitoringInfo to the current time */
+  /** Sets the timestamp of the MonitoringInfo to the current time. */
   public void setTimestampToNow() {
     Instant time = Instant.now();
     this.builder.getTimestampBuilder().setSeconds(time.getEpochSecond()).setNanos(time.getNano());
@@ -187,7 +187,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Sets the PTRANSFORM MonitoringInfo label to the given param
+   * Sets the PTRANSFORM MonitoringInfo label to the given param.
    *
    * @param pTransform
    */
@@ -196,7 +196,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Sets the PCOLLECTION MonitoringInfo label to the given param
+   * Sets the PCOLLECTION MonitoringInfo label to the given param.
    *
    * @param pCollection
    */
