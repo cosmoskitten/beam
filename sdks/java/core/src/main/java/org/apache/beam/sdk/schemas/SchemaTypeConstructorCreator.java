@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+/** And implementation of {@link SchemaTypeCreator} that uses a Java constructor. */
 public class SchemaTypeConstructorCreator<T> implements SchemaTypeCreator<T> {
   Class<T> clazz;
   Constructor<? extends T> constructor;

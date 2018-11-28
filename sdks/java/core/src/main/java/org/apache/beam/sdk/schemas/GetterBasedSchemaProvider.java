@@ -86,16 +86,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
     Class<T> clazz = (Class<T>) typeDescriptor.getType();
-    FromRow<T> fromRow;
     if (schemaTypeCreatorFactory() != null) {
-      fromRow =
-          new FromRowUsingConstructor<>(
-              clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
+      return new FromRowUsingConstructor<>(
+          clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
     } else {
-      fromRow =
-          new FromRowUsingSetters<>(
-              clazz, fieldValueSetterFactory(), fieldValueTypeInformationFactory());
+      return new FromRowUsingSetters<>(
+          clazz, fieldValueSetterFactory(), fieldValueTypeInformationFactory());
     }
-    return fromRow::from;
   }
 }

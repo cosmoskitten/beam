@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 
+/** A factory for {@link SchemaTypeCreator} objects. */
 public interface SchemaTypeCreatorFactory extends Serializable {
   <T> SchemaTypeCreator<T> getCreator(Class<T> clazz, Schema schema);
 }

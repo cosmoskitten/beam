@@ -29,9 +29,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Represents type information for a schema field.
- */
+/** Represents type information for a schema field. */
 public class FieldValueTypeInformation implements Serializable {
   private final String name;
   private final Class type;
