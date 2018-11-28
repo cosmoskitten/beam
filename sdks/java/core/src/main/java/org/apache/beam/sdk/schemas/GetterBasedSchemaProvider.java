@@ -38,6 +38,13 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return a setter factory. */
   abstract FieldValueSetterFactory fieldValueSetterFactory();
 
+  abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
+
+  /** Implementing class should override to return a constructor factory. */
+  SchemaTypeCreatorFactory schemaTypeCreatorFactory() {
+    return null;
+  }
+
   @Override
   public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
     // schemaFor is non deterministic - it might return fields in an arbitrary order. The reason
@@ -78,8 +85,17 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @Override
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
-    FromRow<T> fromRow =
-        new FromRowUsingSetters<>((Class<T>) typeDescriptor.getType(), fieldValueSetterFactory());
+    Class<T> clazz = (Class<T>) typeDescriptor.getType();
+    FromRow<T> fromRow;
+    if (schemaTypeCreatorFactory() != null) {
+      fromRow =
+          new FromRowUsingConstructor<>(
+              clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
+    } else {
+      fromRow =
+          new FromRowUsingSetters<>(
+              clazz, fieldValueSetterFactory(), fieldValueTypeInformationFactory());
+    }
     return fromRow::from;
   }
 }

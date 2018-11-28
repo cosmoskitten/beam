@@ -35,8 +35,12 @@ import org.apache.beam.sdk.values.RowWithGetters;
 public class FromRowUsingSetters<T> implements FromRow<T> {
   private final Class<T> clazz;
   private final FieldValueSetterFactory fieldValueSetterFactory;
+  private final FieldValueTypeInformationFactory fieldValueTypeInformationFactory;
 
-  public FromRowUsingSetters(Class<T> clazz, FieldValueSetterFactory fieldValueSetterFactory) {
+  public FromRowUsingSetters(
+      Class<T> clazz,
+      FieldValueSetterFactory fieldValueSetterFactory,
+      FieldValueTypeInformationFactory fieldValueTypeInformationFactory) {
     FieldValueSetterFactory cachingSetterFactory =
         new FieldValueSetterFactory() {
           @Nullable
@@ -61,6 +65,8 @@ public class FromRowUsingSetters<T> implements FromRow<T> {
 
     this.clazz = clazz;
     this.fieldValueSetterFactory = cachingSetterFactory;
+    // TODO: THIS MUST BE CACHED AS WELL
+    this.fieldValueTypeInformationFactory = fieldValueTypeInformationFactory;
   }
 
   @Override
@@ -90,21 +96,27 @@ public class FromRowUsingSetters<T> implements FromRow<T> {
     checkState(
         setters.size() == row.getFieldCount(),
         "Did not have a matching number of setters and fields.");
+    List<FieldValueTypeInformation> typeInformations =
+        fieldValueTypeInformationFactory.getTypeInformations(clazz, schema);
+    checkState(
+        typeInformations.size() == row.getFieldCount(),
+        "Did not have a matching number of typeInformations and fields.");
 
     // Iterate over the row, and set (possibly recursively) each field in the underlying object
     // using the setter.
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
       FieldValueSetter setter = setters.get(i);
+      FieldValueTypeInformation typeInformation = typeInformations.get(i);
       setter.set(
           object,
           fromValue(
               type,
               row.getValue(i),
-              setter.type(),
-              setter.elementType(),
-              setter.mapKeyType(),
-              setter.mapValueType(),
+              typeInformation.type(),
+              typeInformation.elementType(),
+              typeInformation.mapKeyType(),
+              typeInformation.mapValueType(),
               setterFactory));
     }
     return object;

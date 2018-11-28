@@ -17,21 +17,24 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
- */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
-  @Nullable
-  ValueT get(ObjectT object);
+public class SchemaTypeConstructorCreator<T> implements SchemaTypeCreator<T> {
+  Class<T> clazz;
+  Constructor<? extends T> constructor;
 
-  String name();
+  SchemaTypeConstructorCreator(Class<T> clazz, Constructor<? extends T> constructor) {
+    this.clazz = clazz;
+    this.constructor = constructor;
+  }
+
+  @Override
+  public T create(Object... params) {
+    try {
+      return constructor.newInstance(params);
+    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("Could not instantiate object " + clazz, e);
+    }
+  }
 }
