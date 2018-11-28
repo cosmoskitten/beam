@@ -121,6 +121,10 @@ class PaneInfo(object):
     return hash((self.is_first, self.is_last, self.timing, self.index,
                  self.nonspeculative_index))
 
+  def __reduce__(self):
+    return PaneInfo, (self._is_first, self._is_last, self._timing, self._index,
+                      self._nonspeculative_index)
+
 
 def _construct_well_known_pane_infos():
   pane_infos = []
