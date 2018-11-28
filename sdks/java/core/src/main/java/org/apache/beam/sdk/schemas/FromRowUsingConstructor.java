@@ -28,10 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 
-class FromRowUsingConstructor<T> implements FromRow<T> {
+/** Function to convert a {@link Row} to a user type using a creator factory. */
+class FromRowUsingConstructor<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
   private final SchemaTypeCreatorFactory schemaTypeCreatorFactory;
 
@@ -72,7 +74,7 @@ class FromRowUsingConstructor<T> implements FromRow<T> {
   }
 
   @Override
-  public T from(Row row) {
+  public T apply(Row row) {
     return fromRow(row, clazz, fieldValueTypeInformationFactory);
   }
 

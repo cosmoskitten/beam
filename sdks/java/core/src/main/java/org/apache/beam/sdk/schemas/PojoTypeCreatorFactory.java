@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import java.lang.reflect.Constructor;
 import org.apache.beam.sdk.schemas.utils.POJOUtils;
 
+/** Vends constructors for POJOs. */
 class PojoTypeCreatorFactory implements SchemaTypeCreatorFactory {
   @Override
   public <T> SchemaTypeCreator<T> getCreator(Class<T> clazz, Schema schema) {

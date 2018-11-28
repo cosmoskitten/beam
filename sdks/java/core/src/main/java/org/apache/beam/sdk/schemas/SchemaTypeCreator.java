@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
-public interface SchemaTypeCreator<T> {
+/** A creator interface for schema types. */
+public interface SchemaTypeCreator<T> extends Serializable {
   T create(Object... params);
 }

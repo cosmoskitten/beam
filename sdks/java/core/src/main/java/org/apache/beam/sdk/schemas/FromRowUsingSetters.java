@@ -29,10 +29,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 
-class FromRowUsingSetters<T> implements FromRow<T> {
+class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
   private final FieldValueSetterFactory fieldValueSetterFactory;
   private final FieldValueTypeInformationFactory fieldValueTypeInformationFactory;
@@ -70,7 +71,7 @@ class FromRowUsingSetters<T> implements FromRow<T> {
   }
 
   @Override
-  public T from(Row row) {
+  public T apply(Row row) {
     return fromRow(row, clazz, fieldValueSetterFactory);
   }
 
