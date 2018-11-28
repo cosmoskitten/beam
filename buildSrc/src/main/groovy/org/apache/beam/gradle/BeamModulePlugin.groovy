@@ -1508,13 +1508,16 @@ artifactId=${project.name}
 
       project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
-      project.ext.envdir = project.findProperty('envBaseDir') ?: "${project.rootProject.buildDir}"
-      project.ext.envdir = project.ext.envdir + "/${project.name}/gradleenv"
+      // project.ext.envdir = project.findProperty('envBaseDir') ?: "${project.rootProject.buildDir}"
+      project.ext.envdir = "\$WORKSPACE/${project.name}/gradleenv"
       project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
 
       project.task('setupVirtualenv')  {
         doLast {
-          project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
+          project.exec {
+            executable 'virtualenv'
+            args "${project.ext.envdir}"
+          }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
@@ -1568,3 +1571,8 @@ artifactId=${project.name}
     }
   }
 }
+
+
+
+/home/jenkins/jenkins-slave/workspace/beam_PreCommit_Python_Commit/src/build/beam-sdks-python/gradleenv
+/home/jenkins/jenkins-slave/workspace/beam_PreCommit_Python_Commit/src/build/beam-sdks-python-precommit-dataflow/gradleenv
