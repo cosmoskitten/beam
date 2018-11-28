@@ -25,6 +25,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 
+/** A {@link RemoteEnvironment} that connects to Dataflow runner harness. */
 @ThreadSafe
 public class StaticRemoteEnvironment implements RemoteEnvironment {
 

@@ -33,6 +33,10 @@ import org.apache.beam.sdk.fn.IdGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An {@link EnvironmentFactory} that creates StaticRemoteEnvironment used by Dataflow runner
+ * harness.
+ */
 public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(StaticRemoteEnvironmentFactory.class);
@@ -89,6 +93,7 @@ public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
         this.idGenerator);
   }
 
+  /** Provider for StaticRemoteEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
     private final InstructionRequestHandler instructionRequestHandler;
     private final FnDataService beamFnDataService;
