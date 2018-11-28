@@ -45,7 +45,8 @@ public final class Backlogs {
    *   <li>a globally shared resource such as a Pubsub queue should set this to "".
    *   <li>a shared partitioned resource should use the partition identifier.
    *   <li>a uniquely partitioned resource such as a file range should set this to file name +
-   *   start offset.
+   *   start offset. Note that the default for {@link RestrictionTracker}s is to use the encoded
+   *   element and restriction pair.
    * </ul>
    *
    * <p>Returns an immutable representation of the partition identifier.
