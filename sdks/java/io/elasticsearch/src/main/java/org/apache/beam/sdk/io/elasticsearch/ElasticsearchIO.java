@@ -418,7 +418,25 @@ public class ElasticsearchIO {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
-      restClientBuilder.setRequestConfigCallback(
+          restClientBuilder.setRequestConfigCallback(
+          new RestClientBuilder.RequestConfigCallback() {
+            @Override
+            public RequestConfig.Builder customizeRequestConfig(
+                RequestConfig.Builder requestConfigBuilder) {
+              if (getConnectTimeout() != null) {
+                requestConfigBuilder.setConnectTimeout(getConnectTimeout());
+              }
+              if (getSocketAndRetryTimeout() != null){
+                requestConfigBuilder.setSocketTimeout(getSocketAndRetryTimeout());
+              }
+              return requestConfigBuilder;
+            }
+          });
+
+      if (getSocketAndRetryTimeout() != null) {
+        restClientBuilder.setMaxRetryTimeoutMillis(getSocketAndRetryTimeout());
+      }
+
           new RestClientBuilder.RequestConfigCallback() {
             @Override
             public RequestConfig.Builder customizeRequestConfig(
