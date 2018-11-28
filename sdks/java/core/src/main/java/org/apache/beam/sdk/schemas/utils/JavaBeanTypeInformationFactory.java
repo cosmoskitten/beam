@@ -22,7 +22,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
 import org.apache.beam.sdk.schemas.Schema;
 
-public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
+class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
   public List<FieldValueTypeInformation> getTypeInformations(Class<?> targetClass, Schema schema) {
     return JavaBeanUtils.getFieldTypes(targetClass, schema);

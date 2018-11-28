@@ -31,7 +31,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 
-public class FromRowUsingConstructor<T> implements FromRow<T> {
+class FromRowUsingConstructor<T> implements FromRow<T> {
   private final Class<T> clazz;
   private final SchemaTypeCreatorFactory schemaTypeCreatorFactory;
 

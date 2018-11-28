@@ -19,6 +19,6 @@ package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
 
-public interface FromRowFactory<T> extends Serializable {
+interface FromRowFactory<T> extends Serializable {
   FromRow<T> create(Schema schema);
 }

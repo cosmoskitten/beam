@@ -32,7 +32,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 
-public class FromRowUsingSetters<T> implements FromRow<T> {
+class FromRowUsingSetters<T> implements FromRow<T> {
   private final Class<T> clazz;
   private final FieldValueSetterFactory fieldValueSetterFactory;
   private final FieldValueTypeInformationFactory fieldValueTypeInformationFactory;

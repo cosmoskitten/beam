@@ -20,6 +20,6 @@ package org.apache.beam.sdk.schemas;
 import java.io.Serializable;
 import org.apache.beam.sdk.values.Row;
 
-public interface FromRow<T> extends Serializable {
+interface FromRow<T> extends Serializable {
   public T from(Row row);
 }
