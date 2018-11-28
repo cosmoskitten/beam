@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -28,14 +29,17 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.utils.StaticSchemaInference.TypeInformation;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-public class FieldValueTypeInformation {
+/**
+ * Represents type information for a schema field.
+ */
+public class FieldValueTypeInformation implements Serializable {
   private final String name;
   private final Class type;
   @Nullable private final Type elementType;
   @Nullable private final Type mapKeyType;
   @Nullable private final Type mapValueType;
 
-  public FieldValueTypeInformation(Field field) {
+  FieldValueTypeInformation(Field field) {
     this(
         field.getName(),
         field.getType(),
@@ -44,7 +48,7 @@ public class FieldValueTypeInformation {
         getMapValueType(field));
   }
 
-  public FieldValueTypeInformation(TypeInformation typeInformation) {
+  FieldValueTypeInformation(TypeInformation typeInformation) {
     this(
         typeInformation.getName(),
         typeInformation.getType().getRawType(),
@@ -133,6 +137,7 @@ public class FieldValueTypeInformation {
     return null;
   }
 
+  /** Returns the field name. */
   public String name() {
     return name;
   }
