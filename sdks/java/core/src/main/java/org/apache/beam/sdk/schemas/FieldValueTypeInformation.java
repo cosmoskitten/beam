@@ -76,6 +76,7 @@ public class FieldValueTypeInformation implements Serializable {
     return getArrayComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
+  @Nullable
   private static Type getArrayComponentType(TypeDescriptor valueType) {
     if (valueType.isArray()) {
       Type component = valueType.getComponentType().getType();
@@ -121,6 +122,7 @@ public class FieldValueTypeInformation implements Serializable {
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
   @SuppressWarnings("unchecked")
+  @Nullable
   private static Type getMapType(TypeDescriptor valueType, int index) {
     if (valueType.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = valueType.getSupertype(Map.class);

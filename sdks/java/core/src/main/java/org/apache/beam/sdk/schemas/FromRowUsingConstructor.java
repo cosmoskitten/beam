@@ -79,10 +79,11 @@ class FromRowUsingConstructor<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  public <S> S fromRow(Row row, Class<S> clazz, FieldValueTypeInformationFactory typeFactory) {
+  public <ValueT> ValueT fromRow(
+      Row row, Class<ValueT> clazz, FieldValueTypeInformationFactory typeFactory) {
     if (row instanceof RowWithGetters) {
       // Efficient path: simply extract the underlying object instead of creating a new one.
-      return (S) ((RowWithGetters) row).getGetterTarget();
+      return (ValueT) ((RowWithGetters) row).getGetterTarget();
     }
 
     Object[] params = new Object[row.getFieldCount()];
@@ -107,15 +108,15 @@ class FromRowUsingConstructor<T> implements SerializableFunction<Row, T> {
               typeFactory);
     }
 
-    SchemaTypeCreator<S> creator = schemaTypeCreatorFactory.getCreator(clazz, schema);
+    SchemaTypeCreator<ValueT> creator = schemaTypeCreatorFactory.getCreator(clazz, schema);
     return creator.create(params);
   }
 
   @SuppressWarnings("unchecked")
   @Nullable
-  private <S> S fromValue(
+  private <ValueT> ValueT fromValue(
       FieldType type,
-      S value,
+      ValueT value,
       Type fieldType,
       Type elemenentType,
       Type keyType,
@@ -125,12 +126,12 @@ class FromRowUsingConstructor<T> implements SerializableFunction<Row, T> {
       return null;
     }
     if (TypeName.ROW.equals(type.getTypeName())) {
-      return (S) fromRow((Row) value, (Class) fieldType, typeFactory);
+      return (ValueT) fromRow((Row) value, (Class) fieldType, typeFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
-      return (S)
+      return (ValueT)
           fromListValue(type.getCollectionElementType(), (List) value, elemenentType, typeFactory);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
-      return (S)
+      return (ValueT)
           fromMapValue(
               type.getMapKeyType(),
               type.getMapValueType(),
@@ -144,13 +145,13 @@ class FromRowUsingConstructor<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  private <S> List fromListValue(
+  private <ElementT> List fromListValue(
       FieldType elementType,
-      List<S> rowList,
+      List<ElementT> rowList,
       Type elementClass,
       FieldValueTypeInformationFactory typeFactory) {
     List list = Lists.newArrayList();
-    for (S element : rowList) {
+    for (ElementT element : rowList) {
       list.add(fromValue(elementType, element, elementClass, null, null, null, typeFactory));
     }
     return list;

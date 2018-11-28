@@ -41,6 +41,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
 
   /** Implementing class should override to return a constructor factory. */
+  @Nullable
   SchemaTypeCreatorFactory schemaTypeCreatorFactory() {
     return null;
   }

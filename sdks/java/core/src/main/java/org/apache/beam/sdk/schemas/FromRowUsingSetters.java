@@ -76,13 +76,14 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  private <S> S fromRow(Row row, Class<S> clazz, FieldValueSetterFactory setterFactory) {
+  private <ValueT> ValueT fromRow(
+      Row row, Class<ValueT> clazz, FieldValueSetterFactory setterFactory) {
     if (row instanceof RowWithGetters) {
       // Efficient path: simply extract the underlying object instead of creating a new one.
-      return (S) ((RowWithGetters) row).getGetterTarget();
+      return (ValueT) ((RowWithGetters) row).getGetterTarget();
     }
 
-    S object;
+    ValueT object;
     try {
       object = clazz.getDeclaredConstructor().newInstance();
     } catch (NoSuchMethodException
@@ -125,9 +126,9 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
 
   @SuppressWarnings("unchecked")
   @Nullable
-  private <S> S fromValue(
+  private <ValueT> ValueT fromValue(
       FieldType type,
-      S value,
+      ValueT value,
       Type fieldType,
       Type elemenentType,
       Type keyType,
@@ -137,13 +138,13 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
       return null;
     }
     if (TypeName.ROW.equals(type.getTypeName())) {
-      return (S) fromRow((Row) value, (Class) fieldType, setterFactory);
+      return (ValueT) fromRow((Row) value, (Class) fieldType, setterFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
-      return (S)
+      return (ValueT)
           fromListValue(
               type.getCollectionElementType(), (List) value, elemenentType, setterFactory);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
-      return (S)
+      return (ValueT)
           fromMapValue(
               type.getMapKeyType(),
               type.getMapValueType(),
@@ -157,13 +158,13 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  private <S> List fromListValue(
+  private <ElementT> List fromListValue(
       FieldType elementType,
-      List<S> rowList,
+      List<ElementT> rowList,
       Type elementClass,
       FieldValueSetterFactory setterFactory) {
     List list = Lists.newArrayList();
-    for (S element : rowList) {
+    for (ElementT element : rowList) {
       list.add(fromValue(elementType, element, elementClass, null, null, null, setterFactory));
     }
     return list;
