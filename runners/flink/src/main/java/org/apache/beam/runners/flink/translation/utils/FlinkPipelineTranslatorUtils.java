@@ -77,4 +77,17 @@ public final class FlinkPipelineTranslatorUtils {
           e);
     }
   }
+
+  public static String genOperatorNameFromStagePayload(
+      RunnerApi.ExecutableStagePayload stagePayload) {
+    StringBuilder sb = new StringBuilder();
+    final int transformsCount = stagePayload.getTransformsCount();
+    sb.append("ExecutableStage(").append(transformsCount).append(")");
+    for (int i = 0; i < transformsCount; i++) {
+      // Get name of transform, but remove the ParMultiDo(Anonymous) suffix which just makes the name longer
+      String name = stagePayload.getTransforms(i).replaceFirst("/ParMultiDo\\(Anonymous\\)$", "");
+      sb.append("[").append(name).append("]");
+    }
+    return sb.toString();
+  }
 }
