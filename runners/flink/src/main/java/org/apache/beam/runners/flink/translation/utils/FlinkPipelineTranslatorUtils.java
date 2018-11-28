@@ -77,4 +77,26 @@ public final class FlinkPipelineTranslatorUtils {
           e);
     }
   }
+
+  public static String genOperatorNameFromStagePayload(
+      RunnerApi.ExecutableStagePayload stagePayload) {
+    StringBuilder sb = new StringBuilder();
+    RunnerApi.Components components = stagePayload.getComponents();
+    final int transformsCount = stagePayload.getTransformsCount();
+    sb.append("[").append(transformsCount).append("]");
+    sb.append("{");
+    for (int i = 0; i < transformsCount; i++) {
+      String name = components.getTransformsOrThrow(stagePayload.getTransforms(i)).getUniqueName();
+      // Python: Remove the 'ref_AppliedPTransform_' prefix which just makes the name longer
+      name = name.replaceFirst("^ref_AppliedPTransform_", "");
+      // Java: Remove the 'ParMultiDo(Anonymous)' suffix which just makes the name longer
+      name = name.replaceFirst("/ParMultiDo\\(Anonymous\\)$", "");
+      sb.append(name);
+      if (i + 1 < transformsCount) {
+        sb.append(", ");
+      }
+    }
+    sb.append("}");
+    return sb.toString();
+  }
 }
