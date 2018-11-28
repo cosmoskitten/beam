@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
@@ -208,6 +209,7 @@ public class SimpleMonitoringInfoBuilder {
    * Builds the provided MonitoringInfo, if validateAndDropInvalid is set then it drops any
    * MonitoringInfos with missing fields that do not match their MonitoringInfoSpec.
    */
+  @Nullable
   public MonitoringInfo build() {
     if (validateAndDropInvalid && !validate()) {
       return null;

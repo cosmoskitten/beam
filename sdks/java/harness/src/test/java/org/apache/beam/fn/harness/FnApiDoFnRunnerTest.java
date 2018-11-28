@@ -532,6 +532,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertEquals(stateData, fakeClient.getData());
   }
 
+  /**
+   * A simple Tuple class for creating a list of ExpectedMetrics using the stepName, metricName and
+   * value of the MetricUpdate classes.
+   */
   @AutoValue
   public abstract static class ExpectedMetric implements Serializable {
     static ExpectedMetric create(String stepName, MetricName metricName, long value) {
