@@ -1495,6 +1495,13 @@ artifactId=${project.name}
 
     /** ***********************************************************************************************/
 
+    def randomName = { int length ->
+      String charSet = (('A'..'Z')+('0'..'9')).join()
+      new Random().with{
+        (1..length).collect { charSet[ nextInt(charSet.length()) ] }.join()
+      }
+    }
+
     project.ext.applyPythonNature = {
 
       // Define common lifecycle tasks and artifact types
@@ -1508,9 +1515,9 @@ artifactId=${project.name}
 
       project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")
 
-      project.ext.envdir = project.findProperty('envBaseDir') ?: "${project.rootProject.buildDir}"
-      project.ext.envdir = project.ext.envdir + "/${project.name}/gradleenv"
+      // project.ext.envdir = project.findProperty('envBaseDir') ?: "${project.rootProject.buildDir}"
       project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
+      project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${randomName(15)}"
 
       project.task('setupVirtualenv')  {
         doLast {
