@@ -37,7 +37,7 @@ public class FieldValueTypeInformation implements Serializable {
   @Nullable private final Type mapKeyType;
   @Nullable private final Type mapValueType;
 
-  FieldValueTypeInformation(Field field) {
+  public FieldValueTypeInformation(Field field) {
     this(
         field.getName(),
         field.getType(),
@@ -46,7 +46,7 @@ public class FieldValueTypeInformation implements Serializable {
         getMapValueType(field));
   }
 
-  FieldValueTypeInformation(TypeInformation typeInformation) {
+  public FieldValueTypeInformation(TypeInformation typeInformation) {
     this(
         typeInformation.getName(),
         typeInformation.getType().getRawType(),
