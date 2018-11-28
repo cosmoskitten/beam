@@ -15,23 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.schemas.utils;
 
-import java.io.Serializable;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
+import java.util.List;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
+import org.apache.beam.sdk.schemas.Schema;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
- */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
-  @Nullable
-  ValueT get(ObjectT object);
-
-  String name();
+public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
+  @Override
+  public List<FieldValueTypeInformation> getTypeInformations(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(targetClass, schema);
+  }
 }

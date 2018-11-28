@@ -17,21 +17,13 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Internal;
+import java.lang.reflect.Constructor;
+import org.apache.beam.sdk.schemas.utils.POJOUtils;
 
-/**
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- *
- * <p>An interface to access a field of a class.
- *
- * <p>Implementations of this interface are generated at runtime to map object fields to Row fields.
- */
-@Internal
-public interface FieldValueGetter<ObjectT, ValueT> extends Serializable {
-  @Nullable
-  ValueT get(ObjectT object);
-
-  String name();
+public class PojoTypeCreatorFactory implements SchemaTypeCreatorFactory {
+  @Override
+  public <T> SchemaTypeCreator<T> getCreator(Class<T> clazz, Schema schema) {
+    Constructor<? extends T> constructor = POJOUtils.getConstructor(clazz, schema);
+    return new SchemaTypeConstructorCreator<>(clazz, constructor);
+  }
 }
