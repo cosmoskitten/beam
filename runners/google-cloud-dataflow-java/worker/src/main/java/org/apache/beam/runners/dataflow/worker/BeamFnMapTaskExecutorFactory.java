@@ -150,7 +150,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         network, createOutputReceiversTransform(stageName, counterSet));
 
     if (DataflowRunner.hasExperiment(
-        options.as(DataflowPipelineDebugOptions.class), "use_shared_lib")) {
+        options.as(DataflowPipelineDebugOptions.class), "use_executable_stage_bundle_execution")) {
       JobInfo jobInfo =
           JobInfo.create(
               options.as(DataflowWorkerHarnessOptions.class).getJobId(),
