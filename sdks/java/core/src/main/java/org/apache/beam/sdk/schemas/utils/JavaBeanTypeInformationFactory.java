@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 /** A {@link FieldValueTypeInformationFactory} for Java Bean objects. */
 public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
-  public List<FieldValueTypeInformation> getTypeInformations(Class<?> targetClass, Schema schema) {
+  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
     return JavaBeanUtils.getFieldTypes(targetClass, schema);
   }
 }

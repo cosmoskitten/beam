@@ -61,7 +61,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  SchemaTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new PojoTypeCreatorFactory();
+  UserTypeCreatorFactory schemaTypeCreatorFactory() {
+    return new PojoTypeUserTypeCreatorFactory();
   }
 }

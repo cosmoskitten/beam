@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -38,12 +37,35 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   /** Implementing class should override to return a setter factory. */
   abstract FieldValueSetterFactory fieldValueSetterFactory();
 
+  /** Implementing class should override to return a type-information factory. */
   abstract FieldValueTypeInformationFactory fieldValueTypeInformationFactory();
 
-  /** Implementing class should override to return a constructor factory. */
-  @Nullable
-  SchemaTypeCreatorFactory schemaTypeCreatorFactory() {
-    return null;
+  /**
+   * Implementing class should override to return a constructor factory.
+   *
+   * <p>Tne default factory uses the default constructor and the setters to construct an object.
+   */
+  UserTypeCreatorFactory schemaTypeCreatorFactory() {
+    Factory<List<FieldValueSetter>> setterFactory = new CachingFactory<>(fieldValueSetterFactory());
+    return (Class<?> clazz, Schema schema) -> {
+      List<FieldValueSetter> setters = setterFactory.create(clazz, schema);
+      return (Object... params) -> {
+        Object object;
+        try {
+          object = clazz.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException
+            | IllegalAccessException
+            | InvocationTargetException
+            | InstantiationException e) {
+          throw new RuntimeException("Failed to instantiate object ", e);
+        }
+        for (int i = 0; i < params.length; ++i) {
+          FieldValueSetter setter = setters.get(i);
+          setter.set(object, params[i]);
+        }
+        return object;
+      };
+    };
   }
 
   @Override
@@ -59,27 +81,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // Since we know that this factory is always called from inside the lambda with the same schema,
     // return a caching factory that caches the first value seen for each class. This prevents
     // having to lookup the getter list each time createGetters is called.
-    FieldValueGetterFactory getterFactory =
-        new FieldValueGetterFactory() {
-          @Nullable
-          private transient ConcurrentHashMap<Class, List<FieldValueGetter>> gettersMap = null;
-
-          private final FieldValueGetterFactory innerFactory = fieldValueGetterFactory();
-
-          @Override
-          public List<FieldValueGetter> createGetters(Class<?> targetClass, Schema schema) {
-            if (gettersMap == null) {
-              gettersMap = new ConcurrentHashMap<>();
-            }
-            List<FieldValueGetter> getters = gettersMap.get(targetClass);
-            if (getters != null) {
-              return getters;
-            }
-            getters = innerFactory.createGetters(targetClass, schema);
-            gettersMap.put(targetClass, getters);
-            return getters;
-          }
-        };
+    Factory<List<FieldValueGetter>> getterFactory = new CachingFactory<>(fieldValueGetterFactory());
     return o -> Row.withSchema(schema).withFieldValueGetters(getterFactory, o).build();
   }
 
@@ -87,12 +89,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   @SuppressWarnings("unchecked")
   public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
     Class<T> clazz = (Class<T>) typeDescriptor.getType();
-    if (schemaTypeCreatorFactory() != null) {
-      return new FromRowUsingConstructor<>(
-          clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
-    } else {
-      return new FromRowUsingSetters<>(
-          clazz, fieldValueSetterFactory(), fieldValueTypeInformationFactory());
-    }
+    return new FromRowUsingCreator<>(
+        clazz, schemaTypeCreatorFactory(), fieldValueTypeInformationFactory());
   }
 }

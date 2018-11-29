@@ -17,9 +17,25 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
-/** A factory for {@link SchemaTypeCreator} objects. */
-public interface SchemaTypeCreatorFactory extends Serializable {
-  <T> SchemaTypeCreator<T> getCreator(Class<T> clazz, Schema schema);
+/** And implementation of {@link SchemaUserTypeCreator} that uses a Java constructor. */
+public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
+  Class<?> clazz;
+  transient Constructor<?> constructor;
+
+  SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
+    this.clazz = clazz;
+    this.constructor = constructor;
+  }
+
+  @Override
+  public Object create(Object... params) {
+    try {
+      return constructor.newInstance(params);
+    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("Could not instantiate object " + clazz, e);
+    }
+  }
 }

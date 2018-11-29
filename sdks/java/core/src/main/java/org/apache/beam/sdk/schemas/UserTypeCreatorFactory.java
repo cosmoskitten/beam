@@ -17,25 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
-/** And implementation of {@link SchemaTypeCreator} that uses a Java constructor. */
-public class SchemaTypeConstructorCreator<T> implements SchemaTypeCreator<T> {
-  Class<T> clazz;
-  transient Constructor<? extends T> constructor;
-
-  SchemaTypeConstructorCreator(Class<T> clazz, Constructor<? extends T> constructor) {
-    this.clazz = clazz;
-    this.constructor = constructor;
-  }
-
+/** A factory for {@link SchemaUserTypeCreator} objects. */
+public interface UserTypeCreatorFactory extends Factory<SchemaUserTypeCreator> {
   @Override
-  public T create(Object... params) {
-    try {
-      return constructor.newInstance(params);
-    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-      throw new RuntimeException("Could not instantiate object " + clazz, e);
-    }
-  }
+  SchemaUserTypeCreator create(Class<?> clazz, Schema schema);
 }

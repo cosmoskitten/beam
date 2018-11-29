@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.io.Serializable;
 import java.util.List;
 
 /** Factory for vending type information for all fields of a class. */
-public interface FieldValueTypeInformationFactory extends Serializable {
-  List<FieldValueTypeInformation> getTypeInformations(Class<?> targetClass, Schema schema);
+public interface FieldValueTypeInformationFactory extends Factory<List<FieldValueTypeInformation>> {
+  @Override
+  List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema);
 }

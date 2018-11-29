@@ -20,8 +20,8 @@ package org.apache.beam.sdk.schemas;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 
-/** A creator interface for schema types. */
+/** A creator interface for user types that have schemas. */
 @Internal
-public interface SchemaTypeCreator<T> extends Serializable {
-  T create(Object... params);
+public interface SchemaUserTypeCreator extends Serializable {
+  Object create(Object... params);
 }

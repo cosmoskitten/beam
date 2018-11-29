@@ -21,11 +21,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -33,85 +31,45 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
 
-class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
+/** Function to convert a {@link Row} to a user type using a creator factory. */
+class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
-  private final FieldValueSetterFactory fieldValueSetterFactory;
-  private final FieldValueTypeInformationFactory fieldValueTypeInformationFactory;
+  private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
+  private final Factory<List<FieldValueTypeInformation>> fieldValueTypeInformationFactory;
 
-  public FromRowUsingSetters(
+  public FromRowUsingCreator(
       Class<T> clazz,
-      FieldValueSetterFactory fieldValueSetterFactory,
+      UserTypeCreatorFactory schemaTypeUserTypeCreatorFactory,
       FieldValueTypeInformationFactory fieldValueTypeInformationFactory) {
-    FieldValueSetterFactory cachingSetterFactory =
-        new FieldValueSetterFactory() {
-          @Nullable
-          private volatile ConcurrentHashMap<Class, List<FieldValueSetter>> settersMap = null;
-
-          private final FieldValueSetterFactory innerFactory = fieldValueSetterFactory;
-
-          @Override
-          public List<FieldValueSetter> createSetters(Class<?> targetClass, Schema schema) {
-            if (settersMap == null) {
-              settersMap = new ConcurrentHashMap<>();
-            }
-            List<FieldValueSetter> setters = settersMap.get(targetClass);
-            if (setters != null) {
-              return setters;
-            }
-            setters = innerFactory.createSetters(targetClass, schema);
-            settersMap.put(targetClass, setters);
-            return setters;
-          }
-        };
-
     this.clazz = clazz;
-    this.fieldValueSetterFactory = cachingSetterFactory;
-    // TODO: THIS MUST BE CACHED AS WELL
-    this.fieldValueTypeInformationFactory = fieldValueTypeInformationFactory;
+    this.schemaTypeCreatorFactory = new CachingFactory<>(schemaTypeUserTypeCreatorFactory);
+    this.fieldValueTypeInformationFactory = new CachingFactory<>(fieldValueTypeInformationFactory);
   }
 
   @Override
   public T apply(Row row) {
-    return fromRow(row, clazz, fieldValueSetterFactory);
+    return fromRow(row, clazz, fieldValueTypeInformationFactory);
   }
 
   @SuppressWarnings("unchecked")
-  private <ValueT> ValueT fromRow(
-      Row row, Class<ValueT> clazz, FieldValueSetterFactory setterFactory) {
+  public <ValueT> ValueT fromRow(
+      Row row, Class<ValueT> clazz, Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (row instanceof RowWithGetters) {
       // Efficient path: simply extract the underlying object instead of creating a new one.
       return (ValueT) ((RowWithGetters) row).getGetterTarget();
     }
 
-    ValueT object;
-    try {
-      object = clazz.getDeclaredConstructor().newInstance();
-    } catch (NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException
-        | InstantiationException e) {
-      throw new RuntimeException("Failed to instantiate object ", e);
-    }
-
+    Object[] params = new Object[row.getFieldCount()];
     Schema schema = row.getSchema();
-    List<FieldValueSetter> setters = setterFactory.createSetters(clazz, schema);
-    checkState(
-        setters.size() == row.getFieldCount(),
-        "Did not have a matching number of setters and fields.");
-    List<FieldValueTypeInformation> typeInformations =
-        fieldValueTypeInformationFactory.getTypeInformations(clazz, schema);
+    List<FieldValueTypeInformation> typeInformations = typeFactory.create(clazz, schema);
     checkState(
         typeInformations.size() == row.getFieldCount(),
-        "Did not have a matching number of typeInformations and fields.");
+        "Did not have a matching number of type informations and fields.");
 
-    // Iterate over the row, and set (possibly recursively) each field in the underlying object
-    // using the setter.
     for (int i = 0; i < row.getFieldCount(); ++i) {
       FieldType type = schema.getField(i).getType();
-      FieldValueSetter setter = setters.get(i);
       FieldValueTypeInformation typeInformation = typeInformations.get(i);
-      setter.set(
-          object,
+      params[i] =
           fromValue(
               type,
               row.getValue(i),
@@ -119,9 +77,11 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
               typeInformation.elementType(),
               typeInformation.mapKeyType(),
               typeInformation.mapValueType(),
-              setterFactory));
+              typeFactory);
     }
-    return object;
+
+    SchemaUserTypeCreator creator = schemaTypeCreatorFactory.create(clazz, schema);
+    return (ValueT) creator.create(params);
   }
 
   @SuppressWarnings("unchecked")
@@ -133,16 +93,15 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
       Type elemenentType,
       Type keyType,
       Type valueType,
-      FieldValueSetterFactory setterFactory) {
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (value == null) {
       return null;
     }
     if (TypeName.ROW.equals(type.getTypeName())) {
-      return (ValueT) fromRow((Row) value, (Class) fieldType, setterFactory);
+      return (ValueT) fromRow((Row) value, (Class) fieldType, typeFactory);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
       return (ValueT)
-          fromListValue(
-              type.getCollectionElementType(), (List) value, elemenentType, setterFactory);
+          fromListValue(type.getCollectionElementType(), (List) value, elemenentType, typeFactory);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
       return (ValueT)
           fromMapValue(
@@ -151,7 +110,7 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
               (Map) value,
               keyType,
               valueType,
-              setterFactory);
+              typeFactory);
     } else {
       return value;
     }
@@ -162,10 +121,10 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
       FieldType elementType,
       List<ElementT> rowList,
       Type elementClass,
-      FieldValueSetterFactory setterFactory) {
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
     List list = Lists.newArrayList();
     for (ElementT element : rowList) {
-      list.add(fromValue(elementType, element, elementClass, null, null, null, setterFactory));
+      list.add(fromValue(elementType, element, elementClass, null, null, null, typeFactory));
     }
     return list;
   }
@@ -177,12 +136,12 @@ class FromRowUsingSetters<T> implements SerializableFunction<Row, T> {
       Map<?, ?> map,
       Type keyClass,
       Type valueClass,
-      FieldValueSetterFactory setterFactory) {
+      Factory<List<FieldValueTypeInformation>> typeFactory) {
     Map newMap = Maps.newHashMap();
     for (Map.Entry<?, ?> entry : map.entrySet()) {
-      Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null, setterFactory);
+      Object key = fromValue(keyType, entry.getKey(), keyClass, null, null, null, typeFactory);
       Object value =
-          fromValue(valueType, entry.getValue(), valueClass, null, null, null, setterFactory);
+          fromValue(valueType, entry.getValue(), valueClass, null, null, null, typeFactory);
       newMap.put(key, value);
     }
     return newMap;

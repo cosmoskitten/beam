@@ -25,7 +25,7 @@ import org.apache.beam.sdk.schemas.Schema;
 /** A {@link FieldValueTypeInformationFactory} for POJO objects objects. */
 public class PojoValueTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
-  public List<FieldValueTypeInformation> getTypeInformations(Class<?> targetClass, Schema schema) {
+  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
     return POJOUtils.getFieldTypes(targetClass, schema);
   }
 }
