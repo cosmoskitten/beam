@@ -161,6 +161,11 @@ task preCommit() {
   dependsOn "lint"
 }
 
+task portablePreCommit() {
+  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
+  dependsOn 'portableWordCount'
+}
+
 /*************************************************************************************************/
 // E2E integration testing and validates runner testing
 
@@ -267,6 +272,7 @@ task portableWordCount(dependsOn: 'installGcpTest') {
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-direct",
             "--runner=PortableRunner",
+            "--experiments=worker_threads=100",
     ]
     if (project.hasProperty("streaming"))
       options += ["--streaming"]
@@ -282,6 +288,8 @@ task portableWordCount(dependsOn: 'installGcpTest') {
     }
   }
 }
+// Make sure that the job server is built before the portableWordCount is executed.
+portableWordCount.mustRunAfter ':beam-runners-flink_2.11-job-server-container:docker'
 
 // Run single or a set of integration tests with provided test options and pipeline options.
 task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
