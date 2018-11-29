@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
 class CachingFactory<CreatedT> implements Factory<CreatedT> {
-  @Nullable private volatile ConcurrentHashMap<Class, CreatedT> cache = null;
+  @Nullable private transient ConcurrentHashMap<Class, CreatedT> cache = null;
 
   private final Factory<CreatedT> innerFactory;
 

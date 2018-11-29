@@ -17,21 +17,24 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
 /** And implementation of {@link SchemaUserTypeCreator} that uses a Java constructor. */
 public class SchemaUserTypeConstructorCreator implements SchemaUserTypeCreator {
-  Class<?> clazz;
-  transient Constructor<?> constructor;
+  private final Class<?> clazz;
+  private final transient Constructor<?> constructor;
 
   SchemaUserTypeConstructorCreator(Class<?> clazz, Constructor<?> constructor) {
     this.clazz = clazz;
-    this.constructor = constructor;
+    this.constructor = checkNotNull(constructor);
   }
 
   @Override
   public Object create(Object... params) {
+    checkNotNull(constructor);
     try {
       return constructor.newInstance(params);
     } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
