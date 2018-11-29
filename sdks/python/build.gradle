@@ -407,14 +407,19 @@ def flinkCompatibilityMatrix = {
   }
 }
 
+def flinkCompatibilityMatrixStreamingDOCKER = flinkCompatibilityMatrix(streaming: true)
+def flinkCompatibilityMatrixBatchDOCKER = flinkCompatibilityMatrix(streaming: false)
+def flinkCompatibilityMatrixStreamingPROCESS = flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+def flinkCompatibilityMatrixBatchPROCESS = flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+
 task flinkCompatibilityMatrixDocker() {
-  dependsOn flinkCompatibilityMatrix(streaming: false)
-  dependsOn flinkCompatibilityMatrix(streaming: true)
+  dependsOn flinkCompatibilityMatrixStreamingDOCKER
+  dependsOn flinkCompatibilityMatrixBatchDOCKER
 }
 
 task flinkCompatibilityMatrixProcess() {
-  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
-  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
+  dependsOn flinkCompatibilityMatrixStreamingPROCESS
+  dependsOn flinkCompatibilityMatrixBatchPROCESS
 }
 
 task flinkValidatesRunner() {
