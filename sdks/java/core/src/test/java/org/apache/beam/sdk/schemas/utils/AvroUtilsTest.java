@@ -19,19 +19,29 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
+import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.values.Row;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Test;
@@ -49,15 +59,14 @@ public class AvroUtilsTest {
   public void supportsAnyAvroSchema(
       @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
     // not everything is possible to translate
-    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasArrayOrMapOfNullable)));
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
 
-    Schema schema = AvroUtils.toSchema(avroSchema);
+    Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
-      AvroUtils.toRowStrict(record, schema);
+      AvroUtils.toBeamRowStrict(record, schema);
     }
   }
 
@@ -67,8 +76,9 @@ public class AvroUtilsTest {
         org.apache.avro.Schema.createUnion(
             org.apache.avro.Schema.create(Type.NULL), org.apache.avro.Schema.create(Type.STRING));
 
-    assertEquals(
-        org.apache.avro.Schema.create(Type.STRING), AvroUtils.unwrapNullableSchema(avroSchema));
+    TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
+    assertTrue(typeWithNullability.nullable);
+    assertEquals(org.apache.avro.Schema.create(Type.STRING), typeWithNullability.type);
   }
 
   @Test
@@ -77,8 +87,9 @@ public class AvroUtilsTest {
         org.apache.avro.Schema.createUnion(
             org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.NULL));
 
-    assertEquals(
-        org.apache.avro.Schema.create(Type.STRING), AvroUtils.unwrapNullableSchema(avroSchema));
+    TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
+    assertTrue(typeWithNullability.nullable);
+    assertEquals(org.apache.avro.Schema.create(Type.STRING), typeWithNullability.type);
   }
 
   @Test
@@ -89,10 +100,202 @@ public class AvroUtilsTest {
             org.apache.avro.Schema.create(Type.LONG),
             org.apache.avro.Schema.create(Type.NULL));
 
+    TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
+    assertTrue(typeWithNullability.nullable);
     assertEquals(
         org.apache.avro.Schema.createUnion(
             org.apache.avro.Schema.create(Type.STRING), org.apache.avro.Schema.create(Type.LONG)),
-        AvroUtils.unwrapNullableSchema(avroSchema));
+        typeWithNullability.type);
+  }
+
+  private org.apache.avro.Schema getAvroSubSchema() {
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
+    return org.apache.avro.Schema.createRecord(fields);
+  }
+
+  private org.apache.avro.Schema getAvroSchema() {
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "long", org.apache.avro.Schema.create(Type.LONG), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "float", org.apache.avro.Schema.create(Type.FLOAT), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "double", org.apache.avro.Schema.create(Type.DOUBLE), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "string", org.apache.avro.Schema.create(Type.STRING), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "bytes", org.apache.avro.Schema.create(Type.BYTES), "", null));
+    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema(), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "array", org.apache.avro.Schema.createArray(getAvroSubSchema()), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "map", org.apache.avro.Schema.createMap(getAvroSubSchema()), "", null));
+    return org.apache.avro.Schema.createRecord(fields);
+  }
+
+  private Schema getBeamSubSchema() {
+    return new Schema.Builder()
+        .addField(Field.of("bool", FieldType.BOOLEAN))
+        .addField(Field.of("int", FieldType.INT32))
+        .build();
+  }
+
+  private Schema getBeamSchema() {
+    Schema subSchema = getBeamSubSchema();
+    return new Schema.Builder()
+        .addField(Field.of("bool", FieldType.BOOLEAN))
+        .addField(Field.of("int", FieldType.INT32))
+        .addField(Field.of("long", FieldType.INT64))
+        .addField(Field.of("float", FieldType.FLOAT))
+        .addField(Field.of("double", FieldType.DOUBLE))
+        .addField(Field.of("string", FieldType.STRING))
+        .addField(Field.of("bytes", FieldType.BYTES))
+        .addField(Field.of("row", FieldType.row(subSchema)))
+        .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
+        .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))
+        .build();
+  }
+
+  private Row getBeamRow() {
+    Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
+
+    byte[] a0 = new byte[] {1, 2, 3, 4};
+    return Row.withSchema(getBeamSchema())
+        .addValue(true)
+        .addValue(43)
+        .addValue(44L)
+        .addValue((float) 44.1)
+        .addValue((double) 44.2)
+        .addValue("string")
+        .addValue(a0)
+        .addValue(subRow)
+        .addValue(ImmutableList.of(subRow, subRow))
+        .addValue(ImmutableMap.of("k1", subRow, "k2", subRow))
+        .build();
+  }
+
+  private GenericRecord getGenericRecord() {
+    byte[] a0 = new byte[] {1, 2, 3, 4};
+
+    GenericRecord subRecord =
+        new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
+
+    return new GenericRecordBuilder(getAvroSchema())
+        .set("bool", true)
+        .set("int", 43)
+        .set("long", 44L)
+        .set("float", (float) 44.1)
+        .set("double", (double) 44.2)
+        .set("string", "string")
+        .set("bytes", ByteBuffer.wrap(a0))
+        .set("row", subRecord)
+        .set("array", ImmutableList.of(subRecord, subRecord))
+        .set("map", ImmutableMap.of("k1", subRecord, "k2", subRecord))
+        .build();
+  }
+
+  @Test
+  public void testFromAvroSchema() {
+    assertEquals(getBeamSchema(), AvroUtils.toBeamSchema(getAvroSchema()));
+  }
+
+  @Test
+  public void testFromBeamSchema() {
+    Schema beamSchema = getBeamSchema();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    assertEquals(getAvroSchema(), avroSchema);
+  }
+
+  @Test
+  public void testNullableFieldInAvroSchema() {
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "array",
+            org.apache.avro.Schema.createArray(
+                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+            "",
+            null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "map",
+            org.apache.avro.Schema.createMap(
+                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+            "",
+            null));
+    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("int", FieldType.INT32)
+            .addArrayField("array", FieldType.INT32.withNullable(true))
+            .addMapField("map", FieldType.STRING, FieldType.INT32.withNullable(true))
+            .build();
+    assertEquals(expectedSchema, AvroUtils.toBeamSchema(avroSchema));
+  }
+
+  @Test
+  public void testNullableFieldsInBeamSchema() {
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableField("int", FieldType.INT32)
+            .addArrayField("array", FieldType.INT32.withNullable(true))
+            .addMapField("map", FieldType.STRING, FieldType.INT32.withNullable(true))
+            .build();
+
+    List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "int", ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT)), "", null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "array",
+            org.apache.avro.Schema.createArray(
+                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+            "",
+            null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "map",
+            org.apache.avro.Schema.createMap(
+                ReflectData.makeNullable(org.apache.avro.Schema.create(Type.INT))),
+            "",
+            null));
+    org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
+    assertEquals(avroSchema, AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testBeamRowToGenericRecord() {
+    GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow(), null);
+    assertEquals(getAvroSchema(), genericRecord.getSchema());
+    assertEquals(getGenericRecord(), genericRecord);
+  }
+
+  @Test
+  public void testGenericRecordToBeamRow() {
+    Row row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
+    assertEquals(getBeamRow(), row);
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
@@ -108,26 +311,6 @@ public class AvroUtilsTest {
         return !types.contains(NULL_SCHEMA);
       } else {
         return true;
-      }
-    }
-
-    return false;
-  }
-
-  // doesn't work because Beam doesn't support arrays and maps of nullable types
-  public static boolean hasArrayOrMapOfNullable(org.apache.avro.Schema schema) {
-
-    if (schema.getType() == Type.ARRAY) {
-      org.apache.avro.Schema elementType = schema.getElementType();
-      if (elementType.getType() == Type.UNION) {
-        return elementType.getTypes().contains(NULL_SCHEMA);
-      }
-    }
-
-    if (schema.getType() == Type.MAP) {
-      org.apache.avro.Schema valueType = schema.getValueType();
-      if (valueType.getType() == Type.UNION) {
-        return valueType.getTypes().contains(NULL_SCHEMA);
       }
     }
 
