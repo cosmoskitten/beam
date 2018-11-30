@@ -204,4 +204,17 @@ public interface FlinkPipelineOptions
   ExecutionMode getExecutionModeForBatch();
 
   void setExecutionModeForBatch(ExecutionMode executionMode);
+
+  @Description("Savepoint restore path.")
+  String getSavepointPath();
+
+  void setSavepointPath(String path);
+
+  @Description(
+      "Flag indicating whether non restored state is allowed if the savepoint "
+          + "contains state for an operator that is no longer part of the pipeline.")
+  @Default.Boolean(false)
+  Boolean getAllowNonRestoredState();
+
+  void setAllowNonRestoredState(Boolean allowNonRestoredState);
 }
