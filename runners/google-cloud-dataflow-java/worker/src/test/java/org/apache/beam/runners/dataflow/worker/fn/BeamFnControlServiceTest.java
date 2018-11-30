@@ -43,6 +43,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 
 /** Tests for {@link BeamFnControlService}. */
 @RunWith(JUnit4.class)
@@ -74,7 +75,7 @@ public class BeamFnControlServiceTest {
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
     Server server =
-        ServerFactory.fromOptions(options).create(descriptor, ImmutableList.of(service));
+        ServerFactory.createDefault().create(service, descriptor);
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
         BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
@@ -103,7 +104,7 @@ public class BeamFnControlServiceTest {
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
     Server server =
-        ServerFactory.fromOptions(options).create(descriptor, ImmutableList.of(service));
+        ServerFactory.createDefault().create(service, descriptor);
 
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
