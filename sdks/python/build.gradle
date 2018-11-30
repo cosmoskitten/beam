@@ -290,6 +290,8 @@ def portableWordCountTask(name, streaming, envdir) {
       else
       // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
+      // [BEAM-5167] Workaround for scheduling issue between SDKHarness and Flink
+        options += ["--parallelism=1"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
       exec {
