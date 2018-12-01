@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
@@ -43,11 +44,13 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
 
   private final BeamFnDataClient mainClient;
   private final SynchronousQueue<ConsumerAndData> queue;
+  //private final ConcurrentLinkedQueue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
 
   public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
     this.queue = new SynchronousQueue<>();
+    //this.queue = new ConcurrentLinkedQueue<>();
     this.inboundDataClients = new ConcurrentHashMap<>();
   }
 
@@ -95,7 +98,8 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   public void drainAndBlock() throws Exception {
     while (true) {
       try {
-        ConsumerAndData tuple = queue.poll(2000, TimeUnit.MILLISECONDS);
+        //ConsumerAndData tuple = queue.poll();
+        ConsumerAndData tuple = queue.poll(200, TimeUnit.MILLISECONDS);
         if (tuple != null) {
           // Forward to the consumers who cares about this data.
           tuple.consumer.accept(tuple.data);
@@ -105,7 +109,8 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           // QueuingFnDataReceiver.accept() call returns and will not be invoked again.
           // (2) The QueueingFnDataReceiver will not return until the value is received in
           // drainAndBlock, because of the use of the SynchronousQueue.
-          if (allDone()) {
+          if (allDone() && queue.isEmpty()) {
+          //if (allDone()) {
             break;
           }
         }
@@ -155,10 +160,12 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     public void accept(WindowedValue<T> value) throws Exception {
       try {
         ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
+        //queue.add(offering);
         while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
           if (inboundDataClient.isDone()) {
             // If it was cancelled by the consuming side of the queue.
             break;
+            //return;
           }
         }
       } catch (Exception e) {

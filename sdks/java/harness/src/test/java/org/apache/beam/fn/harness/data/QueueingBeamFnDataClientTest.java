@@ -346,6 +346,8 @@ public class QueueingBeamFnDataClientTest {
         if (e.getCause() instanceof RuntimeException) {
           intentionallyFailedB = true;
         }
+      } catch (Exception e) {
+        intentionallyFailedB = true;
       }
       assertTrue(intentionallyFailedB);
 
