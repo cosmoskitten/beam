@@ -171,7 +171,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                       dataApiServiceDescriptor,
                       stateApiServiceDescriptor,
                       idGenerator)));
-      // If the shared_lib usage is enabled, use shared lib instead.
+      // If the use_executable_stage_bundle_execution is enabled, use ExecutableStage instead.
       Networks.replaceDirectedNetworkNodes(
           network,
           createOperationTransformForExecutableStageNode(

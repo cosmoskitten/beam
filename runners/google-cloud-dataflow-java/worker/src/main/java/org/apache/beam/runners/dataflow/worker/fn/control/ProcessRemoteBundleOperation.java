@@ -35,12 +35,31 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This {@link org.apache.beam.runners.dataflow.worker.util.common.worker.Operation} is responsible
+ * for communicating with the SDK harness and asking it to process a bundle of work. This operation
+ * request a RemoteBundle{@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, send data
+ * elements to SDK and receive processed results from SDK, then pass these elements to next
+ * Operations.
+ */
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
   private final StageBundleFactory stageBundleFactory;
+  private final OutputReceiverFactory receiverFactory =
+      new OutputReceiverFactory() {
+        @Override
+        public FnDataReceiver<?> create(String pCollectionId) {
+          return receivedElement -> {
+            for (OutputReceiver receiver : receivers) {
+              LOG.debug("Consume element {}", receivedElement);
+              receiver.process((WindowedValue<?>) receivedElement);
+            }
+          };
+        }
+      };
+  private final StateRequestHandler stateRequestHandler;
+  private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
-  private StateRequestHandler stateRequestHandler;
-  private BundleProgressHandler progressHandler;
 
   public ProcessRemoteBundleOperation(
       OperationContext context, StageBundleFactory stageBundleFactory, OutputReceiver[] receivers) {
@@ -55,19 +74,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   public void start() throws Exception {
     try (Closeable scope = context.enterStart()) {
       super.start();
-      OutputReceiverFactory receiverFactory =
-          new OutputReceiverFactory() {
-            @Override
-            public FnDataReceiver<?> create(String pCollectionId) {
-              return receivedElement -> {
-                for (OutputReceiver receiver : receivers) {
-                  LOG.debug("Consume element {}", receivedElement);
-                  receiver.process((WindowedValue<?>) receivedElement);
-                }
-              };
-            }
-          };
-
       try {
         remoteBundle =
             stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);

@@ -23,6 +23,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.dataflow.model.InstructionOutput;
+import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
@@ -30,6 +31,7 @@ import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.graph.MutableNetwork;
+import com.google.common.graph.Network;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
@@ -79,6 +81,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 
+/**
+ * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
+ * {@link Node} containing {@link org.apache.beam.runners.core.construction.graph.ExecutableStage}.
+ */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
