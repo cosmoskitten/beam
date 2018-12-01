@@ -32,6 +32,7 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
@@ -351,14 +353,12 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             Iterables.filter(network.successors(input), OutputReceiverNode.class);
 
         OutputReceiver[] outputReceivers = new OutputReceiver[Iterables.size(outputReceiverNodes)];
-        int index = 0;
-        Iterator<OutputReceiverNode> iterator = outputReceiverNodes.iterator();
-        while (iterator.hasNext()) {
-          OutputReceiverNode node = iterator.next();
-          outputReceivers[index] = node.getOutputReceiver();
-          LOG.debug("output receiver {} coder {}", index, node.getCoder());
-          index += 1;
-        }
+        Lists.newArrayList(outputReceiverNodes)
+            .stream()
+            .map(outputReceiverNode -> outputReceiverNode.getOutputReceiver())
+            .collect(Collectors.toList())
+            .toArray(outputReceivers);
+
         return OperationNode.create(
             new ProcessRemoteBundleOperation(
                 executionContext.createOperationContext(
