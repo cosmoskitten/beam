@@ -1274,7 +1274,7 @@ class FlinkStreamingTransformTranslators {
    * Wrapper for {@link UnboundedSourceWrapper}, which simplifies output type, namely, removes
    * {@link ValueWithRecordId}.
    */
-  private static class UnboundedSourceWrapperNoValueWithRecordId<
+  static class UnboundedSourceWrapperNoValueWithRecordId<
           OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends RichParallelSourceFunction<WindowedValue<OutputT>>
       implements ProcessingTimeCallback,
@@ -1283,6 +1283,10 @@ class FlinkStreamingTransformTranslators {
           CheckpointedFunction {
 
     private final UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper;
+
+    UnboundedSourceWrapper<OutputT, CheckpointMarkT> getUnderlyingSource() {
+      return unboundedSourceWrapper;
+    }
 
     private UnboundedSourceWrapperNoValueWithRecordId(
         UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper) {
