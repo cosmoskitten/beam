@@ -127,7 +127,7 @@ public class FlinkExecutionEnvironments {
     LOG.info("Creating a Streaming Environment.");
 
     String masterUrl = options.getFlinkMaster();
-    Configuration flinkConfig = getFlinkConfiguration(confDir);
+    Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     StreamExecutionEnvironment flinkStreamEnv = null;
 
     // depending on the master, create the right environment.
@@ -137,12 +137,12 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       List<String> parts = Splitter.on(':').splitToList(masterUrl);
-      flinkConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
+      flinkConfiguration.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
       flinkStreamEnv =
           StreamExecutionEnvironment.createRemoteEnvironment(
               parts.get(0),
               Integer.parseInt(parts.get(1)),
-              flinkConfig,
+              flinkConfiguration,
               filesToStage.toArray(new String[filesToStage.size()]));
     } else {
       LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
@@ -152,7 +152,7 @@ public class FlinkExecutionEnvironments {
     // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.
     final int parallelism =
         determineParallelism(
-            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfig);
+            options.getParallelism(), flinkStreamEnv.getParallelism(), flinkConfiguration);
     flinkStreamEnv.setParallelism(parallelism);
     // set parallelism in the options (required by some execution code)
     options.setParallelism(parallelism);

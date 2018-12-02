@@ -23,7 +23,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * This sink just stores in a static field the first counter (if it exists) attempted value. This is
- * usefull for tests.
+ * useful for tests.
  */
 public class TestMetricsSink implements MetricsSink {
 
