@@ -22,14 +22,21 @@ import static org.apache.beam.runners.core.construction.PipelineResources.detect
 import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -126,7 +133,43 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       if (accumulators != null && !accumulators.isEmpty()) {
         LOG.info("Final accumulator values:");
         for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-          LOG.info("{} : {}", entry.getKey(), entry.getValue());
+          MetricsContainerStepMap stepMap = (MetricsContainerStepMap) entry.getValue();
+          LOG.info("{} : {}", entry.getKey(), stepMap);
+          MetricResults metrics = MetricsContainerStepMap.asAttemptedOnlyMetricResults(stepMap);
+          MetricQueryResults results = metrics.queryMetrics(null);
+
+          List<MetricResult<Long>> counters = new ArrayList<>();
+          results.getCounters().forEach(counters::add);
+          LOG.info("{} counters", counters.size());
+          for (MetricResult<Long> counter : counters) {
+            LOG.info(
+                "step: {}, name: {}, attempted: {}",
+                counter.getStep(),
+                counter.getName(),
+                counter.getAttempted());
+          }
+
+          List<MetricResult<DistributionResult>> distributions = new ArrayList<>();
+          results.getDistributions().forEach(distributions::add);
+          LOG.info("{} distributions", distributions.size());
+          for (MetricResult<DistributionResult> distribution : distributions) {
+            LOG.info(
+                "step: {}, name: {}, attempted: {}",
+                distribution.getStep(),
+                distribution.getName(),
+                distribution.getAttempted());
+          }
+
+          List<MetricResult<GaugeResult>> gauges = new ArrayList<>();
+          results.getGauges().forEach(gauges::add);
+          LOG.info("{} gauges", gauges.size());
+          for (MetricResult<GaugeResult> gauge : gauges) {
+            LOG.info(
+                "step: {}, name: {}, attempted: {}",
+                gauge.getStep(),
+                gauge.getName(),
+                gauge.getAttempted());
+          }
         }
       }
       FlinkRunnerResult flinkRunnerResult =
