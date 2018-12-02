@@ -51,6 +51,7 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
+  parser.add_argument('--test', default=None, help='Specific test case(s) to run')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -59,6 +60,7 @@ if __name__ == '__main__':
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
+  test = known_args.test
 
   # This is defined here to only be run when we invoke this file explicitly.
   class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
@@ -124,4 +126,10 @@ if __name__ == '__main__':
 
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  if test:
+    logging.info("Running specific test(s): %s" % test)
+    singletest = unittest.TestSuite()
+    singletest.addTest(FlinkRunnerTest(test))
+    unittest.TextTestRunner().run(singletest)
+  else:
+    unittest.main()
