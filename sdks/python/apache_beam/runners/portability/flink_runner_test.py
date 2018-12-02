@@ -19,12 +19,17 @@ from __future__ import print_function
 
 import argparse
 import logging
-import shutil
+from os import linesep
+from os import path
+from os.path import exists
+from shutil import rmtree
 import sys
-import tempfile
+from tempfile import mkdtemp
 import unittest
 
 import apache_beam as beam
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import FlinkOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -67,19 +72,56 @@ if __name__ == '__main__':
     _use_grpc = True
     _use_subprocesses = True
 
+    conf_dir = None
+
+    @classmethod
+    def tearDownClass(cls):
+      if cls.conf_dir and exists(cls.conf_dir):
+        logging.info("removing conf dir: %s" % cls.conf_dir)
+        rmtree(cls.conf_dir)
+      super(FlinkRunnerTest, cls).tearDownClass()
+
+    @classmethod
+    def _create_conf_dir(cls):
+      """Create (and save a static reference to) a "conf dir", used to provide metrics configs and
+       verify metrics output
+
+       It gets cleaned up when the suite is done executing"""
+
+      if hasattr(cls, 'conf_dir'):
+        cls.conf_dir = mkdtemp(prefix='flinktest-conf')
+
+        # path for a FileReporter to write metrics to
+        cls.test_metrics_path = path.join(cls.conf_dir, 'test-metrics.txt')
+
+        # path to write Flink configuration to
+        conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
+        with open(conf_path, 'w') as f:
+          f.write(linesep.join([
+            'metrics.reporters: test',
+            'metrics.reporter.test.class: org.apache.beam.runners.flink.metrics.FileReporter',
+            'metrics.reporter.test.file: %s' % cls.test_metrics_path
+          ]))
+
     @classmethod
     def _subprocess_command(cls, port):
-      tmp_dir = tempfile.mkdtemp(prefix='flinktest')
+      # will be cleaned up at the end of this method, and recreated and used by the job server
+      tmp_dir = mkdtemp(prefix='flinktest')
+
+      cls._create_conf_dir()
+
       try:
         return [
             'java',
             '-jar', flink_job_server_jar,
+            '--flink-master-url', '[local]',
+            '--flink-conf-dir', cls.conf_dir,
             '--artifacts-dir', tmp_dir,
             '--job-port', str(port),
             '--artifact-port', '0',
         ]
       finally:
-        shutil.rmtree(tmp_dir)
+        rmtree(tmp_dir)
 
     @classmethod
     def get_runner(cls):
@@ -121,6 +163,39 @@ if __name__ == '__main__':
 
     def test_error_traceback_includes_user_code(self):
       raise unittest.SkipTest("BEAM-6019")
+
+    def test_metrics(self):
+      """Run a simple DoFn that increments a counter, and verify that its expected value is written
+       to a temporary file by the FileReporter"""
+
+      counter_name = 'elem_counter'
+      class DoFn(beam.DoFn):
+        def __init__(self):
+          self.counter = Metrics.counter(self.__class__, counter_name)
+          logging.info('counter: %s' % self.counter.metric_name)
+
+        def process(self, v):
+          self.counter.inc()
+
+      p = self.create_pipeline()
+      n = 100
+      inputs = range(n)
+
+      p \
+      | beam.Create(inputs) \
+      | beam.ParDo(DoFn())
+
+      result = p.run()
+      result.wait_until_finish()
+
+      with open(self.test_metrics_path, 'r') as f:
+        lines = filter(lambda line: counter_name in line, f.readlines())
+        self.assertEqual(len(lines), 1, msg='Expected 1 line matching "%s":\n%s' % (counter_name, '\n'.join(lines)))
+        line = lines[0]
+        self.assertTrue(
+          '%s: 100' % counter_name in line,
+          msg='Failed to find expected counter %s in line %s' % (counter_name, line)
+        )
 
     # Inherits all other tests.
 
