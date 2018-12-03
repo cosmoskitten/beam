@@ -31,6 +31,7 @@ import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
@@ -122,31 +123,45 @@ public class AvroUtilsTest {
     List<org.apache.avro.Schema.Field> fields = Lists.newArrayList();
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", null));
-    fields.add(
-        new org.apache.avro.Schema.Field("int", org.apache.avro.Schema.create(Type.INT), "", null));
+            "bool", org.apache.avro.Schema.create(Type.BOOLEAN), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "long", org.apache.avro.Schema.create(Type.LONG), "", null));
+            "int", org.apache.avro.Schema.create(Type.INT), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "float", org.apache.avro.Schema.create(Type.FLOAT), "", null));
+            "long", org.apache.avro.Schema.create(Type.LONG), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "double", org.apache.avro.Schema.create(Type.DOUBLE), "", null));
+            "float", org.apache.avro.Schema.create(Type.FLOAT), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "string", org.apache.avro.Schema.create(Type.STRING), "", null));
+            "double", org.apache.avro.Schema.create(Type.DOUBLE), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "bytes", org.apache.avro.Schema.create(Type.BYTES), "", null));
-    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema(), "", null));
+            "string", org.apache.avro.Schema.create(Type.STRING), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "array", org.apache.avro.Schema.createArray(getAvroSubSchema()), "", null));
+            "bytes", org.apache.avro.Schema.create(Type.BYTES), "", (Object) null));
     fields.add(
         new org.apache.avro.Schema.Field(
-            "map", org.apache.avro.Schema.createMap(getAvroSubSchema()), "", null));
+            "decimal",
+            LogicalTypes.decimal(Integer.MAX_VALUE)
+                .addToSchema(org.apache.avro.Schema.create(Type.BYTES)),
+            "",
+            (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "timestampMillis",
+            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG)),
+            "",
+            (Object) null));
+    fields.add(new org.apache.avro.Schema.Field("row", getAvroSubSchema(), "", (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "array", org.apache.avro.Schema.createArray(getAvroSubSchema()), "", (Object) null));
+    fields.add(
+        new org.apache.avro.Schema.Field(
+            "map", org.apache.avro.Schema.createMap(getAvroSubSchema()), "", (Object) null));
     return org.apache.avro.Schema.createRecord(fields);
   }
 
@@ -167,6 +182,8 @@ public class AvroUtilsTest {
         .addField(Field.of("double", FieldType.DOUBLE))
         .addField(Field.of("string", FieldType.STRING))
         .addField(Field.of("bytes", FieldType.BYTES))
+        .addField(Field.of("decimal", FieldType.DECIMAL))
+        .addField(Field.of("timestampMillis", FieldType.DATETIME))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
         .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))

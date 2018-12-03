@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +31,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
@@ -38,8 +42,12 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.Instant;
+import org.joda.time.ReadableDateTime;
 
 /** Utils to convert AVRO records to Beam rows. */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -94,7 +102,11 @@ public class AvroUtils {
 
     for (org.apache.avro.Schema.Field field : schema.getFields()) {
       TypeWithNullability nullableType = new TypeWithNullability(field.schema());
-      builder.addField(field.name(), toFieldType(nullableType));
+      Field beamField = Field.of(field.name(), toFieldType(nullableType));
+      if (field.doc() != null) {
+        beamField = beamField.withDescription(field.doc());
+      }
+      builder.addField(beamField);
     }
 
     return builder.build();
@@ -107,7 +119,7 @@ public class AvroUtils {
       org.apache.avro.Schema fieldSchema = getFieldSchema(field.getType());
       org.apache.avro.Schema.Field recordField =
           new org.apache.avro.Schema.Field(
-              field.getName(), fieldSchema, field.getDescription(), null);
+              field.getName(), fieldSchema, field.getDescription(), (Object) null);
       fields.add(recordField);
     }
     org.apache.avro.Schema avroSchema = org.apache.avro.Schema.createRecord(fields);
@@ -150,7 +162,11 @@ public class AvroUtils {
     // Use the provided AVRO schema if present, otherwise infer an AVRO schema from the row
     // schema.
     if (avroSchema != null && avroSchema.getFields().size() != beamSchema.getFieldCount()) {
-      throw new IllegalArgumentException("AVRO schema doesn't match row schema");
+      throw new IllegalArgumentException(
+          "AVRO schema doesn't match row schema. Row schema "
+              + beamSchema
+              + ". AVRO schema + "
+              + avroSchema);
     }
     if (avroSchema == null) {
       avroSchema = toAvroSchema(beamSchema);
@@ -161,7 +177,7 @@ public class AvroUtils {
       Schema.Field field = beamSchema.getField(i);
       builder.set(
           field.getName(),
-          genericFromField(
+          genericFromBeamField(
               field.getType(), avroSchema.getField(field.getName()).schema(), row.getValue(i)));
     }
     return builder.build();
@@ -169,70 +185,84 @@ public class AvroUtils {
 
   /** Converts AVRO schema to Beam field. */
   private static Schema.FieldType toFieldType(TypeWithNullability type) {
-    Schema.FieldType fieldType;
+    Schema.FieldType fieldType = null;
     org.apache.avro.Schema avroSchema = type.type;
-    switch (type.type.getType()) {
-      case RECORD:
-        fieldType = Schema.FieldType.row(toBeamSchema(avroSchema));
-        break;
 
-      case ENUM:
-        fieldType = Schema.FieldType.STRING;
-        break;
+    LogicalType logicalType = LogicalTypes.fromSchema(avroSchema);
+    if (logicalType != null) {
+      if (logicalType instanceof LogicalTypes.Decimal) {
+        fieldType = FieldType.DECIMAL;
+      } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
+        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
+        // this is done, this logical type needs to be changed.
+        fieldType = FieldType.DATETIME;
+      }
+    }
 
-      case ARRAY:
-        Schema.FieldType elementType =
-            toFieldType(new TypeWithNullability(avroSchema.getElementType()));
-        fieldType = Schema.FieldType.array(elementType);
-        break;
+    if (fieldType == null) {
+      switch (type.type.getType()) {
+        case RECORD:
+          fieldType = Schema.FieldType.row(toBeamSchema(avroSchema));
+          break;
 
-      case MAP:
-        fieldType =
-            Schema.FieldType.map(
-                Schema.FieldType.STRING,
-                toFieldType(new TypeWithNullability(avroSchema.getValueType())));
-        break;
+        case ENUM:
+          fieldType = Schema.FieldType.STRING;
+          break;
 
-      case FIXED:
-        fieldType = Schema.FieldType.BYTES;
-        break;
+        case ARRAY:
+          Schema.FieldType elementType =
+              toFieldType(new TypeWithNullability(avroSchema.getElementType()));
+          fieldType = Schema.FieldType.array(elementType);
+          break;
 
-      case STRING:
-        fieldType = Schema.FieldType.STRING;
-        break;
+        case MAP:
+          fieldType =
+              Schema.FieldType.map(
+                  Schema.FieldType.STRING,
+                  toFieldType(new TypeWithNullability(avroSchema.getValueType())));
+          break;
 
-      case BYTES:
-        fieldType = Schema.FieldType.BYTES;
-        break;
+        case FIXED:
+          fieldType = Schema.FieldType.BYTES;
+          break;
 
-      case INT:
-        fieldType = Schema.FieldType.INT32;
-        break;
+        case STRING:
+          fieldType = Schema.FieldType.STRING;
+          break;
 
-      case LONG:
-        fieldType = Schema.FieldType.INT64;
-        break;
+        case BYTES:
+          fieldType = Schema.FieldType.BYTES;
+          break;
 
-      case FLOAT:
-        fieldType = Schema.FieldType.FLOAT;
-        break;
+        case INT:
+          fieldType = Schema.FieldType.INT32;
+          break;
 
-      case DOUBLE:
-        fieldType = Schema.FieldType.DOUBLE;
-        break;
+        case LONG:
+          fieldType = Schema.FieldType.INT64;
+          break;
 
-      case BOOLEAN:
-        fieldType = Schema.FieldType.BOOLEAN;
-        break;
+        case FLOAT:
+          fieldType = Schema.FieldType.FLOAT;
+          break;
 
-      case UNION:
-        throw new RuntimeException("Can't convert 'union' to FieldType");
+        case DOUBLE:
+          fieldType = Schema.FieldType.DOUBLE;
+          break;
 
-      case NULL:
-        throw new RuntimeException("Can't convert 'null' to FieldType");
+        case BOOLEAN:
+          fieldType = Schema.FieldType.BOOLEAN;
+          break;
 
-      default:
-        throw new AssertionError("Unexpected AVRO Schema.Type: " + avroSchema.getType());
+        case UNION:
+          throw new RuntimeException("Can't convert 'union' to FieldType");
+
+        case NULL:
+          throw new RuntimeException("Can't convert 'null' to FieldType");
+
+        default:
+          throw new AssertionError("Unexpected AVRO Schema.Type: " + avroSchema.getType());
+      }
     }
     fieldType = fieldType.withNullable(type.nullable);
     return fieldType;
@@ -252,8 +282,10 @@ public class AvroUtils {
         break;
 
       case DECIMAL:
-        // TODO: Use a string representation.
-        throw new IllegalArgumentException("Avro does not support decimal types.");
+        baseType =
+            LogicalTypes.decimal(Integer.MAX_VALUE)
+                .addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+        break;
 
       case FLOAT:
         baseType = org.apache.avro.Schema.create(Type.FLOAT);
@@ -268,8 +300,11 @@ public class AvroUtils {
         break;
 
       case DATETIME:
-        // TODO: Use a string representation.
-        throw new IllegalArgumentException("Avro does not support datetime types.");
+        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
+        // this is done, this logical type needs to be changed.
+        baseType =
+            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
+        break;
 
       case BOOLEAN:
         baseType = org.apache.avro.Schema.create(Type.BOOLEAN);
@@ -304,7 +339,7 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
-  private static Object genericFromField(
+  private static Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, Object value) {
     org.apache.avro.Schema expectedSchema = getFieldSchema(fieldType);
     switch (fieldType.getTypeName()) {
@@ -316,21 +351,31 @@ public class AvroUtils {
       case DOUBLE:
       case STRING:
       case BOOLEAN:
-        return wrapIfNullable(avroSchema, value, fieldType, expectedSchema);
+        return checkValueType(avroSchema, value, fieldType, expectedSchema);
+
+      case DECIMAL:
+        BigDecimal decimal = (BigDecimal) value;
+        LogicalType logicalType = avroSchema.getLogicalType();
+        ByteBuffer byteBuffer =
+            new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
+        return checkValueType(avroSchema, byteBuffer, fieldType, expectedSchema);
+      case DATETIME:
+        ReadableDateTime dateTime = (ReadableDateTime) value;
+        return checkValueType(avroSchema, dateTime.getMillis(), fieldType, expectedSchema);
 
       case BYTES:
-        return wrapIfNullable(
+        return checkValueType(
             avroSchema, ByteBuffer.wrap((byte[]) value), fieldType, expectedSchema);
 
       case ARRAY:
         List array = (List) value;
         List<Object> translatedArray = Lists.newArrayListWithExpectedSize(array.size());
-        for (int i = 0; i < array.size(); i++) {
+        for (Object arrayElement : array) {
           translatedArray.add(
-              genericFromField(
-                  fieldType.getCollectionElementType(), avroSchema.getElementType(), array.get(i)));
+              genericFromBeamField(
+                  fieldType.getCollectionElementType(), avroSchema.getElementType(), arrayElement));
         }
-        return wrapIfNullable(avroSchema, translatedArray, fieldType, expectedSchema);
+        return checkValueType(avroSchema, translatedArray, fieldType, expectedSchema);
 
       case MAP:
         ImmutableMap.Builder builder = ImmutableMap.builder();
@@ -338,13 +383,13 @@ public class AvroUtils {
         for (Map.Entry entry : valueMap.entrySet()) {
           builder.put(
               entry.getKey(),
-              genericFromField(
+              genericFromBeamField(
                   fieldType.getMapValueType(), avroSchema.getValueType(), entry.getValue()));
         }
-        return wrapIfNullable(avroSchema, builder.build(), fieldType, expectedSchema);
+        return checkValueType(avroSchema, builder.build(), fieldType, expectedSchema);
 
       case ROW:
-        return wrapIfNullable(
+        return checkValueType(
             avroSchema, toGenericRecord((Row) value, avroSchema), fieldType, expectedSchema);
 
       default:
@@ -352,7 +397,7 @@ public class AvroUtils {
     }
   }
 
-  private static Object wrapIfNullable(
+  private static Object checkValueType(
       org.apache.avro.Schema avroSchema,
       Object o,
       FieldType fieldType,
@@ -389,6 +434,17 @@ public class AvroUtils {
       @Nonnull Schema.FieldType fieldType) {
 
     TypeWithNullability type = new TypeWithNullability(avroSchema);
+    LogicalType logicalType = LogicalTypes.fromSchema(type.type);
+    if (logicalType != null) {
+      if (logicalType instanceof LogicalTypes.Decimal) {
+        BigDecimal bigDecimal =
+            new Conversions.DecimalConversion()
+                .fromBytes((ByteBuffer) value, type.type, logicalType);
+        return convertDecimal(bigDecimal, fieldType);
+      } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
+        return convertDateTimeStrict((Long) value, fieldType);
+      }
+    }
 
     switch (type.type.getType()) {
       case FIXED:
@@ -471,6 +527,16 @@ public class AvroUtils {
   private static Object convertLongStrict(Long value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.INT64, "long");
     return value;
+  }
+
+  private static Object convertDecimal(BigDecimal value, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), TypeName.DECIMAL, "decimal");
+    return new Instant(value);
+  }
+
+  private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
+    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
+    return new Instant(value);
   }
 
   private static Object convertFloatStrict(Float value, Schema.FieldType fieldType) {
