@@ -18,6 +18,10 @@
 package org.apache.beam.runners.gearpump.translators.utils;
 
 import com.google.common.collect.Lists;
+import io.gearpump.streaming.dsl.api.functions.FoldFunction;
+import io.gearpump.streaming.dsl.api.functions.MapFunction;
+import io.gearpump.streaming.dsl.javaapi.JavaStream;
+import io.gearpump.streaming.dsl.window.impl.Window;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,10 +33,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
-import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.window.impl.Window;
 
 /** Utility methods for translators. */
 public class TranslatorUtils {
