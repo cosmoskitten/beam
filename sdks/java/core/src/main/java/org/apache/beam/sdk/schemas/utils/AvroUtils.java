@@ -359,6 +359,7 @@ public class AvroUtils {
         ByteBuffer byteBuffer =
             new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
         return checkValueType(avroSchema, byteBuffer, fieldType, expectedSchema);
+
       case DATETIME:
         ReadableDateTime dateTime = (ReadableDateTime) value;
         return checkValueType(avroSchema, dateTime.getMillis(), fieldType, expectedSchema);

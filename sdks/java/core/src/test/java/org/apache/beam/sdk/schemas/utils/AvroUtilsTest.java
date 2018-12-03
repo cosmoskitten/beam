@@ -28,9 +28,13 @@ import com.google.common.collect.Lists;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
+import javax.print.DocFlavor.BYTE_ARRAY;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.RandomData;
 import org.apache.avro.Schema.Type;
@@ -45,6 +49,8 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.values.Row;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -190,10 +196,13 @@ public class AvroUtilsTest {
         .build();
   }
 
+  static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
+  static final DateTime DATE_TIME =
+      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  static final BigDecimal BIG_DECIMAL = new BigDecimal(3600);
+
   private Row getBeamRow() {
     Row subRow = Row.withSchema(getBeamSubSchema()).addValues(true, 42).build();
-
-    byte[] a0 = new byte[] {1, 2, 3, 4};
     return Row.withSchema(getBeamSchema())
         .addValue(true)
         .addValue(43)
@@ -201,7 +210,9 @@ public class AvroUtilsTest {
         .addValue((float) 44.1)
         .addValue((double) 44.2)
         .addValue("string")
-        .addValue(a0)
+        .addValue(BYTE_ARRAY)
+        .addValue(BIG_DECIMAL)
+        .addValue(DATE_TIME)
         .addValue(subRow)
         .addValue(ImmutableList.of(subRow, subRow))
         .addValue(ImmutableMap.of("k1", subRow, "k2", subRow))
@@ -209,10 +220,16 @@ public class AvroUtilsTest {
   }
 
   private GenericRecord getGenericRecord() {
-    byte[] a0 = new byte[] {1, 2, 3, 4};
 
     GenericRecord subRecord =
         new GenericRecordBuilder(getAvroSubSchema()).set("bool", true).set("int", 42).build();
+
+    LogicalType decimalType =
+        LogicalTypes.decimal(Integer.MAX_VALUE)
+            .addToSchema(org.apache.avro.Schema.create(Type.BYTES))
+            .getLogicalType();
+    ByteBuffer encodedDecimal =
+        new Conversions.DecimalConversion().toBytes(BIG_DECIMAL, null, decimalType);
 
     return new GenericRecordBuilder(getAvroSchema())
         .set("bool", true)
@@ -221,7 +238,9 @@ public class AvroUtilsTest {
         .set("float", (float) 44.1)
         .set("double", (double) 44.2)
         .set("string", "string")
-        .set("bytes", ByteBuffer.wrap(a0))
+        .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
+        .set("decimal", encodedDecimal)
+        .set("timestampMillis", DATE_TIME.getMillis())
         .set("row", subRecord)
         .set("array", ImmutableList.of(subRecord, subRecord))
         .set("map", ImmutableMap.of("k1", subRecord, "k2", subRecord))
