@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import java.util.Map;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -38,6 +39,14 @@ public interface RemoteBundle extends AutoCloseable {
    * forwarding them to the remote environment.
    */
   Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers();
+
+  /**
+   * Requests that the remote bundle be split using the provided backlogs.
+   *
+   * <p>Closes the input receivers allowing the SDK to progress to a safe checkpoint state. Any
+   * additional inputs received will be buffered.
+   */
+  void split(Map<String, Backlog> split);
 
   /**
    * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to

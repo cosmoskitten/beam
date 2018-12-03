@@ -47,8 +47,13 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public OffsetRange checkpoint() {
-    checkState(
-        lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
+    // If we haven't done any work, let us checkpoint by returning the range we are responsible for
+    // and update the range that we are responsible for to an empty range.
+    if (lastClaimedOffset == null) {
+      OffsetRange rval = range;
+      this.range = new OffsetRange(Long.MIN_VALUE, Long.MIN_VALUE);
+      return rval;
+    }
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
     this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
     return res;
