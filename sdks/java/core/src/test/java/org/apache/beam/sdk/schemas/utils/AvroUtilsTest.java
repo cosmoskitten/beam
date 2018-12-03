@@ -32,7 +32,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
-import javax.print.DocFlavor.BYTE_ARRAY;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -74,6 +73,29 @@ public class AvroUtilsTest {
 
     for (GenericRecord record : records) {
       AvroUtils.toBeamRowStrict(record, schema);
+    }
+  }
+
+  @Property(trials = 1000)
+  @SuppressWarnings("unchecked")
+  public void avroToBeamRoudTrip(
+      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+    // not everything is possible to translate
+    assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
+    // roundtrip for enums returns strings because Beam doesn't have enum type
+    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
+    // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
+    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.BYTES)));
+
+    Schema schema = AvroUtils.toBeamSchema(avroSchema);
+    Iterable iterable = new RandomData(avroSchema, 10);
+    List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
+
+    for (GenericRecord record : records) {
+      GenericRecord out =
+          AvroUtils.toGenericRecord(AvroUtils.toBeamRowStrict(record, schema), avroSchema);
+
+      assertEquals(record, out);
     }
   }
 
