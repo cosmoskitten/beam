@@ -81,20 +81,14 @@ class PortableRunner(runner.PipelineRunner):
       return 'unknown'
 
   @staticmethod
-  def _worker_server_address(cleanup_callbacks):
-    address, server = BeamFnExternalWorkerServicer.start()
-    cleanup_callbacks.append(functools.partial(server.stop, 1))
-    return address
-
-  @staticmethod
-  def _create_environment(options, cleanup_callbacks=None):
+  def _create_environment(options):
     portable_options = options.view_as(PortableOptions)
     environment_urn = common_urns.environments.DOCKER.urn
     if portable_options.environment_type == 'DOCKER':
       environment_urn = common_urns.environments.DOCKER.urn
     elif portable_options.environment_type == 'PROCESS':
       environment_urn = common_urns.environments.PROCESS.urn
-    elif portable_options.environment_type == 'EXTERNAL':
+    elif portable_options.environment_type in ('EXTERNAL', 'LOOPBACK'):
       environment_urn = common_urns.environments.EXTERNAL.urn
     elif portable_options.environment_type:
       if portable_options.environment_type.startswith('beam:env:'):
@@ -128,9 +122,7 @@ class PortableRunner(runner.PipelineRunner):
           urn=common_urns.environments.EXTERNAL.urn,
           payload=beam_runner_api_pb2.ExternalPayload(
               endpoint=endpoints_pb2.ApiServiceDescriptor(
-                  url=(portable_options.environment_config
-                       or PortableRunner._worker_server_address(
-                           cleanup_callbacks)))
+                  url=portable_options.environment_config)
           ).SerializeToString())
     else:
       return beam_runner_api_pb2.Environment(
@@ -139,13 +131,13 @@ class PortableRunner(runner.PipelineRunner):
                    if portable_options.environment_config else None))
 
   def run_pipeline(self, pipeline):
-    portable_options = pipeline.options.view_as(PortableOptions)
+    portable_options = pipeline._options.view_as(PortableOptions)
     job_endpoint = portable_options.job_endpoint
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
     # portable runner specific default
-    if pipeline.options.view_as(SetupOptions).sdk_location == 'default':
-      pipeline.options.view_as(SetupOptions).sdk_location = 'container'
+    if pipeline._options.view_as(SetupOptions).sdk_location == 'default':
+      pipeline._options.view_as(SetupOptions).sdk_location = 'container'
 
     if not job_endpoint:
       docker = DockerizedJobServer()
@@ -153,10 +145,16 @@ class PortableRunner(runner.PipelineRunner):
 
     # This is needed as we start a worker server if one is requested
     # but none is provided.
-    cleanup_callbacks = []
+    if portable_options.environment_type == 'LOOPBACK':
+      portable_options.environment_config, server = (
+          BeamFnExternalWorkerServicer.start())
+      cleanup_callbacks = [functools.partial(server.stop, 1)]
+    else:
+      cleanup_callbacks = []
+
     proto_pipeline = pipeline.to_runner_api(
         default_environment=PortableRunner._create_environment(
-            portable_options, cleanup_callbacks))
+            portable_options))
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
