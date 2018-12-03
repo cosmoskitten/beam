@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -30,8 +29,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.fn.harness.DoFnPTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableProcessElementInvoker;
@@ -39,12 +40,16 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.splittabledofn.DecimalTranslator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlog;
+import org.apache.beam.sdk.transforms.splittabledofn.Backlogs;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Restrictions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -58,7 +63,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Runs the {@link PTransformTranslation#SPLITTABLE_PROCESS_ELEMENTS_URN} transform. */
-public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
+public class SplittableProcessElementsRunner<InputT, RestrictionT, PositionT, OutputT>
     implements DoFnPTransformRunnerFactory.DoFnPTransformRunner<KV<InputT, RestrictionT>> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -69,13 +74,13 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
     }
   }
 
-  static class Factory<InputT, RestrictionT, OutputT>
+  static class Factory<InputT, RestrictionT, PositionT, OutputT>
       extends DoFnPTransformRunnerFactory<
           KV<InputT, RestrictionT>, InputT, OutputT,
-          SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>> {
+          SplittableProcessElementsRunner<InputT, RestrictionT, PositionT, OutputT>> {
 
     @Override
-    SplittableProcessElementsRunner<InputT, RestrictionT, OutputT> createRunner(
+    SplittableProcessElementsRunner<InputT, RestrictionT, PositionT, OutputT> createRunner(
         Context<InputT, OutputT> context) {
       Coder<WindowedValue<KV<InputT, RestrictionT>>> windowedCoder =
           FullWindowedValueCoder.of(
@@ -104,6 +109,10 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
   private final DoFn<InputT, OutputT>.StartBundleContext startBundleContext;
   private final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext;
 
+  // Lifetime is only valid during a process element call.
+  private WindowedValue<KV<InputT, RestrictionT>> currentElement;
+  private RestrictionTracker<RestrictionT, PositionT> currentRestrictionTracker;
+
   SplittableProcessElementsRunner(
       Context<InputT, OutputT> context,
       Coder<WindowedValue<KV<InputT, RestrictionT>>> inputCoder,
@@ -116,6 +125,8 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
     this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
     this.doFnInvoker.invokeSetup();
     this.executor = Executors.newSingleThreadScheduledExecutor();
+    this.context.bundleExecutionController.registerCheckpointListener(
+        this::checkpointCurrentTracker);
 
     this.startBundleContext =
         context.doFn.new StartBundleContext() {
@@ -144,110 +155,162 @@ public class SplittableProcessElementsRunner<InputT, RestrictionT, OutputT>
         };
   }
 
+  /**
+   * Checkpoints the currently executing restriction tracker buffering the checkpointed restriction.
+   *
+   * <p>Should only be invoked by the same thread that invokes {@link
+   * #processElement(WindowedValue)}.
+   */
+  public void checkpointCurrentTracker() {
+    if (currentRestrictionTracker != null) {
+      RestrictionT checkpointedRestriction = currentRestrictionTracker.checkpoint();
+      RestrictionTracker<RestrictionT, PositionT> residualTracker =
+          doFnInvoker.invokeNewTracker(checkpointedRestriction);
+      context.bundleExecutionController.buffer(createBundleApplicationFor(residualTracker));
+    }
+  }
+
   @Override
   public void startBundle() {
     doFnInvoker.invokeStartBundle(startBundleContext);
   }
 
   @Override
-  public void processElement(WindowedValue<KV<InputT, RestrictionT>> elem) {
-    processElementTyped(elem);
+  public void processElement(WindowedValue<KV<InputT, RestrictionT>> elem) throws Exception {
+    try {
+      this.currentElement = elem;
+      checkArgument(
+          elem.getWindows().size() == 1,
+          "SPLITTABLE_PROCESS_ELEMENTS expects its input to be in 1 window, but got %s windows",
+          elem.getWindows().size());
+      WindowedValue<InputT> element = elem.withValue(elem.getValue().getKey());
+      BoundedWindow window = elem.getWindows().iterator().next();
+
+      this.currentRestrictionTracker = doFnInvoker.invokeNewTracker(elem.getValue().getValue());
+
+      if (context.bundleExecutionController.shouldBuffer()) {
+        context.bundleExecutionController.buffer(
+            createBundleApplicationFor(currentRestrictionTracker));
+        return;
+      }
+
+      this.stateAccessor =
+          new FnApiStateAccessor(
+              context.pipelineOptions,
+              context.ptransformId,
+              context.processBundleInstructionId,
+              context.tagToSideInputSpecMap,
+              context.beamFnStateClient,
+              context.keyCoder,
+              (Coder<BoundedWindow>) context.windowCoder,
+              () -> elem,
+              () -> window);
+      OutputAndTimeBoundedSplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>
+          processElementInvoker =
+              new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
+                  context.doFn,
+                  context.pipelineOptions,
+                  new OutputWindowedValue<OutputT>() {
+                    @Override
+                    public void outputWindowedValue(
+                        OutputT output,
+                        Instant timestamp,
+                        Collection<? extends BoundedWindow> windows,
+                        PaneInfo pane) {
+                      outputTo(
+                          mainOutputConsumers, WindowedValue.of(output, timestamp, windows, pane));
+                    }
+
+                    @Override
+                    public <AdditionalOutputT> void outputWindowedValue(
+                        TupleTag<AdditionalOutputT> tag,
+                        AdditionalOutputT output,
+                        Instant timestamp,
+                        Collection<? extends BoundedWindow> windows,
+                        PaneInfo pane) {
+                      Collection<FnDataReceiver<WindowedValue<AdditionalOutputT>>> consumers =
+                          (Collection) context.localNameToConsumer.get(tag.getId());
+                      if (consumers == null) {
+                        throw new IllegalArgumentException(
+                            String.format("Unknown output tag %s", tag));
+                      }
+                      outputTo(consumers, WindowedValue.of(output, timestamp, windows, pane));
+                    }
+                  },
+                  stateAccessor,
+                  executor,
+                  10000,
+                  Duration.standardSeconds(10));
+      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
+          processElementInvoker.invokeProcessElement(
+              doFnInvoker, element, currentRestrictionTracker);
+      this.stateAccessor = null;
+
+      // Inform the BundleExecutionController of a Runner or user initiated checkpoint
+      if (result.getContinuation().shouldResume()) {
+        BundleApplication primaryApplication =
+            createBundleApplicationFor(currentRestrictionTracker);
+        RestrictionTracker<RestrictionT, PositionT> residualTracker =
+            doFnInvoker.invokeNewTracker(result.getResidualRestriction());
+        DelayedBundleApplication residualRoot =
+            DelayedBundleApplication.newBuilder()
+                .setApplication(createBundleApplicationFor(residualTracker))
+                .setRequestedExecutionTime(
+                    Timestamps.fromMillis(result.getContinuation().resumeTime().getMillis()))
+                .build();
+        context.bundleExecutionController.checkpoint(primaryApplication, residualRoot);
+      }
+    } finally {
+      this.currentElement = null;
+      this.currentRestrictionTracker = null;
+    }
   }
 
-  private <PositionT> void processElementTyped(WindowedValue<KV<InputT, RestrictionT>> elem) {
-    checkArgument(
-        elem.getWindows().size() == 1,
-        "SPLITTABLE_PROCESS_ELEMENTS expects its input to be in 1 window, but got %s windows",
-        elem.getWindows().size());
-    WindowedValue<InputT> element = elem.withValue(elem.getValue().getKey());
-    BoundedWindow window = elem.getWindows().iterator().next();
-    this.stateAccessor =
-        new FnApiStateAccessor(
-            context.pipelineOptions,
-            context.ptransformId,
-            context.processBundleInstructionId,
-            context.tagToSideInputSpecMap,
-            context.beamFnStateClient,
-            context.keyCoder,
-            (Coder<BoundedWindow>) context.windowCoder,
-            () -> elem,
-            () -> window);
-    RestrictionTracker<RestrictionT, PositionT> tracker =
-        doFnInvoker.invokeNewTracker(elem.getValue().getValue());
-    OutputAndTimeBoundedSplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>
-        processElementInvoker =
-            new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
-                context.doFn,
-                context.pipelineOptions,
-                new OutputWindowedValue<OutputT>() {
-                  @Override
-                  public void outputWindowedValue(
-                      OutputT output,
-                      Instant timestamp,
-                      Collection<? extends BoundedWindow> windows,
-                      PaneInfo pane) {
-                    outputTo(
-                        mainOutputConsumers, WindowedValue.of(output, timestamp, windows, pane));
-                  }
+  private BeamFnApi.BundleApplication createBundleApplicationFor(
+      RestrictionTracker<RestrictionT, PositionT> tracker) {
+    // Note that the restriction associated with value is the original restriction that was asked
+    // to be processed.
 
-                  @Override
-                  public <AdditionalOutputT> void outputWindowedValue(
-                      TupleTag<AdditionalOutputT> tag,
-                      AdditionalOutputT output,
-                      Instant timestamp,
-                      Collection<? extends BoundedWindow> windows,
-                      PaneInfo pane) {
-                    Collection<FnDataReceiver<WindowedValue<AdditionalOutputT>>> consumers =
-                        (Collection) context.localNameToConsumer.get(tag.getId());
-                    if (consumers == null) {
-                      throw new IllegalArgumentException(
-                          String.format("Unknown output tag %s", tag));
-                    }
-                    outputTo(consumers, WindowedValue.of(output, timestamp, windows, pane));
-                  }
-                },
-                stateAccessor,
-                executor,
-                10000,
-                Duration.standardSeconds(10));
-    SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
-        processElementInvoker.invokeProcessElement(doFnInvoker, element, tracker);
-    this.stateAccessor = null;
+    RestrictionT restriction = tracker.currentRestriction();
 
-    if (result.getContinuation().shouldResume()) {
-      WindowedValue<KV<InputT, RestrictionT>> primary =
-          element.withValue(KV.of(element.getValue(), tracker.currentRestriction()));
-      WindowedValue<KV<InputT, RestrictionT>> residual =
-          element.withValue(KV.of(element.getValue(), result.getResidualRestriction()));
-      ByteString.Output primaryBytes = ByteString.newOutput();
-      ByteString.Output residualBytes = ByteString.newOutput();
-      try {
-        inputCoder.encode(primary, primaryBytes);
-        inputCoder.encode(residual, residualBytes);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      BundleApplication primaryApplication =
-          BundleApplication.newBuilder()
-              .setPtransformId(context.ptransformId)
-              .setInputId(mainInputId)
-              .setElement(primaryBytes.toByteString())
-              .build();
-      BundleApplication residualApplication =
-          BundleApplication.newBuilder()
-              .setPtransformId(context.ptransformId)
-              .setInputId(mainInputId)
-              .setElement(residualBytes.toByteString())
-              .build();
-      context.splitListener.split(
-          ImmutableList.of(primaryApplication),
-          ImmutableList.of(
-              DelayedBundleApplication.newBuilder()
-                  .setApplication(residualApplication)
-                  .setRequestedExecutionTime(
-                      Timestamps.fromMillis(result.getContinuation().resumeTime().getMillis()))
-                  .build()));
+    ByteString bytes;
+    try {
+      ByteString.Output bytesOut = ByteString.newOutput();
+      inputCoder.encode(
+          currentElement.withValue(KV.of(currentElement.getValue().getKey(), restriction)),
+          bytesOut);
+      bytes = bytesOut.toByteString();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+
+    BeamFnApi.BundleApplication.Backlog.Builder backlogBuilder =
+        BeamFnApi.BundleApplication.Backlog.newBuilder();
+    if (tracker instanceof Backlogs.HasPartitionedBacklog) {
+      backlogBuilder.setPartition(
+          ByteString.copyFrom(((Backlogs.HasPartitionedBacklog) tracker).getBacklogPartition()));
+    }
+    if (tracker instanceof Backlogs.HasBacklog) {
+      Backlog backlog = ((Backlogs.HasBacklog) tracker).getBacklog();
+      if (backlog.isUnknown()) {
+        backlogBuilder.setIsUnknown(true);
+      } else {
+        backlogBuilder.setValue(DecimalTranslator.toProto(backlog.backlog()));
+      }
+    } else {
+      backlogBuilder.setIsUnknown(true);
+    }
+
+    return BundleApplication.newBuilder()
+        .setPtransformId(context.ptransformId)
+        .setInputId(mainInputId)
+        .setElement(bytes)
+        .setIsBounded(
+            restriction instanceof Restrictions.IsBounded
+                ? RunnerApi.IsBounded.Enum.BOUNDED
+                : RunnerApi.IsBounded.Enum.UNBOUNDED)
+        .setBacklog(backlogBuilder.build())
+        .build();
   }
 
   @Override
