@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -79,22 +80,21 @@ public class AvroUtilsTest {
   @Property(trials = 1000)
   @SuppressWarnings("unchecked")
   public void avroToBeamRoudTrip(
-      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) {
+      @From(RecordSchemaGenerator.class) org.apache.avro.Schema avroSchema) throws IOException {
     // not everything is possible to translate
     assumeThat(avroSchema, not(containsField(AvroUtilsTest::hasNonNullUnion)));
     // roundtrip for enums returns strings because Beam doesn't have enum type
     assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.ENUM)));
     // roundtrip for fixed returns bytes because Beam doesn't have FIXED type
-    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.BYTES)));
+    assumeThat(avroSchema, not(containsField(x -> x.getType() == Type.FIXED)));
 
     Schema schema = AvroUtils.toBeamSchema(avroSchema);
     Iterable iterable = new RandomData(avroSchema, 10);
     List<GenericRecord> records = Lists.newArrayList((Iterable<GenericRecord>) iterable);
 
     for (GenericRecord record : records) {
-      GenericRecord out =
-          AvroUtils.toGenericRecord(AvroUtils.toBeamRowStrict(record, schema), avroSchema);
-
+      Row row = AvroUtils.toBeamRowStrict(record, schema);
+      GenericRecord out = AvroUtils.toGenericRecord(row, avroSchema);
       assertEquals(record, out);
     }
   }

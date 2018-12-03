@@ -47,7 +47,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
-import org.joda.time.ReadableDateTime;
+import org.joda.time.ReadableInstant;
 
 /** Utils to convert AVRO records to Beam rows. */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -172,6 +172,8 @@ public class AvroUtils {
       avroSchema = toAvroSchema(beamSchema);
     }
 
+    List<org.apache.avro.Schema.Field> avroFields =
+        Lists.newArrayListWithExpectedSize(beamSchema.getFieldCount());
     GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
     for (int i = 0; i < beamSchema.getFieldCount(); ++i) {
       Schema.Field field = beamSchema.getField(i);
@@ -361,31 +363,38 @@ public class AvroUtils {
         return checkValueType(avroSchema, byteBuffer, fieldType, expectedSchema);
 
       case DATETIME:
-        ReadableDateTime dateTime = (ReadableDateTime) value;
-        return checkValueType(avroSchema, dateTime.getMillis(), fieldType, expectedSchema);
+        ReadableInstant instant = (ReadableInstant) value;
+        return checkValueType(avroSchema, instant.getMillis(), fieldType, expectedSchema);
 
       case BYTES:
         return checkValueType(
             avroSchema, ByteBuffer.wrap((byte[]) value), fieldType, expectedSchema);
 
       case ARRAY:
-        List array = (List) value;
+        List array = (List) checkValueType(avroSchema, value, fieldType, expectedSchema);
         List<Object> translatedArray = Lists.newArrayListWithExpectedSize(array.size());
+        org.apache.avro.Schema avroArrayType = new TypeWithNullability(avroSchema).type;
+
         for (Object arrayElement : array) {
           translatedArray.add(
               genericFromBeamField(
-                  fieldType.getCollectionElementType(), avroSchema.getElementType(), arrayElement));
+                  fieldType.getCollectionElementType(),
+                  avroArrayType.getElementType(),
+                  arrayElement));
         }
         return checkValueType(avroSchema, translatedArray, fieldType, expectedSchema);
 
       case MAP:
         ImmutableMap.Builder builder = ImmutableMap.builder();
-        Map<Object, Object> valueMap = (Map<Object, Object>) value;
+        Map<Object, Object> valueMap =
+            (Map<Object, Object>) checkValueType(avroSchema, value, fieldType, expectedSchema);
+        org.apache.avro.Schema avroMapType = new TypeWithNullability(avroSchema).type;
+
         for (Map.Entry entry : valueMap.entrySet()) {
           builder.put(
               entry.getKey(),
               genericFromBeamField(
-                  fieldType.getMapValueType(), avroSchema.getValueType(), entry.getValue()));
+                  fieldType.getMapValueType(), avroMapType.getValueType(), entry.getValue()));
         }
         return checkValueType(avroSchema, builder.build(), fieldType, expectedSchema);
 
@@ -411,10 +420,6 @@ public class AvroUtils {
               + " and AVRO schema "
               + avroSchema
               + " don't have matching nullability");
-    }
-    if (!typeWithNullability.type.equals(expectedType)) {
-      throw new IllegalArgumentException(
-          "Expected type " + expectedType + " but instead received " + typeWithNullability.type);
     }
     return o;
   }
@@ -506,7 +511,7 @@ public class AvroUtils {
     checkTypeName(fieldType.getTypeName(), Schema.TypeName.BYTES, "bytes");
 
     byte[] bytes = new byte[bb.remaining()];
-    bb.get(bytes);
+    bb.duplicate().get(bytes);
     return bytes;
   }
 
@@ -532,7 +537,7 @@ public class AvroUtils {
 
   private static Object convertDecimal(BigDecimal value, Schema.FieldType fieldType) {
     checkTypeName(fieldType.getTypeName(), TypeName.DECIMAL, "decimal");
-    return new Instant(value);
+    return value;
   }
 
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
