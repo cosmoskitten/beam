@@ -19,17 +19,16 @@ from __future__ import print_function
 
 import argparse
 import logging
+import sys
+import unittest
 from os import linesep
 from os import path
 from os.path import exists
 from shutil import rmtree
-import sys
 from tempfile import mkdtemp
-import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import FlinkOptions
 from apache_beam.options.pipeline_options import PortableOptions
@@ -56,7 +55,8 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
-  parser.add_argument('--test', default=None, help='Specific test case(s) to run')
+  parser.add_argument('--test', default=None,
+                      help='Specific test case(s) to run')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -83,8 +83,8 @@ if __name__ == '__main__':
 
     @classmethod
     def _create_conf_dir(cls):
-      """Create (and save a static reference to) a "conf dir", used to provide metrics configs and
-       verify metrics output
+      """Create (and save a static reference to) a "conf dir", used to provide
+       metrics configs and verify metrics output
 
        It gets cleaned up when the suite is done executing"""
 
@@ -96,16 +96,18 @@ if __name__ == '__main__':
 
         # path to write Flink configuration to
         conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
+        file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
         with open(conf_path, 'w') as f:
           f.write(linesep.join([
-            'metrics.reporters: test',
-            'metrics.reporter.test.class: org.apache.beam.runners.flink.metrics.FileReporter',
-            'metrics.reporter.test.file: %s' % cls.test_metrics_path
+              'metrics.reporters: test',
+              'metrics.reporter.test.class: %s' % file_reporter,
+              'metrics.reporter.test.file: %s' % cls.test_metrics_path
           ]))
 
     @classmethod
     def _subprocess_command(cls, port):
-      # will be cleaned up at the end of this method, and recreated and used by the job server
+      # will be cleaned up at the end of this method, and recreated and used by
+      # the job server
       tmp_dir = mkdtemp(prefix='flinktest')
 
       cls._create_conf_dir()
@@ -165,10 +167,11 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-6019")
 
     def test_metrics(self):
-      """Run a simple DoFn that increments a counter, and verify that its expected value is written
-       to a temporary file by the FileReporter"""
+      """Run a simple DoFn that increments a counter, and verify that its
+       expected value is written to a temporary file by the FileReporter"""
 
       counter_name = 'elem_counter'
+
       class DoFn(beam.DoFn):
         def __init__(self):
           self.counter = Metrics.counter(self.__class__, counter_name)
@@ -181,6 +184,7 @@ if __name__ == '__main__':
       n = 100
       inputs = range(n)
 
+      # pylint: disable=expression-not-assigned
       p \
       | beam.Create(inputs) \
       | beam.ParDo(DoFn())
@@ -189,12 +193,17 @@ if __name__ == '__main__':
       result.wait_until_finish()
 
       with open(self.test_metrics_path, 'r') as f:
-        lines = filter(lambda line: counter_name in line, f.readlines())
-        self.assertEqual(len(lines), 1, msg='Expected 1 line matching "%s":\n%s' % (counter_name, '\n'.join(lines)))
+        lines = [line for line in f.readlines() if counter_name in line]
+        self.assertEqual(
+            len(lines), 1,
+            msg='Expected 1 line matching "%s":\n%s' % (
+                counter_name, '\n'.join(lines))
+        )
         line = lines[0]
         self.assertTrue(
-          '%s: 100' % counter_name in line,
-          msg='Failed to find expected counter %s in line %s' % (counter_name, line)
+            '%s: 100' % counter_name in line,
+            msg='Failed to find expected counter %s in line %s' % (
+                counter_name, line)
         )
 
     # Inherits all other tests.

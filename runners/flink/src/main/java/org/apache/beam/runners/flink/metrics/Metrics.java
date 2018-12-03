@@ -24,7 +24,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 
-/** Helper for pretty-printing {@link Metric Flink metrics} */
+/** Helper for pretty-printing {@link Metric Flink metrics}. */
 public class Metrics {
   public static String toString(Metric metric) {
     if (metric instanceof Counter) {
