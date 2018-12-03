@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -43,6 +44,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
 public class SdkComponents {
+  private final String namespace;
   private final RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds = HashBiMap.create();
@@ -59,7 +61,7 @@ public class SdkComponents {
 
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
-    return new SdkComponents();
+    return new SdkComponents("");
   }
 
   /**
@@ -68,11 +70,29 @@ public class SdkComponents {
    * <p>WARNING: This action might cause some of duplicate items created.
    */
   public static SdkComponents create(RunnerApi.Components components) {
-    return new SdkComponents(components);
+    return new SdkComponents(components, "");
+  }
+
+  /*package*/ static SdkComponents create(
+      RunnerApi.Components components,
+      Map<String, AppliedPTransform<?, ?, ?>> transforms,
+      Map<String, PCollection<?>> pCollections,
+      Map<String, WindowingStrategy<?, ?>> windowingStrategies,
+      Map<String, Coder<?>> coders,
+      Map<String, Environment> environments) {
+    SdkComponents sdkComponents = SdkComponents.create(components);
+    sdkComponents.transformIds.inverse().putAll(transforms);
+    sdkComponents.pCollectionIds.inverse().putAll(pCollections);
+    sdkComponents.windowingStrategyIds.inverse().putAll(windowingStrategies);
+    for (Map.Entry<String, Coder<?>> coder : coders.entrySet()) {
+      sdkComponents.coderIds.put(Equivalence.identity().wrap(coder.getValue()), coder.getKey());
+    }
+    sdkComponents.environmentIds.inverse().putAll(environments);
+    return sdkComponents;
   }
 
   public static SdkComponents create(PipelineOptions options) {
-    SdkComponents sdkComponents = new SdkComponents();
+    SdkComponents sdkComponents = new SdkComponents("");
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(
@@ -81,9 +101,13 @@ public class SdkComponents {
     return sdkComponents;
   }
 
-  private SdkComponents() {}
+  private SdkComponents(String namespace) {
+    this.namespace = namespace;
+  }
 
-  private SdkComponents(RunnerApi.Components components) {
+  private SdkComponents(RunnerApi.Components components, String namespace) {
+    this.namespace = namespace;
+
     if (components == null) {
       return;
     }
@@ -95,6 +119,16 @@ public class SdkComponents {
     reservedIds.addAll(components.getEnvironmentsMap().keySet());
 
     componentsBuilder.mergeFrom(components);
+  }
+
+  public SdkComponents withNamespace(String namespace) {
+    SdkComponents sdkComponents = new SdkComponents(componentsBuilder.build(), namespace);
+    sdkComponents.transformIds.putAll(transformIds);
+    sdkComponents.pCollectionIds.putAll(pCollectionIds);
+    sdkComponents.windowingStrategyIds.putAll(windowingStrategyIds);
+    sdkComponents.coderIds.putAll(coderIds);
+    sdkComponents.environmentIds.putAll(environmentIds);
+    return sdkComponents;
   }
 
   /**
@@ -239,10 +273,10 @@ public class SdkComponents {
   }
 
   private String uniqify(String baseName, Set<String> existing) {
-    String name = baseName;
+    String name = namespace + baseName;
     int increment = 1;
     while (existing.contains(name) || reservedIds.contains(name)) {
-      name = baseName + Integer.toString(increment);
+      name = namespace + baseName + Integer.toString(increment);
       increment++;
     }
     return name;

@@ -136,6 +136,9 @@ class Coder(object):
   # user-defined coders.
   # ===========================================================================
 
+  def get_typehint(self):
+    raise NotImplementedError('BEAM-2717')
+
   def _create_impl(self):
     """Creates a CoderImpl to do the actual encoding and decoding.
     """
