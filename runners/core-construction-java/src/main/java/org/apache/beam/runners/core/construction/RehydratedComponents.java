@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -172,5 +173,15 @@ public class RehydratedComponents {
 
   public Components getComponents() {
     return components;
+  }
+
+  public SdkComponents getSdkComponents() {
+    return SdkComponents.create(
+        components,
+        Collections.emptyMap(),
+        pCollections.asMap(),
+        windowingStrategies.asMap(),
+        coders.asMap(),
+        Collections.emptyMap());
   }
 }

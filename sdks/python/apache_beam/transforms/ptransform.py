@@ -230,6 +230,23 @@ def get_nested_pvalues(pvalueish):
   return pvalues
 
 
+def get_nested_pvalues0(pvalueish):
+  if isinstance(pvalueish, (tuple, list)):
+    tagged_values = enumerate(pvalueish)
+  if isinstance(pvalueish, dict):
+    tagged_values = pvalueish.items()
+  else:
+    yield None, pvalueish
+    return
+
+  for tag, subvalue in tagged_values:
+    for subtag, subsubvalue in get_nested_pvalues(subvalue):
+      if subtag is None:
+        yield tag, subsubvalue
+      else:
+        yield '%s.%s' % (tag, subsubvalue), subsubvalue
+
+
 class _ZipPValues(object):
   """Pairs each PValue in a pvalueish with a value in a parallel out sibling.
 
@@ -526,13 +543,24 @@ class PTransform(WithTypeHints, HasDisplayData):
         yield pvalueish
     return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
+  def _pvaluish_from_dict(self, input_dict):
+    if len(input_dict) == 1:
+      return next(iter(input_dict.values()))
+    else:
+      return input_dict
+
   _known_urns = {}
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
     def register(constructor):
-      cls._known_urns[urn] = parameter_type, constructor
-      return staticmethod(constructor)
+      if isinstance(constructor, type):
+        constructor.from_runner_api_parameter = register(
+            constructor.from_runner_api_parameter)
+        return constructor
+      else:
+        cls._known_urns[urn] = parameter_type, constructor
+        return staticmethod(constructor)
     if constructor:
       # Used as a statement.
       register(constructor)
