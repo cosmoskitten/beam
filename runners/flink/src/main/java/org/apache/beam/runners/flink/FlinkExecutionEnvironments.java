@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Splitter;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -77,17 +76,23 @@ public class FlinkExecutionEnvironments {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
-    } else if (masterUrl.matches(".*:\\d*")) {
-      List<String> parts = Splitter.on(':').splitToList(masterUrl);
+    } else {
+      String[] hostAndPort = masterUrl.split(":", 2);
+      final String host = hostAndPort[0];
+      final int port;
+      if (hostAndPort.length > 1) {
+        port = Integer.parseInt(hostAndPort[1]);
+        flinkConfiguration.setInteger(RestOptions.PORT, port);
+      } else {
+        port = flinkConfiguration.getInteger(RestOptions.PORT);
+      }
       flinkBatchEnv =
           ExecutionEnvironment.createRemoteEnvironment(
-              parts.get(0),
-              Integer.parseInt(parts.get(1)),
+              host,
+              port,
               flinkConfiguration,
               filesToStage.toArray(new String[filesToStage.size()]));
-    } else {
-      LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
-      flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
+      LOG.info("Using Flink Master URL {}:{}.", host, port);
     }
 
     // Set the execution more for data exchange.
@@ -147,10 +152,16 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv = StreamExecutionEnvironment.createLocalEnvironment();
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-    } else if (masterUrl.matches(".*:\\d*")) {
-      List<String> parts = Splitter.on(':').splitToList(masterUrl);
-      flinkConfig.setInteger(RestOptions.PORT, Integer.parseInt(parts.get(1)));
-
+    } else {
+      String[] hostAndPort = masterUrl.split(":", 2);
+      final String host = hostAndPort[0];
+      final int port;
+      if (hostAndPort.length > 1) {
+        port = Integer.parseInt(hostAndPort[1]);
+        flinkConfig.setInteger(RestOptions.PORT, port);
+      } else {
+        port = flinkConfig.getInteger(RestOptions.PORT);
+      }
       final SavepointRestoreSettings savepointRestoreSettings;
       if (options.getSavepointPath() != null) {
         savepointRestoreSettings =
@@ -159,17 +170,14 @@ public class FlinkExecutionEnvironments {
       } else {
         savepointRestoreSettings = SavepointRestoreSettings.none();
       }
-
       flinkStreamEnv =
           new BeamFlinkRemoteStreamEnvironment(
-              parts.get(0),
-              Integer.parseInt(parts.get(1)),
+              host,
+              port,
               flinkConfig,
               savepointRestoreSettings,
               filesToStage.toArray(new String[filesToStage.size()]));
-    } else {
-      LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
-      flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+      LOG.info("Using Flink Master URL {}:{}.", host, port);
     }
 
     // Set the parallelism, required by UnboundedSourceWrapper to generate consistent splits.

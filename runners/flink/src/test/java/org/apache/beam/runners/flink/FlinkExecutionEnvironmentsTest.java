@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.File;
@@ -28,6 +29,8 @@ import java.nio.file.Files;
 import java.util.Collections;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
@@ -139,6 +142,7 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createBatchExecutionEnvironment(
             options, Collections.emptyList());
 
+    assertThat(bev, instanceOf(LocalEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
     assertThat(bev.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
   }
@@ -152,8 +156,71 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(
             options, Collections.emptyList());
 
+    assertThat(sev, instanceOf(LocalStreamEnvironment.class));
     assertThat(options.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
     assertThat(sev.getParallelism(), is(LocalStreamEnvironment.getDefaultLocalParallelism()));
+  }
+
+  @Test
+  public void shouldAllowPortOmissionForRemoteEnvironmentBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host");
+
+    ExecutionEnvironment bev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(bev, instanceOf(RemoteEnvironment.class));
+  }
+
+  @Test
+  public void shouldAllowPortOmissionForRemoteEnvironmentStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+    options.setFlinkMaster("host");
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertThat(sev, instanceOf(RemoteStreamEnvironment.class));
+  }
+
+  @Test
+  public void shouldTreatAutoAndEmptyHostTheSameBatch() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    ExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    options.setFlinkMaster("[auto]");
+
+    ExecutionEnvironment sev2 =
+        FlinkExecutionEnvironments.createBatchExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertEquals(sev.getClass(), sev2.getClass());
+  }
+
+  @Test
+  public void shouldTreatAutoAndEmptyHostTheSameStreaming() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setRunner(FlinkRunner.class);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    options.setFlinkMaster("[auto]");
+
+    StreamExecutionEnvironment sev2 =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(
+            options, Collections.emptyList());
+
+    assertEquals(sev.getClass(), sev2.getClass());
   }
 
   private String extractFlinkConfig() throws IOException {
