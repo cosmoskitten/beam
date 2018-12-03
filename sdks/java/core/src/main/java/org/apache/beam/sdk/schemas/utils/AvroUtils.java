@@ -40,6 +40,7 @@ import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -351,9 +352,11 @@ public class AvroUtils {
       case INT64:
       case FLOAT:
       case DOUBLE:
-      case STRING:
       case BOOLEAN:
         return checkValueType(avroSchema, value, fieldType, expectedSchema);
+
+      case STRING:
+        return new Utf8((String) value);
 
       case DECIMAL:
         BigDecimal decimal = (BigDecimal) value;
@@ -391,8 +394,9 @@ public class AvroUtils {
         org.apache.avro.Schema avroMapType = new TypeWithNullability(avroSchema).type;
 
         for (Map.Entry entry : valueMap.entrySet()) {
+          Utf8 key = new Utf8((String) entry.getKey());
           builder.put(
-              entry.getKey(),
+              key,
               genericFromBeamField(
                   fieldType.getMapValueType(), avroMapType.getValueType(), entry.getValue()));
         }
@@ -443,9 +447,10 @@ public class AvroUtils {
     LogicalType logicalType = LogicalTypes.fromSchema(type.type);
     if (logicalType != null) {
       if (logicalType instanceof LogicalTypes.Decimal) {
+        ByteBuffer byteBuffer = (ByteBuffer) value;
         BigDecimal bigDecimal =
             new Conversions.DecimalConversion()
-                .fromBytes((ByteBuffer) value, type.type, logicalType);
+                .fromBytes(byteBuffer.duplicate(), type.type, logicalType);
         return convertDecimal(bigDecimal, fieldType);
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
         return convertDateTimeStrict((Long) value, fieldType);

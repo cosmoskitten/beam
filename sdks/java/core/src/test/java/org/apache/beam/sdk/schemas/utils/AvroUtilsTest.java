@@ -41,6 +41,7 @@ import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -259,13 +260,13 @@ public class AvroUtilsTest {
         .set("long", 44L)
         .set("float", (float) 44.1)
         .set("double", (double) 44.2)
-        .set("string", "string")
+        .set("string", new Utf8("string"))
         .set("bytes", ByteBuffer.wrap(BYTE_ARRAY))
         .set("decimal", encodedDecimal)
         .set("timestampMillis", DATE_TIME.getMillis())
         .set("row", subRecord)
         .set("array", ImmutableList.of(subRecord, subRecord))
-        .set("map", ImmutableMap.of("k1", subRecord, "k2", subRecord))
+        .set("map", ImmutableMap.of(new Utf8("k1"), subRecord, new Utf8("k2"), subRecord))
         .build();
   }
 
