@@ -476,8 +476,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           NexmarkUtils.console(
               "WARNING: streaming query appears to have been stuck for %d min.",
               quietFor.getStandardMinutes());
-          errors.add(
-              String.format("Streaming query was stuck for %d min", quietFor.getStandardMinutes()));
         }
 
         if (cancelJob) {
