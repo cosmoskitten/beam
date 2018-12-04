@@ -157,7 +157,15 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
-  /** A class for controlling insertAll submission rate. */
+  /**
+   * A class for controlling insertAll submission rate.
+   *
+   * <p>To avoid excessive rate limit error messages from BigQuery API, this class limits the number
+   * of rows per second that each worker can submit to BigQuery insertAll API. The threshold is
+   * dynamically changing every minute based on how many rate limit errors the worker received for
+   * the previous one minute interval. The threshold will be increased by one percent if there was
+   * no such error and decreased by five percent if existed.
+   */
   class RateController {
     private static final Logger LOG = LoggerFactory.getLogger(RateController.class);
 
