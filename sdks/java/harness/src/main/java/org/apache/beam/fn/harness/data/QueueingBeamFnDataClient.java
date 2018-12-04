@@ -17,10 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
@@ -45,15 +42,12 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(QueueingBeamFnDataClient.class);
 
   private final BeamFnDataClient mainClient;
-  //private final LinkedBlockingDeque<ConsumerAndData> queue;
   private final SynchronousQueue<ConsumerAndData> queue;
-  //private final ConcurrentLinkedQueue<ConsumerAndData> queue;
   private final ConcurrentHashMap<InboundDataClient, Object> inboundDataClients;
 
   public QueueingBeamFnDataClient(BeamFnDataClient mainClient) {
     this.mainClient = mainClient;
     this.queue = new SynchronousQueue<>();
-    //this.queue = new ConcurrentLinkedQueue<>();
     this.inboundDataClients = new ConcurrentHashMap<>();
   }
 
@@ -77,13 +71,13 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     return inboundDataClient;
   }
 
+
   // Returns true if all the InboundDataClients have finished or cancelled.
   private boolean allDone() {
-    boolean done = true;
     for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
-      done &= inboundDataClient.isDone();
+      if (!inboundDataClient.isDone()) { return false; }
     }
-    return done;
+    return true;
   }
 
   /**
@@ -111,7 +105,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           // QueuingFnDataReceiver.accept() call returns and will not be invoked again.
           // (2) The QueueingFnDataReceiver will not return until the value is received in
           // drainAndBlock, because of the use of the SynchronousQueue.
-          if (allDone() && queue.isEmpty()) {
+          if (allDone()) {
             break;
           }
         }

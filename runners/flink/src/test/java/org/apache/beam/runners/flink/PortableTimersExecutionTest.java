@@ -27,11 +27,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.sdk.ConcurrentLogUtil;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,7 +76,10 @@ public class PortableTimersExecutionTest implements Serializable {
 
   private transient ListeningExecutorService flinkJobExecutor;
 
-  private static List<KV<String, Integer>> results = new ArrayList<>();
+  // Note: that multiple threads can invoke processElement, so we must use
+  // a thread safe collection to write the results to.
+  private static ConcurrentLinkedQueue<KV<String, Integer>> results =
+      new ConcurrentLinkedQueue<>();
 
   @Before
   public void setup() {
@@ -161,6 +166,8 @@ public class PortableTimersExecutionTest implements Serializable {
         new DoFn<KV<String, Integer>, Void>() {
           @ProcessElement
           public void processElement(ProcessContext context) {
+            ConcurrentLogUtil.Log("processElement collectResults " +
+                context.element().getKey() + " : " + context.element().getValue());
             results.add(context.element());
           }
         };
@@ -190,6 +197,6 @@ public class PortableTimersExecutionTest implements Serializable {
       Thread.sleep(1000);
     }
     assertThat(jobInvocation.getState(), is(Enum.DONE));
-    assertThat(results, containsInAnyOrder(expectedOutput.toArray()));
+    assertThat(results, containsInAnyOrder(expectedOutput));
   }
 }
