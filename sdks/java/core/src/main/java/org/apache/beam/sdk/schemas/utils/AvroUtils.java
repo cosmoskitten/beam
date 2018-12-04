@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -40,8 +41,11 @@ import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -184,7 +188,35 @@ public class AvroUtils {
     return builder.build();
   }
 
-  /** Converts AVRO schema to Beam field. */
+  public static <T extends SpecificRecord> Schema getSchema(Class<T> record) {
+    return toBeamSchema(record.getSchema());
+  }
+
+  public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
+      Class<T> clazz, @Nullable Schema schema) {
+    return JavaBeanUtils.getFieldTypes(clazz, schema);
+  }
+
+  public static <T extends SpecificRecord> List<FieldValueGetter> getGetters(
+      Class<T> clazz , Schema schema) {
+    return JavaBeanUtils.getGetters(clazz, schema);
+  }
+
+  public static <T extends SpecificRecord> Constructor<T> getConstructor(
+      Class<T> clazz, Schema schema) {
+    // TODO: This assumes that Avro only generates one non-empty constructor. We should fix this
+    // code to instead match the parameter types;
+    Constructor[] constructors =  clazz.getDeclaredConstructors();
+    for (Constructor constructor : constructors) {
+      if (constructor.getParameterCount() > 0) {
+        return constructor;
+      }
+    }
+    throw new RuntimeException("No matching constructor found for class " + clazz);
+  }
+
+
+    /** Converts AVRO schema to Beam field. */
   private static Schema.FieldType toFieldType(TypeWithNullability type) {
     Schema.FieldType fieldType = null;
     org.apache.avro.Schema avroSchema = type.type;
