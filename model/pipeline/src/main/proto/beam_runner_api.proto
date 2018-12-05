@@ -591,6 +591,7 @@ message StandardCoders {
 
     // Encodes an iterable of elements, some of which may be stored in state.
     // Components: Coder for a single element.
+    // Experimental.
     STATE_BACKED_ITERABLE = 9 [(beam_urn) = "beam:coder:state_backed_iterable:v1"];
   }
 }
