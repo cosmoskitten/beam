@@ -3,7 +3,7 @@ package org.apache.beam.sdk;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // TODO consider having a separate thread constantly flushing?
-public class ConcurrentLogUtil {
+public class ConcurrentLogUtil implements java.io.Serializable {
   // Stores a bunch of logs in memory and then prints them out at the end of a test run.
   private static ConcurrentLinkedQueue<String> messages = new ConcurrentLinkedQueue<>();
 

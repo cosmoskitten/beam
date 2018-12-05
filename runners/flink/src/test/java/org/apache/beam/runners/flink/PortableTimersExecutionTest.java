@@ -23,9 +23,13 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -53,12 +57,79 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+
+
+// This is meant to be used as a static object, referenced in many serialized functions
+// This is so that the collection is not copied, but the key is a unique string
+// used for the test run, which prevents multiple tests from overwritting the value.
+class KeyedStaticConcurrentCollection {
+
+  private static HashMap<String, ConcurrentLinkedQueue<KV<String, Integer>>> keyedCollections
+      = new HashMap<>();
+
+  private String collectionKey;
+
+  public KeyedStaticConcurrentCollection(String collectionKey) {
+    this.collectionKey = collectionKey;
+  }
+
+  public void add(KV<String, Integer> elem) {
+    getCollection().add(elem);
+  }
+
+  public void clear() {
+    getCollection().clear();
+  }
+
+  public boolean contains(KV<String, Integer> elem) {
+    return getCollection().contains(elem);
+  }
+
+  public int size() {
+    return getCollection().size();
+  }
+
+  public ConcurrentLinkedQueue<KV<String, Integer>> getCollection() {
+    return keyedCollections.computeIfAbsent(
+        collectionKey, (String unusedKey) -> new ConcurrentLinkedQueue<>());
+  }
+}
+
+class MyConcurrentLinkedQueue<T> extends ConcurrentLinkedQueue<T> {
+  public MyConcurrentLinkedQueue() {
+    super();
+    ConcurrentLogUtil.Log("Construct MyConcurrentLinkedQueue() " + System.identityHashCode(this));
+  }
+
+  @Override
+  protected Object clone() throws CloneNotSupportedException {
+    ConcurrentLogUtil.Log("MyConcurrentLinkedQueue clone() " + System.identityHashCode(this));
+    ConcurrentLogUtil.FlushAndPrint();
+    assert(false);
+    return super.clone();
+  }
+
+  private void writeObject(java.io.ObjectOutputStream stream)
+      throws IOException {
+    ConcurrentLogUtil.Log("MyConcurrentLinkedQueue writeObject() SHOULD NOT BE CALLED" + System.identityHashCode(this));
+    ConcurrentLogUtil.FlushAndPrint();
+    assert(false);
+  }
+
+  private void readObject(java.io.ObjectInputStream stream)
+      throws IOException, ClassNotFoundException {
+    ConcurrentLogUtil.Log("MyConcurrentLinkedQueue writeObject() SHOULD NOT BE CALLED" + System.identityHashCode(this));
+    ConcurrentLogUtil.FlushAndPrint();
+    assert(false);
+  }
+}
 
 /**
  * Tests the state and timer integration of {@link
@@ -76,14 +147,19 @@ public class PortableTimersExecutionTest implements Serializable {
 
   private transient ListeningExecutorService flinkJobExecutor;
 
-  // Note: that multiple threads can invoke processElement, so we must use
-  // a thread safe collection to write the results to.
-  private static ConcurrentLinkedQueue<KV<String, Integer>> results =
-      new ConcurrentLinkedQueue<>();
+  // Note: that multiple threads and tests can invoke processElement, so we must use
+  // a transient (to prevent being copied during serialization), non-static
+  // thread safe collection to write the results to.
+  //private transient final MyConcurrentLinkedQueue<KV<String, Integer>> results =
+  //    new MyConcurrentLinkedQueue<>();
+  private KeyedStaticConcurrentCollection results;
 
   @Before
   public void setup() {
+    results = new KeyedStaticConcurrentCollection(Boolean.toString(isStreaming));
+    ConcurrentLogUtil.Log("setup start clear results " + System.identityHashCode(results));
     results.clear();
+    ConcurrentLogUtil.Log("setup end  clear results " + System.identityHashCode(results));
     flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
   }
 
@@ -92,8 +168,20 @@ public class PortableTimersExecutionTest implements Serializable {
     flinkJobExecutor.shutdown();
   }
 
-  @Test(timeout = 600_000)
+  @Test(timeout = 1000_000)
   public void testTimerExecution() throws Exception {
+    try {
+      timerExecutionTestHelper();
+    } catch (Exception e) {
+      ConcurrentLogUtil.Log("Exception: " + e.toString());
+    } finally {
+      ConcurrentLogUtil.FlushAndPrint();
+    }
+  }
+
+
+  public void timerExecutionTestHelper() throws Exception {
+    ConcurrentLogUtil.Log("Start testTimerExecution");
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setRunner(CrashingRunner.class);
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
@@ -127,6 +215,7 @@ public class PortableTimersExecutionTest implements Serializable {
         new DoFn<byte[], KV<String, Integer>>() {
           @ProcessElement
           public void processElement(ProcessContext context) {
+            ConcurrentLogUtil.Log("inputFn.processElement ");
             for (KV<String, Integer> stringIntegerKV : input) {
               context.output(stringIntegerKV);
             }
@@ -149,6 +238,7 @@ public class PortableTimersExecutionTest implements Serializable {
               @TimerId(timerId) Timer timer,
               @StateId(stateId) ValueState<String> state,
               BoundedWindow window) {
+            ConcurrentLogUtil.Log("testFn.processElement ");
             timer.set(window.maxTimestamp());
             state.write(context.element().getKey());
             context.output(
@@ -166,12 +256,15 @@ public class PortableTimersExecutionTest implements Serializable {
         new DoFn<KV<String, Integer>, Void>() {
           @ProcessElement
           public void processElement(ProcessContext context) {
-            ConcurrentLogUtil.Log("processElement collectResults " +
-                context.element().getKey() + " : " + context.element().getValue());
+            ConcurrentLogUtil.Log("processElement collectResults start ");
             results.add(context.element());
+            ConcurrentLogUtil.Log("processElement collectResults " +
+                context.element().getKey() + " : " + context.element().getValue() +
+                " results: " + System.identityHashCode(results));
           }
         };
 
+    ConcurrentLogUtil.Log("Construct Pipeline");
     final Pipeline pipeline = Pipeline.create(options);
     pipeline
         .apply(Impulse.create())
@@ -191,12 +284,29 @@ public class PortableTimersExecutionTest implements Serializable {
             null,
             Collections.emptyList());
 
+    ConcurrentLogUtil.Log("Start job");
     jobInvocation.start();
-    long timeout = System.currentTimeMillis() + 600 * 1000;
+    //long timeout = System.currentTimeMillis() + 10 * 60 * 1000;
+    long timeout = System.currentTimeMillis() + 2 * 60 * 1000;
+    ConcurrentLogUtil.Log("Wait for job to finish");
     while (jobInvocation.getState() != Enum.DONE && System.currentTimeMillis() < timeout) {
       Thread.sleep(1000);
     }
     assertThat(jobInvocation.getState(), is(Enum.DONE));
-    assertThat(results, containsInAnyOrder(expectedOutput));
+    for (KV<String, Integer> kv : expectedOutput) {
+      ConcurrentLogUtil.Log("Expected Output: " + kv.getKey() + " : " + kv.getValue());
+    }
+    ConcurrentLogUtil.Log("results.size(): " + results.size() +
+        " results: " + System.identityHashCode(results));
+    for (KV<String, Integer> kv : results.getCollection()) {
+      ConcurrentLogUtil.Log("Actual Output: " + kv.getKey() + " : " + kv.getValue());
+    }
+
+    for (KV<String, Integer> kv : expectedOutput) {
+      Assert.assertTrue("Failed to find " + (kv.getKey() + " : " + kv.getValue()),
+          results.contains(kv));
+    }
+    //assertThat(results, containsInAnyOrder(expectedOutput.toArray()));
+    assertThat(results.getCollection(), containsInAnyOrder(expectedOutput.toArray()));
   }
 }
