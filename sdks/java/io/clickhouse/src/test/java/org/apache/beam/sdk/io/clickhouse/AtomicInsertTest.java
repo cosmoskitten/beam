@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.clickhouse;
 import static org.junit.Assert.assertEquals;
 
 import java.sql.SQLException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
@@ -36,12 +35,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.rnorth.ducttape.unreliables.Unreliables;
 
 /** Tests for atomic/idempotent inserts for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
@@ -55,8 +54,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
     int size = 1000000;
     int tryLimit = 10;
 
-    AtomicInteger failed = new AtomicInteger();
-    AtomicInteger done = new AtomicInteger();
+    int done = 0;
 
     // this statement fails with 60% chance for 1M batch size
     executeSql(
@@ -71,29 +69,20 @@ public class AtomicInsertTest extends BaseClickHouseTest {
         // make sure we get one big bundle
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .table("test_atomic_insert")
-                .properties(
-                    ClickHouseIO.properties().maxBlockSize(size).maxInsertBlockSize(size).build())
-                .build());
+            ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_atomic_insert")
+                .withMaxInsertBlockSize(size)
+                .withMaxCumulativeBackoff(Duration.millis(1L))
+                .withMaxRetries(tryLimit));
 
-    Unreliables.retryUntilTrue(
-        tryLimit,
-        () -> {
-          if (safeRun()) {
-            done.incrementAndGet();
-          } else {
-            failed.incrementAndGet();
-          }
-
-          return done.get() >= 2 && failed.get() >= 1;
-        });
+    // give it a chance to fail
+    done += safeRun() ? 1 : 0;
+    done += safeRun() ? 1 : 0;
+    done += safeRun() ? 1 : 0;
 
     long count = executeQueryAsLong("SELECT COUNT(*) FROM test_atomic_insert");
 
     // each insert is atomic, so we get exactly done * size elements
-    assertEquals(done.get() * size, count);
+    assertEquals(done * size, count);
   }
 
   /**
@@ -105,43 +94,28 @@ public class AtomicInsertTest extends BaseClickHouseTest {
     int size = 1000000;
     int tryLimit = 10;
 
-    AtomicInteger failed = new AtomicInteger();
-    AtomicInteger done = new AtomicInteger();
-
     // this statement fails with 60% chance for 1M batch size
-    Unreliables.retryUntilSuccess(
-        10,
-        () ->
-            executeSql(
-                "CREATE TABLE test_idempotent_insert ("
-                    + "  f0 Int64, "
-                    + "  f1 Int64 MATERIALIZED CAST(if((rand() % "
-                    + size
-                    + ") = 0, '', '1') AS Int64)"
-                    + ") ENGINE=ReplicatedMergeTree('/clickHouse/tables/0/test_idempotent_insert', 'replica_0') "
-                    + "ORDER BY (f0)"));
+    executeSql(
+        "CREATE TABLE test_idempotent_insert ("
+            + "  f0 Int64, "
+            + "  f1 Int64 MATERIALIZED CAST(if((rand() % "
+            + size
+            + ") = 0, '', '1') AS Int64)"
+            + ") ENGINE=ReplicatedMergeTree('/clickHouse/tables/0/test_idempotent_insert', 'replica_0') "
+            + "ORDER BY (f0)");
 
     pipeline
         .apply(RangeBundle.of(size))
         .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .table("test_idempotent_insert")
-                .properties(
-                    ClickHouseIO.properties().maxBlockSize(size).maxInsertBlockSize(size).build())
-                .build());
+            ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), "test_idempotent_insert")
+                .withMaxInsertBlockSize(size)
+                .withMaxCumulativeBackoff(Duration.millis(1L))
+                .withMaxRetries(tryLimit));
 
-    Unreliables.retryUntilTrue(
-        tryLimit,
-        () -> {
-          if (safeRun()) {
-            done.incrementAndGet();
-          } else {
-            failed.incrementAndGet();
-          }
-
-          return done.get() >= 2 && failed.get() >= 1;
-        });
+    // give it a chance to fail
+    safeRun();
+    safeRun();
+    safeRun();
 
     long count = executeQueryAsLong("SELECT COUNT(*) FROM test_idempotent_insert");
 

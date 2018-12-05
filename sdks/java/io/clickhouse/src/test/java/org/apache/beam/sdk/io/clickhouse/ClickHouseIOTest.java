@@ -53,13 +53,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     executeSql("CREATE TABLE test_int64 (f0 Int64, f1 Int64) ENGINE=Log");
 
-    pipeline
-        .apply(Create.of(row1, row2, row3).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_int64")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+    pipeline.apply(Create.of(row1, row2, row3).withRowSchema(schema)).apply(write("test_int64"));
 
     pipeline.run().waitUntilFinish();
 
@@ -81,11 +75,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_nullable_int64")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+        .apply(write("test_nullable_int64"));
 
     pipeline.run().waitUntilFinish();
 
@@ -109,11 +99,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline
         .apply(Create.of(row1, row2, row3).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_int64_with_default")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+        .apply(write("test_int64_with_default"));
 
     pipeline.run().waitUntilFinish();
 
@@ -136,11 +122,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_array_of_array_of_int64")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+        .apply(write("test_array_of_array_of_int64"));
 
     pipeline.run().waitUntilFinish();
 
@@ -203,13 +185,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
             + "f12 UInt64"
             + ") ENGINE=Log");
 
-    pipeline
-        .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_primitive_types")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+    pipeline.apply(Create.of(row1).withRowSchema(schema)).apply(write("test_primitive_types"));
 
     pipeline.run().waitUntilFinish();
 
@@ -289,11 +265,7 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
 
     pipeline
         .apply(Create.of(row1).withRowSchema(schema))
-        .apply(
-            ClickHouseIO.Write.<Row>builder()
-                .table("test_array_of_primitive_types")
-                .jdbcUrl(clickHouse.getJdbcUrl())
-                .build());
+        .apply(write("test_array_of_primitive_types"));
 
     pipeline.run().waitUntilFinish();
 
@@ -326,5 +298,9 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     String expected = "INSERT INTO \"test_table\" (\"f0\", \"f1\")";
 
     assertEquals(expected, ClickHouseIO.WriteFn.insertSql(tableSchema, "test_table"));
+  }
+
+  private ClickHouseIO.Write<Row> write(String table) {
+    return ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), table).withMaxRetries(0);
   }
 }

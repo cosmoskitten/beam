@@ -21,22 +21,12 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.Serializable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -46,9 +36,14 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.clickhouse.ClickHouseConnection;
@@ -57,183 +52,230 @@ import ru.yandex.clickhouse.ClickHouseStatement;
 import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 
 /** An IO to write to ClickHouse. */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class ClickHouseIO {
+
+  public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;
+  public static final int DEFAULT_MAX_RETRIES = 5;
+  public static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
+  public static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(5);
+
+  public static <T> Write<T> write(String jdbcUrl, String table) {
+    return new AutoValue_ClickHouseIO_Write.Builder<T>()
+        .jdbcUrl(jdbcUrl)
+        .table(table)
+        .properties(new Properties())
+        .maxInsertBlockSize(DEFAULT_MAX_INSERT_BLOCK_SIZE)
+        .initialBackoff(DEFAULT_INITIAL_BACKOFF)
+        .maxRetries(DEFAULT_MAX_RETRIES)
+        .maxCumulativeBackoff(DEFAULT_MAX_CUMULATIVE_BACKOFF)
+        .build()
+        .withInsertDeduplicate(true)
+        .withInsertDistributedSync(true);
+  }
 
   /** A {@link PTransform} to write to ClickHouse. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+
     public abstract String jdbcUrl();
 
     public abstract String table();
 
-    @Nullable
     public abstract Properties properties();
 
-    public static TableSchema getTableSchema(String jdbcUrl, String table) {
-      ResultSet rs;
-      try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
-          Statement statement = connection.createStatement()) {
-        rs = statement.executeQuery("DESCRIBE TABLE " + table);
-        List<TableSchema.Column> columns = new ArrayList<>();
+    public abstract long maxInsertBlockSize();
 
-        while (rs.next()) {
-          String name = rs.getString("name");
-          String type = rs.getString("type");
-          String defaultTypeStr = rs.getString("default_type");
-          String defaultExpression = rs.getString("default_expression");
+    public abstract int maxRetries();
 
-          ColumnType columnType = ColumnType.parse(type);
-          DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
+    public abstract Duration maxCumulativeBackoff();
 
-          Object defaultValue;
-          if (DefaultType.DEFAULT.equals(defaultType)
-              && !Strings.isNullOrEmpty(defaultExpression)) {
-            defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
-          } else {
-            defaultValue = null;
-          }
+    public abstract Duration initialBackoff();
 
-          columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
-        }
+    @Nullable
+    public abstract Boolean insertDistributedSync();
 
-        // findbugs doesn't like it in try block
-        rs.close();
+    @Nullable
+    public abstract Long insertQuorum();
 
-        return TableSchema.of(columns.toArray(new TableSchema.Column[0]));
-      } catch (SQLException e) {
-        throw new RuntimeException(e);
-      }
-    }
+    @Nullable
+    public abstract Boolean insertDeduplicate();
+
+    abstract Builder<T> toBuilder();
 
     @Override
     public PDone expand(PCollection<T> input) {
       TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
-      Properties properties = properties() == null ? new Properties() : properties();
+      Properties properties = properties();
 
-      input.apply(ParDo.of(WriteFn.create(jdbcUrl(), table(), tableSchema, properties)));
+      set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
+      set(properties, ClickHouseQueryParam.INSERT_QUORUM, insertQuorum());
+      set(properties, "insert_distributed_sync", insertDistributedSync());
+      set(properties, "insert_deduplication", insertDeduplicate());
+
+      WriteFn<T> fn =
+          new AutoValue_ClickHouseIO_WriteFn.Builder<T>()
+              .jdbcUrl(jdbcUrl())
+              .table(table())
+              .maxInsertBlockSize(maxInsertBlockSize())
+              .schema(tableSchema)
+              .properties(properties)
+              .initialBackoff(initialBackoff())
+              .maxCumulativeBackoff(maxCumulativeBackoff())
+              .maxRetries(maxRetries())
+              .build();
+
+      input.apply(ParDo.of(fn));
 
       return PDone.in(input.getPipeline());
-    }
-
-    public static <T> Builder<T> builder() {
-      return new AutoValue_ClickHouseIO_Write.Builder<>();
-    }
-
-    /** Builder for {@link Write}. */
-    @AutoValue.Builder
-    public abstract static class Builder<T> {
-
-      public abstract Builder<T> jdbcUrl(String jdbcUrl);
-
-      public abstract Builder<T> table(String table);
-
-      public abstract Builder<T> properties(Properties properties);
-
-      public abstract Write<T> build();
-    }
-  }
-
-  public static ClickHouseProperties properties() {
-    return new ClickHouseProperties();
-  }
-
-  /**
-   * Builder for {@link Properties} for JDBC connection.
-   *
-   * @see <a href="https://clickhouse.yandex/docs/en/single/#settings_1">ClickHouse
-   *     documentation</a>
-   */
-  public static class ClickHouseProperties implements Serializable {
-    private final Properties properties = new Properties();
-
-    /**
-     * Recommendation for what size of block (in number of rows) to load from tables.
-     *
-     * @see <a href="https://clickhouse.yandex/docs/en/single/#max_block_size">ClickHouse
-     *     documentation</a>
-     * @param value number of rows
-     * @return builder
-     */
-    public ClickHouseProperties maxBlockSize(int value) {
-      return set(ClickHouseQueryParam.MAX_BLOCK_SIZE, value);
     }
 
     /**
      * The maximum block size for insertion, if we control the creation of blocks for insertion.
      *
+     * @param value number of rows
+     * @return a {@link PTransform} writing data to ClickHouse
      * @see <a href="https://clickhouse.yandex/docs/en/single/#max_insert_block_size">ClickHouse
      *     documentation</a>
-     * @param value number of rows
-     * @return builder
      */
-    public ClickHouseProperties maxInsertBlockSize(long value) {
-      return set(ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, value);
+    public Write<T> withMaxInsertBlockSize(long value) {
+      return toBuilder().maxInsertBlockSize(value).build();
     }
 
     /**
      * If setting is enabled, insert query into distributed waits until data will be sent to all
      * nodes in cluster.
      *
-     * @param value true to enable
-     * @return builder
+     * @param value true to enable, null for server default
+     * @return a {@link PTransform} writing data to ClickHouse
      */
-    public ClickHouseProperties insertDistributedSync(boolean value) {
-      return set("insert_distributed_sync", value ? 1 : 0);
+    public Write<T> withInsertDistributedSync(@Nullable Boolean value) {
+      return toBuilder().insertDistributedSync(value).build();
     }
 
     /**
      * For INSERT queries in the replicated table, wait writing for the specified number of replicas
      * and linearize the addition of the data. 0 - disabled.
      *
+     * @param value number of replicas, 0 for disabling, null for server default
+     * @return a {@link PTransform} writing data to ClickHouse
      * @see <a href="https://clickhouse.yandex/docs/en/single/#insert_quorum">ClickHouse
      *     documentation</a>
-     * @param value number of replicas, 0 for disabling
-     * @return builder
      */
-    public ClickHouseProperties insertQuorum(long value) {
-      return set(ClickHouseQueryParam.INSERT_QUORUM, value);
+    public Write<T> withInsertQuorum(@Nullable Long value) {
+      return toBuilder().insertQuorum(value).build();
     }
 
     /**
      * For INSERT queries in the replicated table, specifies that deduplication of inserting blocks
-     * should be preformed.
+     * should be performed.
      *
-     * @param value true to enable
-     * @return builder
+     * <p>Enabled by default. Shouldn't be disabled unless your input has duplicate blocks, and you
+     * don't want to deduplicate them.
+     *
+     * @param value true to enable, null for server default
+     * @return a {@link PTransform} writing data to ClickHouse
      */
-    public ClickHouseProperties insertDeduplicate(boolean value) {
-      return set("insert_deduplicate", value ? 1L : 0L);
+    public Write<T> withInsertDeduplicate(Boolean value) {
+      return toBuilder().insertDeduplicate(value).build();
     }
 
-    public ClickHouseProperties set(ClickHouseQueryParam param, Object value) {
-      Preconditions.checkArgument(param.getClazz().isInstance(value));
-      properties.put(param, value);
-      return this;
+    /**
+     * Maximum number of retries per insert.
+     *
+     * <p>See {@link FluentBackoff#withMaxRetries}.
+     *
+     * @param value maximum number of retries
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withMaxRetries(int value) {
+      return toBuilder().maxRetries(value).build();
     }
 
-    public ClickHouseProperties set(String param, Object value) {
-      properties.put(param, value);
-      return this;
+    /**
+     * Limits total time spent in backoff.
+     *
+     * <p>See {@link FluentBackoff#withMaxCumulativeBackoff}.
+     *
+     * @param value maximum duration
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withMaxCumulativeBackoff(Duration value) {
+      return toBuilder().maxCumulativeBackoff(value).build();
     }
 
-    public Properties build() {
-      return properties;
+    /**
+     * Set initial backoff duration.
+     *
+     * <p>See {@link FluentBackoff#withInitialBackoff}.
+     *
+     * @param value initial duration
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withInitialBackoff(Duration value) {
+      return toBuilder().initialBackoff(value).build();
+    }
+
+    /** Builder for {@link Write}. */
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      public abstract Builder<T> jdbcUrl(String jdbcUrl);
+
+      public abstract Builder<T> table(String table);
+
+      public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
+
+      public abstract Builder<T> insertDistributedSync(Boolean insertDistributedSync);
+
+      public abstract Builder<T> insertQuorum(Long insertQuorum);
+
+      public abstract Builder<T> insertDeduplicate(Boolean insertDeduplicate);
+
+      public abstract Builder<T> properties(Properties properties);
+
+      public abstract Builder<T> maxRetries(int maxRetries);
+
+      public abstract Builder<T> maxCumulativeBackoff(Duration maxCumulativeBackoff);
+
+      public abstract Builder<T> initialBackoff(Duration initialBackoff);
+
+      public abstract Write<T> build();
+    }
+
+    private static void set(Properties properties, ClickHouseQueryParam param, Object value) {
+      if (value != null) {
+        Preconditions.checkArgument(
+            param.getClazz().isInstance(value),
+            "Unexpected value '"
+                + value
+                + "' for "
+                + param.getKey()
+                + " got "
+                + value.getClass().getName()
+                + ", expected "
+                + param.getClazz().getName());
+        properties.put(param, value);
+      }
+    }
+
+    private static void set(Properties properties, String param, Object value) {
+      if (value != null) {
+        properties.put(param, value);
+      }
     }
   }
 
   @AutoValue
   abstract static class WriteFn<T> extends DoFn<T, Void> {
+
     private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
-    private static final int QUEUE_SIZE = 1024;
+    private static final String RETRY_ATTEMPT_LOG =
+        "Error writing to ClickHouse. Retry attempt[%d]";
 
     private ClickHouseConnection connection;
-    private ClickHouseStatement statement;
-
-    private ExecutorService executor;
-    private BlockingQueue<Row> queue;
-    private AtomicBoolean bundleFinished;
-    private Future<?> insert;
+    private FluentBackoff retryBackoff;
+    private final List<Row> buffer = new ArrayList<>();
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
@@ -245,21 +287,17 @@ public class ClickHouseIO {
 
     public abstract String table();
 
+    public abstract long maxInsertBlockSize();
+
+    public abstract int maxRetries();
+
+    public abstract Duration maxCumulativeBackoff();
+
+    public abstract Duration initialBackoff();
+
     public abstract TableSchema schema();
 
     public abstract Properties properties();
-
-    public static <T> WriteFn<T> create(
-        String jdbcUrl, String table, TableSchema schema, Properties properties) {
-      return new AutoValue_ClickHouseIO_WriteFn<>(jdbcUrl, table, schema, properties);
-    }
-
-    static String quoteIdentifier(String identifier) {
-      String backslash = "\\\\";
-      String quote = "\"";
-
-      return quote + identifier.replaceAll(quote, backslash + quote) + quote;
-    }
 
     @VisibleForTesting
     static String insertSql(TableSchema schema, String table) {
@@ -275,90 +313,134 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
-      connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
-      executor =
-          Executors.newSingleThreadExecutor(
-              new ThreadFactoryBuilder().setNameFormat("clickhouse-jdbc-%d").build());
-      queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
-      bundleFinished = new AtomicBoolean(false);
-    }
+      String maxInsertBlockSizeKey = ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE.getKey();
+      Properties properties = new Properties(properties());
 
-    @StartBundle
-    public void startBundle() throws SQLException {
-      statement = connection.createStatement();
-      bundleFinished.set(false);
+      if (!properties.containsKey(maxInsertBlockSizeKey)) {
+        properties.put(maxInsertBlockSizeKey, DEFAULT_MAX_INSERT_BLOCK_SIZE);
+      }
 
-      // When bundle starts, we open statement and stream data in bundle.
-      // When we finish bundle, we close statement.
+      connection = new ClickHouseDataSource(jdbcUrl(), properties).getConnection();
 
-      // For streaming, we create a background thread for http client,
-      // and we feed it through BlockingQueue.
-
-      insert =
-          executor.submit(
-              () -> {
-                try {
-                  statement.sendRowBinaryStream(
-                      insertSql(schema(), table()),
-                      stream -> {
-                        while (true) {
-                          Row row;
-                          try {
-                            row = queue.poll(1, TimeUnit.SECONDS);
-                          } catch (InterruptedException e) {
-                            break; // time to go
-                          }
-
-                          if (row == null) {
-                            if (bundleFinished.get() && queue.isEmpty()) {
-                              // bundle is finished and queue is drained, time to go
-                              break;
-                            } else {
-                              // timeout, let's try again
-                            }
-                          } else {
-                            ClickHouseWriter.writeRow(stream, schema(), row);
-                          }
-                        }
-                      });
-                  statement.close();
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                } finally {
-                  try {
-                    if (!statement.isClosed()) {
-                      // happens only if statement wasn't closed in the end of the previous block
-                      statement.close();
-                    }
-                  } catch (SQLException e) {
-                    LOG.error("Failed to close statement", e);
-                  }
-                }
-              });
-    }
-
-    @FinishBundle
-    public void finishBundle() throws ExecutionException, InterruptedException {
-      bundleFinished.set(true);
-      insert.get(); // drain queue
+      retryBackoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(maxRetries())
+              .withMaxCumulativeBackoff(maxCumulativeBackoff())
+              .withInitialBackoff(initialBackoff());
     }
 
     @Teardown
     public void tearDown() throws Exception {
-      bundleFinished.set(true);
-      executor.shutdown();
       connection.close();
     }
 
+    @StartBundle
+    public void startBundle() {
+      buffer.clear();
+    }
+
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      flush();
+    }
+
     @ProcessElement
-    public void processElement(@FieldAccess("filterFields") Row input)
-        throws InterruptedException, ExecutionException {
-      while (!queue.offer(input, 1, TimeUnit.SECONDS)) {
-        if (insert.isDone()) {
-          insert.get(); // can happen due to exception, get() will throw it
-          throw new AssertionError("Invariant failed");
+    public void processElement(@FieldAccess("filterFields") Row input) throws Exception {
+      buffer.add(input);
+
+      if (buffer.size() >= maxInsertBlockSize()) {
+        flush();
+      }
+    }
+
+    private void flush() throws Exception {
+      BackOff backOff = retryBackoff.backoff();
+      int attempt = 0;
+
+      while (true) {
+        try (ClickHouseStatement statement = connection.createStatement()) {
+          statement.sendRowBinaryStream(
+              insertSql(schema(), table()),
+              stream -> {
+                for (Row row : buffer) {
+                  ClickHouseWriter.writeRow(stream, schema(), row);
+                }
+              });
+          buffer.clear();
+          break;
+        } catch (SQLException e) {
+          if (!BackOffUtils.next(Sleeper.DEFAULT, backOff)) {
+            throw e;
+          } else {
+            LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), e);
+            attempt++;
+          }
         }
       }
     }
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      public abstract Builder<T> jdbcUrl(String jdbcUrl);
+
+      public abstract Builder<T> table(String table);
+
+      public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
+
+      public abstract Builder<T> schema(TableSchema schema);
+
+      public abstract Builder<T> properties(Properties properties);
+
+      public abstract Builder<T> maxRetries(int maxRetries);
+
+      public abstract Builder<T> maxCumulativeBackoff(Duration maxCumulativeBackoff);
+
+      public abstract Builder<T> initialBackoff(Duration initialBackoff);
+
+      public abstract WriteFn<T> build();
+    }
+  }
+
+  public static TableSchema getTableSchema(String jdbcUrl, String table) {
+    ResultSet rs;
+    try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
+        Statement statement = connection.createStatement()) {
+      rs = statement.executeQuery("DESCRIBE TABLE " + quoteIdentifier(table));
+      List<TableSchema.Column> columns = new ArrayList<>();
+
+      while (rs.next()) {
+        String name = rs.getString("name");
+        String type = rs.getString("type");
+        String defaultTypeStr = rs.getString("default_type");
+        String defaultExpression = rs.getString("default_expression");
+
+        ColumnType columnType = ColumnType.parse(type);
+        DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
+
+        Object defaultValue;
+        if (DefaultType.DEFAULT.equals(defaultType) && !Strings.isNullOrEmpty(defaultExpression)) {
+          defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
+        } else {
+          defaultValue = null;
+        }
+
+        columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
+      }
+
+      // findbugs doesn't like it in try block
+      rs.close();
+
+      return TableSchema.of(columns.toArray(new TableSchema.Column[0]));
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  static String quoteIdentifier(String identifier) {
+    String backslash = "\\\\";
+    String quote = "\"";
+
+    return quote + identifier.replaceAll(quote, backslash + quote) + quote;
   }
 }
