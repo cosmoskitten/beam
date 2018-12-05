@@ -37,9 +37,7 @@ import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * An {@link EnvironmentFactory} which requests workers via the given URL in the Environment.
- */
+/** An {@link EnvironmentFactory} which requests workers via the given URL in the Environment. */
 public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
