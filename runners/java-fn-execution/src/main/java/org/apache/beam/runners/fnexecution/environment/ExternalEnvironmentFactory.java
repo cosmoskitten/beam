@@ -38,8 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link EnvironmentFactory} which forks processes based on the given URL in the Environment.
- * The returned {@link ProcessEnvironment} has to make sure to stop the processes.
+ * An {@link EnvironmentFactory} which requests workers via the given URL in the Environment.
  */
 public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
@@ -83,7 +82,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     this.clientSource = clientSource;
   }
 
-  /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
+  /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
   @Override
   public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
     Preconditions.checkState(
@@ -144,7 +143,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     };
   }
 
-  /** Provider of ProcessEnvironmentFactory. */
+  /** Provider of ExternalEnvironmentFactory. */
   public static class Provider implements EnvironmentFactory.Provider {
     @Override
     public EnvironmentFactory createEnvironmentFactory(
