@@ -49,6 +49,10 @@ public class BaseClickHouseTest {
                   "/etc/clickhouse-server/config.d/zookeeper_default.xml",
                   BindMode.READ_ONLY);
 
+  public void setup() {
+    assert (zookeeper.getNetwork() == network); // fix findbugs
+  }
+
   boolean executeSql(String sql) throws SQLException {
     try (Connection connection = clickHouse.createConnection("");
         Statement statement = connection.createStatement()) {
