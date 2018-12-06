@@ -37,9 +37,9 @@ public class ClickHouseWriter {
       ClickHouseRowBinaryStream stream, ColumnType columnType, Object value) throws IOException {
 
     if (value == null) {
-      stream.writeByte((byte) 1);
+      stream.markNextNullable(true);
     } else {
-      stream.writeByte((byte) 0);
+      stream.markNextNullable(false);
       writeValue(stream, columnType, value);
     }
   }
