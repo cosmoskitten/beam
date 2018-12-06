@@ -17,35 +17,13 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.List;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.utils.AvroSpecificRecordTypeInformationFactory;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
-public class AvroSpecificRecordSchema extends GetterBasedSchemaProvider {
+public class AvroSpecificRecordGetterFactory implements FieldValueGetterFactory {
   @Override
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return AvroUtils.getSchema((Class<? extends SpecificRecord>) typeDescriptor.getRawType());
-  }
-
-  @Override
-  public FieldValueGetterFactory fieldValueGetterFactory() {
-    return new AvroSpecificRecordGetterFactory();
-  }
-
-  @Override
-  public FieldValueSetterFactory fieldValueSetterFactory() {
-    // No need since we provide a creator factory.
-    return null;
-  }
-
-  @Override
-  public UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return new AvroSpecificRecordUserTypeCreatorFactory();
-  }
-
-  @Override
-  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return new AvroSpecificRecordTypeInformationFactory();
+  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
+    return AvroUtils.getGetters((Class<? extends SpecificRecord>) targetClass, schema);
   }
 }

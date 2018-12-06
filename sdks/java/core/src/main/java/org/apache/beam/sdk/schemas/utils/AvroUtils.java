@@ -20,8 +20,9 @@ package org.apache.beam.sdk.schemas.utils;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -146,12 +148,7 @@ public class AvroUtils {
     for (Schema.Field field : schema.getFields()) {
       Object value = record.get(field.getName());
       org.apache.avro.Schema fieldAvroSchema = avroSchema.getField(field.getName()).schema();
-
-      if (value == null) {
-        builder.addValue(null);
-      } else {
-        builder.addValue(convertAvroFieldStrict(value, fieldAvroSchema, field.getType()));
-      }
+      builder.addValue(convertAvroFieldStrict(value, fieldAvroSchema, field.getType()));
     }
 
     return builder.build();
@@ -188,35 +185,57 @@ public class AvroUtils {
     return builder.build();
   }
 
-  public static <T extends SpecificRecord> Schema getSchema(Class<T> record) {
-    return toBeamSchema(record.getSchema());
+  public static <T extends SpecificRecord> Schema getSchema(Class<T> clazz) {
+    try {
+      org.apache.avro.Schema avroSchema =
+          (org.apache.avro.Schema) (clazz.getDeclaredField("SCHEMA$").get(null));
+      return toBeamSchema(avroSchema);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new IllegalArgumentException(
+          "Class "
+              + clazz
+              + " is not an AVRO SpecificRecord. "
+              + "No public SCHEMA$ field was found.");
+    }
+  }
+
+  // TODO: This currently fails
+  private static final class AvroFieldNamePolicy implements SerializableFunction<String, String> {
+    Schema schema;
+    Map<String, String> nameMapping = Maps.newHashMap();
+
+    AvroFieldNamePolicy(Schema schema) {
+      this.schema = schema;
+      for (Field field : schema.getFields()) {
+        String getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
+        nameMapping.put(getter, field.getName());
+        // The Avro compiler might add a $ at the end of a getter to disambiguate.
+        nameMapping.put(getter + "$", field.getName());
+      }
+    }
+
+    @Override
+    public String apply(String input) {
+      return nameMapping.getOrDefault(input, input);
+    }
   }
 
   public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
       Class<T> clazz, @Nullable Schema schema) {
-    return JavaBeanUtils.getFieldTypes(clazz, schema);
+    return JavaBeanUtils.getFieldTypes(clazz, schema, new AvroFieldNamePolicy(schema));
   }
 
   public static <T extends SpecificRecord> List<FieldValueGetter> getGetters(
-      Class<T> clazz , Schema schema) {
-    return JavaBeanUtils.getGetters(clazz, schema);
+      Class<T> clazz, Schema schema) {
+    return JavaBeanUtils.getGetters(clazz, schema, new AvroFieldNamePolicy(schema));
   }
 
   public static <T extends SpecificRecord> Constructor<T> getConstructor(
       Class<T> clazz, Schema schema) {
-    // TODO: This assumes that Avro only generates one non-empty constructor. We should fix this
-    // code to instead match the parameter types;
-    Constructor[] constructors =  clazz.getDeclaredConstructors();
-    for (Constructor constructor : constructors) {
-      if (constructor.getParameterCount() > 0) {
-        return constructor;
-      }
-    }
-    throw new RuntimeException("No matching constructor found for class " + clazz);
+    return AvroByteBuddyUtils.getConstructor(clazz, schema);
   }
 
-
-    /** Converts AVRO schema to Beam field. */
+  /** Converts AVRO schema to Beam field. */
   private static Schema.FieldType toFieldType(TypeWithNullability type) {
     Schema.FieldType fieldType = null;
     org.apache.avro.Schema avroSchema = type.type;
@@ -418,19 +437,19 @@ public class AvroUtils {
         return checkValueType(avroSchema, translatedArray, fieldType, expectedSchema);
 
       case MAP:
-        ImmutableMap.Builder builder = ImmutableMap.builder();
+        Map map = Maps.newHashMap();
         Map<Object, Object> valueMap =
             (Map<Object, Object>) checkValueType(avroSchema, value, fieldType, expectedSchema);
         org.apache.avro.Schema avroMapType = new TypeWithNullability(avroSchema).type;
 
         for (Map.Entry entry : valueMap.entrySet()) {
           Utf8 key = new Utf8((String) entry.getKey());
-          builder.put(
+          map.put(
               key,
               genericFromBeamField(
                   fieldType.getMapValueType(), avroMapType.getValueType(), entry.getValue()));
         }
-        return checkValueType(avroSchema, builder.build(), fieldType, expectedSchema);
+        return checkValueType(avroSchema, map, fieldType, expectedSchema);
 
       case ROW:
         return checkValueType(
@@ -472,6 +491,9 @@ public class AvroUtils {
       @Nonnull Object value,
       @Nonnull org.apache.avro.Schema avroSchema,
       @Nonnull Schema.FieldType fieldType) {
+    if (value == null) {
+      return null;
+    }
 
     TypeWithNullability type = new TypeWithNullability(avroSchema);
     LogicalType logicalType = LogicalTypes.fromSchema(type.type);
