@@ -23,9 +23,18 @@ PARSER_BEGIN(ColumnTypeParser)
 
 package org.apache.beam.sdk.io.clickhouse.impl.parser;
 
+import org.apache.beam.sdk.io.clickhouse.TableSchema;
+
 import static org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import static org.apache.beam.sdk.io.clickhouse.TableSchema.TypeName;
 
+/**
+ * SQL parser, generated from ColumnTypeParser.jj by JavaCC.
+ *
+ * <p>The public wrapper for this parser is {@link ColumnType.parse}.
+ *
+ * <p>Used to parse output of "DESCRIBE TABLE" and get {@link TableSchema} in ClickHouse.
+ */
 @SuppressWarnings({"unchecked", "static"})
 public class ColumnTypeParser {
 
