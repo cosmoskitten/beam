@@ -64,7 +64,24 @@ public class ExecutableStageTranslation {
     return sb.toString();
   }
 
-  public static String generateNameFromTransformNames(Collection<String> names, boolean truncate) {
+  /**
+   * Creates a human-readable name for a set of stage names that occur in a single stage.
+   *
+   * <p>This name reflects the nested structure of the stages, as inferred by slashes in the stage
+   * names. Sibling stages will be listed as {A, B}, nested stages as A/B, and according to the
+   * value of truncateSiblingComposites the nesting stops at the first level that siblings are
+   * encountered.
+   *
+   * <p>This is best understood via examples, of which there are several in {@link
+   * ExecutableStageTranslationTest#testOperatorNameGenerationFromNames}.
+   *
+   * @param names a list of full stage names in this fused operation
+   * @param truncateSiblingComposites whether to recursively descent into composite operations that
+   *     have simblings, or stop the recursion at that level.
+   * @return a single string representation of all the stages in this fused operation
+   */
+  public static String generateNameFromTransformNames(
+      Collection<String> names, boolean truncateSiblingComposites) {
     Multimap<String, String> groupByOuter = LinkedHashMultimap.create();
     for (String name : names) {
       int index = name.indexOf('/');
@@ -83,11 +100,13 @@ public class ExecutableStageTranslation {
       } else {
         // Everything is in the same outer stage, enumerate at one level down.
         return String.format(
-            "%s/%s", outer.getKey(), generateNameFromTransformNames(outer.getValue(), truncate));
+            "%s/%s",
+            outer.getKey(),
+            generateNameFromTransformNames(outer.getValue(), truncateSiblingComposites));
       }
     } else {
       Collection<String> parts;
-      if (truncate) {
+      if (truncateSiblingComposites) {
         // Enumerate the outer stages without their composite structure, if any.
         parts = groupByOuter.keySet();
       } else {
@@ -102,7 +121,8 @@ public class ExecutableStageTranslation {
                         String.format(
                                 "%s/%s",
                                 outer.getKey(),
-                                generateNameFromTransformNames(outer.getValue(), truncate))
+                                generateNameFromTransformNames(
+                                    outer.getValue(), truncateSiblingComposites))
                             .replaceAll("/$", ""))
                 .collect(Collectors.toList());
       }
