@@ -31,7 +31,7 @@ compileJavacc {
   arguments = [static: "false"]
 }
 
-def clickhouse_jdbc_version = "0.1.46"
+def clickhouse_jdbc_version = "0.1.47"
 def testcontainers_version = "1.9.1"
 
 dependencies {

@@ -21,7 +21,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.sql.ResultSet;
 import java.util.Arrays;
+import java.util.Objects;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
+import org.apache.beam.sdk.schemas.DefaultSchema;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -300,7 +303,57 @@ public class ClickHouseIOTest extends BaseClickHouseTest {
     assertEquals(expected, ClickHouseIO.WriteFn.insertSql(tableSchema, "test_table"));
   }
 
-  private ClickHouseIO.Write<Row> write(String table) {
-    return ClickHouseIO.<Row>write(clickHouse.getJdbcUrl(), table).withMaxRetries(0);
+  /** POJO used to test . */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static final class POJO {
+    public int f0;
+    public long f1;
+
+    public POJO(int f0, long f1) {
+      this.f0 = f0;
+      this.f1 = f1;
+    }
+
+    public POJO() {}
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final POJO pojo = (POJO) o;
+      return f0 == pojo.f0 && f1 == pojo.f1;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(f0, f1);
+    }
+  }
+
+  @Test
+  public void testPojo() throws Exception {
+    POJO pojo1 = new POJO(1, 2L);
+    POJO pojo2 = new POJO(2, 4L);
+    POJO pojo3 = new POJO(3, 6L);
+
+    executeSql("CREATE TABLE test_pojo(f0 Int32, f1 Int64) ENGINE=Log");
+
+    pipeline.apply(Create.of(pojo1, pojo2, pojo3)).apply(write("test_pojo"));
+
+    pipeline.run().waitUntilFinish();
+
+    long sum0 = executeQueryAsLong("SELECT SUM(f0) FROM test_pojo");
+    long sum1 = executeQueryAsLong("SELECT SUM(f1) FROM test_pojo");
+
+    assertEquals(6L, sum0);
+    assertEquals(12L, sum1);
+  }
+
+  private <T> ClickHouseIO.Write<T> write(String table) {
+    return ClickHouseIO.<T>write(clickHouse.getJdbcUrl(), table).withMaxRetries(0);
   }
 }
