@@ -33,6 +33,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -51,7 +52,63 @@ import ru.yandex.clickhouse.ClickHouseDataSource;
 import ru.yandex.clickhouse.ClickHouseStatement;
 import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
 
-/** An IO to write to ClickHouse. */
+/**
+ * An IO to write to ClickHouse.
+ *
+ * <h3>Writing to ClickHouse</h3>
+ *
+ * <p>To write to ClickHouse, use {@link ClickHouseIO#write(String, String)}, which writes elements
+ * from input {@link PCollection}. It's required that your ClickHouse cluster already has table you
+ * are going to insert into.
+ *
+ * <pre>{@code
+ * pipeline
+ *   .apply(...)
+ *   .apply(
+ *     ClickHouseIO.<POJO>write("jdbc:clickhouse:localhost:8123/default", "my_table"));
+ * }</pre>
+ *
+ * <p>Optionally, you can provide connection settings, for instance, specify insert block size with
+ * {@link Write#withMaxInsertBlockSize(long)}, or configure number of retries with {@link
+ * Write#withMaxRetries(int)}.
+ *
+ * <h4>Deduplication</h4>
+ *
+ * Deduplication is performed by ClickHouse if inserting to <a
+ * href="https://clickhouse.yandex/docs/en/single/#data-replication">ReplicatedMergeTree</a> or <a
+ * href="https://clickhouse.yandex/docs/en/single/#distributed">Distributed</a> table on top of
+ * ReplicatedMergeTree. Without replication, inserting into regular MergeTree can produce
+ * duplicates, if insert fails, and then successfully retries. However, each block is inserted
+ * atomically, and you can configure block size with {@link Write#withMaxInsertBlockSize(long)}.
+ *
+ * <p>Deduplication is performed using checksums of inserted blocks.
+ *
+ * <h4>Mapping between Beam and ClickHouse types</h4>
+ *
+ * <table summary="Type mapping">
+ *   <tr><th>ClickHouse</th> <th>Beam</th></tr>
+ *   <tr><td>{@link TableSchema.TypeName#FLOAT32}</td> <td>{@link Schema.TypeName#FLOAT}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#FLOAT64}</td> <td>{@link Schema.TypeName#DOUBLE}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#INT8}</td> <td>{@link Schema.TypeName#BYTE}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#INT16}</td> <td>{@link Schema.TypeName#INT16}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#INT32}</td> <td>{@link Schema.TypeName#INT32}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#INT64}</td> <td>{@link Schema.TypeName#INT64}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#STRING}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#UINT8}</td> <td>{@link Schema.TypeName#INT16}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#UINT16}</td> <td>{@link Schema.TypeName#INT32}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#UINT32}</td> <td>{@link Schema.TypeName#INT64}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#UINT64}</td> <td>{@link Schema.TypeName#INT64}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#DATE}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#DATETIME}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
+ *   <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
+ * </table>
+ *
+ * Nullable row columns are supported through Nullable type in ClickHouse.
+ *
+ * <p>Nested rows should be unnested using {@link org.apache.beam.sdk.schemas.transforms.Unnest}.
+ * Type casting should be done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before
+ * {@link ClickHouseIO}.
+ */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ClickHouseIO {
 
