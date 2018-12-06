@@ -323,8 +323,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    for record in super(_TextSourceWithFilename, self).read_records(file_name,
-                                                                    range_tracker):
+    records = super(_TextSourceWithFilename, self).read_records(file_name,
+                                                                range_tracker)
+    for record in records:
       yield (file_name, record)
 
 
@@ -542,7 +543,7 @@ class ReadFromTextWithFilename(ReadFromText):
   r"""A :class:`~apache_beam.io.ReadFromText` for reading text
   files returning the name of the file and the content of the file.
 
-  This class extend ReadFromText class just setting a different 
+  This class extend ReadFromText class just setting a different
   _source_class attribute.
   """
 
