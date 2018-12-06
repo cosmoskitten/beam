@@ -82,7 +82,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
     long count = executeQueryAsLong("SELECT COUNT(*) FROM test_atomic_insert");
 
     // each insert is atomic, so we get exactly done * size elements
-    assertEquals(done * size, count);
+    assertEquals(((long) done) * size, count);
   }
 
   /**
