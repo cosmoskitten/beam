@@ -31,17 +31,18 @@ compileJavacc {
   arguments = [static: "false"]
 }
 
+def clickhouse_jdbc_version = "0.1.46"
+def testcontainers_version = "1.9.1"
+
 dependencies {
-  compile library.java.guava
   javacc "net.java.dev.javacc:javacc:4.0"
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.joda_time
-  shadow "ru.yandex.clickhouse:clickhouse-jdbc:0.1.42"
+  shadow "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_jdk14
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.testcontainers:clickhouse:1.9.1"
+  shadowTest library.java.slf4j_api
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.hamcrest_library
+  shadowTest "org.testcontainers:clickhouse:$testcontainers_version"
 }
