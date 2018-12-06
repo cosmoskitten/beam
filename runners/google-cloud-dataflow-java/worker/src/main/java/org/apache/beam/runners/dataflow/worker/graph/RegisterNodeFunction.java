@@ -340,8 +340,15 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             String mainInputKeyCoderId = "";
             for (Node predecessorOutput : input.predecessors(node)) {
               String mainInputPCollectionId = nodesToPCollections.get(predecessorOutput);
-              String mainInputCoderId = pipeline.getComponents().getPcollectionsMap().get(mainInputPCollectionId).getCoderId();
-              ModelCoders.KvCoderComponents kvCoder = ModelCoders.getKvCoderComponents(pipeline.getComponents().getCodersMap().get(mainInputCoderId));
+              String mainInputCoderId =
+                  pipeline
+                      .getComponents()
+                      .getPcollectionsMap()
+                      .get(mainInputPCollectionId)
+                      .getCoderId();
+              ModelCoders.KvCoderComponents kvCoder =
+                  ModelCoders.getKvCoderComponents(
+                      pipeline.getComponents().getCodersMap().get(mainInputCoderId));
 
               mainInputKeyCoderId = kvCoder.keyCoderId();
             }
@@ -351,8 +358,9 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               String timerPCollectionName =
                   SyntheticComponents.uniqueId(
                       "timer", pTransform.getInputsMap().keySet()::contains);
-              String timerCoderId = SyntheticComponents.uniqueId(
-                  "timer-coder", processBundleDescriptor.getCodersMap().keySet()::contains);
+              String timerCoderId =
+                  SyntheticComponents.uniqueId(
+                      "timer-coder", processBundleDescriptor.getCodersMap().keySet()::contains);
 
               pTransform
                   .putInputs(entry.getKey(), timerPCollectionName)
@@ -368,9 +376,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               processBundleDescriptor.putPcollections(
                   timerPCollectionName, timerPCollection.build());
 
-              RunnerApi.Coder timerCoder = ModelCoders.kvCoder(
-                  mainInputKeyCoderId,
-                  entry.getValue().getTimerCoderId());
+              RunnerApi.Coder timerCoder =
+                  ModelCoders.kvCoder(mainInputKeyCoderId, entry.getValue().getTimerCoderId());
 
               processBundleDescriptor.putCoders(timerCoderId, timerCoder);
             }
