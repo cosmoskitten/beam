@@ -38,6 +38,7 @@ public abstract class TableSchema implements Serializable {
     return new AutoValue_TableSchema(Arrays.asList(columns));
   }
 
+  /** Returns Beam equivalent of ClickHouse schema. */
   public static Schema getEquivalentSchema(TableSchema tableSchema) {
     return tableSchema
         .columns()
@@ -53,6 +54,7 @@ public abstract class TableSchema implements Serializable {
         .collect(Schema.toSchema());
   }
 
+  /** Returns Beam equivalent of ClickHouse column type. */
   public static Schema.FieldType getEquivalentFieldType(ColumnType columnType) {
     switch (columnType.typeName()) {
       case DATE:
@@ -207,6 +209,7 @@ public abstract class TableSchema implements Serializable {
           .build();
     }
 
+    /** Parse string with ClickHouse type to {@link ColumnType}. */
     public static ColumnType parse(String str) {
       try {
         return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
@@ -217,6 +220,11 @@ public abstract class TableSchema implements Serializable {
       }
     }
 
+    /**
+     * Get default value of a column based on expression.
+     *
+     * <p>E.g., "CREATE TABLE hits(id Int32, count Int32 DEFAULT &lt;str&gt;)"
+     */
     public static Object parseDefaultExpression(ColumnType columnType, String str) {
       try {
         String value =
