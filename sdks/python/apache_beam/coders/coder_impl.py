@@ -640,7 +640,7 @@ class SequenceCoderImpl(StreamCoderImpl):
   If writing to state is enabled, the final terminating 0 will instead be
   repaced with::
 
-    -1
+    varInt64(-1)
     len(state_token)
     state_token
 
