@@ -682,6 +682,7 @@ message Metrics {
 
   // User defined metrics
   message User {
+
     // A key for identifying a metric at the most granular level.
     message MetricName {
       // (Required): The namespace of this metric.
