@@ -142,9 +142,7 @@ public class SimpleMonitoringInfoBuilder {
     return true;
   }
 
-  /**
-   * @return The metric URN for a user metric, with a proper URN prefix.
-   */
+  /** @return The metric URN for a user metric, with a proper URN prefix. */
   private static String userMetricUrn(String metricNamespace, String metricName) {
     StringBuilder sb = new StringBuilder();
     sb.append(USER_COUNTER_URN_PREFIX);
@@ -204,9 +202,8 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Builds the provided MonitoringInfo.
-   * Returns null if validateAndDropInvalid set and fields do not match respecting
-   * MonitoringInfoSpec based on urn.
+   * Builds the provided MonitoringInfo. Returns null if validateAndDropInvalid set and fields do
+   * not match respecting MonitoringInfoSpec based on urn.
    */
   @Nullable
   public MonitoringInfo build() {

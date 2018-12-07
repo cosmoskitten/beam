@@ -143,8 +143,8 @@ public class ProcessBundleHandler {
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
   }
 
-  private void extractMonitoringInfosToResponse(MetricsContainerImpl metricsContainer,
-      ProcessBundleResponse.Builder response) {
+  private void extractMonitoringInfosToResponse(
+      MetricsContainerImpl metricsContainer, ProcessBundleResponse.Builder response) {
     // Extract user metrics and store as MonitoringInfos.
     MetricUpdates mus = metricsContainer.getUpdates();
 
@@ -336,7 +336,6 @@ public class ProcessBundleHandler {
         extractMonitoringInfosToResponse(metricsContainer, response);
       }
     }
-
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
