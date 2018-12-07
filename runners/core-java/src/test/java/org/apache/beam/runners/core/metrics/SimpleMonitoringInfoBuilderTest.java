@@ -29,7 +29,7 @@ import org.junit.runners.JUnit4;
 public class SimpleMonitoringInfoBuilderTest {
 
   @Test
-  public void testSpecNotFullyMet() {
+  public void testReturnsNullIfSpecRequirementsNotMet() {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
     assertNull(builder.build());

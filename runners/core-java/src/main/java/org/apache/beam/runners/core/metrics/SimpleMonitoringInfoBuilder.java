@@ -143,16 +143,14 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * @param namespace The namespace of the metric.
-   * @param name The name of the metric.
    * @return The metric URN for a user metric, with a proper URN prefix.
    */
-  private static String userMetricUrn(String namespace, String name) {
+  private static String userMetricUrn(String metricNamespace, String metricName) {
     StringBuilder sb = new StringBuilder();
     sb.append(USER_COUNTER_URN_PREFIX);
-    sb.append(namespace);
+    sb.append(metricNamespace);
     sb.append(':');
-    sb.append(name);
+    sb.append(metricName);
     return sb.toString();
   }
 
@@ -206,8 +204,9 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /**
-   * Builds the provided MonitoringInfo, if validateAndDropInvalid is set then it drops any
-   * MonitoringInfos with missing fields that do not match their MonitoringInfoSpec.
+   * Builds the provided MonitoringInfo.
+   * Returns null if validateAndDropInvalid set and fields do not match respecting
+   * MonitoringInfoSpec based on urn.
    */
   @Nullable
   public MonitoringInfo build() {

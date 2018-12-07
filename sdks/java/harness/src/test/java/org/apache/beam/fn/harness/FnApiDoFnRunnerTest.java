@@ -575,7 +575,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
     SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
-    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
 
     RunnerApi.PTransform pTransform =
         pProto
@@ -624,24 +623,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
     Iterables.getOnlyElement(startFunctions).run();
     mainOutputValues.clear();
 
-    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
-
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
         Iterables.getOnlyElement(consumers.get(inputPCollectionId));
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
-    assertThat(mainOutputValues, hasSize(2));
-    assertThat(
-        mainOutputValues.get(0).getValue(),
-        contains("iterableValue1A", "iterableValue2A", "iterableValue3A"));
-    assertThat(
-        mainOutputValues.get(1).getValue(),
-        contains("iterableValue1B", "iterableValue2B", "iterableValue3B"));
-
-    // Assert that state data did not change
-    assertEquals(stateData, fakeClient.getData());
 
     MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
     MetricName metricName =

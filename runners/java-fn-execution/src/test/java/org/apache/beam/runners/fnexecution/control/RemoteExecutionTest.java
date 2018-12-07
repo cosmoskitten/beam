@@ -499,6 +499,7 @@ public class RemoteExecutionTest implements Serializable {
 
   @Test
   public void testMetrics() throws Exception {
+    final String COUNTER_METRIC_NAME = "counterMetric";
     Pipeline p = Pipeline.create();
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
@@ -508,7 +509,7 @@ public class RemoteExecutionTest implements Serializable {
                     new DoFn<byte[], String>() {
                       @ProcessElement
                       public void process(ProcessContext ctxt) {
-                        Metrics.counter(RemoteExecutionTest.class, "counterMetric").inc();
+                        Metrics.counter(RemoteExecutionTest.class, COUNTER_METRIC_NAME).inc();
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
@@ -593,7 +594,7 @@ public class RemoteExecutionTest implements Serializable {
             }
 
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), "counterMetric");
+            builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), COUNTER_METRIC_NAME);
             builder.setInt64Value(2);
             MonitoringInfo expectedCounter = builder.build();
 

@@ -143,6 +143,21 @@ public class ProcessBundleHandler {
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
   }
 
+  private void extractMonitoringInfosToResponse(MetricsContainerImpl metricsContainer,
+      ProcessBundleResponse.Builder response) {
+    // Extract user metrics and store as MonitoringInfos.
+    MetricUpdates mus = metricsContainer.getUpdates();
+
+    for (MetricUpdate<Long> mu : mus.counterUpdates()) {
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+      builder.setUrnForUserMetric(
+          mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+      builder.setInt64Value(mu.getUpdate());
+      builder.setTimestampToNow();
+      response.addMonitoringInfos(builder.build());
+    }
+  }
+
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
       BeamFnDataClient queueingClient,
@@ -318,17 +333,7 @@ public class ProcessBundleHandler {
           response.addAllResidualRoots(allResiduals.values());
         }
 
-        // Extract user metrics and store as MonitoringInfos.
-        MetricUpdates mus = metricsContainer.getUpdates();
-
-        for (MetricUpdate<Long> mu : mus.counterUpdates()) {
-          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-          builder.setUrnForUserMetric(
-              mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
-          builder.setInt64Value(mu.getUpdate());
-          builder.setTimestampToNow();
-          response.addMonitoringInfos(builder.build());
-        }
+        extractMonitoringInfosToResponse(metricsContainer, response);
       }
     }
 
