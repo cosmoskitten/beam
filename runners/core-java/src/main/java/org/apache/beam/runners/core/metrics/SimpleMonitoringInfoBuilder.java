@@ -117,7 +117,7 @@ public class SimpleMonitoringInfoBuilder {
       }
     } else if (!SimpleMonitoringInfoBuilder.specs.containsKey(urn)) {
       // Succeed for unknown URNs, this is an extensible metric.
-      // TODO: Allow adding your own spec file to validate your metrics.
+      // TODO(ajamato): Allow adding your own spec file to validate your metrics.
       return true;
     } else {
       spec = SimpleMonitoringInfoBuilder.specs.get(urn);

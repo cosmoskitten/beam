@@ -250,8 +250,8 @@ public class ProcessBundleHandler {
     try (HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
-            beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                bundleDescriptor.getStateApiServiceDescriptor()))
+                beamFnStateGrpcClientCache.forApiServiceDescriptor(
+                    bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
       Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
       Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
@@ -279,7 +279,7 @@ public class ProcessBundleHandler {
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
             && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
             && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-            entry.getValue().getSpec().getUrn())) {
+                entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
