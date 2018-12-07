@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
@@ -230,9 +230,9 @@ public class AvroUtils {
     return JavaBeanUtils.getGetters(clazz, schema, new AvroFieldNamePolicy(schema));
   }
 
-  public static <T extends SpecificRecord> Constructor<T> getConstructor(
+  public static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
       Class<T> clazz, Schema schema) {
-    return AvroByteBuddyUtils.getConstructor(clazz, schema);
+    return AvroByteBuddyUtils.getCreator(clazz, schema);
   }
 
   /** Converts AVRO schema to Beam field. */
@@ -393,6 +393,10 @@ public class AvroUtils {
 
   private static Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, Object value) {
+    if (value == null) {
+      return value;
+    }
+
     org.apache.avro.Schema expectedSchema = getFieldSchema(fieldType);
     switch (fieldType.getTypeName()) {
       case BYTE:

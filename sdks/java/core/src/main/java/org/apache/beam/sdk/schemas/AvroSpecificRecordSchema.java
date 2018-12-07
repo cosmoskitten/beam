@@ -22,6 +22,9 @@ import org.apache.beam.sdk.schemas.utils.AvroSpecificRecordTypeInformationFactor
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+/**
+ * A {@link SchemaProvider} for
+ */
 public class AvroSpecificRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {

@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
+/** A {@link FieldValueGetterFactory} for AVRO-generated specific records. */
 public class AvroSpecificRecordGetterFactory implements FieldValueGetterFactory {
   @Override
   public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {

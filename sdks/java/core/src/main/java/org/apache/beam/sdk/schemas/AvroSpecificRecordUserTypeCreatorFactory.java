@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import java.lang.reflect.Constructor;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
 public class AvroSpecificRecordUserTypeCreatorFactory implements UserTypeCreatorFactory {
   @Override
   public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    Constructor<? extends SpecificRecord> constructor =
-        AvroUtils.getConstructor((Class<? extends SpecificRecord>) clazz, schema);
-    return new SchemaUserTypeConstructorCreator(clazz, constructor);
+    return AvroUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
   }
 }

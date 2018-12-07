@@ -22,12 +22,13 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.nio.ByteBuffer;
+import org.apache.avro.data.TimeConversions;
+import org.apache.avro.specific.SpecificData;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.junit.Test;
 
 public class AvroSchemaTest {
@@ -60,55 +61,53 @@ public class AvroSchemaTest {
   }
 
   static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
-  static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4).withZone(DateTimeZone.UTC);
+  static final DateTime DATE_TIME = new DateTime().withDate(1979, 03, 14).withTime(1, 2, 3, 4);
+  static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
+  static final TestAvro AVRO_SPECIFIC_RECORD =
+      new TestAvro(
+          true,
+          43,
+          44L,
+          (float) 44.1,
+          (double) 44.2,
+          "mystring",
+          ByteBuffer.wrap(BYTE_ARRAY),
+          DATE_TIME,
+          AVRO_NESTED_SPECIFIC_RECORD,
+          ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
+          ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
+
+  static final Row NESTED_ROW = Row.withSchema(SUBSCHEMA).addValues(true, 42).build();
+  static final Row ROW =
+      Row.withSchema(SCHEMA)
+          .addValues(
+              true,
+              43,
+              44L,
+              (float) 44.1,
+              (double) 44.2,
+              "mystring",
+              ByteBuffer.wrap(BYTE_ARRAY),
+              DATE_TIME,
+              NESTED_ROW,
+              ImmutableList.of(NESTED_ROW, NESTED_ROW),
+              ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
+          .build();
 
   @Test
   public void testSpecificRecordToRow() {
-    TestAvroNested nested = new TestAvroNested(true, 42);
-    TestAvro outer =
-        new TestAvro(
-            true,
-            43,
-            44L,
-            (float) 44.1,
-            (double) 44.2,
-            "mystring",
-            ByteBuffer.wrap(BYTE_ARRAY),
-            DATE_TIME,
-            nested,
-            ImmutableList.of(nested, nested),
-            ImmutableMap.of("k1", nested, "k2", nested));
     SerializableFunction<TestAvro, Row> toRow =
         new AvroSpecificRecordSchema().toRowFunction(TypeDescriptor.of(TestAvro.class));
-    System.out.println(toRow.apply(outer));
+    assertEquals(ROW, toRow.apply(AVRO_SPECIFIC_RECORD));
   }
 
   @Test
   public void testRowToSpecificRecord() {
-    Schema nestedSchema =
-        new AvroSpecificRecordSchema().schemaFor(TypeDescriptor.of(TestAvroNested.class));
-    Row nested = Row.withSchema(nestedSchema).addValues(true, 42).build();
-
-    Schema schema = new AvroSpecificRecordSchema().schemaFor(TypeDescriptor.of(TestAvro.class));
-    Row row =
-        Row.withSchema(schema)
-            .addValues(
-                true,
-                43,
-                44L,
-                (float) 44.1,
-                (double) 44.2,
-                "mystring",
-                ByteBuffer.wrap(BYTE_ARRAY),
-                DATE_TIME,
-                nested,
-                ImmutableList.of(nested, nested),
-                ImmutableMap.of("k1", nested, "k2", nested))
-            .build();
-
     SerializableFunction<Row, TestAvro> fromRow =
         new AvroSpecificRecordSchema().fromRowFunction(TypeDescriptor.of(TestAvro.class));
-    System.out.println(fromRow.apply(row));
+    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
+    // of DateTime types.
+    SpecificData.get().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+    assertEquals(AVRO_SPECIFIC_RECORD, fromRow.apply(ROW));
   }
 }

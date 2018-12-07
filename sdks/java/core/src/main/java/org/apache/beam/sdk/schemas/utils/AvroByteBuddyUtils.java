@@ -17,22 +17,24 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Type;
-import java.util.List;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy.Default;
 import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -42,15 +44,16 @@ class AvroByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
   // Cache the generated constructors.
-  private static final Map<ClassWithSchema, Constructor> CACHED_CONSTRUCTORS =
+  private static final Map<ClassWithSchema, SchemaUserTypeCreator> CACHED_CREATORS =
       Maps.newConcurrentMap();
 
-  static <T extends SpecificRecord> Constructor<T> getConstructor(Class<T> clazz, Schema schema) {
-    return CACHED_CONSTRUCTORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> createConstructor(clazz, schema));
+  static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
+      Class<T> clazz, Schema schema) {
+    return CACHED_CREATORS.computeIfAbsent(
+        new ClassWithSchema(clazz, schema), c -> createCreator(clazz, schema));
   }
 
-  private static <T> Constructor<? extends T> createConstructor(Class<T> clazz, Schema schema) {
+  private static <T> SchemaUserTypeCreator createCreator(Class<T> clazz, Schema schema) {
     Constructor baseConstructor = null;
     Constructor[] constructors = clazz.getDeclaredConstructors();
     for (Constructor constructor : constructors) {
@@ -63,52 +66,58 @@ class AvroByteBuddyUtils {
       throw new RuntimeException("No matching constructor found for class " + clazz);
     }
 
-    // Generate a method call to invoke the SpecificRecord's constructor. This will be invoked
-    // by the subclass constructor.
-    MethodCall invokeBase = MethodCall.invoke(baseConstructor);
-
-    // The types in the AVRO-generated constructor might be the types returned by Beam's Row class.
-    // Generate a subclass with the correct types for parameters, and forward the call to the
-    // base class. We know that AVRO generates constructor parameters in the same order as fields
-    // in the schema, so we can just add the parameters sequentially.
-    ConvertType convertType = new ConvertType(true);
-    List<Type> generatedConstructorParameterTypes =
-        Lists.newArrayListWithExpectedSize(baseConstructor.getParameterTypes().length);
+    // Generate a method call to create and invoke the SpecificRecord's constructor. .
+    MethodCall construct = MethodCall.construct(baseConstructor);
     for (int i = 0; i < baseConstructor.getParameterTypes().length; ++i) {
-      // Turn the AVRO-generated type into one that Row expects, and add it as a constructor
-      // parameter to the subclass being generated.
       Class<?> baseType = baseConstructor.getParameterTypes()[i];
-      java.lang.reflect.Type convertedType = convertType.convert(TypeDescriptor.of(baseType));
-      generatedConstructorParameterTypes.add(convertedType);
-
-      // This will run inside the generated constructor. Read the parameter and convert it to the
-      // type required by the base-class constructor.
-      StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(i + 1);
-      StackManipulation convertedField =
-          new ByteBuddyUtils.ConvertValueForSetter(readField).convert(TypeDescriptor.of(baseType));
-      invokeBase = invokeBase.with(convertedField, baseType);
+      construct = construct.with(readAndConvertParameter(baseType, i), baseType);
     }
 
     try {
-      DynamicType.Builder<? extends T> builder =
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
-              .subclass(clazz, Default.NO_CONSTRUCTORS)
-              .defineConstructor(Visibility.PUBLIC)
-              .withParameters(generatedConstructorParameterTypes)
-              .intercept(invokeBase);
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(construct);
 
-      // Generate the class and return a reference to the constructor.
-      Class typeArray[] =
-          generatedConstructorParameterTypes.toArray(
-              new Class[generatedConstructorParameterTypes.size()]);
       return builder
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
-          .getDeclaredConstructor(typeArray);
-    } catch (NoSuchMethodException e) {
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (InstantiationException
+        | IllegalAccessException
+        | NoSuchMethodException
+        | InvocationTargetException e) {
       throw new RuntimeException(
           "Unable to generate a getter for class " + clazz + " with schema " + schema);
     }
+  }
+
+  private static StackManipulation readAndConvertParameter(
+      Class<?> constructorParameterType, int index) {
+    // The types in the AVRO-generated constructor might be the types returned by Beam's Row class,
+    // so we have to convert the types used by Beam's Row class.
+    // We know that AVRO generates constructor parameters in the same order as fields
+    // in the schema, so we can just add the parameters sequentially.
+    ConvertType convertType = new ConvertType(true);
+
+    // Map the AVRO-generated type to the one Beam will use.
+    ForLoadedType convertedType =
+        new ForLoadedType((Class) convertType.convert(TypeDescriptor.of(constructorParameterType)));
+
+    // This will run inside the generated creator. Read the parameter and convert it to the
+    // type required by the SpecificRecord constructor.
+    StackManipulation readParameter =
+        new StackManipulation.Compound(
+            MethodVariableAccess.REFERENCE.loadFrom(1),
+            IntegerConstant.forValue(index),
+            ArrayAccess.REFERENCE.load(),
+            TypeCasting.to(convertedType));
+
+    // Convert to the parameter accepted by the SpecificRecord constructor.
+    return new ByteBuddyUtils.ConvertValueForSetter(readParameter)
+        .convert(TypeDescriptor.of(constructorParameterType));
   }
 }
