@@ -36,11 +36,14 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.data.TimeConversions;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -59,6 +62,13 @@ import org.joda.time.ReadableInstant;
 /** Utils to convert AVRO records to Beam rows. */
 @Experimental(Experimental.Kind.SCHEMAS)
 public class AvroUtils {
+  static {
+    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
+    // of DateTime types.
+    SpecificData.get().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+    GenericData.get().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+  }
+
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   static class TypeWithNullability {
     public final org.apache.avro.Schema type;
@@ -185,6 +195,25 @@ public class AvroUtils {
     return builder.build();
   }
 
+  /**
+   * Returns a function mapping AVRO {@link GenericRecord}s to Beam {@link Row}s for use in {@link
+   * org.apache.beam.sdk.values.PCollection#setSchema}.
+   */
+  public static SerializableFunction<GenericRecord, Row> getGenericRecordToRowFunction(
+      @Nullable Schema schema) {
+    return g -> toBeamRowStrict(g, schema);
+  }
+
+  /**
+   * Returns a function mapping Beam {@link Row}s to AVRO {@link GenericRecord}s for use in {@link
+   * org.apache.beam.sdk.values.PCollection#setSchema}.
+   */
+  public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
+      @Nullable org.apache.avro.Schema avroSchema) {
+    return g -> toGenericRecord(g, avroSchema);
+  }
+
+  /** Infer a {@link Schema} from an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> Schema getSchema(Class<T> clazz) {
     try {
       org.apache.avro.Schema avroSchema =
@@ -199,12 +228,12 @@ public class AvroUtils {
     }
   }
 
-  // TODO: This currently fails
-  private static final class AvroFieldNamePolicy implements SerializableFunction<String, String> {
+  private static final class AvroSpecificRecordFieldNamePolicy
+      implements SerializableFunction<String, String> {
     Schema schema;
     Map<String, String> nameMapping = Maps.newHashMap();
 
-    AvroFieldNamePolicy(Schema schema) {
+    AvroSpecificRecordFieldNamePolicy(Schema schema) {
       this.schema = schema;
       for (Field field : schema.getFields()) {
         String getter = CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName());
@@ -220,16 +249,20 @@ public class AvroUtils {
     }
   }
 
+  /** Get field types for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
       Class<T> clazz, @Nullable Schema schema) {
-    return JavaBeanUtils.getFieldTypes(clazz, schema, new AvroFieldNamePolicy(schema));
+    return JavaBeanUtils.getFieldTypes(
+        clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
   }
 
+  /** Get generated getters for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> List<FieldValueGetter> getGetters(
       Class<T> clazz, Schema schema) {
-    return JavaBeanUtils.getGetters(clazz, schema, new AvroFieldNamePolicy(schema));
+    return JavaBeanUtils.getGetters(clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
   }
 
+  /** Get an object creator for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
       Class<T> clazz, Schema schema) {
     return AvroByteBuddyUtils.getCreator(clazz, schema);

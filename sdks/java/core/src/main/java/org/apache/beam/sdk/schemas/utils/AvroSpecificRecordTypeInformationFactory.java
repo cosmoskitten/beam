@@ -23,6 +23,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
 import org.apache.beam.sdk.schemas.Schema;
 
+/** A {@link FieldValueTypeInformation} for AVRO-generated specific records. */
 public class AvroSpecificRecordTypeInformationFactory implements FieldValueTypeInformationFactory {
   @Override
   public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {

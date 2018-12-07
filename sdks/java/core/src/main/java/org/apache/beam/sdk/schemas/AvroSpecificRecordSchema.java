@@ -23,7 +23,10 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link SchemaProvider} for
+ * A {@link SchemaProvider} for AVRO generated SpecificRecords.
+ *
+ * <p>This provider infers a schema from generates SpecificRecord objects, and creates schemas and
+ * rows that bind to the appropriate fields.
  */
 public class AvroSpecificRecordSchema extends GetterBasedSchemaProvider {
   @Override

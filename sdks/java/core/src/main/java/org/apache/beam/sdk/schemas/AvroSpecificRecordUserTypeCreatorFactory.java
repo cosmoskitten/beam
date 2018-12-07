@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 
+/** A {@link UserTypeCreatorFactory} for AVRO-generated specific records. */
 public class AvroSpecificRecordUserTypeCreatorFactory implements UserTypeCreatorFactory {
   @Override
   public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
