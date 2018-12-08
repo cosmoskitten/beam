@@ -251,7 +251,7 @@ public class AvroUtils {
 
   /** Get field types for an AVRO-generated SpecificRecord. */
   public static <T extends SpecificRecord> List<FieldValueTypeInformation> getFieldTypes(
-      Class<T> clazz, @Nullable Schema schema) {
+      Class<T> clazz, Schema schema) {
     return JavaBeanUtils.getFieldTypes(
         clazz, schema, new AvroSpecificRecordFieldNamePolicy(schema));
   }
@@ -424,6 +424,7 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
+  @Nullable
   private static Object genericFromBeamField(
       Schema.FieldType fieldType, org.apache.avro.Schema avroSchema, Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);

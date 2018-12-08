@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -35,6 +36,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
   abstract FieldValueGetterFactory fieldValueGetterFactory();
 
   /** Implementing class should override to return a setter factory. */
+  @Nullable
   abstract FieldValueSetterFactory fieldValueSetterFactory();
 
   /** Implementing class should override to return a type-information factory. */
@@ -45,6 +47,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
    *
    * <p>Tne default factory uses the default constructor and the setters to construct an object.
    */
+  @Nullable
   UserTypeCreatorFactory schemaTypeCreatorFactory() {
     Factory<List<FieldValueSetter>> setterFactory = new CachingFactory<>(fieldValueSetterFactory());
     return new UserTypeCreatorFactory() {

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
+/** Tests for AVRO schema classes. */
 public class AvroSchemaTest {
   private static final Schema SUBSCHEMA =
       Schema.builder()
