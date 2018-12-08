@@ -736,15 +736,10 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
-                          if (ApiErrorExtractor.INSTANCE.rateLimited(e)) {
-                            LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                          } else if (ApiErrorExtractor.INSTANCE
-                              .getErrorMessage(e)
-                              .startsWith("Quota exceeded")) {
-                            LOG.info("BigQuery insertAll quota exceeded, retrying");
-                          } else {
-                            throw e;
-                          }
+                          LOG.info(
+                              String.format(
+                                  "BigQuery insertAll error, retrying: %s",
+                                  ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
                           try {
                             sleeper.sleep(backoff1.nextBackOffMillis());
                           } catch (InterruptedException interrupted) {
