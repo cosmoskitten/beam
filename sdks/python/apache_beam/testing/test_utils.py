@@ -74,13 +74,39 @@ class TempDir(object):
       return f.name
 
 
+import logging
+
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
-  """Compute a hash value from a list of string."""
+  """Compute a hash value of a list of objects by hashing their string
+  representations."""
+  original_content = list(content)
+
+  def previous_hash():
+    content.sort()
+    m = hashlib.new(hashing_alg)
+    for elem in content:
+      m.update(str(elem).encode('utf-8'))
+    return m.hexdigest()
+
+  content = [str(x).encode('utf-8') if not isinstance(x, bytes) else x
+             for x in content]
   content.sort()
   m = hashlib.new(hashing_alg)
   for elem in content:
-    m.update(str(elem).encode('utf-8'))
-  return m.hexdigest()
+    m.update(elem)
+
+  hash = m.hexdigest()
+  old_hash = previous_hash()
+
+  logging.info('CHECKING HASHES')
+  if hash != old_hash:
+    logging.error('HASHES DO NOT MATCH')
+    logging.error('NEW HASH: %s', hash)
+    logging.error('OLD HASH: %s', old_hash)
+    logging.error('CONTENT:')
+    logging.error(original_content)
+
+  return hash
 
 
 def patch_retry(testcase, module):
