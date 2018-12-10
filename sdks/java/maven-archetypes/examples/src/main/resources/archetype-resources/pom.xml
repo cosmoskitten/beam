@@ -46,7 +46,7 @@
     <spark.version>@spark.version@</spark.version>
     <hadoop.version>@hadoop.version@</hadoop.version>
     <maven-surefire-plugin.version>@maven-surefire-plugin.version@</maven-surefire-plugin.version>
-    <nemo.version>0.1</nemo.version>
+    <nemo.version>@nemo.version@</nemo.version>
   </properties>
 
   <repositories>

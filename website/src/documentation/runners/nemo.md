@@ -20,7 +20,10 @@ limitations under the License.
 -->
 # Using the Apache Nemo Runner
 
-The Apache Nemo Runner can be used to execute Beam pipelines using [Apache Nemo](http://nemo.apache.org). The Nemo Runner can optimize Beam pipelines with the Nemo compiler through various optimization passes and execute them in distributed fashion using the Nemo runtime. Deploying a self-contained application for local mode or running using resource managers like YARN or Mesos are possible.
+The Apache Nemo Runner can be used to execute Beam pipelines using [Apache Nemo](http://nemo.apache.org).
+The Nemo Runner can optimize Beam pipelines with the Nemo compiler through various optimization passes
+and execute them in distributed fashion using the Nemo runtime. Deploying a self-contained application
+for local mode or running using resource managers like YARN or Mesos are possible.
 
 The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:
 
@@ -29,11 +32,13 @@ The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:
 * Integration with YARN and other components of the Apache Hadoop ecosystem
 * Support for the various optimizations provided by the Nemo optimizer
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the supported capabilities of the Nemo Runner.
+The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the
+supported capabilities of the Nemo Runner.
 
 ## Nemo Runner prerequisites and setup
 
-The Nemo Runner can be used simply by adding a dependency on a version of the Nemo runner newer than `0.1` to your pom.xml as followings:
+The Nemo Runner can be used simply by adding a dependency on a version of the Nemo runner newer than `0.1`
+to your pom.xml as followings:
 
 ```
 <dependency>
@@ -60,7 +65,8 @@ The Nemo Runner can be used simply by adding a dependency on a version of the Ne
 
 ## Deploying Nemo with your Application
 
-A self-contained application could be easier to manage and fully use the functionalities that Nemo provides. Simply add the dependency shown above and shade the application jar using the maven shade plugin:
+A self-contained application could be easier to manage and fully use the functionalities that Nemo provides.
+Simply add the dependency shown above and shade the application jar using the maven shade plugin:
 
 ```
 <plugin>
@@ -98,7 +104,8 @@ A self-contained application could be easier to manage and fully use the functio
 </plugin>
 ```
 
-After running `mvn package`, run `ls target` and you should see (when your artifactId is `beam-examples` and the version is `1.0.0`):
+After running `mvn package`, run `ls target` and you should see (when your artifactId is `beam-examples`
+and the version is `1.0.0`):
 
 ```
 beam-examples-1.0.0-shaded.jar
@@ -134,12 +141,29 @@ More options are to be added to the list, to fully support the various options t
 
 ### Using the Run_beam.sh script
 
-When submitting a Nemo application to the cluster, it is common to use the `bin/run_beam.sh` script that is provided within the Nemo installation. It also provides a richer set of options that you can pass on to configure various actions of Nemo. Please refer to the [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo) for more information.
+When submitting a Nemo application to the cluster, it is common to use the `bin/run_beam.sh` script that is
+provided within the Nemo installation. It also provides a richer set of options that you can pass on to
+configure various actions of Nemo. Please refer to the
+[Apache Nemo GitHub README](https://github.com/apache/incubator-nemo) for more information.
 
 ### Monitoring your job
 
-You can monitor a running Nemo job using the Nemo WebUI. The docs are currently being updated, but more information can be found on the [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo).
+You can monitor a running Nemo job using the Nemo WebUI. The docs are currently being updated, but more
+information can be found on the [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo).
 
 ### Streaming Execution
 
-Add the options `-scheduler_impl_class_name org.apache.nemo.runtime.master.scheduler.StreamingScheduler` and `-optimization_policy org.apache.nemo.compiler.optimizer.policy.StreamingPolicy` to set the Nemo Runner to streaming mode.
+Add the options `-scheduler_impl_class_name org.apache.nemo.runtime.master.scheduler.StreamingScheduler`
+and `-optimization_policy org.apache.nemo.compiler.optimizer.policy.StreamingPolicy` to set the Nemo Runner
+to streaming mode.
+Also, be sure to extend the `capacity` of the resources in the `resources.json`, for example:
+
+```
+{
+  "type": "Reserved",
+  "memory_mb": 2048,
+  "capacity": 50000
+}
+```
+
+Please refer to the [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo) for more information.
