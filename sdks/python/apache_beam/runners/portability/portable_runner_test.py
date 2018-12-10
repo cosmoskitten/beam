@@ -174,7 +174,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   @classmethod
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
-        portable_runner.BeamFnExternalWorkerServicer.start())
+        portable_runner.BeamFnExternalWorkerPoolServicer.start())
 
   @classmethod
   def tearDownClass(cls):

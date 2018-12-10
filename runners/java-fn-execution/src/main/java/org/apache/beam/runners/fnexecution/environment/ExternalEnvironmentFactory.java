@@ -21,7 +21,7 @@ import com.google.common.base.Preconditions;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerGrpc;
+import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -92,8 +92,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    BeamFnApi.StartWorkerRequest startWorkRequest =
-        BeamFnApi.StartWorkerRequest.newBuilder()
+    BeamFnApi.NotifyRunnerAvailableRequest notifyRunnerAvailableRequest =
+        BeamFnApi.NotifyRunnerAvailableRequest.newBuilder()
             .setWorkerId(workerId)
             .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
             .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
@@ -103,12 +103,12 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
-    BeamFnApi.StartWorkerResponse startWorkResponse =
-        BeamFnExternalWorkerGrpc.newBlockingStub(
+    BeamFnApi.NotifyRunnerAvailableResponse notifyRunnerAvailableResponse =
+        BeamFnExternalWorkerPoolGrpc.newBlockingStub(
                 ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
-            .startWorker(startWorkRequest);
-    if (!startWorkResponse.getError().isEmpty()) {
-      throw new RuntimeException(startWorkResponse.getError());
+            .notifyRunnerAvailable(notifyRunnerAvailableRequest);
+    if (!notifyRunnerAvailableResponse.getError().isEmpty()) {
+      throw new RuntimeException(notifyRunnerAvailableResponse.getError());
     }
 
     // Wait on a client from the gRPC server.

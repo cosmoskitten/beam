@@ -977,7 +977,7 @@ service BeamFnLogging {
 }
 
 
-message StartWorkerRequest {
+message NotifyRunnerAvailableRequest {
   string worker_id = 1;
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
@@ -986,12 +986,12 @@ message StartWorkerRequest {
   map<string, string> params = 10;
 }
 
-message StartWorkerResponse {
+message NotifyRunnerAvailableResponse {
   string error = 1;
 }
 
-service BeamFnExternalWorker {
-  rpc StartWorker(StartWorkerRequest)
-    returns (StartWorkerResponse) {
+service BeamFnExternalWorkerPool {
+  rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
+    returns (NotifyRunnerAvailableResponse) {
   }
 }

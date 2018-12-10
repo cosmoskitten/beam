@@ -1544,10 +1544,10 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     self._external_payload = external_payload
 
   def start_worker(self):
-    stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerStub(
+    stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         grpc.insecure_channel(self._external_payload.endpoint.url))
-    response = stub.StartWorker(
-        beam_fn_api_pb2.StartWorkerRequest(
+    response = stub.NotifyRunnerAvailable(
+        beam_fn_api_pb2.NotifyRunnerAvailableRequest(
             control_endpoint=endpoints_pb2.ApiServiceDescriptor(
                 url=self.control_address),
             params=self._external_payload.params))

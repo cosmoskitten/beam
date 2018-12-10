@@ -147,7 +147,7 @@ class PortableRunner(runner.PipelineRunner):
     # but none is provided.
     if portable_options.environment_type == 'LOOPBACK':
       portable_options.environment_config, server = (
-          BeamFnExternalWorkerServicer.start())
+          BeamFnExternalWorkerPoolServicer.start())
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -315,19 +315,19 @@ class PipelineResult(runner.PipelineResult):
       raise
 
 
-class BeamFnExternalWorkerServicer(
-    beam_fn_api_pb2_grpc.BeamFnExternalWorkerServicer):
+class BeamFnExternalWorkerPoolServicer(
+    beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
   @classmethod
   def start(cls):
     worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
-    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerServicer_to_server(
+    beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
         cls(), worker_server)
     worker_server.start()
     return worker_address, worker_server
 
-  def StartWorker(self, start_worker_request, context):
+  def NotifyRunnerAvailable(self, start_worker_request, context):
     try:
       worker = sdk_worker.SdkHarness(
           start_worker_request.control_endpoint.url,
@@ -338,7 +338,7 @@ class BeamFnExternalWorkerServicer(
           target=worker.run)
       worker_thread.daemon = True
       worker_thread.start()
-      return beam_fn_api_pb2.StartWorkerResponse()
+      return beam_fn_api_pb2.NotifyRunnerAvailableResponse()
     except Exception as exn:
-      return beam_fn_api_pb2.StartWorkerResponse(
+      return beam_fn_api_pb2.NotifyRunnerAvailableResponse(
           error=str(exn))
