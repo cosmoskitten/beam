@@ -277,7 +277,11 @@ public class AvroUtils {
   private static final class AvroSpecificRecordFieldValueTypeSupplier
       implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    public List<FieldValueTypeInformation> get(Class<?> clazz, @Nullable Schema schema) {
+      if (schema == null) {
+        throw new RuntimeException("Unexpected null schema.");
+      }
+
       Map<String, String> mapping = getMapping(schema);
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (Method method : ReflectUtils.getMethods(clazz)) {
@@ -315,7 +319,7 @@ public class AvroUtils {
 
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
-    public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
+    public List<FieldValueTypeInformation> get(Class<?> clazz, @Nullable Schema schema) {
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
       for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
@@ -327,12 +331,16 @@ public class AvroUtils {
           types.put(typeInformation.getName(), typeInformation);
         }
       }
-      // Return the list ordered by the schema fields.
-      return schema
-          .getFields()
-          .stream()
-          .map(f -> types.get(f.getName()))
-          .collect(Collectors.toList());
+      if (schema == null) {
+        return Lists.newArrayList(types.values());
+      } else {
+        // Return the list ordered by the schema fields.
+        return schema
+            .getFields()
+            .stream()
+            .map(f -> types.get(f.getName()))
+            .collect(Collectors.toList());
+      }
     }
   }
 
@@ -361,7 +369,7 @@ public class AvroUtils {
     if (TypeDescriptor.of(clazz).isSubtypeOf(TypeDescriptor.of(SpecificRecord.class))) {
       return AvroByteBuddyUtils.getCreator((Class<? extends SpecificRecord>) clazz, schema);
     } else {
-      return POJOUtils.getCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
+      return POJOUtils.getSetFieldCreator(clazz, schema, new AvroPojoFieldValueTypeSupplier());
     }
   }
 
