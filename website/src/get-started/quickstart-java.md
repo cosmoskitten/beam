@@ -239,7 +239,8 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {:.runner-nemo}
 ```
-PS> mvn package -P nemo-runner -DskipTests./ -AND java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
+PS> mvn package -P nemo-runner -DskipTests
+PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 ```
 
