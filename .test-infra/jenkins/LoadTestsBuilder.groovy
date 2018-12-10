@@ -21,6 +21,11 @@ import CommonJobProperties as commonJobProperties
 // Class for building Load Tests jobs and suites
 class LoadTestsBuilder {
 
+    private static Map<String, Object> defaultOptions = [
+            project             :'apache-beam-testing',
+            tempLocation        : 'gs://temp-storage-for-perf-tests/nexmark',
+    ]
+
     enum Runner {
         DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
         SPARK("SparkRunner", ":beam-runners-spark"),
@@ -37,7 +42,7 @@ class LoadTestsBuilder {
     }
 
     static void buildTest(context, String title, Runner runner, Map<String, Object> jobSpecificOptions, String mainClass) {
-        Map<String, Object> options = jobSpecificOptions
+        Map<String, Object> options = jobSpecificOptions + defaultOptions
         options.put('runner', runner.option)
 
         suite(context, title, runner, options, mainClass)
