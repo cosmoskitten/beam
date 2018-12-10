@@ -134,7 +134,7 @@ class PortableRunner(runner.PipelineRunner):
           del proto_pipeline.components.transforms[sub_transform]
         del transform_proto.subtransforms[:]
 
-    # Preemptively apply combiner lifting, until all combiners suport it.
+    # Preemptively apply combiner lifting, until all runners support it.
     # This optimization is idempotent.
     if not options.view_as(StandardOptions).streaming:
       stages = list(fn_api_runner_transforms.leaf_transform_stages(

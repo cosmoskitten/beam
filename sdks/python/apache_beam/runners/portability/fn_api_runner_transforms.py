@@ -286,7 +286,7 @@ def lift_combiners(stages, context):
       yield make_stage(
           stage,
           beam_runner_api_pb2.PTransform(
-              unique_name=transform.unique_name + '/ExtractOutputsX',
+              unique_name=transform.unique_name + '/ExtractOutputs',
               spec=beam_runner_api_pb2.FunctionSpec(
                   urn=common_urns.combine_components
                   .COMBINE_PER_KEY_EXTRACT_OUTPUTS.urn,
