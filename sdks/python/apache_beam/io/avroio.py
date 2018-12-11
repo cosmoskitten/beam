@@ -49,11 +49,11 @@ import zlib
 from builtins import object
 from functools import partial
 
+from fastavro.read import block_reader
+from fastavro.write import Writer
 import avro
 from avro import io as avroio
 from avro import datafile
-from fastavro.read import block_reader
-from fastavro.write import Writer
 
 import apache_beam as beam
 from apache_beam.io import filebasedsink

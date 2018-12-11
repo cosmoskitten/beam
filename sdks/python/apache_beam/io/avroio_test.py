@@ -24,10 +24,10 @@ import tempfile
 import unittest
 from builtins import range
 
+import hamcrest as hc
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
-import hamcrest as hc
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from avro.schema import Parse # avro-python3 library for python3
