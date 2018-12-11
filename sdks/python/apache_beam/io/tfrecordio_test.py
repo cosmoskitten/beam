@@ -28,6 +28,7 @@ import random
 import re
 import sys
 import unittest
+import zlib
 from builtins import range
 
 import crcmod
@@ -75,6 +76,10 @@ def _write_file(path, base64_records):
   with open(path, 'wb') as f:
     f.write(record)
 
+def _write_file_deflate(path, base64_records):
+    record = binascii.a2b_base64(base64_records)
+    with open(path, 'wb') as f:
+        f.write(zlib.compress(record))
 
 def _write_file_gzip(path, base64_records):
   record = binascii.a2b_base64(base64_records)
@@ -262,6 +267,19 @@ class TestReadFromTFRecord(unittest.TestCase):
                       validate=True))
         assert_that(result, equal_to(['foo', 'bar']))
 
+  def test_process_deflate(self):
+      with TempDir() as temp_dir:
+          path = temp_dir.create_temp_file('result')
+          _write_file_deflate(path, FOO_BAR_RECORD_BASE64)
+          with TestPipeline() as p:
+              result = (p
+                        | ReadFromTFRecord(
+                          path,
+                          coder=coders.BytesCoder(),
+                          compression_type=CompressionTypes.DEFLATE,
+                          validate=True))
+              assert_that(result, equal_to(['foo', 'bar']))
+
   def test_process_gzip(self):
     with TempDir() as temp_dir:
       path = temp_dir.create_temp_file('result')
@@ -376,6 +394,21 @@ class TestReadAllFromTFRecord(unittest.TestCase):
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.AUTO))
         assert_that(result, equal_to(['foo', 'bar'] * 9))
+
+  @unittest.skipIf(sys.version_info[0] == 3,
+                   'This test halts test suite execution on Python 3. '
+                   'TODO: BEAM-5623')
+  def test_process_deflate(self):
+      with TempDir() as temp_dir:
+          path = temp_dir.create_temp_file('result')
+          _write_file_deflate(path, FOO_BAR_RECORD_BASE64)
+          with TestPipeline() as p:
+              result = (p
+                        | Create([path])
+                        | ReadAllFromTFRecord(
+                          coder=coders.BytesCoder(),
+                          compression_type=CompressionTypes.DEFLATE))
+              assert_that(result, equal_to(['foo', 'bar']))
 
   @unittest.skipIf(sys.version_info[0] == 3,
                    'This test halts test suite execution on Python 3. '
