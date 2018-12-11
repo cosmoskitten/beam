@@ -558,16 +558,10 @@ public abstract class Row implements Serializable {
 
     private Object verify(Object value, FieldType type, String fieldName) {
       if (TypeName.ARRAY.equals(type.getTypeName())) {
-        return verifyArray(
-            value,
-            type.getCollectionElementType(),
-            fieldName);
+        return verifyArray(value, type.getCollectionElementType(), fieldName);
       } else if (TypeName.MAP.equals(type.getTypeName())) {
         return verifyMap(
-            value,
-            type.getMapKeyType().getTypeName(),
-            type.getMapValueType(),
-            fieldName);
+            value, type.getMapKeyType().getTypeName(), type.getMapValueType(), fieldName);
       } else if (TypeName.ROW.equals(type.getTypeName())) {
         return verifyRow(value, fieldName);
       } else {
