@@ -107,7 +107,7 @@ public class BoundedDataset<T> implements Dataset {
           getRDD()
               .map(v -> new ValueAndCoderKryoSerializable<>(v, windowedValueCoder))
               .persist(level)
-              .map(v -> v.get(windowedValueCoder));
+              .map(v -> v.getOrDecode(windowedValueCoder));
     }
   }
 

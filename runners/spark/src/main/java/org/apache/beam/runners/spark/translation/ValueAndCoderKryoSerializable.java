@@ -21,6 +21,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +33,7 @@ import java.io.ObjectOutput;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A holder object that lets you serialize an element with a Coder with minimal wasted space.
@@ -45,11 +47,12 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * <p>The serialized representation just reads a byte array - the value is not deserialized fully.
  * In order to get at the deserialized value, the caller must pass the Coder used to create this
- * instance via get(Coder). This reverts the representation back to the deserialized representation.
+ * instance via getOrDecode(Coder). This reverts the representation back to the deserialized
+ * representation.
  *
  * @param <T> element type
  */
-public class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Externalizable {
+class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Externalizable {
   private T value;
   // Re-use a field to save space in-memory. This is either a byte[] or a Coder, depending on
   // which representation we are in.
@@ -63,7 +66,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Exter
   @SuppressWarnings("unused") // for serialization
   public ValueAndCoderKryoSerializable() {}
 
-  public T get(Coder<T> coder) throws IOException {
+  public T getOrDecode(Coder<T> coder) throws IOException {
     if (!(coderOrBytes instanceof Coder)) {
       value =
           coder.decode(new ByteArrayInputStream((byte[]) this.coderOrBytes), Coder.Context.OUTER);
@@ -73,19 +76,39 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Exter
     return value;
   }
 
+  private static class ByteSizeObserver extends ElementByteSizeObserver {
+    private long observedSize = 0;
+
+    @Override
+    protected void reportElementSize(long elementByteSize) {
+      observedSize += elementByteSize;
+    }
+  }
+
   private void writeCommon(OutputStream out) throws IOException {
     if (!(coderOrBytes instanceof Coder)) {
       byte[] bytes = (byte[]) coderOrBytes;
       VarInt.encode(bytes.length, out);
       out.write(bytes);
     } else {
+      @SuppressWarnings("unchecked")
+      Coder<T> coder = (Coder<T>) coderOrBytes;
       int bufferSize = 1024;
-      // TODO: use isRegisterByteSizeObserverCheap
+
+      if (coder.isRegisterByteSizeObserverCheap(value)) {
+        try {
+          ByteSizeObserver observer = new ByteSizeObserver();
+          coder.registerByteSizeObserver(value, observer);
+          bufferSize = (int) observer.observedSize;
+        } catch (Exception e) {
+          Throwables.throwIfUnchecked(e);
+          throw new RuntimeException(e);
+        }
+      }
+
       ByteArrayOutputStream bytes = new ByteArrayOutputStream(bufferSize);
 
       try {
-        @SuppressWarnings("unchecked")
-        Coder<T> coder = (Coder<T>) coderOrBytes;
         coder.encode(value, bytes, Coder.Context.OUTER);
 
         VarInt.encode(bytes.size(), out);

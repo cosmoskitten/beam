@@ -374,7 +374,7 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       ValueAndCoderKryoSerializable<WindowedValue<?>> windowedByteValue = tuple2._2;
-      return new Tuple2<>(tupleTag, windowedByteValue.get(coderMap.get(tupleTag)));
+      return new Tuple2<>(tupleTag, windowedByteValue.getOrDecode(coderMap.get(tupleTag)));
     };
   }
 
