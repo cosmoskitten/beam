@@ -52,7 +52,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
  *
  * @param <T> element type
  */
-class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Externalizable {
+public class ValueAndCoderKryoSerializable<T> implements KryoSerializable, Externalizable {
   private T value;
   // Re-use a field to save space in-memory. This is either a byte[] or a Coder, depending on
   // which representation we are in.
