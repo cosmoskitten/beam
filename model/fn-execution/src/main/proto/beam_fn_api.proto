@@ -400,6 +400,18 @@ message MonitoringInfoSpecs {
       }]
     }];
   }
+
+// A set of properties for the MonitoringInfoLabel, this is useful to obtain
+// the proper label string for the MonitoringInfoLabel.
+message MonitoringInfoLabelProps {
+  // The label key to use in the MonitoringInfo labels map.
+  string name = 1;
+}
+
+// Enum extension to store MonitoringInfo related
+// specifications, constants, etc.
+extend google.protobuf.EnumValueOptions {
+  MonitoringInfoLabelProps label_props = 127337796; // From: commit 0x7970544.
 }
 
 message MonitoringInfo {
@@ -423,11 +435,22 @@ message MonitoringInfo {
   }
 
   enum MonitoringInfoLabels {
-    TRANSFORM = 0;
-    PCOLLECTION = 1;
-    WINDOWING_STRATEGY = 2;
-    CODER = 3;
-    ENVIRONMENT = 4;
+    // TODO(ajamato): Rename all references to TRANSFORM to PTRANSFORM
+    TRANSFORM = 0 [(label_props) = {
+      name: "PTRANSFORM"
+    }];
+    PCOLLECTION = 1 [(label_props) = {
+      name: "PCOLLECTION"
+    }];
+    WINDOWING_STRATEGY = 2 [(label_props) = {
+      name: "WINDOWING_STRATEGY"
+    }];
+    CODER = 3 [(label_props) = {
+      name: "CODER"
+    }];
+    ENVIRONMENT = 4 [(label_props) = {
+      name: "ENVIRONMENT"
+    }];
   }
   // A set of key+value labels which define the scope of the metric.
   // Either a well defined entity id for matching the enum names in
@@ -1067,4 +1090,24 @@ service BeamFnLogging {
     // A stream of log control messages used to configure the SDK.
     stream LogControl
   ) {}
+}
+
+
+message NotifyRunnerAvailableRequest {
+  string worker_id = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 4;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor provision_endpoint = 5;
+  map<string, string> params = 10;
+}
+
+message NotifyRunnerAvailableResponse {
+  string error = 1;
+}
+
+service BeamFnExternalWorkerPool {
+  rpc NotifyRunnerAvailable(NotifyRunnerAvailableRequest)
+    returns (NotifyRunnerAvailableResponse) {
+  }
 }
