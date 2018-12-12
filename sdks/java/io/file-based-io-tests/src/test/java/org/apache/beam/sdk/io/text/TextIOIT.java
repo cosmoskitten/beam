@@ -67,6 +67,7 @@ public class TextIOIT {
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
   private static Compression compressionType;
+  private static Integer numShards;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -77,12 +78,16 @@ public class TextIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
+    numShards = options.getNumShards();
   }
 
   @Test
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write =
         TextIO.write().to(filenamePrefix).withOutputFilenames().withCompression(compressionType);
+    if (numShards > 0) {
+      write = write.withNumShards(numShards);
+    }
 
     PCollection<String> testFilenames =
         pipeline

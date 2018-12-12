@@ -35,4 +35,11 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   String getCompressionType();
 
   void setCompressionType(String compressionType);
+
+  /** This is used to benchmark operations involving large numbers of files. */
+  @Description("Number of files this test will create during the write phase.")
+  @Default.Integer(0)
+  int getNumShards();
+
+  void setNumShards(int value);
 }
