@@ -47,13 +47,16 @@ def testsConfigurations = [
                 prTriggerPhase    : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : loadTestsBuilder.Runner.DATAFLOW,
                 jobProperties     : [
-                        publishToBigQuery: true,
-                        bigQueryDataset  : 'load_tests',
-                        bigQueryTable    : 'dataflow_gbk_small',
-                        sourceOptions    : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
-                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
-                        fanout           : 10,
-                        iterations       : 1,
+                        publishToBigQuery   : true,
+                        bigQueryDataset     : 'load_tests',
+                        bigQueryTable       : 'dataflow_gbk_small',
+                        sourceOptions       : '{"numRecords":1000000000,"splitPointFrequencyRecords":1,"keySizeBytes":1,"valueSizeBytes":9,"numHotKeys":0,"hotKeyFraction":0,"seed":123456,"bundleSizeDistribution":{"type":"const","const":42},"forceNumInitialBundles":100,"progressShape":"LINEAR","initializeDelayDistribution":{"type":"const","const":42}}',
+                        stepOptions         : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true,"perBundleDelay":10000,"perBundleDelayType":"MIXED","cpuUtilizationInMixedDelay":0.5}',
+                        fanout              : 10,
+                        iterations          : 1,
+                        numWorkers          : 1,
+                        maxNumWorkers       : 10,
+                        autoscalingAlgorithm: 'NONE',
                 ]
 
         ],
