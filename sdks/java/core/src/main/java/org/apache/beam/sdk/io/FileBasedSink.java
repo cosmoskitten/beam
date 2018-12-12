@@ -758,7 +758,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
+      long startTime = System.nanoTime();
       FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      long endTime = System.nanoTime();
+      LOG.info("Renamed {} files in {} seconds.", srcFiles.size(), (endTime - startTime) / 1e9);
       removeTemporaryFiles(srcFiles);
     }
 
