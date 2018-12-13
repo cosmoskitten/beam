@@ -39,6 +39,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -196,8 +197,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 bagUserStateKey("combine", "X"), encode("X0")));
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
-    consumers.put(
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.registerAndWrap(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -324,11 +325,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
         valuePCollection.apply(
             TEST_PTRANSFORM_ID,
             ParDo.of(
-                    new TestSideInputDoFn(
-                        defaultSingletonSideInputView,
-                        singletonSideInputView,
-                        iterableSideInputView,
-                        additionalOutput))
+                new TestSideInputDoFn(
+                    defaultSingletonSideInputView,
+                    singletonSideInputView,
+                    iterableSideInputView,
+                    additionalOutput))
                 .withSideInputs(
                     defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView)
                 .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
@@ -355,7 +356,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.put(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
@@ -486,7 +487,119 @@ public class FnApiDoFnRunnerTest implements Serializable {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
+    consumers.registerAndWrap(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
+    List<ThrowingRunnable> startFunctions = new ArrayList<>();
+    List<ThrowingRunnable> finishFunctions = new ArrayList<>();
+
+    new FnApiDoFnRunner.Factory<>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null /* beamFnDataClient */,
+            fakeClient,
+            TEST_PTRANSFORM_ID,
+            pTransform,
+            Suppliers.ofInstance("57L")::get,
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
+            pProto.getComponents().getWindowingStrategiesMap(),
+            consumers,
+            startFunctions::add,
+            finishFunctions::add,
+            null /* splitListener */);
+
+    Iterables.getOnlyElement(startFunctions).run();
+    mainOutputValues.clear();
+
+    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+    // Ensure that bag user state that is initially empty or populated works.
+    // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
+    FnDataReceiver<WindowedValue<?>> mainInput =
+        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    mainInput.accept(valueInWindow("X", windowA));
+    mainInput.accept(valueInWindow("Y", windowB));
+    assertThat(mainOutputValues, hasSize(2));
+    assertThat(
+        mainOutputValues.get(0).getValue(),
+        contains("iterableValue1A", "iterableValue2A", "iterableValue3A"));
+    assertThat(
+        mainOutputValues.get(1).getValue(),
+        contains("iterableValue1B", "iterableValue2B", "iterableValue3B"));
+
+    // Assert that state data did not change
+    assertEquals(stateData, fakeClient.getData());
+  }
+
+  /**
+   * A simple Tuple class for creating a list of ExpectedMetrics using the stepName, metricName and
+   * value of the MetricUpdate classes.
+   */
+  @AutoValue
+  public abstract static class ExpectedMetric implements Serializable {
+    static ExpectedMetric create(String stepName, MetricName metricName, long value) {
+      return new AutoValue_FnApiDoFnRunnerTest_ExpectedMetric(stepName, metricName, value);
+    }
+
+    public abstract String stepName();
+
+    public abstract MetricName metricName();
+
+    public abstract long value();
+  }
+
+  @Test
+  public void testUsingMetrics() throws Exception {
+    MetricsContainerImpl metricsContainer = new MetricsContainerImpl("testUsingMetrics");
+    Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
+    IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
+    IntervalWindow windowB = windowFn.assignWindow(new Instant(2L));
+    ByteString encodedWindowA =
+        ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowA));
+    ByteString encodedWindowB =
+        ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowB));
+
+    Pipeline p = Pipeline.create();
+    PCollection<String> valuePCollection =
+        p.apply(Create.of("unused")).apply(Window.into(windowFn));
+    PCollectionView<Iterable<String>> iterableSideInputView =
+        valuePCollection.apply(View.asIterable());
+    PCollection<Iterable<String>> outputPCollection =
+        valuePCollection.apply(
+            TEST_PTRANSFORM_ID,
+            ParDo.of(new TestSideInputIsAccessibleForDownstreamCallersDoFn(iterableSideInputView))
+                .withSideInputs(iterableSideInputView));
+
+    SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+    RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
+    String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
+
+    RunnerApi.PTransform pTransform =
+        pProto
+            .getComponents()
+            .getTransformsOrThrow(
+                pProto
+                    .getComponents()
+                    .getTransformsOrThrow(TEST_PTRANSFORM_ID)
+                    .getSubtransforms(0));
+
+    ImmutableMap<StateKey, ByteString> stateData =
+        ImmutableMap.of(
+            multimapSideInputKey(
+                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowA),
+            encode("iterableValue1A", "iterableValue2A", "iterableValue3A"),
+            multimapSideInputKey(
+                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowB),
+            encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
+
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
+
+    List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.put(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
@@ -530,6 +643,25 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     // Assert that state data did not change
     assertEquals(stateData, fakeClient.getData());
+
+    MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
+    MetricName metricName =
+        MetricName.named(TestSideInputIsAccessibleForDownstreamCallersDoFn.class, "countedElems");
+    List<ExpectedMetric> expectedMetrics = new ArrayList<ExpectedMetric>();
+    expectedMetrics.add(ExpectedMetric.create("testUsingMetrics", metricName, 2));
+
+    closeable.close();
+    MetricUpdates updates = metricsContainer.getUpdates();
+
+    // Validate MetricUpdates
+    int i = 0;
+    for (MetricUpdate mu : updates.counterUpdates()) {
+      assertEquals(expectedMetrics.get(i).metricName(), mu.getKey().metricName());
+      assertEquals(expectedMetrics.get(i).stepName(), mu.getKey().stepName());
+      assertEquals(expectedMetrics.get(i).value(), mu.getUpdate());
+      i++;
+    }
+    assertEquals(1, i); // Validate the length.
   }
 
   /**
@@ -746,7 +878,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.put(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
@@ -882,8 +1014,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   private <T>
-      WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
-          T value, Instant valueTimestamp, Instant scheduledTimestamp) {
+  WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
+      T value, Instant valueTimestamp, Instant scheduledTimestamp) {
     return timestampedValueInGlobalWindow(
         KV.of(value, org.apache.beam.runners.core.construction.Timer.of(scheduledTimestamp)),
         valueTimestamp);

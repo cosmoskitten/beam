@@ -26,7 +26,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,6 +37,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -49,7 +49,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -117,7 +116,7 @@ public class ProcessBundleHandlerTest {
             pCollections,
             coders,
             windowingStrategies,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             addStartFunction,
             addFinishFunction,
             splitListener) -> {
@@ -186,7 +185,7 @@ public class ProcessBundleHandlerTest {
                     pCollections,
                     coders,
                     windowingStrategies,
-                    pCollectionIdsToConsumers,
+                    pCollectionConsumerRegistry,
                     addStartFunction,
                     addFinishFunction,
                     splitListener) -> {
@@ -232,7 +231,7 @@ public class ProcessBundleHandlerTest {
                         pCollections,
                         coders,
                         windowingStrategies,
-                        pCollectionIdsToConsumers,
+                        pCollectionConsumerRegistry,
                         addStartFunction,
                         addFinishFunction,
                         splitListener) -> {
@@ -279,7 +278,7 @@ public class ProcessBundleHandlerTest {
                         pCollections,
                         coders,
                         windowingStrategies,
-                        pCollectionIdsToConsumers,
+                        pCollectionConsumerRegistry,
                         addStartFunction,
                         addFinishFunction,
                         splitListener) -> {
@@ -319,28 +318,28 @@ public class ProcessBundleHandlerTest {
         .thenReturn(mockBeamFnStateClient);
 
     doAnswer(
-            invocation -> {
-              StateRequest.Builder stateRequestBuilder =
-                  (StateRequest.Builder) invocation.getArguments()[0];
-              CompletableFuture<StateResponse> completableFuture =
-                  (CompletableFuture<StateResponse>) invocation.getArguments()[1];
-              new Thread(
-                      () -> {
-                        // Simulate sleeping which introduces a race which most of the time requires
-                        // the ProcessBundleHandler to block.
-                        Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-                        switch (stateRequestBuilder.getInstructionReference()) {
-                          case "SUCCESS":
-                            completableFuture.complete(StateResponse.getDefaultInstance());
-                            break;
-                          case "FAIL":
-                            completableFuture.completeExceptionally(
-                                new RuntimeException("TEST ERROR"));
-                        }
-                      })
-                  .start();
-              return null;
-            })
+        invocation -> {
+          StateRequest.Builder stateRequestBuilder =
+              (StateRequest.Builder) invocation.getArguments()[0];
+          CompletableFuture<StateResponse> completableFuture =
+              (CompletableFuture<StateResponse>) invocation.getArguments()[1];
+          new Thread(
+              () -> {
+                // Simulate sleeping which introduces a race which most of the time requires
+                // the ProcessBundleHandler to block.
+                Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+                switch (stateRequestBuilder.getInstructionReference()) {
+                  case "SUCCESS":
+                    completableFuture.complete(StateResponse.getDefaultInstance());
+                    break;
+                  case "FAIL":
+                    completableFuture.completeExceptionally(
+                        new RuntimeException("TEST ERROR"));
+                }
+              })
+              .start();
+          return null;
+        })
         .when(mockBeamFnStateClient)
         .handle(any(), any());
 
@@ -364,8 +363,7 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
-                          pCollectionIdsToConsumers,
+                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
@@ -426,8 +424,7 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
-                          pCollectionIdsToConsumers,
+                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
