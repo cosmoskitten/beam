@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -46,7 +47,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -54,7 +54,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Before;
 import org.junit.Rule;
@@ -117,7 +116,7 @@ public class ProcessBundleHandlerTest {
             pCollections,
             coders,
             windowingStrategies,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             addStartFunction,
             addFinishFunction,
             splitListener) -> {
@@ -186,7 +185,7 @@ public class ProcessBundleHandlerTest {
                     pCollections,
                     coders,
                     windowingStrategies,
-                    pCollectionIdsToConsumers,
+                    pCollectionConsumerRegistry,
                     addStartFunction,
                     addFinishFunction,
                     splitListener) -> {
@@ -232,7 +231,7 @@ public class ProcessBundleHandlerTest {
                         pCollections,
                         coders,
                         windowingStrategies,
-                        pCollectionIdsToConsumers,
+                        pCollectionConsumerRegistry,
                         addStartFunction,
                         addFinishFunction,
                         splitListener) -> {
@@ -279,7 +278,7 @@ public class ProcessBundleHandlerTest {
                         pCollections,
                         coders,
                         windowingStrategies,
-                        pCollectionIdsToConsumers,
+                        pCollectionConsumerRegistry,
                         addStartFunction,
                         addFinishFunction,
                         splitListener) -> {
@@ -364,8 +363,7 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
-                          pCollectionIdsToConsumers,
+                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
@@ -426,8 +424,7 @@ public class ProcessBundleHandlerTest {
                       Map<String, PCollection> pCollections,
                       Map<String, Coder> coders,
                       Map<String, WindowingStrategy> windowingStrategies,
-                      ListMultimap<String, FnDataReceiver<WindowedValue<?>>>
-                          pCollectionIdsToConsumers,
+                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
                       Consumer<ThrowingRunnable> addStartFunction,
                       Consumer<ThrowingRunnable> addFinishFunction,
                       BundleSplitListener splitListener)
