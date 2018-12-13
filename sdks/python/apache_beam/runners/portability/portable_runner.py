@@ -27,6 +27,7 @@ from concurrent import futures
 import grpc
 
 from apache_beam import metrics
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -43,6 +44,7 @@ from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker import sdk_worker_main
 
 __all__ = ['PortableRunner']
 
@@ -151,7 +153,7 @@ class PortableRunner(runner.PipelineRunner):
     # but none is provided.
     if portable_options.environment_type == 'LOOPBACK':
       portable_options.environment_config, server = (
-          BeamFnExternalWorkerPoolServicer.start())
+          BeamFnExternalWorkerPoolServicer.start(options))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
@@ -171,14 +173,34 @@ class PortableRunner(runner.PipelineRunner):
 
     # Preemptively apply combiner lifting, until all runners support it.
     # This optimization is idempotent.
+    pre_optimize = options.view_as(DebugOptions).lookup_experiment(
+        'pre_optimize', 'combine').lower()
     if not options.view_as(StandardOptions).streaming:
-      stages = list(fn_api_runner_transforms.leaf_transform_stages(
-          proto_pipeline.root_transform_ids, proto_pipeline.components))
-      stages = fn_api_runner_transforms.lift_combiners(
-          stages,
-          fn_api_runner_transforms.TransformContext(proto_pipeline.components))
-      proto_pipeline = fn_api_runner_transforms.with_stages(
-          proto_pipeline, stages)
+      if pre_optimize == 'combine':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.lift_combiners])
+      elif pre_optimize == 'all':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.annotate_downstream_side_inputs,
+                    fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
+                    fn_api_runner_transforms.fix_side_input_pcoll_coders,
+                    fn_api_runner_transforms.lift_combiners,
+                    # fn_api_runner_transforms.sink_flattens,
+                    fn_api_runner_transforms.greedily_fuse,
+                    fn_api_runner_transforms.read_to_impulse,
+                    fn_api_runner_transforms.extract_impulse_stages,
+                    fn_api_runner_transforms.remove_data_plane_ops,
+                    fn_api_runner_transforms.sort_stages],
+            known_runner_urns=set([
+                common_urns.primitives.IMPULSE.urn,
+                common_urns.primitives.FLATTEN.urn,
+                common_urns.primitives.GROUP_BY_KEY.urn]))
+      elif pre_optimize == 'none':
+        pass
+      else:
+        raise ValueError('Unknown value for pre_optimize: %s' % pre_optimize)
 
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
@@ -333,12 +355,16 @@ class PipelineResult(runner.PipelineResult):
 class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolServicer):
 
+  def __init__(self, options):
+    self._default_num_worker_threads = sdk_worker_main._get_worker_count(
+        options or PortableOptions())
+
   @classmethod
-  def start(cls):
+  def start(cls, options=None):
     worker_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
-        cls(), worker_server)
+        cls(options), worker_server)
     worker_server.start()
     return worker_address, worker_server
 
@@ -346,7 +372,7 @@ class BeamFnExternalWorkerPoolServicer(
     try:
       worker = sdk_worker.SdkHarness(
           start_worker_request.control_endpoint.url,
-          worker_count=1,
+          worker_count=self._default_num_worker_threads,
           worker_id=start_worker_request.worker_id)
       worker_thread = threading.Thread(
           name='run_worker_%s' % start_worker_request.worker_id,
