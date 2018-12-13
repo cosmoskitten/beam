@@ -28,6 +28,7 @@ from concurrent import futures
 import grpc
 
 from apache_beam import metrics
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -174,14 +175,34 @@ class PortableRunner(runner.PipelineRunner):
 
     # Preemptively apply combiner lifting, until all runners support it.
     # This optimization is idempotent.
+    pre_optimize = options.view_as(DebugOptions).lookup_experiment(
+        'pre_optimize', 'combine').lower()
     if not options.view_as(StandardOptions).streaming:
-      stages = list(fn_api_runner_transforms.leaf_transform_stages(
-          proto_pipeline.root_transform_ids, proto_pipeline.components))
-      stages = fn_api_runner_transforms.lift_combiners(
-          stages,
-          fn_api_runner_transforms.TransformContext(proto_pipeline.components))
-      proto_pipeline = fn_api_runner_transforms.with_stages(
-          proto_pipeline, stages)
+      if pre_optimize == 'combine':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.lift_combiners])
+      elif pre_optimize == 'all':
+        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+            proto_pipeline,
+            phases=[fn_api_runner_transforms.annotate_downstream_side_inputs,
+                    fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
+                    fn_api_runner_transforms.fix_side_input_pcoll_coders,
+                    fn_api_runner_transforms.lift_combiners,
+                    # fn_api_runner_transforms.sink_flattens,
+                    fn_api_runner_transforms.greedily_fuse,
+                    fn_api_runner_transforms.read_to_impulse,
+                    fn_api_runner_transforms.extract_impulse_stages,
+                    fn_api_runner_transforms.remove_data_plane_ops,
+                    fn_api_runner_transforms.sort_stages],
+            known_runner_urns=set([
+                common_urns.primitives.IMPULSE.urn,
+                common_urns.primitives.FLATTEN.urn,
+                common_urns.primitives.GROUP_BY_KEY.urn]))
+      elif pre_optimize == 'none':
+        pass
+      else:
+        raise ValueError('Unknown value for pre_optimize: %s' % pre_optimize)
 
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
