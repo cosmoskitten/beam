@@ -63,10 +63,10 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** A {@link PTransformRunnerFactory} for transforms invoking a {@link DoFn}. */
 abstract class DoFnPTransformRunnerFactory<
-    TransformInputT,
-    FnInputT,
-    OutputT,
-    RunnerT extends DoFnPTransformRunnerFactory.DoFnPTransformRunner<TransformInputT>>
+        TransformInputT,
+        FnInputT,
+        OutputT,
+        RunnerT extends DoFnPTransformRunnerFactory.DoFnPTransformRunner<TransformInputT>>
     implements PTransformRunnerFactory<RunnerT> {
   interface DoFnPTransformRunner<T> {
     void startBundle() throws Exception;
@@ -127,12 +127,14 @@ abstract class DoFnPTransformRunnerFactory<
     for (String localName : context.parDoPayload.getTimerSpecsMap().keySet()) {
       TimeDomain timeDomain =
           DoFnSignatures.getTimerSpecOrThrow(
-              context.doFnSignature.timerDeclarations().get(localName), context.doFn)
+                  context.doFnSignature.timerDeclarations().get(localName), context.doFn)
               .getTimeDomain();
       pCollectionConsumerRegistry.registerAndWrap(
           pTransform.getInputsOrThrow(localName),
-          (FnDataReceiver) timer ->
-              runner.processTimer(localName, timeDomain, (WindowedValue<KV<Object, Timer>>) timer));
+          (FnDataReceiver)
+              timer ->
+                  runner.processTimer(
+                      localName, timeDomain, (WindowedValue<KV<Object, Timer>>) timer));
     }
 
     addFinishFunction.accept(runner::finishBundle);
@@ -184,11 +186,11 @@ abstract class DoFnPTransformRunnerFactory<
       try {
         rehydratedComponents =
             RehydratedComponents.forComponents(
-                RunnerApi.Components.newBuilder()
-                    .putAllCoders(coders)
-                    .putAllPcollections(pCollections)
-                    .putAllWindowingStrategies(windowingStrategies)
-                    .build())
+                    RunnerApi.Components.newBuilder()
+                        .putAllCoders(coders)
+                        .putAllPcollections(pCollections)
+                        .putAllWindowingStrategies(windowingStrategies)
+                        .build())
                 .withPipeline(Pipeline.create());
         parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
         doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
@@ -206,7 +208,7 @@ abstract class DoFnPTransformRunnerFactory<
         if (inputCoder instanceof KvCoder
             // TODO: Stop passing windowed value coders within PCollections.
             || (inputCoder instanceof WindowedValue.WindowedValueCoder
-            && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder))) {
+                && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder))) {
           this.keyCoder =
               inputCoder instanceof WindowedValueCoder
                   ? ((KvCoder) ((WindowedValueCoder) inputCoder).getValueCoder()).getKeyCoder()
@@ -217,7 +219,7 @@ abstract class DoFnPTransformRunnerFactory<
         if (inputCoder instanceof SchemaCoder
             // TODO: Stop passing windowed value coders within PCollections.
             || (inputCoder instanceof WindowedValue.WindowedValueCoder
-            && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof SchemaCoder))) {
+                && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof SchemaCoder))) {
           this.schemaCoder =
               inputCoder instanceof WindowedValueCoder
                   ? (SchemaCoder<InputT>) ((WindowedValueCoder) inputCoder).getValueCoder()

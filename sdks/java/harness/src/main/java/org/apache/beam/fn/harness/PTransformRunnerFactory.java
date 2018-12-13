@@ -38,7 +38,8 @@ public interface PTransformRunnerFactory<T> {
    * Creates and returns a handler for a given PTransform. Note that the handler must support
    * processing multiple bundles. The handler will be discarded if an error is thrown during element
    * processing, or during execution of start/finish.
-   *  @param pipelineOptions Pipeline options
+   *
+   * @param pipelineOptions Pipeline options
    * @param beamFnDataClient A client for handling inbound and outbound data streams.
    * @param beamFnStateClient A client for handling state requests.
    * @param pTransformId The id of the PTransform.

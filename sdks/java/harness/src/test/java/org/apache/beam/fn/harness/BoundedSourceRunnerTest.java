@@ -25,10 +25,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -172,8 +170,7 @@ public class BoundedSourceRunnerTest {
 
     // Check that when passing a source along as an input, the source is processed.
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
-    consumers.getOnlyElement("inputPC")
-        .accept(valueInGlobalWindow(CountingSource.upTo(2)));
+    consumers.getOnlyElement("inputPC").accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
     assertThat(finishFunctions, Matchers.empty());

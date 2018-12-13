@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
@@ -66,12 +65,10 @@ import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.TextFormat;
@@ -257,8 +254,8 @@ public class ProcessBundleHandler {
     try (HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
-            beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                bundleDescriptor.getStateApiServiceDescriptor()))
+                beamFnStateGrpcClientCache.forApiServiceDescriptor(
+                    bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
       Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
       Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
@@ -289,7 +286,7 @@ public class ProcessBundleHandler {
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
             && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
             && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-            entry.getValue().getSpec().getUrn())) {
+                entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
@@ -307,7 +304,6 @@ public class ProcessBundleHandler {
             finishFunctions::add,
             splitListener);
       }
-
 
       MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {

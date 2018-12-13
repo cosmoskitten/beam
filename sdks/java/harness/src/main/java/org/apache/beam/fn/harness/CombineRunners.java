@@ -189,9 +189,9 @@ public class CombineRunners {
   }
 
   static <KeyT, AccumT>
-  ThrowingFunction<KV<KeyT, Iterable<AccumT>>, KV<KeyT, AccumT>>
-  createMergeAccumulatorsMapFunction(String pTransformId, PTransform pTransform)
-      throws IOException {
+      ThrowingFunction<KV<KeyT, Iterable<AccumT>>, KV<KeyT, AccumT>>
+          createMergeAccumulatorsMapFunction(String pTransformId, PTransform pTransform)
+              throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<?, AccumT, ?> combineFn =
         (CombineFn)
@@ -203,8 +203,8 @@ public class CombineRunners {
   }
 
   static <KeyT, AccumT, OutputT>
-  ThrowingFunction<KV<KeyT, AccumT>, KV<KeyT, OutputT>> createExtractOutputsMapFunction(
-      String pTransformId, PTransform pTransform) throws IOException {
+      ThrowingFunction<KV<KeyT, AccumT>, KV<KeyT, OutputT>> createExtractOutputsMapFunction(
+          String pTransformId, PTransform pTransform) throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<?, AccumT, OutputT> combineFn =
         (CombineFn)
@@ -216,9 +216,9 @@ public class CombineRunners {
   }
 
   static <KeyT, InputT, AccumT, OutputT>
-  ThrowingFunction<KV<KeyT, Iterable<InputT>>, KV<KeyT, OutputT>>
-  createCombineGroupedValuesMapFunction(String pTransformId, PTransform pTransform)
-      throws IOException {
+      ThrowingFunction<KV<KeyT, Iterable<InputT>>, KV<KeyT, OutputT>>
+          createCombineGroupedValuesMapFunction(String pTransformId, PTransform pTransform)
+              throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<InputT, AccumT, OutputT> combineFn =
         (CombineFn)

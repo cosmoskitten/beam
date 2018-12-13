@@ -29,10 +29,8 @@ import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -325,11 +323,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
         valuePCollection.apply(
             TEST_PTRANSFORM_ID,
             ParDo.of(
-                new TestSideInputDoFn(
-                    defaultSingletonSideInputView,
-                    singletonSideInputView,
-                    iterableSideInputView,
-                    additionalOutput))
+                    new TestSideInputDoFn(
+                        defaultSingletonSideInputView,
+                        singletonSideInputView,
+                        iterableSideInputView,
+                        additionalOutput))
                 .withSideInputs(
                     defaultSingletonSideInputView, singletonSideInputView, iterableSideInputView)
                 .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
@@ -896,8 +894,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   private <T>
-  WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
-      T value, Instant valueTimestamp, Instant scheduledTimestamp) {
+      WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
+          T value, Instant valueTimestamp, Instant scheduledTimestamp) {
     return timestampedValueInGlobalWindow(
         KV.of(value, org.apache.beam.runners.core.construction.Timer.of(scheduledTimestamp)),
         valueTimestamp);
