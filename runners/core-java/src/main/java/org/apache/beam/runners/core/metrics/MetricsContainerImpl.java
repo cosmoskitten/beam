@@ -18,11 +18,13 @@
 package org.apache.beam.runners.core.metrics;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.grpc.v1_13_1.io.netty.util.internal.StringUtil.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -146,8 +148,18 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
     for (MetricUpdate<Long> mu : mus.counterUpdates()) {
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-      builder.setUrnForUserMetric(
-          mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+      MetricName metricName = mu.getKey().metricName();
+      if (!isNullOrEmpty(metricName.getUrn())) {
+        // Represents a specific MonitoringInfo for a specific URN
+        builder.setUrn(metricName.getUrn());
+        for (Entry<String, String> e : metricName.getLabels().entrySet()) {
+          builder.setLabel(e.getKey(), e.getValue());
+        }
+      } else {
+        // Represents a user counter.
+        builder.setUrnForUserMetric(
+            mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+      }
       builder.setInt64Value(mu.getUpdate());
       builder.setTimestampToNow();
       monitoringInfos.add(builder.build());

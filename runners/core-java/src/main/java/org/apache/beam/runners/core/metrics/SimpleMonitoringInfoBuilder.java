@@ -26,6 +26,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
@@ -66,6 +68,9 @@ public class SimpleMonitoringInfoBuilder {
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
 
+  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
+  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
+
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
@@ -94,6 +99,13 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder(boolean validateAndDropInvalid) {
     this.builder = MonitoringInfo.newBuilder();
     this.validateAndDropInvalid = validateAndDropInvalid;
+  }
+
+  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
+  private static String getLabelString(MonitoringInfoLabels label) {
+    MonitoringInfoLabelProps props =
+        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
+    return props.getName();
   }
 
   /** @return True if the MonitoringInfo has valid fields set, matching the spec */
@@ -192,12 +204,12 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
   public void setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel("PTRANSFORM", pTransform);
+    setLabel(PTRANSFORM_LABEL, pTransform);
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
   public void setPCollectionLabel(String pCollection) {
-    setLabel("PCOLLECTION", pCollection);
+    setLabel(PCOLLECTION_LABEL, pCollection);
   }
 
   /** Sets the MonitoringInfo label to the given name and value. */
