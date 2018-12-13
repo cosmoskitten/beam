@@ -46,7 +46,7 @@ class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
   def __init__(self, name, transforms,
                downstream_side_inputs=None, must_follow=frozenset(),
-               parent=None, environment=None):
+               parent=None, environment=None, forced_root=False):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -58,6 +58,7 @@ class Stage(object):
           self._merge_environments,
           (self._extract_environment(t) for t in transforms))
     self.environment = environment
+    self.forced_root = forced_root
 
   def __repr__(self):
     must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -113,8 +114,10 @@ class Stage(object):
       return not a.intersection(b)
 
     return (
-        not self in consumer.must_follow
+        not consumer.forced_root
+        and not self in consumer.must_follow
         and not self.is_flatten() and not consumer.is_flatten()
+        and not self.is_gbk() and not consumer.is_gbk()
         and no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
@@ -124,10 +127,16 @@ class Stage(object):
         union(self.downstream_side_inputs, other.downstream_side_inputs),
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
-            self.environment, other.environment))
+            self.environment, other.environment),
+        parent=self.parent if self.parent == other.parent else None,
+        forced_root=self.forced_root or other.forced_root)
 
   def is_flatten(self):
     return any(transform.spec.urn == common_urns.primitives.FLATTEN.urn
+               for transform in self.transforms)
+
+  def is_gbk(self):
+    return any(transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn
                for transform in self.transforms)
 
   def side_inputs(self):
@@ -161,6 +170,85 @@ class Stage(object):
         seen_pcolls.add(pcoll)
       new_transforms.append(transform)
     self.transforms = new_transforms
+
+  def executable_stage_transform(
+      self, known_runner_transforms, all_consumers, components):
+    if (len(self.transforms) == 1
+        and self.transforms[0].spec.urn in known_runner_transforms):
+      return self.transforms[0]
+
+    else:
+      all_inputs = set(
+          pcoll for t in self.transforms for pcoll in t.inputs.values())
+      all_outputs = set(
+          pcoll for t in self.transforms for pcoll in t.outputs.values())
+      internal_transforms = set(id(t) for t in self.transforms)
+      external_inputs = all_inputs - all_outputs
+      external_outputs = [pcoll for pcoll in all_outputs
+                          if all_consumers[pcoll] - internal_transforms]
+
+      stage_components = beam_runner_api_pb2.Components()
+      stage_components.CopyFrom(components)
+
+      # Only keep the referenced PCollections.
+      for pcoll_id in stage_components.pcollections.keys():
+        if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
+          del stage_components.pcollections[pcoll_id]
+
+      # Only keep the transforms in this stage.
+      # Also gather up payload data as we iterate over the transforms.
+      stage_components.transforms.clear()
+      side_inputs = []
+      user_states = []
+      timers = []
+      for ix, transform in enumerate(self.transforms):
+        # TODO: Populate state and timer fields.
+        transform_id = 'transform_%d' % ix
+        if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+          payload = proto_utils.parse_Bytes(
+              transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+          for tag in payload.side_inputs.keys():
+            side_inputs.append(
+                beam_runner_api_pb2.ExecutableStagePayload.SideInputId(
+                    transform_id=transform_id,
+                    local_name=tag))
+          for tag in payload.state_specs.keys():
+            user_states.append(
+                beam_runner_api_pb2.ExecutableStagePayload.UserStateId(
+                    transform_id=transform_id,
+                    local_name=tag))
+          for tag in payload.timer_specs.keys():
+            timers.append(
+                beam_runner_api_pb2.ExecutableStagePayload.TimerId(
+                    transform_id=transform_id,
+                    local_name=tag))
+        stage_components.transforms[transform_id].CopyFrom(transform)
+
+      named_inputs = {
+          '%s:%s' % (side.transform_id, side.local_name):
+          stage_components.transforms[side.transform_id].inputs[side.local_name]
+          for side in side_inputs
+      }
+      main_input_id = only_element(external_inputs - set(named_inputs.values()))
+      named_inputs['main_input'] = main_input_id
+      payload = beam_runner_api_pb2.ExecutableStagePayload(
+          environment=components.environments[self.environment],
+          input=main_input_id,
+          outputs=external_outputs,
+          transforms=stage_components.transforms.keys(),
+          components=stage_components,
+          side_inputs=side_inputs,
+          user_states=user_states,
+          timers=timers)
+
+      return beam_runner_api_pb2.PTransform(
+          unique_name=unique_name(None, self.name),
+          spec=beam_runner_api_pb2.FunctionSpec(
+              urn='beam:runner:executable_stage:v1',
+              payload=payload.SerializeToString()),
+          inputs=named_inputs,
+          outputs={'output_%d' % ix: pcoll
+                   for ix, pcoll in enumerate(external_outputs)})
 
 
 def memoize_on_instance(f):
@@ -295,7 +383,13 @@ def leaf_transform_stages(
         yield stage
 
 
-def with_stages(pipeline_proto, stages):
+class _Everything(object):
+  def __contains__(self, item):
+    return True
+
+
+def pipeline_from_stages(
+    pipeline_proto, stages, known_runner_transforms=_Everything()):
 
   # In case it was a generator that mutates components as it
   # produces outputs (as is the case with most transformations).
@@ -306,6 +400,7 @@ def with_stages(pipeline_proto, stages):
   components = new_proto.components
   components.transforms.clear()
 
+  roots = set()
   parents = {
       child: parent
       for parent, proto in pipeline_proto.components.transforms.items()
@@ -313,22 +408,72 @@ def with_stages(pipeline_proto, stages):
   }
 
   def add_parent(child, parent):
-    if parent not in components.transforms:
-      components.transforms[parent].CopyFrom(
-          pipeline_proto.components.transforms[parent])
-      del components.transforms[parent].subtransforms[:]
-      if parent in parents:
-        add_parent(parent, parents[parent])
-    components.transforms[parent].subtransforms.append(child)
+    if parent is None:
+      roots.add(child)
+    else:
+      if parent not in components.transforms:
+        components.transforms[parent].CopyFrom(
+            pipeline_proto.components.transforms[parent])
+        del components.transforms[parent].subtransforms[:]
+        add_parent(parent, parents.get(parent))
+      components.transforms[parent].subtransforms.append(child)
 
+  all_consumers = collections.defaultdict(set)
   for stage in stages:
     for transform in stage.transforms:
-      id = unique_name(components.transforms, stage.name)
-      components.transforms[id].CopyFrom(transform)
-      if stage.parent:
-        add_parent(id, stage.parent)
+      for pcoll in transform.inputs.values():
+        all_consumers[pcoll].add(id(transform))
+
+  for stage in stages:
+    transform = stage.executable_stage_transform(
+        known_runner_transforms, all_consumers, components)
+    transform_id = unique_name(components.transforms, stage.name)
+    components.transforms[transform_id].CopyFrom(transform)
+    add_parent(transform_id, stage.parent)
+
+  del new_proto.root_transform_ids[:]
+  new_proto.root_transform_ids.extend(roots)
 
   return new_proto
+
+
+def create_and_optimize_stages(
+    pipeline_proto,
+    phases,
+    use_state_iterables=False):
+  pipeline_context = TransformContext(
+      pipeline_proto.components,
+      use_state_iterables=use_state_iterables)
+
+  # Initial set of stages are singleton leaf transforms.
+  stages = list(leaf_transform_stages(
+      pipeline_proto.root_transform_ids,
+      pipeline_proto.components))
+
+  # Apply each phase in order.
+  for phase in phases:
+    logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
+    stages = list(phase(stages, pipeline_context))
+    logging.debug('%s %s' % (len(stages), [len(s.transforms) for s in stages]))
+    logging.debug('Stages: %s', [str(s) for s in stages])
+
+  # Return the (possibly mutated) context and ordered set of stages.
+  return pipeline_context, stages
+
+
+def optimize_pipeline(
+    pipeline_proto,
+    phases,
+    known_runner_urns=_Everything(),
+    **kwargs):
+  unused_context, stages = create_and_optimize_stages(
+      pipeline_proto,
+      phases,
+      **kwargs)
+  return pipeline_from_stages(pipeline_proto, stages, known_runner_urns)
+
+
+# Optimization stages.
 
 
 def annotate_downstream_side_inputs(stages, pipeline_context):
@@ -376,6 +521,17 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
   for stage in stages:
     stage.downstream_side_inputs = compute_downstream_side_inputs(stage)
   return stages
+
+
+def annotate_stateful_dofns_as_roots(stages, pipeline_context):
+  for stage in stages:
+    for transform in stage.transforms:
+      if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.state_specs or pardo_payload.timer_specs:
+          stage.forced_root = True
+    yield stage
 
 
 def fix_side_input_pcoll_coders(stages, pipeline_context):
@@ -470,7 +626,8 @@ def lift_combiners(stages, context):
             [transform],
             downstream_side_inputs=base_stage.downstream_side_inputs,
             must_follow=base_stage.must_follow,
-            parent=base_stage.name)
+            parent=base_stage.name,
+            environment=base_stage.environment)
 
       yield make_stage(
           stage,
@@ -777,6 +934,34 @@ def impulse_to_input(stages, pipeline_context):
                     payload=IMPULSE_BUFFER),
                 outputs=transform.outputs))
     yield stage
+
+
+def extract_impulse_stages(stages, pipeline_context):
+  """Splits fused Impulse operations into their own stage."""
+  for stage in stages:
+    for transform in list(stage.transforms):
+      if transform.spec.urn == common_urns.primitives.IMPULSE.urn:
+        stage.transforms.remove(transform)
+        yield Stage(
+            transform.unique_name,
+            transforms=[transform],
+            downstream_side_inputs=stage.downstream_side_inputs,
+            must_follow=stage.must_follow,
+            parent=stage.parent)
+
+    if stage.transforms:
+      yield stage
+
+
+def remove_data_plane_ops(stages, pipeline_context):
+  for stage in stages:
+    for transform in list(stage.transforms):
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        stage.transforms.remove(transform)
+
+    if stage.transforms:
+      yield stage
 
 
 def inject_timer_pcollections(stages, pipeline_context):
