@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -41,6 +42,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -60,8 +62,14 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -145,7 +153,7 @@ public class ProcessBundleHandler {
       Supplier<String> processBundleInstructionId,
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
-      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
@@ -156,7 +164,7 @@ public class ProcessBundleHandler {
     // Since we are creating the consumers first, we know that the we are building the DAG
     // in reverse topological order.
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
-
+      // ajamato these are the output pcollection of the ptransform.
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
@@ -166,7 +174,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             addStartFunction,
             addFinishFunction,
@@ -186,6 +194,8 @@ public class ProcessBundleHandler {
               "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
     }
     // Skip reprocessing processed pTransforms.
+
+    // TODO ajamato, can you wrap every runner? And calculate the input and output elements?
     if (!processedPTransformIds.contains(pTransformId)) {
       urnToPTransformRunnerFactoryMap
           .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
@@ -199,7 +209,7 @@ public class ProcessBundleHandler {
               processBundleDescriptor.getPcollectionsMap(),
               processBundleDescriptor.getCodersMap(),
               processBundleDescriptor.getWindowingStrategiesMap(),
-              pCollectionIdsToConsumers,
+              pCollectionConsumerRegistry,
               addStartFunction,
               addFinishFunction,
               splitListener);
@@ -223,8 +233,8 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
-        ArrayListMultimap.create();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
+
     HashSet<String> processedPTransformIds = new HashSet<>();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -233,19 +243,22 @@ public class ProcessBundleHandler {
     for (Map.Entry<String, RunnerApi.PTransform> entry :
         bundleDescriptor.getTransformsMap().entrySet()) {
       for (String pCollectionId : entry.getValue().getInputsMap().values()) {
+        // ajamato Input Pcollections
         pCollectionIdsToConsumingPTransforms.put(pCollectionId, entry.getKey());
       }
     }
 
     ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
 
+    boolean hasReadPTransform = false;
+
     // Instantiate a State API call handler depending on whether a State Api service descriptor
     // was specified.
     try (HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
+            beamFnStateGrpcClientCache.forApiServiceDescriptor(
+                bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
       Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
       Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
@@ -268,12 +281,15 @@ public class ProcessBundleHandler {
       for (Map.Entry<String, RunnerApi.PTransform> entry :
           bundleDescriptor.getTransformsMap().entrySet()) {
 
+        hasReadPTransform =
+            hasReadPTransform || RemoteGrpcPortRead.URN.equals(entry.getValue().getSpec().getUrn());
+
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
             && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
             && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-                entry.getValue().getSpec().getUrn())) {
+            entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
@@ -285,32 +301,50 @@ public class ProcessBundleHandler {
             request::getInstructionId,
             bundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             startFunctions::add,
             finishFunctions::add,
             splitListener);
       }
 
-      // Already in reverse topological order so we don't need to do anything.
-      for (ThrowingRunnable startFunction : startFunctions) {
-        LOG.debug("Starting function {}", startFunction);
-        startFunction.run();
-      }
 
-      queueingClient.drainAndBlock();
+      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
+      try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+        // Already in reverse topological order so we don't need to do anything.
+        for (ThrowingRunnable startFunction : startFunctions) {
+          LOG.debug("Starting function {}", startFunction);
+          startFunction.run();
+        }
 
-      // Need to reverse this since we want to call finish in topological order.
-      for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-        LOG.debug("Finishing function {}", finishFunction);
-        finishFunction.run();
-      }
-      if (!allResiduals.isEmpty()) {
-        response.addAllResidualRoots(allResiduals.values());
+        if (hasReadPTransform) {
+          // This will trigger the process() call on each element indirectly.
+          queueingClient.drainAndBlock();
+        }
+
+        // Need to reverse this since we want to call finish in topological order.
+        for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
+          LOG.debug("Finishing function {}", finishFunction);
+          finishFunction.run();
+        }
+
+        // Extract user metrics and store as MonitoringInfos.
+        MetricUpdates mus = metricsContainer.getUpdates();
+        for (MetricUpdate<Long> mu : mus.counterUpdates()) {
+          SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(false);
+          builder.setUrnForUserMetric(
+              mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+          builder.setInt64Value(mu.getUpdate());
+          builder.setTimestampToNow();
+          response.addMonitoringInfos(builder.build());
+        }
+
+        if (!allResiduals.isEmpty()) {
+          response.addAllResidualRoots(allResiduals.values());
+        }
+        return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
       }
     }
-
-    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
   /**
@@ -400,7 +434,7 @@ public class ProcessBundleHandler {
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {
