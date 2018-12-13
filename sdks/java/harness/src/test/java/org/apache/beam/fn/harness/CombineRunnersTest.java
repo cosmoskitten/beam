@@ -24,15 +24,14 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -123,9 +122,9 @@ public class CombineRunnersTest {
   @Test
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.registerAndWrap(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -190,9 +189,9 @@ public class CombineRunnersTest {
   @Test
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.registerAndWrap(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -212,7 +211,7 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
-            consumers,
+            new PCollectionConsumerRegistry(),
             startFunctions::add,
             finishFunctions::add,
             null);
@@ -245,9 +244,9 @@ public class CombineRunnersTest {
   @Test
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.registerAndWrap(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -300,9 +299,9 @@ public class CombineRunnersTest {
   @Test
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.registerAndWrap(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);

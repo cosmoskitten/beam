@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkState;
+import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -584,21 +585,28 @@ public class RemoteExecutionTest implements Serializable {
           @Override
           public void onCompleted(ProcessBundleResponse response) {
             // Assert the timestamps are non empty then 0 them out before comparing.
-            List<MonitoringInfo> actualMIs = new ArrayList<>();
+            List<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
             for (MonitoringInfo mi : response.getMonitoringInfosList()) {
               MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
               Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
               builder.mergeFrom(mi);
               builder.clearTimestamp();
-              actualMIs.add(builder.build());
+              actual.add(builder.build());
             }
 
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
             builder.setInt64Value(2);
-            MonitoringInfo expectedCounter = builder.build();
+            MonitoringInfo userCounter = builder.build();
 
-            assertThat(actualMIs, CoreMatchers.hasItems(expectedCounter));
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("impulse.out");
+            builder.setInt64Value(2);
+            MonitoringInfo elementCounter = builder.build();
+
+            assertEquals(2, actual.size());
+            assertThat(actual, containsInAnyOrder(userCounter, elementCounter));
           }
         };
 

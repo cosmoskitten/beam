@@ -21,13 +21,13 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -84,7 +84,7 @@ public class BeamFnDataWriteRunner<InputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
@@ -109,9 +109,10 @@ public class BeamFnDataWriteRunner<InputT> {
           new BeamFnDataWriteRunner<>(
               pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
       addStartFunction.accept(runner::registerForOutput);
-      pCollectionIdsToConsumers.put(
+      pCollectionConsumerRegistry.registerAndWrap(
           getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
+
       addFinishFunction.accept(runner::close);
       return runner;
     }
