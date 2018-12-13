@@ -21,13 +21,12 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Itera
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +84,7 @@ public class BeamFnDataReadRunner<OutputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
@@ -108,9 +106,11 @@ public class BeamFnDataReadRunner<OutputT> {
       } else {
         coderSpec = null;
       }
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection)
-              pCollectionIdsToConsumers.get(getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<OutputT>> consumer =
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver)
+                  pCollectionConsumerRegistry.getMultiplexingConsumer(
+                      getOnlyElement(pTransform.getOutputsMap().values()));
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
@@ -120,7 +120,7 @@ public class BeamFnDataReadRunner<OutputT> {
               coderSpec,
               coders,
               beamFnDataClient,
-              consumers);
+              consumer);
       addStartFunction.accept(runner::registerInputLocation);
       addFinishFunction.accept(runner::blockTillReadFinishes);
       return runner;
@@ -128,7 +128,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final FnDataReceiver<WindowedValue<OutputT>> receiver;
+  private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
   private final Coder<WindowedValue<OutputT>> coder;
@@ -143,14 +143,14 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers)
+      FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     RemoteGrpcPort port = RemoteGrpcPortRead.fromPTransform(grpcReadNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
-    this.receiver = MultiplexingFnDataReceiver.forConsumers(consumers);
+    this.consumer = consumer;
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -173,7 +173,7 @@ public class BeamFnDataReadRunner<OutputT> {
             apiServiceDescriptor,
             LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
             coder,
-            receiver);
+            consumer);
   }
 
   public void blockTillReadFinishes() throws Exception {

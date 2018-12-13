@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -45,7 +46,6 @@ import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,7 @@ public class BeamFnDataWriteRunner<InputT> {
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener)
@@ -109,9 +109,10 @@ public class BeamFnDataWriteRunner<InputT> {
           new BeamFnDataWriteRunner<>(
               pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
       addStartFunction.accept(runner::registerForOutput);
-      pCollectionIdsToConsumers.put(
+      pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
+
       addFinishFunction.accept(runner::close);
       return runner;
     }

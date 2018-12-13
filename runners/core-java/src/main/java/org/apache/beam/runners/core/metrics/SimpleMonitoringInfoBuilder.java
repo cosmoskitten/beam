@@ -25,11 +25,14 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo.MonitoringInfoLabels;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoLabelProps;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +69,9 @@ public class SimpleMonitoringInfoBuilder {
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
 
+  public static final String PCOLLECTION_LABEL = getLabelString(MonitoringInfoLabels.PCOLLECTION);
+  public static final String PTRANSFORM_LABEL = getLabelString(MonitoringInfoLabels.TRANSFORM);
+
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
@@ -94,6 +100,13 @@ public class SimpleMonitoringInfoBuilder {
   public SimpleMonitoringInfoBuilder(boolean validateAndDropInvalid) {
     this.builder = MonitoringInfo.newBuilder();
     this.validateAndDropInvalid = validateAndDropInvalid;
+  }
+
+  /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
+  private static String getLabelString(MonitoringInfoLabels label) {
+    MonitoringInfoLabelProps props =
+        label.getValueDescriptor().getOptions().getExtension(BeamFnApi.labelProps);
+    return props.getName();
   }
 
   /** @return True if the MonitoringInfo has valid fields set, matching the spec */
@@ -147,7 +160,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /** @return The metric URN for a user metric, with a proper URN prefix. */
-  private static String userMetricUrn(String metricNamespace, String metricName) {
+  public static String userMetricUrn(String metricNamespace, String metricName) {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();
@@ -192,12 +205,12 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the PTRANSFORM MonitoringInfo label to the given param. */
   public void setPTransformLabel(String pTransform) {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
-    setLabel("PTRANSFORM", pTransform);
+    setLabel(PTRANSFORM_LABEL, pTransform);
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
   public void setPCollectionLabel(String pCollection) {
-    setLabel("PCOLLECTION", pCollection);
+    setLabel(PCOLLECTION_LABEL, pCollection);
   }
 
   /** Sets the MonitoringInfo label to the given name and value. */
@@ -215,5 +228,17 @@ public class SimpleMonitoringInfoBuilder {
       return null;
     }
     return this.builder.build();
+  }
+
+  /**
+   * @return A copy of the MonitoringInfo with the timestamp cleared, to allow comparing two
+   *     MonitoringInfos.
+   */
+  @VisibleForTesting
+  public static MonitoringInfo clearTimestamp(MonitoringInfo input) {
+    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+    builder.mergeFrom(input);
+    builder.clearTimestamp();
+    return builder.build();
   }
 }
