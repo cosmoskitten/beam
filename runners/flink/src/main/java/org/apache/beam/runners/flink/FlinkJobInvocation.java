@@ -36,6 +36,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -100,7 +101,16 @@ public class FlinkJobInvocation implements JobInvocation {
 
     LOG.info("Translating pipeline to Flink program.");
     // Fused pipeline proto.
-    RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
+    // TODO: Consider supporting partially-fused graphs.
+    RunnerApi.Pipeline fusedPipeline =
+        pipeline
+                .getComponents()
+                .getTransformsMap()
+                .values()
+                .stream()
+                .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
+            ? pipeline
+            : GreedyPipelineFuser.fuse(pipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
             id,
