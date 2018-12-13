@@ -33,9 +33,8 @@ import time
 import traceback
 from builtins import object
 
-from apache_beam.internal.http_client import get_new_http
-
 from apache_beam.error import TimeoutError
+from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.io.filesystemio import PipeStream
@@ -274,7 +273,7 @@ class GcsIO(object):
     response = self.client.objects.Rewrite(request)
     while not response.done:
       logging.debug(
-          'Rewrite progress: %d / %d bytes, %s to %s',
+          'Rewrite progress: %d of %d bytes, %s to %s',
           response.totalBytesRewritten, response.objectSize, src, dest)
       elapsed = time.time() - start_time
       if elapsed > timeout_secs:
@@ -356,7 +355,7 @@ class GcsIO(object):
           pair_to_status[pair] = exception
         elif not response.done:
           logging.debug(
-              'Rewrite progress: %d / %d bytes, %s to %s',
+              'Rewrite progress: %d of %d bytes, %s to %s',
               response.totalBytesRewritten, response.objectSize, src, dest)
           pair_to_request[pair].rewriteToken = response.rewriteToken
         else:

@@ -29,6 +29,10 @@ Options:
 Cloud KMS permissions:
 The project's Cloud Storage service account requires Encrypter/Decrypter
 permissions for the key specified in --kms_key_name.
+
+To running these tests manually:
+  ./gradlew beam-sdks-python:integrationTest \
+    -Ptests=apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest
 """
 
 from __future__ import absolute_import
@@ -62,7 +66,7 @@ class GcsIOIntegrationTest(unittest.TestCase):
     if self.runner_name != 'TestDataflowRunner':
       # This test doesn't run a pipeline, so it doesn't make sense to try it on
       # different runners. Running with TestDataflowRunner makes sense since
-      # it will
+      # it uses GoogleCloudOptions such as 'project'.
       raise unittest.SkipTest(
           'This test only runs with TestDataflowRunner.')
     self.project = self.test_pipeline.get_option('project')
