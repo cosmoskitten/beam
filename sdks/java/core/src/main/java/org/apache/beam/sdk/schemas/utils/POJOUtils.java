@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
 import net.bytebuddy.description.modifier.Visibility;
@@ -204,6 +205,7 @@ public class POJOUtils {
    * </code></pre>
    */
   @SuppressWarnings("unchecked")
+  @Nullable
   static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
       Field field, SerializableFunction<String, String> fieldNamePolicy) {
     String newName = fieldNamePolicy.apply(field.getName());
