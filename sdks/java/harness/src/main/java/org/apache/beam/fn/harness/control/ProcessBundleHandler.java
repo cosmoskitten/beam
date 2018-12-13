@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
@@ -42,6 +41,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -63,11 +63,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
@@ -149,7 +147,7 @@ public class ProcessBundleHandler {
       Supplier<String> processBundleInstructionId,
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
-      ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
@@ -170,7 +168,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             addStartFunction,
             addFinishFunction,
@@ -203,7 +201,7 @@ public class ProcessBundleHandler {
               processBundleDescriptor.getPcollectionsMap(),
               processBundleDescriptor.getCodersMap(),
               processBundleDescriptor.getWindowingStrategiesMap(),
-              pCollectionIdsToConsumers,
+              pCollectionConsumerRegistry,
               addStartFunction,
               addFinishFunction,
               splitListener);
@@ -227,8 +225,7 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
-        ArrayListMultimap.create();
+    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -248,8 +245,8 @@ public class ProcessBundleHandler {
     try (HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
             ? new BlockTillStateCallsFinish(
-                beamFnStateGrpcClientCache.forApiServiceDescriptor(
-                    bundleDescriptor.getStateApiServiceDescriptor()))
+            beamFnStateGrpcClientCache.forApiServiceDescriptor(
+                bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(request.getProcessBundle())) {
       Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
       Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
@@ -277,7 +274,7 @@ public class ProcessBundleHandler {
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
             && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
             && !PTransformTranslation.READ_TRANSFORM_URN.equals(
-                entry.getValue().getSpec().getUrn())) {
+            entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
@@ -289,13 +286,15 @@ public class ProcessBundleHandler {
             request::getInstructionId,
             bundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
-            pCollectionIdsToConsumers,
+            pCollectionConsumerRegistry,
             processedPTransformIds,
             startFunctions::add,
             finishFunctions::add,
             splitListener);
       }
 
+      // TODO: A MetricsContainerImpl should be created and used for each PTransform
+      // Not for the instruction.
       MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
 
@@ -412,7 +411,7 @@ public class ProcessBundleHandler {
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, WindowingStrategy> windowingStrategies,
-        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {
