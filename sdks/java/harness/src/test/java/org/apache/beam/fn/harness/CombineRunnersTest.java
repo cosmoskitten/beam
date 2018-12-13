@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -46,9 +47,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,9 +122,9 @@ public class CombineRunnersTest {
   @Test
   public void testPrecombine() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -156,8 +155,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", "1")));
     input.accept(valueInGlobalWindow(KV.of("A", "2")));
     input.accept(valueInGlobalWindow(KV.of("A", "6")));
@@ -190,9 +188,9 @@ public class CombineRunnersTest {
   @Test
   public void testMergeAccumulators() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -224,8 +222,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList(1, 2, 6))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList(2, 3))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList(5, 2))));
@@ -245,9 +242,9 @@ public class CombineRunnersTest {
   @Test
   public void testExtractOutputs() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -279,8 +276,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", 9)));
     input.accept(valueInGlobalWindow(KV.of("B", 5)));
     input.accept(valueInGlobalWindow(KV.of("C", 7)));
@@ -300,9 +296,9 @@ public class CombineRunnersTest {
   @Test
   public void testCombineGroupedValues() throws Exception {
     // Create a map of consumers and an output target to check output values.
-    ListMultimap<String, FnDataReceiver<WindowedValue<?>>> consumers = ArrayListMultimap.create();
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.put(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -334,8 +330,7 @@ public class CombineRunnersTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList("1", "2", "6"))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList("2", "3"))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList("5", "2"))));
