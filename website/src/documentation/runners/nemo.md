@@ -22,7 +22,7 @@ limitations under the License.
 
 The Apache Nemo Runner can be used to execute Beam pipelines using [Apache Nemo](http://nemo.apache.org).
 The Nemo Runner can optimize Beam pipelines with the Nemo compiler through various optimization passes
-and execute them in distributed fashion using the Nemo runtime. Deploying a self-contained application
+and execute them in a distributed fashion using the Nemo runtime. You can also deploy a self-contained application
 for local mode or running using resource managers like YARN or Mesos are possible.
 
 The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:
