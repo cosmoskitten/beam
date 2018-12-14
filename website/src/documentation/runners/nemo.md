@@ -127,7 +127,7 @@ More instructions can be seen on the README of the [Apache Nemo GitHub](https://
 
 ## Pipeline Options for the Nemo Runner
 
-When executing your pipeline with the Nemo Runner, you should consider the following pipeline options
+When executing your pipeline with the Nemo Runner, you should consider the following pipeline options:
 
 | Field       | Description           | Default Value  |
 | ------------- |---------------| -----:|
