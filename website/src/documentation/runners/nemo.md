@@ -142,7 +142,7 @@ More options are to be added to the list, to fully support the various options t
 ### Using the Run_beam.sh script
 
 When submitting a Nemo application to the cluster, it is common to use the `bin/run_beam.sh` script that is
-provided within the Nemo installation. It also provides a richer set of options that you can pass on to
+provided within the Nemo installation. The script also provides a richer set of options that you can pass on to
 configure various actions of Nemo. Please refer to the
 [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo) for more information.
 
