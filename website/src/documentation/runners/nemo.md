@@ -131,7 +131,7 @@ When executing your pipeline with the Nemo Runner, you should consider the follo
 
 | Field       | Description           | Default Value  |
 | ------------- |---------------| -----:|
-| `runner`      | The pipeline runner to use. This option allows you to determine the pipeline runner at runtime. | Set to `NemoRunner` to run using Nemo |
+| `runner`      | The pipeline runner to use. This option allows you to determine the pipeline runner at runtime. | Set to `NemoRunner` to run using Nemo. |
 | `maxBundleSize`      | The maximum number of elements in a bundle. |   1000 |
 | `maxBundleTimeMillis` | The maximum time to wait before finalizing a bundle (in milliseconds). |   1000 |
 
