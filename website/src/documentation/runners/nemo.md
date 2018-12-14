@@ -111,7 +111,7 @@ and the version is `1.0.0`):
 beam-examples-1.0.0-shaded.jar
 ```
 
-With this shaded jar, you may use the `bin/run_beam.sh` shell script as following:
+With this shaded jar, you can use the `bin/run_beam.sh` shell script as follows:
 
 ```
 ## MapReduce example
