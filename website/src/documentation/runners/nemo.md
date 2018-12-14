@@ -104,7 +104,7 @@ Simply add the dependency shown above and shade the application JAR using the Ma
 </plugin>
 ```
 
-After running `mvn package`, run `ls target` and you should see (when your artifactId is `beam-examples`
+After running `mvn package`, run `ls target` and you should see the following output (in this example, your artifactId is `beam-examples`
 and the version is `1.0.0`):
 
 ```
