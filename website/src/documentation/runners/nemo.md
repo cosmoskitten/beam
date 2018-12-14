@@ -66,7 +66,7 @@ to your pom.xml as followings:
 ## Deploying Nemo with your Application
 
 A self-contained application could be easier to manage and fully use the functionalities that Nemo provides.
-Simply add the dependency shown above and shade the application jar using the maven shade plugin:
+Simply add the dependency shown above and shade the application JAR using the Maven Shade plugin:
 
 ```
 <plugin>
