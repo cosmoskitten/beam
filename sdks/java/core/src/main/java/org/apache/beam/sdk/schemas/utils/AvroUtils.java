@@ -50,6 +50,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -249,6 +250,35 @@ public class AvroUtils {
               field.getType(), avroSchema.getField(field.getName()).schema(), row.getValue(i)));
     }
     return builder.build();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> SerializableFunction<T, Row> getToRowFunction(
+      Class<T> clazz, @Nullable org.apache.avro.Schema schema) {
+    if (GenericRecord.class.equals(clazz)) {
+      Schema beamSchema = toBeamSchema(schema);
+      return (SerializableFunction<T, Row>) getGenericRecordToRowFunction(beamSchema);
+    } else {
+      return new AvroRecordSchema().toRowFunction(TypeDescriptor.of(clazz));
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> SerializableFunction<Row, T> getFromRowFunction(Class<T> clazz) {
+    return (GenericRecord.class.equals(clazz))
+        ? (SerializableFunction<Row, T>) getRowToGenericRecordFunction(null)
+        : new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(clazz));
+  }
+
+  @Nullable
+  public static <T> Schema getSchema(Class<T> clazz, @Nullable org.apache.avro.Schema schema) {
+    if (schema != null) {
+      return schema.getType().equals(Type.RECORD) ? toBeamSchema(schema) : null;
+    }
+    if (GenericRecord.class.equals(clazz)) {
+      throw new IllegalArgumentException("No schema provided for getSchema(GenericRecord)");
+    }
+    return new AvroRecordSchema().schemaFor(TypeDescriptor.of(clazz));
   }
 
   /**
