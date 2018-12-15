@@ -34,6 +34,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Type;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -63,6 +65,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 
@@ -278,6 +282,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(true)
         .setHintMatchesManyFiles(false)
         .build();
   }
@@ -301,6 +306,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
+        .setInferBeamSchema(true)
         .setHintMatchesManyFiles(false)
         .build();
   }
@@ -444,6 +450,8 @@ public class AvroIO {
     @Nullable
     abstract Schema getSchema();
 
+    abstract boolean getInferBeamSchema();
+
     abstract boolean getHintMatchesManyFiles();
 
     abstract Builder<T> toBuilder();
@@ -457,6 +465,8 @@ public class AvroIO {
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
       abstract Builder<T> setSchema(Schema schema);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
 
@@ -488,6 +498,10 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
+    public Read<T> withBeamSchemas() {
+      return toBuilder().setInferBeamSchema(true).build();
+    }
+
     /**
      * Continuously watches for new files matching the filepattern, polling it at the given
      * interval, until the given termination condition is reached. The returned {@link PCollection}
@@ -516,12 +530,13 @@ public class AvroIO {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       checkNotNull(getSchema(), "schema");
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        return input.apply(
+        PCollection<T> read = input.apply(
             "Read",
             org.apache.beam.sdk.io.Read.from(
                 createSource(
@@ -529,6 +544,31 @@ public class AvroIO {
                     getMatchConfiguration().getEmptyMatchTreatment(),
                     getRecordClass(),
                     getSchema())));
+        if (getInferBeamSchema()) {
+          if (getRecordClass().equals(GenericRecord.class)) {
+            if (getSchema().getType().equals(Type.RECORD)) {
+              org.apache.beam.sdk.schemas.Schema schema =
+                  org.apache.beam.sdk.schemas.utils.AvroUtils.toBeamSchema(getSchema());
+              SerializableFunction<T, Row> toRow =
+                  (SerializableFunction<T, Row>)
+                      org.apache.beam.sdk.schemas.utils.AvroUtils.getGenericRecordToRowFunction(
+                          schema);
+              SerializableFunction<Row, T> fromRow =
+                  (SerializableFunction<Row, T>)
+                      org.apache.beam.sdk.schemas.utils.AvroUtils.getRowToGenericRecordFunction(
+                          null);
+              read = read.setSchema(schema, toRow, fromRow);
+            }
+          } else {
+            AvroRecordSchema avroSchemaProvider = new AvroRecordSchema();
+            TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(getRecordClass());
+            read = read.setSchema(
+                avroSchemaProvider.schemaFor(typeDescriptor),
+                avroSchemaProvider.toRowFunction(typeDescriptor),
+                avroSchemaProvider.fromRowFunction(typeDescriptor));
+          }
+          return read;
+        }
       }
       // All other cases go through ReadAll.
 
