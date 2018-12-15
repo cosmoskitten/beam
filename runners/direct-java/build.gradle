@@ -112,6 +112,7 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
+
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
