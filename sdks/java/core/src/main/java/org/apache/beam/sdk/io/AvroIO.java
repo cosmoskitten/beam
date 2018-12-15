@@ -282,7 +282,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
-        .setInferBeamSchema(true)
+        .setInferBeamSchema(false)
         .setHintMatchesManyFiles(false)
         .build();
   }
@@ -293,6 +293,7 @@ public class AvroIO {
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(false)
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
@@ -436,6 +437,33 @@ public class AvroIO {
         .setWindowedWrites(false);
   }
 
+  private static <T> PCollection<T> setBeamSchema(
+      PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
+    if (clazz.equals(GenericRecord.class)) {
+      if (schema.getType().equals(Type.RECORD)) {
+        org.apache.beam.sdk.schemas.Schema beamSchema =
+            org.apache.beam.sdk.schemas.utils.AvroUtils.toBeamSchema(schema);
+        SerializableFunction<T, Row> toRow =
+            (SerializableFunction<T, Row>)
+                org.apache.beam.sdk.schemas.utils.AvroUtils.getGenericRecordToRowFunction(
+                    beamSchema);
+        SerializableFunction<Row, T> fromRow =
+            (SerializableFunction<Row, T>)
+                org.apache.beam.sdk.schemas.utils.AvroUtils.getRowToGenericRecordFunction(null);
+        pc = pc.setSchema(beamSchema, toRow, fromRow);
+      }
+    } else {
+      AvroRecordSchema avroSchemaProvider = new AvroRecordSchema();
+      TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(clazz);
+      pc =
+          pc.setSchema(
+              avroSchemaProvider.schemaFor(typeDescriptor),
+              avroSchemaProvider.toRowFunction(typeDescriptor),
+              avroSchemaProvider.fromRowFunction(typeDescriptor));
+    }
+    return pc;
+  }
+
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
@@ -498,8 +526,8 @@ public class AvroIO {
       return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
-    public Read<T> withBeamSchemas() {
-      return toBuilder().setInferBeamSchema(true).build();
+    public Read<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
     /**
@@ -536,38 +564,17 @@ public class AvroIO {
       checkNotNull(getSchema(), "schema");
 
       if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
-        PCollection<T> read = input.apply(
-            "Read",
-            org.apache.beam.sdk.io.Read.from(
-                createSource(
-                    getFilepattern(),
-                    getMatchConfiguration().getEmptyMatchTreatment(),
-                    getRecordClass(),
-                    getSchema())));
+        PCollection<T> read =
+            input.apply(
+                "Read",
+                org.apache.beam.sdk.io.Read.from(
+                    createSource(
+                        getFilepattern(),
+                        getMatchConfiguration().getEmptyMatchTreatment(),
+                        getRecordClass(),
+                        getSchema())));
         if (getInferBeamSchema()) {
-          if (getRecordClass().equals(GenericRecord.class)) {
-            if (getSchema().getType().equals(Type.RECORD)) {
-              org.apache.beam.sdk.schemas.Schema schema =
-                  org.apache.beam.sdk.schemas.utils.AvroUtils.toBeamSchema(getSchema());
-              SerializableFunction<T, Row> toRow =
-                  (SerializableFunction<T, Row>)
-                      org.apache.beam.sdk.schemas.utils.AvroUtils.getGenericRecordToRowFunction(
-                          schema);
-              SerializableFunction<Row, T> fromRow =
-                  (SerializableFunction<Row, T>)
-                      org.apache.beam.sdk.schemas.utils.AvroUtils.getRowToGenericRecordFunction(
-                          null);
-              read = read.setSchema(schema, toRow, fromRow);
-            }
-          } else {
-            AvroRecordSchema avroSchemaProvider = new AvroRecordSchema();
-            TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(getRecordClass());
-            read = read.setSchema(
-                avroSchemaProvider.schemaFor(typeDescriptor),
-                avroSchemaProvider.toRowFunction(typeDescriptor),
-                avroSchemaProvider.fromRowFunction(typeDescriptor));
-          }
-          return read;
+          return setBeamSchema(read, getRecordClass(), getSchema());
         }
       }
       // All other cases go through ReadAll.
@@ -620,6 +627,8 @@ public class AvroIO {
 
     abstract long getDesiredBundleSizeBytes();
 
+    abstract boolean getInferBeamSchema();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -631,6 +640,8 @@ public class AvroIO {
       abstract Builder<T> setSchema(Schema schema);
 
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
 
       abstract ReadAll<T> build();
     }
@@ -658,18 +669,27 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
+    public ReadAll<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
     @Override
     public PCollection<T> expand(PCollection<String> input) {
       checkNotNull(getSchema(), "schema");
-      return input
-          .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
-          .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-          .apply(
-              "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
-                  getDesiredBundleSizeBytes(),
-                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
-                  AvroCoder.of(getRecordClass(), getSchema())));
+      PCollection<T> read =
+          input
+              .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+              .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+              .apply(
+                  "Read all via FileBasedSource",
+                  new ReadAllViaFileBasedSource<>(
+                      getDesiredBundleSizeBytes(),
+                      new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                      AvroCoder.of(getRecordClass(), getSchema())));
+      if (getInferBeamSchema()) {
+        read = setBeamSchema(read, getRecordClass(), getSchema());
+      }
+      return read;
     }
 
     @Override
