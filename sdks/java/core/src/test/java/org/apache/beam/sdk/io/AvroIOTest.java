@@ -126,8 +126,7 @@ public class AvroIOTest implements Serializable {
     return Arrays.asList(new Object[][] {{true}, {false}});
   }
 
-  @Parameterized.Parameter(0)
-  public boolean withBeamSchemas;
+  @Parameterized.Parameter public boolean withBeamSchemas;
 
   @Test
   public void testAvroIOGetName() {
