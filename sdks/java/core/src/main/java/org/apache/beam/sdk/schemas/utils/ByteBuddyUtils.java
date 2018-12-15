@@ -85,7 +85,7 @@ class ByteBuddyUtils {
       String baseName = baseNameResolver.resolve(superClass);
       int lastDot = baseName.lastIndexOf('.');
       String className = baseName.substring(lastDot, baseName.length());
-      return targetPackage + "." + className + "$" + SUFFIX + "$" + randomString.nextString();
+      return targetPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
     }
   };
 
