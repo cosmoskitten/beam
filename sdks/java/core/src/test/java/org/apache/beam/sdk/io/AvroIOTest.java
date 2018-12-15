@@ -29,6 +29,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
@@ -295,6 +296,7 @@ public class AvroIOTest implements Serializable {
     testWriteThenReadGeneratedClass(
         AvroIO.write(AvroGeneratedUser.class),
         AvroIO.read(AvroGeneratedUser.class).withBeamSchemas(withBeamSchemas));
+    fail();
   }
 
   @Test
