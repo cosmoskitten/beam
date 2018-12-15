@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -104,10 +105,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Tests for AvroIO Read and Write transforms. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class AvroIOTest implements Serializable {
 
   @Rule public transient TestPipeline writePipeline = TestPipeline.create();
@@ -119,6 +120,14 @@ public class AvroIOTest implements Serializable {
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public transient ExpectedException expectedException = ExpectedException.none();
+
+  @Parameterized.Parameters(name = "{index}: {0}")
+  public static Collection<Object[]> params() {
+    return Arrays.asList(new Object[][] {{true}, {false}});
+  }
+
+  @Parameterized.Parameter(0)
+  public boolean withBeamSchemas;
 
   @Test
   public void testAvroIOGetName() {
@@ -212,6 +221,7 @@ public class AvroIOTest implements Serializable {
             readPipeline.apply(
                 "Read",
                 AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
                     .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
         .containsInAnyOrder(values);
 
@@ -239,6 +249,7 @@ public class AvroIOTest implements Serializable {
                 .apply(
                     "Read",
                     AvroIO.read(GenericClass.class)
+                        .withBeamSchemas(withBeamSchemas)
                         .from(readPipeline.newProvider(outputFile.getAbsolutePath())))
                 .apply(
                     MapElements.via(
@@ -283,14 +294,16 @@ public class AvroIOTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testWriteThenReadGeneratedClassWithClass() throws Throwable {
     testWriteThenReadGeneratedClass(
-        AvroIO.write(AvroGeneratedUser.class), AvroIO.read(AvroGeneratedUser.class));
+        AvroIO.write(AvroGeneratedUser.class),
+        AvroIO.read(AvroGeneratedUser.class).withBeamSchemas(withBeamSchemas));
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteThenReadGeneratedClassWithSchema() throws Throwable {
     testWriteThenReadGeneratedClass(
-        AvroIO.writeGenericRecords(SCHEMA), AvroIO.readGenericRecords(SCHEMA));
+        AvroIO.writeGenericRecords(SCHEMA),
+        AvroIO.readGenericRecords(SCHEMA).withBeamSchemas(withBeamSchemas));
   }
 
   @Test
@@ -298,7 +311,7 @@ public class AvroIOTest implements Serializable {
   public void testWriteThenReadGeneratedClassWithSchemaString() throws Throwable {
     testWriteThenReadGeneratedClass(
         AvroIO.writeGenericRecords(SCHEMA.toString()),
-        AvroIO.readGenericRecords(SCHEMA.toString()));
+        AvroIO.readGenericRecords(SCHEMA.toString()).withBeamSchemas(withBeamSchemas));
   }
 
   @Test
@@ -318,18 +331,25 @@ public class AvroIOTest implements Serializable {
         readPipeline.apply("Create path", Create.of(outputFile.getAbsolutePath()));
     PAssert.that(
             readPipeline.apply(
-                "Read", AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(values);
     PAssert.that(
             readPipeline.apply(
                 "Read withHintMatchesManyFiles",
                 AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
                     .from(outputFile.getAbsolutePath())
                     .withHintMatchesManyFiles()))
         .containsInAnyOrder(values);
     PAssert.that(
             path.apply(
-                "ReadAll", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+                "ReadAll",
+                AvroIO.readAll(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(values);
     PAssert.that(
             readPipeline.apply(
@@ -391,7 +411,10 @@ public class AvroIOTest implements Serializable {
                 tmpFolder.getRoot().getAbsolutePath() + "/second*"));
     PAssert.that(
             paths.apply(
-                "Read all", AvroIO.readAll(GenericClass.class).withDesiredBundleSizeBytes(10)))
+                "Read all",
+                AvroIO.readAll(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
     PAssert.that(
             paths.apply(
@@ -453,6 +476,7 @@ public class AvroIOTest implements Serializable {
             readPipeline.apply(
                 "Read",
                 AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
                     .watchForNewFiles(
                         Duration.millis(100),
@@ -478,6 +502,7 @@ public class AvroIOTest implements Serializable {
             paths.apply(
                 "Read all",
                 AvroIO.readAll(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
                     .watchForNewFiles(
                         Duration.millis(100),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))
@@ -514,7 +539,10 @@ public class AvroIOTest implements Serializable {
     writePipeline.run();
 
     PAssert.that(
-            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+            readPipeline.apply(
+                AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(values);
     readPipeline.run();
 
@@ -542,7 +570,10 @@ public class AvroIOTest implements Serializable {
     writePipeline.run();
 
     PAssert.that(
-            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+            readPipeline.apply(
+                AvroIO.read(GenericClass.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(values);
     readPipeline.run();
 
@@ -616,7 +647,9 @@ public class AvroIOTest implements Serializable {
 
     PAssert.that(
             readPipeline.apply(
-                AvroIO.read(GenericClassV2.class).from(outputFile.getAbsolutePath())))
+                AvroIO.read(GenericClassV2.class)
+                    .withBeamSchemas(withBeamSchemas)
+                    .from(outputFile.getAbsolutePath())))
         .containsInAnyOrder(expected);
     readPipeline.run();
   }
@@ -1005,7 +1038,9 @@ public class AvroIOTest implements Serializable {
       PCollection<GenericRecord> records =
           readPipeline.apply(
               "read_" + prefix,
-              AvroIO.readGenericRecords(schemaFromPrefix(prefix)).from(expectedFilepattern));
+              AvroIO.readGenericRecords(schemaFromPrefix(prefix))
+                  .withBeamSchemas(withBeamSchemas)
+                  .from(expectedFilepattern));
       PAssert.that(records).containsInAnyOrder(expectedElements.get(prefix));
     }
     readPipeline.run();
@@ -1193,7 +1228,8 @@ public class AvroIOTest implements Serializable {
 
   @Test
   public void testReadDisplayData() {
-    AvroIO.Read<String> read = AvroIO.read(String.class).from("/foo.*");
+    AvroIO.Read<String> read =
+        AvroIO.read(String.class).withBeamSchemas(withBeamSchemas).from("/foo.*");
 
     DisplayData displayData = DisplayData.from(read);
     assertThat(displayData, hasDisplayItem("filePattern", "/foo.*"));
@@ -1205,7 +1241,9 @@ public class AvroIOTest implements Serializable {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
     AvroIO.Read<GenericRecord> read =
-        AvroIO.readGenericRecords(Schema.create(Schema.Type.STRING)).from("/foo.*");
+        AvroIO.readGenericRecords(Schema.create(Schema.Type.STRING))
+            .withBeamSchemas(withBeamSchemas)
+            .from("/foo.*");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat(
