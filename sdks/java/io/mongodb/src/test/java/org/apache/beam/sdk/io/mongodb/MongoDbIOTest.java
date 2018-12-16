@@ -50,6 +50,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.bson.BsonDocument;
+import org.bson.BsonString;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.Assert;
@@ -73,6 +75,8 @@ public class MongoDbIOTest implements Serializable {
 
   private transient MongodExecutable mongodExecutable;
   private transient MongodProcess mongodProcess;
+  private String[] scientists;
+  private String[] country;
 
   private static int port;
 
@@ -119,30 +123,32 @@ public class MongoDbIOTest implements Serializable {
 
     MongoCollection collection = database.getCollection(COLLECTION);
 
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
-    String[] country = {
-      "Germany",
-      "England",
-      "Poland",
-      "France",
-      "France",
-      "England",
-      "England",
-      "Denmark",
-      "Florence",
-      "Scotland"
-    };
+    scientists =
+        new String[] {
+          "Einstein",
+          "Darwin",
+          "Copernicus",
+          "Pasteur",
+          "Curie",
+          "Faraday",
+          "Newton",
+          "Bohr",
+          "Galilei",
+          "Maxwell"
+        };
+    country =
+        new String[] {
+          "Germany",
+          "England",
+          "Poland",
+          "France",
+          "France",
+          "England",
+          "England",
+          "Denmark",
+          "Florence",
+          "Scotland"
+        };
     for (int i = 1; i <= 1000; i++) {
       int index = i % scientists.length;
       Document document = new Document();
@@ -262,6 +268,62 @@ public class MongoDbIOTest implements Serializable {
                 .withFilter("{\"scientist\":\"Einstein\"}"));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithFilterAndLimit() throws Exception {
+
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withFilter("{\"scientist\":\"Einstein\"}")
+                .withLimit(5));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithLimit() throws Exception {
+
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withLimit(5));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithAggregate() throws Exception {
+
+    // [{ "$match" : { "country" : { "$eq" : "England" } } }]
+    List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
+    aggregates.add(
+        new BsonDocument(
+            "$match",
+            new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
+
+    PCollection<Document> output =
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withAggregate(aggregates));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
 
     pipeline.run();
   }
