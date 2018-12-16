@@ -32,6 +32,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -333,6 +336,8 @@ public class ClickHouseIO {
     private ClickHouseConnection connection;
     private FluentBackoff retryBackoff;
     private final List<Row> buffer = new ArrayList<>();
+    private final Distribution batchSize = Metrics.distribution(Write.class, "batch_size");
+    private final Counter retries = Metrics.counter(Write.class, "retries");
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
@@ -414,6 +419,12 @@ public class ClickHouseIO {
       BackOff backOff = retryBackoff.backoff();
       int attempt = 0;
 
+      if (buffer.isEmpty()) {
+        return;
+      }
+
+      batchSize.update(buffer.size());
+
       while (true) {
         try (ClickHouseStatement statement = connection.createStatement()) {
           statement.sendRowBinaryStream(
@@ -429,6 +440,7 @@ public class ClickHouseIO {
           if (!BackOffUtils.next(Sleeper.DEFAULT, backOff)) {
             throw e;
           } else {
+            retries.inc();
             LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), e);
             attempt++;
           }
