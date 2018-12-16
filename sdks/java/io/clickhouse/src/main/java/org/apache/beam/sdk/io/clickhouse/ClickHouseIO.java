@@ -376,7 +376,8 @@ public class ClickHouseIO {
     @Setup
     public void setup() throws SQLException {
       String maxInsertBlockSizeKey = ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE.getKey();
-      Properties properties = new Properties(properties());
+      Properties properties = new Properties();
+      properties.putAll(properties());
 
       if (!properties.containsKey(maxInsertBlockSizeKey)) {
         properties.put(maxInsertBlockSizeKey, DEFAULT_MAX_INSERT_BLOCK_SIZE);
