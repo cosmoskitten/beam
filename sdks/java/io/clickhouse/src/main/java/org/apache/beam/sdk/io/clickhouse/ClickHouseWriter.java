@@ -28,7 +28,7 @@ import org.joda.time.ReadableInstant;
 import ru.yandex.clickhouse.util.ClickHouseRowBinaryStream;
 
 /** Writes Rows and field values using {@link ClickHouseRowBinaryStream}. */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 
