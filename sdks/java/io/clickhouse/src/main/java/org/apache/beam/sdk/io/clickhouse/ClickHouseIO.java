@@ -217,6 +217,8 @@ public class ClickHouseIO {
      * For INSERT queries in the replicated table, wait writing for the specified number of replicas
      * and linearize the addition of the data. 0 - disabled.
      *
+     * <p>This setting is disabled in default server settings.
+     *
      * @param value number of replicas, 0 for disabling, null for server default
      * @return a {@link PTransform} writing data to ClickHouse
      * @see <a href="https://clickhouse.yandex/docs/en/single/#insert_quorum">ClickHouse
@@ -375,15 +377,7 @@ public class ClickHouseIO {
 
     @Setup
     public void setup() throws SQLException {
-      String maxInsertBlockSizeKey = ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE.getKey();
-      Properties properties = new Properties();
-      properties.putAll(properties());
-
-      if (!properties.containsKey(maxInsertBlockSizeKey)) {
-        properties.put(maxInsertBlockSizeKey, DEFAULT_MAX_INSERT_BLOCK_SIZE);
-      }
-
-      connection = new ClickHouseDataSource(jdbcUrl(), properties).getConnection();
+      connection = new ClickHouseDataSource(jdbcUrl(), properties()).getConnection();
 
       retryBackoff =
           FluentBackoff.DEFAULT

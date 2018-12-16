@@ -28,11 +28,11 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 
 /** A descriptor for ClickHouse table schema. */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Experimental.Kind.SOURCE_SINK)
 @AutoValue
 public abstract class TableSchema implements Serializable {
 
-  abstract List<Column> columns();
+  public abstract List<Column> columns();
 
   public static TableSchema of(Column... columns) {
     return new AutoValue_TableSchema(Arrays.asList(columns));
@@ -100,10 +100,10 @@ public abstract class TableSchema implements Serializable {
 
       case ARRAY:
         return Schema.FieldType.array(getEquivalentFieldType(columnType.arrayElementType()));
-
-      default:
-        throw new AssertionError("Unexpected type: " + columnType.typeName());
     }
+
+    // not possible, errorprone checks for exhaustive switch
+    throw new AssertionError("Unexpected type: " + columnType.typeName());
   }
 
   /** A column in ClickHouse table. */
@@ -195,7 +195,7 @@ public abstract class TableSchema implements Serializable {
     public static final ColumnType UINT64 = ColumnType.of(TypeName.UINT64);
 
     // ClickHouse doesn't allow nested nullables, so boolean flag is enough
-    abstract boolean nullable();
+    public abstract boolean nullable();
 
     public abstract TypeName typeName();
 
