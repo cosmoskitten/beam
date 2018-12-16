@@ -26,6 +26,8 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -109,6 +111,8 @@ public class MongoDbIO {
         .setSslEnabled(false)
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
+        .setAggregate(Arrays.asList())
+        .setLimit(0)
         .build();
   }
 
@@ -157,6 +161,11 @@ public class MongoDbIO {
 
     abstract int numSplits();
 
+    abstract int limit();
+
+    @Nullable
+    abstract List aggregate();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -182,6 +191,10 @@ public class MongoDbIO {
       abstract Builder setProjection(List<String> fieldNames);
 
       abstract Builder setNumSplits(int numSplits);
+
+      abstract Builder setLimit(int limit);
+
+      abstract Builder setAggregate(List pipeline);
 
       abstract Read build();
     }
@@ -281,6 +294,15 @@ public class MongoDbIO {
       return builder().setNumSplits(numSplits).build();
     }
 
+    public Read withLimit(int limit) {
+      checkArgument(limit >= 0, "invalid limit: must be > 0, but was %s", limit);
+      return builder().setLimit(limit).build();
+    }
+
+    public Read withAggregate(List value) {
+      return builder().setAggregate(value).build();
+    }
+
     @Override
     public PCollection<Document> expand(PBegin input) {
       checkArgument(uri() != null, "withUri() is required");
@@ -307,6 +329,7 @@ public class MongoDbIO {
             DisplayData.item("projection", Arrays.toString(projection().toArray())));
       }
       builder.add(DisplayData.item("numSplit", numSplits()));
+      builder.add(DisplayData.item("limit", limit()));
     }
   }
 
@@ -419,7 +442,7 @@ public class MongoDbIO {
         splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
 
         List<BoundedSource<Document>> sources = new ArrayList<>();
-        if (splitKeys.size() < 1) {
+        if (!spec.aggregate().isEmpty() || splitKeys.size() < 1) {
           LOG.debug("Split keys is low, using an unique source");
           sources.add(this);
           return sources;
@@ -520,6 +543,8 @@ public class MongoDbIO {
 
     private MongoClient client;
     private MongoCursor<Document> cursor;
+    private AggregateIterable<Document> aggregateQuery;
+    private FindIterable<Document> query;
     private Document current;
 
     public BoundedMongoDbReader(BoundedMongoDbSource source) {
@@ -543,19 +568,32 @@ public class MongoDbIO {
 
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
 
-      if (spec.filter() == null) {
+      if (!spec.aggregate().isEmpty()) {
+        aggregateQuery = mongoCollection.aggregate(spec.aggregate());
+      } else if (spec.filter() == null) {
         if (spec.projection() == null) {
-          cursor = mongoCollection.find().iterator();
+          query = mongoCollection.find();
         } else {
-          cursor = mongoCollection.find().projection(include(spec.projection())).iterator();
+          query = mongoCollection.find().projection(include(spec.projection()));
         }
       } else {
         Document bson = Document.parse(spec.filter());
         if (spec.projection() == null) {
-          cursor = mongoCollection.find(bson).iterator();
+          query = mongoCollection.find(bson);
         } else {
-          cursor = mongoCollection.find(bson).projection(include(spec.projection())).iterator();
+          query = mongoCollection.find(bson).projection(include(spec.projection()));
         }
+      }
+
+      // Limit
+      if (spec.aggregate().isEmpty()) {
+        query = query.limit(spec.limit());
+      }
+
+      if (!spec.aggregate().isEmpty()) {
+        cursor = aggregateQuery.iterator();
+      } else {
+        cursor = query.iterator();
       }
 
       return advance();
