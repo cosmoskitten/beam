@@ -50,7 +50,7 @@ public class BaseClickHouseTest {
                   BindMode.READ_ONLY);
 
   public void setup() {
-    assert (zookeeper.getNetwork() == network); // fix findbugs
+    assert (zookeeper.getNetwork() == network); // fix unused public field in findbugs
   }
 
   boolean executeSql(String sql) throws SQLException {
