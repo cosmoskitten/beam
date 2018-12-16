@@ -290,22 +290,6 @@ public class MongoDbIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithLimit() throws Exception {
-
-    PCollection<Document> output =
-        pipeline.apply(
-            MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
-                .withDatabase(DATABASE)
-                .withCollection(COLLECTION)
-                .withLimit(5));
-
-    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
-
-    pipeline.run();
-  }
-
-  @Test
   public void testReadWithAggregate() throws Exception {
 
     // [{ "$match" : { "country" : { "$eq" : "England" } } }]
