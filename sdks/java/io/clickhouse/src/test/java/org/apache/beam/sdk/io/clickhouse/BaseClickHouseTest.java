@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.clickhouse;
 
+import com.github.dockerjava.api.command.CreateContainerCmd;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.junit.Rule;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -30,27 +32,49 @@ import org.testcontainers.containers.Network;
 /** Base setup for ClickHouse containers. */
 public class BaseClickHouseTest {
 
-  @Rule public Network network = Network.newNetwork();
+  public static Network network;
+  public static GenericContainer zookeeper;
+  public static ClickHouseContainer clickHouse;
 
-  @Rule
-  public GenericContainer zookeeper =
-      new GenericContainer<>("zookeeper:3.4.13")
-          .withExposedPorts(2181)
-          .withNetwork(network)
-          .withNetworkAliases("zookeeper");
+  @BeforeClass
+  public static void setup() {
+    // network sharing doesn't work with ClassRule
+    network = Network.newNetwork();
 
-  @Rule
-  public ClickHouseContainer clickHouse =
-      (ClickHouseContainer)
-          new ClickHouseContainer()
-              .withNetwork(network)
-              .withClasspathResourceMapping(
-                  "config.d/zookeeper_default.xml",
-                  "/etc/clickhouse-server/config.d/zookeeper_default.xml",
-                  BindMode.READ_ONLY);
+    zookeeper =
+        new GenericContainer<>("zookeeper:3.4.13")
+            .withExposedPorts(2181)
+            .withNetwork(network)
+            .withNetworkAliases("zookeeper");
+    zookeeper.start();
 
-  public void setup() {
-    assert (zookeeper.getNetwork() == network); // fix unused public field in findbugs
+    clickHouse =
+        (ClickHouseContainer)
+            new ClickHouseContainer()
+                .withCreateContainerCmdModifier(
+                    // type inference for `(CreateContainerCmd) -> cmd.` doesn't work
+                    cmd ->
+                        ((CreateContainerCmd) cmd)
+                            .withMemory(256 * 1024 * 1024L)
+                            .withMemorySwap(4L * 1024 * 1024 * 1024L))
+                .withNetwork(network)
+                .withClasspathResourceMapping(
+                    "config.d/zookeeper_default.xml",
+                    "/etc/clickhouse-server/config.d/zookeeper_default.xml",
+                    BindMode.READ_ONLY);
+    clickHouse.start();
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    clickHouse.close();
+    zookeeper.close();
+
+    try {
+      network.close();
+    } catch (Exception e) {
+      // ignore
+    }
   }
 
   boolean executeSql(String sql) throws SQLException {
