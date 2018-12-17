@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.sql.SQLException;
 import java.util.stream.Collectors;
@@ -83,6 +84,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
 
     // each insert is atomic, so we get exactly done * size elements
     assertEquals(((long) done) * size, count);
+    assertTrue(count > 0L); // at least one should succeed
   }
 
   /**
@@ -121,6 +123,7 @@ public class AtomicInsertTest extends BaseClickHouseTest {
 
     // inserts should be deduplicated, so we get exactly `size` elements
     assertEquals(size, count);
+    assertTrue(count > 0L); // at least one should succeed
   }
 
   private static class RangeBundle extends PTransform<PBegin, PCollection<Row>> {

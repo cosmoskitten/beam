@@ -32,7 +32,7 @@ compileJavacc {
 }
 
 def clickhouse_jdbc_version = "0.1.47"
-def testcontainers_version = "1.9.1"
+def testcontainers_version = "1.10.2"
 
 dependencies {
   javacc "net.java.dev.javacc:javacc:4.0"
