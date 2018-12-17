@@ -43,7 +43,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * <pre>
  * SELECT bid.*, sideInput.*
  * FROM bid, sideInput
- * GROUP BY SESSION(etime => bid.bidtime, key => bid.auctionid)
+ * GROUP BY SESSION(bid.bidtime, bid.auctionid, config.sessionGap)
  * WHERE bid.id = sideInput.id
  * </pre>
  */
