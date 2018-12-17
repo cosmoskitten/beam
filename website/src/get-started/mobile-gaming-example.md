@@ -401,3 +401,10 @@ This gives us a set of user sessions, each with an attached duration. We can the
 
 We can use the resulting information to find, for example, what times of day our users are playing the longest, or which stretches of the day are more likely to see shorter play sessions.
 
+## Next Steps
+
+* Take a self-paced tour through our [How Tos]({{ site.baseurl }}/documentation/how-tos) page.
+* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
+
+Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
