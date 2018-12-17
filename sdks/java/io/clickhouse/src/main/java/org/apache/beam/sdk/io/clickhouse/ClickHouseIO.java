@@ -470,26 +470,35 @@ public class ClickHouseIO {
     List<TableSchema.Column> columns = new ArrayList<>();
 
     try (ClickHouseConnection connection = new ClickHouseDataSource(jdbcUrl).getConnection();
-        Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery("DESCRIBE TABLE " + quoteIdentifier(table))) {
+        Statement statement = connection.createStatement()) {
 
-      while (rs.next()) {
-        String name = rs.getString("name");
-        String type = rs.getString("type");
-        String defaultTypeStr = rs.getString("default_type");
-        String defaultExpression = rs.getString("default_expression");
+      ResultSet rs = null; // try-finally is used because findbugs doesn't like try-with-resource
+      try {
+        rs = statement.executeQuery("DESCRIBE TABLE " + quoteIdentifier(table));
 
-        ColumnType columnType = ColumnType.parse(type);
-        DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
+        while (rs.next()) {
+          String name = rs.getString("name");
+          String type = rs.getString("type");
+          String defaultTypeStr = rs.getString("default_type");
+          String defaultExpression = rs.getString("default_expression");
 
-        Object defaultValue;
-        if (DefaultType.DEFAULT.equals(defaultType) && !Strings.isNullOrEmpty(defaultExpression)) {
-          defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
-        } else {
-          defaultValue = null;
+          ColumnType columnType = ColumnType.parse(type);
+          DefaultType defaultType = DefaultType.parse(defaultTypeStr).orElse(null);
+
+          Object defaultValue;
+          if (DefaultType.DEFAULT.equals(defaultType)
+              && !Strings.isNullOrEmpty(defaultExpression)) {
+            defaultValue = ColumnType.parseDefaultExpression(columnType, defaultExpression);
+          } else {
+            defaultValue = null;
+          }
+
+          columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
         }
-
-        columns.add(TableSchema.Column.of(name, columnType, defaultType, defaultValue));
+      } finally {
+        if (rs != null) {
+          rs.close();
+        }
       }
 
       return TableSchema.of(columns.toArray(new TableSchema.Column[0]));
