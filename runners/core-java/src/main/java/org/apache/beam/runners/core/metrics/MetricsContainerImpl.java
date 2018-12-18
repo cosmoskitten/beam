@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.metrics;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.grpc.v1_13_1.io.netty.util.internal.StringUtil.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
@@ -28,6 +27,7 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.runners.core.construction.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -149,10 +149,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (MetricUpdate<Long> mu : mus.counterUpdates()) {
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
       MetricName metricName = mu.getKey().metricName();
-      if (!isNullOrEmpty(metricName.getUrn())) {
-        // Represents a specific MonitoringInfo for a specific URN
-        builder.setUrn(metricName.getUrn());
-        for (Entry<String, String> e : metricName.getLabels().entrySet()) {
+      if (metricName instanceof MonitoringInfoMetricName) {
+        MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
+        // Represents a specific MonitoringInfo for a specific URN.
+        builder.setUrn(monitoringInfoName.getUrn());
+        for (Entry<String, String> e : monitoringInfoName.getLabels().entrySet()) {
           builder.setLabel(e.getKey(), e.getValue());
         }
       } else {

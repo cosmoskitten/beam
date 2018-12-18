@@ -75,13 +75,11 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** @returns the urn of this MonitoringInfo metric. */
-  @Override
   public String getUrn() {
     return this.urn;
   }
 
   /** @returns The labels associated with this MonitoringInfo. */
-  @Override
   public HashMap<String, String> getLabels() {
     return this.labels;
   }
