@@ -51,6 +51,7 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ManyFilesTextIO Performance Test',
                 prTriggerPhase    : 'Run Java ManyFilesTextIO Performance Test',
                 extraPipelineArgs: [
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         numShards: '1000'
                 ]
