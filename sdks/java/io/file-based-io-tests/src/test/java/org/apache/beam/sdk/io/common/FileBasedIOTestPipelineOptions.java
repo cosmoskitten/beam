@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
@@ -38,8 +39,8 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
 
   /** This is used to benchmark operations involving large numbers of files. */
   @Description("Number of files this test will create during the write phase.")
-  @Default.Integer(0)
-  int getNumShards();
+  @Nullable
+  Integer getNumShards();
 
-  void setNumShards(int value);
+  void setNumShards(@Nullable Integer value);
 }

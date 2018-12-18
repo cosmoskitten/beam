@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -29,6 +30,10 @@ import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -41,6 +46,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TextIO}.
@@ -63,6 +70,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TextIOIT {
+  private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
@@ -85,7 +93,7 @@ public class TextIOIT {
   public void writeThenReadAll() {
     TextIO.TypedWrite<String, Object> write =
         TextIO.write().to(filenamePrefix).withOutputFilenames().withCompression(compressionType);
-    if (numShards > 0) {
+    if (numShards != null) {
       write = write.withNumShards(numShards);
     }
 
@@ -112,6 +120,12 @@ public class TextIOIT {
         ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    MetricQueryResults metricResults = result.metrics().queryMetrics(MetricsFilter.builder().build());
+    for (MetricResult<Long> counterResult : metricResults.getCounters()) {
+      LOG.info("metric={}.{}, value={}", counterResult.getName().getNamespace(), counterResult.getName().getName(), counterResult.getAttempted());
+    }
   }
 }
