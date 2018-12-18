@@ -68,6 +68,7 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
+  failFast = true
 }
 
 configurations {
