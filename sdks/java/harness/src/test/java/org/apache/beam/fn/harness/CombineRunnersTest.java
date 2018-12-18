@@ -211,7 +211,7 @@ public class CombineRunnersTest {
             Collections.emptyMap(),
             Collections.emptyMap(),
             Collections.emptyMap(),
-            new PCollectionConsumerRegistry(),
+            consumers,
             startFunctions::add,
             finishFunctions::add,
             null);
