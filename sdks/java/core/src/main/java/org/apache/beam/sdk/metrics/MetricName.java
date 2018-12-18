@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Strings;
 import java.io.Serializable;
-import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -60,14 +59,6 @@ public abstract class MetricName implements Serializable {
   public String name() {
     return getName();
   }
-
-  public String getUrn() {
-    return null;
-  };
-
-  public Map<String, String> getLabels() {
-    return null;
-  };
 
   public static MetricName named(String namespace, String name) {
     checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
