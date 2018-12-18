@@ -166,7 +166,6 @@ public class CombineRunners {
               pCollectionConsumerRegistry.get(
                   Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
-      // TODO, ajamato, the runner accepts consumers here as well.
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(

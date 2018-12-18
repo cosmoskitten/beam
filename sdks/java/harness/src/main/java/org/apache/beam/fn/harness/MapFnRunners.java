@@ -117,7 +117,6 @@ public abstract class MapFnRunners {
           (Collection)
               pCollectionConsumerRegistry.get(getOnlyElement(pTransform.getOutputsMap().values()));
 
-      // TODO ajamato, receivers passed into this runner here.
       Mapper<InputT, OutputT> mapper =
           mapperFactory.create(
               pTransformId, pTransform, MultiplexingFnDataReceiver.forConsumers(consumers));
