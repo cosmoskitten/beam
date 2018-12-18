@@ -87,7 +87,6 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
         consumers.addAll(pCollectionConsumerRegistry.get(pCollectionId));
       }
-      // TODO ajamato, consumers are passed in here as well.
 
       @SuppressWarnings({"rawtypes", "unchecked"})
       BoundedSourceRunner<InputT, OutputT> runner =
