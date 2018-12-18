@@ -114,12 +114,12 @@ If you have additional material that you would like to see here, please let us k
 *   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
 *   **[Go API Reference](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
 
-## Feedback and Suggestions
+## Feedback and Suggestions {#feedback-and-suggestions}
 
 We are open for feedback and suggestions, you can find different ways to reach out to the community in the [Contact Us](https://beam.apache.org/community/contact-us/) page.
 
 If you have a bug report or want to suggest a new feature, you can let us know by [submitting a new issue](https://issues.apache.org/jira/secure/CreateIssue!default.jspa).
 
-## How to Contribute
+## How to Contribute {#how-to-contribute}
 
 We welcome contributions from everyone! To learn more on how to contribute, check our [Contribution Guide](https://beam.apache.org/contribute/).
