@@ -57,7 +57,7 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
   private static final String CASSANDRA_KEYSPACE_PROPERTY = "cassandra.input.keyspace";
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
-  private static final String CASSANDRA_PORT = "9061";
+  private static final String CASSANDRA_PORT = "19061";
   private static transient Cluster cluster;
   private static transient Session session;
   private static final long TEST_DATA_ROW_COUNT = 10L;
