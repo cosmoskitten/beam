@@ -109,7 +109,7 @@ public class BeamFnDataWriteRunner<InputT> {
           new BeamFnDataWriteRunner<>(
               pTransform, processBundleInstructionId, target, coderSpec, coders, beamFnDataClient);
       addStartFunction.accept(runner::registerForOutput);
-      pCollectionConsumerRegistry.registerAndWrap(
+      pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
 

@@ -199,7 +199,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -229,7 +229,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X1")));
     mainInput.accept(valueInGlobalWindow(KV.of("Y", "Y1")));
     mainInput.accept(valueInGlobalWindow(KV.of("X", "X2")));
@@ -358,10 +358,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.registerAndWrap(
+    consumers.register(
         additionalPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -393,7 +393,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInGlobalWindow("X"));
     mainInput.accept(valueInGlobalWindow("Y"));
     assertThat(
@@ -490,7 +490,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -520,7 +520,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
     assertThat(mainOutputValues, hasSize(2));
@@ -590,7 +590,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -620,7 +620,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the bagUserStateKey order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     mainInput.accept(valueInWindow("X", windowA));
     mainInput.accept(valueInWindow("Y", windowB));
 
@@ -749,14 +749,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
     List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
     List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         outputPCollectionId,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.registerAndWrap(
+    consumers.register(
         eventTimerOutputPCollectionId,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) eventTimerOutputValues::add);
-    consumers.registerAndWrap(
+    consumers.register(
         processingTimerOutputPCollectionId,
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
@@ -808,11 +808,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     FnDataReceiver<WindowedValue<?>> eventTimerInput =
-        Iterables.getOnlyElement(consumers.get(eventTimerInputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(eventTimerInputPCollectionId);
     FnDataReceiver<WindowedValue<?>> processingTimerInput =
-        Iterables.getOnlyElement(consumers.get(processingTimerInputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(processingTimerInputPCollectionId);
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));

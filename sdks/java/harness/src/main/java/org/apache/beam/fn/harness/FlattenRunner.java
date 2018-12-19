@@ -21,14 +21,12 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -56,6 +54,7 @@ public class FlattenRunner<InputT> {
   static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
     public FlattenRunner<InputT> createRunnerForPTransform(
+    //public FlattenRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
@@ -72,17 +71,16 @@ public class FlattenRunner<InputT> {
         throws IOException {
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
-      ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>> consumersBuilder =
-          new ImmutableSet.Builder<>();
+      // TODO ajamato: Somehow the  consumersBuilder handles the casting for us before this change.
+      // Figure out how to cast this directly. Can we keep the generic type?
       String output = getOnlyElement(pTransform.getOutputsMap().values());
-      consumersBuilder.addAll((Iterable) pCollectionConsumerRegistry.get(output));
+      FnDataReceiver<WindowedValue<?>> receiver =
+          pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(output);
 
-      FnDataReceiver<WindowedValue<InputT>> receiver =
-          MultiplexingFnDataReceiver.forConsumers(consumersBuilder.build());
       FlattenRunner<InputT> runner = new FlattenRunner<>();
 
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionConsumerRegistry.registerAndWrap(pCollectionId, (FnDataReceiver) receiver);
+        pCollectionConsumerRegistry.register(pCollectionId, (FnDataReceiver) receiver);
       }
 
       return runner;
