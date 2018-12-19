@@ -293,7 +293,7 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      // TODO: A MetricsContainerImpl should be created and used for each PTransform
+      // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
       // Not for the instruction.
       MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {

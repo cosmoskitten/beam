@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import org.apache.beam.runners.core.construction.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
 
   private FnDataReceiver<WindowedValue<T>> original;
+  @VisibleForTesting
   private Counter counter;
 
   public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {

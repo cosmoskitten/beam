@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
@@ -38,13 +39,14 @@ public class PCollectionConsumerRegistry {
     pCollectionIdsToConsumers = ArrayListMultimap.create();
   }
 
-  public <T> FnDataReceiver<WindowedValue<T>> registerAndWrap(
+  public <T> void register(
       String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
-    // TODO(ajamato): Test multiple consumers of the same pcollection before merging to master.
-    FnDataReceiver<WindowedValue<T>> wrappedReceiver =
-        new ElementCountFnDataReceiver<T>(consumer, pCollectionId);
-    pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) wrappedReceiver);
-    return wrappedReceiver;
+    // TODO throw runtime exception if this is called after getSingleOrMultiplexingConsumer is called.
+
+    // Just save these consumers for now, but package them up later with an
+    // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
+    // if there are multiple consumers.
+    pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) consumer);
   }
 
   /** @return the list of pcollection ids. */
@@ -52,13 +54,34 @@ public class PCollectionConsumerRegistry {
     return pCollectionIdsToConsumers.keySet();
   }
 
-  /** @return The Get the only FnDataReceiver for the pcollection. */
+  /** @return the only FnDataReceiver for the pcollection. */
   public FnDataReceiver<WindowedValue<?>> getOnlyElement(String pCollectionId) {
     return Iterables.getOnlyElement(pCollectionIdsToConsumers.get(pCollectionId));
   }
 
-  /** @return The Get the only FnDataReceiver for the pcollection. */
-  public List<FnDataReceiver<WindowedValue<?>>> get(String pCollectionId) {
+  /**
+   * @return A single ElementCountFnDataReceiver which directly wraps the single register()-ed
+   * consumer, if there is exactly one. Or returns a single ElementCountFnDataReceiver which wraps a
+   * MultiplexingFnDataReceiver which wraps all register()-ed consumers.
+   * Or returns null if 0 are registered.
+   *
+   * New consumers should not be added after calling this method.
+   * TODO rename to getMultiplexingConsumer. getCompositeConsumer, etc.
+   */
+  public FnDataReceiver<WindowedValue<?>> getSingleOrMultiplexingConsumer(String pCollectionId) {
+    // TODO add and throw a RuntimeException for this.
+    List<FnDataReceiver<WindowedValue<?>>> consumers = pCollectionIdsToConsumers.get(pCollectionId);
+    FnDataReceiver<WindowedValue<?>> consumer = MultiplexingFnDataReceiver.forConsumers(consumers);
+    return new ElementCountFnDataReceiver(consumer, pCollectionId);
+  }
+
+
+  /**
+   * @return the number of underlying consumers for a pCollectionId,
+   * some tests may wish to check this.
+   */
+  @VisibleForTesting
+  public List<FnDataReceiver<WindowedValue<?>>> getUnderlyingConsumers(String pCollectionId) {
     return pCollectionIdsToConsumers.get(pCollectionId);
   }
 }

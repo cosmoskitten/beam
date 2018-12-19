@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +60,7 @@ public class MapFnRunnersTest {
   public void testValueOnlyMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap("outputPC", outputConsumer::add);
+    consumers.register("outputPC", outputConsumer::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -88,7 +87,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getSingleOrMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -97,7 +96,7 @@ public class MapFnRunnersTest {
   public void testFullWindowedValueMapping() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap("outputPC", outputConsumer::add);
+    consumers.register("outputPC", outputConsumer::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -123,7 +122,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("abc"));
+    consumers.getSingleOrMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -132,7 +131,7 @@ public class MapFnRunnersTest {
   public void testFullWindowedValueMappingWithCompressedWindow() throws Exception {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap("outputPC", outputConsumer::add);
+    consumers.register("outputPC", outputConsumer::add);
 
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -161,7 +160,7 @@ public class MapFnRunnersTest {
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
-    Iterables.getOnlyElement(consumers.get("inputPC"))
+    consumers.getSingleOrMultiplexingConsumer("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",

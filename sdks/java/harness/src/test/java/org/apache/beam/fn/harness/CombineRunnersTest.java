@@ -124,7 +124,7 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -156,7 +156,7 @@ public class CombineRunnersTest {
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", "1")));
     input.accept(valueInGlobalWindow(KV.of("A", "2")));
     input.accept(valueInGlobalWindow(KV.of("A", "6")));
@@ -191,7 +191,7 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -224,7 +224,7 @@ public class CombineRunnersTest {
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList(1, 2, 6))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList(2, 3))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList(5, 2))));
@@ -246,7 +246,7 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -279,7 +279,7 @@ public class CombineRunnersTest {
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", 9)));
     input.accept(valueInGlobalWindow(KV.of("B", 5)));
     input.accept(valueInGlobalWindow(KV.of("C", 7)));
@@ -301,7 +301,7 @@ public class CombineRunnersTest {
     // Create a map of consumers and an output target to check output values.
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
-    consumers.registerAndWrap(
+    consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         (FnDataReceiver)
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
@@ -334,7 +334,7 @@ public class CombineRunnersTest {
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
     FnDataReceiver<WindowedValue<?>> input =
-        Iterables.getOnlyElement(consumers.get(inputPCollectionId));
+        consumers.getSingleOrMultiplexingConsumer(inputPCollectionId);
     input.accept(valueInGlobalWindow(KV.of("A", Arrays.asList("1", "2", "6"))));
     input.accept(valueInGlobalWindow(KV.of("B", Arrays.asList("2", "3"))));
     input.accept(valueInGlobalWindow(KV.of("C", Arrays.asList("5", "2"))));

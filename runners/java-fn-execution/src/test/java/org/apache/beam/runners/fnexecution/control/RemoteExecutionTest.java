@@ -103,7 +103,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -502,18 +504,18 @@ public class RemoteExecutionTest implements Serializable {
   public void testMetrics() throws Exception {
     final String counterMetricName = "counterMetric";
     Pipeline p = Pipeline.create();
-    PCollection<String> input =
-        p.apply("impulse", Impulse.create())
-            .apply(
-                "create",
-                ParDo.of(
-                    new DoFn<byte[], String>() {
-                      @ProcessElement
-                      public void process(ProcessContext ctxt) {
-                        Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
-                      }
-                    }))
-            .setCoder(StringUtf8Coder.of());
+    PCollection<byte[]> input = p.apply("impulse", Impulse.create());
+    PTransform<PCollection<? extends byte[]>, PCollection<String>> pardo = ParDo.of(
+        new DoFn<byte[], String>() {
+          @ProcessElement
+          public void process(ProcessContext ctxt) {
+            Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+          }
+        });
+    input.apply(
+        "processA",pardo).setCoder(StringUtf8Coder.of());
+    input.apply(
+        "processB",pardo).setCoder(StringUtf8Coder.of());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);
@@ -594,11 +596,15 @@ public class RemoteExecutionTest implements Serializable {
               actual.add(builder.build());
             }
 
+            // The user counter is counted in both ParDos, so it should be counted twice for each
+            // element 4 = 2 x 2 elements.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
-            builder.setInt64Value(2);
+            builder.setInt64Value(4);
             MonitoringInfo userCounter = builder.build();
 
+            // The element counter should be counted only once for the pcollection.
+            // So there shoul be only two elements.
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
             builder.setPCollectionLabel("impulse.out");

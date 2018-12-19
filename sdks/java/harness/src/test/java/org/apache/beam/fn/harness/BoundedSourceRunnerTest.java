@@ -125,7 +125,7 @@ public class BoundedSourceRunnerTest {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         "outputPC", (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
