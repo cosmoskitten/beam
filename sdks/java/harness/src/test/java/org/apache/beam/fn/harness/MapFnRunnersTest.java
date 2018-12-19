@@ -87,7 +87,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    consumers.getSingleOrMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -122,7 +122,7 @@ public class MapFnRunnersTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
 
-    consumers.getSingleOrMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
+    consumers.getMultiplexingConsumer("inputPC").accept(valueInGlobalWindow("abc"));
 
     assertThat(outputConsumer, contains(valueInGlobalWindow("ABC")));
   }
@@ -160,7 +160,8 @@ public class MapFnRunnersTest {
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0L), Duration.standardMinutes(10L));
     IntervalWindow secondWindow =
         new IntervalWindow(new Instant(-10L), Duration.standardSeconds(22L));
-    consumers.getSingleOrMultiplexingConsumer("inputPC")
+    consumers
+        .getMultiplexingConsumer("inputPC")
         .accept(
             WindowedValue.of(
                 "abc",

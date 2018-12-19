@@ -283,8 +283,7 @@ abstract class DoFnPTransformRunnerFactory<
           localNameToConsumerBuilder = ImmutableListMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         localNameToConsumerBuilder.putAll(
-            entry.getKey(),
-            pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(entry.getValue()));
+            entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
       }
       localNameToConsumer = localNameToConsumerBuilder.build();
       tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();

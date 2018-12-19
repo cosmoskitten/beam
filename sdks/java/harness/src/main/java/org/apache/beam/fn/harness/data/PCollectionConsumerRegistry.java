@@ -21,7 +21,9 @@ import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -34,18 +36,24 @@ import org.apache.beam.sdk.util.WindowedValue;
 public class PCollectionConsumerRegistry {
 
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
+  private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
 
   public PCollectionConsumerRegistry() {
     pCollectionIdsToConsumers = ArrayListMultimap.create();
+    pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
 
-  public <T> void register(
-      String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
-    // TODO throw runtime exception if this is called after getSingleOrMultiplexingConsumer is called.
-
+  public <T> void register(String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
     // Just save these consumers for now, but package them up later with an
     // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
     // if there are multiple consumers.
+    ElementCountFnDataReceiver wrappedConsumer =
+        pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
+    if (wrappedConsumer != null) {
+      throw new RuntimeException(
+          "New consumers for a pCollectionId cannot be register()-d after "
+              + "calling getMultiplexingConsumer.");
+    }
     pCollectionIdsToConsumers.put(pCollectionId, (FnDataReceiver) consumer);
   }
 
@@ -60,25 +68,30 @@ public class PCollectionConsumerRegistry {
   }
 
   /**
-   * @return A single ElementCountFnDataReceiver which directly wraps the single register()-ed
-   * consumer, if there is exactly one. Or returns a single ElementCountFnDataReceiver which wraps a
-   * MultiplexingFnDataReceiver which wraps all register()-ed consumers.
-   * Or returns null if 0 are registered.
+   * New consumers should not be added after calling this method. This will cause a
+   * RuntimeException, as this would fail to properly wrap the late-added consumer to the
+   * ElementCountFnDataReceiver.
    *
-   * New consumers should not be added after calling this method.
-   * TODO rename to getMultiplexingConsumer. getCompositeConsumer, etc.
+   * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers,
+   *     possibly using a MultiplexingFnDataReceiver.
    */
-  public FnDataReceiver<WindowedValue<?>> getSingleOrMultiplexingConsumer(String pCollectionId) {
-    // TODO add and throw a RuntimeException for this.
-    List<FnDataReceiver<WindowedValue<?>>> consumers = pCollectionIdsToConsumers.get(pCollectionId);
-    FnDataReceiver<WindowedValue<?>> consumer = MultiplexingFnDataReceiver.forConsumers(consumers);
-    return new ElementCountFnDataReceiver(consumer, pCollectionId);
+  public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId) {
+    ElementCountFnDataReceiver wrappedConsumer =
+        pCollectionIdsToWrappedConsumer.getOrDefault(pCollectionId, null);
+    if (wrappedConsumer == null) {
+      List<FnDataReceiver<WindowedValue<?>>> consumers =
+          pCollectionIdsToConsumers.get(pCollectionId);
+      FnDataReceiver<WindowedValue<?>> consumer =
+          MultiplexingFnDataReceiver.forConsumers(consumers);
+      wrappedConsumer = new ElementCountFnDataReceiver(consumer, pCollectionId);
+      pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
+    }
+    return wrappedConsumer;
   }
 
-
   /**
-   * @return the number of underlying consumers for a pCollectionId,
-   * some tests may wish to check this.
+   * @return the number of underlying consumers for a pCollectionId, some tests may wish to check
+   *     this.
    */
   @VisibleForTesting
   public List<FnDataReceiver<WindowedValue<?>>> getUnderlyingConsumers(String pCollectionId) {

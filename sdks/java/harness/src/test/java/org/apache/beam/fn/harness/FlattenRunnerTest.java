@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -155,7 +154,7 @@ public class FlattenRunnerTest {
 
     assertThat(consumers.getUnderlyingConsumers("inputATarget"), hasSize(2));
 
-    FnDataReceiver<WindowedValue<?>> input = consumers.getSingleOrMultiplexingConsumer("inputATarget");
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer("inputATarget");
 
     input.accept(WindowedValue.valueInGlobalWindow("A1"));
     input.accept(WindowedValue.valueInGlobalWindow("A2"));

@@ -22,13 +22,11 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -109,10 +107,10 @@ public class BeamFnDataReadRunner<OutputT> {
         coderSpec = null;
       }
       FnDataReceiver<WindowedValue<OutputT>> consumer =
-          (FnDataReceiver<WindowedValue<OutputT>>) (FnDataReceiver)
-              pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(
-              getOnlyElement(pTransform.getOutputsMap().values()));
-
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver)
+                  pCollectionConsumerRegistry.getMultiplexingConsumer(
+                      getOnlyElement(pTransform.getOutputsMap().values()));
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
