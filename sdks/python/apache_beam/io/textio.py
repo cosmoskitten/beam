@@ -254,7 +254,7 @@ class _TextSource(filebasedsource.FileBasedSource):
       # array.
       next_lf = read_buffer.data.find(b'\n', current_pos)
       if next_lf >= 0:
-        if next_lf > 0 and read_buffer.data[next_lf - 1] == b'\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1:next_lf] == b'\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
@@ -440,7 +440,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=coders.BytesCoder(),
       skip_header_lines=0,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
@@ -501,7 +501,7 @@ class ReadFromText(PTransform):
       min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=coders.BytesCoder(),
       validate=True,
       skip_header_lines=0,
       **kwargs):
