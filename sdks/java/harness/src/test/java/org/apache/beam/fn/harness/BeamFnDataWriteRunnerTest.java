@@ -179,7 +179,7 @@ public class BeamFnDataWriteRunnerTest {
             eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
-    consumers.getSingleOrMultiplexingConsumer(localInputId).accept(valueInGlobalWindow("TestValue"));
+    consumers.getMultiplexingConsumer(localInputId).accept(valueInGlobalWindow("TestValue"));
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
