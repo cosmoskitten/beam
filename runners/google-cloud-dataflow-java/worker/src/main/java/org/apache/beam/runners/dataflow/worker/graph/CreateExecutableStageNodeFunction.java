@@ -66,9 +66,17 @@ import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
+<<<<<<< HEAD
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+=======
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+>>>>>>> inform the SDK harness of the timers
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
@@ -77,6 +85,9 @@ import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBu
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(CreateExecutableStageNodeFunction.class);
+
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
   private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
@@ -221,6 +232,7 @@ public class CreateExecutableStageNodeFunction
           RunnerApi.PCollection.newBuilder()
               .setCoderId(coderId)
               .setWindowingStrategyId(fakeWindowingStrategyId)
+              .setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED)
               .build();
       nodesToPCollections.put(node, pcollectionId);
       componentsBuilder.putPcollections(pcollectionId, pCollection);
@@ -291,75 +303,15 @@ public class CreateExecutableStageNodeFunction
               throw new RuntimeException("ParDo did not have a ParDoPayload", exc);
             }
 
-            // This gets the main input pcollection id for this PTransform. This will use the id to
-            // retrieve the Key coder to give to the timer.
-            String mainInputKeyCoderId = "";
-            for (Node predecessorOutput : input.predecessors(node)) {
-              String mainInputPCollectionId = nodesToPCollections.get(predecessorOutput);
-              String mainInputCoderId =
-                  pipeline
-                      .getComponents()
-                      .getPcollectionsMap()
-                      .get(mainInputPCollectionId)
-                      .getCoderId();
-              ModelCoders.KvCoderComponents kvCoder =
-                  ModelCoders.getKvCoderComponents(
-                      pipeline.getComponents().getCodersMap().get(mainInputCoderId));
-              mainInputKeyCoderId = kvCoder.keyCoderId();
-            }
+            // This will eventually inform the SDK Harness of the existing timers.
+            if (!parDoPayload.getTimerSpecsMap().isEmpty()) {
 
-            // Build the necessary components to inform the SDK Harness of the pipeline's
-            // timers.
-            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
-                parDoPayload.getTimerSpecsMap().entrySet()) {
-
-              String timerPCollectionInName =
-                  SyntheticComponents.uniqueId(
-                      "FireTimer" + entry.getKey(),
-                      pipeline.getComponents().getPcollectionsMap().keySet()::contains);
-
-              String timerPCollectionOutName =
-                  SyntheticComponents.uniqueId(
-                      "SetTimer" + entry.getKey(),
-                      pipeline.getComponents().getPcollectionsMap().keySet()::contains);
-              String timerCoderId =
-                  SyntheticComponents.uniqueId(
-                      "TimerCoder", componentsBuilder.getCodersMap().keySet()::contains);
-
-              pTransform
-                  .putInputs(entry.getKey(), timerPCollectionInName)
-                  .putOutputs(entry.getKey(), timerPCollectionOutName);
-
-              RunnerApi.PCollection timerPCollectionIn =
-                  RunnerApi.PCollection.newBuilder()
-                      .setUniqueName(timerPCollectionInName)
-                      .setCoderId(timerCoderId)
-                      // Set these to reflect the main input
-                      .setIsBounded(RunnerApi.IsBounded.Enum.UNBOUNDED)
-                      .setWindowingStrategyId(fakeWindowingStrategyId)
-                      .build();
-
-              RunnerApi.PCollection timerPCollectionOut =
-                  RunnerApi.PCollection.newBuilder()
-                      .setUniqueName(timerPCollectionOutName)
-                      .setCoderId(timerCoderId)
-                      // Set these to reflect the main input
-                      .setIsBounded(RunnerApi.IsBounded.Enum.UNBOUNDED)
-                      .setWindowingStrategyId(fakeWindowingStrategyId)
-                      .build();
-
-              timerIds.add(entry.getKey());
-
-              // Construct a KV coder where the Key coder encodes the main input's key coder
-              // The Value coder is the timer coder.
-              RunnerApi.Coder timerCoder =
-                  ModelCoders.kvCoder(mainInputKeyCoderId, entry.getValue().getTimerCoderId());
-
-              nodesToPCollections.put(node, timerPCollectionInName);
-              nodesToPCollections.put(node, timerPCollectionOutName);
-              componentsBuilder.putPcollections(timerPCollectionInName, timerPCollectionIn);
-              componentsBuilder.putPcollections(timerPCollectionOutName, timerPCollectionOut);
-              componentsBuilder.putCoders(timerCoderId, timerCoder);
+              // Build the necessary components to inform the SDK Harness of the pipeline's
+              // timers.
+              for (Map.Entry<String, RunnerApi.TimerSpec> entry :
+                  parDoPayload.getTimerSpecsMap().entrySet()) {
+                timerIds.add(entry.getKey());
+              }
             }
 
             transformSpec
