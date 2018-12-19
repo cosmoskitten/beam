@@ -117,7 +117,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
             .getTransformsMap()
             .values()) {
       for (String timerId : timerIdToTimerSpecMap.keySet()) {
-
         if (!pTransform.getInputsMap().containsKey(timerId)) {
           continue;
         }
