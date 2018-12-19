@@ -54,7 +54,7 @@ public class FlattenRunner<InputT> {
   static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
     public FlattenRunner<InputT> createRunnerForPTransform(
-    //public FlattenRunner<InputT> createRunnerForPTransform(
+        //public FlattenRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
@@ -75,7 +75,7 @@ public class FlattenRunner<InputT> {
       // Figure out how to cast this directly. Can we keep the generic type?
       String output = getOnlyElement(pTransform.getOutputsMap().values());
       FnDataReceiver<WindowedValue<?>> receiver =
-          pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(output);
+          pCollectionConsumerRegistry.getMultiplexingConsumer(output);
 
       FlattenRunner<InputT> runner = new FlattenRunner<>();
 

@@ -209,7 +209,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer("input").accept(value);
+    pCollectionConsumerRegistry.getMultiplexingConsumer("input").accept(value);
     assertThat(
         outputs,
         containsInAnyOrder(

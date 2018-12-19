@@ -105,7 +105,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -504,17 +503,16 @@ public class RemoteExecutionTest implements Serializable {
     final String counterMetricName = "counterMetric";
     Pipeline p = Pipeline.create();
     PCollection<byte[]> input = p.apply("impulse", Impulse.create());
-    PTransform<PCollection<? extends byte[]>, PCollection<String>> pardo = ParDo.of(
-        new DoFn<byte[], String>() {
-          @ProcessElement
-          public void process(ProcessContext ctxt) {
-            Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
-          }
-        });
-    input.apply(
-        "processA",pardo).setCoder(StringUtf8Coder.of());
-    input.apply(
-        "processB",pardo).setCoder(StringUtf8Coder.of());
+    PTransform<PCollection<? extends byte[]>, PCollection<String>> pardo =
+        ParDo.of(
+            new DoFn<byte[], String>() {
+              @ProcessElement
+              public void process(ProcessContext ctxt) {
+                Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+              }
+            });
+    input.apply("processA", pardo).setCoder(StringUtf8Coder.of());
+    input.apply("processB", pardo).setCoder(StringUtf8Coder.of());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineProto);

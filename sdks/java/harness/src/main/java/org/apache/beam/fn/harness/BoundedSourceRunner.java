@@ -87,7 +87,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
       // that this ptransform outputs, so we extract one MultiplexingFnDataReceiver for each output
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
-        consumers.add(pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(pCollectionId));
+        consumers.add(pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId));
       }
 
       @SuppressWarnings({"rawtypes", "unchecked"})

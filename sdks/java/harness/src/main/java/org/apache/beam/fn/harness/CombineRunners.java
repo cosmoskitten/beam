@@ -164,8 +164,9 @@ public class CombineRunners {
       //        pCollectionConsumerRegistry.get(
       //            Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
       FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
-          (FnDataReceiver) pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(
-              Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
+          (FnDataReceiver)
+              pCollectionConsumerRegistry.getMultiplexingConsumer(
+                  Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =

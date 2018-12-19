@@ -36,8 +36,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
 
   private FnDataReceiver<WindowedValue<T>> original;
-  @VisibleForTesting
-  private Counter counter;
+  @VisibleForTesting private Counter counter;
 
   public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {
     this.original = original;
