@@ -398,7 +398,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
   @staticmethod
   def _bytestring_from_int(i, prec):
     """
-    Inverse of _string_to_int.
+    Inverse of _bytestring_to_int.
     """
     h = '%x' % i
     return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')
