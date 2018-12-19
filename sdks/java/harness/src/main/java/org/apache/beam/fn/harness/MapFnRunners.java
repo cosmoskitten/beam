@@ -21,13 +21,11 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.collect.Iterables;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -113,15 +111,14 @@ public abstract class MapFnRunners {
         BundleSplitListener splitListener)
         throws IOException {
 
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection)
-              pCollectionConsumerRegistry.get(getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<InputT>> consumer =
+          (FnDataReceiver<WindowedValue<InputT>>) (FnDataReceiver)
+          pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(
+              getOnlyElement(pTransform.getOutputsMap().values()));
 
-      Mapper<InputT, OutputT> mapper =
-          mapperFactory.create(
-              pTransformId, pTransform, MultiplexingFnDataReceiver.forConsumers(consumers));
+      Mapper<InputT, OutputT> mapper = mapperFactory.create(pTransformId, pTransform, consumer);
 
-      pCollectionConsumerRegistry.registerAndWrap(
+      pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) mapper::map);
       return mapper;

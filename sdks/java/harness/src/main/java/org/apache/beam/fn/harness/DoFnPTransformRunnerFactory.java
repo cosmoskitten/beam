@@ -118,7 +118,7 @@ abstract class DoFnPTransformRunnerFactory<
                 context.parDoPayload.getSideInputsMap().keySet(),
                 context.parDoPayload.getTimerSpecsMap().keySet()));
     for (String localInputName : mainInput) {
-      pCollectionConsumerRegistry.registerAndWrap(
+      pCollectionConsumerRegistry.register(
           pTransform.getInputsOrThrow(localInputName),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<TransformInputT>>) runner::processElement);
     }
@@ -129,7 +129,7 @@ abstract class DoFnPTransformRunnerFactory<
           DoFnSignatures.getTimerSpecOrThrow(
                   context.doFnSignature.timerDeclarations().get(localName), context.doFn)
               .getTimeDomain();
-      pCollectionConsumerRegistry.registerAndWrap(
+      pCollectionConsumerRegistry.register(
           pTransform.getInputsOrThrow(localName),
           (FnDataReceiver)
               timer ->
@@ -283,7 +283,8 @@ abstract class DoFnPTransformRunnerFactory<
           localNameToConsumerBuilder = ImmutableListMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         localNameToConsumerBuilder.putAll(
-            entry.getKey(), pCollectionConsumerRegistry.get(entry.getValue()));
+            entry.getKey(),
+            pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(entry.getValue()));
       }
       localNameToConsumer = localNameToConsumerBuilder.build();
       tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();

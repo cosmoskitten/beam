@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static junit.framework.TestCase.assertEquals;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -27,7 +28,6 @@ import com.google.common.base.Suppliers;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -67,7 +67,7 @@ public class FlattenRunnerTest {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
@@ -130,7 +130,7 @@ public class FlattenRunnerTest {
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
-    consumers.registerAndWrap(
+    consumers.register(
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
@@ -153,10 +153,9 @@ public class FlattenRunnerTest {
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));
 
-    assertThat(consumers.get("inputATarget"), hasSize(2));
+    assertThat(consumers.getUnderlyingConsumers("inputATarget"), hasSize(2));
 
-    FnDataReceiver<WindowedValue<?>> input =
-        MultiplexingFnDataReceiver.forConsumers(consumers.get("inputATarget"));
+    FnDataReceiver<WindowedValue<?>> input = consumers.getSingleOrMultiplexingConsumer("inputATarget");
 
     input.accept(WindowedValue.valueInGlobalWindow("A1"));
     input.accept(WindowedValue.valueInGlobalWindow("A2"));

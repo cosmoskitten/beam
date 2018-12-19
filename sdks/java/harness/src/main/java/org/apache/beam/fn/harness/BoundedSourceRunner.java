@@ -83,9 +83,11 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Consumer<ThrowingRunnable> addFinishFunction,
         BundleSplitListener splitListener) {
 
+      // This collection below contains consumers for the multiple output collections
+      // that this ptransform outputs, so we extract one MultiplexingFnDataReceiver for each output
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
-        consumers.addAll(pCollectionConsumerRegistry.get(pCollectionId));
+        consumers.add(pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(pCollectionId));
       }
 
       @SuppressWarnings({"rawtypes", "unchecked"})
@@ -97,7 +99,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
       FnDataReceiver runReadLoop = (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionConsumerRegistry.registerAndWrap(pCollectionId, runReadLoop);
+        pCollectionConsumerRegistry.register(pCollectionId, runReadLoop);
       }
 
       return runner;

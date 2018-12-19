@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -127,7 +128,7 @@ public class BeamFnDataReadRunnerTest {
 
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     String localOutputId = "outputPC";
-    consumers.registerAndWrap(
+    consumers.register(
         localOutputId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
@@ -192,7 +193,8 @@ public class BeamFnDataReadRunnerTest {
         .thenReturn(bundle2Future);
     List<WindowedValue<String>> valuesA = new ArrayList<>();
     List<WindowedValue<String>> valuesB = new ArrayList<>();
-
+    FnDataReceiver<WindowedValue<String>> consumers =
+        MultiplexingFnDataReceiver.forConsumers(ImmutableList.of(valuesA::add, valuesB::add));
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
@@ -202,7 +204,7 @@ public class BeamFnDataReadRunnerTest {
             CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
-            ImmutableList.of(valuesA::add, valuesB::add));
+            consumers);
 
     // Process for bundle id 0
     readRunner.registerInputLocation();

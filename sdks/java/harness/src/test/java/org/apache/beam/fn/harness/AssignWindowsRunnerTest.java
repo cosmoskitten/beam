@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -171,7 +170,7 @@ public class AssignWindowsRunnerTest implements Serializable {
         };
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
-    pCollectionConsumerRegistry.registerAndWrap("output", outputs::add);
+    pCollectionConsumerRegistry.register("output", outputs::add);
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
@@ -210,7 +209,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 new IntervalWindow(new Instant(-22L), Duration.standardMinutes(5L)),
                 new IntervalWindow(new Instant(-120000L), Duration.standardMinutes(3L))),
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    Iterables.getOnlyElement(pCollectionConsumerRegistry.get("input")).accept(value);
+    pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer("input").accept(value);
     assertThat(
         outputs,
         containsInAnyOrder(

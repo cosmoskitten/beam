@@ -22,13 +22,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -161,23 +159,27 @@ public class CombineRunners {
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
-      Collection<FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>>> consumers =
-          (Collection)
-              pCollectionConsumerRegistry.get(
-                  Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
+      //Collection<FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>>> consumers =
+      //    (Collection)
+      //        pCollectionConsumerRegistry.get(
+      //            Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
+          (FnDataReceiver) pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(
+              Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
 
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
           new PrecombineRunner<>(
               pipelineOptions,
               combineFn,
-              MultiplexingFnDataReceiver.forConsumers(consumers),
+              //MultiplexingFnDataReceiver.forConsumers(consumers),
+              consumer,
               keyCoder,
               accumCoder);
 
       // Register the appropriate handlers.
       addStartFunction.accept(runner::startBundle);
-      pCollectionConsumerRegistry.registerAndWrap(
+      pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);

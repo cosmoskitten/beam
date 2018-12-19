@@ -108,9 +108,11 @@ public class BeamFnDataReadRunner<OutputT> {
       } else {
         coderSpec = null;
       }
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
-          (Collection)
-              pCollectionConsumerRegistry.get(getOnlyElement(pTransform.getOutputsMap().values()));
+      FnDataReceiver<WindowedValue<OutputT>> consumer =
+          (FnDataReceiver<WindowedValue<OutputT>>) (FnDataReceiver)
+              pCollectionConsumerRegistry.getSingleOrMultiplexingConsumer(
+              getOnlyElement(pTransform.getOutputsMap().values()));
+
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
@@ -120,7 +122,7 @@ public class BeamFnDataReadRunner<OutputT> {
               coderSpec,
               coders,
               beamFnDataClient,
-              consumers);
+              consumer);
       addStartFunction.accept(runner::registerInputLocation);
       addFinishFunction.accept(runner::blockTillReadFinishes);
       return runner;
@@ -143,14 +145,14 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
-      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers)
+      FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     RemoteGrpcPort port = RemoteGrpcPortRead.fromPTransform(grpcReadNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
-    this.receiver = MultiplexingFnDataReceiver.forConsumers(consumers);
+    this.receiver = consumer;
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
