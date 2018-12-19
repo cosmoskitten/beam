@@ -44,6 +44,7 @@ class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);
   private static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
+  private static final int ATTEMPTS_TO_SHUTDOWN = 3;
 
   /**
    * Executor service for running the threads that read records from shards handled by this pool.
@@ -172,9 +173,9 @@ class ShardReadersPool {
   void stop() {
     LOG.info("Closing shard iterators pool");
     poolOpened.set(false);
-    executorService.shutdownNow();
+    executorService.shutdown();
     boolean isShutdown = false;
-    int attemptsLeft = 3;
+    int attemptsLeft = ATTEMPTS_TO_SHUTDOWN;
     while (!isShutdown && attemptsLeft-- > 0) {
       try {
         isShutdown = executorService.awaitTermination(10, TimeUnit.SECONDS);
@@ -187,6 +188,12 @@ class ShardReadersPool {
             "Executor service is taking long time to shutdown, will retry. {} attempts left",
             attemptsLeft);
       }
+    }
+    if (!isShutdown) {
+      LOG.warn(
+          "Executor service was not properly shutdown after {} attempts, trying to forcibly stop it.",
+          ATTEMPTS_TO_SHUTDOWN);
+      executorService.shutdownNow();
     }
   }
 
