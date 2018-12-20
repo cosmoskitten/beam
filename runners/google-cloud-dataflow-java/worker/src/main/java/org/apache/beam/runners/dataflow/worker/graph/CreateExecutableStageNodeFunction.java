@@ -67,10 +67,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
@@ -79,9 +77,6 @@ import org.slf4j.LoggerFactory;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CreateExecutableStageNodeFunction.class);
-
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
   private static final String DATA_OUTPUT_URN = "urn:org.apache.beam:sink:runner:0.1";
