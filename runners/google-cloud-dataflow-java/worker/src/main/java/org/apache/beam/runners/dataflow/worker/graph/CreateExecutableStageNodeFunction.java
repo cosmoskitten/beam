@@ -67,15 +67,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
-<<<<<<< HEAD
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-=======
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1_13_1.com.google.protobuf.InvalidProtocolBufferException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
->>>>>>> inform the SDK harness of the timers
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
@@ -226,6 +221,8 @@ public class CreateExecutableStageNodeFunction
             e);
       }
 
+
+      // TODO(BEAM-6275): Set correct IsBounded on generated PCollections
       String pcollectionId = node.getPcollectionId();
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()
