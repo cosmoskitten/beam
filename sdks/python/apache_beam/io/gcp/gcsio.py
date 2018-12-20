@@ -33,7 +33,6 @@ import time
 import traceback
 from builtins import object
 
-from apache_beam.error import TimeoutError
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
@@ -241,7 +240,7 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def copy(self, src, dest, dest_kms_key_name=None, timeout_secs=3600,
+  def copy(self, src, dest, dest_kms_key_name=None,
            max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
@@ -251,8 +250,6 @@ class GcsIO(object):
       dest_kms_key_name: Experimental. No backwards compatibility guarantees.
         Encrypt dest with this Cloud KMS key. If None, will use dest bucket
         encryption defaults.
-      timeout_secs: Experimental. No backwards compatibility guarantees. Wait
-        about this long for the operation to complete.
       max_bytes_rewritten_per_call: Experimental. No backwards compatibility
         guarantees. Each rewrite API call will return after these many bytes.
         Used for testing.
@@ -269,17 +266,11 @@ class GcsIO(object):
         destinationObject=dest_path,
         destinationKmsKeyName=dest_kms_key_name,
         maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
-    start_time = time.time()
     response = self.client.objects.Rewrite(request)
     while not response.done:
       logging.debug(
           'Rewrite progress: %d of %d bytes, %s to %s',
           response.totalBytesRewritten, response.objectSize, src, dest)
-      elapsed = time.time() - start_time
-      if elapsed > timeout_secs:
-        raise TimeoutError(
-            'Aborting rewrite after %d seconds: %s to %s' % (
-                elapsed, src, dest))
       request.rewriteToken = response.rewriteToken
       response = self.client.objects.Rewrite(request)
       if self._rewrite_cb is not None:
@@ -290,7 +281,7 @@ class GcsIO(object):
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
   def copy_batch(self, src_dest_pairs, dest_kms_key_name=None,
-                 timeout_secs=3600, max_bytes_rewritten_per_call=None):
+                 max_bytes_rewritten_per_call=None):
     """Copies the given GCS object from src to dest.
 
     Args:
@@ -300,8 +291,6 @@ class GcsIO(object):
       dest_kms_key_name: Experimental. No backwards compatibility guarantees.
         Encrypt dest with this Cloud KMS key. If None, will use dest bucket
         encryption defaults.
-      timeout_secs: Experimental. No backwards compatibility guarantees. Wait
-        about this long for all operations to complete.
       max_bytes_rewritten_per_call: Experimental. No backwards compatibility
         guarantees. Each rewrite call will return after these many bytes. Used
         primarily for testing.
@@ -325,16 +314,10 @@ class GcsIO(object):
           maxBytesRewrittenPerCall=max_bytes_rewritten_per_call)
       pair_to_request[pair] = request
     pair_to_status = {}
-    start_time = time.time()
     while True:
       pairs_in_batch = list(set(src_dest_pairs) - set(pair_to_status))
       if not pairs_in_batch:
         break
-      elapsed = time.time() - start_time
-      if elapsed > timeout_secs:
-        raise TimeoutError(
-            'Aborting batch rewrite after %d seconds. Remaining: %s' % (
-                elapsed, pairs_in_batch))
       batch_request = BatchApiRequest(
           batch_url=GCS_BATCH_ENDPOINT,
           retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)

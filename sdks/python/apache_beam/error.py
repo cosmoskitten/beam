@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Beam error classes."""
+"""Python Dataflow error classes."""
 
 from __future__ import absolute_import
 
@@ -46,7 +46,3 @@ class SideInputError(BeamError):
 
 class TransformError(BeamError):
   """An error related to a PTransform object."""
-
-
-class TimeoutError(BeamError):
-  """An error caused by an operation that took too long."""

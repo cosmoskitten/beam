@@ -424,19 +424,6 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.copy('gs://gcsio-test/non-existent',
                     'gs://gcsio-test/non-existent-destination')
 
-  def test_copy_timeout(self):
-    src_file_name = 'gs://gcsio-test/source'
-    dest_file_name = 'gs://gcsio-test/dest'
-    file_size = 1024
-    self._insert_random_file(self.client, src_file_name, file_size)
-    self.assertTrue(
-        gcsio.parse_gcs_path(src_file_name) in self.client.objects.files)
-    self.assertFalse(
-        gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
-
-    with self.assertRaises(error.TimeoutError):
-      self.gcs.copy(src_file_name, dest_file_name, timeout_secs=0.1)
-
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
     gcsio.BatchApiRequest = FakeBatchApiRequest
@@ -474,19 +461,6 @@ class TestGCSIO(unittest.TestCase):
     for i in range(num_files):
       self.assertTrue(self.gcs.exists(from_name_pattern % i))
       self.assertTrue(self.gcs.exists(to_name_pattern % i))
-
-  def test_copy_batch_timeout(self):
-    gcsio.BatchApiRequest = FakeBatchApiRequest
-    from_name_pattern = 'gs://gcsio-test/src_batch_timeout_%d'
-    to_name_pattern = 'gs://gcsio-test/dst_batch_timeout_%d'
-    num_files = 10
-
-    # Test copy of non-existent files.
-    with self.assertRaises(error.TimeoutError):
-      _ = self.gcs.copy_batch(
-          [(from_name_pattern % i, to_name_pattern % i)
-           for i in range(num_files)],
-          dest_kms_key_name='kms_key', timeout_secs=0.1)
 
   def test_copytree(self):
     src_dir_name = 'gs://gcsio-test/source/'
