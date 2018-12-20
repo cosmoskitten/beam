@@ -26,6 +26,7 @@ import java.util.HashMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,6 +36,11 @@ import org.mockito.Mockito;
 public class LabeledMetricsTest implements Serializable {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
+
+  @After
+  public void tearDown() {
+    MetricsEnvironment.setCurrentContainer(null);
+  }
 
   @Test
   public void testCounterWithoutContainer() {
