@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.runners.core.metrics;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -42,7 +42,9 @@ public class MonitoringInfoMetricName extends MetricName {
 
   public MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
-    checkArgument(labels != null, "MonitoringInfoMetricName name must be non-null");
+    checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
+    // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
+    // and ensure all necessary labels are set for the specific URN.
     this.urn = urn;
     for (Entry<String, String> entry : labels.entrySet()) {
       this.labels.put(entry.getKey(), entry.getValue());

@@ -91,10 +91,10 @@ public class FlattenRunnerTest {
         consumers.keySet(),
         containsInAnyOrder("inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
 
-    consumers.getOnlyElement("inputATarget").accept(valueInGlobalWindow("A1"));
-    consumers.getOnlyElement("inputATarget").accept(valueInGlobalWindow("A2"));
-    consumers.getOnlyElement("inputBTarget").accept(valueInGlobalWindow("B"));
-    consumers.getOnlyElement("inputCTarget").accept(valueInGlobalWindow("C"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A1"));
+    consumers.getMultiplexingConsumer("inputATarget").accept(valueInGlobalWindow("A2"));
+    consumers.getMultiplexingConsumer("inputBTarget").accept(valueInGlobalWindow("B"));
+    consumers.getMultiplexingConsumer("inputCTarget").accept(valueInGlobalWindow("C"));
     assertThat(
         mainOutputValues,
         contains(

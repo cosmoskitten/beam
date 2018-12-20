@@ -54,7 +54,6 @@ public class FlattenRunner<InputT> {
   static class Factory<InputT> implements PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
     public FlattenRunner<InputT> createRunnerForPTransform(
-        //public FlattenRunner<InputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
@@ -71,8 +70,6 @@ public class FlattenRunner<InputT> {
         throws IOException {
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
-      // TODO ajamato: Somehow the  consumersBuilder handles the casting for us before this change.
-      // Figure out how to cast this directly. Can we keep the generic type?
       String output = getOnlyElement(pTransform.getOutputsMap().values());
       FnDataReceiver<WindowedValue<?>> receiver =
           pCollectionConsumerRegistry.getMultiplexingConsumer(output);

@@ -159,10 +159,6 @@ public class CombineRunners {
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
-      //Collection<FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>>> consumers =
-      //    (Collection)
-      //        pCollectionConsumerRegistry.get(
-      //            Iterables.getOnlyElement(pTransform.getOutputsMap().values()));
       FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> consumer =
           (FnDataReceiver)
               pCollectionConsumerRegistry.getMultiplexingConsumer(
@@ -170,13 +166,7 @@ public class CombineRunners {
 
       // Create the runner.
       PrecombineRunner<KeyT, InputT, AccumT> runner =
-          new PrecombineRunner<>(
-              pipelineOptions,
-              combineFn,
-              //MultiplexingFnDataReceiver.forConsumers(consumers),
-              consumer,
-              keyCoder,
-              accumCoder);
+          new PrecombineRunner<>(pipelineOptions, combineFn, consumer, keyCoder, accumCoder);
 
       // Register the appropriate handlers.
       addStartFunction.accept(runner::startBundle);

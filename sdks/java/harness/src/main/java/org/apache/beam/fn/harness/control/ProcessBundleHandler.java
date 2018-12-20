@@ -294,7 +294,9 @@ public class ProcessBundleHandler {
       }
 
       // TODO(ajamato): A MetricsContainerImpl should be created and used for each PTransform
-      // Not for the instruction.
+      // or the metric should be registered in some other way with the ptransform name context,
+      // not for the instruction. This fails to associate each user counter with an appropriate
+      // ptransform.
       MetricsContainerImpl metricsContainer = new MetricsContainerImpl(request.getInstructionId());
       try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
 
