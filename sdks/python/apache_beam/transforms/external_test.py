@@ -132,11 +132,11 @@ class ExternalTransformTest(unittest.TestCase):
               | beam.CombineGlobally(sum).without_defaults())
 
       def to_runner_api_parameter(self, unused_context):
-        return 'fib', bytes(self._level)
+        return 'fib', str(self._level).encode('ascii')
 
       @staticmethod
       def from_runner_api_parameter(level, unused_context):
-        return FibTransform(int(level))
+        return FibTransform(int(level.decode('ascii')))
 
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
