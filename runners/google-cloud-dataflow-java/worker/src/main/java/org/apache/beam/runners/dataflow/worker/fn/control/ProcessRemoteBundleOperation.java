@@ -18,10 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import java.io.Closeable;
-import java.util.Map;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import java.io.IOException;
 import java.util.*;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -80,7 +79,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
       DataflowExecutionContext<?> executionContext,
       DataflowOperationContext operationContext,
       StageBundleFactory stageBundleFactory,
-    Map<String, OutputReceiver> outputReceiverMap) {
+      Map<String, OutputReceiver> outputReceiverMap) {
     super(EMPTY_RECEIVER_ARRAY, operationContext);
 
     this.stageBundleFactory = stageBundleFactory;
