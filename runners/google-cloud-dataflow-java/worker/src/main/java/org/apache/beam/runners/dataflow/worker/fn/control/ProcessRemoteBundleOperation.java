@@ -69,8 +69,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
   private final DataflowExecutionContext<?> executionContext;
-
-  // TODO(srohde): Do we need all these maps? Can we clean this up?
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
   private final Map<String, Coder<BoundedWindow>> timerWindowCodersMap;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
@@ -178,7 +176,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     FnDataReceiver<WindowedValue<?>> mainInputReceiver =
         remoteBundle.getInputReceivers().get(mainInputPCollectionId);
 
-    // TODO(srohde): Is this always true? Do we always send the input element to the main input receiver?
+    // TODO(BEAM-6274): Is this always true? Do we always send the input element to the main input receiver?
     try (Closeable scope = context.enterProcess()) {
       mainInputReceiver.accept((WindowedValue<InputT>) inputElement);
     } catch (Exception e) {
@@ -201,23 +199,23 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
         throw new RuntimeException("Failed to finish remote bundle", e);
       }
 
-      // TODO(srohde): do we have to put this in the "start" method as well?
+      // TODO(BEAM-6274): do we have to put this in the "start" method as well?
       try (RemoteBundle bundle =
           stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
 
-        // TODO(srohde): Why do we need to namespace this to "user"?
+        // TODO(BEAM-6274): Why do we need to namespace this to "user"?
         DataflowExecutionContext.DataflowStepContext stepContext =
             executionContext
                 .getStepContext((DataflowOperationContext) this.context)
                 .namespacedToUser();
 
-        // TODO(srohde): investigate if this is the correct window
+        // TODO(BEAM-6274): investigate if this is the correct window
         TimerInternals.TimerData timerData =
             stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
         while (timerData != null) {
           LOG.debug("Found fired timer in start {}", timerData);
 
-          // TODO(srohde): get the correct payload and payload coder
+          // TODO(BEAM-6274): get the correct payload and payload coder
           StateNamespaces.WindowNamespace windowNamespace =
               (StateNamespaces.WindowNamespace) timerData.getNamespace();
           BoundedWindow window = windowNamespace.getWindow();
@@ -236,7 +234,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
           bundle.getInputReceivers().get(mainInputId).accept(timerValue);
 
-          // TODO(srohde): investigate if this is the correct window
+          // TODO(BEAM-6274): investigate if this is the correct window
           timerData = stepContext.getNextFiredTimer(GlobalWindow.Coder.INSTANCE);
         }
       }
@@ -245,7 +243,7 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
   private void receive(String pCollectionId, Object receivedElement) throws Exception {
     LOG.debug("Received element {} for pcollection {}", receivedElement, pCollectionId);
-    // TODO(srohde): move this out into its own receiver class
+    // TODO(BEAM-6274): move this out into its own receiver class
     if (timerOutputIdToSpecMap.containsKey(pCollectionId)) {
       WindowedValue<KV<Object, Timer>> windowedValue =
           (WindowedValue<KV<Object, Timer>>) receivedElement;
