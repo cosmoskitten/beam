@@ -2506,7 +2506,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
@@ -2545,7 +2544,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testGbkFollowedByUserTimers() throws Exception {
 
@@ -2678,7 +2676,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
@@ -2829,7 +2826,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
       final String timerId = "foo";
@@ -2870,7 +2866,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testOutOfBoundsEventTimeTimer() throws Exception {
       final String timerId = "foo";
@@ -3147,7 +3142,6 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      DataflowPortabilityApiUnsupported.class
     })
     public void testPipelineOptionsParameterOnTimer() {
       final String timerId = "thisTimer";
