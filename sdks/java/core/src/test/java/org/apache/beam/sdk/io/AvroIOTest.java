@@ -110,6 +110,7 @@ import org.junit.runners.Parameterized;
 
 /** Tests for AvroIO Read and Write transforms. */
 public class AvroIOTest implements Serializable {
+  /** Unit tests. */
   @RunWith(JUnit4.class)
   public static class SimpleTests implements Serializable {
     @Test
@@ -162,6 +163,7 @@ public class AvroIOTest implements Serializable {
     }
   }
 
+  /** NeedsRunner tests. */
   @RunWith(Parameterized.class)
   @Category(NeedsRunner.class)
   public static class NeedsRunnerTests implements Serializable {
