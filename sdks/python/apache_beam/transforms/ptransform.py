@@ -36,6 +36,7 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
+import contextlib
 import copy
 import itertools
 import operator
@@ -558,7 +559,19 @@ class PTransform(WithTypeHints, HasDisplayData):
       if isinstance(constructor, type):
         constructor.from_runner_api_parameter = register(
             constructor.from_runner_api_parameter)
-        return constructor
+        # pylint isn't smart enough to recognize when this is used
+        # on a class or a method, and will emit a no-self-warning
+        # in the latter case.  Rather than suppressing this at each
+        # use, we fool it here through some dynamic patching that
+        # pylint will also not understand.
+        @contextlib.contextmanager
+        def fake_static_method():
+          actual_static_method = staticmethod
+          globals()['staticmethod'] = lambda x: x
+          yield
+          globals()['staticmethod'] = actual_static_method
+        with fake_static_method():
+          return staticmethod(constructor)
       else:
         cls._known_urns[urn] = parameter_type, constructor
         return staticmethod(constructor)
