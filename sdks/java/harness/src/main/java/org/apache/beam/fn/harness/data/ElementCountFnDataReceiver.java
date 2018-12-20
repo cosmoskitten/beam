@@ -17,34 +17,33 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
-import org.apache.beam.runners.core.construction.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.LabelledMetrics;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * A wrapping FnDataReceiverWindowedValue<T> which counts the number of elements consumed by the
- * original nDataReceiverWindowedValue<T>.
+ * A wrapping {@code FnDataReceiver<WindowedValue<T>>} which counts the number of elements consumed
+ * by the original {@code FnDataReceiver<WindowedValue<T>>}.
  *
  * @param <T> - The receiving type of the PTransform.
  */
 public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
 
   private FnDataReceiver<WindowedValue<T>> original;
-  @VisibleForTesting private Counter counter;
+  private Counter counter;
 
   public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
-    MetricName metricName =
+    MonitoringInfoMetricName metricName =
         new MonitoringInfoMetricName(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
-    this.counter = LabelledMetrics.counter(metricName);
+    this.counter = LabeledMetrics.counter(metricName);
   }
 
   @Override

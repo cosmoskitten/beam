@@ -112,10 +112,9 @@ public abstract class MapFnRunners {
         throws IOException {
 
       FnDataReceiver<WindowedValue<InputT>> consumer =
-          (FnDataReceiver<WindowedValue<InputT>>)
-              (FnDataReceiver)
-                  pCollectionConsumerRegistry.getMultiplexingConsumer(
-                      getOnlyElement(pTransform.getOutputsMap().values()));
+          (FnDataReceiver)
+              pCollectionConsumerRegistry.getMultiplexingConsumer(
+                  getOnlyElement(pTransform.getOutputsMap().values()));
 
       Mapper<InputT, OutputT> mapper = mapperFactory.create(pTransformId, pTransform, consumer);
 

@@ -15,13 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
-public class LabelledMetrics {
+
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.DelegatingCounter;
+import org.apache.beam.sdk.metrics.MetricName;
+
+public class LabeledMetrics {
   /**
    * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
    */
-  public static Counter counter(MetricName metricName) {
+  public static Counter counter(MonitoringInfoMetricName metricName) {
     return new DelegatingCounter(metricName);
   }
 }

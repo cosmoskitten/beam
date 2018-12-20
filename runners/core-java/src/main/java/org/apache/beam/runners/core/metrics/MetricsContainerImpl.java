@@ -29,7 +29,6 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
-import org.apache.beam.runners.core.construction.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -146,11 +145,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public Iterable<MonitoringInfo> getMonitoringInfos() {
     // Extract user metrics and store as MonitoringInfos.
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
-    MetricUpdates mus = this.getUpdates();
+    MetricUpdates metricUpdates = this.getUpdates();
 
-    for (MetricUpdate<Long> mu : mus.counterUpdates()) {
+    for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
-      MetricName metricName = mu.getKey().metricName();
+      MetricName metricName = metricUpdate.getKey().metricName();
       if (metricName instanceof MonitoringInfoMetricName) {
         MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
         // Represents a specific MonitoringInfo for a specific URN.
@@ -161,9 +160,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       } else {
         // Represents a user counter.
         builder.setUrnForUserMetric(
-            mu.getKey().metricName().getNamespace(), mu.getKey().metricName().getName());
+            metricUpdate.getKey().metricName().getNamespace(),
+            metricUpdate.getKey().metricName().getName());
       }
-      builder.setInt64Value(mu.getUpdate());
+      builder.setInt64Value(metricUpdate.getUpdate());
       builder.setTimestampToNow();
       monitoringInfos.add(builder.build());
     }

@@ -103,8 +103,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -122,7 +122,6 @@ import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -503,13 +502,37 @@ public class RemoteExecutionTest implements Serializable {
   public void testMetrics() throws Exception {
     final String counterMetricName = "counterMetric";
     Pipeline p = Pipeline.create();
-    PCollection<byte[]> input = p.apply("impulse", Impulse.create());
-    PTransform<PCollection<? extends byte[]>, PCollection<String>> pardo =
+    PCollection<String> input =
+        p.apply("impulse", Impulse.create())
+            .apply(
+                "create",
+                ParDo.of(
+                    new DoFn<byte[], String>() {
+                      private boolean emitted = false;
+
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {
+                        // Due to a bug impulse is producing two elements instead of one.
+                        // So add this check to only emit these three elemenets.
+                        if (!emitted) {
+                          ctxt.output("zero");
+                          ctxt.output("one");
+                          ctxt.output("two");
+                          Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+                        }
+                        emitted = true;
+                      }
+                    }))
+            .setCoder(StringUtf8Coder.of());
+
+    SingleOutput<String, String> pardo =
         ParDo.of(
-            new DoFn<byte[], String>() {
+            new DoFn<String, String>() {
               @ProcessElement
               public void process(ProcessContext ctxt) {
-                Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
+                // Output the element twice to keep unique numbers in asserts, 6 output elements.
+                ctxt.output(ctxt.element());
+                ctxt.output(ctxt.element());
               }
             });
     input.apply("processA", pardo).setCoder(StringUtf8Coder.of());
@@ -585,32 +608,52 @@ public class RemoteExecutionTest implements Serializable {
           @Override
           public void onCompleted(ProcessBundleResponse response) {
             // Assert the timestamps are non empty then 0 them out before comparing.
-            List<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
+            List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
             for (MonitoringInfo mi : response.getMonitoringInfosList()) {
-              MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
-              Assert.assertTrue(mi.getTimestamp().getSeconds() > 0);
-              builder.mergeFrom(mi);
-              builder.clearTimestamp();
-              actual.add(builder.build());
+              result.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
             }
 
             // The user counter is counted in both ParDos, so it should be counted twice for each
             // element 4 = 2 x 2 elements.
+            List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder.setUrnForUserMetric(RemoteExecutionTest.class.getName(), counterMetricName);
-            builder.setInt64Value(4);
-            MonitoringInfo userCounter = builder.build();
+            // TODO(ajamato): Add test having a user counter with the same name, in two
+            // separate ptransforms, should be labelled differnetly. Currently this does not work
+            // because the MetricContainer is not being seeded properly with the step name.
+            builder.setInt64Value(1); // Count just the one inc() in create();
+            expected.add(builder.build());
 
             // The element counter should be counted only once for the pcollection.
-            // So there shoul be only two elements.
+            // So there should be only two elements.
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
             builder.setPCollectionLabel("impulse.out");
             builder.setInt64Value(2);
-            MonitoringInfo elementCounter = builder.build();
+            expected.add(builder.build());
 
-            assertEquals(2, actual.size());
-            assertThat(actual, containsInAnyOrder(userCounter, elementCounter));
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("create/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(3);
+            expected.add(builder.build());
+
+            // Verify that the element count is not double counted if two PCollections consume it.
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("processA/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(6);
+            expected.add(builder.build());
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder.setUrn(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN);
+            builder.setPCollectionLabel("processB/ParMultiDo(Anonymous).output");
+            builder.setInt64Value(6);
+            expected.add(builder.build());
+
+            assertEquals(5, result.size());
+            assertThat(result, containsInAnyOrder(expected.toArray()));
           }
         };
 
