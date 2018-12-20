@@ -1,11 +1,8 @@
 ---
 layout: section
-title: "How Tos"
+title: "Learning Resources"
 section_menu: section-menu/documentation.html
-permalink: /documentation/how-tos/
-redirect_from:
-  - /learn/how-tos/
-  - /docs/learn/how-tos/
+permalink: /documentation/resources/learning-resources/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,11 +18,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# How Tos
+# Learning Resources
 
-Welcome to the [Apache Beam](https://beam.apache.org/) How Tos page. This page contains a collection of resources that will help you to get started and master Apache Beam. If you're just starting, you can view this as a guided tour, otherwise you can jump straight to any section of your interest.
+Welcome to our learning resources. This page contains a collection of resources that will help you to get started and use Apache Beam. If you’re just starting, you can view this as a guided tour, otherwise you can jump straight to any section of your interest.
 
 If you have additional material that you would like to see here, please let us know at [user@beam.apache.org](mailto:user@beam.apache.org)!
+
+* TOC
+{:toc}
 
 ## Getting Started {#getting-started}
 
@@ -55,7 +55,7 @@ If you have additional material that you would like to see here, please let us k
 *   **[Common Use Case Patterns Part 2](https://cloud.google.com/blog/products/gcp/guide-to-common-cloud-dataflow-use-case-patterns-part-2)** - Common patterns such as GroupBy using multiple data properties, joining two PCollections on a common key, streaming large lookup tables, merging two streams with different window lengths, and threshold detection with time-series data.
 *   **[Retry Policy](http://blog.nanthrax.net/?p=811)** - Adding a retry policy to a `DoFn`.
 
-## Key Articles {#key-articles}
+## Articles {#articles}
 
 ### Data Analysis
 

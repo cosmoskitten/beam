@@ -1432,8 +1432,8 @@ using [`beam.io.WriteStringsToPubSub`](https://beam.apache.org/releases/pydoc/{{
 ## Next Steps
 
 * Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough]({{ site.baseurl }}/get-started/mobile-gaming-example).
-* Take a self-paced tour through our [How Tos]({{ site.baseurl }}/documentation/how-tos) page.
-* Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
+* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
