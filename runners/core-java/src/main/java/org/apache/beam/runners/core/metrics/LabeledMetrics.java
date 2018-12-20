@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
-import org.apache.beam.sdk.metrics.MetricName;
 
 public class LabeledMetrics {
   /**

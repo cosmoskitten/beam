@@ -18,12 +18,11 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.HashMap;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.runners.core.metrics.LabeledMetrics;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
