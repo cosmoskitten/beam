@@ -170,7 +170,9 @@ public class BoundedSourceRunnerTest {
 
     // Check that when passing a source along as an input, the source is processed.
     assertThat(consumers.keySet(), containsInAnyOrder("inputPC", "outputPC"));
-    consumers.getOnlyElement("inputPC").accept(valueInGlobalWindow(CountingSource.upTo(2)));
+    consumers
+        .getMultiplexingConsumer("inputPC")
+        .accept(valueInGlobalWindow(CountingSource.upTo(2)));
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
     assertThat(finishFunctions, Matchers.empty());

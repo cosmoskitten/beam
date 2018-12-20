@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import java.time.Instant;
 import java.util.HashMap;
@@ -227,5 +228,17 @@ public class SimpleMonitoringInfoBuilder {
       return null;
     }
     return this.builder.build();
+  }
+
+  /**
+   * @return A copy of the MonitoringInfo with the timestamp cleared, to allow comparing two
+   *     MonitoringInfos.
+   */
+  @VisibleForTesting
+  public static MonitoringInfo clearTimestamp(MonitoringInfo input) {
+    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+    builder.mergeFrom(input);
+    builder.clearTimestamp();
+    return builder.build();
   }
 }

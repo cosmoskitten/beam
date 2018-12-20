@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness.data;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import java.util.HashMap;
 import java.util.List;
@@ -60,11 +59,6 @@ public class PCollectionConsumerRegistry {
   /** @return the list of pcollection ids. */
   public Set<String> keySet() {
     return pCollectionIdsToConsumers.keySet();
-  }
-
-  /** @return the only FnDataReceiver for the pcollection. */
-  public FnDataReceiver<WindowedValue<?>> getOnlyElement(String pCollectionId) {
-    return Iterables.getOnlyElement(pCollectionIdsToConsumers.get(pCollectionId));
   }
 
   /**
