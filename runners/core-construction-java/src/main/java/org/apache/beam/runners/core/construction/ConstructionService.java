@@ -32,7 +32,6 @@ import org.apache.beam.model.construction.v1.ConstructionApi;
 import org.apache.beam.model.construction.v1.ConstructionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
