@@ -38,6 +38,8 @@ import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -518,6 +520,14 @@ public class PubsubIO {
         .build();
   }
 
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages into the Avro
+   * {@link GenericRecord} type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
     AvroCoder<GenericRecord> coder = AvroCoder.of(GenericRecord.class, avroSchema);
@@ -531,6 +541,14 @@ public class PubsubIO {
         .build();
   }
 
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages of the
+   * specific type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
   public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
@@ -763,18 +781,6 @@ public class PubsubIO {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
-    private Read<T> withSchemaAndParseFn(
-        Schema schema,
-        SerializableFunction<T, Row> toRowFunction,
-        SerializableFunction<Row, T> fromRowFunction,
-        SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder()
-          .setBeamSchema(schema)
-          .setToRowFn(toRowFunction)
-          .setFromRowFn(fromRowFunction)
-          .setParseFn(parseFn)
-          .build();
-    }
 
     @VisibleForTesting
     /**

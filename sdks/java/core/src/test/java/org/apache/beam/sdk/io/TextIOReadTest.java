@@ -39,7 +39,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
@@ -286,8 +285,6 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testCompressedReadWithoutExtension() throws Exception {
-      fail();
-
       String fileName = lines.size() + "_" + compression + "_no_extension";
       File fileWithNoExtension = writeToFile(lines, tempFolder, fileName, compression);
       assertReadingCompressedFileMatchesExpected(fileWithNoExtension, compression, lines, p);
