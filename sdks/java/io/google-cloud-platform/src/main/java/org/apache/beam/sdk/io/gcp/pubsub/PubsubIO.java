@@ -781,7 +781,6 @@ public class PubsubIO {
       return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
-
     @VisibleForTesting
     /**
      * Set's the PubsubClientFactory.

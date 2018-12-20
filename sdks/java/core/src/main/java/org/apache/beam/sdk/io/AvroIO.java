@@ -557,7 +557,7 @@ public class AvroIO {
                         getMatchConfiguration().getEmptyMatchTreatment(),
                         getRecordClass(),
                         getSchema())));
-        return getInferBeamSchema() ?  setBeamSchema(read, getRecordClass(), getSchema()) : read;
+        return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
       // All other cases go through ReadAll.
 
@@ -651,8 +651,9 @@ public class AvroIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
-    /** If set to true, a Beam schema will be inferred from the AVRO schema. This allows the
-     * output to be used by SQL and by the schema-transform library.
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
      */
     public ReadAll<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
