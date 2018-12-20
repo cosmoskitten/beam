@@ -160,7 +160,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   /** @return The metric URN for a user metric, with a proper URN prefix. */
-  private static String userMetricUrn(String metricNamespace, String metricName) {
+  public static String userMetricUrn(String metricNamespace, String metricName) {
     String fixedMetricNamespace = metricNamespace.replace(':', '_');
     String fixedMetricName = metricName.replace(':', '_');
     StringBuilder sb = new StringBuilder();

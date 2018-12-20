@@ -40,7 +40,7 @@ public class MonitoringInfoMetricName extends MetricName {
   private String namespace;
   private HashMap<String, String> labels = new HashMap<String, String>();
 
-  public MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
+  private MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
@@ -53,9 +53,11 @@ public class MonitoringInfoMetricName extends MetricName {
 
   /** Parse the urn field into a name and namespace field. */
   private void parseUrn() {
-    List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
-    this.name = split.get(split.size() - 1);
-    this.namespace = String.join(":", split.subList(0, split.size() - 1));
+    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
+      List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
+      this.name = split.get(split.size() - 1);
+      this.namespace = split.get(split.size() - 2);
+    }
   }
 
   /** @returns the parsed namespace from the user metric URN, otherwise null. */
@@ -87,13 +89,14 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** @returns a MetricName for a specific urn and labels map. */
-  public static MetricName named(String urn, HashMap<String, String> labels) {
+  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(urn, name, namespace, labels);
+    // Don't include name and namespace, since they are lazily set.
+    return Objects.hash(urn, labels);
   }
 
   @Override

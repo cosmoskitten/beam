@@ -30,7 +30,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming
  * FnDataReceiver for each pCollectionId. Registering with this class allows inserting an element
- * count counter for every pCollection.
+ * count counter for every pCollection. A combined MultiplexingConsumer (Wrapped with an
+ * ElementCountFnDataReceiver) is returned by calling getMultiplexingConsumer.
  */
 public class PCollectionConsumerRegistry {
 
@@ -42,6 +43,17 @@ public class PCollectionConsumerRegistry {
     pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
 
+  /**
+   * Register the specified consumer to handle the elements in the pCollection associated with
+   * pCollectionId. All consumers must be registered before extracting the combined consumer by
+   * calling getMultiplexingConsumer(), or an exception will be thrown.
+   *
+   * @param pCollectionId
+   * @param consumer
+   * @param <T> the element type of the PCollection
+   * @throws RuntimeException if {@code register()} is called after {@code
+   *     getMultiplexingConsumer()} is called.
+   */
   public <T> void register(String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
     // Just save these consumers for now, but package them up later with an
     // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
@@ -62,12 +74,11 @@ public class PCollectionConsumerRegistry {
   }
 
   /**
-   * New consumers should not be added after calling this method. This will cause a
+   * New consumers should not be register()-ed after calling this method. This will cause a
    * RuntimeException, as this would fail to properly wrap the late-added consumer to the
    * ElementCountFnDataReceiver.
    *
-   * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers,
-   *     possibly using a MultiplexingFnDataReceiver.
+   * @return A single ElementCountFnDataReceiver which directly wraps all the registered consumers.
    */
   public FnDataReceiver<WindowedValue<?>> getMultiplexingConsumer(String pCollectionId) {
     ElementCountFnDataReceiver wrappedConsumer =
