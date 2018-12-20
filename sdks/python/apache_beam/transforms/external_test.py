@@ -32,7 +32,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_simple(self):
 
-    @ptransform.PTransform.register_urn("simple", None)
+    @ptransform.PTransform.register_urn('simple', None)
     class SimpleTransform(ptransform.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: 'Simple(%s)' % x)
@@ -56,7 +56,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_multi(self):
 
-    @ptransform.PTransform.register_urn("multi", None)
+    @ptransform.PTransform.register_urn('multi', None)
     class MutltiTransform(ptransform.PTransform):
       def expand(self, pcolls):
         return {
@@ -86,7 +86,7 @@ class ExternalTransformTest(unittest.TestCase):
 
   def test_payload(self):
 
-    @ptransform.PTransform.register_urn("payload", bytes)
+    @ptransform.PTransform.register_urn('payload', bytes)
     class PayloadTransform(ptransform.PTransform):
       def __init__(self, payload):
         self._payload = payload
@@ -95,23 +95,23 @@ class ExternalTransformTest(unittest.TestCase):
         return pcoll | beam.Map(lambda x, s: x + s, self._payload)
 
       def to_runner_api_parameter(self, unused_context):
-        return 'payload', self._payload
+        return b'payload', self._payload.encode('ascii')
 
       @staticmethod
       def from_runner_api_parameter(payload, unused_context):
-        return PayloadTransform(payload)
+        return PayloadTransform(payload.decode('ascii'))
 
     with beam.Pipeline() as p:
       res = (
           p
           | beam.Create(['a', 'bb'], reshuffle=False)
           | beam.ExternalTransform(
-              'payload', 's',
+              'payload', b's',
               construction_service.ConstructionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
 
   def test_nested(self):
-    @ptransform.PTransform.register_urn("fib", bytes)
+    @ptransform.PTransform.register_urn('fib', bytes)
     class FibTransform(ptransform.PTransform):
       def __init__(self, level):
         self._level = level
