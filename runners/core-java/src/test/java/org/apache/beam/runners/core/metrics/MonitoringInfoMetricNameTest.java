@@ -72,8 +72,6 @@ public class MonitoringInfoMetricNameTest implements Serializable {
 
     assertEquals(name, name2);
     assertEquals(name.hashCode(), name2.hashCode());
-
-    assertNull(MetricsEnvironment.getCurrentContainer());
   }
 
   @Test
