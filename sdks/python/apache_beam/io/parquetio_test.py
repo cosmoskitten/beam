@@ -19,6 +19,7 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -49,6 +50,10 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
+@unittest.skipIf(
+    platform.system() == 'Windows' and sys.version_info[0] == 2,
+    "pyarrow doesn't support Windows Python 2."
+)
 class TestParquet(unittest.TestCase):
 
   @classmethod

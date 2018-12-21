@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import platform
 import string
 import sys
 import unittest
@@ -42,6 +43,10 @@ from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms.combiners import Count
 
 
+@unittest.skipIf(
+    platform.system() == 'Windows' and sys.version_info[0] == 2,
+    "pyarrow doesn't support Windows Python 2."
+)
 class TestParquetIT(unittest.TestCase):
 
   @classmethod
