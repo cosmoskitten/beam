@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -258,7 +259,6 @@ public class MongoDbIOTest implements Serializable {
 
   @Test
   public void testReadWithFilter() throws Exception {
-
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
@@ -274,7 +274,6 @@ public class MongoDbIOTest implements Serializable {
 
   @Test
   public void testReadWithFilterAndLimit() throws Exception {
-
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
@@ -291,7 +290,6 @@ public class MongoDbIOTest implements Serializable {
 
   @Test
   public void testReadWithAggregate() throws Exception {
-
     // [{ "$match" : { "country" : { "$eq" : "England" } } }]
     List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
     aggregates.add(
@@ -305,7 +303,7 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withAggregate(aggregates));
+                .withMongoDbPipeline(aggregates));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
 
@@ -313,8 +311,55 @@ public class MongoDbIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithFilterAndProjection() throws Exception {
+  public void testReadWithBothAggregateAndDocumentId() throws Exception {
+    try {
+      List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
+      aggregates.add(
+          new BsonDocument(
+              "$match",
+              new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
 
+      pipeline.apply(
+          MongoDbIO.read()
+              .withUri("mongodb://localhost:" + port)
+              .withDatabase(DATABASE)
+              .withCollection(COLLECTION)
+              .withDocumentId("52cc8f6254c4327843000007")
+              .withMongoDbPipeline(aggregates));
+      pipeline.run();
+    } catch (InvalidParameterException e) {
+      return;
+    }
+
+    fail("assertion should have failed");
+  }
+
+  @Test
+  public void testReadWithBothAggregateAndFilter() throws Exception {
+    try {
+      List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
+      aggregates.add(
+          new BsonDocument(
+              "$match",
+              new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
+
+      pipeline.apply(
+          MongoDbIO.read()
+              .withUri("mongodb://localhost:" + port)
+              .withDatabase(DATABASE)
+              .withCollection(COLLECTION)
+              .withFilter("{\"scientist\":\"Einstein\"}")
+              .withMongoDbPipeline(aggregates));
+      pipeline.run();
+    } catch (InvalidParameterException e) {
+      return;
+    }
+
+    fail("assertion should have failed");
+  }
+
+  @Test
+  public void testReadWithFilterAndProjection() throws Exception {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.mongodb.client.model.Projections.include;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -26,8 +25,6 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
-import com.mongodb.client.AggregateIterable;
-import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -47,7 +44,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.bson.BsonDocument;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +108,7 @@ public class MongoDbIO {
         .setSslEnabled(false)
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
-        .setAggregate(Arrays.asList())
+        .setMongoDbPipeline(Arrays.asList())
         .setLimit(0)
         .build();
   }
@@ -161,7 +160,13 @@ public class MongoDbIO {
     abstract int limit();
 
     @Nullable
-    abstract List aggregate();
+    abstract List<BsonDocument> mongoDbPipeline();
+
+    @Nullable
+    abstract String documentId();
+
+    @Nullable
+    abstract ObjectId objectId();
 
     abstract Builder builder();
 
@@ -191,7 +196,11 @@ public class MongoDbIO {
 
       abstract Builder setLimit(int limit);
 
-      abstract Builder setAggregate(List pipeline);
+      abstract Builder setMongoDbPipeline(List<BsonDocument> mongoDbPipeline);
+
+      abstract Builder setDocumentId(String documentId);
+
+      abstract Builder setObjectId(ObjectId objectId);
 
       abstract Read build();
     }
@@ -296,8 +305,16 @@ public class MongoDbIO {
       return builder().setLimit(limit).build();
     }
 
-    public Read withAggregate(List value) {
-      return builder().setAggregate(value).build();
+    public Read withMongoDbPipeline(List<BsonDocument> value) {
+      return builder().setMongoDbPipeline(value).build();
+    }
+
+    public Read withDocumentId(String value) {
+      return builder().setDocumentId(value).build();
+    }
+
+    public Read withObjectId(ObjectId value) {
+      return builder().setObjectId(value).build();
     }
 
     @Override
@@ -439,7 +456,7 @@ public class MongoDbIO {
         splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
 
         List<BoundedSource<Document>> sources = new ArrayList<>();
-        if (!spec.aggregate().isEmpty() || splitKeys.size() < 1) {
+        if (!spec.mongoDbPipeline().isEmpty() || splitKeys.size() < 1) {
           LOG.debug("Split keys is low, using an unique source");
           sources.add(this);
           return sources;
@@ -540,8 +557,6 @@ public class MongoDbIO {
 
     private MongoClient client;
     private MongoCursor<Document> cursor;
-    private AggregateIterable<Document> aggregateQuery;
-    private FindIterable<Document> query;
     private Document current;
 
     public BoundedMongoDbReader(BoundedMongoDbSource source) {
@@ -551,47 +566,21 @@ public class MongoDbIO {
     @Override
     public boolean start() {
       Read spec = source.spec;
-      client =
-          new MongoClient(
-              new MongoClientURI(
-                  spec.uri(),
-                  getOptions(
-                      spec.keepAlive(),
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed())));
 
+      // MongoDB Connection preparation
+      client = createClient(spec);
       MongoDatabase mongoDatabase = client.getDatabase(spec.database());
-
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
 
-      if (!spec.aggregate().isEmpty()) {
-        aggregateQuery = mongoCollection.aggregate(spec.aggregate());
-      } else if (spec.filter() == null) {
-        if (spec.projection() == null) {
-          query = mongoCollection.find();
-        } else {
-          query = mongoCollection.find().projection(include(spec.projection()));
-        }
-      } else {
-        Document bson = Document.parse(spec.filter());
-        if (spec.projection() == null) {
-          query = mongoCollection.find(bson);
-        } else {
-          query = mongoCollection.find(bson).projection(include(spec.projection()));
-        }
-      }
-
-      // Limit
-      if (spec.aggregate().isEmpty()) {
-        query = query.limit(spec.limit());
-      }
-
-      if (!spec.aggregate().isEmpty()) {
-        cursor = aggregateQuery.iterator();
-      } else {
-        cursor = query.iterator();
-      }
+      cursor =
+          QueryBuilder.create(mongoCollection)
+              .withDocumentId(spec.documentId())
+              .withObjectId(spec.objectId())
+              .withFilter(spec.filter())
+              .withLimit(spec.limit())
+              .withMongoDbPipeline(spec.mongoDbPipeline())
+              .withProjection(spec.projection())
+              .cursor();
 
       return advance();
     }
@@ -630,6 +619,17 @@ public class MongoDbIO {
       } catch (Exception e) {
         LOG.warn("Error closing MongoDB client", e);
       }
+    }
+
+    private MongoClient createClient(Read spec) {
+      return new MongoClient(
+          new MongoClientURI(
+              spec.uri(),
+              getOptions(
+                  spec.keepAlive(),
+                  spec.maxConnectionIdleTime(),
+                  spec.sslEnabled(),
+                  spec.sslInvalidHostNameAllowed())));
     }
   }
 
