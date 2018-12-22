@@ -305,7 +305,7 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withAggregate(aggregates));
+                .withPipeline(aggregates));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
 
