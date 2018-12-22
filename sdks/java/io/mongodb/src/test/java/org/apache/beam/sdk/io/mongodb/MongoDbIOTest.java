@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertFalse;
 
 import com.mongodb.MongoClient;
@@ -305,11 +307,61 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withAggregate(aggregates));
+                .withAggregation(aggregates));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
 
     pipeline.run();
+  }
+
+  @Test
+  public void testReadWithBothAggregateAndDocumentId() throws Exception {
+
+    try {
+        List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
+        aggregates.add(
+        new BsonDocument(
+            "$match",
+            new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
+
+        pipeline.apply(
+                MongoDbIO.read()
+                    .withUri("mongodb://localhost:" + port)
+                    .withDatabase(DATABASE)
+                    .withCollection(COLLECTION)
+                    .withDocumentIdStr("A_DOCUMENT_ID")
+                    .withAggregation(aggregates));
+        pipeline.run();
+    } catch (InvalidParameterException e) {
+        return;
+    }
+
+    fail("assertion should have failed");
+  }
+
+  @Test
+  public void testReadWithBothAggregateAndFilter() throws Exception {
+
+    try {
+        List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
+        aggregates.add(
+        new BsonDocument(
+            "$match",
+            new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
+
+        pipeline.apply(
+                MongoDbIO.read()
+                    .withUri("mongodb://localhost:" + port)
+                    .withDatabase(DATABASE)
+                    .withCollection(COLLECTION)
+                    .withFilter("{\"scientist\":\"Einstein\"}")
+                    .withAggregation(aggregates));
+        pipeline.run();
+    } catch (InvalidParameterException e) {
+        return;
+    }
+
+    fail("assertion should have failed");
   }
 
   @Test
