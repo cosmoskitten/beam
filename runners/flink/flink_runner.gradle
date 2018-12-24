@@ -133,6 +133,7 @@ def createValidatesRunnerTask(Map m) {
          "--streaming=${config.streaming}",
          // TODO This should be changed to > 1
          "--parallelism=1",
+         "--setShutdownSourcesOnFinalWatermark",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
