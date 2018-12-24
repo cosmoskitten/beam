@@ -221,6 +221,7 @@ def portableWordCountTask(name, streaming) {
               "--output=/tmp/py-wordcount-direct",
               "--runner=PortableRunner",
               "--experiments=worker_threads=100",
+              "--shutdown_sources_on_final_watermark",
       ]
       if (streaming)
         options += ["--streaming"]
