@@ -62,18 +62,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <p>For example, the following demonstrates joining three PCollections on the "user" and "country"
  * fields:
  *
-<<<<<<< HEAD
  * <pre>{@code PCollection<KV<Row, Row>> joined =
  *   PCollectionTuple.of("input1", input1, "input2", input2, "input3", input3)
  *     .apply(CoGroup.join(By.fieldNames("user", "country")));
-=======
-
- * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of("input1", input1)
- *     .and("input2, input2)
- *     .and("input3", input3)
- *   .apply(CoGroup.byFieldNames("user", "country"));
->>>>>>> Allow string fields to be used instead of TupleTags.
  * }</pre>
  *
  * <p>In the above case, the key schema will contain the two string fields "user" and "country"; in
@@ -116,20 +107,11 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * those fields match. In this case, fields must be specified for every input PCollection. For
  * example:
  *
-<<<<<<< HEAD
  * <pre>{@code PCollection<KV<Row, Row>> joined
  *      = PCollectionTuple.of("input1Tag", input1, "input2Tag", input2)
  *   .apply(CoGroup
  *     .join("input1Tag", By.fieldNames("referringUser")))
  *     .join("input2Tag", By.fieldNames("user")));
-=======
- * <pre>{@code PCollection<KV<Row, Row>> joined = PCollectionTuple
- *     .of("input1Tag", input1)
- *     .and("input2Tag", input2)
- *   .apply(CoGroup
- *     .byFieldNamesForInput("input1Tag", "referringUser"))
- *     .byFieldNamesForInput("input2Tag", "user"));
->>>>>>> Allow string fields to be used instead of TupleTags.
  * }</pre>
  *
  * <p>Traditional (SQL) joins are cross-product joins. All rows that match the join condition are
