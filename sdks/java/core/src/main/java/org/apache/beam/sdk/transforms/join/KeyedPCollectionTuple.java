@@ -52,6 +52,11 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return new KeyedPCollectionTuple<K>(pc.getPipeline()).and(tag, pc);
   }
 
+  /** A version that takes in a string instead of a TupleTag. */
+  public static <K, InputT> KeyedPCollectionTuple<K> of(String tag, PCollection<KV<K, InputT>> pc) {
+    return of(new TupleTag<>(tag), pc);
+  }
+
   /**
    * A version of {@link #of(TupleTag, PCollection)} that takes in a string instead of a TupleTag.
    *
