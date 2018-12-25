@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
@@ -38,6 +40,8 @@ import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.matcher.ElementMatchers;
+import net.bytebuddy.utility.RandomString;
+import org.apache.avro.generic.GenericFixed;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -58,6 +62,38 @@ class ByteBuddyUtils {
   private static final ForLoadedType READABLE_INSTANT_TYPE =
       new ForLoadedType(ReadableInstant.class);
 
+  /**
+   * A naming strategy for ByteBuddy classes.
+   *
+   * <p>We always inject the generator classes in the same same package as the user's target class.
+   * This way, if the class fields or methods are package private, our generated class can still
+   * access them.
+   */
+  static class InjectPackageStrategy extends NamingStrategy.AbstractBase {
+    /** A resolver for the base name for naming the unnamed type. */
+    private static final BaseNameResolver baseNameResolver =
+        BaseNameResolver.ForUnnamedType.INSTANCE;
+
+    private static final String SUFFIX = "SchemaCodeGen";
+
+    private final RandomString randomString;
+
+    private final String targetPackage;
+
+    InjectPackageStrategy(Class<?> baseType) {
+      randomString = new RandomString();
+      this.targetPackage = baseType.getPackage().getName();
+    }
+
+    @Override
+    protected String name(TypeDescription superClass) {
+      String baseName = baseNameResolver.resolve(superClass);
+      int lastDot = baseName.lastIndexOf('.');
+      String className = baseName.substring(lastDot, baseName.length());
+      return targetPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
+    }
+  };
+
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
   static DynamicType.Builder<FieldValueGetter> subclassGetterInterface(
@@ -66,7 +102,8 @@ class ByteBuddyUtils {
         TypeDescription.Generic.Builder.parameterizedType(
                 FieldValueGetter.class, objectType, fieldType)
             .build();
-    return (DynamicType.Builder<FieldValueGetter>) byteBuddy.subclass(getterGenericType);
+    return (DynamicType.Builder<FieldValueGetter>)
+        byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(getterGenericType);
   }
 
   // Create a new FieldValueSetter subclass.
@@ -77,7 +114,8 @@ class ByteBuddyUtils {
         TypeDescription.Generic.Builder.parameterizedType(
                 FieldValueSetter.class, objectType, fieldType)
             .build();
-    return (DynamicType.Builder<FieldValueSetter>) byteBuddy.subclass(setterGenericType);
+    return (DynamicType.Builder<FieldValueSetter>)
+        byteBuddy.with(new InjectPackageStrategy((Class) objectType)).subclass(setterGenericType);
   }
 
   // Base class used below to convert types.
@@ -96,6 +134,9 @@ class ByteBuddyUtils {
         return convertDateTime(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
         return convertByteBuffer(typeDescriptor);
+      } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // TODO: Refactor AVRO-specific check into separate class.
+        return convertGenericFixed(typeDescriptor);
       } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
         return convertCharSequence(typeDescriptor);
       } else if (typeDescriptor.getRawType().isPrimitive()) {
@@ -114,6 +155,8 @@ class ByteBuddyUtils {
     protected abstract T convertDateTime(TypeDescriptor<?> type);
 
     protected abstract T convertByteBuffer(TypeDescriptor<?> type);
+
+    protected abstract T convertGenericFixed(TypeDescriptor<?> type);
 
     protected abstract T convertCharSequence(TypeDescriptor<?> type);
 
@@ -170,6 +213,11 @@ class ByteBuddyUtils {
 
     @Override
     protected Type convertByteBuffer(TypeDescriptor<?> type) {
+      return byte[].class;
+    }
+
+    @Override
+    protected Type convertGenericFixed(TypeDescriptor<?> type) {
       return byte[].class;
     }
 
@@ -301,6 +349,23 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
+      // TODO: Refactor AVRO-specific code into separate class.
+
+      // Generate the following code:
+      // return value.bytes();
+
+      return new Compound(
+          readValue,
+          MethodInvocation.invoke(
+              new ForLoadedType(GenericFixed.class)
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }
 
@@ -460,6 +525,28 @@ class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(
                       ElementMatchers.named("wrap")
+                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+                  .getOnly()));
+    }
+
+    @Override
+    protected StackManipulation convertGenericFixed(TypeDescriptor<?> type) {
+      // Generate the following code:
+      // return T((byte[]) value);
+
+      // TODO: Refactor AVRO-specific code out of this class.
+      ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+      return new Compound(
+          TypeCreation.of(loadedType),
+          Duplication.SINGLE,
+          readValue,
+          TypeCasting.to(BYTE_ARRAY_TYPE),
+          // Create a new instance that wraps this byte[].
+          MethodInvocation.invoke(
+              loadedType
+                  .getDeclaredMethods()
+                  .filter(
+                      ElementMatchers.isConstructor()
                           .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
                   .getOnly()));
     }

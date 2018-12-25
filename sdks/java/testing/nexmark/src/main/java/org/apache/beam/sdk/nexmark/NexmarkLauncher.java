@@ -78,6 +78,8 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoin;
+import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoinModel;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
@@ -123,13 +125,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * activity.
    */
   private static final Duration DONE_DELAY = Duration.standardMinutes(1);
-  /** How long to allow no activity without warning. */
+  /** How long to allow no activity at sources and sinks without warning. */
   private static final Duration STUCK_WARNING_DELAY = Duration.standardMinutes(10);
   /**
-   * How long to let streaming pipeline run after we've seen no activity, even if all events have
-   * not been generated.
+   * How long to let streaming pipeline run after we've seen no activity at sources or sinks, even
+   * if all events have not been generated.
    */
-  private static final Duration STUCK_TERMINATE_DELAY = Duration.standardDays(3);
+  private static final Duration STUCK_TERMINATE_DELAY = Duration.standardHours(1);
 
   /** NexmarkOptions for this run. */
   private final OptionT options;
@@ -457,7 +459,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         }
 
         if (fatalCount > 0) {
-          NexmarkUtils.console("job has fatal errors, cancelling.");
+          NexmarkUtils.console("ERROR: job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", fatalCount));
           waitingForShutdown = true;
           cancelJob = true;
@@ -469,16 +471,19 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           NexmarkUtils.console("streaming query appears to have finished waiting for completion.");
           waitingForShutdown = true;
         } else if (quietFor.isLongerThan(STUCK_TERMINATE_DELAY)) {
-          NexmarkUtils.console("streaming query appears to have gotten stuck, cancelling job.");
-          errors.add("Cancelling streaming job since it appeared stuck");
+          NexmarkUtils.console(
+              "ERROR: streaming query appears to have been stuck for %d minutes, cancelling job.",
+              quietFor.getStandardMinutes());
+          errors.add(
+              String.format(
+                  "Cancelling streaming job since it appeared stuck for %d min.",
+                  quietFor.getStandardMinutes()));
           waitingForShutdown = true;
           cancelJob = true;
         } else if (quietFor.isLongerThan(STUCK_WARNING_DELAY)) {
           NexmarkUtils.console(
               "WARNING: streaming query appears to have been stuck for %d min.",
               quietFor.getStandardMinutes());
-          errors.add(
-              String.format("Streaming query was stuck for %d min", quietFor.getStandardMinutes()));
         }
 
         if (cancelJob) {
@@ -1218,6 +1223,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(NexmarkQueryName.MONITOR_NEW_USERS, new Query8Model(configuration))
         .put(NexmarkQueryName.WINNING_BIDS, new Query9Model(configuration))
         .put(NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN, new BoundedSideInputJoinModel(configuration))
+        .put(NexmarkQueryName.SESSION_SIDE_INPUT_JOIN, new SessionSideInputJoinModel(configuration))
         .build();
   }
 
@@ -1285,6 +1291,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
             new NexmarkQuery(configuration, new BoundedSideInputJoin(configuration)))
+        .put(
+            NexmarkQueryName.SESSION_SIDE_INPUT_JOIN,
+            new NexmarkQuery(configuration, new SessionSideInputJoin(configuration)))
         .build();
   }
 
