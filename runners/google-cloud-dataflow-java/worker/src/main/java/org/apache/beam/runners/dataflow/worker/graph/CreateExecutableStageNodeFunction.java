@@ -76,10 +76,14 @@ import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.joda.time.Duration;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into a
@@ -163,7 +167,7 @@ public class CreateExecutableStageNodeFunction
       componentsBuilder.putEnvironments(envId, Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
-    // Use default WindowingStrategy as the fake one.
+    // Use default WindowingStrategy as the fake one. But it may be overrided later if it's a FixedWindow.
     // TODO: should get real WindowingStategy from pipeline proto.
     String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.getId();
     SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
@@ -190,6 +194,37 @@ public class CreateExecutableStageNodeFunction
     for (InstructionOutputNode node :
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
+
+      // If this is the input PCollection or the output PCollection for an ExecutableStage, it's
+			// necessary to check whether the window coder is not a GlobalWindow coder.
+      if (isExecutableStageInputPCollection(input, node)
+          || isExecutableStageOutputPCollection(input, node)) {
+        Coder<?> javaCoder =
+            CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));
+        // For now, Dataflow runner harness only deal with FixedWindow.
+        if (FullWindowedValueCoder.class.isInstance(javaCoder)) {
+          FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) javaCoder;
+          Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
+          if (IntervalWindowCoder.class.isInstance(windowCoder)) {
+            fakeWindowingStrategyId = "generatedFixedWindowingStrategy" + idGenerator.getId();
+            try {
+              // Since the coder is the only needed from a WindowingStrategy, the size field of one
+							// FixedWindows is meaningless here.
+              RunnerApi.MessageWithComponents windowingStrategyProto =
+                  WindowingStrategyTranslation.toMessageProto(
+                      WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
+                      sdkComponents);
+              componentsBuilder.putWindowingStrategies(
+                  fakeWindowingStrategyId, windowingStrategyProto.getWindowingStrategy());
+              componentsBuilder.putAllCoders(windowingStrategyProto.getComponents().getCodersMap());
+              componentsBuilder.putAllEnvironments(
+                  windowingStrategyProto.getComponents().getEnvironmentsMap());
+            } catch (IOException exc) {
+              throw new RuntimeException("Could not convert FixedWindow stratey to proto", exc);
+            }
+          }
+        }
+      }
 
       String coderId = "generatedCoder" + idGenerator.getId();
       try (ByteString.Output output = ByteString.newOutput()) {
@@ -238,10 +273,10 @@ public class CreateExecutableStageNodeFunction
 
       // Check whether this output collection has consumers from worker side when "use_executable_stage_bundle_execution"
       // is set
-      if (input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+      if (isExecutableStageOutputPCollection(input, node)) {
         executableStageOutputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
       }
-      if (input.predecessors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance)) {
+      if (isExecutableStageInputPCollection(input, node)) {
         executableStageInputs.add(PipelineNode.pCollection(pcollectionId, pCollection));
       }
     }
@@ -450,5 +485,15 @@ public class CreateExecutableStageNodeFunction
     return RunnerApi.FunctionSpec.newBuilder()
         .setUrn(urn)
         .setPayload(combinePayload.toByteString());
+  }
+
+  private boolean isExecutableStageInputPCollection(
+      MutableNetwork<Node, Edge> input, InstructionOutputNode node) {
+    return input.predecessors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance);
+  }
+
+  private boolean isExecutableStageOutputPCollection(
+      MutableNetwork<Node, Edge> input, InstructionOutputNode node) {
+    return input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance);
   }
 }
