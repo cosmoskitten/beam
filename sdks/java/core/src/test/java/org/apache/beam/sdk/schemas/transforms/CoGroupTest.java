@@ -413,7 +413,7 @@ public class CoGroupTest {
           List key2 = Arrays.stream(keys2).map(row2::getValue).collect(Collectors.toList());
           List key3 = Arrays.stream(keys3).map(row3::getValue).collect(Collectors.toList());
           if (key1.equals(key2) && key2.equals(key3)) {
-            joined.add(Row.withSchema(expectedSchema).addValues(row1, row2, row3).build());
+           joined.add(Row.withSchema(expectedSchema).addValues(row1, row2, row3).build());
           }
         }
       }

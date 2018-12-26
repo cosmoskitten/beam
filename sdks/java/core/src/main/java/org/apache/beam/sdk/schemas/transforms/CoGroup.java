@@ -397,7 +397,7 @@ public class CoGroup {
                     public void process(@Element Row row, OutputReceiver<KV<Row, Row>> o) {
                       o.output(
                           KV.of(SelectHelpers.selectRow(row, keyFields, schema, keySchema), row));
-                    }
+                   }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));
     }
@@ -488,7 +488,7 @@ public class CoGroup {
       private final List<String> sortedTags;
       private final Map<Integer, SerializableFunction<Object, Row>> toRows;
       private final Map<Integer, String> tagToKeyedTag;
-      private final Schema joinedSchema;
+     private final Schema joinedSchema;
 
       ConvertToRow(
           List<String> sortedTags,
