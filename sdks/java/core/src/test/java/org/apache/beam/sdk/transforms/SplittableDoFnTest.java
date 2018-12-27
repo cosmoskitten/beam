@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
-import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -156,8 +155,7 @@ public class SplittableDoFnTest implements Serializable {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesBoundedSplittableParDo.class,
-    DataflowPortabilityExecutableStageUnsupported.class
+    UsesBoundedSplittableParDo.class
   })
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);

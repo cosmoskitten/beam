@@ -58,7 +58,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
-import org.apache.beam.sdk.testing.DataflowPortabilityExecutableStageUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -1034,8 +1033,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityExecutableStageUnsupported.class
+      UsesSideInputs.class
     })
     public void testFixedWindowsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
@@ -1139,8 +1137,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityExecutableStageUnsupported.class
+      UsesSideInputs.class
     })
     public void testSlidingWindowsCombineWithContext() {
       // [a: 1, 1], [a: 4; b: 1], [b: 13]
@@ -1219,7 +1216,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityExecutableStageUnsupported.class})
+    @Category(ValidatesRunner.class)
     public void testSessionsCombine() {
       PCollection<KV<String, Integer>> input =
           pipeline
@@ -1247,8 +1244,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityExecutableStageUnsupported.class
+      UsesSideInputs.class
     })
     public void testSessionsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
@@ -1342,8 +1338,7 @@ public class CombineTest implements Serializable {
     @Test
     @Category({
       ValidatesRunner.class,
-      UsesSideInputs.class,
-      DataflowPortabilityExecutableStageUnsupported.class
+      UsesSideInputs.class
     })
     public void testWindowedCombineGloballyAsSingletonView() {
       FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
