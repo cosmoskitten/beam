@@ -1,3 +1,42 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""BigTable sources.
+
+This module implements writing to BigTable tables. It relies
+on several classes exposed by the BigTable API.
+The default mode is to return table rows read from a BigTable source as dictionaries.
+This is done for more convenient programming.  If desired, the native TableRow
+objects can be used throughout to represent rows.
+The syntax supported is described here:
+https://cloud.google.com/bigtable/docs/quickstart-cbt
+
+BigTable sources can be used as main inputs or side inputs. A main input
+(common case) is expected to be massive and will be split into manageable chunks
+and processed in parallel. In the example below we created a list of rows then pass
+to the GeneratedDirectRows DoFn to set the Cells and then send to the WriteToBigtable Source
+to insert this rows in the table we configure.
+
+  main_table = (p
+             | 'Generate Row Values' >> beam.Create(row_values)
+             | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
+             | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
+"""
+
 import logging
 import apache_beam as beam
 from google.cloud import bigtable
