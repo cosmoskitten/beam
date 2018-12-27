@@ -153,10 +153,7 @@ public class SplittableDoFnTest implements Serializable {
   }
 
   @Test
-  @Category({
-    ValidatesRunner.class,
-    UsesBoundedSplittableParDo.class
-  })
+  @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class})
   public void testPairWithIndexWindowedTimestampedBounded() {
     testPairWithIndexWindowedTimestamped(IsBounded.BOUNDED);
   }

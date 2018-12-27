@@ -1031,10 +1031,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testFixedWindowsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
           pipeline
@@ -1135,10 +1132,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSlidingWindowsCombineWithContext() {
       // [a: 1, 1], [a: 4; b: 1], [b: 13]
       PCollection<KV<String, Integer>> perKeyInput =
@@ -1242,10 +1236,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testSessionsCombineWithContext() {
       PCollection<KV<String, Integer>> perKeyInput =
           pipeline.apply(
@@ -1336,10 +1327,7 @@ public class CombineTest implements Serializable {
     }
 
     @Test
-    @Category({
-      ValidatesRunner.class,
-      UsesSideInputs.class
-    })
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
     public void testWindowedCombineGloballyAsSingletonView() {
       FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
       final PCollectionView<Integer> view =

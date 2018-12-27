@@ -196,7 +196,7 @@ public class CreateExecutableStageNodeFunction
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       // If this is the input PCollection or the output PCollection for an ExecutableStage, it's
-			// necessary to check whether the window coder is not a GlobalWindow coder.
+      // necessary to check whether the window coder is not a GlobalWindow coder.
       if (isExecutableStageInputPCollection(input, node)
           || isExecutableStageOutputPCollection(input, node)) {
         Coder<?> javaCoder =
@@ -209,7 +209,7 @@ public class CreateExecutableStageNodeFunction
             fakeWindowingStrategyId = "generatedFixedWindowingStrategy" + idGenerator.getId();
             try {
               // Since the coder is the only needed from a WindowingStrategy, the size field of one
-							// FixedWindows is meaningless here.
+              // FixedWindows is meaningless here.
               RunnerApi.MessageWithComponents windowingStrategyProto =
                   WindowingStrategyTranslation.toMessageProto(
                       WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
