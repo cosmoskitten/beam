@@ -327,7 +327,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.12.0"
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
-    def jackson_version = "2.9.5"
+    def jackson_version = "2.9.8"
     def spark_version = "2.3.2"
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
@@ -420,7 +420,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.4",
-        junit                                       : "junit:junit:4.12",
+        junit                                       : "junit:junit:4.13-beta-1",
         kafka_2_11                                  : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         malhar_library                              : "org.apache.apex:malhar-library:$apex_malhar_version",
@@ -444,7 +444,6 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        vendored_grpc_1_13_1                        : "org.apache.beam:beam-vendor-grpc-1_13_1:0.1",
         vendored_guava_20_0                         : "org.apache.beam:beam-vendor-guava-20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -597,6 +596,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'options',
         'cast',
         'deprecation',
+        'fallthrough',
         'processing',
         'rawtypes',
         'serial',
@@ -648,17 +648,18 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these plugins specifically use the compileOnly and testCompileOnly
         // configurations because they are never required to be shaded or become a
         // dependency of the output.
-        def auto_value = "com.google.auto.value:auto-value:1.5.3"
+        def auto_value = "com.google.auto.value:auto-value:1.6.3"
+        def auto_value_annotations = "com.google.auto.value:auto-value-annotations:1.6.3"
         def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
-        compileOnly auto_value
+        compileOnly auto_value_annotations
+        testCompileOnly auto_value_annotations
         apt auto_value
-        testCompileOnly auto_value
         testApt auto_value
 
         compileOnly auto_service
-        apt auto_service
         testCompileOnly auto_service
+        apt auto_service
         testApt auto_service
 
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
@@ -669,8 +670,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // See: https://www.apache.org/legal/resolved.html#prohibited
         def findbugs_annotations = "com.google.code.findbugs:annotations:3.0.1"
         compileOnly findbugs_annotations
-        apt findbugs_annotations
         testCompileOnly findbugs_annotations
+        apt findbugs_annotations
         testApt findbugs_annotations
       }
 
@@ -1382,7 +1383,7 @@ artifactId=${project.name}
               shadowClosure: GrpcVendoring.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1_13_1:0.1
+                // by org.apache.beam:beam-vendor-grpc-v1p13p1:0.1
                 dependencies {
                   include(dependency { return false })
                 }
@@ -1419,7 +1420,7 @@ artifactId=${project.name}
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow 'org.apache.beam:beam-vendor-grpc-1_13_1:0.1' }
+      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow it.project(path: ":beam-vendor-grpc-1_13_1", configuration: "shadow") }
     }
 
     /** ***********************************************************************************************/
@@ -1508,7 +1509,7 @@ artifactId=${project.name}
       // For some reason base doesn't define a test task  so we define it below and make
       // check depend on it. This makes the Python project similar to the task layout like
       // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
-      project.task('test', type: Test) {}
+      project.task('test') {}
       project.check.dependsOn project.test
 
       project.evaluationDependsOn(":beam-runners-google-cloud-dataflow-java-fn-api-worker")

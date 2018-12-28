@@ -15,16 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.util;
 
-import java.util.List;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
+/** Lambda interface for defining a custom error to log based on an http request and response. */
+interface HttpCallCustomError {
 
-/** A {@link FieldValueGetterFactory} for AVRO-generated specific records. */
-public class AvroSpecificRecordGetterFactory implements FieldValueGetterFactory {
-  @Override
-  public List<FieldValueGetter> create(Class<?> targetClass, Schema schema) {
-    return AvroUtils.getGetters((Class<? extends SpecificRecord>) targetClass, schema);
-  }
+  /** @return A string which represents a custom error to be logged for the request and response. */
+  String customError(HttpRequestWrapper request, HttpResponseWrapper response);
 }

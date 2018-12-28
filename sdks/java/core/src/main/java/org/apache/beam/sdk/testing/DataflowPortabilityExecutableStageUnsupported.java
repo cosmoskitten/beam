@@ -15,18 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.testing;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
-
-/** A {@link FieldValueTypeInformationFactory} for Java Bean objects. */
-public class JavaBeanTypeInformationFactory implements FieldValueTypeInformationFactory {
-  @Override
-  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, SerializableFunctions.identity());
-  }
-}
+/**
+ * Category tag for validation tests which are not supported by Dataflow portable worker with
+ * use_exetuable_stage_bundle_execution, which needs more investigations.
+ */
+// TODO(BEAM-6231): Triage test failures introduced by using ExecutableStage.
+public interface DataflowPortabilityExecutableStageUnsupported {}

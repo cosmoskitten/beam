@@ -15,17 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.testing;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
-import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
-
-/** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-public class JavaBeanSetterFactory implements FieldValueSetterFactory {
-  @Override
-  public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getSetters(targetClass, schema);
-  }
-}
+/**
+ * Category tag for validation tests which use sideinputs. Tests tagged with {@link UsesSideInputs}
+ * should be run for runners which support sideinputs.
+ */
+public interface UsesSideInputs {}

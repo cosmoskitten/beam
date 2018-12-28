@@ -15,17 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.FieldValueTypeInformationFactory;
-import org.apache.beam.sdk.schemas.Schema;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/** A {@link FieldValueTypeInformationFactory} for POJO objects objects. */
-public class PojoValueTypeInformationFactory implements FieldValueTypeInformationFactory {
-  @Override
-  public List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getFieldTypes(targetClass, schema);
+// This job runs the Java postcommit tests, including the suite of integration
+// tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL', 'Run SQL PostCommit',
+  'SQL Post Commit Tests', this) {
+
+  description('Runs PostCommit tests for Beam SQL.')
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sqlPostCommit')
+      commonJobProperties.setGradleSwitches(delegate)
+    }
   }
 }

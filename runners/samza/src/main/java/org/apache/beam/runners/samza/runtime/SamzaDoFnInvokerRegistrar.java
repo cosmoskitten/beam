@@ -15,14 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink;
+package org.apache.beam.runners.samza.runtime;
 
-/** The translation mode of the Beam Pipeline. */
-enum TranslationMode {
+import java.util.Map;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.samza.task.TaskContext;
 
-  /** Uses the batch mode of Flink. */
-  BATCH,
+/** A registrar for Samza DoFnInvoker. */
+public interface SamzaDoFnInvokerRegistrar {
 
-  /** Uses the streaming mode of Flink. */
-  STREAMING
+  /** Returns the invoker for a {@link DoFn}. */
+  <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
+      DoFn<InputT, OutputT> fn, TaskContext context);
+
+  /** Returns the configs for a {@link DoFn}. */
+  <InputT, OutputT> Map<String, String> configFor(DoFn<InputT, OutputT> fn);
 }

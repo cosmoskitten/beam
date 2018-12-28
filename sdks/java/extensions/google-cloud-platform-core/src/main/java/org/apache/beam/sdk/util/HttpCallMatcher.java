@@ -15,17 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.utils;
+package org.apache.beam.sdk.util;
 
-import java.util.List;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
-import org.apache.beam.sdk.schemas.FieldValueSetterFactory;
-import org.apache.beam.sdk.schemas.Schema;
+/**
+ * Lambda interface for inspecting an http request and response to match the failure and possibly
+ * generate a custom error message with more context.
+ */
+interface HttpCallMatcher {
 
-/** A factory for creating {@link FieldValueSetter} objects for a POJO. */
-public class PojoValueSetterFactory implements FieldValueSetterFactory {
-  @Override
-  public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-    return POJOUtils.getSetters(targetClass, schema);
-  }
+  /** @return true iff the request and response represent a matching http c\all. */
+  boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
 }

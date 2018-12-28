@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 
 /** A set of reflection helper methods. */
@@ -40,7 +38,7 @@ public class ReflectUtils {
     private final Class clazz;
     private final Schema schema;
 
-    public ClassWithSchema(Class clazz, Schema schema) {
+    ClassWithSchema(Class clazz, Schema schema) {
       this.clazz = clazz;
       this.schema = schema;
     }
@@ -67,19 +65,20 @@ public class ReflectUtils {
   private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
 
   /** Returns the list of public, non-static methods in the class, caching the results. */
-  static List<Method> getMethods(Class clazz) throws IOException {
+  public static List<Method> getMethods(Class clazz) {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
           return Arrays.stream(c.getDeclaredMethods())
-              .filter(m -> Modifier.isPublic(m.getModifiers()))
+              .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+              .filter(m -> !Modifier.isProtected(m.getModifiers()))
               .filter(m -> !Modifier.isStatic(m.getModifiers()))
               .collect(Collectors.toList());
         });
   }
 
   // Get all public, non-static, non-transient fields.
-  static List<Field> getFields(Class<?> clazz) {
+  public static List<Field> getFields(Class<?> clazz) {
     return DECLARED_FIELDS.computeIfAbsent(
         clazz,
         c -> {
@@ -90,8 +89,7 @@ public class ReflectUtils {
             }
             for (java.lang.reflect.Field field : c.getDeclaredFields()) {
               if ((field.getModifiers() & (Modifier.TRANSIENT | Modifier.STATIC)) == 0) {
-                if ((field.getModifiers() & Modifier.PUBLIC) != 0) {
-                  boolean nullable = field.getAnnotation(Nullable.class) != null;
+                if ((field.getModifiers() & (Modifier.PRIVATE | Modifier.PROTECTED)) == 0) {
                   checkArgument(
                       types.put(field.getName(), field) == null,
                       c.getSimpleName() + " contains two fields named: " + field);
@@ -104,7 +102,7 @@ public class ReflectUtils {
         });
   }
 
-  static boolean isGetter(Method method) {
+  public static boolean isGetter(Method method) {
     if (Void.TYPE.equals(method.getReturnType())) {
       return false;
     }
@@ -118,13 +116,13 @@ public class ReflectUtils {
             || Boolean.class.equals(method.getReturnType())));
   }
 
-  static boolean isSetter(Method method) {
+  public static boolean isSetter(Method method) {
     return Void.TYPE.equals(method.getReturnType())
         && method.getParameterCount() == 1
         && method.getName().startsWith("set");
   }
 
-  static String stripPrefix(String methodName, String prefix) {
+  public static String stripPrefix(String methodName, String prefix) {
     String firstLetter = methodName.substring(prefix.length(), prefix.length() + 1).toLowerCase();
 
     return (methodName.length() == prefix.length() + 1)

@@ -15,16 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
 
-import java.lang.reflect.Constructor;
-import org.apache.beam.sdk.schemas.utils.POJOUtils;
+import CommonJobProperties as commonJobProperties
+import PostcommitJobBuilder
 
-/** Vends constructors for POJOs. */
-class PojoTypeUserTypeCreatorFactory implements UserTypeCreatorFactory {
-  @Override
-  public SchemaUserTypeCreator create(Class<?> clazz, Schema schema) {
-    Constructor<?> constructor = POJOUtils.getConstructor(clazz, schema);
-    return new SchemaUserTypeConstructorCreator(clazz, constructor);
+// This is the Go postcommit which runs a gradle build, and the current set
+// of postcommit tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go', 'Run Go PostCommit',
+  './gradlew :goPostCommit', this) {
+  description('Runs Go PostCommit tests against master.')
+  previousNames(/beam_PostCommit_Go_GradleBuild/)
+
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(
+    delegate,
+    'master',
+    150)
+
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':goPostCommit')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('--no-parallel')
+    }
   }
 }
