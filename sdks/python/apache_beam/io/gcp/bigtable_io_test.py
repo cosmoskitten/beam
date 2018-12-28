@@ -107,7 +107,9 @@ class BigtableIOWriteIT(unittest.TestCase):
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
     self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
     self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.PROJECT_NAME
+    self.project = self.test_pipeline.get_option('project')
+    self.INSTANCE_NAME = self.test_pipeline.get_option('instance')
+    self.PROJECT_NAME = self.project
 
     client = bigtable.Client(project=self.project, admin=True)
 
@@ -116,9 +118,8 @@ class BigtableIOWriteIT(unittest.TestCase):
     self._create_table()
 
   def tearDown(self):
-    pass
-    # if self.table.exists():
-    # self.table.delete()
+    if self.table.exists():
+      self.table.delete()
 
   def test_bigtable_write_python(self):
     """ Test Bigtable Connector Write
@@ -133,7 +134,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
-        pipeline
+          pipeline
           | 'Generate Row Values' >> beam.Create(row_values)
           | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
           | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))

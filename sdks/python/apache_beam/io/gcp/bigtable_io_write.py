@@ -50,10 +50,8 @@ class WriteToBigtable(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
 
-  Args:
-    :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
-    :param beam_options: class `~bigtable_configuration.BigtableConfiguration`
-
+  :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
+  :param beam_options: class `~bigtable_configuration.BigtableConfiguration`
   """
 
   def __init__(self, beam_options):
@@ -94,13 +92,13 @@ class WriteToBigtable(beam.DoFn):
   def display_data(self):
     return {'projectId': DisplayDataItem(self.beam_options.project_id,
                                          label='Bigtable Project Id'),
-      'instanceId': DisplayDataItem(self.beam_options.instance_id,
-                                    label='Bigtable Instance Id'),
-      'tableId': DisplayDataItem(self.beam_options.table_id,
-                                 label='Bigtable Table Id'),
-      'bigtableOptions': DisplayDataItem(str(self.beam_options),
-                                         label='Bigtable Options',
-                                         key='bigtableOptions'),
+            'instanceId': DisplayDataItem(self.beam_options.instance_id,
+                                          label='Bigtable Instance Id'),
+            'tableId': DisplayDataItem(self.beam_options.table_id,
+                                       label='Bigtable Table Id'),
+            'bigtableOptions': DisplayDataItem(str(self.beam_options),
+                                               label='Bigtable Options',
+                                               key='bigtableOptions'),
     }
 
 
