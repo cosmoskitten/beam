@@ -59,8 +59,7 @@ public class MetricsPusherTest {
   }
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
-  @Ignore
-  @Test(timeout = 15000L) // FIXME needs to be investigated, constantly fails
+  @Test
   public void test() throws Exception {
     pipeline
         .apply(
