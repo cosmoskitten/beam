@@ -35,14 +35,13 @@ those generated rows in the table.
 
 """
 
-import apache_beam as beam
+
 
 from google.cloud import bigtable
-
-from apache_beam.metrics import Metrics
-
 from google.cloud.bigtable.batcher import MutationsBatcher
 
+import apache_beam as beam
+from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
 
@@ -99,7 +98,7 @@ class WriteToBigtable(beam.DoFn):
             'bigtableOptions': DisplayDataItem(str(self.beam_options),
                                                label='Bigtable Options',
                                                key='bigtableOptions'),
-    }
+           }
 
 
 class BigtableConfiguration(object):

@@ -30,20 +30,16 @@ import random
 import string
 
 
-import apache_beam as beam
+
 
 from google.cloud import bigtable
-
 from google.cloud.bigtable import row, column_family
 
+import apache_beam as beam
 from apache_beam.runners.runner import PipelineState
-
 from apache_beam.metrics.metric import MetricsFilter
-
 from apache_beam.testing.test_pipeline import TestPipeline
-
 from apache_beam.options.pipeline_options import PipelineOptions
-
 from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
 from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 
