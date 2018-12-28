@@ -148,7 +148,7 @@ GCP_REQUIREMENTS = [
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
     'google-cloud-bigtable==0.31.1',
-    'google-cloud-core==0.28.1',
+    'google-cloud-core==0.28.1'
 ]
 
 if sys.version_info[0] == 2:

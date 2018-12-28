@@ -97,9 +97,9 @@ class GenerateDirectRows(beam.DoFn):
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
   """
-  DEFAULT_TABLE_PREFIX = "python"
-  PROJECT_NAME = "grass-clump-479"
-  INSTANCE_NAME = "python-write"
+  DEFAULT_TABLE_PREFIX = "python-test"
+  PROJECT_NAME = ""
+  INSTANCE_NAME = ""
   TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
 
