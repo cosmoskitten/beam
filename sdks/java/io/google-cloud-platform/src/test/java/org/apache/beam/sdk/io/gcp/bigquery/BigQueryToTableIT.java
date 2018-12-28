@@ -89,8 +89,7 @@ public class BigQueryToTableIT {
 
   private void runBigQueryToTablePipeline() {
     Pipeline p = Pipeline.create(options);
-    BigQueryIO.Read bigQueryRead =
-        BigQueryIO.read().withoutValidation().fromQuery(options.getQuery());
+    BigQueryIO.Read bigQueryRead = BigQueryIO.read().fromQuery(options.getQuery());
     if (options.getUsingStandardSql()) {
       bigQueryRead = bigQueryRead.usingStandardSql();
     }
@@ -119,7 +118,7 @@ public class BigQueryToTableIT {
     options.setOutputSchema(BigQueryToTableIT.LEGACY_QUERY_TABLE_SCHEMA);
   }
 
-  private void setupNewTypesQueryTest() {
+  private void setupNewTypesQueryTest() throws Exception {
     this.bqClient.createNewTable(
         this.project,
         this.bigQueryDatasetId,
@@ -240,7 +239,7 @@ public class BigQueryToTableIT {
   }
 
   @Before
-  public void setupBqEnvironment() {
+  public void setupBqEnvironment() throws Exception {
     Long timeSeed = System.currentTimeMillis();
     Integer random = new Random(timeSeed).nextInt(900) + 100;
     this.bigQueryDatasetId = "bq_query_to_table_" + timeSeed.toString() + "_" + random.toString();
