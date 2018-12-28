@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import LoadTestsBuilder as loadTestsBuilder
 import CommonJobProperties as commonJobProperties
-
+import LoadTestsBuilder as loadTestsBuilder
+import PhraseTriggeringPostCommitBuilder
 
 def testsConfigurations = [
         [
@@ -27,7 +27,7 @@ def testsConfigurations = [
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 prCommitStatusName: 'Java GroupByKey Small Java Load Test Direct',
                 prTriggerPhase    : 'Run GroupByKey Small Java Load Test Direct',
-                runner            : loadTestsBuilder.Runner.DIRECT,
+                runner            : CommonTestProperties.Runner.DIRECT,
                 jobProperties     : [
                         publishToBigQuery: true,
                         bigQueryDataset  : 'load_test_PRs',
@@ -45,7 +45,7 @@ def testsConfigurations = [
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 prCommitStatusName: 'Java GroupByKey Small Load Test Dataflow',
                 prTriggerPhase    : 'Run GroupByKey Small Java Load Test Dataflow',
-                runner            : loadTestsBuilder.Runner.DATAFLOW,
+                runner            : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties     : [
                         publishToBigQuery   : true,
                         bigQueryDataset     : 'load_test_PRs',
@@ -61,25 +61,14 @@ def testsConfigurations = [
 ]
 
 for (testConfiguration in testsConfigurations) {
-    create_load_test_job(testConfiguration)
-}
-
-private void create_load_test_job(testConfiguration) {
-
-    // This job runs load test with Metrics API
-    job(testConfiguration.jobName) {
+    PhraseTriggeringPostCommitBuilder.postCommitJob(
+            testConfiguration.jobName,
+            testConfiguration.prTriggerPhase,
+            testConfiguration.prCommitStatusName,
+            this
+    ) {
         description(testConfiguration.jobDescription)
-
-        // Set default Beam job properties.
-        commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-        // Allows triggering this build against pull requests.
-        commonJobProperties.enablePhraseTriggeringFromPullRequest(
-                delegate,
-                testConfiguration.prCommitStatusName,
-                testConfiguration.prTriggerPhase)
-
-
+        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
         loadTestsBuilder.buildTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
