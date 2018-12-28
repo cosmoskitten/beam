@@ -49,6 +49,7 @@ from apache_beam.transforms.display import DisplayDataItem
 class WriteToBigtable(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
+
   Args:
     :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
     :param beam_options: class `~bigtable_configuration.BigtableConfiguration`
@@ -70,19 +71,17 @@ class WriteToBigtable(beam.DoFn):
   def start_bundle(self):
     if self.beam_options.credentials is None:
       self.client = bigtable.Client(project=self.beam_options.project_id,
-                      admin=True)
+                                    admin=True)
     else:
-      self.client = bigtable.Client(
-        project=self.beam_options.project_id,
-        credentials=self.beam_options.credentials,
-        admin=True)
+      self.client = bigtable.Client(project=self.beam_options.project_id,
+                                    credentials=self.beam_options.credentials,
+                                    admin=True)
     self.instance = self.client.instance(self.beam_options.instance_id)
     self.table = self.instance.table(self.beam_options.table_id,
-                     self._app_profile_id)
+                                     self._app_profile_id)
 
-    self.batcher = MutationsBatcher(
-      self.table, flush_count=self.flush_count,
-      max_row_bytes=self.max_row_bytes)
+    self.batcher = MutationsBatcher(self.table, flush_count=self.flush_count,
+                                    max_row_bytes=self.max_row_bytes)
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def process(self, row):
@@ -93,16 +92,15 @@ class WriteToBigtable(beam.DoFn):
     return self.batcher.flush()
 
   def display_data(self):
-    return {
-      'projectId': DisplayDataItem(self.beam_options.project_id,
-                     label='Bigtable Project Id'),
+    return {'projectId': DisplayDataItem(self.beam_options.project_id,
+                                         label='Bigtable Project Id'),
       'instanceId': DisplayDataItem(self.beam_options.instance_id,
-                      label='Bigtable Instance Id'),
+                                    label='Bigtable Instance Id'),
       'tableId': DisplayDataItem(self.beam_options.table_id,
-                     label='Bigtable Table Id'),
+                                 label='Bigtable Table Id'),
       'bigtableOptions': DisplayDataItem(str(self.beam_options),
-                         label='Bigtable Options',
-                         key='bigtableOptions'),
+                                         label='Bigtable Options',
+                                         key='bigtableOptions'),
     }
 
 
@@ -156,17 +154,16 @@ class BigtableWriteConfiguration(BigtableConfiguration):
   """
 
   def __init__(self, project_id, instance_id, table_id,
-         flush_count=None, max_row_bytes=None, app_profile_id=None):
+               flush_count=None, max_row_bytes=None, app_profile_id=None):
     super(BigtableWriteConfiguration, self).__init__(project_id,
-                             instance_id, table_id)
+                                                     instance_id, table_id)
     self.flush_count = flush_count
     self.max_row_bytes = max_row_bytes
     self.app_profile_id = app_profile_id
 
   def __str__(self):
     import json
-    return json.dumps({
-      'project_id': self.project_id,
-      'instance_id': self.instance_id,
-      'table_id': self.table_id,
-    })
+    ret = {'project_id': self.project_id,
+           'instance_id': self.instance_id,
+           'table_id': self.table_id,}
+    return json.dumps(ret)

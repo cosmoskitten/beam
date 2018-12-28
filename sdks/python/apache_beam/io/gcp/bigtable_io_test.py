@@ -64,11 +64,9 @@ def _generate_mutation_data(row_index):
     row_values["row_key"] = key
     row_values["row_content"] = []
     for column_id in range(10):
-      row_content = {
-        "column_family_id": column_family_id,
-        "column_id": ('field%s' % column_id).encode('utf-8'),
-        "value": value
-      }
+      row_content = {"column_family_id": column_family_id,
+                     "column_id": ('field%s' % column_id).encode('utf-8'),
+                     "value": value}
       row_values["row_content"].append(row_content)
   row_contents.append(row_values)
 
@@ -90,11 +88,10 @@ class GenerateDirectRows(beam.DoFn):
     direct_row = row.DirectRow(row_key=row_values["row_key"])
 
     for row_value in row_values["row_content"]:
-      direct_row.set_cell(
-        row_value["column_family_id"],
-        row_value["column_id"],
-        row_value["value"],
-        datetime.datetime.now())
+      direct_row.set_cell(row_value["column_family_id"],
+                          row_value["column_id"],
+                          row_value["value"],
+                          datetime.datetime.now())
 
 
 class BigtableIOWriteIT(unittest.TestCase):
@@ -128,7 +125,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     """
     number = self.number
     config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME,
-                      self.TABLE_NAME)
+                                        self.TABLE_NAME)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
@@ -137,9 +134,9 @@ class BigtableIOWriteIT(unittest.TestCase):
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
         pipeline
-        | 'Generate Row Values' >> beam.Create(row_values)
-        | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
-        | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
+          | 'Generate Row Values' >> beam.Create(row_values)
+          | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
+          | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
 
       result = pipeline.run()
       result.wait_until_finish()
