@@ -16,20 +16,16 @@
 #
 
 """BigTable connector
-
-This module implements writing to BigTable tables. It relies
-on several classes exposed by the BigTable API.
-The default mode is to return table rows read from a BigTable source as dictionaries.
-This is done for more convenient programming.  If desired, the native TableRow
-objects can be used throughout to represent rows.
+This module implements writing to BigTable tables.
+The default mode is to set row data to write to BigTable tables.
 The syntax supported is described here:
 https://cloud.google.com/bigtable/docs/quickstart-cbt
 
-BigTable connector can be used as main outputs. A main output
-(common case) is expected to be massive and will be split into manageable chunks
-and processed in parallel. In the example below we created a list of rows then pass
-to the GeneratedDirectRows DoFn to set the Cells and then send to the WriteToBigtable Source
-to insert those rows in the table.
+BigTable connector can be used as main outputs. A main output (common case)
+is expected to be massive and will be split into manageable chunks and
+processed in parallel. In the example below we created a list of rows then passed
+to the GeneratedDirectRows DoFn to set the Cells and then we call the WriteToBigtable
+to insert those generated rows in the table.
 
   main_table = (p
        | 'Generate Row Values' >> beam.Create(row_values)
@@ -37,45 +33,24 @@ to insert those rows in the table.
        | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
 """
 
-import logging
 import apache_beam as beam
+
 from google.cloud import bigtable
-from apache_beam.io import iobase
+
 from apache_beam.metrics import Metrics
-from apache_beam.io.iobase import SourceBundle
-from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import HasDisplayData
+
 from google.cloud.bigtable.batcher import MutationsBatcher
+
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
 
 class WriteToBigtable(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
+  Args:
+    :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
+    :param beam_options: Class `~bigtable_configuration.BigtableConfiguration`.
 
-  :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
-  :param beam_options: Class `~bigtable_configuration.BigtableConfiguration`.
-
-  :type flush_count: int
-  :param flush_count: (Optional) Max number of rows to flush. If it
-  reaches the max number of rows it calls finish_batch() to mutate the
-  current row batch. Default is FLUSH_COUNT (1000 rows).
-
-  :type max_mutations: int
-  :param max_mutations: (Optional)  Max number of row mutations to flush.
-  If it reaches the max number of row mutations it calls finish_batch() to
-  mutate the current row batch. Default is MAX_MUTATIONS (100000 mutations).
-
-  :type max_row_bytes: int
-  :param max_row_bytes: (Optional) Max number of row mutations size to
-  flush. If it reaches the max number of row mutations size it calls
-  finish_batch() to mutate the current row batch. Default is MAX_ROW_BYTES
-  (5 MB).
-
-  :type app_profile_id: str
-  :param app_profile_id: (Optional) The unique name of the AppProfile.
   """
 
   def __init__(self, beam_options):
@@ -132,16 +107,18 @@ class WriteToBigtable(beam.DoFn):
 class BigtableConfiguration(object):
   """ Bigtable configuration variables.
 
-  :type project_id: :class:`str` or :func:`unicode <unicode>`
-  :param project_id: (Optional) The ID of the project which owns the
-            instances, tables and data. If not provided, will
-            attempt to determine from the environment.
+  Args:
+    :type project_id: :class:`str` or :func:`unicode <unicode>`
+    :param project_id: (Optional) The ID of the project which owns the
+              instances, tables and data. If not provided, will
+              attempt to determine from the environment.
 
-  :type instance_id: str
-  :param instance_id: The ID of the instance.
+    :type instance_id: str
+    :param instance_id: The ID of the instance.
 
-  :type table_id: str
-  :param table_id: The ID of the table.
+    :type table_id: str
+    :param table_id: The ID of the table.
+
   """
 
   def __init__(self, project_id, instance_id, table_id):
@@ -151,22 +128,28 @@ class BigtableConfiguration(object):
     self.credentials = None
 
 class BigtableWriteConfiguration(BigtableConfiguration):
-  """
-  :type flush_count: int
-  :param flush_count: (Optional) Max number of rows to flush. If it
-  reaches the max number of rows it calls finish_batch() to mutate the
-  current row batch. Default is FLUSH_COUNT (1000 rows).
-  :type max_mutations: int
-  :param max_mutations: (Optional)  Max number of row mutations to flush.
-  If it reaches the max number of row mutations it calls finish_batch() to
-  mutate the current row batch. Default is MAX_MUTATIONS (100000 mutations).
-  :type max_row_bytes: int
-  :param max_row_bytes: (Optional) Max number of row mutations size to
-  flush. If it reaches the max number of row mutations size it calls
-  finish_batch() to mutate the current row batch. Default is MAX_ROW_BYTES
-  (5 MB).
-  :type app_profile_id: str
-  :param app_profile_id: (Optional) The unique name of the AppProfile.
+  """ BigTable Write Configuration Variables.
+  
+  Args:
+    :type flush_count: int
+    :param flush_count: (Optional) Max number of rows to flush. If it
+    reaches the max number of rows it calls finish_batch() to mutate the
+    current row batch. Default is FLUSH_COUNT (1000 rows).
+
+    :type max_mutations: int
+    :param max_mutations: (Optional)  Max number of row mutations to flush.
+    If it reaches the max number of row mutations it calls finish_batch() to
+    mutate the current row batch. Default is MAX_MUTATIONS (100000 mutations).
+
+    :type max_row_bytes: int
+    :param max_row_bytes: (Optional) Max number of row mutations size to
+    flush. If it reaches the max number of row mutations size it calls
+    finish_batch() to mutate the current row batch. Default is MAX_ROW_BYTES
+    (5 MB).
+
+    :type app_profile_id: str
+    :param app_profile_id: (Optional) The unique name of the AppProfile.
+
   """
 
   def __init__(self, project_id, instance_id, table_id,
