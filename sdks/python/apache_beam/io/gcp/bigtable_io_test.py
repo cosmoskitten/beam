@@ -50,117 +50,119 @@ from bigtable_io_write import BigtableWriteConfiguration, WriteToBigtable
 
 
 def _generate_mutation_data(row_index):
-    row_contents = []
-    value = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(100))
-    column_family_id = 'cf1'
-    start_index = 0
-    end_index = row_index
-    while start_index < end_index:
-        row_values = {}
-        start_index += 1
-        key = "beam_key%s" % ('{0:07}'.format(start_index))
-        row_values["row_key"] = key
-        row_values["row_content"] = []
-        for column_id in range(10):
-            row_content = {
-                "column_family_id": column_family_id,
-                "column_id": ('field%s' % column_id).encode('utf-8'),
-                "value": value
-            }
-            row_values["row_content"].append(row_content)
-    row_contents.append(row_values)
+  row_contents = []
+  value = ''.join(random.choice(string.ascii_letters + string.digits)
+    for i in range(100))
+  column_family_id = 'cf1'
+  start_index = 0
+  end_index = row_index
+  while start_index < end_index:
+    row_values = {}
+    start_index += 1
+    key = "beam_key%s" % ('{0:07}'.format(start_index))
+    row_values["row_key"] = key
+    row_values["row_content"] = []
+    for column_id in range(10):
+      row_content = {
+        "column_family_id": column_family_id,
+        "column_id": ('field%s' % column_id).encode('utf-8'),
+        "value": value
+      }
+      row_values["row_content"].append(row_content)
+  row_contents.append(row_values)
 
-    return row_contents
+  return row_contents
 
 class GenerateDirectRows(beam.DoFn):
-    """ Generates an iterator of DirectRow object to process on beam pipeline."""
+  """ Generates an iterator of DirectRow object to process on beam pipeline."""
 
-    def process(self, row_values):
-        """ Process beam pipeline using an element.
+  def process(self, row_values):
+    """ Process beam pipeline using an element.
 
 
-        :type row_value: dict
-        :param row_value: dict: dict values with row_key and row_content having
-        family, column_id and value of row.
-        """
-        direct_row = row.DirectRow(row_key=row_values["row_key"])
+    :type row_value: dict
+    :param row_value: dict: dict values with row_key and row_content having
+    family, column_id and value of row.
+    """
+    direct_row = row.DirectRow(row_key=row_values["row_key"])
 
-        for row_value in row_values["row_content"]:
-            direct_row.set_cell(
-                row_value["column_family_id"],
-                row_value["column_id"],
-                row_value["value"],
-                datetime.datetime.now())
+    for row_value in row_values["row_content"]:
+      direct_row.set_cell(
+        row_value["column_family_id"],
+        row_value["column_id"],
+        row_value["value"],
+        datetime.datetime.now())
 
 
 class BigtableIOWriteIT(unittest.TestCase):
-    DEFAULT_TABLE_PREFIX = "python"
+  DEFAULT_TABLE_PREFIX = "python"
+  
+  PROJECT_NAME = "grass-clump-479"
+  INSTANCE_NAME = "python-write"
+  TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  number = 500
+
+  def setUp(self):
+    argv = ['--test-pipeline-options="--runner=DirectRunner"']
+    self.test_pipeline = TestPipeline(is_integration_test=True,argv=argv)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.PROJECT_NAME
+
+    client = bigtable.Client(project=self.project, admin=True)
+
+    instance = client.instance(self.INSTANCE_NAME)
+    self.table = instance.table(self.TABLE_NAME)
+
+    self._create_table()
+
+  def tearDown(self):
+    pass
+    #if self.table.exists():
+    #  self.table.delete()
+
+  def test_bigtable_read_python(self):
+    number = self.number
     
-    PROJECT_NAME = "grass-clump-479"
-    INSTANCE_NAME = "python-write"
-    TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-    number = 500
-
-    def setUp(self):
-        argv = ['--test-pipeline-options="--runner=DirectRunner"']
-        self.test_pipeline = TestPipeline(is_integration_test=True,argv=argv)
-        self.runner_name = type(self.test_pipeline.runner).__name__
-        self.project = self.PROJECT_NAME
-
-        client = bigtable.Client(project=self.project, admin=True)
-
-        instance = client.instance(self.INSTANCE_NAME)
-        self.table = instance.table(self.TABLE_NAME)
-
-        self._create_table()
-
-    def tearDown(self):
-        pass
-        #if self.table.exists():
-        #  self.table.delete()
-
-    def test_bigtable_read_python(self):
-        number = self.number
-        
-        config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME, self.TABLE_NAME)
-        
-        pipeline_args = self.test_pipeline.options_list
-
-        pipeline_options = PipelineOptions(pipeline_args)
-
-        row_values = _generate_mutation_data(number)
-
-        with beam.Pipeline(options=pipeline_options) as p:
-            write_rows = (p
-            | 'Generate Row Values' >> beam.Create(row_values)
-            | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
-            | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
-        
-            result = p.run()
-            result.wait_until_finish()
-
-            assert result.state == PipelineState.DONE
-
-            if (not hasattr(result, 'has_job') or result.has_job):
-                read_filter = MetricsFilter().with_name('Written Row')
-                query_result = result.metrics().query(read_filter)
-                if query_result['counters']:
-                    read_counter = query_result['counters'][0]
-
-                    logging.info('Number of Rows: %d', read_counter.committed)
-                    assert read_counter.committed == number
+    config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME,
+      self.TABLE_NAME)
     
-    def _create_table(self):
-        table = self.table
-        
+    pipeline_args = self.test_pipeline.options_list
 
-        max_versions_rule = column_family.MaxVersionsGCRule(2)
-        column_family_id = 'cf1'
-        column_families = {column_family_id: max_versions_rule}
+    pipeline_options = PipelineOptions(pipeline_args)
 
-        if not table.exists():
-            self.table.create(column_families=column_families)   
+    row_values = _generate_mutation_data(number)
+
+    with beam.Pipeline(options=pipeline_options) as p:
+      write_rows = (p
+      | 'Generate Row Values' >> beam.Create(row_values)
+      | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
+      | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
+    
+      result = p.run()
+      result.wait_until_finish()
+
+      assert result.state == PipelineState.DONE
+
+      if (not hasattr(result, 'has_job') or result.has_job):
+        read_filter = MetricsFilter().with_name('Written Row')
+        query_result = result.metrics().query(read_filter)
+        if query_result['counters']:
+          read_counter = query_result['counters'][0]
+
+          logging.info('Number of Rows: %d', read_counter.committed)
+          assert read_counter.committed == number
+  
+  def _create_table(self):
+    table = self.table
+    
+
+    max_versions_rule = column_family.MaxVersionsGCRule(2)
+    column_family_id = 'cf1'
+    column_families = {column_family_id: max_versions_rule}
+
+    if not table.exists():
+      self.table.create(column_families=column_families)   
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    unittest.main()
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
