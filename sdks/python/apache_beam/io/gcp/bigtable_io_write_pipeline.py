@@ -25,6 +25,6 @@ class WriteBigtableOptions(PipelineOptions):
 	"""
 	@classmethod
 	def _add_argparse_args(cls, parser):
-		super(ReadBigtableOptions, cls)._add_argparse_args(parser)
+		super(WriteBigtableOptions, cls)._add_argparse_args(parser)
 		parser.add_argument('--instance', required=True )
 		parser.add_argument('--table', required=True )
