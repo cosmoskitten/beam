@@ -19,7 +19,7 @@
 
 from apache_beam.options.pipeline_options import PipelineOptions
 
-class ReadBigtableOptions(PipelineOptions):
+class WriteBigtableOptions(PipelineOptions):
 	""" Create the Pipeline Options to set ReadBigtable/WriteBigtable.
 	You can create and use this class in the Template, with a certainly steps.
 	"""

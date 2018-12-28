@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""BigTable sources.
+"""BigTable connector
 
 This module implements writing to BigTable tables. It relies
 on several classes exposed by the BigTable API.
@@ -25,11 +25,11 @@ objects can be used throughout to represent rows.
 The syntax supported is described here:
 https://cloud.google.com/bigtable/docs/quickstart-cbt
 
-BigTable sources can be used as main inputs or side inputs. A main input
+BigTable connector can be used as main outputs. A main output
 (common case) is expected to be massive and will be split into manageable chunks
 and processed in parallel. In the example below we created a list of rows then pass
 to the GeneratedDirectRows DoFn to set the Cells and then send to the WriteToBigtable Source
-to insert this rows in the table we configure.
+to insert those rows in the table.
 
   main_table = (p
              | 'Generate Row Values' >> beam.Create(row_values)
