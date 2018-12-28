@@ -268,7 +268,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   {
           String query = String.format("SELECT * FROM %s.%s WHERE %s;", keyspace, table,
           Joiner.on(" AND ").skipNulls().join(
-            String.format("(%s)", where),
+            where==null?null:String.format("(%s)", where),
             rangeStart==null?null:String.format("(token(%s)>=%d)", partitionKey, rangeStart),
             rangeEnd==null?null:String.format("(token(%s)<%d)", partitionKey, rangeEnd)));
       LOG.debug("Cassandra generated read query : {}", query);
