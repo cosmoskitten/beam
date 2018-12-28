@@ -173,9 +173,12 @@ func (n *invoker) Invoke(ctx context.Context, ws []typex.Window, ts typex.EventT
 func (n *invoker) ret1(ws []typex.Window, ts typex.EventTime, r0 interface{}) (*FullValue, error) {
 	switch {
 	case n.errIdx >= 0:
-		return nil, r0.(error)
-	case n.etIdx >= 0:
-		panic("cannot return event time without a value")
+		if r0 != nil {
+			return nil, r0.(error)
+		}
+		return nil, nil
+	case n.outEtIdx >= 0:
+		panic("invoker.ret1: cannot return event time without a value")
 	default:
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0}
 		return &n.ret, nil
@@ -191,7 +194,7 @@ func (n *invoker) ret2(ws []typex.Window, ts typex.EventTime, r0, r1 interface{}
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0}
 		return &n.ret, nil
-	case n.etIdx == 0:
+	case n.outEtIdx == 0:
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1}
 		return &n.ret, nil
 	default:
@@ -207,17 +210,17 @@ func (n *invoker) ret3(ws []typex.Window, ts typex.EventTime, r0, r1, r2 interfa
 		if r2 != nil {
 			return nil, r2.(error)
 		}
-		if n.etIdx < 0 {
+		if n.outEtIdx < 0 {
 			n.ret = FullValue{Windows: ws, Timestamp: ts, Elm: r0, Elm2: r1}
 			return &n.ret, nil
 		}
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1}
 		return &n.ret, nil
-	case n.etIdx == 0:
+	case n.outEtIdx == 0:
 		n.ret = FullValue{Windows: ws, Timestamp: r0.(typex.EventTime), Elm: r1, Elm2: r2}
 		return &n.ret, nil
 	default:
-		panic(fmt.Sprintf("ret3: %T, %T, and %T don't match permitted return values.", r0, r1, r2))
+		panic(fmt.Sprintf("invoker.ret3: %T, %T, and %T don't match permitted return values.", r0, r1, r2))
 	}
 }
 
