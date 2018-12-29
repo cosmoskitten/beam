@@ -652,7 +652,15 @@ public class UnboundedSourceWrapperTest {
         thread.start();
         // Wait to see if the wrapper shuts down immediately in case it doesn't have readers
         if (!shouldHaveReaders) {
-          Thread.sleep(200);
+          // The expected state is for finalizeSource to sleep instead of exiting
+          while (true) {
+            StackTraceElement[] callStack = thread.getStackTrace();
+            if ("sleep".equals(callStack[0].getMethodName())
+                && "finalizeSource".equals(callStack[1].getMethodName())) {
+              break;
+            }
+            Thread.sleep(10);
+          }
         }
         // Source should still be running even if there are no readers
         assertThat(sourceWrapper.isRunning(), is(true));
