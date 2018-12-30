@@ -35,6 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.EvictingQueue;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
@@ -353,6 +354,8 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<Long, Runnable> commitCallbacks = new ConcurrentHashMap<>();
 
   // Map of user state names to system state names.
+  // TODO(b/110224474): obsolete stateNameMap. Use transformUserNameToStateFamily in
+  // ComputationState instead.
   private final ConcurrentMap<String, String> stateNameMap = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, String> systemNameToComputationIdMap =
       new ConcurrentHashMap<>();
@@ -620,7 +623,7 @@ public class StreamingDataflowWorker {
     this.clientId = new Random().nextLong();
 
     for (MapTask mapTask : mapTasks) {
-      addComputation(mapTask.getSystemName(), mapTask);
+      addComputation(mapTask.getSystemName(), mapTask, ImmutableMap.of());
     }
 
     // Register standard file systems.
@@ -843,14 +846,16 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private synchronized void addComputation(String computationId, MapTask originalMapTask) {
+  private synchronized void addComputation(String computationId, MapTask originalMapTask,
+                                           Map<String, String> transformUserNameToStateFamily) {
     // Map task instances are shared amongst multiple threads during computation hence
     // we fix the map task before we add a new computation state that would reference it.
     MapTask mapTask = fixMultiOutputInfos.apply(originalMapTask);
     if (!computationMap.containsKey(computationId)) {
       LOG.info("Adding config for {}: {}", computationId, mapTask);
       computationMap.put(
-          computationId, new ComputationState(computationId, mapTask, workUnitExecutor));
+          computationId, new ComputationState(computationId, mapTask, workUnitExecutor,
+                      transformUserNameToStateFamily));
     }
   }
 
@@ -1136,7 +1141,8 @@ public class StreamingDataflowWorker {
                 pendingDeltaCounters,
                 computationId,
                 readerCache,
-                stateNameMap,
+                    !computationState.getTransformUserNameToStateFamily().isEmpty()
+                            ? computationState.getTransformUserNameToStateFamily() : stateNameMap,
                 stateCache.forComputation(computationId),
                 stageInfo.metricsContainerRegistry,
                 executionStateTracker,
@@ -1474,7 +1480,7 @@ public class StreamingDataflowWorker {
             systemNameToComputationIdMap.containsKey(mapTask.getSystemName())
                 ? systemNameToComputationIdMap.get(mapTask.getSystemName())
                 : mapTask.getSystemName();
-        addComputation(computationId, mapTask);
+        addComputation(computationId, mapTask, ImmutableMap.of());
       } catch (IOException e) {
         LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
         LOG.warn("Error: ", e);
@@ -1513,7 +1519,8 @@ public class StreamingDataflowWorker {
         mapTask.setSystemName(computationConfig.getSystemName());
         mapTask.setStageName(computationConfig.getStageName());
         mapTask.setInstructions(computationConfig.getInstructions());
-        addComputation(computationConfig.getComputationId(), mapTask);
+        // TODO:XXX Pass computationConfig.getTransformUserNameToStateFamily()
+        addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
       }
     }
 
@@ -1843,6 +1850,7 @@ public class StreamingDataflowWorker {
   static class ComputationState implements AutoCloseable {
     private final String computationId;
     private final MapTask mapTask;
+    private final ImmutableMap<String, String> transformUserNameToStateFamily;
     // Map from key to work for the key.  The first item in the queue is
     // actively processing.  Synchronized by itself.
     private final Map<ByteString, Queue<Work>> activeWork = new HashMap<>();
@@ -1850,10 +1858,13 @@ public class StreamingDataflowWorker {
     private final ConcurrentMap<SdkWorkerHarness, ConcurrentLinkedQueue<ExecutionState>>
         executionStateQueues = new ConcurrentHashMap<>();
 
-    public ComputationState(String computationId, MapTask mapTask, BoundedQueueExecutor executor) {
+    public ComputationState(String computationId, MapTask mapTask, BoundedQueueExecutor executor,
+                            Map<String, String> transformUserNameToStateFamily) {
       this.computationId = computationId;
       this.mapTask = mapTask;
       this.executor = executor;
+      this.transformUserNameToStateFamily =
+              ImmutableMap.copyOf(transformUserNameToStateFamily);
       Preconditions.checkNotNull(mapTask.getStageName());
       Preconditions.checkNotNull(mapTask.getSystemName());
     }
@@ -1864,6 +1875,10 @@ public class StreamingDataflowWorker {
 
     public MapTask getMapTask() {
       return mapTask;
+    }
+
+    public ImmutableMap<String, String> getTransformUserNameToStateFamily() {
+      return transformUserNameToStateFamily;
     }
 
     public ConcurrentLinkedQueue<ExecutionState> getExecutionStateQueue(

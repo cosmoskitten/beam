@@ -27,6 +27,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableMap;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,7 +35,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
@@ -86,7 +86,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
 
   // Per-key cache of active Reader objects in use by this process.
-  private final ConcurrentMap<String, String> stateNameMap;
+  private final ImmutableMap<String, String> stateNameMap;
   private final WindmillStateCache.ForComputation stateCache;
 
   private Windmill.WorkItem work;
@@ -100,7 +100,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       CounterFactory counterFactory,
       String computationId,
       ReaderCache readerCache,
-      ConcurrentMap<String, String> stateNameMap,
+      Map<String, String> stateNameMap,
       WindmillStateCache.ForComputation stateCache,
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
       DataflowExecutionStateTracker executionStateTracker,
@@ -115,7 +115,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.computationId = computationId;
     this.readerCache = readerCache;
     this.sideInputCache = new HashMap<>();
-    this.stateNameMap = stateNameMap;
+    this.stateNameMap = ImmutableMap.copyOf(stateNameMap);
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
   }
