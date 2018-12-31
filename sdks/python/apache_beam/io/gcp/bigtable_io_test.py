@@ -109,7 +109,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.INSTANCE_NAME = self.test_pipeline.get_option('instance')
     self.PROJECT_NAME = self.project
 
-    client = bigtable.Client(project=self.project, admin=True)
+    self.client = bigtable.Client(project=self.project, admin=True)
 
     self._create_instance()
     self._create_table()
@@ -152,9 +152,10 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _create_instance(self):
     """ Create the Instances Test in Bigtable
     """
-    instance = client.instance(self.INSTANCE_NAME)
+    instance = self.client.instance(self.INSTANCE_NAME)
     serve_nodes = 3
-    self.instance = instance.create(location_id=self.LOCATION_ID, serve_nodes=serve_nodes)
+    self.instance = instance.create(location_id=self.LOCATION_ID,
+                                    serve_nodes=serve_nodes)
 
   def _create_table(self):
     """ Create the Table Test in Bigtable
