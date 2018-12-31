@@ -104,18 +104,16 @@ class WriteToBigtable(beam.DoFn):
 class BigtableConfiguration(object):
   """ Bigtable configuration variables.
 
-  Args:
-    :type project_id: :class:`str` or :func:`unicode <unicode>`
-    :param project_id: (Optional) The ID of the project which owns the
-              instances, tables and data. If not provided, will
-              attempt to determine from the environment.
+  :type project_id: :class:`str` or :func:`unicode <unicode>`
+  :param project_id: (Optional) The ID of the project which owns the
+  instances, tables and data. If not provided, will
+  attempt to determine from the environment.
 
-    :type instance_id: str
-    :param instance_id: The ID of the instance.
+  :type instance_id: str
+  :param instance_id: The ID of the instance.
 
-    :type table_id: str
-    :param table_id: The ID of the table.
-
+  :type table_id: str
+  :param table_id: The ID of the table.
   """
 
   def __init__(self, project_id, instance_id, table_id):
@@ -127,27 +125,25 @@ class BigtableConfiguration(object):
 class BigtableWriteConfiguration(BigtableConfiguration):
   """ BigTable Write Configuration Variables.
 
-  Args:
-    :type flush_count: int
-    :param flush_count: (Optional) Max number of rows to flush. If it
-    reaches the max number of rows it calls finish_batch() to mutate the
-    current row batch. Default is FLUSH_COUNT (1000 rows).
+  :type flush_count: int
+  :param flush_count: (Optional) Max number of rows to flush. If it
+  reaches the max number of rows it calls finish_batch() to mutate the
+  current row batch. Default is FLUSH_COUNT (1000 rows).
 
-    :type max_mutations: int
-    :param max_mutations: (Optional)  Max number of row mutations to flush.
-    If it reaches the max number of row mutations it calls finish_batch()
-    to mutate the current row batch. Default is MAX_MUTATIONS
-    (100000 mutations).
+  :type max_mutations: int
+  :param max_mutations: (Optional)  Max number of row mutations to flush.
+  If it reaches the max number of row mutations it calls finish_batch()
+  to mutate the current row batch. Default is MAX_MUTATIONS
+  (100000 mutations).
 
-    :type max_row_bytes: int
-    :param max_row_bytes: (Optional) Max number of row mutations size
-    to flush. If it reaches the max number of row mutations size it
-    calls finish_batch() to mutate the current row batch. Default is
-    MAX_ROW_BYTES (5 MB).
+  :type max_row_bytes: int
+  :param max_row_bytes: (Optional) Max number of row mutations size
+  to flush. If it reaches the max number of row mutations size it
+  calls finish_batch() to mutate the current row batch. Default is
+  MAX_ROW_BYTES (5 MB).
 
-    :type app_profile_id: str
-    :param app_profile_id: (Optional) The unique name of the AppProfile.
-
+  :type app_profile_id: str
+  :param app_profile_id: (Optional) The unique name of the AppProfile.
   """
 
   def __init__(self, project_id, instance_id, table_id,
