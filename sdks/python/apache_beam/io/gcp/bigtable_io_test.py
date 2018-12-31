@@ -66,18 +66,17 @@ def _generate_mutation_data(row_index):
 
   return row_contents
 
+
 class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
-  """
 
+  """
   def process(self, row_values):
     """ Process beam pipeline using an element.
-
 
     :type row_value: dict
     :param row_value: dict: dict values with row_key and row_content having
     family, column_id and value of row.
-
     """
     direct_row = row.DirectRow(row_key=row_values["row_key"])
 
@@ -90,6 +89,7 @@ class GenerateDirectRows(beam.DoFn):
 
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
+
   """
   DEFAULT_TABLE_PREFIX = "python-test"
   PROJECT_NAME = ""
@@ -117,6 +117,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   def test_bigtable_write_python(self):
     """ Test Bigtable Connector Write
+
     """
     number = self.number
     config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME,
@@ -146,8 +147,10 @@ class BigtableIOWriteIT(unittest.TestCase):
 
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
+
   def _create_instance(self):
     """ Create the Instances Test in Bigtable
+
     """
     instance = self.client.instance(self.INSTANCE_NAME)
     serve_nodes = 3
@@ -156,6 +159,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   def _create_table(self):
     """ Create the Table Test in Bigtable
+
     """
     table = self.instance.table(self.TABLE_NAME)
 
