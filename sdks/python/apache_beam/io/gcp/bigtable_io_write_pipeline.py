@@ -16,6 +16,7 @@
 #
 
 """Unittest for GCP Bigtable testing."""
+from __future__ import absolute_import
 
 from apache_beam.options.pipeline_options import PipelineOptions
 

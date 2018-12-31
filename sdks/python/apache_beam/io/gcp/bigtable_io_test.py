@@ -16,6 +16,7 @@
 #
 
 """Unittest for GCP Bigtable testing."""
+from __future__ import absolute_import
 
 import logging
 
@@ -95,9 +96,10 @@ class BigtableIOWriteIT(unittest.TestCase):
   """
   DEFAULT_TABLE_PREFIX = "python-test"
   PROJECT_NAME = ""
-  INSTANCE_NAME = ""
+  INSTANCE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
+  LOCATION_ID = "us-east1-b"
 
   def setUp(self):
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
@@ -109,8 +111,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
     client = bigtable.Client(project=self.project, admin=True)
 
-    instance = client.instance(self.INSTANCE_NAME)
-    self.table = instance.table(self.TABLE_NAME)
+    self._create_instance()
     self._create_table()
 
   def tearDown(self):
@@ -148,11 +149,17 @@ class BigtableIOWriteIT(unittest.TestCase):
 
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
+  def _create_instance(self):
+    """ Create the Instances Test in Bigtable
+    """
+    instance = client.instance(self.INSTANCE_NAME)
+    serve_nodes = 3
+    self.instance = instance.create(location_id=self.LOCATION_ID, serve_nodes=serve_nodes)
 
   def _create_table(self):
     """ Create the Table Test in Bigtable
     """
-    table = self.table
+    table = self.instance.table(self.TABLE_NAME)
 
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'

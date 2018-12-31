@@ -34,7 +34,7 @@ those generated rows in the table.
        | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
 
 """
-
+from __future__ import absolute_import
 
 
 from google.cloud import bigtable
