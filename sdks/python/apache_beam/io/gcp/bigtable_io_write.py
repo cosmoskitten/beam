@@ -16,6 +16,7 @@
 #
 
 """BigTable connector
+
 This module implements writing to BigTable tables.
 The default mode is to set row data to write to BigTable tables.
 The syntax supported is described here:
@@ -32,7 +33,6 @@ those generated rows in the table.
        | 'Generate Row Values' >> beam.Create(row_values)
        | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
        | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
-
 """
 from __future__ import absolute_import
 
