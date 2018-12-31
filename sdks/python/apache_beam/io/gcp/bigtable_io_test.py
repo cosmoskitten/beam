@@ -30,9 +30,6 @@ import random
 
 import string
 
-
-
-
 from google.cloud import bigtable
 from google.cloud.bigtable import row, column_family
 
