@@ -718,6 +718,9 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat()
+
+          // Details see: https://github.com/diffplug/spotless/blob/master/PADDEDCELL.md
+          paddedCell()
         }
       }
 
