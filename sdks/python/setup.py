@@ -220,7 +220,7 @@ setuptools.setup(
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
-        'test': REQUIRED_TEST_PACKAGES+GCP_REQUIREMENTS,
+        'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
     },
     zip_safe=False,
