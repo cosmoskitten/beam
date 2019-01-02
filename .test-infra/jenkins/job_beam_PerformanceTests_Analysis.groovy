@@ -72,6 +72,8 @@ job(testConfiguration.jobName) {
 
         // Install job requirements for analysis script.
         shell('.env/bin/pip install requests google.cloud.bigquery mock')
+        
+        shell('.env/bin/pip install requests google.cloud.bigtable mock')
 
         // Launch verification tests before executing script.
         shell('.env/bin/python ' + commonJobProperties.checkoutDir + '/.test-infra/jenkins/verify_performance_test_results_test.py')
