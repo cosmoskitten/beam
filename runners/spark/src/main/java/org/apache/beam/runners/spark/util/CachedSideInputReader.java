@@ -18,29 +18,22 @@
 package org.apache.beam.runners.spark.util;
 
 import com.google.common.cache.Cache;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.util.SideInputStorage.Key;
-import org.apache.beam.runners.spark.util.SideInputStorage.Value;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.util.SizeEstimator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link SideInputReader} that caches materialized views. */
+/**
+ * {@link SideInputReader} that caches materialized views.
+ */
 public class CachedSideInputReader implements SideInputReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(CachedSideInputReader.class);
-
-  /**
-   * Keep references for the whole lifecycle of CachedSideInputReader otherwise sideInput needs to
-   * be de-serialized again.
-   */
-  private Set<?> sideInputReferences = new HashSet<>();
 
   /**
    * Create a new cached {@link SideInputReader}.
@@ -52,7 +45,9 @@ public class CachedSideInputReader implements SideInputReader {
     return new CachedSideInputReader(delegate);
   }
 
-  /** Wrapped {@link SideInputReader} which results will be cached. */
+  /**
+   * Wrapped {@link SideInputReader} which results will be cached.
+   */
   private final SideInputReader delegate;
 
   private CachedSideInputReader(SideInputReader delegate) {
@@ -63,31 +58,25 @@ public class CachedSideInputReader implements SideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
-    final Cache<Key<T>, Value<T>> materializedCasted =
+    final Cache<Key<T>, T> materializedCasted =
         (Cache) SideInputStorage.getMaterializedSideInputs();
 
     Key<T> sideInputKey = new Key<>(view, window);
-    @SuppressWarnings("unchecked")
-    final Set<Value<T>> sideInputReferencesCasted = (Set<Value<T>>) sideInputReferences;
 
-    Value<T> value;
     try {
-      value =
-          materializedCasted.get(
-              sideInputKey,
-              () -> {
-                final T result = delegate.get(view, window);
-                LOG.info(
-                    "Caching de-serialized side input for {} of size [{}B] in memory.",
-                    sideInputKey,
-                    SizeEstimator.estimate(result));
-                return new Value<>(sideInputKey, result);
-              });
+      return materializedCasted.get(
+          sideInputKey,
+          () -> {
+            final T result = delegate.get(view, window);
+            LOG.info(
+                "Caching de-serialized side input for {} of size [{}B] in memory.",
+                sideInputKey,
+                SizeEstimator.estimate(result));
+            return result;
+          });
     } catch (ExecutionException e) {
       throw new RuntimeException(e.getCause());
     }
-    sideInputReferencesCasted.add(value);
-    return value.getData();
   }
 
   @Override
