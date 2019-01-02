@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -310,7 +311,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
               outputTagsToCoders,
               windowingStrategy,
-              input.isBounded().and(signature.isBoundedPerElement()));
+              input.isBounded().and(signature.isBoundedPerElement()),
+              Collections.emptyMap());
 
       // Set output type descriptor similarly to how ParDo.MultiOutput does it.
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
@@ -365,7 +367,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               new ParDoLike() {
                 @Override
                 public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(),
+                      null, newComponents);
                 }
 
                 @Override

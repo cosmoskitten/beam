@@ -289,6 +289,9 @@ public class PCollection<T> extends PValueBase implements PValue {
   public PCollection<T> setCoder(Coder<T> coder) {
     checkState(!isFinishedSpecifying(), "cannot change the Coder of %s once it's been used", this);
     checkArgument(coder != null, "Cannot setCoder(null)");
+    if (coderRestriction != null) {
+      checkArgument(coderRestriction.apply(coder));
+    }
     this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
   }
@@ -318,7 +321,7 @@ public class PCollection<T> extends PValueBase implements PValue {
   /** Returns whether this {@link PCollection} has an attached schema. */
   @Experimental(Kind.SCHEMAS)
   public boolean hasSchema() {
-    return getCoder() instanceof SchemaCoder;
+    return coderOrFailure.coder != null && coderOrFailure.coder instanceof SchemaCoder;
   }
 
   /** Returns the attached schema. */
@@ -395,19 +398,32 @@ public class PCollection<T> extends PValueBase implements PValue {
   /** A local {@link TupleTag} used in the expansion of this {@link PValueBase}. */
   private final TupleTag<?> tag;
 
-  private PCollection(Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded) {
+  /** If present, then this PCollection is restricted to coders that match this predicate. */
+  @Nullable private final SerializableFunction<Coder<?>, Boolean> coderRestriction;
+
+  private PCollection(
+      Pipeline p,
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded,
+      @Nullable SerializableFunction<Coder<?>, Boolean> coderRestriction) {
     super(p);
     this.windowingStrategy = windowingStrategy;
     this.isBounded = isBounded;
     this.tag = new TupleTag<>();
+    this.coderRestriction = coderRestriction;
   }
 
   private PCollection(
-      Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded, TupleTag<?> tag) {
+      Pipeline p,
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded,
+      TupleTag<?> tag,
+      @Nullable SerializableFunction<Coder<?>, Boolean> coderRestriction) {
     super(p);
     this.windowingStrategy = windowingStrategy;
     this.isBounded = isBounded;
     this.tag = tag;
+    this.coderRestriction = coderRestriction;
   }
 
   /**
@@ -435,18 +451,14 @@ public class PCollection<T> extends PValueBase implements PValue {
     return this;
   }
 
-  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
   @Internal
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy,
       IsBounded isBounded,
       @Nullable Coder<T> coder) {
-    PCollection<T> res = new PCollection<>(pipeline, windowingStrategy, isBounded);
-    if (coder != null) {
-      res.setCoder(coder);
-    }
-    return res;
+    return createPrimitiveOutputInternal(
+        pipeline, windowingStrategy, isBounded, coder, SerializableFunctions.constant(true));
   }
 
   /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
@@ -456,8 +468,37 @@ public class PCollection<T> extends PValueBase implements PValue {
       WindowingStrategy<?, ?> windowingStrategy,
       IsBounded isBounded,
       @Nullable Coder<T> coder,
+      @Nullable SerializableFunction<Coder<?>, Boolean> coderRestriction) {
+    PCollection<T> res =
+        new PCollection<T>(pipeline, windowingStrategy, isBounded, coderRestriction);
+    if (coder != null) {
+      res.setCoder(coder);
+    }
+    return res;
+  }
+
+  @Internal
+  public static <T> PCollection<T> createPrimitiveOutputInternal(
+      Pipeline pipeline,
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded,
+      @Nullable Coder<T> coder,
       TupleTag<?> tag) {
-    PCollection<T> res = new PCollection<>(pipeline, windowingStrategy, isBounded, tag);
+    return createPrimitiveOutputInternal(
+        pipeline, windowingStrategy, isBounded, coder, tag, SerializableFunctions.constant(true));
+  }
+
+  /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
+  @Internal
+  public static <T> PCollection<T> createPrimitiveOutputInternal(
+      Pipeline pipeline,
+      WindowingStrategy<?, ?> windowingStrategy,
+      IsBounded isBounded,
+      @Nullable Coder<T> coder,
+      TupleTag<?> tag,
+      @Nullable SerializableFunction<Coder<?>, Boolean> coderRestriction) {
+    PCollection<T> res =
+        new PCollection<T>(pipeline, windowingStrategy, isBounded, tag, coderRestriction);
     if (coder != null) {
       res.setCoder(coder);
     }

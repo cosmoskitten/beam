@@ -110,7 +110,7 @@ public class EnvironmentsTest implements Serializable {
     Optional<Environment> env = Environments.getEnvironment(builder, rehydratedComponents);
     assertThat(env.isPresent(), is(false));
   }
-
+/*
   @Test
   public void getEnvironmentParDo() throws IOException {
     SdkComponents components = SdkComponents.create();
@@ -143,6 +143,7 @@ public class EnvironmentsTest implements Serializable {
                 .toComponents()
                 .getEnvironmentsOrThrow(payload.getDoFn().getEnvironmentId())));
   }
+*/
 
   @Test
   public void getEnvironmentWindowIntoKnown() throws IOException {

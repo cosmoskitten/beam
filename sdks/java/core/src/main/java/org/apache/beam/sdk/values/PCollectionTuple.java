@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
@@ -196,7 +197,8 @@ public class PCollectionTuple implements PInput, POutput {
       TupleTagList outputTags,
       Map<TupleTag<?>, Coder<?>> coders,
       WindowingStrategy<?, ?> windowingStrategy,
-      IsBounded isBounded) {
+      IsBounded isBounded,
+      Map<TupleTag<?>, SerializableFunction<Coder<?>, Boolean>> outputCoderRestrictions) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
@@ -212,8 +214,12 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       PCollection outputCollection =
           PCollection.createPrimitiveOutputInternal(
-                  pipeline, windowingStrategy, isBounded, coders.get(outputTag))
-              .setTypeDescriptor((TypeDescriptor) outputTag.getTypeDescriptor());
+                  pipeline,
+                  windowingStrategy,
+                  isBounded,
+                  (Coder) coders.get(outputTag),
+                  outputCoderRestrictions.get(outputTag))
+              .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);
     }

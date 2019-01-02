@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoEvaluator.DoFnRunnerFactory;
@@ -27,6 +29,7 @@ import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -137,6 +140,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
       throws Exception {
+    DoFnSchemaInformation doFnSchemaInformation =
+        ParDoTranslation.getSchemaInformation(application);
+
     try {
       return ParDoEvaluator.create(
           evaluationContext,
@@ -151,6 +157,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           mainOutputTag,
           additionalOutputTags,
           pcollections(application.getOutputs()),
+          doFnSchemaInformation,
           runnerFactory);
     } catch (Exception e) {
       try {

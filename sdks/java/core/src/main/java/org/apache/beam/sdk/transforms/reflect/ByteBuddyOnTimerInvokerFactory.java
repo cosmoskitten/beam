@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
+import com.google.auto.value.AutoValue;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ExecutionException;
@@ -64,7 +65,10 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     try {
       OnTimerMethodSpecifier onTimerMethodSpecifier =
           OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
-      Constructor<?> constructor = constructorCache.get(onTimerMethodSpecifier);
+      Constructor<?> constructor =
+          constructorCache.get(
+              new AutoValue_ByteBuddyOnTimerInvokerFactory_OnTimerMethodSpecifierAndDoFn(
+                  onTimerMethodSpecifier, fn));
 
       return (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
     } catch (InstantiationException
@@ -102,17 +106,28 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    * <p>Needed because generating an invoker class is expensive, and to avoid generating an
    * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
    */
-  private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorCache =
+  @AutoValue
+  abstract static class OnTimerMethodSpecifierAndDoFn {
+    abstract OnTimerMethodSpecifier getOnTimerMethod();
+
+    abstract DoFn<?, ?> getDoFnInstance();
+  }
+
+  private final LoadingCache<OnTimerMethodSpecifierAndDoFn, Constructor<?>> constructorCache =
       CacheBuilder.newBuilder()
           .build(
-              new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
+              new CacheLoader<OnTimerMethodSpecifierAndDoFn, Constructor<?>>() {
                 @Override
-                public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
-                    throws Exception {
+                public Constructor<?> load(
+                    final OnTimerMethodSpecifierAndDoFn onTimerMethodSpecifier) throws Exception {
                   DoFnSignature signature =
-                      DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
+                      DoFnSignatures.getSignature(
+                          onTimerMethodSpecifier.getOnTimerMethod().fnClass());
                   Class<? extends OnTimerInvoker<?, ?>> invokerClass =
-                      generateOnTimerInvokerClass(signature, onTimerMethodSpecifier.timerId());
+                      generateOnTimerInvokerClass(
+                          signature,
+                          onTimerMethodSpecifier.getOnTimerMethod().timerId(),
+                          onTimerMethodSpecifier.getDoFnInstance());
                   try {
                     return invokerClass.getConstructor(signature.fnClass());
                   } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
@@ -125,7 +140,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    * TimerId}.
    */
   private static Class<? extends OnTimerInvoker<?, ?>> generateOnTimerInvokerClass(
-      DoFnSignature signature, String timerId) {
+      DoFnSignature signature, String timerId, DoFn<?, ?> fn) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
@@ -161,7 +176,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             .method(ElementMatchers.named("invokeOnTimer"))
             .intercept(
                 new InvokeOnTimerDelegation(
-                    clazzDescription, signature.onTimerMethods().get(timerId)));
+                    clazzDescription, signature.onTimerMethods().get(timerId), fn));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -185,8 +200,8 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     private final DoFnSignature.OnTimerMethod signature;
 
     public InvokeOnTimerDelegation(
-        TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
-      super(clazzDescription, signature);
+        TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature, DoFn<?, ?> fn) {
+      super(clazzDescription, signature, fn);
       this.signature = signature;
     }
 

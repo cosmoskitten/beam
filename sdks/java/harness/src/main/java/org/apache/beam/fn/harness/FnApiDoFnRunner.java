@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -435,6 +437,13 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+      Row row = context.schemaCoder.getToRowFunction().apply(element());
+      return doFn.getDoFnSchemaInformation().getElementParameterSchema().getFromRowFunction()
+          .apply(row);
+    }
+
+    @Override
     public Row asRow(@Nullable String id) {
       checkState(fieldAccessDescriptor.getAllFields());
       return context.schemaCoder.getToRowFunction().apply(element());
@@ -452,13 +461,20 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, null);
+    public OutputReceiver<OutputT> outputReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+      TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, tag);
     }
 
     @Override
-    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
+    public <S> OutputReceiver<S> outputSchemaReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+      TupleTag<S> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
+      SerializableFunction rowToOutput =
+          ((SchemaCoder<?>) context.outputCoders.get(tag)).getFromRowFunction();
+      return DoFnOutputReceivers.schemaOutputReceiver(
+          this, null, doFn.getDoFnSchemaInformation().getOutputReceiverToRow(tag), rowToOutput);
     }
 
     @Override
@@ -619,6 +635,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
+    public Object schemaElement(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
     }
@@ -635,13 +656,20 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, null);
+    public OutputReceiver<OutputT> outputReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+      TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
+      return DoFnOutputReceivers.windowedReceiver(this, tag);
     }
 
     @Override
-    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
+    public <S> OutputReceiver<S> outputSchemaReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+      TupleTag<S> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
+      SerializableFunction rowToOutput =
+          ((SchemaCoder<?>) context.outputCoders.get(tag)).getFromRowFunction();
+      return DoFnOutputReceivers.schemaOutputReceiver(
+          this, null, doFn.getDoFnSchemaInformation().getOutputReceiverToRow(tag), rowToOutput);
     }
 
     @Override

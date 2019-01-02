@@ -251,7 +251,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
           // TODO
           Collections.emptyMap(),
           input.getWindowingStrategy(),
-          input.isBounded());
+          input.isBounded(),
+          Collections.emptyMap());
     }
   }
 

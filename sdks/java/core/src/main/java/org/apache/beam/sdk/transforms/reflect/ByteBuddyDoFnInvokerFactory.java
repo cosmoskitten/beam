@@ -67,6 +67,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
@@ -77,6 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoPa
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
@@ -87,6 +89,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
@@ -96,11 +100,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ELEMENT_PARAMETER_METHOD = "element";
+  public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String ROW_PARAMETER_METHOD = "asRow";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
-  public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
+  public static final String OUTPUT_PARAMETER_SCHEMA_METHOD = "outputSchemaReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
@@ -214,7 +219,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       @SuppressWarnings("unchecked")
       DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
           (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
-              getByteBuddyInvokerConstructor(signature).newInstance(fn);
+              getByteBuddyInvokerConstructor(signature, fn).newInstance(fn);
 
       for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
         invoker.addOnTimerInvoker(
@@ -237,11 +242,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given {@link
    * DoFn} class.
    */
-  private synchronized Constructor<?> getByteBuddyInvokerConstructor(DoFnSignature signature) {
+  private synchronized Constructor<?> getByteBuddyInvokerConstructor(
+      DoFnSignature signature, DoFn<?, ?> fn) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
     Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
     if (constructor == null) {
-      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature);
+      Class<? extends DoFnInvoker<?, ?>> invokerClass = generateInvokerClass(signature, fn);
       try {
         constructor = invokerClass.getConstructor(fnClass);
       } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
@@ -288,7 +294,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
-  private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
+  private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(
+      DoFnSignature signature, DoFn<?, ?> fn) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
@@ -313,31 +320,33 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             //     delegate.<@ProcessElement>(... pass just the right args ...);
             //   }
             .method(ElementMatchers.named("invokeProcessElement"))
-            .intercept(new ProcessElementDelegation(clazzDescription, signature.processElement()))
+            .intercept(
+                new ProcessElementDelegation(clazzDescription, signature.processElement(), fn))
 
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
             .method(ElementMatchers.named("invokeStartBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.startBundle()))
+            .intercept(delegateOrNoop(clazzDescription, signature.startBundle(), fn))
             .method(ElementMatchers.named("invokeFinishBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.finishBundle()))
+            .intercept(delegateOrNoop(clazzDescription, signature.finishBundle(), fn))
             .method(ElementMatchers.named("invokeSetup"))
-            .intercept(delegateOrNoop(clazzDescription, signature.setup()))
+            .intercept(delegateOrNoop(clazzDescription, signature.setup(), fn))
             .method(ElementMatchers.named("invokeTeardown"))
-            .intercept(delegateOrNoop(clazzDescription, signature.teardown()))
+            .intercept(delegateOrNoop(clazzDescription, signature.teardown(), fn))
             .method(ElementMatchers.named("invokeOnWindowExpiration"))
             .intercept(
                 delegateMethodWithExtraParametersOrNoop(
-                    clazzDescription, signature.onWindowExpiration()))
+                    clazzDescription, signature.onWindowExpiration(), fn))
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(
-                delegateWithDowncastOrThrow(clazzDescription, signature.getInitialRestriction()))
+                delegateWithDowncastOrThrow(
+                    clazzDescription, signature.getInitialRestriction(), fn))
             .method(ElementMatchers.named("invokeSplitRestriction"))
-            .intercept(splitRestrictionDelegation(clazzDescription, signature))
+            .intercept(splitRestrictionDelegation(clazzDescription, signature, fn))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
-            .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
+            .intercept(getRestrictionCoderDelegation(clazzDescription, signature, fn))
             .method(ElementMatchers.named("invokeNewTracker"))
-            .intercept(newTrackerDelegation(clazzDescription, signature.newTracker()));
+            .intercept(newTrackerDelegation(clazzDescription, signature.newTracker(), fn));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -353,14 +362,14 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation getRestrictionCoderDelegation(
-      TypeDescription doFnType, DoFnSignature signature) {
+      TypeDescription doFnType, DoFnSignature signature, DoFn<?, ?> fn) {
     if (signature.processElement().isSplittable()) {
       if (signature.getRestrictionCoder() == null) {
         return MethodDelegation.to(
             new DefaultRestrictionCoder(signature.getInitialRestriction().restrictionT()));
       } else {
         return new DowncastingParametersMethodDelegation(
-            doFnType, signature.getRestrictionCoder().targetMethod());
+            doFnType, signature.getRestrictionCoder().targetMethod(), fn);
       }
     } else {
       return ExceptionMethod.throwing(UnsupportedOperationException.class);
@@ -368,48 +377,48 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   private static Implementation splitRestrictionDelegation(
-      TypeDescription doFnType, DoFnSignature signature) {
+      TypeDescription doFnType, DoFnSignature signature, DoFn<?, ?> fn) {
     if (signature.splitRestriction() == null) {
       return MethodDelegation.to(DefaultSplitRestriction.class);
     } else {
       return new DowncastingParametersMethodDelegation(
-          doFnType, signature.splitRestriction().targetMethod());
+          doFnType, signature.splitRestriction().targetMethod(), fn);
     }
   }
 
   private static Implementation newTrackerDelegation(
-      TypeDescription doFnType, @Nullable DoFnSignature.NewTrackerMethod signature) {
+      TypeDescription doFnType, @Nullable DoFnSignature.NewTrackerMethod signature, DoFn<?, ?> fn) {
     if (signature == null) {
       // We must have already verified that in this case the restriction type
       // is a subtype of HasDefaultTracker.
       return MethodDelegation.to(DefaultNewTracker.class);
     } else {
-      return delegateWithDowncastOrThrow(doFnType, signature);
+      return delegateWithDowncastOrThrow(doFnType, signature, fn);
     }
   }
 
   /** Delegates to the given method if available, or does nothing. */
   private static Implementation delegateOrNoop(
-      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
+      TypeDescription doFnType, DoFnSignature.DoFnMethod method, DoFn<?, ?> fn) {
     return (method == null)
         ? FixedValue.originType()
-        : new DoFnMethodDelegation(doFnType, method.targetMethod());
+        : new DoFnMethodDelegation(doFnType, method.targetMethod(), fn);
   }
 
   /** Delegates method with extra parameters to the given method if available, or does nothing. */
   private static Implementation delegateMethodWithExtraParametersOrNoop(
-      TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method) {
+      TypeDescription doFnType, DoFnSignature.MethodWithExtraParameters method, DoFn<?, ?> fn) {
     return (method == null)
         ? FixedValue.originType()
-        : new DoFnMethodWithExtraParametersDelegation(doFnType, method);
+        : new DoFnMethodWithExtraParametersDelegation(doFnType, method, fn);
   }
 
   /** Delegates to the given method if available, or throws UnsupportedOperationException. */
   private static Implementation delegateWithDowncastOrThrow(
-      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
+      TypeDescription doFnType, DoFnSignature.DoFnMethod method, DoFn<?, ?> fn) {
     return (method == null)
         ? ExceptionMethod.throwing(UnsupportedOperationException.class)
-        : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod());
+        : new DowncastingParametersMethodDelegation(doFnType, method.targetMethod(), fn);
   }
 
   /**
@@ -419,6 +428,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   static class DoFnMethodDelegation implements Implementation {
     /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
     protected final MethodDescription targetMethod;
+
+    protected final DoFn<?, ?> fn;
     /** Whether the target method returns non-void. */
     private final boolean targetHasReturn;
 
@@ -427,10 +438,12 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     private final TypeDescription doFnType;
 
-    public DoFnMethodDelegation(TypeDescription doFnType, Method targetMethod) {
+    public DoFnMethodDelegation(TypeDescription doFnType, Method targetMethod, DoFn<?, ?> fn) {
       this.doFnType = doFnType;
       this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
-      targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
+      this.fn = fn;
+      this.targetHasReturn =
+          !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
     }
 
     @Override
@@ -535,8 +548,10 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     private final DoFnSignature.MethodWithExtraParameters signature;
 
     public DoFnMethodWithExtraParametersDelegation(
-        TypeDescription clazzDescription, DoFnSignature.MethodWithExtraParameters signature) {
-      super(clazzDescription, signature.targetMethod());
+        TypeDescription clazzDescription,
+        DoFnSignature.MethodWithExtraParameters signature,
+        DoFn<?, ?> fn) {
+      super(clazzDescription, signature.targetMethod(), fn);
       this.signature = signature;
     }
 
@@ -562,7 +577,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         parameters.add(
             new StackManipulation.Compound(
                 pushExtraContextFactory,
-                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate)));
+                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate, fn)));
       }
       return new StackManipulation.Compound(parameters);
     }
@@ -573,8 +588,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * to its expected type.
    */
   private static class DowncastingParametersMethodDelegation extends DoFnMethodDelegation {
-    DowncastingParametersMethodDelegation(TypeDescription doFnType, Method method) {
-      super(doFnType, method);
+    DowncastingParametersMethodDelegation(TypeDescription doFnType, Method method, DoFn<?, ?> fn) {
+      super(doFnType, method, fn);
     }
 
     @Override
@@ -620,7 +635,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   static StackManipulation getExtraContextParameter(
-      DoFnSignature.Parameter parameter, final StackManipulation pushDelegate) {
+      DoFnSignature.Parameter parameter, final StackManipulation pushDelegate, DoFn<?, ?> fn) {
 
     return parameter.match(
         new Cases<StackManipulation>() {
@@ -662,6 +677,16 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(SchemaElementParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        SCHEMA_ELEMENT_PARAMETER_METHOD, DoFn.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
+          }
+
+          @Override
           public StackManipulation dispatch(RowParameter p) {
             StackManipulation parameter =
                 (p.fieldAccessId() == null)
@@ -693,12 +718,33 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(OutputReceiverParameter p) {
-            String method =
-                p.isRowReceiver() ? OUTPUT_ROW_RECEIVER_METHOD : OUTPUT_PARAMETER_METHOD;
-            return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(method, DoFn.class)));
+            StackManipulation tagParameter =
+                (p.getOutputTag() == null)
+                    ? NullConstant.INSTANCE
+                    : new TextConstant(p.getOutputTag());
+
+            TupleTag<?> tag =
+                (p.getOutputTag() != null)
+                    ? new TupleTag<>(p.getOutputTag())
+                    : fn.getMainOutputTag();
+            SerializableFunction<?, Row> outputSchemaToRow =
+                fn.getDoFnSchemaInformation().getOutputReceiverToRow(tag);
+
+            if (outputSchemaToRow == null) {
+              return new StackManipulation.Compound(
+                  pushDelegate,
+                  tagParameter,
+                  MethodInvocation.invoke(
+                      getExtraContextFactoryMethodDescription(
+                          OUTPUT_PARAMETER_METHOD, DoFn.class, String.class)));
+            } else {
+              return new StackManipulation.Compound(
+                  pushDelegate,
+                  tagParameter,
+                  MethodInvocation.invoke(
+                      getExtraContextFactoryMethodDescription(
+                          OUTPUT_PARAMETER_SCHEMA_METHOD, DoFn.class, String.class)));
+            }
           }
 
           @Override
@@ -792,8 +838,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
-        TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
-      super(doFnType, signature);
+        TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature, DoFn<?, ?> fn) {
+      super(doFnType, signature, fn);
       this.signature = signature;
     }
 

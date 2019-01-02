@@ -18,17 +18,20 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -624,6 +627,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.PARAMETER)
   public @interface Timestamp {}
 
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface OutputTag {
+    String value();
+  }
+
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface SchemaConvert {}
+
   /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
@@ -908,5 +923,22 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     interface Callback {
       void onBundleSuccess() throws Exception;
     }
+  }
+
+  private DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
+  @Nullable
+  public DoFnSchemaInformation getDoFnSchemaInformation() {
+    return doFnSchemaInformation;
+  }
+
+  public void setDoFnSchemaInformation(DoFnSchemaInformation doFnSchemaInformation) {
+    this.doFnSchemaInformation = doFnSchemaInformation;
+  }
+
+  TupleTag<OutputT> mainOutputTagForApplication;
+
+
+  public TupleTag<OutputT> getMainOutputTag() {
+    return mainOutputTagForApplication;
   }
 }

@@ -251,6 +251,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
+            }
+
+            @Override
             public Row asRow(@Nullable String id) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
@@ -267,12 +272,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-              return DoFnOutputReceivers.windowedReceiver(processContext, null);
+            public OutputReceiver<OutputT> outputReceiver(
+                DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+              TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
+              return DoFnOutputReceivers.windowedReceiver(processContext, tag);
             }
 
             @Override
-            public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+            public <S> OutputReceiver<S> outputSchemaReceiver(
+                DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
 

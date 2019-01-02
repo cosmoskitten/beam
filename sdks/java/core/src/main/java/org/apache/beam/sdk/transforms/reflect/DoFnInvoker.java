@@ -136,6 +136,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a link to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a link to the input element. */
+    Object schemaElement(DoFn<InputT, OutputT> doFn);
+
     /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
@@ -149,10 +152,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
-    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
+    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn, @Nullable String outputTag);
 
-    /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
-    OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
+    /** Provide a {@link OutputReceiver} for outputting to the default output. */
+    <S> OutputReceiver<S> outputSchemaReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag);
 
     /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
@@ -192,6 +196,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public InputT schemaElement(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
     public Row asRow(@Nullable String id) {
       throw new UnsupportedOperationException(
           String.format(
@@ -216,7 +228,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+    public OutputReceiver<OutputT> outputReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
@@ -224,7 +237,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+    public <S> OutputReceiver<S> outputSchemaReceiver(
+        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
