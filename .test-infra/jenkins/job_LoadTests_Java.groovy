@@ -26,7 +26,7 @@ def testsConfigurations = [
                 jobDescription    : 'Runs GroupByKey load tests on direct runner small records 10b',
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 prCommitStatusName: 'Java GroupByKey Small Java Load Test Direct',
-                prTriggerPhase    : 'Run GroupByKey Small Java Load Test Direct',
+                prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Direct',
                 runner            : CommonTestProperties.Runner.DIRECT,
                 jobProperties     : [
                         publishToBigQuery: true,
@@ -44,7 +44,7 @@ def testsConfigurations = [
                 jobDescription    : 'Runs GroupByKey load tests on Dataflow runner small records 10b',
                 itClass           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
                 prCommitStatusName: 'Java GroupByKey Small Load Test Dataflow',
-                prTriggerPhase    : 'Run GroupByKey Small Java Load Test Dataflow',
+                prTriggerPhrase   : 'Run GroupByKey Small Java Load Test Dataflow',
                 runner            : CommonTestProperties.Runner.DATAFLOW,
                 jobProperties     : [
                         publishToBigQuery   : true,
@@ -63,12 +63,12 @@ def testsConfigurations = [
 for (testConfiguration in testsConfigurations) {
     PhraseTriggeringPostCommitBuilder.postCommitJob(
             testConfiguration.jobName,
-            testConfiguration.prTriggerPhase,
+            testConfiguration.prTriggerPhrase,
             testConfiguration.prCommitStatusName,
             this
     ) {
         description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+        commonJobProperties.setTopLevelMainJobProperties(delegate)
         loadTestsBuilder.buildTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
