@@ -30,16 +30,15 @@ import random
 
 import string
 
-from google.cloud import bigtable
-from google.cloud.bigtable import row, column_family
+from google.cloud.bigtable import row, column_family, Client
 
 import apache_beam as beam
 from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
-from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
+from bigtable_io_write import BigtableWriteConfiguration
+from bigtable_io_write import WriteToBigtable
 
 
 def _generate_mutation_data(row_index):
@@ -102,11 +101,13 @@ class BigtableIOWriteIT(unittest.TestCase):
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
     self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
     self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
+    
+    
     self.INSTANCE_NAME = self.test_pipeline.get_option('instance')
+    self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
 
-    self.client = bigtable.Client(project=self.project, admin=True)
+    self.client = Client(project=self.project, admin=True)
 
     self._create_instance()
     self._create_table()
