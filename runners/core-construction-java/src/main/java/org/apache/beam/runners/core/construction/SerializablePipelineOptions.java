@@ -55,7 +55,7 @@ public class SerializablePipelineOptions implements Serializable {
     FileSystems.setDefaultPipelineOptions(options);
   }
 
-  private static String serializeToJson(PipelineOptions options) {
+  public static String serializeToJson(PipelineOptions options) {
     try {
       return MAPPER.writeValueAsString(options);
     } catch (JsonProcessingException e) {
@@ -63,7 +63,7 @@ public class SerializablePipelineOptions implements Serializable {
     }
   }
 
-  private static PipelineOptions deserializeFromJson(String options) {
+  public static PipelineOptions deserializeFromJson(String options) {
     try {
       return MAPPER.readValue(options, PipelineOptions.class);
     } catch (IOException e) {
