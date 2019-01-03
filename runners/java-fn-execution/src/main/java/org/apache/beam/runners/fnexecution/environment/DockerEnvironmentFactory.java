@@ -152,8 +152,10 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
       while (instructionHandler == null) {
+        Preconditions.checkArgument(
+            docker.isContainerRunning(containerId), "No container running for id " + containerId);
         try {
-          instructionHandler = clientSource.take(workerId, Duration.ofMinutes(2));
+          instructionHandler = clientSource.take(workerId, Duration.ofSeconds(30));
         } catch (TimeoutException timeoutEx) {
           LOG.info(
               "Still waiting for startup of environment {} for worker id {}",
