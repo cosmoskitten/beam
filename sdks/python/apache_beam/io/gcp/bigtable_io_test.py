@@ -20,6 +20,8 @@ from __future__ import absolute_import
 
 import json
 
+import os
+
 import logging
 
 import unittest
@@ -115,8 +117,8 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.GOOGLE_APPLICATION_CREDENTIALS = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
     with open(self.GOOGLE_APPLICATION_CREDENTIALS) as credential_data:
       data = json.load(credential_data)
-      logging.info("Your Google Application Credentials Data: {}".format(data) )
-      logging.info("Your Google Application Credentials Project: {}").format(data['project_id'])
+      logging.info("Your Google Application Credentials Data: %s" % (data))
+      logging.info("Your Google Application Credentials Project: %s") % (data['project_id'])
 
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
 
@@ -127,9 +129,9 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.client = Client(project=self.project, admin=True)
     self._create_instance_table()
 
-    logging.info( "Your Project Name: {}".format(self.PROJECT_NAME) )
-    logging.info( "Your Instance Name: {}".format(self.INSTANCE_NAME) )
-    logging.info( "Your Table Name: {}".format(self.TABLE_NAME) )
+    logging.info("Your Project Name: %s" % (self.PROJECT_NAME))
+    logging.info("Your Instance Name: %s" % (self.INSTANCE_NAME))
+    logging.info("Your Table Name: %s" % (self.TABLE_NAME))
 
   def tearDown(self):
     instance = self.client.instance(self.INSTANCE_NAME)
