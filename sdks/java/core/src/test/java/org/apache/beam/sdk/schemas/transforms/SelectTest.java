@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import java.util.Objects;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -211,8 +210,7 @@ public class SelectTest {
     PCollection<POJO2NestedPartial> pojos =
         pipeline
             .apply(Create.of(new POJO2()))
-            .apply(
-                Select.fieldNames("field2.field1", "field2.field3"))
+            .apply(Select.fieldNames("field2.field1", "field2.field3"))
             .apply(Convert.to(POJO2NestedPartial.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO2NestedPartial());
     pipeline.run();
