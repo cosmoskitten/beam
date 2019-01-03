@@ -634,6 +634,10 @@ class DirectRunnerRetryTests(unittest.TestCase):
         evaluator.step_context.partial_keyed_state['key'].state,
         {None: {'elements':['value']}})
 
+  # TODO: do not merge!
+  def test_fail(self):
+    self.assertTrue(False)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
