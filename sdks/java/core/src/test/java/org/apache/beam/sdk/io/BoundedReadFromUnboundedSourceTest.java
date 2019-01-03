@@ -73,7 +73,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable {
     test(true, false);
   }
 
-  @Test
+  @Test(timeout = 15000L) // FIXME hanging test
   @Category(NeedsRunner.class)
   public void testTimeBound() throws Exception {
     test(false, true);
