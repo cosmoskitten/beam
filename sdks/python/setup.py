@@ -76,16 +76,6 @@ if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
   )
 
 
-
-try:
-  _BIGTABLE_VERSION = get_distribution('google-cloud-bigtable').version
-  warnings.warn(
-    "You are using version {0} of bigtable.".format(_BIGTABLE_VERSION, )
-  )
-except DistributionNotFound:
-  warnings.warn("You are not using bigtable.")
-  pass
-
 REQUIRED_CYTHON_VERSION = '0.28.1'
 try:
   _CYTHON_VERSION = get_distribution('cython').version

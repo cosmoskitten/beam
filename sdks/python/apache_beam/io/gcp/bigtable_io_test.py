@@ -30,8 +30,6 @@ import random
 
 import string
 
-from google.cloud.bigtable import row, column_family, Client
-
 import apache_beam as beam
 from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
@@ -43,9 +41,9 @@ from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.cloud.bigtable import row, column_family, Client
 except ImportError:
-  HttpError = None
+  Client = None
 
 def _generate_mutation_data(row_index):
   """ Generate the row data to insert in the table.
@@ -109,7 +107,8 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
-
+    if Client is None:
+      raise ImportError('Bigtable dependencies are not installed.')
     self.client = Client(project=self.project, admin=True)
 
     self._create_instance()
