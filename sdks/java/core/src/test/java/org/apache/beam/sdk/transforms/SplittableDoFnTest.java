@@ -642,7 +642,7 @@ public class SplittableDoFnTest implements Serializable {
     p.run();
   }
 
-  @Test
+  @Test(timeout = 15000L) // FIXME hanging test
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesTestStream.class})
   public void testLateData() {
 
