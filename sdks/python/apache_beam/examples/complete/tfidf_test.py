@@ -41,14 +41,14 @@ EXPECTED_RESULTS = set([
     ('def', '2.txt', 0.2027325540540822)])
 
 
-EXPECTED_LINE_RE = r'\(u\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
+EXPECTED_LINE_RE = r'\(\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
 class TfIdfTest(unittest.TestCase):
 
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
-    with open(path, 'w') as f:
+    with open(path, 'wb') as f:
       f.write(contents)
 
   def test_tfidf_transform(self):
