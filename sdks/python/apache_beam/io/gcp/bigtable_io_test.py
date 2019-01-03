@@ -89,7 +89,7 @@ class GenerateDirectRows(beam.DoFn):
                           row_value["value"],
                           datetime.datetime.now())
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
 
@@ -107,8 +107,6 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
-    if Client is None:
-      raise ImportError('Bigtable dependencies are not installed.')
     self.client = Client(project=self.project, admin=True)
 
     self._create_instance()
