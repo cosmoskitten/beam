@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -30,10 +31,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Test case for {@link ByteCoder}. */
 @RunWith(JUnit4.class)
 public class ByteCoderTest {
+  private static final Logger LOG = LoggerFactory.getLogger(ByteCoderTest.class);
 
   private static final Coder<Byte> TEST_CODER = ByteCoder.of();
 
@@ -73,5 +77,11 @@ public class ByteCoderTest {
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Byte.class)));
+  }
+
+  @Test
+  public void testFail() {
+    LOG.info("****************** test log ****************");
+    assertTrue(false);
   }
 }

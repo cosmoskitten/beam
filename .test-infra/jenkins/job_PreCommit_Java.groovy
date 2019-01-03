@@ -34,5 +34,13 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
+    archiveArtifacts('**/build/reports/tests/test/**')
+    publishHtml {
+        report('**/build/reports/tests/test') {
+            reportName('Gradle Report')
+            keepAll()
+            allowMissing()
+        }
+    }
   }
 }
