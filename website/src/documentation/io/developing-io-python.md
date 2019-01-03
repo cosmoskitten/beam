@@ -1,8 +1,11 @@
 ---
 layout: section
-title: "Apache Beam: Creating New Sources and Sinks with the Python SDK"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/python-custom-io/
+title: "Apache Beam: Developing I/O connectors for Python"
+section_menu: section-menu/documentation.html
+permalink: /documentation/io/developing-io-python/
+redirect_from:
+  - /documentation/io/authoring-python/
+  - /documentation/sdks/python-custom-io/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,56 +20,79 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Creating New Sources and Sinks with the Python SDK
+# Developing I/O connectors for Python
 
-The Apache Beam SDK for Python provides an extensible API that you can use to create new data sources and sinks. This tutorial shows how to create new sources and sinks using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py).
+To connect to a data store that isn’t supported by Beam’s existing I/O
+connectors, you must create a custom I/O connector that usually consist of a
+source and a sink. All Beam sources and sinks are composite transforms; however,
+the implementation of your custom I/O depends on your use case.  See the [new
+I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+for a general overview of developing a new I/O connector.
 
-* Create a new source by extending the `BoundedSource` and `RangeTracker` interfaces.
-* Create a new sink by implementing the `Sink` and `Writer` classes.
+This page describes implementation details for developing sources and sinks
+using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py)
+for Python. The Java SDK offers the same functionality, but uses a slightly
+different API. See [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
+for information specific to the Java SDK.
 
+## Implementation options
 
-## Why Create a New Source or Sink
+**Sources**
 
-You'll need to create a new source or sink if you want your pipeline to read data from (or write data to) a storage system for which the Beam SDK for Python does not provide [native support]({{ site.baseurl }}/documentation/programming-guide/#pipeline-io).
+For bounded (batch) sources, there are currently two options for creating a Beam
+source:
 
-In simple cases, you may not need to create a new source or sink. For example, if you need to read data from an SQL database using an arbitrary query, none of the advanced Source API features would benefit you. Likewise, if you'd like to write data to a third-party API via a protocol that lacks deduplication support, the Sink API wouldn't benefit you. In such cases it makes more sense to use a `ParDo`.
+1. Use `ParDo` and `GroupByKey`.  
 
-However, if you'd like to use advanced features such as dynamic splitting and size estimation, you should use Beam's APIs and create a new source or sink.
+2. Extend the `BoundedSource` and `RangeTracker` interfaces.
 
+`ParDo` is the recommended option, as implementing a `Source` can be tricky.
+The [new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+covers using `ParDo`, and lists some use cases where you might want to use a
+Source (such as [dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
 
-## Basic Code Requirements for New Sources and Sinks {#basic-code-reqs}
+Splittable DoFn is a new sources framework that is under development and will
+replace the other options for developing bounded and unbounded sources. For more
+information, see the
+[roadmap for multi-SDK connector efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
 
-Services use the classes you provide to read and/or write data using multiple worker instances in parallel. As such, the code you provide for `Source` and `Sink` subclasses must meet some basic requirements:
+**Sinks**
 
-### Serializability
+To create a Beam sink, we recommend that you use a single `ParDo` that writes the
+received records to the data store. However, for file-based sinks, you can use
+the `FileBasedSink` interface.
 
-Your `Source` or `Sink` subclass must be serializable. The service may create multiple instances of your `Source` or `Sink` subclass to be sent to multiple remote workers to facilitate reading or writing in parallel. Note that the *way* the source and sink objects are serialized is runner specific.
+## Basic code requirements {#basic-code-reqs}
 
-### Immutability
+Beam runners use the classes you provide to read and/or write data using
+multiple worker instances in parallel. As such, the code you provide for
+`Source` and `Sink` subclasses must meet some basic requirements:
 
-Your `Source` or `Sink` subclass must be effectively immutable. You should only use mutable state in your `Source` or `Sink` subclass if you are using lazy evaluation of expensive computations that you need to implement the source.
+  1. **Serializability:** Your `Source` or `Sink` subclass must be serializable.
+     The service may create multiple instances of your `Source` or `Sink`
+     subclass to be sent to multiple remote workers to facilitate reading or
+     writing in parallel. The *way* the source and sink objects are serialized
+     is runner specific.  
 
-### Thread-Safety
+  1. **Immutability:** Your `Source` or `Sink` subclass must be effectively
+     immutable. You should only use mutable state in your `Source` or `Sink`
+     subclass if you are using lazy evaluation of expensive computations that
+     you need to implement the source.  
 
-Your code must be thread-safe. The Beam SDK for Python provides the `RangeTracker` class to make this easier.
+  1. **Thread-Safety:** Your code must be thread-safe. The Beam SDK for Python
+     provides the `RangeTracker` class to make this easier.  
 
-### Testability
+  1. **Testability:** It is critical to exhaustively unit-test all of your
+     `Source` and `Sink` subclasses. A minor implementation error can lead to
+     data corruption or data loss (such as skipping or duplicating records) that
+     can be hard to detect. You can use test harnesses and utility methods
+     available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py)
+     to develop tests for your source.
 
-It is critical to exhaustively unit-test all of your `Source` and `Sink` subclasses. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard to detect.
-
-You can use test harnesses and utility methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py) to develop tests for your source.
-
+In addition, see the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
+for Beam's transform style guidance.
 
 ## Creating a New Source
-
-You should create a new source if you'd like to use the advanced features that the Source API provides:
-
-* Dynamic splitting
-* Progress estimation
-* Size estimation
-* Splitting into parts of particular size recommended by the service
-
-For example, if you'd like to read from a new file format that contains many records per file, or if you'd like to read from a key-value store that supports read operations in sorted key order.
 
 To create a new data source for your pipeline, you'll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.
 
