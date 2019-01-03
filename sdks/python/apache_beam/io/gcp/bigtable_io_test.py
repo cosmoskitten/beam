@@ -35,8 +35,10 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
-from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
+#from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
+from bigtable_io_write import BigtableWriteConfiguration
+#from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
+from bigtable_io_write import WriteToBigtable
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -119,10 +121,9 @@ class BigtableIOWriteIT(unittest.TestCase):
     self._create_instance_table()
 
   def tearDown(self):
-    if self.table.exists():
-      self.table.delete()
-    if self.instance.exists():
-      self.instance.delete()
+    instance = self.client.instance(self.INSTANCE_NAME)
+    if instance.exists():
+      instance.delete()
 
   def test_bigtable_write_python(self):
     number = self.number
@@ -157,22 +158,21 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _create_instance_table(self):
     """ Prepare all necesary for the test
     """
-    instance = self.client.instance(self.INSTANCE_NAME)
+    self.instance = self.client.instance(self.INSTANCE_NAME)
+
     serve_nodes = 3
-    cluster = instance.cluster(self.CLUSTER_NAME,
-                               self.LOCATION_ID,
-                               serve_nodes=serve_nodes,
-                               default_storage_type=self.STORAGE_TYPE)
-    if not instance.exists():
-      instance.create(clusters=[cluster])
-    table = instance.table(self.TABLE_NAME)
+    cluster = self.instance.cluster(self.CLUSTER_NAME,
+                                    self.LOCATION_ID,
+                                    serve_nodes=serve_nodes,
+                                    default_storage_type=self.STORAGE_TYPE)
+    if not self.instance.exists():
+      self.instance.create(clusters=[cluster])
+    self.table = self.instance.table(self.TABLE_NAME)
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
-    if not table.exists():
-      table.create(column_families=column_families)
-    self.table = table
-    self.instance = instance
+    if not self.table.exists():
+      self.table.create(column_families=column_families)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
