@@ -18,6 +18,8 @@
 """Unittest for GCP Bigtable testing."""
 from __future__ import absolute_import
 
+import json
+
 import logging
 
 import unittest
@@ -101,22 +103,33 @@ class BigtableIOWriteIT(unittest.TestCase):
   CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
   LOCATION_ID = "us-east1-b"
-  STORAGE_TYPE = ''
-
+  STORAGE_TYPE = ""
+  GOOGLE_APPLICATION_CREDENTIALS = ""
   def setUp(self):
     try:
       from google.cloud.bigtable import enums
       self.STORAGE_TYPE = enums.StorageType.HDD
     except ImportError:
       self.STORAGE_TYPE = 2
+    
+    self.GOOGLE_APPLICATION_CREDENTIALS = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    with open(self.GOOGLE_APPLICATION_CREDENTIALS) as credential_data:
+      data = json.load(credential_data)
+      logging.info("Your Google Application Credentials Data: {}".format(data) )
+      logging.info("Your Google Application Credentials Project: {}").format(data['project_id'])
 
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
+
     self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
     self.client = Client(project=self.project, admin=True)
     self._create_instance_table()
+
+    logging.info( "Your Project Name: {}".format(self.PROJECT_NAME) )
+    logging.info( "Your Instance Name: {}".format(self.INSTANCE_NAME) )
+    logging.info( "Your Table Name: {}".format(self.TABLE_NAME) )
 
   def tearDown(self):
     instance = self.client.instance(self.INSTANCE_NAME)
@@ -172,7 +185,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
-    
+
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
