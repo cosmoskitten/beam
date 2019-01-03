@@ -25,26 +25,29 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * PViews store created PCollectionView from PCollection. It's useful when translator is creating
- * PCollectionView and later from another operator the same PCollectionView is created
- * from the same PCollection.
- * To prevent creating same PCollectionViews multiple times, use this class.
+ * PViewsStore keeps track of {@link PCollection} to {@link PCollectionView} mappings created during
+ * translation of Euphoria API into Beam java SDK. To prevent creating several {@link
+ * PCollectionView PCollectionViews} to one {@link PCollection}.
  */
-public class PViews {
+public class PViewsStore {
 
-  private static Map<PCollection<?>, PCollectionView<?>> pViewsMap;
+  private Map<Object, PCollectionView<?>> pViewsMap = new HashMap<>();
 
-  public static Map<PCollection<?>, PCollectionView<?>> getMap() {
-    if (pViewsMap == null) {
-      pViewsMap = new HashMap<>();
-    }
-    return pViewsMap;
-  }
-
+  /**
+   * Creates new {@link PCollectionView} of given {@code pCollectionToView} iff there is no {@link
+   * PCollectionView} already associated with {@code Key}.
+   *
+   * @param key mapping key
+   * @param pCollectionToView a {@link PCollection} view will be created from by applying {@link
+   *     View#asMultimap()}
+   * @param <K> element key type
+   * @param <V> value key type
+   * @return the current (already existing or computed) value associated with the specified key
+   */
   @SuppressWarnings("unchecked")
-  public static <K, V> PCollectionView<Map<K, Iterable<V>>> createMultimapIfAbsent(
-      PCollection<?> pCollectionKey, final PCollection<KV<K, V>> pCollectionToView) {
+  public <K, V> PCollectionView<Map<K, Iterable<V>>> computeViewAsMultimapIfAbsent(
+      Object key, final PCollection<KV<K, V>> pCollectionToView) {
     return (PCollectionView<Map<K, Iterable<V>>>)
-        getMap().computeIfAbsent(pCollectionKey, (i) -> pCollectionToView.apply(View.asMultimap()));
+        pViewsMap.computeIfAbsent(key, (i) -> pCollectionToView.apply(View.asMultimap()));
   }
 }
