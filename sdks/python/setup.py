@@ -131,6 +131,7 @@ REQUIRED_PACKAGES = [
     'future>=0.16.0,<1.0.0',
     ]
 
+
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'pandas>=0.23.4,<0.24',
