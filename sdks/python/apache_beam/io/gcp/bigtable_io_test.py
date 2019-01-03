@@ -35,8 +35,8 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from bigtable_io_write import BigtableWriteConfiguration
-from bigtable_io_write import WriteToBigtable
+from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
+from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -116,6 +116,8 @@ class BigtableIOWriteIT(unittest.TestCase):
   def tearDown(self):
     if self.table.exists():
       self.table.delete()
+    if self.instance.exists():
+      self.instance.delete()
 
   def test_bigtable_write_python(self):
     number = self.number
