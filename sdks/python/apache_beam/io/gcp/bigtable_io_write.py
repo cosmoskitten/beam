@@ -69,11 +69,11 @@ class WriteToBigtable(beam.DoFn):
   def start_bundle(self):
     if self.beam_options.credentials is None:
       self.client = Client(project=self.beam_options.project_id,
-                                    admin=True)
+                           admin=True)
     else:
       self.client = Client(project=self.beam_options.project_id,
-                                    credentials=self.beam_options.credentials,
-                                    admin=True)
+                           credentials=self.beam_options.credentials,
+                           admin=True)
     self.instance = self.client.instance(self.beam_options.instance_id)
     self.table = self.instance.table(self.beam_options.table_id,
                                      self._app_profile_id)
@@ -122,6 +122,7 @@ class BigtableConfiguration(object):
     self.instance_id = instance_id
     self.table_id = table_id
     self.credentials = None
+
 
 class BigtableWriteConfiguration(BigtableConfiguration):
   """ BigTable Write Configuration Variables.

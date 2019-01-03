@@ -41,7 +41,8 @@ from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud.bigtable import row, column_family, Client, enums
+  from google.cloud.bigtable import row, column_family, Client
+  from google.cloud.bigtable import enums
 except ImportError:
   Client = None
 
@@ -101,7 +102,7 @@ class BigtableIOWriteIT(unittest.TestCase):
   CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8] 
   number = 500
   LOCATION_ID = "us-east1-b"
-  STORAGE_TYPE = enums.StorageType.HDD
+  STORAGE_TYPE = ''
 
   def setUp(self):
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
@@ -110,7 +111,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
     self.client = Client(project=self.project, admin=True)
-
+    self.STORAGE_TYPE = enums.StorageType.HDD
     self._create_instance_table()
 
   def tearDown(self):
@@ -158,7 +159,6 @@ class BigtableIOWriteIT(unittest.TestCase):
                                self.LOCATION_ID,
                                serve_nodes=serve_nodes,
                                default_storage_type=self.STORAGE_TYPE)
-    
     if not instance.exists():
       instance.create(clusters=[cluster])
     table = instance.table(self.TABLE_NAME)
