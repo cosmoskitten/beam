@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.provider.GenericTranslatorProvider;
 import org.apache.beam.sdk.options.Default;
@@ -47,6 +48,15 @@ public interface EuphoriaOptions extends PipelineOptions {
     }
   }
 
+  /** {@link DefaultValueFactory} of {@link PViewsStore}. */
+  class DefaultPCollectionViewStoreFactory implements DefaultValueFactory<PViewsStore> {
+
+    @Override
+    public PViewsStore create(PipelineOptions options) {
+      return new PViewsStore();
+    }
+  }
+
   @Description("Euphoria translation provider")
   @Default.InstanceFactory(DefaultTranslatorProviderFactory.class)
   @JsonIgnore
@@ -60,4 +70,13 @@ public interface EuphoriaOptions extends PipelineOptions {
   AccumulatorProvider.Factory getAccumulatorProviderFactory();
 
   void setAccumulatorProviderFactory(AccumulatorProvider.Factory accumulatorProviderFactory);
+
+  @Description("Map of known PCollectionViews")
+  @Default.InstanceFactory(DefaultPCollectionViewStoreFactory.class)
+  @JsonIgnore
+  @Internal
+  PViewsStore getPCollectionViewsStore();
+
+  @Internal
+  void setPCollectionViewsStore(PViewsStore pCollectionViewsStore);
 }
