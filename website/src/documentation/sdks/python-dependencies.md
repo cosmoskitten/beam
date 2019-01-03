@@ -42,8 +42,6 @@ the listed versions that will be in scope during execution.
   <tr><td>google-apitools</td><td>&gt;=0.5.23, &lt;0.5.24</td></tr>
   <tr><td>google-cloud-pubsub</td><td>==0.35.4</td></tr>
   <tr><td>google-cloud-bigquery</td><td>&gt;=1.6.0, &lt;1.7.0</td></tr>
-  <tr><td>google-cloud-bigtable</td><td>==0.31.1</td></tr>
-  <tr><td>google-cloud-core</td><td>==0.28.1</td></tr>
   <tr><td>googledatastore</td><td>&gt;=7.0.1, &lt;7.1</td></tr>
   <tr><td>grpcio</td><td>&gt;=1.8, &lt;2</td></tr>
   <tr><td>hdfs</td><td>&gt;=2.1.0, &lt;3.0.0</td></tr>

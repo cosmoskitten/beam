@@ -36,14 +36,15 @@ those generated rows in the table.
 """
 from __future__ import absolute_import
 
-
-from google.cloud import bigtable
-from google.cloud.bigtable.batcher import MutationsBatcher
-
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
+try:
+  from google.cloud.bigtable import Client
+  from google.cloud.bigtable.batcher import MutationsBatcher
+except ImportError:
+  pass
 
 class WriteToBigtable(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
@@ -54,7 +55,7 @@ class WriteToBigtable(beam.DoFn):
   """
 
   def __init__(self, beam_options):
-    beam.DoFn.__init__(beam_options)
+    super(self.__class__, self).__init__(beam_options)
     self.beam_options = beam_options
     self.client = None
     self.instance = None
@@ -67,10 +68,10 @@ class WriteToBigtable(beam.DoFn):
 
   def start_bundle(self):
     if self.beam_options.credentials is None:
-      self.client = bigtable.Client(project=self.beam_options.project_id,
+      self.client = Client(project=self.beam_options.project_id,
                                     admin=True)
     else:
-      self.client = bigtable.Client(project=self.beam_options.project_id,
+      self.client = Client(project=self.beam_options.project_id,
                                     credentials=self.beam_options.credentials,
                                     admin=True)
     self.instance = self.client.instance(self.beam_options.instance_id)
@@ -149,7 +150,8 @@ class BigtableWriteConfiguration(BigtableConfiguration):
   def __init__(self, project_id, instance_id, table_id,
                flush_count=None, max_row_bytes=None, app_profile_id=None):
     super(BigtableWriteConfiguration, self).__init__(project_id,
-                                                     instance_id, table_id)
+                                                     instance_id,
+                                                     table_id)
     self.flush_count = flush_count
     self.max_row_bytes = max_row_bytes
     self.app_profile_id = app_profile_id

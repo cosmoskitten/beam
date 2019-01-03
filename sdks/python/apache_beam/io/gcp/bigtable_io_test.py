@@ -35,8 +35,8 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
-from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
+from bigtable_io_write import BigtableWriteConfiguration
+from bigtable_io_write import WriteToBigtable
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -98,6 +98,7 @@ class BigtableIOWriteIT(unittest.TestCase):
   PROJECT_NAME = ""
   INSTANCE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8] 
   number = 500
   LOCATION_ID = "us-east1-b"
   STORAGE_TYPE = enums.StorageType.HDD
@@ -110,8 +111,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.PROJECT_NAME = self.project
     self.client = Client(project=self.project, admin=True)
 
-    self._create_instance()
-    self._create_table()
+    self._create_instance_table()
 
   def tearDown(self):
     if self.table.exists():
@@ -147,31 +147,26 @@ class BigtableIOWriteIT(unittest.TestCase):
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
 
-  def _create_instance(self):
-    """ Create the Instances Test in Bigtable
-
+  def _create_instance_table(self):
+    """ Prepare all necesary for the test
     """
     instance = self.client.instance(self.INSTANCE_NAME)
     serve_nodes = 3
-    cluster = instance.cluster("ssd-cluster1",
+    cluster = instance.cluster(self.CLUSTER_NAME,
                                self.LOCATION_ID,
                                serve_nodes=serve_nodes,
                                default_storage_type=self.STORAGE_TYPE)
+    
     if not instance.exists():
-      self.instance = instance.create(clusters=[cluster])
-
-  def _create_table(self):
-    """ Create the Table Test in Bigtable
-
-    """
-    table = self.instance.table(self.TABLE_NAME)
-
+      instance.create(clusters=[cluster])
+    table = instance.table(self.TABLE_NAME)
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
-
     if not table.exists():
-      self.table.create(column_families=column_families)
+      table.create(column_families=column_families)
+    self.table = table
+    self.instance = instance
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
