@@ -131,7 +131,6 @@ REQUIRED_PACKAGES = [
     'future>=0.16.0,<1.0.0',
     ]
 
-
 REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'pandas>=0.23.4,<0.24',
@@ -148,8 +147,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-pubsub==0.39.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core>0.28.0,<0.28.1',
-    'google-cloud-bigtable>=0.31.0,<0.31.1,',
+    'google-cloud-core==0.28.1',
+    'google-cloud-bigtable==0.31.1',
 ]
 
 if sys.version_info[0] == 2:
