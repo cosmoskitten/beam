@@ -35,15 +35,13 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-#from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
-from bigtable_io_write import BigtableWriteConfiguration
-#from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
-from bigtable_io_write import WriteToBigtable
+from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
+from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud.bigtable import row, column_family, enums, Client
+  from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
 
@@ -100,7 +98,7 @@ class BigtableIOWriteIT(unittest.TestCase):
   PROJECT_NAME = ""
   INSTANCE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8] 
+  CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
   LOCATION_ID = "us-east1-b"
   STORAGE_TYPE = ''
@@ -165,14 +163,19 @@ class BigtableIOWriteIT(unittest.TestCase):
                                     self.LOCATION_ID,
                                     serve_nodes=serve_nodes,
                                     default_storage_type=self.STORAGE_TYPE)
+    if not cluster.exists():
+      cluster.create()
+
     if not self.instance.exists():
       self.instance.create(clusters=[cluster])
     self.table = self.instance.table(self.TABLE_NAME)
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
+    
     if not self.table.exists():
       self.table.create(column_families=column_families)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
