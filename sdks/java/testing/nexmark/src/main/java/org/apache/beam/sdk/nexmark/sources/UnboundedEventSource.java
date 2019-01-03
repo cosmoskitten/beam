@@ -204,6 +204,8 @@ public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckp
       return true;
     }
 
+
+
     private void updateBacklog(long now, long newBacklogDurationMs) {
       backlogDurationMs = newBacklogDurationMs;
       long interEventDelayUs = generator.currentInterEventDelayUs();
