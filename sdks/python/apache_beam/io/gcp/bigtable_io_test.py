@@ -40,6 +40,12 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
 from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 
+# Protect against environments where bigtable library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 def _generate_mutation_data(row_index):
   """ Generate the row data to insert in the table.
@@ -85,7 +91,7 @@ class GenerateDirectRows(beam.DoFn):
                           row_value["value"],
                           datetime.datetime.now())
 
-
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
 
@@ -101,9 +107,6 @@ class BigtableIOWriteIT(unittest.TestCase):
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
     self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
     self.runner_name = type(self.test_pipeline.runner).__name__
-    
-    
-    self.INSTANCE_NAME = self.test_pipeline.get_option('instance')
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
 
@@ -117,9 +120,6 @@ class BigtableIOWriteIT(unittest.TestCase):
       self.table.delete()
 
   def test_bigtable_write_python(self):
-    """ Test Bigtable Connector Write
-
-    """
     number = self.number
     config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME,
                                         self.TABLE_NAME)
