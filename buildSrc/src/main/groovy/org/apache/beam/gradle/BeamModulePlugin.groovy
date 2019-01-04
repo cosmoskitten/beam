@@ -37,6 +37,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
+
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
@@ -297,10 +298,12 @@ class BeamModulePlugin implements Plugin<Project> {
     // Provide code coverage
     // TODO: Should this only apply to Java projects?
     project.apply plugin: "jacoco"
+
     project.gradle.taskGraph.whenReady { graph ->
       // Disable jacoco unless report requested such that task outputs can be properly cached.
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
       def enabled = graph.allTasks.any { it instanceof JacocoReport }
+      enabled = enabled || graph.allTasks.any { it.name.contains("sonarqube") }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
     }
 
@@ -309,6 +312,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // for further details. This is typically very useful to look at the "htmlDependencyReport"
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
+
+
 
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
@@ -694,6 +699,9 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'propdeps'
       project.apply plugin: 'propdeps-maven'
       project.apply plugin: 'propdeps-idea'
+
+      // Defines targets for sonarqube analysis reporting.
+      project.apply plugin: "org.sonarqube"
 
       // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
       // suppressions.
