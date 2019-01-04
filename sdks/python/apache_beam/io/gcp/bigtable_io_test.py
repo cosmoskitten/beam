@@ -45,30 +45,6 @@ try:
 except ImportError:
   Client = None
 
-def _generate_mutation_data(row_index):
-  """ Generate the row data to insert in the table.
-  """
-  row_contents = []
-  rand = random.choice(string.ascii_letters + string.digits)
-  value = ''.join(rand for i in range(100))
-  column_family_id = 'cf1'
-  start_index = 0
-  end_index = row_index
-  while start_index < end_index:
-    row_values = {}
-    start_index += 1
-    key = "beam_key%s" % ('{0:07}'.format(start_index))
-    row_values["row_key"] = key
-    row_values["row_content"] = []
-    for column_id in range(10):
-      row_content = {"column_family_id": column_family_id,
-                     "column_id": ('field%s' % column_id).encode('utf-8'),
-                     "value": value}
-      row_values["row_content"].append(row_content)
-  row_contents.append(row_values)
-
-  return row_contents
-
 
 class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
@@ -130,7 +106,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
-    row_values = _generate_mutation_data(number)
+    row_values = self._generate_mutation_data(number)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
@@ -176,6 +152,29 @@ class BigtableIOWriteIT(unittest.TestCase):
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
+  def _generate_mutation_data(row_index):
+    """ Generate the row data to insert in the table.
+    """
+    row_contents = []
+    rand = random.choice(string.ascii_letters + string.digits)
+    value = ''.join(rand for i in range(100))
+    column_family_id = 'cf1'
+    start_index = 0
+    end_index = row_index
+    while start_index < end_index:
+      row_values = {}
+      start_index += 1
+      key = "beam_key%s" % ('{0:07}'.format(start_index))
+      row_values["row_key"] = key
+      row_values["row_content"] = []
+      for column_id in range(10):
+        row_content = {"column_family_id": column_family_id,
+                       "column_id": ('field%s' % column_id).encode('utf-8'),
+                       "value": value}
+        row_values["row_content"].append(row_content)
+    row_contents.append(row_values)
+
+    return row_contents
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
