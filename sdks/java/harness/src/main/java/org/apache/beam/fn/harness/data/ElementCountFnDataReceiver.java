@@ -41,7 +41,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
     MonitoringInfoMetricName metricName =
-        new MonitoringInfoMetricName(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+        MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
     this.counter = LabeledMetrics.counter(metricName);
   }
 
