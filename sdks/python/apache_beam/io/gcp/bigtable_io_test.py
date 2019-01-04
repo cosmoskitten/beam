@@ -152,7 +152,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
-  def _generate_mutation_data(row_index):
+  def _generate_mutation_data(self, row_index):
     """ Generate the row data to insert in the table.
     """
     row_contents = []
