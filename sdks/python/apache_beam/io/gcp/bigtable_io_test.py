@@ -172,7 +172,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
-    
+
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
