@@ -45,7 +45,10 @@ RUN \
 
 ENV BEAM_EXPERIMENTAL_PY3=1
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
+# Use --process-dependency-links to install dev version of dill which contains critical
+# Python 3 fix.
+# TODO(BEAM-6135): Remove this flag when new dill version released
+RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] --process-dependency-links && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
