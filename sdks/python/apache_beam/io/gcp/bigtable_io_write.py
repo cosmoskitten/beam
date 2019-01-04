@@ -102,7 +102,7 @@ class WriteToBigtable(beam.DoFn):
            }
 
 
-class BigtableConfiguration():
+class BigtableConfiguration(object):
   """ Bigtable configuration variables.
 
   :type project_id: :class:`str` or :func:`unicode <unicode>`

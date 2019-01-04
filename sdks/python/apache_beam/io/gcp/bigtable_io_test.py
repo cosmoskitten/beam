@@ -71,13 +71,11 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   """
   DEFAULT_TABLE_PREFIX = "python-test"
-  INSTANCE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  instance_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  cluster_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+  table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
-  project = ""
   LOCATION_ID = "us-east1-b"
-  STORAGE_TYPE = ""
 
   def setUp(self):
     try:
@@ -86,23 +84,21 @@ class BigtableIOWriteIT(unittest.TestCase):
     except ImportError:
       self.STORAGE_TYPE = 2
 
-    argv = ['--test-pipeline-options="--runner=DirectRunner"']
-    self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
+    self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
-    self.PROJECT_NAME = self.project
     self.client = Client(project=self.project, admin=True)
     self._create_instance_table()
 
   def tearDown(self):
-    instance = self.client.instance(self.INSTANCE_NAME)
+    instance = self.client.instance(self.instance_id)
     if instance.exists():
       instance.delete()
 
   def test_bigtable_write_python(self):
     number = self.number
-    config = BigtableWriteConfiguration(self.project, self.INSTANCE_NAME,
-                                        self.TABLE_NAME)
+    config = BigtableWriteConfiguration(self.project, self.instance_id,
+                                        self.table_id)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
@@ -132,10 +128,10 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _create_instance_table(self):
     """ Prepare all necesary for the test
     """
-    self.instance = self.client.instance(self.INSTANCE_NAME)
+    self.instance = self.client.instance(self.instance_id)
 
     serve_nodes = 3
-    cluster = self.instance.cluster(self.CLUSTER_NAME,
+    cluster = self.instance.cluster(self.cluster_id,
                                     self.LOCATION_ID,
                                     serve_nodes=serve_nodes,
                                     default_storage_type=self.STORAGE_TYPE)
@@ -144,7 +140,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
     if not self.instance.exists():
       self.instance.create(clusters=[cluster])
-    self.table = self.instance.table(self.TABLE_NAME)
+    self.table = self.instance.table(self.table_id)
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
