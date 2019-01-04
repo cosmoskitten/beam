@@ -1554,9 +1554,20 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.name.hashCode()}"
       project.ext.pythonRootDir = "${project.rootDir}/sdks/python"
 
+      // This is current supported Python3 version. It should match the one in
+      // sdks/python/container/py3/Dockerfile
+      final PYTHON3_VERSION = 35
+
       project.task('setupVirtualenv')  {
         doLast {
-          project.exec { commandLine 'virtualenv', "${project.ext.envdir}" }
+          def virtualenvCmd = [
+            'virtualenv',
+            "${project.ext.envdir}",
+          ]
+          if (project.hasProperty('python3')) {
+            virtualenvCmd += '--python=python' + PYTHON3_VERSION
+          }
+          project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.0.0 grpcio-tools==1.3.5"
@@ -1589,9 +1600,12 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.task('installGcpTest', dependsOn: 'setupVirtualenv') {
         doLast {
+          // Use --process-dependency-links to install dev version of dill which contains critical
+          // Python 3 fix.
+          // TODO(BEAM-6135): Remove this flag when new dill version released
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${project.ext.pythonRootDir}/[gcp,test]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 -e ${project.ext.pythonRootDir}/[gcp,test] --process-dependency-links"
           }
         }
       }
@@ -1604,6 +1618,7 @@ class BeamModulePlugin implements Plugin<Project> {
             args '-c', ". ${project.ext.envdir}/bin/activate && python ${project.ext.pythonRootDir}/setup.py clean"
           }
           project.delete project.buildDir
+          project.delete project.ext.envdir
         }
       }
       project.clean.dependsOn project.cleanPython
