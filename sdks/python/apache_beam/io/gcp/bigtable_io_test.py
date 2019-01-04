@@ -113,12 +113,13 @@ class BigtableIOWriteIT(unittest.TestCase):
       self.STORAGE_TYPE = enums.StorageType.HDD
     except ImportError:
       self.STORAGE_TYPE = 2
-    
-    self.GOOGLE_APPLICATION_CREDENTIALS = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+
+    google_application = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    self.GOOGLE_APPLICATION_CREDENTIALS = google_application
     with open(self.GOOGLE_APPLICATION_CREDENTIALS) as credential_data:
       data = json.load(credential_data)
-      logging.info("Your Google Application Credentials Data: %s" % (data))
-      logging.info("Your Google Application Credentials Project: %s") % (data['project_id'])
+      print("Your Google Application Credentials Data: %s" % (data))
+      print("Your Google Application Credentials Project: %s" % (data['project_id']))
 
     argv = ['--test-pipeline-options="--runner=DirectRunner"']
 
@@ -129,9 +130,9 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.client = Client(project=self.project, admin=True)
     self._create_instance_table()
 
-    logging.info("Your Project Name: %s" % (self.PROJECT_NAME))
-    logging.info("Your Instance Name: %s" % (self.INSTANCE_NAME))
-    logging.info("Your Table Name: %s" % (self.TABLE_NAME))
+    print("Your Project Name: %s" % (self.PROJECT_NAME))
+    print("Your Instance Name: %s" % (self.INSTANCE_NAME))
+    print("Your Table Name: %s" % (self.TABLE_NAME))
 
   def tearDown(self):
     instance = self.client.instance(self.INSTANCE_NAME)
