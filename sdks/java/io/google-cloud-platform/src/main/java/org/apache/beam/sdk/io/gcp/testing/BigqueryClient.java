@@ -473,12 +473,19 @@ public class BigqueryClient {
                     tableName,
                     new TableDataInsertAllRequest().setRows(dataRows))
                 .execute();
-        if (response != null || response.getInsertErrors().isEmpty()) {
+        if (response != null && response.getInsertErrors().isEmpty()) {
           LOG.info("Successfully inserted data into table : " + tableName);
           return;
         } else {
-          lastException =
-              new IOException("Expected valid response from insert data job, but received null.");
+          if (response == null) {
+            lastException =
+                new IOException("Expected valid response from insert data job, but received null.");
+          } else {
+            lastException =
+                new IOException(
+                    String.format(
+                        "Got insertion error (%s)", response.getInsertErrors().toString()));
+          }
         }
       } catch (IOException e) {
         // ignore and retry
