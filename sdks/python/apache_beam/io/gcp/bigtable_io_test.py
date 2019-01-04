@@ -18,25 +18,20 @@
 """Unittest for GCP Bigtable testing."""
 from __future__ import absolute_import
 
-import logging
-
-import unittest
-
 import datetime
-
+import logging
+import random
+import string
+import unittest
 import uuid
 
-import random
-
-import string
-
 import apache_beam as beam
+from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
+from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 from apache_beam.runners.runner import PipelineState
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
-from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
