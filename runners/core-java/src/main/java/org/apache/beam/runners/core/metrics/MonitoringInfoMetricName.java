@@ -60,7 +60,7 @@ public class MonitoringInfoMetricName extends MetricName {
     }
   }
 
-  /** @returns the parsed namespace from the user metric URN, otherwise null. */
+  /** @return the parsed namespace from the user metric URN, otherwise null. */
   @Override
   public String getNamespace() {
     if (this.namespace == null) {
@@ -69,7 +69,7 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.namespace;
   }
 
-  /** @returns the parsed name from the user metric URN, otherwise null. */
+  /** @return the parsed name from the user metric URN, otherwise null. */
   @Override
   public String getName() {
     if (this.name == null) {
@@ -78,17 +78,17 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.name;
   }
 
-  /** @returns the urn of this MonitoringInfo metric. */
+  /** @return the urn of this MonitoringInfo metric. */
   public String getUrn() {
     return this.urn;
   }
 
-  /** @returns The labels associated with this MonitoringInfo. */
+  /** @return The labels associated with this MonitoringInfo. */
   public HashMap<String, String> getLabels() {
     return this.labels;
   }
 
-  /** @returns a MetricName for a specific urn and labels map. */
+  /** @return a MetricName for a specific urn and labels map. */
   public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
   }
