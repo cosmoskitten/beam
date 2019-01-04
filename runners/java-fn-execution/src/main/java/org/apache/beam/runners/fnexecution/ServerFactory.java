@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
@@ -144,7 +145,8 @@ public abstract class ServerFactory {
           NettyServerBuilder.forPort(socket.getPort())
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(1, TimeUnit.SECONDS);
       services
           .stream()
           .forEach(
@@ -200,7 +202,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerDomainSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(1, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(
@@ -249,7 +252,8 @@ public abstract class ServerFactory {
               .channelType(EpollServerSocketChannel.class)
               .workerEventLoopGroup(new EpollEventLoopGroup())
               .bossEventLoopGroup(new EpollEventLoopGroup())
-              .maxMessageSize(Integer.MAX_VALUE);
+              .maxMessageSize(Integer.MAX_VALUE)
+              .permitKeepAliveTime(1, TimeUnit.SECONDS);
       for (BindableService service : services) {
         // Wrap the service to extract headers
         builder.addService(
