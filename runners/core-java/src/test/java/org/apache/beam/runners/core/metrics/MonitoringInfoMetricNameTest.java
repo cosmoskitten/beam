@@ -18,11 +18,9 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
