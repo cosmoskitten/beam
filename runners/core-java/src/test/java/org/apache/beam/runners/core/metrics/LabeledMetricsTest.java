@@ -36,14 +36,10 @@ import org.mockito.Mockito;
 public class LabeledMetricsTest implements Serializable {
 
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
-
-  @After
-  public void tearDown() {
-    MetricsEnvironment.setCurrentContainer(null);
-  }
-
+  
   @Test
   public void testCounterWithoutContainer() {
+    MetricsEnvironment.setCurrentContainer(null);
     assertNull(MetricsEnvironment.getCurrentContainer());
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
