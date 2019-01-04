@@ -46,6 +46,7 @@ try:
 except ImportError:
   pass
 
+
 class WriteToBigtable(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line

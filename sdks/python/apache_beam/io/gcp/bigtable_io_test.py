@@ -65,6 +65,7 @@ class GenerateDirectRows(beam.DoFn):
                           row_value["value"],
                           datetime.datetime.now())
 
+
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
@@ -171,6 +172,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     row_contents.append(row_values)
 
     return row_contents
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
