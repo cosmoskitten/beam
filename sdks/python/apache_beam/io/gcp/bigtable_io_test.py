@@ -33,7 +33,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
 
-
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
