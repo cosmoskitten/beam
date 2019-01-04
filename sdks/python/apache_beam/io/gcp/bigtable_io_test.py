@@ -114,16 +114,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     except ImportError:
       self.STORAGE_TYPE = 2
 
-    google_application = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-    self.GOOGLE_APPLICATION_CREDENTIALS = google_application
-    with open(self.GOOGLE_APPLICATION_CREDENTIALS) as credential_data:
-      data = json.load(credential_data)
-      print("Your Google Application Credentials Data: %s" % (data))
-      print("Your Google Application Credentials Project: %s" % (data['project_id']))
-
-    argv = ['--test-pipeline-options="--runner=DirectRunner"']
-
-    self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
+    self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
