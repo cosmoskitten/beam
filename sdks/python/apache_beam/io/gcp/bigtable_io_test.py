@@ -18,10 +18,6 @@
 """Unittest for GCP Bigtable testing."""
 from __future__ import absolute_import
 
-import json
-
-import os
-
 import logging
 
 import unittest
@@ -99,14 +95,14 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   """
   DEFAULT_TABLE_PREFIX = "python-test"
-  PROJECT_NAME = ""
   INSTANCE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   TABLE_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   CLUSTER_NAME = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
+  project = ""
   LOCATION_ID = "us-east1-b"
   STORAGE_TYPE = ""
-  GOOGLE_APPLICATION_CREDENTIALS = ""
+
   def setUp(self):
     try:
       from google.cloud.bigtable import enums
@@ -114,16 +110,13 @@ class BigtableIOWriteIT(unittest.TestCase):
     except ImportError:
       self.STORAGE_TYPE = 2
 
-    self.test_pipeline = TestPipeline(is_integration_test=True)
+    argv = ['--test-pipeline-options="--runner=DirectRunner"']
+    self.test_pipeline = TestPipeline(is_integration_test=True, argv=argv)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.PROJECT_NAME = self.project
     self.client = Client(project=self.project, admin=True)
     self._create_instance_table()
-
-    print("Your Project Name: %s" % (self.PROJECT_NAME))
-    print("Your Instance Name: %s" % (self.INSTANCE_NAME))
-    print("Your Table Name: %s" % (self.TABLE_NAME))
 
   def tearDown(self):
     instance = self.client.instance(self.INSTANCE_NAME)
@@ -179,7 +172,7 @@ class BigtableIOWriteIT(unittest.TestCase):
     max_versions_rule = column_family.MaxVersionsGCRule(2)
     column_family_id = 'cf1'
     column_families = {column_family_id: max_versions_rule}
-
+    
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
