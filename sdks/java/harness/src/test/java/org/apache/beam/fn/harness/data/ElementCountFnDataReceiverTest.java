@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import static avro.shaded.com.google.common.collect.Iterators.getOnlyElement;
 import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Mockito.mock;
 
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Test;
 
+/** Tests for {@link ElementCountFnDataReceiver}. */
 public class ElementCountFnDataReceiverTest {
 
   /**
@@ -62,9 +62,8 @@ public class ElementCountFnDataReceiverTest {
       MonitoringInfo expected = builder.build();
 
       // Clear the timestamp before compairison.
-      MonitoringInfo result =
-          SimpleMonitoringInfoBuilder.clearTimestamp(
-              getOnlyElement(metricsContainer.getMonitoringInfos().iterator()));
+      MonitoringInfo first = metricsContainer.getMonitoringInfos().iterator().next();
+      MonitoringInfo result = SimpleMonitoringInfoBuilder.clearTimestamp(first);
       assertEquals(expected, result);
     }
   }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import java.util.HashMap;
@@ -98,7 +97,6 @@ public class PCollectionConsumerRegistry {
    * @return the number of underlying consumers for a pCollectionId, some tests may wish to check
    *     this.
    */
-  @VisibleForTesting
   public List<FnDataReceiver<WindowedValue<?>>> getUnderlyingConsumers(String pCollectionId) {
     return pCollectionIdsToConsumers.get(pCollectionId);
   }
