@@ -18,31 +18,25 @@
 package org.apache.beam.sdk.metrics;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * The results of a single current metric. TODO(BEAM-6265): Decouple wire formats from internal
- * formats, remove usage of MetricName.
- */
+/** The results of a single current metric. */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
-public interface MetricResult<T> {
-  /** Return the name of the metric. */
+@AutoValue
+public abstract class DefaultMetricResult<T> implements MetricResult<T> {
+  @Override
   public abstract MetricName getName();
 
-  /** Return the step context to which this metric result applies. */
+  @Override
   public abstract String getStep();
 
-  /**
-   * Return the value of this metric across all successfully completed parts of the pipeline.
-   *
-   * <p>Not all runners will support committed metrics. If they are not supported, the runner will
-   * throw an {@link UnsupportedOperationException}.
-   */
+  @Override
   public abstract T getCommitted();
 
-  /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
+  @Override
   public abstract T getAttempted();
 
   public static <T> DefaultMetricResult<T> create(
