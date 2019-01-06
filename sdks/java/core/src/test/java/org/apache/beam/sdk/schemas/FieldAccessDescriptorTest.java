@@ -60,7 +60,7 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testAllFields() {
     FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withAllFields();
-    assertTrue(fieldAccessDescriptor.resolve(SIMPLE_SCHEMA).allFields());
+    assertTrue(fieldAccessDescriptor.resolve(SIMPLE_SCHEMA).getAllFields());
   }
 
   // test field names
@@ -87,7 +87,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     FieldAccessDescriptor nestedAccess = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertTrue(nestedAccess.allFields());
+    assertTrue(nestedAccess.getAllFields());
   }
 
   @Test
@@ -99,7 +99,7 @@ public class FieldAccessDescriptorTest {
     assertTrue(fieldAccessDescriptor.fieldIdsAccessed().isEmpty());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     FieldAccessDescriptor nestedAccess = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertTrue(nestedAccess.allFields());
+    assertTrue(nestedAccess.getAllFields());
   }
 
   @Test
@@ -149,7 +149,7 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testParseAllFields() {
     FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withFieldNames("*");
-    assertTrue(fieldAccessDescriptor.resolve(SIMPLE_SCHEMA).allFields());
+    assertTrue(fieldAccessDescriptor.resolve(SIMPLE_SCHEMA).getAllFields());
   }
 
   @Test
@@ -161,7 +161,7 @@ public class FieldAccessDescriptorTest {
         "field0", fieldAccessDescriptor.getFieldsAccessed().iterator().next().getFieldName());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     FieldAccessDescriptor nestedAccess = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertTrue(nestedAccess.allFields());
+    assertTrue(nestedAccess.getAllFields());
   }
 
   @Test
@@ -207,7 +207,7 @@ public class FieldAccessDescriptorTest {
         "field0", fieldAccessDescriptor.getFieldsAccessed().iterator().next().getFieldName());
     assertEquals(1, fieldAccessDescriptor.nestedFieldsById().size());
     FieldAccessDescriptor nestedAccess = fieldAccessDescriptor.nestedFieldsById().get(1);
-    assertTrue(nestedAccess.allFields());
+    assertTrue(nestedAccess.getAllFields());
   }
 
   @Test
