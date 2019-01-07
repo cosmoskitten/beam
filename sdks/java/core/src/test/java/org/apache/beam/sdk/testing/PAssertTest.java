@@ -320,10 +320,10 @@ public class PAssertTest implements Serializable {
                     TimestampedValue.of(22, new Instant(-250L))))
             .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
     PAssert.thatSingleton(pcollection)
-        .inEarlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
+        .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
     PAssert.thatSingleton(pcollection)
-        .inEarlyPane(new IntervalWindow(new Instant(-500L), new Instant(0L)))
+        .inOnlyPane(new IntervalWindow(new Instant(-500L), new Instant(0L)))
         .isEqualTo(22);
     pipeline.run();
   }
