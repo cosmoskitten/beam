@@ -56,7 +56,7 @@ class WriteToBigtable(beam.DoFn):
   """
 
   def __init__(self, beam_options):
-    super(self.__class__, self).__init__(beam_options)
+    super(WriteToBigtable, self).__init__(beam_options)
     self.beam_options = beam_options
     self.client = None
     self.instance = None
@@ -71,14 +71,16 @@ class WriteToBigtable(beam.DoFn):
     if self.client is None:
       if self.beam_options.credentials is None:
         self.client = Client(project=self.beam_options.project_id,
-                            admin=True)
+                             admin=True)
       else:
         self.client = Client(project=self.beam_options.project_id,
-                            credentials=self.beam_options.credentials,
-                            admin=True)
-    self.instance = self.client.instance(self.beam_options.instance_id)
-    self.table = self.instance.table(self.beam_options.table_id,
-                                     self._app_profile_id)
+                             credentials=self.beam_options.credentials,
+                             admin=True)
+    if self.instance is None:
+      self.instance = self.client.instance(self.beam_options.instance_id)
+    if self.table is None:
+      self.table = self.instance.table(self.beam_options.table_id,
+                                       self._app_profile_id)
 
     self.batcher = MutationsBatcher(self.table, flush_count=self.flush_count,
                                     max_row_bytes=self.max_row_bytes)
@@ -153,10 +155,11 @@ class BigtableWriteConfiguration(BigtableConfiguration):
 
   def __init__(self, project_id, instance_id, table_id,
                flush_count=None, max_row_bytes=None, app_profile_id=None):
-    super(BigtableWriteConfiguration, self).__init__(project_id,
-                                                     instance_id,
-                                                     table_id,
-                                                     app_profile_id=app_profile_id)
+    BigtableConfiguration.__init__(self,
+                                   project_id,
+                                   instance_id,
+                                   table_id,
+                                   app_profile_id=app_profile_id)
     self.flush_count = flush_count
     self.max_row_bytes = max_row_bytes
 
