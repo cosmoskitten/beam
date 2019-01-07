@@ -3,7 +3,9 @@ layout: section
 title: "Overview: Developing a new I/O connector"
 section_menu: section-menu/documentation.html
 permalink: /documentation/io/developing-io-overview/
-redirect_from: /documentation/io/authoring-overview/
+redirect_from:
+  - /documentation/io/authoring-overview/
+  - /documentation/io/io-toc/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

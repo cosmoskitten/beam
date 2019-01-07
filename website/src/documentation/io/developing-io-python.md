@@ -30,7 +30,7 @@ start, read the [new I/O connector overview]({{ site.baseurl }}/documentation/io
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.
 
-This guide covers using the [Source and FileBasedSink interfaces]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html)
+This guide covers using the [Source and FileBasedSink interfaces](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html)
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
 for information specific to the Java SDK.
@@ -83,7 +83,7 @@ Supply the logic for your new source by creating the following classes:
     a wrapper.
 
 You can find these classes in the
-[apache_beam.io.iobase module]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html).
+[apache_beam.io.iobase module](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html).
 
 ### Implementing the BoundedSource subclass
 
@@ -202,7 +202,7 @@ exposing your sources, and walks through how to create a wrapper.
 
 ## Using the FileBasedSink abstraction
 
-If your data source uses files, you can implement the [FileBasedSink]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.filebasedsink.html)
+If your data source uses files, you can implement the [FileBasedSink](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.filebasedsink.html)
 abstraction to create a file-based sink. For other sinks, use `ParDo`,
 `GroupByKey`, and other transforms offered by the Beam SDK for Python. See the
 [developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
