@@ -138,6 +138,12 @@ build.dependsOn buildWebsite
 createBuildTask( name:'Gcs', useTestConfig: true, baseUrl: getBaseUrl(), dockerWorkDir: dockerWorkDir)
 createBuildTask( name:'Apache', dockerWorkDir: dockerWorkDir)
 
+/**
+ * Use the pull request ID in the URL path, or the git branch when building locally.
+ * This allows staging multiple work trees without clobbering eachother, i.e.
+ * for shared GCS staging, or for locally comparing the differences between
+ * branches.
+ */
 def getBaseUrl() {
   def pullRequestId = System.getenv('ghprbPullId')?.trim()
   if (pullRequestId) { return pullRequestId }
