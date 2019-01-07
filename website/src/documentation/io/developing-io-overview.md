@@ -19,8 +19,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-[Pipeline I/O Table of Contents]({{site.baseurl}}/documentation/io/io-toc/)
-
 # Overview: Developing a new I/O connector
 
 _A guide for users who need to connect to a data store that isn't supported by
@@ -44,12 +42,10 @@ are the recommended steps to get started:
    for additional style guide recommendations.
 
 
-## Implementation options
+## Sources
 
-### Sources
-
-For bounded (batch) sources, there are currently two options for creating a Beam
-source:
+For **bounded (batch) sources**, there are currently two options for creating a
+Beam source:
 
 1. Use `ParDo` and `GroupByKey`.  
 
@@ -60,7 +56,7 @@ source:
 cases where you might want to use a `Source` (such as
 [dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
 
-(Java only) For unbounded (streaming) sources, you must use the `Source`
+(Java only) For **unbounded (streaming) sources**, you must use the `Source`
 interface and extend the `UnboundedSource` abstract subclass. `UnboundedSource`
 supports features that are useful for streaming pipelines, such as
 checkpointing.
@@ -86,9 +82,9 @@ performance:
 * **Progress and size estimation:** `ParDo` can't provide hints to runners about
   progress or the size of data they are reading. Without size estimation of the
   data or progress on your read, the runner doesn't have any way to guess how
-  large your read will be, and thus if it attempts to dynamically allocate
-  workers, it does not have any clues as to how many workers you may need for
-  your pipeline.  
+  large your read will be. Therefore, if the runner attempts to dynamically
+  allocate workers, it does not have any clues as to how many workers you might
+  need for your pipeline.  
 
 * **Dynamic work rebalancing:** `ParDo` does not support dynamic work
   rebalancing, which is used by some readers to improve the processing speed of
@@ -103,15 +99,7 @@ For example, if you'd like to read from a new file format that contains many
 records per file, or if you'd like to read from a key-value store that supports
 read operations in sorted key order.
 
-
-### Sinks
-
-To create a Beam sink, we recommend that you use a single `ParDo` that writes the
-received records to the data store. However, for file-based sinks, you can use
-the `FileBasedSink` interface.
-
-
-## Using ParDo and GroupByKey
+### Using ParDo and GroupByKey
 
 For data stores or file types where the data can be read in parallel, you can
 think of the process as a mini-pipeline. This often consists of two steps:
@@ -134,13 +122,13 @@ runners that support the feature.
 Here are some examples of read transform implementations that use the "reading
 as a mini-pipeline" model when data can be read in parallel:
 
-* **Reading from a file glob** - For example reading all files in "~/data/**"
+* **Reading from a file glob**: For example, reading all files in "~/data/**".
   * Get File Paths `ParDo`: As input, take in a file glob. Produce a
     `PCollection` of strings, each of which is a file path.
   * Reading `ParDo`: Given the `PCollection` of file paths, read each one,
     producing a `PCollection` of records.
 
-* **Reading from a NoSQL Database** (such as Apache HBase) - these databases
+* **Reading from a NoSQL database** (such as Apache HBase): These databases
   often allow reading from ranges in parallel.
   * Determine Key Ranges `ParDo`: As input, receive connection information for
     the database and the key range to read from. Produce a `PCollection` of key
@@ -152,20 +140,29 @@ For data stores or files where reading cannot occur in parallel, reading is a
 simple task that can be accomplished with a single `ParDo`+`GroupByKey`. For
 example:
 
-  * **Reading from a database query** - traditional SQL database queries often
-    can only be read in sequence. The `ParDo` in this case would establish a
+  * **Reading from a database query**: Traditional SQL database queries often
+    can only be read in sequence. In this case, the `ParDo` would establish a
     connection to the database and read batches of records, producing a
     `PCollection` of those records.
 
-  * **Reading from a gzip file** - a gzip file has to be read in order, so it
-    cannot be parallelized. The `ParDo` in this case would open the file and
+  * **Reading from a gzip file**: A gzip file must be read in order, so the read
+    cannot be parallelized. In this case, the `ParDo` would open the file and
     read in sequence, producing a `PCollection` of records from the file.
 
-## Using the Source or FileBasedSink interfaces
 
-If you need to use `Source` or `FileBasedSink`, see our language specific
-implementation guides:
+## Sinks
+
+To create a Beam sink, we recommend that you use a `ParDo` that writes the
+received records to the data store. To develop more complex sinks (for example,
+to support data de-duplication when failures are retried by a runner), use
+`ParDo`, `GroupByKey`, and other available Beam transforms.
+
+For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
+provided by both the Java and Python SDKs. See our language specific
+implementation guides for more details:
 
 * [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
 * [Developing I/O connectors for Python]({{ site.baseurl }}/documentation/io/developing-io-python/)
+
+
 

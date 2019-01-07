@@ -25,83 +25,67 @@ limitations under the License.
 To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
-the implementation of your custom I/O depends on your use case.  See the [new
-I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
-for a general overview of developing a new I/O connector.
+the implementation of your custom I/O depends on your use case. Before you
+start, read the [new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+for an overview of developing a new I/O connector, the available implementation
+options, and how to choose the right option for your use case.
 
-This page describes implementation details for developing sources and sinks
-using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py)
+This guide covers using the [Source and FileBasedSink interfaces]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html)
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
 for information specific to the Java SDK.
-
-## Implementation options
-
-**Sources**
-
-For bounded (batch) sources, there are currently two options for creating a Beam
-source:
-
-1. Use `ParDo` and `GroupByKey`.  
-
-2. Extend the `BoundedSource` and `RangeTracker` interfaces.
-
-`ParDo` is the recommended option, as implementing a `Source` can be tricky.
-The [new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
-covers using `ParDo`, and lists some use cases where you might want to use a
-Source (such as [dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
-
-Splittable DoFn is a new sources framework that is under development and will
-replace the other options for developing bounded and unbounded sources. For more
-information, see the
-[roadmap for multi-SDK connector efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
-
-**Sinks**
-
-To create a Beam sink, we recommend that you use a single `ParDo` that writes the
-received records to the data store. However, for file-based sinks, you can use
-the `FileBasedSink` interface.
 
 ## Basic code requirements {#basic-code-reqs}
 
 Beam runners use the classes you provide to read and/or write data using
 multiple worker instances in parallel. As such, the code you provide for
-`Source` and `Sink` subclasses must meet some basic requirements:
+`Source` and `FileBasedSink` subclasses must meet some basic requirements:
 
-  1. **Serializability:** Your `Source` or `Sink` subclass must be serializable.
-     The service may create multiple instances of your `Source` or `Sink`
-     subclass to be sent to multiple remote workers to facilitate reading or
-     writing in parallel. The *way* the source and sink objects are serialized
-     is runner specific.  
+  1. **Serializability:** Your `Source` or `FileBasedSink` subclass must be
+     serializable.  The service may create multiple instances of your `Source`
+     or `FileBasedSink` subclass to be sent to multiple remote workers to
+     facilitate reading or writing in parallel. The *way* the source and sink
+     objects are serialized is runner specific.  
 
-  1. **Immutability:** Your `Source` or `Sink` subclass must be effectively
-     immutable. You should only use mutable state in your `Source` or `Sink`
-     subclass if you are using lazy evaluation of expensive computations that
-     you need to implement the source.  
+  1. **Immutability:** Your `Source` or `FileBasedSink` subclass must be
+     effectively immutable. You should only use mutable state in your `Source`
+     or `FileBasedSink` subclass if you are using lazy evaluation of expensive
+     computations that you need to implement the source.  
 
   1. **Thread-Safety:** Your code must be thread-safe. The Beam SDK for Python
      provides the `RangeTracker` class to make this easier.  
 
   1. **Testability:** It is critical to exhaustively unit-test all of your
-     `Source` and `Sink` subclasses. A minor implementation error can lead to
-     data corruption or data loss (such as skipping or duplicating records) that
-     can be hard to detect. You can use test harnesses and utility methods
-     available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py)
+     `Source` and `FileBasedSink` subclasses. A minor implementation error can
+     lead to data corruption or data loss (such as skipping or duplicating
+     records) that can be hard to detect. You can use test harnesses and utility
+     methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py)
      to develop tests for your source.
 
 In addition, see the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
 for Beam's transform style guidance.
 
-## Creating a New Source
+## Implementing the Source interface
 
 To create a new data source for your pipeline, you'll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.
 
-You supply the logic for your new source by creating the following classes:
+Supply the logic for your new source by creating the following classes:
 
-* A subclass of `BoundedSource`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module. `BoundedSource` is a source that reads a finite amount of input records. The class describes the data you want to read, including the data's location and parameters (such as how much data to read).
-* A subclass of `RangeTracker`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module. `RangeTracker` is a thread-safe object used to manage a range for a given position type.
+  * A subclass of `BoundedSource`. `BoundedSource` is a source that reads a
+    finite amount of input records. The class describes the data you want to
+    read, including the data's location and parameters (such as how much data to
+    read).
+  * A subclass of `RangeTracker`. `RangeTracker` is a thread-safe object used to
+    manage a range for a given position type.
+  * One or more user-facing wrapper composite transforms (`PTransform`) that
+    wrap read operations. [PTransform wrappers](#ptransform-wrappers) discusses
+    why you should avoid exposing your sources, and walks through how to create
+    a wrapper.
 
-### Implementing the BoundedSource Subclass
+You can find these classes in the
+[apache_beam.io.iobase module]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html).
+
+### Implementing the BoundedSource subclass
 
 `BoundedSource` represents a finite data set from which the service reads, possibly in parallel. `BoundedSource` contains a set of methods that the service uses to split the data set for reading by multiple remote workers.
 
@@ -115,7 +99,7 @@ To implement a `BoundedSource`, your subclass must override the following method
 
 * `read`: This method returns an iterator that reads data from the source, with respect to the boundaries defined by the given `RangeTracker` object.
 
-### Implementing the RangeTracker Subclass
+### Implementing the RangeTracker subclass
 
 A `RangeTracker` is a thread-safe object used to manage the current range and current position of the reader of a `BoundedSource` and protect concurrent access to them.
 
@@ -160,7 +144,7 @@ To implement a `RangeTracker`, you should first familiarize yourself with the fo
 
     Dynamic splitting can happen only at *unconsumed* positions. If the reader just returned a record at offset 42 in a file, dynamic splitting can happen only at offset 43 or beyond. Otherwise, that record could be read twice (by the current reader and the reader of the new task).
 
-#### RangeTracker Methods
+#### RangeTracker methods
 
 To implement a `RangeTracker`, your subclass must override the following methods:
 
@@ -184,7 +168,7 @@ If `split_position` has already been consumed, the method returns `None`.  Other
 
 **Note:** Methods of class `iobase.RangeTracker` may be invoked by multiple threads, hence this class must be made thread-safe, for example, by using a single lock object.
 
-### Convenience Source Base Classes
+### Convenience Source base classes
 
 The Beam SDK for Python contains some convenient abstract base classes to help you easily create new sources.
 
@@ -197,7 +181,7 @@ To create a source for a new file type, you need to create a sub-class of `FileB
 See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
 
 
-## Reading from a New Source
+### Reading from a new Source
 
 The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
@@ -209,110 +193,74 @@ To read data from the source in your pipeline, use the `Read` transform:
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_new_source %}```
 
-**Note:** When you create a source that end-users are going to use, it's recommended that you do not expose the code for the source itself as demonstrated in the example above, but rather use a wrapping `PTransform` instead. See [PTransform wrappers](#ptransform-wrappers) to see how and why to avoid exposing your sources.
+**Note:** When you create a source that end-users are going to use, we
+recommended that you do not expose the code for the source itself as
+demonstrated in the example above. Use a wrapping `PTransform` instead.
+[PTransform wrappers](#ptransform-wrappers) discusses why you should avoid
+exposing your sources, and walks through how to create a wrapper.
 
 
-## Creating a New Sink
+## Using the FileBasedSink abstraction
 
-You should create a new sink if you'd like to use the advanced features that the Sink API provides, such as global initialization and finalization that allow the write operation to appear "atomic" (i.e. either all data is written or none is).
+If your data source uses files, you can implement the [FileBasedSink]({{ site.baseurl }}/releases/pydoc/{{ site.release_latest }}/apache_beam.io.filebasedsink.html)
+abstraction to create a file-based sink. For other sinks, use `ParDo`,
+`GroupByKey`, and other transforms offered by the Beam SDK for Python. See the
+[developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+for more details.
 
-A sink represents a resource that can be written to using the `Write` transform. A parallel write to a sink consists of three phases:
+When using the `FileBasedSink` interface, you must provide the format-specific
+logic that tells the runner how to write bounded data from your pipeline's
+`PCollection`s to an output sink. The runner writes bundles of data in parallel
+using multiple workers.
 
-1. A sequential initialization phase. For example, creating a temporary output directory.
-2. A parallel write phase where workers write bundles of records.
-3. A sequential finalization phase. For example, merging output files.
+Supply the logic for your file-based sink by implementing the following classes:
 
-For example, if you'd like to write to a new table in a database, you should use the Sink API. In this case, the initializer will create a temporary table, the writer will write rows to it, and the finalizer will rename the table to a final location.
+  * A subclass of the abstract base class `FileBasedSink`. `FileBasedSink`
+    describes a location or resource that your pipeline can write to in
+    parallel. To avoid exposing your sink to end-users, use the `_` prefix when
+    creating your `FileBasedSink` subclass.
 
-To create a new data sink for your pipeline, you'll need to provide the format-specific logic that tells the sink how to write bounded data from your pipeline's `PCollection`s to an output sink. The sink writes bundles of data in parallel using multiple workers.
+  * A user-facing wrapper `PTransform` that, as part of the logic, calls
+    `Write` and passes your `FileBasedSink` as a parameter. A user should not
+    need to call `Write` directly.
 
-You supply the writing logic by creating the following classes:
+The `FileBasedSink` abstract base class implements code that is common to Beam
+sinks that interact with files, including:
 
-* A subclass of `Sink`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module.  `Sink` describes the location or resource to write to. Depending on the type of sink, your `Sink` subclass may contain fields such as the path to an output directory on a filesystem or a database table name. `Sink` provides three methods for performing a write operation to the sink it describes. Your subclass of `Sink` must implement these three methods: `initialize_write()`, `open_writer()`, and `finalize_write()`.
+  * Setting file headers and footers
+  * Sequential record writing
+  * Setting the output MIME type
 
-* A subclass of `Writer`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module. `Writer` writes a bundle of elements from an input `PCollection` to your designated data sink. `Writer` defines two methods: `write()`, which writes a single record from the bundle, and `close()`, which is called once at the end of writing a bundle.
+`FileBasedSink` and its subclasses support writing files to any Beam-supported
+`FileSystem` implementations. See the following Beam-provided `FileBasedSink`
+implementation for an example:
 
-### Implementing the Sink Subclass
-
-Your `Sink` subclass describes the location or resource to which your pipeline writes its output. This might include a file system location, the name of a database table or dataset, etc.
-
-To implement a `Sink`, your subclass must override the following methods:
-
-* `initialize_write`: This method performs any necessary initialization before writing to the output location. Services call this method before writing begins. For example, you can use `initialize_write` to create a temporary output directory.
-
-* `open_writer`: This method enables writing a bundle of elements to the sink.
-
-* `finalize_write`:This method finalizes the sink after all data is written to it. Given the result of initialization and an iterable of results from bundle writes, `finalize_write` performs finalization after writing and closes the sink. This method is called after all bundle write operations are complete.
-
-**Caution:** `initialize_write` and `finalize_write` are conceptually called once: at the beginning and end of a `Write` transform.  However, when you implement these methods, you must ensure that they are **idempotent**, as they may be called multiple times on different machines in the case of failure, retry, or for redundancy.
-
-### Implementing the Writer Subclass
-
-Your `Writer` subclass implements the logic for writing a bundle of elements from a `PCollection` to output location defined in your `Sink`. Services may instantiate multiple instances of your `Writer` in different threads on the same worker, so access to any static members or methods must be thread-safe.
-
-To implement a `Writer`, your subclass must override the following abstract methods:
-
-* `write`: This method writes a value to your `Sink` using the current writer.
-
-* `close`: This method closes the current writer.
-
-#### Handling Bundle IDs
-
-When the service calls `Sink.open_writer`, it will pass a unique bundle ID for the records to be written. Your `Writer` must use this bundle ID to ensure that its output does not interfere with that of other `Writer` instances that might have been created in parallel. This is particularly important as the service may retry write operations multiple times in case of failure.
-
-For example, if your `Sink`'s output is file-based, your `Writer` class might use the bundle ID as a filename suffix to ensure that your `Writer` writes its records to a unique output file not used by other `Writer`s. You can then have your `Writer`'s `close` method return that file location as part of the write result.
-
-### Convenience Sink and Writer Base Classes
-
-The Beam SDK for Python contains some convenient abstract base classes to help you create `Source` and `Reader` classes that work with common data storage formats, like files.
-
-#### FileSink
-
-If your data source uses files, you can derive your `Sink` and `Writer` classes from the `FileBasedSink` and `FileBasedSinkWriter` classes, which can be found in the [filebasedsink.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/filebasedsink.py) module. These classes implement code common sinks that interact with files, including:
-
-* Setting file headers and footers
-* Sequential record writing
-* Setting the output MIME type
+  * [TextSink](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py)
 
 
-## Writing to a New Sink
+## PTransform wrappers {#ptransform-wrappers}
 
-Consider a simple key-value storage that writes a given set of key-value pairs to a set of tables. The following is the key-value storage's API:
+When you create a source or sink that end-users will use, avoid exposing your
+source or sink code. To avoid exposing your sources and sinks to end-users, your
+new classes should use the `_` prefix. Then, implement a user-facing
+wrapper `PTransform`.`By exposing your source or sink as a transform, your
+implementation is hidden and can be arbitrarily complex or simple. The greatest
+benefit of not exposing implementation details is that later on, you can add
+additional functionality without breaking the existing implementation for users.
 
-* `connect(url)` Connects to the storage and returns an access token which can be used to perform further operations.
-* `open_table(access_token, table_name)` Creates a table named 'table_name'. Returns a table object.
-* `write_to_table(access_token, table, key, value)` Writes a key, value pair to the given table.
-* `rename_table(access_token, old_name, new_name)` Renames the table named 'old_name' to 'new_name'.
+For example, if your users’ pipelines read from your source using
+`beam.io.Read` and you want to insert a reshard into the pipeline, all
+users would need to add the reshard themselves (using the `GroupByKey`
+transform). To solve this, we recommended that you expose the source as a
+composite `PTransform` that performs both the read operation and the reshard.
 
-The following code demonstrates how to implement the `Sink` class for this key-value storage.
+See Beam’s [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
+for additional information about wrapping with a `PTransform`.
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_new_sink %}```
-
-The following code demonstrates how to implement the `Writer` class for this key-value storage.
-
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_new_writer %}```
-
-The following code demonstrates how to write to the sink using the `Write` transform.
-
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_use_new_sink %}```
-
-**Note:** When you create a sink that end-users are going to use, it's recommended that you do not expose the code for the sink itself as demonstrated in the example above, but rather use a wrapping `PTransform` instead. See [PTransform wrappers](#ptransform-wrappers) to see how and why to avoid exposing your sinks.
-
-
-## PTransform Wrappers
-
-If you create a new source or sink for your own use, such as for learning purposes, you should create them as explained in the sections above and use them as demonstrated in the examples.
-
-However, when you create a source or sink that end-users are going to use, instead of exposing the source or sink itself, you should create a wrapper `PTransform`. Ideally, a source or sink should be exposed to users simply as "something that can be applied in a pipeline", which is actually a `PTransform`. That way, its implementation can be hidden and arbitrarily complex or simple.
-
-The greatest benefit of not exposing the implementation details is that later on you will be able to add additional functionality without breaking the existing implementation for users.  For example, if your users' pipelines read from your source using `beam.io.Read(...)` and you want to insert a reshard into the pipeline, all of your users would need to add the reshard themselves (using the `GroupByKey` transform). To solve this, it's recommended that you expose your source as a composite `PTransform` that performs both the read operation and the reshard.
-
-To avoid exposing your sources and sinks to end-users, it's recommended that you use the `_` prefix when creating your new source and sink classes. Then, create a wrapper `PTransform`.
-
-The following examples change the source and sink from the above sections so that they are not exposed to end-users. For the source, rename `CountingSource` to `_CountingSource`. Then, create the wrapper `PTransform`, called `ReadFromCountingSource`:
+The following examples change the source and sink from the above sections so
+that they are not exposed to end-users. For the source, rename `CountingSource`
+to `_CountingSource`. Then, create the wrapper `PTransform`, called
+`ReadFromCountingSource`:
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_ptransform %}```

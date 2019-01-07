@@ -23,44 +23,16 @@ limitations under the License.
 To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
-the implementation of your custom I/O depends on your use case.  See the [new
-I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
-for a general overview of developing a new I/O connector.
+the implementation of your custom I/O depends on your use case. Before you
+start, read the
+[new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+for an overview of developing a new I/O connector, the available implementation
+options, and how to choose the right option for your use case.
 
-This page describes implementation details for developing sources and sinks
-using Java. The Python SDK offers the same functionality, but uses a slightly
-different API. See [Developing I/O connectors for Python]({{ site.baseurl }}/documentation/io/developing-io-python/)
+This guide covers using the `Source` and `FileBasedSink` interfaces using Java.
+The Python SDK offers the same functionality, but uses a slightly different API.
+See [Developing I/O connectors for Python]({{ site.baseurl }}/documentation/io/developing-io-python/)
 for information specific to the Python SDK.
-
-## Implementation options
-
-**Sources**
-
-For bounded (batch) sources, there are currently two options for creating a Beam
-source:
-
-1. Use `ParDo` and `GroupByKey`.
-2. Use the `Source` interface and extend the `BoundedSource` abstract subclass.
-
-`ParDo` is the recommended option, as implementing a `Source` can be tricky.
-The [developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
-covers using `ParDo`, and lists some use cases where you might want to use a
-Source (such as [dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
-
-For unbounded (streaming) sources, you must use the `Source` interface and extend
-the `UnboundedSource` abstract subclass. `UnboundedSource` supports features that
-are useful for streaming pipelines such as checkpointing.
-
-Splittable DoFn is a new sources framework that is under development and will
-replace the other options for developing bounded and unbounded sources. For more
-information, see the
-[roadmap for multi-SDK connector efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
-
-**Sinks**
-
-To create a Beam sink, we recommend that you use a single `ParDo` that writes the
-received records to the data store. However, for file-based sinks, you can use
-the `FileBasedSink` interface.
 
 ## Basic code requirements {#basic-code-reqs}
 
@@ -137,7 +109,8 @@ Supply the logic for your source by creating the following classes:
     `UnboundedReader`.
 
   * One or more user-facing wrapper composite transforms (`PTransform`) that
-    wrap read operations.
+    wrap read operations. [PTransform wrappers](#ptransform-wrappers) discusses
+    why you should avoid exposing your sources.
 
 
 ### Implementing the Source subclass
@@ -320,13 +293,6 @@ We highly recommended that you unit test your implementations of
 a number of methods for testing your implementation of `splitAtFraction`,
 including exhaustive automatic testing.
 
-### Implementing wrapper transforms
-
-When you create a source that end-users will use, we recommend that
-you do not expose the code for the source itself. Instead, create a wrapping
-`PTransform`. See [PTransform wrappers](#ptransform-wrappers) to see how
-and why to avoid exposing your sources.
-
 ### Convenience Source and Reader base classes
 
 The Beam SDK contains some convenient abstract base classes to help you create
@@ -345,12 +311,13 @@ Beam sources that interact with files, including:
   * Split points
 
 
-## Implementing the FileBasedSink interface
+## Using the FileBasedSink abstraction {#using-filebasedsink}
 
-If your data source uses files, you can use the `FileBasedSink` interface to
-create a file-based sink for your pipeline. If your source is not file-based,
-implement a composite `PTransform` that uses `ParDo`  as discussed in the
+If your data source uses files, you can implement the `FileBasedSink`
+abstraction to create a file-based sink. For other sinks, use `ParDo`,
+`GroupByKey`, and other transforms offered by the Beam SDK for Java. See the
 [developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+for more details.
 
 When using the `FileBasedSink` interface, you must provide the format-specific
 logic that tells the runner how to write bounded data from your pipeline's
@@ -361,55 +328,41 @@ Supply the logic for your file-based sink by implementing the following classes:
 
   * A subclass of the abstract base class `FileBasedSink`. `FileBasedSink`
     describes a location or resource that your pipeline can write to in
-    parallel.
+    parallel. To avoid exposing your sink to end-users, your `FileBasedSink`
+    subclass should be protected or private.
 
   * A user-facing wrapper `PTransform` that, as part of the logic, calls
     [WriteFiles](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/WriteFiles.java)
-    and passes your `FileBasedSink` as a parameter.
+    and passes your `FileBasedSink` as a parameter. A user should not need to
+    call `WriteFiles` directly.
 
-### Implementing the FileBasedSink subclass
-
-You must create a subclass of the abstract base class `FileBasedSink`. To avoid
-exposing your sink to end-users, your class should be protected or private.
-
-The `FileBasedSink` abstract base class implements code common to Beam sources
-that interact with files, including:
+The `FileBasedSink` abstract base class implements code that is common to Beam
+sinks that interact with files, including:
 
   * Setting file headers and footers
   * Sequential record writing
   * Setting the output MIME type
 
-`FileBasedSink` describes a location or resource that your pipeline can write to
-in parallel, so your `FileBasedSink` subclass might contain fields such as the
-resource or file location.
+`FileBasedSink` and its subclasses support writing files to any Beam-supported
+`FileSystem` implementations. See the following Beam-provided `FileBasedSink`
+implementations for examples:
 
-`FileBasedSink` and its subclasses support writing to both local files, and
-writing to files in Google Cloud Storage. For example implementations, see the
-Beam-provided `FileBasedSink` connectors for
-[TextSink](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java) and
-[AvroSink](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroSink.java).
+  * [TextSink](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextSink.java) and
+  * [AvroSink](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroSink.java).
 
-### Implementing the wrapped WriteFiles transform
-
-When you create a `FileBasedSink` that end-users will use, we recommend that you
-do not expose the code for the `FileBasedSink` class. In addition, the user
-should not need to call `WriteFiles` directly. Instead, implement a user-facing
-wrapper `PTransform` that, as part of the logic, calls `WriteFiles` and passes
-your `FileBasedSink` as a parameter. See [PTransform wrappers](#ptransform-wrappers)
-to see how and why to avoid exposing your `FileBasedSink`.
 
 ## PTransform wrappers {#ptransform-wrappers}
 
 When you create a source or sink that end-users will use, avoid exposing your
 source or sink code. To avoid exposing your sources and sinks to end-users, your
-new classes should be protected or private. Then, create a wrapper
-`PTransform`.`By exposing your source or sink as a transform, your
+new classes should be protected or private. Then, implement a user-facing
+wrapper `PTransform`.`By exposing your source or sink as a transform, your
 implementation is hidden and can be arbitrarily complex or simple. The greatest
 benefit of not exposing implementation details is that later on, you can add
 additional functionality without breaking the existing implementation for users.
 
 For example, if your users’ pipelines read from your source using
-`beam.io.Read(...)` and you want to insert a reshard into the pipeline, all
+`read` and you want to insert a reshard into the pipeline, all
 users would need to add the reshard themselves (using the `GroupByKey`
 transform). To solve this, we recommended that you expose the source as a
 composite `PTransform` that performs both the read operation and the reshard.
