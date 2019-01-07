@@ -68,20 +68,20 @@ class WriteToBigtable(beam.DoFn):
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def start_bundle(self):
-    if self.beam_options.credentials is None:
-      self.client = Client(project=self.beam_options.project_id,
-                           admin=True)
-    else:
-      self.client = Client(project=self.beam_options.project_id,
-                           credentials=self.beam_options.credentials,
-                           admin=True)
+    if self.client is None:
+      if self.beam_options.credentials is None:
+        self.client = Client(project=self.beam_options.project_id,
+                            admin=True)
+      else:
+        self.client = Client(project=self.beam_options.project_id,
+                            credentials=self.beam_options.credentials,
+                            admin=True)
     self.instance = self.client.instance(self.beam_options.instance_id)
     self.table = self.instance.table(self.beam_options.table_id,
                                      self._app_profile_id)
 
     self.batcher = MutationsBatcher(self.table, flush_count=self.flush_count,
                                     max_row_bytes=self.max_row_bytes)
-    self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def process(self, row):
     self.written.inc()
@@ -118,11 +118,13 @@ class BigtableConfiguration(object):
   :param table_id: The ID of the table.
   """
 
-  def __init__(self, project_id, instance_id, table_id):
+  def __init__(self, project_id, instance_id, table_id,
+               app_profile_id=None):
     self.project_id = project_id
     self.instance_id = instance_id
     self.table_id = table_id
     self.credentials = None
+    self.app_profile_id = app_profile_id
 
 
 class BigtableWriteConfiguration(BigtableConfiguration):
@@ -153,10 +155,10 @@ class BigtableWriteConfiguration(BigtableConfiguration):
                flush_count=None, max_row_bytes=None, app_profile_id=None):
     super(BigtableWriteConfiguration, self).__init__(project_id,
                                                      instance_id,
-                                                     table_id)
+                                                     table_id,
+                                                     app_profile_id=app_profile_id)
     self.flush_count = flush_count
     self.max_row_bytes = max_row_bytes
-    self.app_profile_id = app_profile_id
 
   def __str__(self):
     import json
