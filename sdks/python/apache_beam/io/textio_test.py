@@ -53,14 +53,49 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
 
 
-def write_data(*args, **kwargs):
-  f_name, data = _write_data(*args, **kwargs)
-  return f_name, [line.decode('utf-8') for line in data]
+def write_data(
+    num_lines, no_data=False, directory=None, prefix=tempfile.template,
+    eol=EOL.LF):
+  all_data = []
+  with tempfile.NamedTemporaryFile(
+      delete=False, dir=directory, prefix=prefix) as f:
+    sep_values = [b'\n', b'\r\n']
+    for i in range(num_lines):
+      data = b'' if no_data else b'line' + str(i).encode()
+      all_data.append(data)
+
+      if eol == EOL.LF:
+        sep = sep_values[0]
+      elif eol == EOL.CRLF:
+        sep = sep_values[1]
+      elif eol == EOL.MIXED:
+        sep = sep_values[i % len(sep_values)]
+      elif eol == EOL.LF_WITH_NOTHING_AT_LAST_LINE:
+        sep = b'' if i == (num_lines - 1) else sep_values[0]
+      else:
+        raise ValueError('Received unknown value %s for eol.' % eol)
+
+      f.write(data + sep)
+
+    return f.name, [line.decode('utf-8') for line in all_data]
 
 
-def write_pattern(*args, **kwargs):
-  f_name, data = _write_pattern(*args, **kwargs)
-  return f_name, [line.decode('utf-8') for line in data]
+def write_pattern(lines_per_file, no_data=False):
+  temp_dir = tempfile.mkdtemp()
+
+  all_data = []
+  file_name = None
+  start_index = 0
+  for i in range(len(lines_per_file)):
+    file_name, data = write_data(lines_per_file[i], no_data=no_data,
+                                 directory=temp_dir, prefix='mytemp')
+    all_data.extend(data)
+    start_index += lines_per_file[i]
+
+  assert file_name
+  return (
+      file_name[:file_name.rfind(os.path.sep)] + os.path.sep + 'mytemp*',
+      all_data)
 
 
 class TextSourceTest(unittest.TestCase):
