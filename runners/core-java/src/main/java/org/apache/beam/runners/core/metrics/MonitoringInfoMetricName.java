@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /**
@@ -36,7 +37,9 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class MonitoringInfoMetricName extends MetricName {
 
   private String urn;
+  @Nullable
   private String name;
+  @Nullable
   private String namespace;
   private HashMap<String, String> labels = new HashMap<String, String>();
 
