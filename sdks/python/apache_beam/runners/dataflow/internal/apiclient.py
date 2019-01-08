@@ -38,6 +38,7 @@ from past.builtins import unicode
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+import six
 
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp.auth import get_service_credentials
@@ -467,6 +468,14 @@ class DataflowApplicationClient(object):
   def stage_file(self, gcs_or_local_path, file_name, stream,
                  mime_type='application/octet-stream'):
     """Stages a file at a GCS or local path with stream-supplied contents."""
+
+    # Important: the MIME library in the Python 3.x standard library used by
+    # apitools causes uploads containing '\r\n' to be corrupted, unless we
+    # patch this regular expression matcher.
+    if six.PY3:
+      import email.generator as email_generator
+      email_generator.NLCRE = re.compile(r'\n')
+
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
       logging.info('Staging file locally to %s', local_path)
