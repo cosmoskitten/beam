@@ -137,15 +137,11 @@ the runner uses to split the data set for reading by multiple workers.
 To implement a `BoundedSource`, your subclass must override the following
 abstract methods:
 
-  * `splitIntoBundles`: The runner uses this method to split your finite data
+  * `split`: The runner uses this method to split your finite data
     into bundles of a given size.  
 
   * `getEstimatedSizeBytes`: The runner uses this method to estimate the total
     size of your data, in bytes.  
-
-  * `producesSortedKeys`: A method to tell the runner whether your source
-    produces key/value pairs in sorted order. If your source doesn't produce
-    key/value pairs, your implementation of this method must return false.  
 
   * `createReader`: Creates the associated `BoundedReader` for this
     `BoundedSource`.
@@ -167,7 +163,7 @@ pipeline.
 To implement an `UnboundedSource`, your subclass must override the following
 abstract methods:
 
-  * `generateInitialSplits`: The runner uses this method to generate a list of
+  * `split`: The runner uses this method to generate a list of
     `UnboundedSource` objects which represent the number of sub-stream instances
     from which the service should read in parallel.
 
@@ -356,7 +352,7 @@ implementations for examples:
 When you create a source or sink that end-users will use, avoid exposing your
 source or sink code. To avoid exposing your sources and sinks to end-users, your
 new classes should be protected or private. Then, implement a user-facing
-wrapper `PTransform`.`By exposing your source or sink as a transform, your
+wrapper `PTransform`. By exposing your source or sink as a transform, your
 implementation is hidden and can be arbitrarily complex or simple. The greatest
 benefit of not exposing implementation details is that later on, you can add
 additional functionality without breaking the existing implementation for users.
