@@ -44,9 +44,6 @@ def print_with_message(msg):
 
 class InteractiveRunnerTest(unittest.TestCase):
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
@@ -62,9 +59,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     _ = pc0 | 'Print3' >> beam.Map(print_with_message('Run3'))
     p.run().wait_until_finish()
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3.')
   def test_wordcount(self):
 
     class WordExtractingDoFn(beam.DoFn):
