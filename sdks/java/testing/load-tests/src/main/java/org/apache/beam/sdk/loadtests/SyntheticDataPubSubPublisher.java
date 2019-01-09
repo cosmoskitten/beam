@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.loadtests;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.Map;
+
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -93,7 +96,7 @@ public class SyntheticDataPubSubPublisher {
       extends SimpleFunction<KV<byte[], byte[]>, PubsubMessage> {
     @Override
     public PubsubMessage apply(KV<byte[], byte[]> input) {
-      return new PubsubMessage(encodeInputElement(input), Collections.emptyMap());
+      return new PubsubMessage(encodeInputElement(input), encodeInputElementToMapOfStrings(input));
     }
   }
 
@@ -103,5 +106,11 @@ public class SyntheticDataPubSubPublisher {
     } catch (CoderException e) {
       throw new RuntimeException(String.format("Couldn't encode element. Exception: %s", e));
     }
+  }
+
+  private static Map<String, String> encodeInputElementToMapOfStrings(KV<byte[], byte[]> input) {
+    String key = new String(input.getKey(), UTF_8);
+    String value = new String(input.getValue(), UTF_8);
+    return ImmutableMap.of(key, value);
   }
 }
