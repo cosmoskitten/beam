@@ -340,31 +340,6 @@ public class MongoDbIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithBothAggregateAndFilter() throws Exception {
-
-    try {
-        List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
-        aggregates.add(
-        new BsonDocument(
-            "$match",
-            new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
-
-        pipeline.apply(
-                MongoDbIO.read()
-                    .withUri("mongodb://localhost:" + port)
-                    .withDatabase(DATABASE)
-                    .withCollection(COLLECTION)
-                    .withFilter("{\"scientist\":\"Einstein\"}")
-                    .withAggregation(aggregates));
-        pipeline.run();
-    } catch (InvalidParameterException e) {
-        return;
-    }
-
-    fail("assertion should have failed");
-  }
-
-  @Test
   public void testReadWithFilterAndProjection() throws Exception {
 
     PCollection<Document> output =
