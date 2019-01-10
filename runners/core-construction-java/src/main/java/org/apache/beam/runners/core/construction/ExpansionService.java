@@ -130,8 +130,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   @VisibleForTesting
-  /*package*/ ExpansionApi.ExpansionResponse expand(
-      ExpansionApi.ExpansionRequest request) {
+  /*package*/ ExpansionApi.ExpansionResponse expand(ExpansionApi.ExpansionRequest request) {
     LOG.info(
         "Expanding '{}' with URN '{}'",
         request.getTransform().getUniqueName(),
