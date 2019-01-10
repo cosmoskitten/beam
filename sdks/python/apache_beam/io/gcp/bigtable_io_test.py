@@ -45,6 +45,7 @@ class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
 
   """
+
   def process(self, row_values):
     """ Process beam pipeline using an element.
 
@@ -59,7 +60,7 @@ class GenerateDirectRows(beam.DoFn):
                           row_value["column_id"],
                           row_value["value"],
                           datetime.datetime.now())
-
+      yield direct_row
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
@@ -77,8 +78,10 @@ class BigtableIOWriteIT(unittest.TestCase):
     try:
       from google.cloud.bigtable import enums
       self.STORAGE_TYPE = enums.StorageType.HDD
+      self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
     except ImportError:
       self.STORAGE_TYPE = 2
+      self.INSTANCE_TYPE = 2
 
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -87,9 +90,8 @@ class BigtableIOWriteIT(unittest.TestCase):
     self._create_instance_table()
 
   def tearDown(self):
-    instance = self.client.instance(self.instance_id)
-    if instance.exists():
-      instance.delete()
+    if self.instance.exists():
+      self.instance.delete()
 
   def test_bigtable_write_python(self):
     number = self.number
@@ -97,13 +99,12 @@ class BigtableIOWriteIT(unittest.TestCase):
                                         self.table_id)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
-
-    row_values = self._generate_mutation_data(number)
+    rows = self._generate_mutation_data(number)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
           pipeline
-          | 'Generate Row Values' >> beam.Create(row_values)
+          | 'Generate Row Values' >> beam.Create(rows)
           | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
           | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
 
@@ -111,7 +112,7 @@ class BigtableIOWriteIT(unittest.TestCase):
       result.wait_until_finish()
 
       assert result.state == PipelineState.DONE
-
+      assert self._check_table(number)
       if not hasattr(result, 'has_job') or result.has_job:
         read_filter = MetricsFilter().with_name('Written Row')
         query_result = result.metrics().query(read_filter)
@@ -124,15 +125,12 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _create_instance_table(self):
     """ Prepare all necesary for the test
     """
-    self.instance = self.client.instance(self.instance_id)
+    self.instance = self.client.instance(self.instance_id,
+                                         instance_type=self.INSTANCE_TYPE)
 
-    serve_nodes = 3
     cluster = self.instance.cluster(self.cluster_id,
                                     self.LOCATION_ID,
-                                    serve_nodes=serve_nodes,
                                     default_storage_type=self.STORAGE_TYPE)
-    if not cluster.exists():
-      cluster.create()
 
     if not self.instance.exists():
       self.instance.create(clusters=[cluster])
@@ -144,6 +142,10 @@ class BigtableIOWriteIT(unittest.TestCase):
     if not self.table.exists():
       self.table.create(column_families=column_families)
 
+  def _check_table(self, number):
+    self.table = self.instance.table(self.table_id)
+    return len(list(self.table.read_rows())) == number
+
   def _generate_mutation_data(self, row_index):
     """ Generate the row data to insert in the table.
     """
@@ -151,12 +153,10 @@ class BigtableIOWriteIT(unittest.TestCase):
     rand = random.choice(string.ascii_letters + string.digits)
     value = ''.join(rand for i in range(100))
     column_family_id = 'cf1'
-    start_index = 0
-    end_index = row_index
-    while start_index < end_index:
+
+    for index in range(row_index):
       row_values = {}
-      start_index += 1
-      key = "beam_key%s" % ('{0:07}'.format(start_index))
+      key = "beam_key%s" % ('{0:07}'.format(index))
       row_values["row_key"] = key
       row_values["row_content"] = []
       for column_id in range(10):
@@ -164,8 +164,7 @@ class BigtableIOWriteIT(unittest.TestCase):
                        "column_id": ('field%s' % column_id).encode('utf-8'),
                        "value": value}
         row_values["row_content"].append(row_content)
-    row_contents.append(row_values)
-
+      row_contents.append(row_values)
     return row_contents
 
 

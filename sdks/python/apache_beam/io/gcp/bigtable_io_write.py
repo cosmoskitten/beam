@@ -37,6 +37,7 @@ those generated rows in the table.
 from __future__ import absolute_import
 
 import apache_beam as beam
+from apache_beam.internal.gcp import auth
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
@@ -57,32 +58,35 @@ class WriteToBigtable(beam.DoFn):
 
   def __init__(self, beam_options):
     super(WriteToBigtable, self).__init__(beam_options)
-    self.beam_options = beam_options
+    self.project_id = beam_options.project_id
+    self.instance_id = beam_options.instance_id
+    self.table_id = beam_options.table_id
+    self.credentials = auth.get_service_credentials()
+
     self.client = None
     self.instance = None
     self.table = None
     self.batcher = None
-    self._app_profile_id = self.beam_options.app_profile_id
-    self.flush_count = self.beam_options.flush_count
-    self.max_row_bytes = self.beam_options.max_row_bytes
+    self.flush_count = None
+    self.max_row_bytes = None
+    self._app_profile_id = beam_options.app_profile_id
     self.written = Metrics.counter(self.__class__, 'Written Row')
+
 
   def start_bundle(self):
     if self.client is None:
-      if self.beam_options.credentials is None:
-        self.client = Client(project=self.beam_options.project_id,
+      if self.credentials is None:
+        self.client = Client(project=self.project_id,
                              admin=True)
       else:
-        self.client = Client(project=self.beam_options.project_id,
-                             credentials=self.beam_options.credentials,
+        self.client = Client(project=self.project_id,
+                             credentials=self.credentials,
                              admin=True)
-    if self.instance is None:
-      self.instance = self.client.instance(self.beam_options.instance_id)
-    if self.table is None:
-      self.table = self.instance.table(self.beam_options.table_id,
-                                       self._app_profile_id)
-
-    self.batcher = MutationsBatcher(self.table, flush_count=self.flush_count,
+    self.instance = self.client.instance(self.instance_id)
+    self.table = self.instance.table(self.table_id,
+                                     self._app_profile_id)
+    self.batcher = MutationsBatcher(self.table,
+                                    flush_count=self.flush_count,
                                     max_row_bytes=self.max_row_bytes)
 
   def process(self, row):
@@ -90,18 +94,19 @@ class WriteToBigtable(beam.DoFn):
     self.batcher.mutate(row)
 
   def finish_bundle(self):
-    return self.batcher.flush()
+    result = self.batcher.flush()
+    self.batcher = None
+    return result
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self.beam_options.project_id,
+    return {'projectId': DisplayDataItem(self.project_id,
                                          label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options.instance_id,
+            'instanceId': DisplayDataItem(self.instance_id,
                                           label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options.table_id,
+            'tableId': DisplayDataItem(self.table_id,
                                        label='Bigtable Table Id'),
-            'bigtableOptions': DisplayDataItem(str(self.beam_options),
-                                               label='Bigtable Options',
-                                               key='bigtableOptions'),
+            'appProfileId': DisplayDataItem(self._app_profile_id,
+                                            label='Bigtable App Profile Id')
            }
 
 
@@ -125,47 +130,31 @@ class BigtableConfiguration(object):
     self.project_id = project_id
     self.instance_id = instance_id
     self.table_id = table_id
-    self.credentials = None
     self.app_profile_id = app_profile_id
 
 
 class BigtableWriteConfiguration(BigtableConfiguration):
   """ BigTable Write Configuration Variables.
+  
+  :type project_id: :class:`str` or :func:`unicode <unicode>`
+  :param project_id: (Optional) The ID of the project which owns the
+    instances, tables and data. If not provided, will
+    attempt to determine from the environment.
 
-  :type flush_count: int
-  :param flush_count: (Optional) Max number of rows to flush. If it
-    reaches the max number of rows it calls finish_batch() to mutate the
-    current row batch. Default is FLUSH_COUNT (1000 rows).
+  :type instance_id: str
+  :param instance_id: The ID of the instance.
 
-  :type max_mutations: int
-  :param max_mutations: (Optional)  Max number of row mutations to flush.
-    If it reaches the max number of row mutations it calls finish_batch()
-    to mutate the current row batch. Default is MAX_MUTATIONS
-    (100000 mutations).
-
-  :type max_row_bytes: int
-  :param max_row_bytes: (Optional) Max number of row mutations size
-    to flush. If it reaches the max number of row mutations size it
-    calls finish_batch() to mutate the current row batch. Default is
-    MAX_ROW_BYTES (5 MB).
+  :type table_id: str
+  :param table_id: The ID of the table.
 
   :type app_profile_id: str
   :param app_profile_id: (Optional) The unique name of the AppProfile.
   """
 
   def __init__(self, project_id, instance_id, table_id,
-               flush_count=None, max_row_bytes=None, app_profile_id=None):
+               app_profile_id=None):
     BigtableConfiguration.__init__(self,
                                    project_id,
                                    instance_id,
                                    table_id,
                                    app_profile_id=app_profile_id)
-    self.flush_count = flush_count
-    self.max_row_bytes = max_row_bytes
-
-  def __str__(self):
-    import json
-    ret = {'project_id': self.project_id,
-           'instance_id': self.instance_id,
-           'table_id': self.table_id,}
-    return json.dumps(ret)
