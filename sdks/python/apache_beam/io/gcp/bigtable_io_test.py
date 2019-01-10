@@ -60,7 +60,7 @@ class GenerateDirectRows(beam.DoFn):
                           row_value["column_id"],
                           row_value["value"],
                           datetime.datetime.now())
-      yield direct_row
+    yield direct_row
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
