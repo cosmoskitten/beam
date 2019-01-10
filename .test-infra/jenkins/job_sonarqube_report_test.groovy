@@ -25,7 +25,7 @@ job('beam_sonarqube_report_test') {
   }
 
   commonJobProperties.setPullRequestBuildTrigger(
-    this,
+    delegate,
     "test github pull request reporting",
     "run sq report test",
     true) // only trigger on phrase
