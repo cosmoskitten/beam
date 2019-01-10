@@ -22,7 +22,7 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
-from apache_beam.runners.portability import construction_service
+from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import ptransform
@@ -51,7 +51,7 @@ class ExternalTransformTest(unittest.TestCase):
           | beam.ExternalTransform(
               'simple',
               None,
-              construction_service.ConstructionServiceServicer()))
+              expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['Simple(a)', 'Simple(b)']))
 
   def test_multi(self):
@@ -80,7 +80,7 @@ class ExternalTransformTest(unittest.TestCase):
       main2 = p | 'Main2' >> beam.Create(['x', 'yy', 'zzz'], reshuffle=False)
       side = p | 'Side' >> beam.Create(['s'])
       res = dict(main1=main1, main2=main2, side=side) | beam.ExternalTransform(
-          'multi', None, construction_service.ConstructionServiceServicer())
+          'multi', None, expansion_service.ExpansionServiceServicer())
       assert_that(res['main'], equal_to(['as', 'bbs', 'xs', 'yys', 'zzzs']))
       assert_that(res['side'], equal_to(['ss']), label='CheckSide')
 
@@ -107,7 +107,7 @@ class ExternalTransformTest(unittest.TestCase):
           | beam.Create(['a', 'bb'], reshuffle=False)
           | beam.ExternalTransform(
               'payload', b's',
-              construction_service.ConstructionServiceServicer()))
+              expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
 
   def test_nested(self):
@@ -122,10 +122,10 @@ class ExternalTransformTest(unittest.TestCase):
         else:
           a = p | 'A' >> beam.ExternalTransform(
               'fib', bytes(self._level - 1),
-              construction_service.ConstructionServiceServicer())
+              expansion_service.ExpansionServiceServicer())
           b = p | 'B' >> beam.ExternalTransform(
               'fib', bytes(self._level - 2),
-              construction_service.ConstructionServiceServicer())
+              expansion_service.ExpansionServiceServicer())
           return (
               (a, b)
               | beam.Flatten()

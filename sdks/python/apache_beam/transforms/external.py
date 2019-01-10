@@ -26,7 +26,7 @@ import threading
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_construction_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
@@ -90,7 +90,7 @@ class ExternalTransform(ptransform.PTransform):
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
     components = context.to_runner_api()
-    request = beam_construction_api_pb2.ConstructionRequest(
+    request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
         namespace=self._namespace,
         transform=transform_proto)

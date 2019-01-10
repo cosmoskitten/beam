@@ -23,27 +23,27 @@
 
 syntax = "proto3";
 
-package org.apache.beam.model.construction.v1;
+package org.apache.beam.model.expansion.v1;
 
 option go_package = "construction_v1";
-option java_package = "org.apache.beam.model.construction.v1";
-option java_outer_classname = "ConstructionApi";
+option java_package = "org.apache.beam.model.expansion.v1";
+option java_outer_classname = "ExpansionApi";
 
 import "beam_runner_api.proto";
 
-message ConstructionRequest {
+message ExpansionRequest {
   org.apache.beam.model.pipeline.v1.Components components = 1;
   org.apache.beam.model.pipeline.v1.PTransform transform = 2;
   string namespace = 3;
 }
 
-message ConstructionResponse {
+message ExpansionResponse {
   org.apache.beam.model.pipeline.v1.Components components = 1;
   string transform_id = 2;
   string error = 10;
 }
 
 // Job Service for constructing pipelines
-service ConstructionService {
-  rpc Construct (ConstructionRequest) returns (ConstructionResponse);
+service ExpansionService {
+  rpc Construct (ExpansionRequest) returns (ExpansionResponse);
 }

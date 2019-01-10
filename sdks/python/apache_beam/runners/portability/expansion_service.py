@@ -27,8 +27,8 @@ import time
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
-from apache_beam.portability.api import beam_construction_api_pb2
-from apache_beam.portability.api import beam_construction_api_pb2_grpc
+from apache_beam.portability.api import beam_expansion_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability import python_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import portable_runner
@@ -36,8 +36,8 @@ from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
 
 
-class ConstructionServiceServicer(
-    beam_construction_api_pb2_grpc.ConstructionServiceServicer):
+class ExpansionServiceServicer(
+    beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
 
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
@@ -89,12 +89,12 @@ class ConstructionServiceServicer(
           request.transform.inputs)
       for transform_id in pipeline_proto.root_transform_ids:
         del pipeline_proto.components.transforms[transform_id]
-      return beam_construction_api_pb2.ConstructionResponse(
+      return beam_expansion_api_pb2.ExpansionResponse(
           components=pipeline_proto.components,
           transform_id=expanded_transform_id)
 
     except Exception:  # pylint: disable=broad-except
-      return beam_construction_api_pb2.ConstructionResponse(
+      return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
 
 
@@ -104,8 +104,8 @@ def main(unused_argv):
                       type=int,
                       help='port on which to serve the job api')
   options = parser.parse_args()
-  construction_servicer = ConstructionServiceServicer()
-  port = construction_servicer.start_grpc_server(options.port)
+  expansion_servicer = ExpansionServiceServicer()
+  port = expansion_servicer.start_grpc_server(options.port)
   while True:
     logging.info('Listening for construction requests at %d', port)
     time.sleep(300)

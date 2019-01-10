@@ -27,15 +27,15 @@ import com.google.common.collect.Iterables;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.model.construction.v1.ConstructionApi;
+import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.junit.Test;
 
-/** Tests for {@link ConstructionService}. */
-public class ConstructionServiceTest {
+/** Tests for {@link ExpansionService}. */
+public class ExpansionServiceTest {
 
   private static final String TEST_URN = "test:beam:transforms:count";
 
@@ -43,13 +43,13 @@ public class ConstructionServiceTest {
 
   private static final String TEST_NAMESPACE = "namespace";
 
-  private ConstructionService constructionService = new ConstructionService();
+  private ExpansionService constructionService = new ExpansionService();
 
   /** Registers a single test transformation. */
-  @AutoService(ConstructionService.ConstructionServiceRegistrar.class)
-  public static class TestTransforms implements ConstructionService.ConstructionServiceRegistrar {
+  @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
+  public static class TestTransforms implements ExpansionService.ExpansionServiceRegistrar {
     @Override
-    public Map<String, ConstructionService.TransformProvider> knownTransforms() {
+    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(TEST_URN, spec -> Count.perElement());
     }
   }
@@ -64,8 +64,8 @@ public class ConstructionServiceTest {
             Iterables.getOnlyElement(pipelineProto.getComponents().getTransformsMap().values())
                 .getOutputsMap()
                 .values());
-    ConstructionApi.ConstructionRequest request =
-        ConstructionApi.ConstructionRequest.newBuilder()
+    ExpansionApi.ExpansionRequest request =
+        ExpansionApi.ExpansionRequest.newBuilder()
             .setComponents(pipelineProto.getComponents())
             .setTransform(
                 RunnerApi.PTransform.newBuilder()
@@ -74,7 +74,7 @@ public class ConstructionServiceTest {
                     .putInputs("input", inputPcollId))
             .setNamespace(TEST_NAMESPACE)
             .build();
-    ConstructionApi.ConstructionResponse response = constructionService.construct(request);
+    ExpansionApi.ExpansionResponse response = constructionService.construct(request);
     RunnerApi.PTransform expandedTransform =
         response.getComponents().getTransformsOrThrow(response.getTransformId());
     assertEquals(TEST_NAME, expandedTransform.getUniqueName());

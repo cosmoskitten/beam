@@ -28,8 +28,8 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.model.construction.v1.ConstructionApi;
-import org.apache.beam.model.construction.v1.ConstructionServiceGrpc;
+import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -46,9 +46,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A service that allows pipeline construction from a remote SDK. */
-public class ConstructionService extends ConstructionServiceGrpc.ConstructionServiceImplBase {
+public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ConstructionService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExpansionService.class);
 
   /**
    * A registrar that creates {@link TransformProvider} instances from {@link
@@ -60,7 +60,7 @@ public class ConstructionService extends ConstructionServiceGrpc.ConstructionSer
    * <p>It is optional but recommended to use one of the many build time tools such as {@link
    * AutoService} to generate the necessary META-INF files automatically.
    */
-  public interface ConstructionServiceRegistrar {
+  public interface ExpansionServiceRegistrar {
     Map<String, TransformProvider> knownTransforms();
   }
 
@@ -122,16 +122,16 @@ public class ConstructionService extends ConstructionServiceGrpc.ConstructionSer
 
   private Map<String, TransformProvider> loadRegisteredTransforms() {
     ImmutableMap.Builder<String, TransformProvider> registeredTransforms = ImmutableMap.builder();
-    for (ConstructionServiceRegistrar registrar :
-        ServiceLoader.load(ConstructionServiceRegistrar.class)) {
+    for (ExpansionServiceRegistrar registrar :
+        ServiceLoader.load(ExpansionServiceRegistrar.class)) {
       registeredTransforms.putAll(registrar.knownTransforms());
     }
     return registeredTransforms.build();
   }
 
   @VisibleForTesting
-  /*package*/ ConstructionApi.ConstructionResponse construct(
-      ConstructionApi.ConstructionRequest request) {
+  /*package*/ ExpansionApi.ExpansionResponse construct(
+      ExpansionApi.ExpansionRequest request) {
     LOG.info(
         "Expanding '{}' with URN '{}'",
         request.getTransform().getUniqueName(),
@@ -185,7 +185,7 @@ public class ConstructionService extends ConstructionServiceGrpc.ConstructionSer
     RunnerApi.Components components = pipelineProto.getComponents();
     LOG.debug("Expanded to {}", components.getTransformsOrThrow(expandedTransformId));
 
-    return ConstructionApi.ConstructionResponse.newBuilder()
+    return ExpansionApi.ExpansionResponse.newBuilder()
         .setComponents(components)
         .setTransformId(expandedTransformId)
         .build();
@@ -193,8 +193,8 @@ public class ConstructionService extends ConstructionServiceGrpc.ConstructionSer
 
   @Override
   public void construct(
-      ConstructionApi.ConstructionRequest request,
-      StreamObserver<ConstructionApi.ConstructionResponse> responseObserver) {
+      ExpansionApi.ExpansionRequest request,
+      StreamObserver<ExpansionApi.ExpansionResponse> responseObserver) {
     try {
       responseObserver.onNext(construct(request));
       responseObserver.onCompleted();
@@ -207,7 +207,7 @@ public class ConstructionService extends ConstructionServiceGrpc.ConstructionSer
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting construction service at localhost:" + port);
-    Server server = ServerBuilder.forPort(port).addService(new ConstructionService()).build();
+    Server server = ServerBuilder.forPort(port).addService(new ExpansionService()).build();
     server.start();
     server.awaitTermination();
   }
