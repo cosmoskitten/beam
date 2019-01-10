@@ -99,12 +99,12 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def GetStateStream(self, request, context=None):
     job = self._jobs[request.job_id]
     for state in job.GetStateStream():
-      yield state
+      yield beam_job_api_pb2.GetJobStateResponse(state=state)
 
   def GetMessageStream(self, request, context=None):
     job = self._jobs[request.job_id]
     for log in job.GetMessageStream():
-      yield log
+      yield beam_job_api_pb2.JobMessagesResponse(message_response=log)
 
 
 class SubprocessSdkWorker(object):
@@ -178,12 +178,7 @@ class BeamJob(threading.Thread):
     self._state_notifier.acquire()
     self._log_notifier.acquire()
 
-    self._state_changes.append(
-        beam_job_api_pb2.GetJobStateResponse(state=new_state))
-    self._logs.append(
-        beam_job_api_pb2.JobMessagesResponse(
-            state_response=beam_job_api_pb2.GetJobStateResponse(
-                state=new_state)))
+    self._state_changes.append(new_state)
     self._state = new_state
 
     self._log_notifier.notify_all()
@@ -328,11 +323,10 @@ class JobLogHandler(logging.Handler):
 
   def emit(self, record):
     if self._logged_thread is threading.current_thread():
-      msg = beam_job_api_pb2.JobMessagesResponse(
-          message_response=beam_job_api_pb2.JobMessage(
+      msg = beam_job_api_pb2.JobMessage(
               message_id=self._next_id(),
               time=time.strftime('%Y-%m-%d %H:%M:%S.',
                                  time.localtime(record.created)),
               importance=self.LOG_LEVEL_MAP[record.levelno],
-              message_text=self.format(record)))
+              message_text=self.format(record))
       self._job.write_log(msg)
