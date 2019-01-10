@@ -62,6 +62,7 @@ class GenerateDirectRows(beam.DoFn):
                           datetime.datetime.now())
       yield direct_row
 
+
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
   """ Bigtable Write Connector Test
