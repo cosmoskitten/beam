@@ -18,8 +18,11 @@
 import CommonJobProperties as commonJobProperties
 
 job('beam_sonarqube_report_test') {
-
-  withSonarQubeEnv('ASF Sonar Analysis')
+  wrappers {
+    withSonarQubeEnv {
+      installationName('ASF Sonar Analysis')
+    }
+  }
 
   commonJobProperties.setPullRequestBuildTrigger(
     this,
