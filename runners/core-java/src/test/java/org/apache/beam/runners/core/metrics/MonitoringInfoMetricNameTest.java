@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -70,6 +71,37 @@ public class MonitoringInfoMetricNameTest implements Serializable {
 
     assertEquals(name, name2);
     assertEquals(name.hashCode(), name2.hashCode());
+  }
+
+  @Test
+  public void testNotEqualsDiffLabels() {
+    HashMap<String, String> labels = new HashMap<String, String>();
+    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+
+    // Reconstruct and test equality and hash code equivalence
+    urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    labels = new HashMap<String, String>();
+    labels.put("label", "value1");
+    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+
+    assertNotEquals(name, name2);
+    assertNotEquals(name.hashCode(), name2.hashCode());
+  }
+
+  @Test
+  public void testNotEqualsDiffUrn() {
+    HashMap<String, String> labels = new HashMap<String, String>();
+    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+
+    // Reconstruct and test equality and hash code equivalence
+    urn = "differentUrn";
+    labels = new HashMap<String, String>();
+    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+
+    assertNotEquals(name, name2);
+    assertNotEquals(name.hashCode(), name2.hashCode());
   }
 
   @Test

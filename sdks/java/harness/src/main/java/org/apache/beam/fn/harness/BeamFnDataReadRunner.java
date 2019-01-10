@@ -128,7 +128,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final FnDataReceiver<WindowedValue<OutputT>> receiver;
+  private final FnDataReceiver<WindowedValue<OutputT>> consumer;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClient;
   private final Coder<WindowedValue<OutputT>> coder;
@@ -150,7 +150,7 @@ public class BeamFnDataReadRunner<OutputT> {
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClient = beamFnDataClient;
-    this.receiver = consumer;
+    this.consumer = consumer;
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
@@ -173,7 +173,7 @@ public class BeamFnDataReadRunner<OutputT> {
             apiServiceDescriptor,
             LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
             coder,
-            receiver);
+            consumer);
   }
 
   public void blockTillReadFinishes() throws Exception {

@@ -25,13 +25,11 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
 @RunWith(JUnit4.class)
@@ -39,11 +37,10 @@ public class PCollectionConsumerRegistryTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void initMocks() {
-    MockitoAnnotations.initMocks(this);
-  }
-
+  /**
+   * Test that the counter increments only once when multiple consumers of same pCollection read the
+   * same element.
+   */
   @Test
   public void multipleConsumersSamePCollection() throws Exception {
     final String pCollectionA = "pCollectionA";
@@ -65,8 +62,7 @@ public class PCollectionConsumerRegistryTest {
       wrapperConsumer.accept(element);
     }
 
-    // Check that the underlying consumers are each invoked per element
-    // and the multiplexing one is invoked only once.
+    // Check that the underlying consumers are each invoked per element.
     verify(consumerA1, times(numElements)).accept(element);
     verify(consumerA2, times(numElements)).accept(element);
 
@@ -75,7 +71,7 @@ public class PCollectionConsumerRegistryTest {
   }
 
   @Test
-  public void throwsRuntimeExceptionIfRegisteredLate() throws Exception {
+  public void throwsOnRegisteringAfterMultiplexingConsumerWasInitialized() throws Exception {
     final String pCollectionA = "pCollectionA";
 
     PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
@@ -85,8 +81,6 @@ public class PCollectionConsumerRegistryTest {
     consumers.register(pCollectionA, consumerA1);
     consumers.getMultiplexingConsumer(pCollectionA);
 
-    // Should throw an exception now if we try to register another after calling
-    // getMultiplexingConsumer.
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("cannot be register()-d after");
     consumers.register(pCollectionA, consumerA2);

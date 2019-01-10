@@ -37,14 +37,13 @@ public class LabeledMetricsTest implements Serializable {
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testCounterWithoutContainer() {
+  public void testCounterDoesNotFailOperationsWhenNoMetricsContainerPresent() {
     MetricsEnvironment.setCurrentContainer(null);
     assertNull(MetricsEnvironment.getCurrentContainer());
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
 
-    // Should not fail even though there is no metrics container.
     Counter counter = LabeledMetrics.counter(name);
     counter.inc();
     counter.inc(5L);
@@ -53,7 +52,7 @@ public class LabeledMetricsTest implements Serializable {
   }
 
   @Test
-  public void testCounterObtainedFromContainer() {
+  public void testOperationsUpdateCounterFromContainerWhenContainerIsPresent() {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
