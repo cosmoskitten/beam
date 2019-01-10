@@ -72,7 +72,6 @@ class WriteToBigtable(beam.DoFn):
     self._app_profile_id = beam_options.app_profile_id
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
-
   def start_bundle(self):
     if self.client is None:
       if self.credentials is None:
@@ -135,7 +134,7 @@ class BigtableConfiguration(object):
 
 class BigtableWriteConfiguration(BigtableConfiguration):
   """ BigTable Write Configuration Variables.
-  
+
   :type project_id: :class:`str` or :func:`unicode <unicode>`
   :param project_id: (Optional) The ID of the project which owns the
     instances, tables and data. If not provided, will
