@@ -75,8 +75,7 @@ public class ExpansionServiceTest {
             .setNamespace(TEST_NAMESPACE)
             .build();
     ExpansionApi.ExpansionResponse response = expansionService.expand(request);
-    RunnerApi.PTransform expandedTransform =
-        response.getComponents().getTransformsOrThrow(response.getTransformId());
+    RunnerApi.PTransform expandedTransform = response.getTransform();
     assertEquals(TEST_NAME, expandedTransform.getUniqueName());
     // Verify it has the right input.
     assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));

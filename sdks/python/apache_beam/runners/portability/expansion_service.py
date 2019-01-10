@@ -84,14 +84,15 @@ class ExpansionServiceServicer(
       pipeline_proto = pipeline.to_runner_api(context=context)
       # TODO(BEAM-1833): Use named inputs internally.
       expanded_transform_id = context.transforms.get_id(expanded_transform)
-      pipeline_proto.components.transforms[expanded_transform_id].inputs.clear()
-      pipeline_proto.components.transforms[expanded_transform_id].inputs.update(
-          request.transform.inputs)
+      expanded_transform_proto = pipeline_proto.components.transforms.pop(
+          expanded_transform_id)
+      expanded_transform_proto.inputs.clear()
+      expanded_transform_proto.inputs.update(request.transform.inputs)
       for transform_id in pipeline_proto.root_transform_ids:
         del pipeline_proto.components.transforms[transform_id]
       return beam_expansion_api_pb2.ExpansionResponse(
           components=pipeline_proto.components,
-          transform_id=expanded_transform_id)
+          transform=expanded_transform_proto)
 
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(

@@ -186,8 +186,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     LOG.debug("Expanded to {}", components.getTransformsOrThrow(expandedTransformId));
 
     return ExpansionApi.ExpansionResponse.newBuilder()
-        .setComponents(components)
-        .setTransformId(expandedTransformId)
+        .setComponents(components.toBuilder().removeTransforms(expandedTransformId))
+        .setTransform(components.getTransformsOrThrow(expandedTransformId))
         .build();
   }
 

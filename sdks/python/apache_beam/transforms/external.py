@@ -98,9 +98,7 @@ class ExternalTransform(ptransform.PTransform):
     if response.error:
       raise RuntimeError(response.error)
     self._expanded_components = response.components
-    self._expanded_transform_id = response.transform_id
-    expanded_transform = self._expanded_components.transforms[
-        self._expanded_transform_id]
+    self._expanded_transform = response.transform
     result_context = pipeline_context.PipelineContext(
         response.components, use_fake_coders=True)
     def fix_output(pcoll, tag):
@@ -109,7 +107,7 @@ class ExternalTransform(ptransform.PTransform):
       return pcoll
     self._outputs = {
         tag: fix_output(result_context.pcollections.get_by_id(pcoll_id), tag)
-        for tag, pcoll_id in expanded_transform.outputs.items()
+        for tag, pcoll_id in self._expanded_transform.outputs.items()
     }
     return self._output_to_pvalueish(self._outputs)
 
@@ -120,14 +118,12 @@ class ExternalTransform(ptransform.PTransform):
       return output_dict
 
   def to_runner_api_transform(self, context, full_label):
-    expanded_transform = self._expanded_components.transforms[
-        self._expanded_transform_id]
     pcoll_renames = {}
     for tag, pcoll in self._inputs.items():
-      pcoll_renames[expanded_transform.inputs[tag]] = (
+      pcoll_renames[self._expanded_transform.inputs[tag]] = (
           context.pcollections.get_id(pcoll))
     for tag, pcoll in self._outputs.items():
-      pcoll_renames[expanded_transform.outputs[tag]] = (
+      pcoll_renames[self._expanded_transform.outputs[tag]] = (
           context.pcollections.get_id(pcoll))
 
     for id, proto in self._expanded_components.coders.items():
@@ -161,13 +157,9 @@ class ExternalTransform(ptransform.PTransform):
                   for tag, pcoll in proto.inputs.items()},
           outputs={tag: pcoll_renames.get(pcoll, pcoll)
                    for tag, pcoll in proto.outputs.items()})
-      if id == self._expanded_transform_id:
-        # Context updated by caller.
-        to_return = new_proto
-      else:
-        context.transforms.put_proto(id, new_proto)
+      context.transforms.put_proto(id, new_proto)
 
-    return to_return
+    return self._expanded_transform
 
 
 def memoize(func):

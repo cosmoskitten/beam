@@ -555,7 +555,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
     def register(constructor):
-      print(constructor)
       if isinstance(constructor, type):
         constructor.from_runner_api_parameter = register(
             constructor.from_runner_api_parameter)
