@@ -18,6 +18,13 @@
 import CommonJobProperties as commonJobProperties
 
 job('beam_sonarqube_report_test') {
+  commonJobProperties.setTopLevelMainJobProperties(
+        delegate, 'master', 20,
+        true) // needed for included regions PR triggering; see [JENKINS-23606]
+
+  /**
+   * https://issues.jenkins-ci.org/browse/JENKINS-42741
+   */
   wrappers {
     withSonarQubeEnv {
       installationName('ASF Sonar Analysis')
