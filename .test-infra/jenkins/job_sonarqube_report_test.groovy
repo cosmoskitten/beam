@@ -40,6 +40,12 @@ job('beam_sonarqube_report_test') {
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
   }
+  
+  publishers {
+    sonar {
+      branch('AddCoverage')
+    }
+  }
 
   steps {
     gradle {
