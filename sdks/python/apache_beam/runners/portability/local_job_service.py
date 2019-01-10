@@ -159,6 +159,9 @@ class BeamJob(threading.Thread):
     self._logs = []
     self._final_log_count = -1
     self._state_changes = []
+    self._final_state_count = -1
+    self._state_notifier = threading.Condition()
+    self._log_notifier = threading.Condition()
     self.state = beam_job_api_pb2.JobState.STARTING
 
   @property
@@ -172,18 +175,44 @@ class BeamJob(threading.Thread):
     This will inform GetStateStream and GetMessageStream of the new state.
     """
 
-    self._state_changes.append(new_state)
+    self._state_notifier.acquire()
+    self._log_notifier.acquire()
+
+    self._state_changes.append(
+        beam_job_api_pb2.GetJobStateResponse(state=new_state))
     self._logs.append(
         beam_job_api_pb2.JobMessagesResponse(
             state_response=beam_job_api_pb2.GetJobStateResponse(
                 state=new_state)))
     self._state = new_state
 
+    self._log_notifier.notify_all()
+    self._state_notifier.notify_all()
+
+    self._log_notifier.release()
+    self._state_notifier.release()
+
+  def write_log(self, log):
+    self._log_notifier.acquire()
+    self._logs.append(log)
+    self._log_notifier.notify_all()
+    self._log_notifier.release()
+
   def _cleanup(self):
+    self._state_notifier.acquire()
+    self._log_notifier.acquire()
+
     self._final_log_count = len(self._logs)
+    self._final_state_count = len(self._state_changes)
+
+    self._state_notifier.notify_all()
+    self._log_notifier.notify_all()
+
+    self._log_notifier.release()
+    self._state_notifier.release()
 
   def run(self):
-    with JobLogHandler(self._logs):
+    with JobLogHandler(self):
       try:
         fn_api_runner.FnApiRunner().run_via_runner_api(self._pipeline_proto)
         logging.info('Successfully completed job.')
@@ -205,36 +234,52 @@ class BeamJob(threading.Thread):
       self.state = beam_job_api_pb2.JobState.CANCELLED
       self._cleanup()
 
+  def _stream_array(self, array, notifier, final_count):
+    """Yields all elements in array until array length reaches final_count.
+
+    This method streams all elements in array. It uses the notifier to wait
+    until new messages are received. The streams ends when this method emits
+    up to final_count number of elements.
+    """
+    index = 0
+
+    # Pull all  changes until the job finishes.
+    while index != self.__dict__[final_count]:
+      notifier.acquire()
+      notifier.wait(5)
+      while index < len(array):
+        yield array[index]
+        index += 1
+      notifier.release()
+
   def GetStateStream(self):
-    """Returns all past and future states.
+    """Yields all past and future states.
 
     This method guarentees that the consumer will see all job state transitions.
     """
-    state_index = 0
 
     # Pull all state changes until the job finishes.
-    while self.state not in TERMINAL_STATES:
-      while state_index < len(self._state_changes):
-        state = self._state_changes[state_index]
-        yield beam_job_api_pb2.GetJobStateResponse(state=state)
-        state_index += 1
-    yield beam_job_api_pb2.GetJobStateResponse(state=self.state)
+    for state in self._stream_array(
+        array=self._state_changes,
+        notifier=self._state_notifier,
+        final_count='_final_state_count'):
+      yield state
 
   def GetMessageStream(self):
-    """Returns all past and future messages.
+    """Yields all past and future messages.
 
     This method guarentees that the consumer will see all messages the job
     generates until it terminates.
     """
-    log_index = 0
 
     # Subscribers start with the first message and incrementally yield
     # subsequent logs. This process repeats until the job terminates and we know
     # the final amount of logs generated.
-    while log_index != self._final_log_count:
-      if log_index < len(self._logs):
-        yield self._logs[log_index]
-        log_index += 1
+    for log in self._stream_array(
+        array=self._logs,
+        notifier=self._log_notifier,
+        final_count='_final_log_count'):
+      yield log
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
@@ -261,11 +306,11 @@ class JobLogHandler(logging.Handler):
       logging.DEBUG: beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG,
   }
 
-  def __init__(self, logs):
+  def __init__(self, job):
     super(JobLogHandler, self).__init__()
     self._last_id = 0
     self._logged_thread = None
-    self._logs = logs
+    self._job = job
 
   def __enter__(self):
     # Remember the current thread to demultiplex the logs of concurrently
@@ -290,4 +335,4 @@ class JobLogHandler(logging.Handler):
                                  time.localtime(record.created)),
               importance=self.LOG_LEVEL_MAP[record.levelno],
               message_text=self.format(record)))
-      self._logs.append(msg)
+      self._job.write_log(msg)
