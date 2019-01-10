@@ -58,35 +58,23 @@ class WriteToBigtable(beam.DoFn):
 
   def __init__(self, beam_options):
     super(WriteToBigtable, self).__init__(beam_options)
-    self.project_id = beam_options.project_id
-    self.instance_id = beam_options.instance_id
-    self.table_id = beam_options.table_id
-    self.credentials = auth.get_service_credentials()
-
+    self.beam_options = beam_options
     self.client = None
     self.instance = None
     self.table = None
     self.batcher = None
-    self.flush_count = None
-    self.max_row_bytes = None
     self._app_profile_id = beam_options.app_profile_id
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def start_bundle(self):
     if self.client is None:
-      if self.credentials is None:
-        self.client = Client(project=self.project_id,
-                             admin=True)
-      else:
-        self.client = Client(project=self.project_id,
-                             credentials=self.credentials,
-                             admin=True)
-    self.instance = self.client.instance(self.instance_id)
-    self.table = self.instance.table(self.table_id,
-                                     self._app_profile_id)
-    self.batcher = MutationsBatcher(self.table,
-                                    flush_count=self.flush_count,
-                                    max_row_bytes=self.max_row_bytes)
+      self.client = Client(project=self.beam_options.project_id,
+                           admin=True)
+      
+    self.instance = self.client.instance(self.beam_options.instance_id)
+    self.table = self.instance.table(self.beam_options.table_id,
+                                     self.beam_options._app_profile_id)
+    self.batcher = MutationsBatcher(self.table)
 
   def process(self, row):
     self.written.inc()
@@ -98,11 +86,11 @@ class WriteToBigtable(beam.DoFn):
     return result
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self.project_id,
+    return {'projectId': DisplayDataItem(self.beam_options.project_id,
                                          label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.instance_id,
+            'instanceId': DisplayDataItem(self.beam_options.instance_id,
                                           label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.table_id,
+            'tableId': DisplayDataItem(self.beam_options.table_id,
                                        label='Bigtable Table Id'),
             'appProfileId': DisplayDataItem(self._app_profile_id,
                                             label='Bigtable App Profile Id')

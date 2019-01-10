@@ -129,22 +129,21 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.instance = self.client.instance(self.instance_id,
                                          instance_type=self.INSTANCE_TYPE)
 
-    cluster = self.instance.cluster(self.cluster_id,
-                                    self.LOCATION_ID,
-                                    default_storage_type=self.STORAGE_TYPE)
-
+    
     if not self.instance.exists():
+      cluster = self.instance.cluster(self.cluster_id,
+                                      self.LOCATION_ID,
+                                      default_storage_type=self.STORAGE_TYPE)
       self.instance.create(clusters=[cluster])
     self.table = self.instance.table(self.table_id)
-    max_versions_rule = column_family.MaxVersionsGCRule(2)
-    column_family_id = 'cf1'
-    column_families = {column_family_id: max_versions_rule}
 
     if not self.table.exists():
+      max_versions_rule = column_family.MaxVersionsGCRule(2)
+      column_family_id = 'cf1'
+      column_families = {column_family_id: max_versions_rule}
       self.table.create(column_families=column_families)
 
   def _check_table(self, number):
-    self.table = self.instance.table(self.table_id)
     return len(list(self.table.read_rows())) == number
 
   def _generate_mutation_data(self, row_index):
