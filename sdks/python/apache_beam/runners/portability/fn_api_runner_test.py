@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import functools
 import logging
 import os
 import sys
@@ -45,6 +46,21 @@ if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
 else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
+
+
+def retry(attempts):
+  def apply(f):
+    @functools.wraps(f)
+    def wrapper(*args):
+      for _ in range(attempts - 1):
+        try:
+          f(*args)
+          return
+        except Exception:
+          pass
+      f(*args)
+    return wrapper
+  return apply
 
 
 class FnApiRunnerTest(unittest.TestCase):
@@ -484,6 +500,7 @@ class FnApiRunnerTest(unittest.TestCase):
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
+  @retry(2)
   def test_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
