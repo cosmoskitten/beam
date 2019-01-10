@@ -43,7 +43,7 @@ public class ExpansionServiceTest {
 
   private static final String TEST_NAMESPACE = "namespace";
 
-  private ExpansionService constructionService = new ExpansionService();
+  private ExpansionService expansionService = new ExpansionService();
 
   /** Registers a single test transformation. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
@@ -74,7 +74,7 @@ public class ExpansionServiceTest {
                     .putInputs("input", inputPcollId))
             .setNamespace(TEST_NAMESPACE)
             .build();
-    ExpansionApi.ExpansionResponse response = constructionService.construct(request);
+    ExpansionApi.ExpansionResponse response = expansionService.expand(request);
     RunnerApi.PTransform expandedTransform =
         response.getComponents().getTransformsOrThrow(response.getTransformId());
     assertEquals(TEST_NAME, expandedTransform.getUniqueName());

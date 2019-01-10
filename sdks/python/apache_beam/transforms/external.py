@@ -94,7 +94,7 @@ class ExternalTransform(ptransform.PTransform):
         components=components,
         namespace=self._namespace,
         transform=transform_proto)
-    response = self._endpoint.Construct(request)
+    response = self._endpoint.Expand(request)
     if response.error:
       raise RuntimeError(response.error)
     self._expanded_components = response.components

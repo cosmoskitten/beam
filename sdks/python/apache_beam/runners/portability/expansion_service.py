@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A PipelineConstruction service.
+"""A PipelineExpansion service.
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -43,7 +43,7 @@ class ExpansionServiceServicer(
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON)
 
-  def Construct(self, request):
+  def Expand(self, request):
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
       def with_pipeline(component, pcoll_id=None):
@@ -107,7 +107,7 @@ def main(unused_argv):
   expansion_servicer = ExpansionServiceServicer()
   port = expansion_servicer.start_grpc_server(options.port)
   while True:
-    logging.info('Listening for construction requests at %d', port)
+    logging.info('Listening for expansion requests at %d', port)
     time.sleep(300)
 
 

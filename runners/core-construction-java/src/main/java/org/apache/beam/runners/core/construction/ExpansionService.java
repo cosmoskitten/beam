@@ -45,7 +45,7 @@ import org.apache.beam.vendor.grpc.v1_13_1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A service that allows pipeline construction from a remote SDK. */
+/** A service that allows pipeline expand transforms from a remote SDK. */
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExpansionService.class);
@@ -130,7 +130,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   @VisibleForTesting
-  /*package*/ ExpansionApi.ExpansionResponse construct(
+  /*package*/ ExpansionApi.ExpansionResponse expand(
       ExpansionApi.ExpansionRequest request) {
     LOG.info(
         "Expanding '{}' with URN '{}'",
@@ -192,11 +192,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   @Override
-  public void construct(
+  public void expand(
       ExpansionApi.ExpansionRequest request,
       StreamObserver<ExpansionApi.ExpansionResponse> responseObserver) {
     try {
-      responseObserver.onNext(construct(request));
+      responseObserver.onNext(expand(request));
       responseObserver.onCompleted();
     } catch (RuntimeException exn) {
       responseObserver.onError(exn);
@@ -206,7 +206,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
-    System.out.println("Starting construction service at localhost:" + port);
+    System.out.println("Starting expansion service at localhost:" + port);
     Server server = ServerBuilder.forPort(port).addService(new ExpansionService()).build();
     server.start();
     server.awaitTermination();
