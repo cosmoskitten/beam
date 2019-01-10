@@ -121,10 +121,10 @@ class ExternalTransformTest(unittest.TestCase):
           return p | beam.Create([1])
         else:
           a = p | 'A' >> beam.ExternalTransform(
-              'fib', bytes(self._level - 1),
+              'fib', str(self._level - 1).encode('ascii'),
               expansion_service.ExpansionServiceServicer())
           b = p | 'B' >> beam.ExternalTransform(
-              'fib', bytes(self._level - 2),
+              'fib', str(self._level - 2).encode('ascii'),
               expansion_service.ExpansionServiceServicer())
           return (
               (a, b)
