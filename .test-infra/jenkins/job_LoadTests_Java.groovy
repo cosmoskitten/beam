@@ -68,7 +68,7 @@ for (testConfiguration in testsConfigurations) {
             this
     ) {
         description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate)
+        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
         loadTestsBuilder.buildTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
