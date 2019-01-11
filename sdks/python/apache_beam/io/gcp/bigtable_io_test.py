@@ -36,7 +36,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.api_core.exceptions import TooManyRequests
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
