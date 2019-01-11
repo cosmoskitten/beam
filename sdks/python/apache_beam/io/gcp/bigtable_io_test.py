@@ -26,7 +26,8 @@ import unittest
 import uuid
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtable_io import *
+from apache_beam.io.gcp.bigtable_io import BigtableConfiguration
+from apache_beam.io.gcp.bigtable_io import WriteToBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
@@ -35,9 +36,12 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from google.api_core.exceptions import TooManyRequests
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
+
+retry_429 = RetryErrors(TooManyRequests, max_tries=9)
 
 
 class GenerateDirectRows(beam.DoFn):
@@ -106,7 +110,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   def tearDown(self):
     if self.instance.exists():
-      self.instance.delete()
+      retry_429(self.instance.delete)()
 
   def test_bigtable_write(self):
     number = self.number
