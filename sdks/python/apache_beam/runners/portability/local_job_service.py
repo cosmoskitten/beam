@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import queue
 import subprocess
 import threading
 import time
@@ -44,11 +45,9 @@ TERMINAL_STATES = [
 
 
 class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
-  """
+  """Manages one or more pipelines, possibly concurrently.
     Experimental: No backward compatibility guaranteed.
     Servicer for the Beam Job API.
-
-    Manages one or more pipelines, possibly concurrently.
 
     This JobService uses a basic local implementation of runner to run the job.
     This JobService is not capable of managing job on remote clusters.
@@ -74,7 +73,10 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     # For now, just use the job name as the job id.
     logging.debug('Got Prepare request.')
     preparation_id = '%s-%s' % (request.job_name, uuid.uuid4())
-    self._jobs[preparation_id] = BeamJob(request.pipeline)
+    self._jobs[preparation_id] = BeamJob(
+        preparation_id,
+        request.pipeline_options,
+        request.pipeline)
     logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     # TODO(angoenka): Pass an appropriate staging_session_token. The token can
     # be obtained in PutArtifactResponse from JobService
@@ -97,14 +99,22 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         state=self._jobs[request.job_id].state)
 
   def GetStateStream(self, request, context=None):
+    """Yields state transitions since the stream started.
+      """
     job = self._jobs[request.job_id]
-    for state in job.GetStateStream():
+    for state in job.get_state_stream():
       yield beam_job_api_pb2.GetJobStateResponse(state=state)
 
   def GetMessageStream(self, request, context=None):
+    """Yields messages since the stream started.
+      """
     job = self._jobs[request.job_id]
-    for log in job.GetMessageStream():
-      yield beam_job_api_pb2.JobMessagesResponse(message_response=log)
+    for msg in job.get_message_stream():
+      if isinstance(msg, beam_job_api_pb2.GetJobStateResponse):
+        resp = beam_job_api_pb2.JobMessagesResponse(state_response=msg)
+      else:
+        resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
+      yield resp
 
 
 class SubprocessSdkWorker(object):
@@ -152,17 +162,19 @@ class BeamJob(threading.Thread):
     The current state of the pipeline is available as self.state.
     """
 
-  def __init__(self, pipeline_proto):
+  def __init__(self,
+               job_id,
+               pipeline_options,
+               pipeline_proto):
     super(BeamJob, self).__init__()
+    self._job_id = job_id
+    self._pipeline_options = pipeline_options
     self._pipeline_proto = pipeline_proto
     self._state = None
-    self._logs = []
-    self._final_log_count = -1
-    self._state_changes = []
-    self._final_state_count = -1
-    self._state_notifier = threading.Condition()
-    self._log_notifier = threading.Condition()
+    self._state_queues = []
+    self._log_queues = []
     self.state = beam_job_api_pb2.JobState.STARTING
+    self.daemon = True
 
   @property
   def state(self):
@@ -170,44 +182,15 @@ class BeamJob(threading.Thread):
 
   @state.setter
   def state(self, new_state):
-    """Sets the job state.
-
-    This will inform GetStateStream and GetMessageStream of the new state.
-    """
-
-    self._state_notifier.acquire()
-    self._log_notifier.acquire()
-
-    self._state_changes.append(new_state)
+    # Inform consumers of the new state.
+    for queue in self._state_queues:
+      queue.put(new_state)
+    for queue in self._log_queues:
+      queue.put(beam_job_api_pb2.GetJobStateResponse(state=new_state))
     self._state = new_state
 
-    self._log_notifier.notify_all()
-    self._state_notifier.notify_all()
-
-    self._log_notifier.release()
-    self._state_notifier.release()
-
-  def write_log(self, log):
-    self._log_notifier.acquire()
-    self._logs.append(log)
-    self._log_notifier.notify_all()
-    self._log_notifier.release()
-
-  def _cleanup(self):
-    self._state_notifier.acquire()
-    self._log_notifier.acquire()
-
-    self._final_log_count = len(self._logs)
-    self._final_state_count = len(self._state_changes)
-
-    self._state_notifier.notify_all()
-    self._log_notifier.notify_all()
-
-    self._log_notifier.release()
-    self._state_notifier.release()
-
   def run(self):
-    with JobLogHandler(self):
+    with JobLogHandler(self._log_queues):
       try:
         fn_api_runner.FnApiRunner().run_via_runner_api(self._pipeline_proto)
         logging.info('Successfully completed job.')
@@ -217,64 +200,35 @@ class BeamJob(threading.Thread):
         logging.exception(traceback.format_exc())
         self.state = beam_job_api_pb2.JobState.FAILED
         raise
-      finally:
-        # In order for consumers to read all messages, this must be the final
-        # instruction after a terminal state.
-        self._cleanup()
 
   def cancel(self):
     if self.state not in TERMINAL_STATES:
       self.state = beam_job_api_pb2.JobState.CANCELLING
       # TODO(robertwb): Actually cancel...
       self.state = beam_job_api_pb2.JobState.CANCELLED
-      self._cleanup()
 
-  def _stream_array(self, array, notifier, final_count):
-    """Yields all elements in array until array length reaches final_count.
+  def get_state_stream(self):
+    # Register for any new state changes.
+    state_queue = queue.Queue()
+    self._state_queues.append(state_queue)
 
-    This method streams all elements in array. It uses the notifier to wait
-    until new messages are received. The streams ends when this method emits
-    up to final_count number of elements.
-    """
-    index = 0
+    while True:
+      current_state = state_queue.get(block=True)
+      yield current_state
+      if current_state in TERMINAL_STATES:
+        break
 
-    # Pull all  changes until the job finishes.
-    while index != self.__dict__[final_count]:
-      notifier.acquire()
-      notifier.wait(5)
-      while index < len(array):
-        yield array[index]
-        index += 1
-      notifier.release()
+  def get_message_stream(self):
+    # Register for any new messages.
+    log_queue = queue.Queue()
+    self._log_queues.append(log_queue)
 
-  def GetStateStream(self):
-    """Yields all past and future states.
-
-    This method guarentees that the consumer will see all job state transitions.
-    """
-
-    # Pull all state changes until the job finishes.
-    for state in self._stream_array(
-        array=self._state_changes,
-        notifier=self._state_notifier,
-        final_count='_final_state_count'):
-      yield state
-
-  def GetMessageStream(self):
-    """Yields all past and future messages.
-
-    This method guarentees that the consumer will see all messages the job
-    generates until it terminates.
-    """
-
-    # Subscribers start with the first message and incrementally yield
-    # subsequent logs. This process repeats until the job terminates and we know
-    # the final amount of logs generated.
-    for log in self._stream_array(
-        array=self._logs,
-        notifier=self._log_notifier,
-        final_count='_final_log_count'):
-      yield log
+    current_state = self.state
+    while current_state not in TERMINAL_STATES:
+      msg = log_queue.get(block=True)
+      yield msg
+      if isinstance(msg, beam_job_api_pb2.GetJobStateResponse):
+        current_state = msg.state
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
@@ -289,7 +243,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 class JobLogHandler(logging.Handler):
   """Captures logs to be returned via the Beam Job API.
 
-    Enabled via the 'with' statement."""
+    Enabled via the with statement."""
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
@@ -301,11 +255,11 @@ class JobLogHandler(logging.Handler):
       logging.DEBUG: beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG,
   }
 
-  def __init__(self, job):
+  def __init__(self, log_queues):
     super(JobLogHandler, self).__init__()
     self._last_id = 0
     self._logged_thread = None
-    self._job = job
+    self._log_queues = log_queues
 
   def __enter__(self):
     # Remember the current thread to demultiplex the logs of concurrently
@@ -324,9 +278,12 @@ class JobLogHandler(logging.Handler):
   def emit(self, record):
     if self._logged_thread is threading.current_thread():
       msg = beam_job_api_pb2.JobMessage(
-              message_id=self._next_id(),
-              time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                                 time.localtime(record.created)),
-              importance=self.LOG_LEVEL_MAP[record.levelno],
-              message_text=self.format(record))
-      self._job.write_log(msg)
+          message_id=self._next_id(),
+          time=time.strftime('%Y-%m-%d %H:%M:%S.',
+                             time.localtime(record.created)),
+          importance=self.LOG_LEVEL_MAP[record.levelno],
+          message_text=self.format(record))
+
+      # Inform all message consumers.
+      for queue in self._log_queues:
+        queue.put(msg)
