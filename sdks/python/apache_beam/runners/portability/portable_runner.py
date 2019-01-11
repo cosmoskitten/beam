@@ -221,11 +221,24 @@ class PortableRunner(runner.PipelineRunner):
           staging_location='')
     else:
       retrieval_token = None
+
+    # Create the state and message streams so that it is guarenteed to see any
+    # state and message that is generated. Otherwise, we might miss the final
+    # error message.
+    state_stream = job_service.GetStateStream(
+        beam_job_api_pb2.GetJobStateRequest(
+            job_id=prepare_response.preparation_id))
+    message_stream = job_service.GetMessageStream(
+        beam_job_api_pb2.JobMessagesRequest(
+            job_id=prepare_response.preparation_id))
+
+    # Run the job and wait for a result.
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
-    return PipelineResult(job_service, run_response.job_id, cleanup_callbacks)
+    return PipelineResult(job_service, run_response.job_id, message_stream,
+                          state_stream, cleanup_callbacks)
 
 
 class PortableMetrics(metrics.metric.MetricResults):
@@ -240,11 +253,14 @@ class PortableMetrics(metrics.metric.MetricResults):
 
 class PipelineResult(runner.PipelineResult):
 
-  def __init__(self, job_service, job_id, cleanup_callbacks=()):
+  def __init__(self, job_service, job_id, message_stream, state_stream,
+               cleanup_callbacks=()):
     super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
+    self._message_stream = message_stream
+    self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
 
   def cancel(self):
@@ -274,21 +290,21 @@ class PipelineResult(runner.PipelineResult):
     return PortableMetrics()
 
   def _last_error_message(self):
-    # Python sort is stable.
-    ordered_messages = sorted(
-        [m.message_response for m in self._messages
-         if m.HasField('message_response')],
-        key=lambda m: m.importance)
-    if ordered_messages:
-      return ordered_messages[-1].message_text
+    # Filter only messages with the "message_response" and error messages.
+    messages = [m.message_response for m in self._messages
+                if m.HasField('message_response')]
+    error_messages = [m for m in messages
+                      if m.importance ==
+                      beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR]
+    if error_messages:
+      return error_messages[-1].message_text
     else:
       return 'unknown error'
 
   def wait_until_finish(self):
 
     def read_messages():
-      for message in self._job_service.GetMessageStream(
-          beam_job_api_pb2.JobMessagesRequest(job_id=self._job_id)):
+      for message in self._message_stream:
         if message.HasField('message_response'):
           logging.log(
               MESSAGE_LOG_LEVELS[message.message_response.importance],
@@ -306,8 +322,7 @@ class PipelineResult(runner.PipelineResult):
     t.start()
 
     try:
-      for state_response in self._job_service.GetStateStream(
-          beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
+      for state_response in self._state_stream:
         self._state = self._runner_api_state_to_pipeline_state(
             state_response.state)
         if state_response.state in TERMINAL_STATES:
