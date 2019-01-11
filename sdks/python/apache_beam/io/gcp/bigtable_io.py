@@ -119,4 +119,3 @@ class WriteBigtableOptions(PipelineOptions):
     PipelineOptions._add_argparse_args(parser)
     parser.add_argument('--instance')
     parser.add_argument('--table')
-    parser.add_argument('--app_profie_id')
