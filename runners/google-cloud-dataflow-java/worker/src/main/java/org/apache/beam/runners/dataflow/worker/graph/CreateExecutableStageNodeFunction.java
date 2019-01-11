@@ -222,8 +222,9 @@ public class CreateExecutableStageNodeFunction
               windowingStrategyId = globalWindowingStrategyId;
             } else {
               throw new UnsupportedOperationException(
-                  String.format("Dataflow portable runner harness doesn't support windowing with ",
-                                windowCoder));
+                  String.format(
+                      "Dataflow portable runner harness doesn't support windowing with %s",
+                      windowCoder));
             }
           } else {
             throw new UnsupportedOperationException(
