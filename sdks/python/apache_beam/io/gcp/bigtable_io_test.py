@@ -26,8 +26,7 @@ import unittest
 import uuid
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtable_io import BigtableConfiguration
-from apache_beam.io.gcp.bigtable_io import WriteToBigtable
+from apache_beam.io.gcp.bigtable_io import *
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
@@ -88,7 +87,22 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.client = Client(project=self.project, admin=True)
-    self._create_instance_table()
+
+    self.instance = self.client.instance(self.instance_id,
+                                         instance_type=self.INSTANCE_TYPE)
+
+    if not self.instance.exists():
+      cluster = self.instance.cluster(self.cluster_id,
+                                      self.LOCATION_ID,
+                                      default_storage_type=self.STORAGE_TYPE)
+      self.instance.create(clusters=[cluster])
+    self.table = self.instance.table(self.table_id)
+
+    if not self.table.exists():
+      max_versions_rule = column_family.MaxVersionsGCRule(2)
+      column_family_id = 'cf1'
+      column_families = {column_family_id: max_versions_rule}
+      self.table.create(column_families=column_families)
 
   def tearDown(self):
     if self.instance.exists():
@@ -113,7 +127,10 @@ class BigtableIOWriteIT(unittest.TestCase):
       result.wait_until_finish()
 
       assert result.state == PipelineState.DONE
-      assert self._check_table(number)
+
+      read_rows = self.table.read_rows()
+      assert len([_ for _ in read_rows]) == number
+
       if not hasattr(result, 'has_job') or result.has_job:
         read_filter = MetricsFilter().with_name('Written Row')
         query_result = result.metrics().query(read_filter)
@@ -122,29 +139,6 @@ class BigtableIOWriteIT(unittest.TestCase):
 
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
-
-  def _create_instance_table(self):
-    """ Prepare all necesary for the test
-    """
-    self.instance = self.client.instance(self.instance_id,
-                                         instance_type=self.INSTANCE_TYPE)
-
-    if not self.instance.exists():
-      cluster = self.instance.cluster(self.cluster_id,
-                                      self.LOCATION_ID,
-                                      default_storage_type=self.STORAGE_TYPE)
-      self.instance.create(clusters=[cluster])
-    self.table = self.instance.table(self.table_id)
-
-    if not self.table.exists():
-      max_versions_rule = column_family.MaxVersionsGCRule(2)
-      column_family_id = 'cf1'
-      column_families = {column_family_id: max_versions_rule}
-      self.table.create(column_families=column_families)
-
-  def _check_table(self, number):
-    read_rows = self.table.read_rows()
-    return len([_ for _ in read_rows]) == number
 
   def _generate_mutation_data(self, row_index):
     """ Generate the row data to insert in the table.
