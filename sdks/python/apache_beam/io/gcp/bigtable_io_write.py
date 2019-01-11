@@ -69,7 +69,7 @@ class WriteToBigtable(beam.DoFn):
     if self.client is None:
       self.client = Client(project=self.beam_options.project_id,
                            admin=True)
- 
+
     self.instance = self.client.instance(self.beam_options.instance_id)
     self.table = self.instance.table(self.beam_options.table_id,
                                      self.beam_options._app_profile_id)
