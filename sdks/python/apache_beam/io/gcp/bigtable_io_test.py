@@ -129,7 +129,6 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.instance = self.client.instance(self.instance_id,
                                          instance_type=self.INSTANCE_TYPE)
 
-
     if not self.instance.exists():
       cluster = self.instance.cluster(self.cluster_id,
                                       self.LOCATION_ID,
