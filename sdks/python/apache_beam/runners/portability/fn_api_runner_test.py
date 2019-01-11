@@ -17,7 +17,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import functools
 import logging
+import io
 import os
 import sys
 import tempfile
@@ -47,11 +49,31 @@ else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
+def capture_stderr(f):
+  """Captures sys.stderr, emitting it only on failure.
+
+  This is useful for testing of errors for codepaths (e.g. worker code)
+  that are conservatively verbose about logging errors.
+  """
+  @functools.wraps(f)
+  def wrapper(*args, **kwargs):
+    try:
+      stderr, sys.stderr = sys.stderr, io.StringIO()
+      f(*args, **kwargs)
+    except:
+      stderr.write(sys.stderr.getvalue())
+      raise
+    finally:
+      sys.stderr = stderr
+  return wrapper
+
+
 class FnApiRunnerTest(unittest.TestCase):
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
+  @capture_stderr
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
@@ -419,6 +441,7 @@ class FnApiRunnerTest(unittest.TestCase):
                    os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
                    'This test is flaky on on Python 3. '
                    'TODO: BEAM-5692')
+  @capture_stderr
   def test_error_message_includes_stage(self):
     with self.assertRaises(BaseException) as e_cm:
       with self.create_pipeline() as p:
@@ -435,6 +458,7 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertIn('StageC', message)
     self.assertNotIn('StageB', message)
 
+  @capture_stderr
   def test_error_traceback_includes_user_code(self):
 
     def first(x):
