@@ -167,19 +167,24 @@ public class CreateExecutableStageNodeFunction
       componentsBuilder.putEnvironments(envId, Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
-    // Use default WindowingStrategy as the fake one. But it may be overrided later if it's a FixedWindow.
+    // By default, use GlobalWindow for all languages.
+		// For java, if there is a IntervalWindowCoder, then use FixedWindow instead.
     // TODO: should get real WindowingStategy from pipeline proto.
-    String fakeWindowingStrategyId = "fakeWindowingStrategy" + idGenerator.getId();
+    String fakeGlobalWindowingStrategyId = "fakeGlobalWindowingStrategy" + idGenerator.getId();
+    String fakeFixedWindowingStrategyId = "fakeFixedWindowingStrategy" + idGenerator.getId();
+
     SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
     try {
-      RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
-          WindowingStrategyTranslation.toMessageProto(
-              WindowingStrategy.globalDefault(), sdkComponents);
-      componentsBuilder.putWindowingStrategies(
-          fakeWindowingStrategyId, fakeWindowingStrategyProto.getWindowingStrategy());
-      componentsBuilder.putAllCoders(fakeWindowingStrategyProto.getComponents().getCodersMap());
-      componentsBuilder.putAllEnvironments(
-          fakeWindowingStrategyProto.getComponents().getEnvironmentsMap());
+      registerWindowingStrategy(
+          fakeGlobalWindowingStrategyId,
+          WindowingStrategy.globalDefault(),
+          componentsBuilder,
+          sdkComponents);
+      registerWindowingStrategy(
+          fakeFixedWindowingStrategyId,
+          WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
+          componentsBuilder,
+          sdkComponents);
     } catch (IOException exc) {
       throw new RuntimeException("Could not convert default windowing stratey to proto", exc);
     }
@@ -195,38 +200,8 @@ public class CreateExecutableStageNodeFunction
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
-      // If this is the input PCollection or the output PCollection for an ExecutableStage, it's
-      // necessary to check whether the window coder is not a GlobalWindow coder.
-      if (isExecutableStageInputPCollection(input, node)
-          || isExecutableStageOutputPCollection(input, node)) {
-        Coder<?> javaCoder =
-            CloudObjects.coderFromCloudObject(CloudObject.fromSpec(instructionOutput.getCodec()));
-        // For now, Dataflow runner harness only deal with FixedWindow.
-        if (FullWindowedValueCoder.class.isInstance(javaCoder)) {
-          FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) javaCoder;
-          Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
-          if (IntervalWindowCoder.class.isInstance(windowCoder)) {
-            fakeWindowingStrategyId = "generatedFixedWindowingStrategy" + idGenerator.getId();
-            try {
-              // Since the coder is the only needed from a WindowingStrategy, the size field of one
-              // FixedWindows is meaningless here.
-              RunnerApi.MessageWithComponents windowingStrategyProto =
-                  WindowingStrategyTranslation.toMessageProto(
-                      WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
-                      sdkComponents);
-              componentsBuilder.putWindowingStrategies(
-                  fakeWindowingStrategyId, windowingStrategyProto.getWindowingStrategy());
-              componentsBuilder.putAllCoders(windowingStrategyProto.getComponents().getCodersMap());
-              componentsBuilder.putAllEnvironments(
-                  windowingStrategyProto.getComponents().getEnvironmentsMap());
-            } catch (IOException exc) {
-              throw new RuntimeException("Could not convert FixedWindow stratey to proto", exc);
-            }
-          }
-        }
-      }
-
       String coderId = "generatedCoder" + idGenerator.getId();
+      String windowingStrategyId = fakeGlobalWindowingStrategyId;
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -235,6 +210,17 @@ public class CreateExecutableStageNodeFunction
           sdkComponents.registerCoder(elementCoder);
           RunnerApi.Coder coderProto = CoderTranslation.toProto(elementCoder, sdkComponents);
           componentsBuilder.putCoders(coderId, coderProto);
+          // For now, Dataflow runner harness only deal with FixedWindow.
+          if (FullWindowedValueCoder.class.isInstance(javaCoder)) {
+            FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) javaCoder;
+            Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
+            if (IntervalWindowCoder.class.isInstance(windowCoder)) {
+              windowingStrategyId = fakeFixedWindowingStrategyId;
+            }
+          } else {
+            throw new UnsupportedOperationException(
+                "Dataflow portable runner harness only supports FullWindowedValueCoder");
+          }
         } catch (IOException e) {
           throw new IllegalArgumentException(
               String.format(
@@ -266,7 +252,7 @@ public class CreateExecutableStageNodeFunction
       RunnerApi.PCollection pCollection =
           RunnerApi.PCollection.newBuilder()
               .setCoderId(coderId)
-              .setWindowingStrategyId(fakeWindowingStrategyId)
+              .setWindowingStrategyId(windowingStrategyId)
               .build();
       nodesToPCollections.put(node, pcollectionId);
       componentsBuilder.putPcollections(pcollectionId, pCollection);
@@ -495,5 +481,20 @@ public class CreateExecutableStageNodeFunction
   private boolean isExecutableStageOutputPCollection(
       MutableNetwork<Node, Edge> input, InstructionOutputNode node) {
     return input.successors(node).stream().anyMatch(RemoteGrpcPortNode.class::isInstance);
+  }
+
+  private void registerWindowingStrategy(
+      String windowingStrategyId,
+      WindowingStrategy<?, ?> windowingStrategy,
+      RunnerApi.Components.Builder componentsBuilder,
+      SdkComponents sdkComponents)
+      throws IOException {
+    RunnerApi.MessageWithComponents fakeWindowingStrategyProto =
+        WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents);
+    componentsBuilder.putWindowingStrategies(
+        windowingStrategyId, fakeWindowingStrategyProto.getWindowingStrategy());
+    componentsBuilder.putAllCoders(fakeWindowingStrategyProto.getComponents().getCodersMap());
+    componentsBuilder.putAllEnvironments(
+        fakeWindowingStrategyProto.getComponents().getEnvironmentsMap());
   }
 }
