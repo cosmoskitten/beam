@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.util;
 
 import com.google.common.cache.Cache;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
@@ -54,13 +55,13 @@ public class CachedSideInputReader implements SideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
-    final Cache<Key<T>, T> materializedCasted =
+    final Cache<Key<T>, Optional<T>> materializedCasted =
         (Cache) SideInputStorage.getMaterializedSideInputs();
 
     Key<T> sideInputKey = new Key<>(view, window);
 
     try {
-      return materializedCasted.get(
+      Optional<T> optionalResult = materializedCasted.get(
           sideInputKey,
           () -> {
             final T result = delegate.get(view, window);
@@ -68,8 +69,9 @@ public class CachedSideInputReader implements SideInputReader {
                 "Caching de-serialized side input for {} of size [{}B] in memory.",
                 sideInputKey,
                 SizeEstimator.estimate(result));
-            return result;
+            return Optional.ofNullable(result);
           });
+      return optionalResult.orElse(null);
     } catch (ExecutionException e) {
       throw new RuntimeException(e.getCause());
     }
