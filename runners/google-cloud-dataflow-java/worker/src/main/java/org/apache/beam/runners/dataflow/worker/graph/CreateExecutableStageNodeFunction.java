@@ -168,20 +168,21 @@ public class CreateExecutableStageNodeFunction
     }
 
     // By default, use GlobalWindow for all languages.
-		// For java, if there is a IntervalWindowCoder, then use FixedWindow instead.
+    // For java, if there is a IntervalWindowCoder, then use FixedWindow instead.
     // TODO: should get real WindowingStategy from pipeline proto.
-    String fakeGlobalWindowingStrategyId = "fakeGlobalWindowingStrategy" + idGenerator.getId();
-    String fakeFixedWindowingStrategyId = "fakeFixedWindowingStrategy" + idGenerator.getId();
+    String globalWindowingStrategyId = "generatedGlobalWindowingStrategy" + idGenerator.getId();
+    String intervalWindowEncodingWindowingStrategyId =
+        "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
 
     SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
     try {
       registerWindowingStrategy(
-          fakeGlobalWindowingStrategyId,
+          globalWindowingStrategyId,
           WindowingStrategy.globalDefault(),
           componentsBuilder,
           sdkComponents);
       registerWindowingStrategy(
-          fakeFixedWindowingStrategyId,
+          intervalWindowEncodingWindowingStrategyId,
           WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1))),
           componentsBuilder,
           sdkComponents);
@@ -201,7 +202,7 @@ public class CreateExecutableStageNodeFunction
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
-      String windowingStrategyId = fakeGlobalWindowingStrategyId;
+      String windowingStrategyId;
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -211,11 +212,13 @@ public class CreateExecutableStageNodeFunction
           RunnerApi.Coder coderProto = CoderTranslation.toProto(elementCoder, sdkComponents);
           componentsBuilder.putCoders(coderId, coderProto);
           // For now, Dataflow runner harness only deal with FixedWindow.
-          if (FullWindowedValueCoder.class.isInstance(javaCoder)) {
+          if (javaCoder instanceof FullWindowedValueCoder) {
             FullWindowedValueCoder<?> windowedValueCoder = (FullWindowedValueCoder<?>) javaCoder;
             Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
-            if (IntervalWindowCoder.class.isInstance(windowCoder)) {
-              windowingStrategyId = fakeFixedWindowingStrategyId;
+            if (windowCoder instanceof IntervalWindowCoder) {
+              windowingStrategyId = intervalWindowEncodingWindowingStrategyId;
+            } else {
+              windowingStrategyId = globalWindowingStrategyId;
             }
           } else {
             throw new UnsupportedOperationException(
@@ -239,6 +242,8 @@ public class CreateExecutableStageNodeFunction
                               RunnerApi.FunctionSpec.newBuilder()
                                   .setPayload(output.toByteString())))
                   .build());
+          // For non-java coder, use GlobalWindow by default.
+          windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
         throw new IllegalArgumentException(
