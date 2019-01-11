@@ -91,9 +91,8 @@ class BigtableIOWriteIT(unittest.TestCase):
     self._create_instance_table()
 
   def tearDown(self):
-    pass
-    #if self.instance.exists():
-    #  self.instance.delete()
+    if self.instance.exists():
+      self.instance.delete()
 
   def test_bigtable_write(self):
     number = self.number
