@@ -26,7 +26,7 @@ import unittest
 import uuid
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtable_io_write import BigtableWriteConfiguration
+from apache_beam.io.gcp.bigtable_io_write import BigtableConfiguration
 from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -91,13 +91,14 @@ class BigtableIOWriteIT(unittest.TestCase):
     self._create_instance_table()
 
   def tearDown(self):
-    if self.instance.exists():
-      self.instance.delete()
+    pass
+    #if self.instance.exists():
+    #  self.instance.delete()
 
-  def test_bigtable_write_python(self):
+  def test_bigtable_write(self):
     number = self.number
-    config = BigtableWriteConfiguration(self.project, self.instance_id,
-                                        self.table_id)
+    config = BigtableConfiguration(self.project, self.instance_id,
+                                   self.table_id)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
     rows = self._generate_mutation_data(number)
@@ -143,7 +144,8 @@ class BigtableIOWriteIT(unittest.TestCase):
       self.table.create(column_families=column_families)
 
   def _check_table(self, number):
-    return len(list(self.table.read_rows())) == number
+    read_rows = self.table.read_rows()
+    return len([_ for _ in read_rows]) == number
 
   def _generate_mutation_data(self, row_index):
     """ Generate the row data to insert in the table.
