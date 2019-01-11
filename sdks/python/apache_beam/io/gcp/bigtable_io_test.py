@@ -41,8 +41,6 @@ try:
 except ImportError:
   Client = None
 
-retry_429 = RetryErrors(TooManyRequests, max_tries=9)
-
 
 class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
@@ -110,7 +108,7 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   def tearDown(self):
     if self.instance.exists():
-      retry_429(self.instance.delete)()
+      self.instance.delete()
 
   def test_bigtable_write(self):
     number = self.number
