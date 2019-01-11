@@ -44,6 +44,8 @@ applyJavaNature(
   },
 )
 
+
+
 /******************************************************************************/
 // Configure the worker root project
 
@@ -105,7 +107,33 @@ dependencies {
   shadowTest library.java.hamcrest_library
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
+
 }
+
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.7"
+  }
+}
+
+apply plugin: "org.sonarqube"
+
+
+sonarqube {
+    properties {
+    property "sonar.jacoco.reportPath", "${buildDir.name}/jacoco.exec"
+    property "sonar.links.homepage", "https://beam.apache.org"
+    property "sonar.java.coveragePlugin", "jacoco"
+    //property "sonar.host.url", "http://localhost:9000"
+  }
+}
+
+check.dependsOn jacocoTestReport
 
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
