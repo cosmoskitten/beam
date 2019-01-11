@@ -302,6 +302,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // when attempting to resolve dependency issues.
     project.apply plugin: "project-report"
 
+
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -607,6 +609,8 @@ class BeamModulePlugin implements Plugin<Project> {
         'unchecked',
         'varargs',
       ]
+
+      project.apply plugin: "org.sonarqube"
 
       project.tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
