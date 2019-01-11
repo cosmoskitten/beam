@@ -77,6 +77,7 @@ import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -217,8 +218,12 @@ public class CreateExecutableStageNodeFunction
             Coder<?> windowCoder = windowedValueCoder.getWindowCoder();
             if (windowCoder instanceof IntervalWindowCoder) {
               windowingStrategyId = intervalWindowEncodingWindowingStrategyId;
-            } else {
+            } else if (windowCoder instanceof GlobalWindow.Coder) {
               windowingStrategyId = globalWindowingStrategyId;
+            } else {
+              throw new UnsupportedOperationException(
+                  String.format("Dataflow portable runner harness doesn't support windowing with ",
+                                windowCoder));
             }
           } else {
             throw new UnsupportedOperationException(
@@ -242,7 +247,8 @@ public class CreateExecutableStageNodeFunction
                               RunnerApi.FunctionSpec.newBuilder()
                                   .setPayload(output.toByteString())))
                   .build());
-          // For non-java coder, use GlobalWindow by default.
+          // For non-java coder, hope it's GlobalWindows by default.
+          // TODO(BEAM-6231): Actually discover the right windowing strategy.
           windowingStrategyId = globalWindowingStrategyId;
         }
       } catch (IOException e) {
