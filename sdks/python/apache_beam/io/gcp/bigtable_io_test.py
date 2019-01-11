@@ -26,8 +26,8 @@ import unittest
 import uuid
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtable_io_write import BigtableConfiguration
-from apache_beam.io.gcp.bigtable_io_write import WriteToBigtable
+from apache_beam.io.gcp.bigtable_io import BigtableConfiguration
+from apache_beam.io.gcp.bigtable_io import WriteToBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
