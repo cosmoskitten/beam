@@ -222,21 +222,19 @@ class PortableRunner(runner.PipelineRunner):
     else:
       retrieval_token = None
 
-    # Create the state and message streams so that it is guarenteed to see any
-    # state and message that is generated. Otherwise, we might miss the final
-    # error message.
-    state_stream = job_service.GetStateStream(
-        beam_job_api_pb2.GetJobStateRequest(
-            job_id=prepare_response.preparation_id))
-    message_stream = job_service.GetMessageStream(
-        beam_job_api_pb2.JobMessagesRequest(
-            job_id=prepare_response.preparation_id))
-
     # Run the job and wait for a result.
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
+
+    state_stream = job_service.GetStateStream(
+        beam_job_api_pb2.GetJobStateRequest(
+            job_id=run_response.job_id))
+    message_stream = job_service.GetMessageStream(
+        beam_job_api_pb2.JobMessagesRequest(
+            job_id=run_response.job_id))
+
     return PipelineResult(job_service, run_response.job_id, message_stream,
                           state_stream, cleanup_callbacks)
 
