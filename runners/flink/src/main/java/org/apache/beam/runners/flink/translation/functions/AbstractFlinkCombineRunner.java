@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import org.apache.beam.runners.core.GlobalCombineFnRunner;
 import org.apache.beam.runners.core.GlobalCombineFnRunners;

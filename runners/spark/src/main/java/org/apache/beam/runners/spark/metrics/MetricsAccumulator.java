@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;

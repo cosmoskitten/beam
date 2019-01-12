@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.common;
 
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;

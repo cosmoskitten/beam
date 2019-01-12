@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Map;

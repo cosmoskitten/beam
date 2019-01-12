@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders.org.apache.beam.sdk.coders;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;

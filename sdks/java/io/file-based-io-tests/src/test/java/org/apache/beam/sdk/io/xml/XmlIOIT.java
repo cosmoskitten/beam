@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import javax.xml.bind.annotation.XmlElement;

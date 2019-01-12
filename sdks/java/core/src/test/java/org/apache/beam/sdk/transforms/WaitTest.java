@@ -19,8 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.data;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;

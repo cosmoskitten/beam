@@ -23,7 +23,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

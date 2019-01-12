@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

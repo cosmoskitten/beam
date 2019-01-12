@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;

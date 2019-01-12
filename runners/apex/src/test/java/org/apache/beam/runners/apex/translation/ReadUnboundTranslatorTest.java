@@ -18,11 +18,11 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
-import com.google.common.collect.ContiguousSet;
-import com.google.common.collect.DiscreteDomain;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ContiguousSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.DiscreteDomain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;

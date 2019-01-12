@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.math.BigInteger;
 import org.apache.beam.sdk.PipelineResult;
 import org.junit.Before;

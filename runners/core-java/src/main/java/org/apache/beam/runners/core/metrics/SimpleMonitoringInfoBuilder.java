@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;

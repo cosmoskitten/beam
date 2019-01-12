@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Strings;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;

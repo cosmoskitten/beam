@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

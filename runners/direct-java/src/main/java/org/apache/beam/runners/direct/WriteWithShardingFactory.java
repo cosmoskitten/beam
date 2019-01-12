@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;

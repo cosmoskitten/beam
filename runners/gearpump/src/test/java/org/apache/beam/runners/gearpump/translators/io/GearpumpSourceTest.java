@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.gearpump.translators.io;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import io.gearpump.DefaultMessage;
 import io.gearpump.Message;
 import io.gearpump.streaming.source.Watermark;

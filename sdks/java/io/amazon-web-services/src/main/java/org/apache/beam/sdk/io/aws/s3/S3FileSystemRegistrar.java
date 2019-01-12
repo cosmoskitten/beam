@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.FileSystem;

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.hash.BloomFilter;
-import com.google.common.hash.Funnel;
-import com.google.common.hash.PrimitiveSink;
-import com.google.common.math.DoubleMath;
-import com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.BloomFilter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnel;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.PrimitiveSink;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.DoubleMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

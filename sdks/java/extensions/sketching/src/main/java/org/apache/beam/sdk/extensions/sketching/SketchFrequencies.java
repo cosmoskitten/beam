@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sketching;
 import com.clearspring.analytics.stream.frequency.CountMinSketch;
 import com.clearspring.analytics.stream.frequency.FrequencyMergeException;
 import com.google.auto.value.AutoValue;
-import com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

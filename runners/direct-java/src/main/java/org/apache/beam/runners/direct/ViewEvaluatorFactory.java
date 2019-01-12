@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;

@@ -23,7 +23,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
-import com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.UnboundedSource;

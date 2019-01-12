@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;

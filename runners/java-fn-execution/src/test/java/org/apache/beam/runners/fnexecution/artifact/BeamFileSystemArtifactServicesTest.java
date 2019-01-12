@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;

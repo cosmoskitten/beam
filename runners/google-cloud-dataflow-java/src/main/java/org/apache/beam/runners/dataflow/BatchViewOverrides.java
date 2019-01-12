@@ -17,17 +17,17 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Optional;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ForwardingMap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ForwardingMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

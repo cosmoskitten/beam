@@ -19,7 +19,7 @@ package org.apache.beam.sdk.loadtests;
 
 import static java.lang.String.format;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Optional;

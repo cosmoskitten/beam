@@ -25,7 +25,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.PortContext;
 import com.datatorrent.stram.plan.logical.LogicalPlan;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;

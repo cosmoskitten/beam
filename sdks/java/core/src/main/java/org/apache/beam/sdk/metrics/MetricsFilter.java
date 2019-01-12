@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;

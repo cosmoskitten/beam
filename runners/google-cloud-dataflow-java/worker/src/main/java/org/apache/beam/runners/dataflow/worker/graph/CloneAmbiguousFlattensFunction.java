@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.graph;
 
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;

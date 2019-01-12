@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;

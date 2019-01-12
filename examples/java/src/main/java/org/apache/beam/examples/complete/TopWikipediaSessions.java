@@ -18,7 +18,7 @@
 package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;

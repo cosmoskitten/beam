@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.docs;
 
 import static java.util.Arrays.asList;
 
-import com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;

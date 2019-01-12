@@ -21,7 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.annotations.Experimental;

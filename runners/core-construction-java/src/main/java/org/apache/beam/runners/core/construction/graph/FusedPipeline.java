@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

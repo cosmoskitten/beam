@@ -26,9 +26,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.common.io.ByteSource;
-import com.google.common.io.CharSource;
-import com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CharSource;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

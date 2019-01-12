@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
-import com.google.common.hash.HashingOutputStream;
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashingOutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Utf8;
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Utf8;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;

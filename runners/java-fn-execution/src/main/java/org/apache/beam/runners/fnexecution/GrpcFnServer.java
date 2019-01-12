@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;

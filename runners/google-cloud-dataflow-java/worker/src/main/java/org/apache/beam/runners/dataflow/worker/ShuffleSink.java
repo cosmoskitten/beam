@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;

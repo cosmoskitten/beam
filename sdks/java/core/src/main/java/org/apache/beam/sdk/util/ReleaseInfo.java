@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;

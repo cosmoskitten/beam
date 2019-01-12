@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**

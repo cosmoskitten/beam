@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

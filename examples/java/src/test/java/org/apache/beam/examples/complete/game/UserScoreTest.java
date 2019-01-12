@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;

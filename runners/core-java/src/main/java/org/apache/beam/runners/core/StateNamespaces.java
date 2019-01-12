@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;

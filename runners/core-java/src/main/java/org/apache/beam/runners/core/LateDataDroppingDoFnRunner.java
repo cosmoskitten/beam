@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.metrics.Counter;

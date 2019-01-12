@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;

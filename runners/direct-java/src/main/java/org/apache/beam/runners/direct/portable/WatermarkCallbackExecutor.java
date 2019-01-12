@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;

@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.solr.SolrIOTestUtils.namedThreadIsAlive;
 
 import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.ImmutableSet;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;

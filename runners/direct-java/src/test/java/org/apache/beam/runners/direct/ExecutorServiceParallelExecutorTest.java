@@ -21,8 +21,8 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static org.junit.rules.RuleChain.outerRule;
 
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.LinkedListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.base.Function;
-import com.google.common.base.Predicates;
-import com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nullable;

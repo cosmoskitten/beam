@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
-import com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;

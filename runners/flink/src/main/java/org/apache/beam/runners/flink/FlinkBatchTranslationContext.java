@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;

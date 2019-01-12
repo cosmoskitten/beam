@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.data;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CancellationException;

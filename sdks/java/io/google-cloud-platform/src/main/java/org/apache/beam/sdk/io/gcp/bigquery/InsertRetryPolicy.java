@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
-import com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Set;
 

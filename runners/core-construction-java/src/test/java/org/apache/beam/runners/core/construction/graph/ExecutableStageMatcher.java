@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;

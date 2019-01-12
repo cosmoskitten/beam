@@ -21,8 +21,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;

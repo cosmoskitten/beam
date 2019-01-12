@@ -21,7 +21,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getInt;
 import static org.apache.beam.runners.dataflow.util.Structs.getStrings;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;

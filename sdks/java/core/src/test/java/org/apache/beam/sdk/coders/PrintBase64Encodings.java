@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;

@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;

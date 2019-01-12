@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Predicates.notNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates.notNull;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nullable;

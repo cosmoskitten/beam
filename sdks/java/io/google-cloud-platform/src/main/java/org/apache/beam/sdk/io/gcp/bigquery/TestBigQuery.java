@@ -30,7 +30,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;

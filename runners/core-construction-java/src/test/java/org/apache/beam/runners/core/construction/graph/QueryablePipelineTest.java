@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,7 +27,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;

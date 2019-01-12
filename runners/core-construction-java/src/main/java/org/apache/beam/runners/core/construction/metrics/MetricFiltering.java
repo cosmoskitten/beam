@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.metrics;
 
-import com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;

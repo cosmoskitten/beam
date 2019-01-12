@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

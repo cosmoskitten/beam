@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 

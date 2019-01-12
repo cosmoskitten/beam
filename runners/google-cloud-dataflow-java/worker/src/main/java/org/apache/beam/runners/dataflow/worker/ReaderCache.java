@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Preconditions;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalCause;
-import com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalCause;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalNotification;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;

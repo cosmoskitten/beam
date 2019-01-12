@@ -38,7 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Arrays;

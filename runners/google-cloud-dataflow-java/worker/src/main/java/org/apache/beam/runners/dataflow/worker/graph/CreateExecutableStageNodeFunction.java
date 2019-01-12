@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
@@ -28,10 +28,10 @@ import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.io.File;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;

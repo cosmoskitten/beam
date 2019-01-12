@@ -27,7 +27,7 @@ import static org.joda.time.Duration.standardMinutes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;

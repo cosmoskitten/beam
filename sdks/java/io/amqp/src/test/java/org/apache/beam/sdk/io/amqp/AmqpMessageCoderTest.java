@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.amqp;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;

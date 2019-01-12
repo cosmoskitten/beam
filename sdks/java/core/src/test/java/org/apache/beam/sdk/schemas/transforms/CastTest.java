@@ -20,7 +20,7 @@ package org.apache.beam.sdk.schemas.transforms;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;

@@ -19,7 +19,7 @@ package org.apache.beam.fn.harness.state;
 
 import static org.junit.Assert.assertArrayEquals;
 
-import com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import java.util.Iterator;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.LazyBlockingStateFetchingIterator;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;

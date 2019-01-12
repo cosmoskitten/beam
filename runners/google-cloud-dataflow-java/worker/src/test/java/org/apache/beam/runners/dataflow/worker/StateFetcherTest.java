@@ -26,9 +26,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Supplier;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;

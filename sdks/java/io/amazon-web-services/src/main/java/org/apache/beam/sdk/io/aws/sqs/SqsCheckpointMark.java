@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.aws.sqs;
 
 import com.amazonaws.services.sqs.model.Message;
-import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;

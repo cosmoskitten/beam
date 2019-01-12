@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.NameAndKind;
 import com.google.api.services.dataflow.model.SplitInt64;
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;

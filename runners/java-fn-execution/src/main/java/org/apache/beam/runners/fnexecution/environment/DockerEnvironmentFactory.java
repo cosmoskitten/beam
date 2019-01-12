@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;

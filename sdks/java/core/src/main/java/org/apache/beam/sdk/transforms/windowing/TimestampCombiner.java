@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;

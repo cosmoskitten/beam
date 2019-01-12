@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;

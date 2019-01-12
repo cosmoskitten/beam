@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

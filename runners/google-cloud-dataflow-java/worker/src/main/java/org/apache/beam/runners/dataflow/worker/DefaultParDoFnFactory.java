@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.util.CloudObject;

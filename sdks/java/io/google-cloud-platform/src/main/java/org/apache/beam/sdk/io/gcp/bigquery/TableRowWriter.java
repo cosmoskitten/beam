@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;

@@ -45,7 +45,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.Position;
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.NoSuchElementException;

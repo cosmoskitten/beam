@@ -28,11 +28,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-import com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
