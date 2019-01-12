@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.metrics;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import com.codahale.metrics.Metric;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;

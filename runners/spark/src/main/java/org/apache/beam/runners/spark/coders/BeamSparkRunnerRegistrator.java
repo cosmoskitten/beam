@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import org.apache.beam.runners.spark.io.MicrobatchSource;

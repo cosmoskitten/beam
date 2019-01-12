@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.util.Collections;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;

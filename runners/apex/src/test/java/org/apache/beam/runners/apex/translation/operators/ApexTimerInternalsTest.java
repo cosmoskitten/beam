@@ -22,7 +22,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.datatorrent.lib.util.KryoCloneUtils;
 import com.datatorrent.netlet.util.Slice;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

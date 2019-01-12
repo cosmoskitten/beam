@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.base.Throwables;
-import com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

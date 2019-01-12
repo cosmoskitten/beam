@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;

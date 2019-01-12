@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.adapter;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Verify;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;

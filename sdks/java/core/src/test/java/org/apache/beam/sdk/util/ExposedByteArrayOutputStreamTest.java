@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
-import com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.junit.Test;

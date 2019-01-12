@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.buildMockedS3FileSystem;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
@@ -58,7 +58,7 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import io.findify.s3mock.S3Mock;
 import java.io.FileNotFoundException;
 import java.io.IOException;

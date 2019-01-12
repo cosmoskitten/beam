@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,8 +27,8 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;

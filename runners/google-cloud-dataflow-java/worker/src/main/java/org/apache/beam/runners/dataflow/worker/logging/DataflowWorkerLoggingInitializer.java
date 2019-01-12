@@ -24,9 +24,9 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.TRACE;
 import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.WARN;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;

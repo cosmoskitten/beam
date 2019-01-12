@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;

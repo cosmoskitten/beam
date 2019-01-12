@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.File;
 import java.io.Serializable;
 import java.nio.charset.Charset;

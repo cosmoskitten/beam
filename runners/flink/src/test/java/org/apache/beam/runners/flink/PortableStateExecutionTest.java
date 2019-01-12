@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.Executors;

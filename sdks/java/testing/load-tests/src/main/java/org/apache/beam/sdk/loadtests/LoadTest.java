@@ -19,8 +19,8 @@ package org.apache.beam.sdk.loadtests;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.Pipeline;

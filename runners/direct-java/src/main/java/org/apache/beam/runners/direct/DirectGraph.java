@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;

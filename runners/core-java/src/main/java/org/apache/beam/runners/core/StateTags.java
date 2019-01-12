@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Equivalence;
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;

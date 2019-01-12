@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Objects;

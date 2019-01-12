@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;

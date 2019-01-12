@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.beam.sdk.fn.IdGenerator;

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.AbstractIterator;
 import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;

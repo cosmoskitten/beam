@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.hbase;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;

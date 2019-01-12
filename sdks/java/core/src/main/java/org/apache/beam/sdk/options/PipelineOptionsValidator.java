@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Ordering;
-import com.google.common.collect.SortedSetMultimap;
-import com.google.common.collect.TreeMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedSetMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultimap;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;

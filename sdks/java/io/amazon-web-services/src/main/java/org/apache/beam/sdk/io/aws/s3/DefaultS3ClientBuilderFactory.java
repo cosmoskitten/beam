@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.aws.s3;
 
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.apache.beam.sdk.io.aws.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 

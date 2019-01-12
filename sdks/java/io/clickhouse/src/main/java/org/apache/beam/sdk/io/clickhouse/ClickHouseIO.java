@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;

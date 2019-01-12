@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.fn.logging;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;

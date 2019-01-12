@@ -18,8 +18,8 @@
 package org.apache.beam.runners.direct.portable;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import com.mongodb.MongoClient;
 import java.util.Date;
 import java.util.Map;

@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.counters;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.math.LongMath;
-import com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.math.LongMath;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.AtomicDouble;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;

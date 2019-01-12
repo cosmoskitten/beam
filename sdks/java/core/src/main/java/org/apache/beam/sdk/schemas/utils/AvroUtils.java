@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.CaseFormat;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;

@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;

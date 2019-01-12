@@ -17,19 +17,19 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.graph.ElementOrder;
-import com.google.common.graph.EndpointPair;
-import com.google.common.graph.Graphs;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.graph.Network;
-import com.google.common.graph.NetworkBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ElementOrder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.EndpointPair;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;

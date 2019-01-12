@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;

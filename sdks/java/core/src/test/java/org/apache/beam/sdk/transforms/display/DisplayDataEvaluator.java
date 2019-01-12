@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;

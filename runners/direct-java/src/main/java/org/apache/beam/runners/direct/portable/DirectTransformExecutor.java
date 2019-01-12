@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct.portable;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.util.concurrent.Callable;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.autoCastField;
 import static org.apache.beam.sdk.values.Row.toRow;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;

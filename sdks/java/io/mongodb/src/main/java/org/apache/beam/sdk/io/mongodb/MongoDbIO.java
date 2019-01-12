@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static com.mongodb.client.model.Projections.include;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;

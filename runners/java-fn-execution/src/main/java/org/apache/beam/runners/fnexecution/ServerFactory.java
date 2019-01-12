@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;

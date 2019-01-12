@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;

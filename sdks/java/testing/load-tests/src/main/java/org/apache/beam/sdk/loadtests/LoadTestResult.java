@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.loadtests;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.TestResult;

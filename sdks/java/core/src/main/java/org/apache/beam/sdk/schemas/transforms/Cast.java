@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;

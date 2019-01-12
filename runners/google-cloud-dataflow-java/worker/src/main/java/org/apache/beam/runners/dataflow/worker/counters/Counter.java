@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;

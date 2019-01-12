@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Random;

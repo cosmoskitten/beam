@@ -23,8 +23,8 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDetermi
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.GenericDescriptor;
 import com.google.protobuf.Duration;

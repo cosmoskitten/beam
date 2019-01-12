@@ -26,8 +26,8 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;

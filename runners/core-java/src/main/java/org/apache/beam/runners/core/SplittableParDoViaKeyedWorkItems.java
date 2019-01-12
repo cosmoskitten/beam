@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;

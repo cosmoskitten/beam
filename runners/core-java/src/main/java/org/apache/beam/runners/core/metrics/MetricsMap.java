@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.SyntheticComponents.uniqueId;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;

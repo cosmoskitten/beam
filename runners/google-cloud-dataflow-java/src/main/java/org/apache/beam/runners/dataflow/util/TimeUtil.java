@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;

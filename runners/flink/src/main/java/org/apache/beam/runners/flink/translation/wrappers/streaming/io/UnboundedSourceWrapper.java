@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;

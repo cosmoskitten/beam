@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import io.gearpump.streaming.dsl.api.functions.FoldFunction;
 import io.gearpump.streaming.dsl.api.functions.MapFunction;
 import io.gearpump.streaming.dsl.javaapi.JavaStream;

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;

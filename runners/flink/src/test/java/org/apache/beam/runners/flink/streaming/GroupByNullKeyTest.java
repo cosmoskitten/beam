@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;

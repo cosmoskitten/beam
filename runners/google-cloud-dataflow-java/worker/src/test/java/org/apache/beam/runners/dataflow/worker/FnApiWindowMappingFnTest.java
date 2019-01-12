@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

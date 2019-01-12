@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;

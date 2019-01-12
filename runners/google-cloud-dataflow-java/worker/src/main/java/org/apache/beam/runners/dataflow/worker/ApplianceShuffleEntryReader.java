@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.BatchingShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.CachingShuffleBatchReader;

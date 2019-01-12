@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;

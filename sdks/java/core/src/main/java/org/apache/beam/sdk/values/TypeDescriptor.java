@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.Lists;
-import com.google.common.reflect.Invokable;
-import com.google.common.reflect.Parameter;
-import com.google.common.reflect.TypeResolver;
-import com.google.common.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.Invokable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.Parameter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeResolver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.reflect.TypeToken;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

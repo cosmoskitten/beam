@@ -18,10 +18,10 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;

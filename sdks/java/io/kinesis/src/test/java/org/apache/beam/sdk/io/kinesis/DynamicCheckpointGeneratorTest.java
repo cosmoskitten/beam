@@ -22,7 +22,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.Shard;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Set;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

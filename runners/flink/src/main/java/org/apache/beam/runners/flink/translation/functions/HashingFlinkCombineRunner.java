@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

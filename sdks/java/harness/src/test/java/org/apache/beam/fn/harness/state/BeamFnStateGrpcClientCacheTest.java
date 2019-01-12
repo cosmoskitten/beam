@@ -24,7 +24,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;

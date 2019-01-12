@@ -21,7 +21,7 @@ import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;

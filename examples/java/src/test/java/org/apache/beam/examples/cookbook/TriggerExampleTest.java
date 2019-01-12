@@ -18,8 +18,8 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

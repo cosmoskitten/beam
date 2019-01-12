@@ -20,11 +20,11 @@ package org.apache.beam.runners.dataflow.worker.graph;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.ParDoInstruction;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.RehydratedComponents;

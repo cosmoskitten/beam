@@ -18,8 +18,8 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.DAG;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

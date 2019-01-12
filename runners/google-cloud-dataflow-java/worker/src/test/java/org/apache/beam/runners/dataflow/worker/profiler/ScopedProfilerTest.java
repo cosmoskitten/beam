@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.profiler;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.util.HashMap;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfilerWrapper;

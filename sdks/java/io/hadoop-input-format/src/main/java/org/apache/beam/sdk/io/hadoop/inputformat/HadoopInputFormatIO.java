@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;

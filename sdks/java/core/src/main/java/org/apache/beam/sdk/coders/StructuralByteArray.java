@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
 import java.util.Arrays;
 
 /**

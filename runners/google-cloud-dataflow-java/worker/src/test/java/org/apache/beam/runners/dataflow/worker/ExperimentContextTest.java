@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;

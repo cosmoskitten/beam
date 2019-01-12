@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;

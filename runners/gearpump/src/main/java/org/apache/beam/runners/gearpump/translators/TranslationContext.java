@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import io.gearpump.cluster.UserConfig;
 import io.gearpump.streaming.dsl.javaapi.JavaStream;
 import io.gearpump.streaming.dsl.javaapi.JavaStreamApp;

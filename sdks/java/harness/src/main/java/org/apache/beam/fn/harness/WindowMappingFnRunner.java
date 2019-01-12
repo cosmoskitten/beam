@@ -18,7 +18,7 @@
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;

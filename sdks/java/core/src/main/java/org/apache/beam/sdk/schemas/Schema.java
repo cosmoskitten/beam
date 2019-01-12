@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

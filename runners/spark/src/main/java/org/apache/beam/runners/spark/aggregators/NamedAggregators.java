@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;

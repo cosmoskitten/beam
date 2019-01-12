@@ -20,7 +20,7 @@ package org.apache.beam.sdk.testutils.publishing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.testutils.TestResult;
 import org.apache.beam.sdk.testutils.fakes.FakeBigQueryClient;

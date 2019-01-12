@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.queries.sql;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;

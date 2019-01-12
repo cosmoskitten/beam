@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
 import com.google.api.services.dataflow.model.SendDebugCaptureRequest;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;

@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;

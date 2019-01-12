@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;

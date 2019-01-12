@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;

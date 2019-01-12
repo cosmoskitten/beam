@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 

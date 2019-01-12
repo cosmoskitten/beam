@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;

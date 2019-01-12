@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.hcatalog;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;

@@ -20,8 +20,8 @@ package org.apache.beam.runners.gearpump.translators;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import io.gearpump.streaming.dsl.window.api.WindowFunction;
 import io.gearpump.streaming.dsl.window.impl.Window;
 import java.time.Instant;

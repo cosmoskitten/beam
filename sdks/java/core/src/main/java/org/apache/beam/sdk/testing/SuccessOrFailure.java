@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.aws.sns;
 
 import com.amazonaws.services.sns.model.PublishResult;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

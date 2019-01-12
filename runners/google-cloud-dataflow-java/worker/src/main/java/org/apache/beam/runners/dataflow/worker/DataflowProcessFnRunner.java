@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;

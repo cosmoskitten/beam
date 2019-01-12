@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;

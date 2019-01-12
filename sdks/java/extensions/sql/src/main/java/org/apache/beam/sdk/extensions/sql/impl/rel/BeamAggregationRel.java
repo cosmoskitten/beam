@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
