@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 
 /**

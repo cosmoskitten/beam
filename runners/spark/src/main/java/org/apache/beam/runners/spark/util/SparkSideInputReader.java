@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;

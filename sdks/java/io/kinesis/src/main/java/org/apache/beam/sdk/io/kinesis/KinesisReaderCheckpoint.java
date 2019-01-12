@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
-import static com.google.common.collect.Lists.partition;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.partition;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;

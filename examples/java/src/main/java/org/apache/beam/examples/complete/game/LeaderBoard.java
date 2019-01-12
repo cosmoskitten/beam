@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleOptions;

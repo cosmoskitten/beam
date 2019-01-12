@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;

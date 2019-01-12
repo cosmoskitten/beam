@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;

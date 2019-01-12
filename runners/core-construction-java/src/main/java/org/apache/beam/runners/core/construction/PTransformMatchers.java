@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;

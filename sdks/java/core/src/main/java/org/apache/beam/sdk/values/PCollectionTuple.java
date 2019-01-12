@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;

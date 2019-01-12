@@ -18,7 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
 import org.apache.beam.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;

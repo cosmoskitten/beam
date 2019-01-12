@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.WindowIntoTranslation;

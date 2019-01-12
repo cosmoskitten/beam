@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms.display;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.beam.fn.harness.FnHarness;

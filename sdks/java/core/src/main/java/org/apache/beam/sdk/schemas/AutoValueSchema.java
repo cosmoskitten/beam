@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;

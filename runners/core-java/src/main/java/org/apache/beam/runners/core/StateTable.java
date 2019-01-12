@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Equivalence;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;

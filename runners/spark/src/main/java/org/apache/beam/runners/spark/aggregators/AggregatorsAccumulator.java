@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;

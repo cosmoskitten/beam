@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.io.ByteStreams;
-import com.google.common.util.concurrent.AtomicDouble;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.AtomicDouble;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;

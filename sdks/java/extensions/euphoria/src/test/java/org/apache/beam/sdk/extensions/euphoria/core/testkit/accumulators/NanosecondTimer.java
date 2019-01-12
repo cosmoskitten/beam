@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit.accumulators;
 
-import com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;

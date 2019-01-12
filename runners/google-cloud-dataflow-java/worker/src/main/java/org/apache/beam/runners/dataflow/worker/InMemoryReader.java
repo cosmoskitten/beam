@@ -18,12 +18,12 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Preconditions.checkNotNull;
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;

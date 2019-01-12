@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
 
 dependencies {
-  compile library.java.guava
+  shadow library.java.vendored_guava_20_0
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
@@ -33,7 +33,7 @@ dependencies {
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile library.java.guava_testlib
+  testshadow library.java.vendored_guava_20_0_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core

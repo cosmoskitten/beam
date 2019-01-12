@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import javax.management.InstanceNotFoundException;

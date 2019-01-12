@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;

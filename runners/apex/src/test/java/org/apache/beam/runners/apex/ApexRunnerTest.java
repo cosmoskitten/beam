@@ -21,7 +21,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.DAG.Locality;
 import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.OperatorContext;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Properties;

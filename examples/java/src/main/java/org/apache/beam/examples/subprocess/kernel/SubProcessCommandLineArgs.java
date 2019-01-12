@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.subprocess.kernel;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.util.List;
 
 /** Parameters to the sub-process, has tuple of ordinal position and the value. */

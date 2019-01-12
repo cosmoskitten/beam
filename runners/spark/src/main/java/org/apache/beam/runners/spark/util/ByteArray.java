@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.Arrays;
 

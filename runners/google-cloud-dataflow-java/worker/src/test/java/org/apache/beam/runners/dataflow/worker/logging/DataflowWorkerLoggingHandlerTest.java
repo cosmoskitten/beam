@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;

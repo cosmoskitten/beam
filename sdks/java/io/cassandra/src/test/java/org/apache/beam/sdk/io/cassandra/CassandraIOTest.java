@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
-import com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

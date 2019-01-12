@@ -24,7 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import org.apache.beam.runners.flink.translation.functions.ReferenceCountingFlinkExecutableStageContextFactory.Creator;

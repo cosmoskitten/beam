@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;

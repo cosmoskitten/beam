@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.gearpump.translators.functions;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import io.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import java.io.Serializable;
 import java.util.ArrayList;

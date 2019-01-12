@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

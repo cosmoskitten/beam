@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
 import java.beans.Introspector;
 import java.lang.reflect.Method;
 import java.util.Map;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import io.gearpump.util.Graph;
 import java.util.HashMap;
 import java.util.List;

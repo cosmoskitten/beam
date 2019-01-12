@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;

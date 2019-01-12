@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

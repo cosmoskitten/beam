@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.IOException;
 
 /** Abstract base class describing a client for WorkItem work units. */

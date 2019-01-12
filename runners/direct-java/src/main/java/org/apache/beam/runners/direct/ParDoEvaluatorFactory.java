@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

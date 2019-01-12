@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;

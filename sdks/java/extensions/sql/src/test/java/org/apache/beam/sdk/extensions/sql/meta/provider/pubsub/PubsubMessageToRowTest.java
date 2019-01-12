@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
-import static com.google.common.collect.Iterables.size;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.size;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARCHAR;
@@ -25,8 +25,8 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMess
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;

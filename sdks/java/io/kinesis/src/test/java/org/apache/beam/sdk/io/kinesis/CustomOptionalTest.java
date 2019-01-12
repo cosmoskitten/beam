@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.google.common.testing.EqualsTester;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.testing.EqualsTester;
 import java.util.NoSuchElementException;
 import org.junit.Test;
 

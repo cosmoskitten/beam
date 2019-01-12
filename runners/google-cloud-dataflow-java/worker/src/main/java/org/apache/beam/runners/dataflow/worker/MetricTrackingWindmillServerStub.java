@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;

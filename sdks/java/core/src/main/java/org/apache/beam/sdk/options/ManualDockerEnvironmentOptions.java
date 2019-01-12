@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /** Pipeline options to tune DockerEnvironment. */

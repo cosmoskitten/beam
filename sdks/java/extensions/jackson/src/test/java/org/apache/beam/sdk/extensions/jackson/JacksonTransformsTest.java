@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.jackson;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;

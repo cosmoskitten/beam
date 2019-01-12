@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.common;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;

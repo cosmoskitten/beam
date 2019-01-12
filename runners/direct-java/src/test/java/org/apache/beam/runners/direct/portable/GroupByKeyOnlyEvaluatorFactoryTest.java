@@ -20,9 +20,9 @@ package org.apache.beam.runners.direct.portable;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multiset;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultiset;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multiset;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;

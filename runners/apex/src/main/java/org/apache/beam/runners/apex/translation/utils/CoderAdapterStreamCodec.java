@@ -19,7 +19,7 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.netlet.util.Slice;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

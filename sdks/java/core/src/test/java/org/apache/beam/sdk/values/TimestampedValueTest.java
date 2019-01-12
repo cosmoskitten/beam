@@ -19,7 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.testing.EqualsTester;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.testing.EqualsTester;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

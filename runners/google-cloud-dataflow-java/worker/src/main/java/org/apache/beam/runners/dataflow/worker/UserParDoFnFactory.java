@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.dataflow.DataflowRunner.StreamingPCollectionViewWriterFn;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;

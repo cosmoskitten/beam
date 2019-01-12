@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;

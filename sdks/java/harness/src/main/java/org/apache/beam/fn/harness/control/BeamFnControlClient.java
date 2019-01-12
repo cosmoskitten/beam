@@ -17,9 +17,9 @@
  */
 package org.apache.beam.fn.harness.control;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.util.EnumMap;
 import java.util.Objects;
 import java.util.concurrent.BlockingDeque;

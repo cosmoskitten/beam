@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.joda.time.Duration;

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;

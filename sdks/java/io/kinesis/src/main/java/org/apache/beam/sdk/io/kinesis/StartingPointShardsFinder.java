@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.kinesis;
 
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;

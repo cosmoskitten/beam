@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;

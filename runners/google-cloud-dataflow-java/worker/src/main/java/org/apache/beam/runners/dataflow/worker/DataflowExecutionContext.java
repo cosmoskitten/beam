@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.collect.Iterables;
-import com.google.common.io.Closer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;

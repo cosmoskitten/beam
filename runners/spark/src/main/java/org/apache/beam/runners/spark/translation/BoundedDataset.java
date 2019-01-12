@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;

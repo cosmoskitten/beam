@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.transform;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.transform;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.min;
 import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
@@ -80,7 +80,7 @@ import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
-import com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

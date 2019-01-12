@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.amqp;
 
-import com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

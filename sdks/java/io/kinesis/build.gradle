@@ -54,7 +54,7 @@ dependencies {
   testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
+  testshadow library.java.vendored_guava_20_0_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_jdk14

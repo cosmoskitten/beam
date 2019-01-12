@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;

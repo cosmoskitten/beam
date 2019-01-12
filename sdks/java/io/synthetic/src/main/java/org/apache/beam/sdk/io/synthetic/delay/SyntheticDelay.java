@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.synthetic.delay;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.hash.Hashing;
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;

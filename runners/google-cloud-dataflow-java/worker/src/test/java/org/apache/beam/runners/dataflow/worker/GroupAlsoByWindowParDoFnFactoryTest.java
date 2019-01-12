@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.GroupAlsoByWindowParDoFnFactory.MergingCombineFn;
 import org.apache.beam.sdk.coders.VarLongCoder;

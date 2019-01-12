@@ -19,7 +19,7 @@ package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Flatten;

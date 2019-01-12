@@ -19,8 +19,8 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Test;

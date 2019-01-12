@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -27,7 +27,7 @@ import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;

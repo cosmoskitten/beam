@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
-import com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;

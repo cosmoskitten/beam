@@ -20,7 +20,7 @@ package org.apache.beam.fn.harness;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;

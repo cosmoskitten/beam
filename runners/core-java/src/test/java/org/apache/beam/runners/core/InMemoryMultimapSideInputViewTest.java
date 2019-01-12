@@ -19,7 +19,7 @@ package org.apache.beam.runners.core;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
