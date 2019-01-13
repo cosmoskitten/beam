@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static com.mongodb.client.model.Projections.include;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-
 
 import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
@@ -32,7 +30,6 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.InsertManyOptions;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -43,14 +40,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.bson.BsonDocument;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,8 +108,7 @@ public class MongoDbIO {
         .setSslEnabled(false)
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
-        .setMongoDbPipeline(Arrays.asList())
-        .setLimit(0)
+        .setQueryBuilder(FindQueryBuilder.create())
         .build();
   }
 
@@ -154,24 +149,9 @@ public class MongoDbIO {
     @Nullable
     abstract String collection();
 
-    @Nullable
-    abstract String filter();
-
-    @Nullable
-    abstract List<String> projection();
-
     abstract int numSplits();
 
-    abstract int limit();
-
-    @Nullable
-    abstract List<BsonDocument> mongoDbPipeline();
-
-    @Nullable
-    abstract String documentId();
-
-    @Nullable
-    abstract ObjectId objectId();
+    abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilder();
 
     abstract Builder builder();
 
@@ -193,19 +173,10 @@ public class MongoDbIO {
 
       abstract Builder setCollection(String collection);
 
-      abstract Builder setFilter(String filter);
-
-      abstract Builder setProjection(List<String> fieldNames);
-
       abstract Builder setNumSplits(int numSplits);
 
-      abstract Builder setLimit(int limit);
-
-      abstract Builder setMongoDbPipeline(List<BsonDocument> mongoDbPipeline);
-
-      abstract Builder setDocumentId(String documentId);
-
-      abstract Builder setObjectId(ObjectId objectId);
+      abstract Builder setQueryBuilder(
+          SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilder);
 
       abstract Read build();
     }
@@ -287,39 +258,15 @@ public class MongoDbIO {
       return builder().setCollection(collection).build();
     }
 
-    /** Sets a filter on the documents in a collection. */
-    public Read withFilter(String filter) {
-      checkArgument(filter != null, "filter can not be null");
-      return builder().setFilter(filter).build();
-    }
-
-    /** Sets a projection on the documents in a collection. */
-    public Read withProjection(final String... fieldNames) {
-      checkArgument(fieldNames.length > 0, "projection can not be null");
-      return builder().setProjection(Arrays.asList(fieldNames)).build();
-    }
-
     /** Sets the user defined number of splits. */
     public Read withNumSplits(int numSplits) {
       checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
       return builder().setNumSplits(numSplits).build();
     }
 
-    public Read withLimit(int limit) {
-      checkArgument(limit >= 0, "invalid limit: must be > 0, but was %s", limit);
-      return builder().setLimit(limit).build();
-    }
-
-    public Read withMongoDbPipeline(List<BsonDocument> value) {
-      return builder().setMongoDbPipeline(value).build();
-    }
-
-    public Read withDocumentId(String value) {
-      return builder().setDocumentId(value).build();
-    }
-
-    public Read withObjectId(ObjectId value) {
-      return builder().setObjectId(value).build();
+    public Read withQueryBuilder(
+        SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
+      return builder().setQueryBuilder(queryBuilderFn).build();
     }
 
     @Override
@@ -339,16 +286,9 @@ public class MongoDbIO {
       builder.add(DisplayData.item("sslEnabled", sslEnabled()));
       builder.add(DisplayData.item("sslInvalidHostNameAllowed", sslInvalidHostNameAllowed()));
       builder.add(DisplayData.item("ignoreSSLCertificate", ignoreSSLCertificate()));
-
       builder.add(DisplayData.item("database", database()));
       builder.add(DisplayData.item("collection", collection()));
-      builder.addIfNotNull(DisplayData.item("filter", filter()));
-      if (projection() != null) {
-        builder.addIfNotNull(
-            DisplayData.item("projection", Arrays.toString(projection().toArray())));
-      }
       builder.add(DisplayData.item("numSplit", numSplits()));
-      builder.add(DisplayData.item("limit", limit()));
     }
   }
 
@@ -461,16 +401,17 @@ public class MongoDbIO {
         splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
 
         List<BoundedSource<Document>> sources = new ArrayList<>();
-        if (!spec.mongoDbPipeline().isEmpty() || splitKeys.size() < 1) {
+        if (splitKeys.size() < 1) {
           LOG.debug("Split keys is low, using an unique source");
           sources.add(this);
           return sources;
         }
 
         LOG.debug("Number of splits is {}", splitKeys.size());
-        for (String shardFilter : splitKeysToFilters(splitKeys, spec.filter())) {
-          sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)));
-        }
+        // TODO: What should be done here?
+        // for (String shardFilter : splitKeysToFilters(splitKeys, spec.filter())) {
+        //   sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)));
+        // }
 
         return sources;
       }
@@ -577,15 +518,10 @@ public class MongoDbIO {
       MongoDatabase mongoDatabase = client.getDatabase(spec.database());
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
 
-      cursor =
-          QueryBuilder.create(mongoCollection)
-              .withDocumentId(spec.documentId())
-              .withObjectId(spec.objectId())
-              .withFilter(spec.filter())
-              .withLimit(spec.limit())
-              .withMongoDbPipeline(spec.mongoDbPipeline())
-              .withProjection(spec.projection())
-              .cursor();
+      if (spec.queryBuilder() == null) {
+        throw new InvalidParameterException("A QueryBuilder must be provided.");
+      }
+      cursor = spec.queryBuilder().apply(mongoCollection);
 
       return advance();
     }

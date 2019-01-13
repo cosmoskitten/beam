@@ -25,6 +25,7 @@ import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -198,7 +200,7 @@ public class MongoDbIOTest implements Serializable {
     PAssert.that(
             output
                 .apply(
-                    "Map Scientist",
+                    "Map scientist",
                     MapElements.via(
                         new SimpleFunction<Document, KV<String, Void>>() {
                           @Override
@@ -206,7 +208,7 @@ public class MongoDbIOTest implements Serializable {
                             return KV.of(input.getString("scientist"), null);
                           }
                         }))
-                .apply("Count Scientist", Count.perKey()))
+                .apply("Count scientist", Count.perKey()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {
@@ -237,7 +239,7 @@ public class MongoDbIOTest implements Serializable {
     PAssert.that(
             documents
                 .apply(
-                    "Map Scientist",
+                    "Map scientist",
                     MapElements.via(
                         new SimpleFunction<Document, KV<String, Void>>() {
                           @Override
@@ -245,7 +247,7 @@ public class MongoDbIOTest implements Serializable {
                             return KV.of(input.getString("scientist"), null);
                           }
                         }))
-                .apply("Count Scientist", Count.perKey()))
+                .apply("Count scientist", Count.perKey()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {
@@ -265,7 +267,8 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withFilter("{\"scientist\":\"Einstein\"}"));
+                .withQueryBuilder(
+                    FindQueryBuilder.create().withFilters(Filters.eq("scientist", "Einstein"))));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
 
@@ -280,8 +283,10 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withFilter("{\"scientist\":\"Einstein\"}")
-                .withLimit(5));
+                .withQueryBuilder(
+                    FindQueryBuilder.create()
+                        .withFilters(Filters.eq("scientist", "Einstein"))
+                        .withLimit(5)));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
 
@@ -303,7 +308,8 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withMongoDbPipeline(aggregates));
+                .withQueryBuilder(
+                    AggregationQueryBuilder.create().withMongoDbPipeline(aggregates)));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(300L);
 
@@ -324,32 +330,10 @@ public class MongoDbIOTest implements Serializable {
               .withUri("mongodb://localhost:" + port)
               .withDatabase(DATABASE)
               .withCollection(COLLECTION)
-              .withDocumentId("52cc8f6254c4327843000007")
-              .withMongoDbPipeline(aggregates));
-      pipeline.run();
-    } catch (InvalidParameterException e) {
-      return;
-    }
-
-    fail("assertion should have failed");
-  }
-
-  @Test
-  public void testReadWithBothAggregateAndFilter() throws Exception {
-    try {
-      List<BsonDocument> aggregates = new ArrayList<BsonDocument>();
-      aggregates.add(
-          new BsonDocument(
-              "$match",
-              new BsonDocument("country", new BsonDocument("$eq", new BsonString("England")))));
-
-      pipeline.apply(
-          MongoDbIO.read()
-              .withUri("mongodb://localhost:" + port)
-              .withDatabase(DATABASE)
-              .withCollection(COLLECTION)
-              .withFilter("{\"scientist\":\"Einstein\"}")
-              .withMongoDbPipeline(aggregates));
+              .withQueryBuilder(
+                  FindQueryBuilder.create()
+                      .withId("52cc8f6254c4327843000007")
+                      .withFilters(Filters.eq("scientist", "Einstein"))));
       pipeline.run();
     } catch (InvalidParameterException e) {
       return;
@@ -366,13 +350,15 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withFilter("{\"scientist\":\"Einstein\"}")
-                .withProjection("country", "scientist"));
+                .withQueryBuilder(
+                    FindQueryBuilder.create()
+                        .withFilters(Filters.eq("scientist", "Einstein"))
+                        .withProjection(Arrays.asList(new String[] {"country", "scientist"}))));
 
     PAssert.thatSingleton(
             output
                 .apply(
-                    "Map Scientist",
+                    "Map scientist",
                     Filter.by(
                         (Document doc) ->
                             doc.get("country") != null && doc.get("scientist") != null))
@@ -391,12 +377,14 @@ public class MongoDbIOTest implements Serializable {
                 .withUri("mongodb://localhost:" + port)
                 .withDatabase(DATABASE)
                 .withCollection(COLLECTION)
-                .withProjection("country"));
+                .withQueryBuilder(
+                    FindQueryBuilder.create()
+                        .withProjection(Arrays.asList(new String[] {"country"}))));
 
     PAssert.thatSingleton(
             output
                 .apply(
-                    "Map Scientist",
+                    "Map scientist",
                     Filter.by(
                         (Document doc) ->
                             doc.get("country") != null && doc.get("scientist") == null))
