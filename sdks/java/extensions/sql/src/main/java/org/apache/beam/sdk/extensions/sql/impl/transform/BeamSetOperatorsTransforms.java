@@ -80,8 +80,23 @@ public abstract class BeamSetOperatorsTransforms {
         case INTERSECT:
           if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
             if (all) {
-              for (Row leftRow : leftRows) {
-                ctx.output(leftRow);
+              Iterator<Row> iter = leftRows.iterator();
+              int leftCount = 0;
+              int rightCount = 0;
+              while (iter.hasNext()) {
+                iter.next();
+                leftCount++;
+              }
+              iter = rightRows.iterator();
+              while (iter.hasNext()) {
+                iter.next();
+                rightCount++;
+              }
+
+              // output MIN(m, n)
+              iter = (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
+              while (iter.hasNext()) {
+                ctx.output(iter.next());
               }
             } else {
               ctx.output(ctx.element().getKey());
