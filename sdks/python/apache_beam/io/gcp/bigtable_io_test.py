@@ -71,7 +71,7 @@ class GenerateDirectRows(beam.PTransform):
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
-  
+
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
 
