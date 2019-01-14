@@ -49,10 +49,12 @@ label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
+
 def _retry_on_unavailable(exc):
   """Retry only errors whose status code is 'UNAVAILABLE'."""
   from grpc import StatusCode
   return exc.code() == StatusCode.UNAVAILABLE
+
 
 class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
@@ -132,7 +134,7 @@ class BigtableIOWriteIT(unittest.TestCase):
         (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))]
 
     if CLEAN_INSTANCE:
-      for instance in INSTANCE_TO_CLEAN:
+      for instance in CLEAN_INSTANCE:
         instance.delete()
 
   def tearDown(self):
