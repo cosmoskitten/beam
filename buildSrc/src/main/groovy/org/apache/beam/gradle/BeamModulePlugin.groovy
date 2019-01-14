@@ -305,9 +305,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def enabled = graph.allTasks.any { it instanceof JacocoReport }
       enabled = enabled || graph.allTasks.any { it.name.contains("sonarqube") }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
-      if (graph.allTasks.any { it.name.contains("sonarqube") }) {
-        println "migryz hello world"
-      }
     }
 
     // Apply a plugin which provides tasks for dependency / property / task reports.
