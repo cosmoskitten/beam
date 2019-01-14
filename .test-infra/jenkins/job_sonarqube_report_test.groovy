@@ -45,8 +45,10 @@ job('beam_sonarqube_report_test') {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(":beam-runners-google-cloud-dataflow-java-fn-api-worker:test")
-      tasks(":beam-runners-google-cloud-dataflow-java-fn-api-worker:sonarqube")
+      tasks("test")
+      tasks("sonarqube")
+      switches("--continue")
+      switches("-PdisableSpotlessCheck=true")
     }
   }
 }
