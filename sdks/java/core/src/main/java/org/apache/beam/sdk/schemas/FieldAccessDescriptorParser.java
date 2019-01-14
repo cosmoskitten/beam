@@ -41,7 +41,7 @@ import org.apache.beam.sdk.schemas.FieldSpecifierNotationParser.WildcardContext;
 class FieldAccessDescriptorParser {
   static FieldAccessDescriptor parse(String expr) {
     CharStream charStream = CharStreams.fromString(expr);
-    org.apache.beam.sdk.schemas.FieldSpecifierNotationLexer lexer =
+   org.apache.beam.sdk.schemas.FieldSpecifierNotationLexer lexer =
         new org.apache.beam.sdk.schemas.FieldSpecifierNotationLexer(charStream);
     TokenStream tokens = new CommonTokenStream(lexer);
     org.apache.beam.sdk.schemas.FieldSpecifierNotationParser parser =
