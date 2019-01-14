@@ -126,6 +126,7 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _delete_old_instances(self):
     instances = self.client.list_instances()
     EXISTING_INSTANCES[:] = instances
+    
     def age_in_hours(micros):
       return (datetime.datetime.utcnow().replace(tzinfo=UTC) - (
           _datetime_from_microseconds(micros))).total_seconds() // 3600
