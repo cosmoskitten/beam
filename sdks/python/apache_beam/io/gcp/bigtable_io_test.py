@@ -45,6 +45,9 @@ try:
 except ImportError:
   Client = None
   UTC = pytz.utc
+  _microseconds_from_datetime = lambda label_stamp: label_stamp
+  _datetime_from_microseconds = lambda micro: micro
+
 
 EXISTING_INSTANCES = []
 LABEL_KEY = u'python-bigtable-beam'
