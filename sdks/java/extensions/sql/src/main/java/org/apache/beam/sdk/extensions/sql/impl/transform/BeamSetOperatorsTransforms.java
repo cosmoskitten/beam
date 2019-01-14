@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import com.google.common.collect.Iterators;
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSetOperatorRelBase;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -80,8 +81,14 @@ public abstract class BeamSetOperatorsTransforms {
         case INTERSECT:
           if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
             if (all) {
-              for (Row leftRow : leftRows) {
-                ctx.output(leftRow);
+              int leftCount = Iterators.size(leftRows.iterator());
+              int rightCount = Iterators.size(rightRows.iterator());
+
+              // Say for Row R, there are m instances on left and n instances on right,
+              // INTERSECT ALL outputs MIN(m, n) instances of R.
+              Iterator<Row> iter = (leftCount <= rightCount) ? leftRows.iterator() : rightRows.iterator();
+              while (iter.hasNext()) {
+                ctx.output(iter.next());
               }
             } else {
               ctx.output(ctx.element().getKey());
