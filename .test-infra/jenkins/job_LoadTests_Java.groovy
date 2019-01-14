@@ -71,6 +71,20 @@ def smokeTestConfigurations = [
                         fanout           : 10,
                         iterations       : 1,
                 ]
+        ],
+        [
+                title        : 'GroupByKey load test Dataflow',
+                itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                runner       : CommonTestProperties.Runner.DATAFLOW,
+                jobProperties: [
+                        publishToBigQuery: true,
+                        bigQueryDataset  : 'smoke_load_test',
+                        bigQueryTable    : 'dataflow_gbk',
+                        sourceOptions    : '{"numRecords":100000,"splitPointFrequencyRecords":1}',
+                        stepOptions      : '{"outputRecordsPerInputRecord":1,"preservesInputKeyDistribution":true}',
+                        fanout           : 10,
+                        iterations       : 1,
+                ]
         ]
 ]
 
