@@ -100,6 +100,31 @@ public abstract class BeamSetOperatorsTransforms {
               // only output one
               ctx.output(iter.next());
             }
+          } else if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
+            // output MAX(m - n, 0);
+            Iterator<Row> iter = leftRows.iterator();
+            int leftCount = 0;
+            int rightCount = 0;
+            while (iter.hasNext()) {
+              iter.next();
+              leftCount++;
+            }
+            iter = rightRows.iterator();
+            while (iter.hasNext()) {
+              iter.next();
+              rightCount++;
+            }
+            int outputCount = leftCount - rightCount;
+            if (outputCount > 0) {
+              if (all) {
+                while (outputCount > 0) {
+                  outputCount--;
+                  ctx.output(ctx.element().getKey());
+                }
+              } else {
+                ctx.output(ctx.element().getKey());
+              }
+            }
           }
       }
     }
