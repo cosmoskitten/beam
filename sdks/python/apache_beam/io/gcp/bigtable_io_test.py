@@ -62,7 +62,7 @@ def _retry_on_unavailable(exc):
   return exc.code() == StatusCode.UNAVAILABLE
 
 
-class GenerateDirectRows(PTransform):
+class GenerateDirectRows(beam.PTransform):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
 
   """
@@ -71,6 +71,7 @@ class GenerateDirectRows(PTransform):
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
+  
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
 
@@ -87,6 +88,7 @@ class GenerateDirectRows(PTransform):
   def expand(self, pvalue):
     return (pvalue
             | beam.Create(self._generate()))
+
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
