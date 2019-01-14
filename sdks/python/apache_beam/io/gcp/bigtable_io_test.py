@@ -24,6 +24,7 @@ import random
 import string
 import unittest
 import uuid
+import pytz
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigtable_io import BigtableConfiguration
@@ -42,6 +43,7 @@ try:
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
+  UTC = pytz.utc
 
 EXISTING_INSTANCES = []
 LABEL_KEY = u'python-bigtable-beam'
@@ -126,7 +128,7 @@ class BigtableIOWriteIT(unittest.TestCase):
   def _delete_old_instances(self):
     instances = self.client.list_instances()
     EXISTING_INSTANCES[:] = instances
-    
+
     def age_in_hours(micros):
       return (datetime.datetime.utcnow().replace(tzinfo=UTC) - (
           _datetime_from_microseconds(micros))).total_seconds() // 3600
