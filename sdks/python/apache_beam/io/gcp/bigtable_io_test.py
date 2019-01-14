@@ -62,27 +62,31 @@ def _retry_on_unavailable(exc):
   return exc.code() == StatusCode.UNAVAILABLE
 
 
-class GenerateDirectRows(beam.DoFn):
+class GenerateDirectRows(PTransform):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
 
   """
+  def __init__(self, number, **kwargs):
+    super(GenerateDirectRows, self).__init__(**kwargs)
+    self.number = number
+    self.rand = random.choice(string.ascii_letters + string.digits)
+    self.column_family_id = 'cf1'
+  def _generate(self):
+    value = ''.join(self.rand for i in range(100))
 
-  def process(self, row_values):
-    """ Process beam pipeline using an element.
+    for index in range(self.number):
+      key = "beam_key%s" % ('{0:07}'.format(index))
+      direct_row = row.DirectRow(row_key=key)
+      for column_id in range(10):
+        direct_row.set_cell(self.column_family_id,
+                            ('field%s' % column_id).encode('utf-8'),
+                            value,
+                            datetime.datetime.now())
+      yield direct_row
 
-    :type row_value: dict
-    :param row_value: dict: dict values with row_key and row_content having
-    family, column_id and value of row.
-    """
-    direct_row = row.DirectRow(row_key=row_values["row_key"])
-
-    for row_value in row_values["row_content"]:
-      direct_row.set_cell(row_value["column_family_id"],
-                          row_value["column_id"],
-                          row_value["value"],
-                          datetime.datetime.now())
-    yield direct_row
-
+  def expand(self, pvalue):
+    return (pvalue
+            | beam.Create(self._generate()))
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableIOWriteIT(unittest.TestCase):
@@ -154,13 +158,11 @@ class BigtableIOWriteIT(unittest.TestCase):
                                    self.table_id)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
-    rows = self._generate_mutation_data(number)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
           pipeline
-          | 'Generate Row Values' >> beam.Create(rows)
-          | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
+          | 'Generate Direct Rows' >> GenerateDirectRows(number)
           | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
 
       result = pipeline.run()
@@ -179,27 +181,6 @@ class BigtableIOWriteIT(unittest.TestCase):
 
           logging.info('Number of Rows: %d', read_counter.committed)
           assert read_counter.committed == number
-
-  def _generate_mutation_data(self, row_index):
-    """ Generate the row data to insert in the table.
-    """
-    row_contents = []
-    rand = random.choice(string.ascii_letters + string.digits)
-    value = ''.join(rand for i in range(100))
-    column_family_id = 'cf1'
-
-    for index in range(row_index):
-      row_values = {}
-      key = "beam_key%s" % ('{0:07}'.format(index))
-      row_values["row_key"] = key
-      row_values["row_content"] = []
-      for column_id in range(10):
-        row_content = {"column_family_id": column_family_id,
-                       "column_id": ('field%s' % column_id).encode('utf-8'),
-                       "value": value}
-        row_values["row_content"].append(row_content)
-      row_contents.append(row_values)
-    return row_contents
 
 
 if __name__ == '__main__':
