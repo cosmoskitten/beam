@@ -36,10 +36,23 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # Protect against environments where bigtable library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from google.cloud._helpers import _datetime_from_microseconds
+  from google.cloud._helpers import _microseconds_from_datetime
+  from google.cloud._helpers import UTC
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
 
+EXISTING_INSTANCES = []
+LABEL_KEY = u'python-bigtable-beam'
+label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
+label_stamp_micros = _microseconds_from_datetime(label_stamp)
+LABELS = {LABEL_KEY: str(label_stamp_micros)}
+
+def _retry_on_unavailable(exc):
+  """Retry only errors whose status code is 'UNAVAILABLE'."""
+  from grpc import StatusCode
+  return exc.code() == StatusCode.UNAVAILABLE
 
 class GenerateDirectRows(beam.DoFn):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
@@ -89,8 +102,11 @@ class BigtableIOWriteIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self.client = Client(project=self.project, admin=True)
 
+    self._delete_old_instances()
+
     self.instance = self.client.instance(self.instance_id,
-                                         instance_type=self.INSTANCE_TYPE)
+                                         instance_type=self.INSTANCE_TYPE,
+                                         labels=LABELS)
 
     if not self.instance.exists():
       cluster = self.instance.cluster(self.cluster_id,
@@ -104,6 +120,20 @@ class BigtableIOWriteIT(unittest.TestCase):
       column_family_id = 'cf1'
       column_families = {column_family_id: max_versions_rule}
       self.table.create(column_families=column_families)
+
+  def _delete_old_instances(self):
+    instances = self.client.list_instances()
+    EXISTING_INSTANCES[:] = instances
+    def age_in_hours(micros):
+      return (datetime.datetime.utcnow().replace(tzinfo=UTC) - (
+          _datetime_from_microseconds(micros))).total_seconds() // 3600
+    CLEAN_INSTANCE = [i for instance in EXISTING_INSTANCES for i in instance if(
+        LABEL_KEY in i.labels.keys() and
+        (age_in_hours(int(i.labels[LABEL_KEY])) >= 2))]
+
+    if CLEAN_INSTANCE:
+      for instance in INSTANCE_TO_CLEAN:
+        instance.delete()
 
   def tearDown(self):
     if self.instance.exists():
