@@ -401,7 +401,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     if (stageContext != null) {
       // Remove the reference to stageContext and make stageContext available for garbage collection.
       try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
-          AutoCloseable closable = stageContext) {
+           AutoCloseable closable = stageContext) {
         // DoFnOperator generates another "bundle" for the final watermark
         // https://issues.apache.org/jira/browse/BEAM-5816
         super.dispose();
