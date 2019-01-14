@@ -293,6 +293,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Disable jacoco unless report requested such that task outputs can be properly cached.
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
       def enabled = graph.allTasks.any { it instanceof JacocoReport }
+      enable = enabled & graph.allTasks.any { it instanceof SonarQube }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
     }
 
