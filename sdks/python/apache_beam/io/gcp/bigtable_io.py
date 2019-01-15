@@ -68,7 +68,7 @@ class WriteToBigtable(beam.DoFn):
       client = Client(project=self.beam_options.project_id)
       instance = client.instance(self.beam_options.instance_id)
       self.table = instance.table(self.beam_options.table_id)
-      self.batcher = MutationsBatcher(self.table)
+    self.batcher = MutationsBatcher(self.table)
 
   def process(self, row):
     self.written.inc()
