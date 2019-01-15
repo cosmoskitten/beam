@@ -52,7 +52,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
   private final CounterFactory counterFactory;
   private final MetricsContainerRegistry<?> metricsContainerRegistry;
   private final ExecutionStateTracker executionStateTracker;
-  protected final ExecutionStateRegistry executionStateRegistry;
+  protected final DataflowExecutionStateRegistry executionStateRegistry;
   // Desired limit on amount of data sinked. Cumulative
   // across all the sinks, when there are more than one sinks.
   private final long sinkByteLimit;
@@ -62,7 +62,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       CounterFactory counterFactory,
       MetricsContainerRegistry<?> metricsRegistry,
       DataflowExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry,
+      DataflowExecutionStateRegistry executionStateRegistry,
       long sinkByteLimit) {
     this.counterFactory = counterFactory;
     this.metricsContainerRegistry = metricsRegistry;
@@ -217,7 +217,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     return metricsContainerRegistry;
   }
 
-  protected ExecutionStateRegistry getExecutionStateRegistry() {
+  protected DataflowExecutionStateRegistry getExecutionStateRegistry() {
     return executionStateRegistry;
   }
 
@@ -249,6 +249,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     @Override
     public Closeable activate() {
+      // TODO why is this here? This should be documented.
       Closer closer = Closer.create();
       try {
         closer.register(super.activate());

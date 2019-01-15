@@ -65,14 +65,14 @@ public class DataflowOperationContext implements OperationContext {
   private final ExecutionState abortState;
   private final MetricsContainer metricsContainer;
   private final ExecutionStateTracker executionStateTracker;
-  private final ExecutionStateRegistry executionStateRegistry;
+  private final DataflowExecutionStateRegistry executionStateRegistry;
 
   DataflowOperationContext(
       CounterFactory counterFactory,
       NameContext nameContext,
       MetricsContainer metricsContainer,
       ExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry) {
+      DataflowExecutionStateRegistry executionStateRegistry) {
     this(
         counterFactory,
         nameContext,
@@ -88,7 +88,7 @@ public class DataflowOperationContext implements OperationContext {
       NameContext nameContext,
       MetricsContainer metricsContainer,
       ExecutionStateTracker executionStateTracker,
-      ExecutionStateRegistry executionStateRegistry,
+      DataflowExecutionStateRegistry executionStateRegistry,
       ScopedProfiler scopedProfiler) {
     this.counterFactory = counterFactory;
     this.nameContext = nameContext;
