@@ -49,6 +49,9 @@ job('beam_sonarqube_report_test') {
       tasks("sonarqube")
       switches("--continue")
       switches("-PdisableSpotlessCheck=true")
+      
+      // disable parallelization to avoid output collisions
+      switches("--no-parallel")
     }
   }
 }
