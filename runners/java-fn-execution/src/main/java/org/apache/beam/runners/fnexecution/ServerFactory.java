@@ -148,8 +148,7 @@ public abstract class ServerFactory {
           NettyServerBuilder.forPort(socket.getPort())
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
-              .maxMessageSize(Integer.MAX_VALUE)
-              .permitKeepAliveTime(KEEP_ALIVE_TIME_SEC, TimeUnit.SECONDS);
+              .maxMessageSize(Integer.MAX_VALUE);
       services
           .stream()
           .forEach(

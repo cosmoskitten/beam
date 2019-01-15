@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,9 +34,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
@@ -70,8 +72,7 @@ public class GroupingShuffleEntryIteratorTest {
   private GroupingShuffleEntryIterator iterator;
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-  private final ExecutionStateTracker tracker =
-      new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+  private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
   private Closeable trackerCleanup;
 
   @Before
@@ -117,18 +118,24 @@ public class GroupingShuffleEntryIteratorTest {
   }
 
   private void setCurrentExecutionState(String mockOriginalName) {
-    ExecutionStateTracker.ExecutionState state =
-        new ExecutionStateTracker.ExecutionState(nameContextForTest(), "activity") {
+    DataflowExecutionState state =
+        new DataflowExecutionState(
+            NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
+            "activity",
+            null /* requestingStepName */,
+            null /* inputIndex */,
+            null /* metricsContainer */,
+            ScopedProfiler.INSTANCE.emptyScope()) {
           @Override
           public void takeSample(long millisSinceLastSample) {}
 
           @Override
           public void reportLull(Thread trackedThread, long millis) {}
 
+          @Nullable
           @Override
-          public NameContext getStepName() {
-            return NameContext.create(
-                MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME);
+          public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+            return null;
           }
         };
     tracker.enterState(state);
