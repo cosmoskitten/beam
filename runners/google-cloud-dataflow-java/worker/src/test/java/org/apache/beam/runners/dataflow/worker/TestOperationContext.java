@@ -63,8 +63,8 @@ public class TestOperationContext extends DataflowOperationContext {
     }
   }
 
-  /** ExecutionStateRegistry for testing. */
-  public static class TestExecutionStateRegistry extends ExecutionStateRegistry {
+  /** DataflowExecutionStateRegistry for testing. */
+  public static class TestExecutionStateRegistry extends DataflowExecutionStateRegistry {
 
     @Override
     protected DataflowExecutionState createState(
