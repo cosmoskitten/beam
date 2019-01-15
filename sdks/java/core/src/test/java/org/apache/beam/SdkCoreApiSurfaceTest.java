@@ -60,6 +60,7 @@ public class SdkCoreApiSurfaceTest {
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
             "com.fasterxml.jackson.databind",
+            "org.antlr.v4",
             "org.apache.avro",
             "org.hamcrest",
             // via DataflowMatchers
