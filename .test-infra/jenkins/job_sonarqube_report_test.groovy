@@ -19,7 +19,7 @@ import CommonJobProperties as commonJobProperties
 
 job('beam_sonarqube_report_test') {
   commonJobProperties.setTopLevelMainJobProperties(
-        delegate, 'master', 20,
+        delegate, 'master', 120,
         true) // needed for included regions PR triggering; see [JENKINS-23606]
 
   /**
