@@ -40,6 +40,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
@@ -107,10 +108,15 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
   @Override
   public synchronized void publish(LogRecord record) {
-    publish(ExecutionStateTracker.getCurrentExecutionState(), record);
+    DataflowExecutionState currrentDFState = null;
+    ExecutionState currrentState = ExecutionStateTracker.getCurrentExecutionState();
+    if (currrentState instanceof DataflowExecutionState) {
+      currrentDFState = (DataflowExecutionState) currrentState;
+    }
+    publish(currrentDFState, record);
   }
 
-  public synchronized void publish(ExecutionState currentExecutionState, LogRecord record) {
+  public synchronized void publish(DataflowExecutionState currentExecutionState, LogRecord record) {
     if (!isLoggable(record)) {
       return;
     }
