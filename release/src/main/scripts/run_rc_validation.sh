@@ -49,6 +49,8 @@ LOCAL_CLONE_DIR=rc_validations
 BEAM_ROOT_DIR=beam
 GIT_REPO_URL=https://github.com/apache/beam.git
 PYTHON_RC_DOWNLOAD_URL=https://dist.apache.org/repos/dist/dev/beam
+HUB_VERSION=2.5.0
+HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 
 echo "[Input Required] Please enter the release version: "
 read RELEASE
@@ -69,6 +71,25 @@ if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
 fi
+
+echo "=================Checking hub========================"
+if [[ -z `which hub` ]]; then
+  echo "There is no hub installed on your machine."
+  echo "Would you like to install hub with root permission? [y|N]"
+  read confirmation
+  if [[ $confirmation != "y"  ]]; then
+    echo "Refused to install hub. Cannot proceed into next setp."
+    exit
+  fi
+  echo "=================Installing hub======================="
+  wget https://github.com/github/hub/releases/download/v${HUB_VERSION}/${HUB_ARTIFACTS_NAME}.tgz
+  tar zvxvf ${HUB_ARTIFACTS_NAME}.tgz
+  sudo ./${HUB_ARTIFACTS_NAME}/install
+  echo "eval "$(hub alias -s)"" >> ~/.bashrc
+  rm -rf ${HUB_ARTIFACTS_NAME}*
+fi
+hub version
+
 
 echo "====================Cloning Beam Release Branch===================="
 cd ~
@@ -545,6 +566,51 @@ if [[ $confirmation = "y" ]]; then
       exit
     fi
   fi
+fi
+
+echo "[Current Task] Run All PostCommit Tests against Release Branch"
+echo "This task will create a PR against apache/beam."
+echo "After PR created, you need to comment following phrase in the created PR:"
+echo "1. comment 'Run Go PostCommit'."
+echo "2. comment 'Run Java PostCommit'."
+echo "3. comment 'Run Java PortabilityApi PostCommit'."
+echo "4. comment 'Run Java Flink PortableValidatesRunner Batch'."
+echo "5. comment 'Run Java Flink PortableValidatesRunner Streaming'."
+echo "6. comment 'Run Apex ValidatesRunner'."
+echo "7. comment 'Run Dataflow ValidatesRunner'."
+echo "8. comment 'Run Flink ValidatesRunner'."
+echo "9. comment 'Run Gearpump ValidatesRunner'."
+echo "10. comment 'Run Dataflow PortabilityApi ValidatesRunner'."
+echo "11. comment 'Run Samza ValidatesRunner'."
+echo "12. comment 'Run Spark ValidatesRunner'."
+echo "13. comment 'Run Python Dataflow ValidatesContainer'."
+echo "14. comment 'Run Python Dataflow ValidatesRunner'."
+echo "15. comment 'Run Python Flink ValidatesRunner'."
+echo "16. comment 'Run Python PostCommit'."
+echo "17. comment 'Run SQL PostCommit'."
+
+echo "[Confirmation Required] Do you want to proceed? [y|N]"
+read confirmation
+if [[ $confirmation = "y" ]]; then
+  echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
+  read USER_REMOTE_URL
+  echo "[Input Required] Please enter your github username:"
+  read GITHUB_USERNAME
+  echo "[Input Required] Please enter your github token:"
+  read GITHUB_TOKEN
+  export GITHUB_TOKEN=${GITHUB_TOKEN}
+  WORKING_BRANCH=postcommit_validation_pr
+  git checkout -b ${WORKING_BRANCH}
+  touch empty_file.txt
+  git add empty_file.txt
+  git commit -m "Add empty file in order to create PR"
+  git push -f ${USER_REMOTE_URL}
+  hub pull-request -o -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit Tests against Release Branch
+
+  Please comment as instructions above."
+
+  echo "[NOTE]: Please make sure all test targets have been invoked."
+  echo "Please check the test results. If there is any failure, follow the policy in release guide."
 fi
 
 clean_up
