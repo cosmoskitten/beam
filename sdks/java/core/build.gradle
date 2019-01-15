@@ -58,11 +58,11 @@ test {
 }
 
 dependencies {
-  antlr "org.antlr:antlr4:4.7"
+  antlr library.java.antlr
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow library.java.vendored_guava_20_0
-  compile library.java.antlr
+  compile library.java.antlr_runtime
   compile library.java.protobuf_java
   compile library.java.byte_buddy
   compile library.java.commons_compress
