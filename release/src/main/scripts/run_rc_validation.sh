@@ -568,49 +568,4 @@ if [[ $confirmation = "y" ]]; then
   fi
 fi
 
-echo "[Current Task] Run All PostCommit Tests against Release Branch"
-echo "This task will create a PR against apache/beam."
-echo "After PR created, you need to comment following phrase in the created PR:"
-echo "1. comment 'Run Go PostCommit'."
-echo "2. comment 'Run Java PostCommit'."
-echo "3. comment 'Run Java PortabilityApi PostCommit'."
-echo "4. comment 'Run Java Flink PortableValidatesRunner Batch'."
-echo "5. comment 'Run Java Flink PortableValidatesRunner Streaming'."
-echo "6. comment 'Run Apex ValidatesRunner'."
-echo "7. comment 'Run Dataflow ValidatesRunner'."
-echo "8. comment 'Run Flink ValidatesRunner'."
-echo "9. comment 'Run Gearpump ValidatesRunner'."
-echo "10. comment 'Run Dataflow PortabilityApi ValidatesRunner'."
-echo "11. comment 'Run Samza ValidatesRunner'."
-echo "12. comment 'Run Spark ValidatesRunner'."
-echo "13. comment 'Run Python Dataflow ValidatesContainer'."
-echo "14. comment 'Run Python Dataflow ValidatesRunner'."
-echo "15. comment 'Run Python Flink ValidatesRunner'."
-echo "16. comment 'Run Python PostCommit'."
-echo "17. comment 'Run SQL PostCommit'."
-
-echo "[Confirmation Required] Do you want to proceed? [y|N]"
-read confirmation
-if [[ $confirmation = "y" ]]; then
-  echo "[Input Required] Please enter your github repo URL forked from apache/beam:"
-  read USER_REMOTE_URL
-  echo "[Input Required] Please enter your github username:"
-  read GITHUB_USERNAME
-  echo "[Input Required] Please enter your github token:"
-  read GITHUB_TOKEN
-  export GITHUB_TOKEN=${GITHUB_TOKEN}
-  WORKING_BRANCH=postcommit_validation_pr
-  git checkout -b ${WORKING_BRANCH}
-  touch empty_file.txt
-  git add empty_file.txt
-  git commit -m "Add empty file in order to create PR"
-  git push -f ${USER_REMOTE_URL}
-  hub pull-request -o -b apache:${RELEASE_BRANCH} -h ${GITHUB_USERNAME}:${WORKING_BRANCH} -F- <<<"[DO NOT MERGE] Run all PostCommit Tests against Release Branch
-
-  Please comment as instructions above."
-
-  echo "[NOTE]: Please make sure all test targets have been invoked."
-  echo "Please check the test results. If there is any failure, follow the policy in release guide."
-fi
-
 clean_up
