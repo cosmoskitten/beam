@@ -111,7 +111,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     DataflowExecutionState currrentDataflowState = null;
     ExecutionState currrentState = ExecutionStateTracker.getCurrentExecutionState();
     if (currrentState instanceof DataflowExecutionState) {
-      currrentDataflowState = (DataflowExecutionState)currrentState;
+      currrentDataflowState = (DataflowExecutionState) currrentState;
     }
     // It's okay to pass in the null state, publish() handles and tests this.
     publish(currrentDataflowState, record);

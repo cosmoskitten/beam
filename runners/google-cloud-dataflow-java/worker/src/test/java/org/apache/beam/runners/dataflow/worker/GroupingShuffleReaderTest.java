@@ -51,11 +51,11 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.GroupingShuffleReader.GroupingShuffleReaderIterator;
 import org.apache.beam.runners.dataflow.worker.ShuffleSink.ShuffleKind;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterBackedElementByteSizeObserver;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
@@ -143,9 +143,10 @@ public class GroupingShuffleReaderTest {
   }
 
   private void setCurrentExecutionState(String mockOriginalName) {
-    DataflowExecutionState state = new TestDataflowExecutionState(
-        NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
-        "activity");
+    DataflowExecutionState state =
+        new TestDataflowExecutionState(
+            NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
+            "activity");
     tracker.enterState(state);
   }
 
