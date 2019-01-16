@@ -35,16 +35,22 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Requirements;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
 import org.junit.Ignore;
@@ -380,5 +386,39 @@ public class FileIOTest implements Serializable {
                 0,
                 0,
                 Compression.UNCOMPRESSED));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFileIoDynamicNaming() throws IOException {
+    // Test for BEAM-6407.
+
+    File outputFile = tmpFolder.newFile();
+    PCollectionView<String> outputFileNameView =
+        p.apply(
+            "outputFileName",
+            Create.of(outputFile.getAbsolutePath()))
+            .apply(View.asSingleton());
+
+    Contextful.Fn<String, FileIO.Write.FileNaming> fileNaming =
+        (element, c) ->
+            (window, pane, numShards, shardIndex, compression) ->
+                c.sideInput(outputFileNameView) + shardIndex;
+
+    p.apply(Create.of(""))
+        .apply("WriteDynamicFilename",
+            FileIO.<String, String>writeDynamic()
+                .by(SerializableFunctions.constant(""))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .via(TextIO.sink())
+                .withTempDirectory(tmpFolder.newFolder().getAbsolutePath())
+                .withNaming(Contextful.of(
+                    fileNaming,
+                    Requirements.requiresSideInputs(outputFileNameView))));
+
+    outputFile.delete(); // output file will be created by pipeline.
+    assertFalse("Output file does not exist before pipeline starts", outputFile.exists());
+    p.run().waitUntilFinish();
+    assertTrue("Output file exists after pipeline completes", outputFile.exists());
   }
 }
