@@ -142,7 +142,6 @@ public abstract class ServerFactory {
       return createServer(services, (InetSocketAddress) socketAddress);
     }
 
-
     private static Server createServer(List<BindableService> services, InetSocketAddress socket)
         throws IOException {
       NettyServerBuilder builder =
