@@ -254,7 +254,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         execution by a previous step.
       coder (~apache_beam.coders.coders.Coder): The coder for the table
         rows if serialized to disk. If :data:`None`, then the default coder is
-        :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
         which will interpret every line in a file as a JSON serialized
         dictionary. This argument needs a value only in special cases when
         returning table rows as dictionaries is not desirable.
@@ -301,7 +301,7 @@ class BigQuerySource(dataflow_io.NativeSource):
 
     self.validate = validate
     self.flatten_results = flatten_results
-    self.coder = coder or RowAsDictJsonCoder()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def display_data(self):
     if self.query is not None:
@@ -393,7 +393,7 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         during pipeline execution by a previous step.
       coder (~apache_beam.coders.coders.Coder): The coder for the
         table rows if serialized to disk. If :data:`None`, then the default
-        coder is :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        coder is :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
         which will interpret every element written to the sink as a dictionary
         that will be JSON serialized as a line in a file. This argument needs a
         value only in special cases when writing table rows as dictionaries is
@@ -444,7 +444,7 @@ bigquery_v2_messages.TableSchema` object.
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
     self.validate = validate
-    self.coder = coder or RowAsDictJsonCoder()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def display_data(self):
     res = {}
