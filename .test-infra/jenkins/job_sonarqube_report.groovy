@@ -31,11 +31,7 @@ job('beam_sonarqube_report') {
     }
   }
 
-  commonJobProperties.setPullRequestBuildTrigger(
-    delegate,
-    "test github pull request reporting",
-    "run sq report test",
-    true) // only trigger on phrase
+  commonJobProperties.setAutoJob delegate
 
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
