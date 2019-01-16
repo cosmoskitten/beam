@@ -161,6 +161,9 @@ public class ReferenceRunner {
     return res;
   }
 
+  /**
+   *  First start all the services needed, then start processing the pipeline.
+   */
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
