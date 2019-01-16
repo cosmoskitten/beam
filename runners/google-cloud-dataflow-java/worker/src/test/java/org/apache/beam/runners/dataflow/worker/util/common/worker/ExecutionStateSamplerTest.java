@@ -33,13 +33,11 @@ public class ExecutionStateSamplerTest {
 
   private MillisProvider clock;
   private ExecutionStateSampler sampler;
-  // private CounterSet counterSet;
 
   @Before
   public void setUp() {
     clock = mock(MillisProvider.class);
     sampler = ExecutionStateSampler.newForTest(clock);
-    // counterSet = new CounterSet();
   }
 
   private static class TestExecutionState extends ExecutionState {
@@ -62,22 +60,8 @@ public class ExecutionStateSamplerTest {
     }
   }
 
-  /*
-  private final NameContext step1 =
-      NameContext.create("stage", "originalStep1", "systemStep1", "userStep1");
-  private final NameContext step2 =
-      NameContext.create("stage", "originalStep2", "systemStep2", "userStep2");
-
-  private final TestExecutionState step1act1 = new TestExecutionState(step1, "activity1");
-  private final TestExecutionState step1act2 = new TestExecutionState(step1, "activity2");
-  private final TestExecutionState step1Process =
-      new TestExecutionState(step1, ExecutionStateTracker.PROCESS_STATE_NAME);
-  private final TestExecutionState step2act1 = new TestExecutionState(step2, "activity1");
-  */
-
   private final TestExecutionState step1act1 = new TestExecutionState("activity1");
   private final TestExecutionState step1act2 = new TestExecutionState("activity2");
-
   private final TestExecutionState step2act1 = new TestExecutionState("activity1");
 
   @Test

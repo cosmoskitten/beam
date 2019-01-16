@@ -108,12 +108,13 @@ public class DataflowWorkerLoggingHandler extends Handler {
 
   @Override
   public synchronized void publish(LogRecord record) {
-    DataflowExecutionState currrentDFState = null;
+    DataflowExecutionState currrentDataflowState = null;
     ExecutionState currrentState = ExecutionStateTracker.getCurrentExecutionState();
     if (currrentState instanceof DataflowExecutionState) {
-      currrentDFState = (DataflowExecutionState) currrentState;
+      currrentDataflowState = (DataflowExecutionState)currrentState;
     }
-    publish(currrentDFState, record);
+    // It's okay to pass in the null state, publish() handles and tests this.
+    publish(currrentDataflowState, record);
   }
 
   public synchronized void publish(DataflowExecutionState currentExecutionState, LogRecord record) {

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
+import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,7 +30,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.testing.RestoreDataflowLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
@@ -161,14 +164,8 @@ public class DataflowWorkerLoggingHandlerTest {
 
   @Test
   public void testWithAllValuesInMDC() throws IOException {
-    ExecutionState state =
-        new ExecutionState("activity") {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-        };
+    DataflowExecutionState state = new TestDataflowExecutionState(
+        nameContextForTest(), "activity");
     tracker.enterState(state);
 
     String testJobId = "testJobId";
