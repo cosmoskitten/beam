@@ -27,6 +27,7 @@ import json
 import logging
 import random
 import re
+import sys
 from builtins import next
 from builtins import object
 
@@ -591,8 +592,10 @@ class BeamTransformFactory(object):
       return self.context.coders.get_by_id(coder_id)
     else:
       # No URN, assume cloud object encoding json bytes.
-      return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload))
+      payload = coder_proto.spec.spec.payload
+      if isinstance(payload, bytes) and sys.version_info[0] == 3:
+        payload = payload.decode('utf-8')
+      return operation_specs.get_coder_from_spec(json.loads(payload))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)

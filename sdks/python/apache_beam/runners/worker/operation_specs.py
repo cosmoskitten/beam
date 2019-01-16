@@ -354,7 +354,10 @@ def get_coder_from_spec(coder_spec):
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.
-  return coders.coders.deserialize_coder(coder_spec['@type'])
+  coder = coder_spec['@type']
+  if not isinstance(coder, bytes):
+    coder = coder.encode('utf-8')
+  return coders.coders.deserialize_coder(coder)
 
 
 class MapTask(object):
