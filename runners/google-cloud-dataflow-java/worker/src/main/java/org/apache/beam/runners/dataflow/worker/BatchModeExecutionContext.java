@@ -192,7 +192,9 @@ public class BatchModeExecutionContext
     }
   }
 
-  /** {@link DataflowExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances. */
+  /**
+   * {@link DataflowExecutionStateRegistry} that creates {@link BatchModeExecutionState} instances.
+   */
   @VisibleForTesting
   public static class BatchModeExecutionStateRegistry extends DataflowExecutionStateRegistry {
 

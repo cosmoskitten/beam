@@ -32,8 +32,10 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.sdk.coders.Coder;
@@ -231,6 +233,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    */
   public static class DataflowExecutionStateTracker extends ExecutionStateTracker {
 
+    private final ElementExecutionTracker elementExecutionTracker;
     private final DataflowOperationContext.DataflowExecutionState otherState;
     private final ContextActivationObserverRegistry contextActivationObserverRegistry;
     private final String workItemId;
@@ -241,7 +244,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         CounterFactory counterFactory,
         PipelineOptions options,
         String workItemId) {
-      super(sampler, DataflowElementExecutionTracker.create(counterFactory, options));
+      super(sampler);
+      this.elementExecutionTracker =
+          DataflowElementExecutionTracker.create(counterFactory, options);
       this.otherState = otherState;
       this.workItemId = workItemId;
       this.contextActivationObserverRegistry = ContextActivationObserverRegistry.createDefault();
@@ -268,6 +273,37 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         }
         throw e;
       }
+    }
+
+    @Override
+    protected void takeSample(long millisSinceLastSample) {
+      elementExecutionTracker.takeSample(millisSinceLastSample);
+      super.takeSample(millisSinceLastSample);
+    }
+
+    /**
+     * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
+     * Closeable} that should be called when that state is completed.
+     *
+     * <p>This must be the only place where the variable numTransitions is updated, and always
+     * called from the execution thread.
+     */
+    @Override
+    public Closeable enterState(ExecutionState newState) {
+      Closeable baseCloseable = super.enterState(newState);
+      final boolean isDataflowProcessElementState =
+          newState.isProcessElementState && newState instanceof DataflowExecutionState;
+      if (isDataflowProcessElementState) {
+        elementExecutionTracker.enter(((DataflowExecutionState) newState).getStepName());
+      }
+
+      return () -> {
+        if (isDataflowProcessElementState) {
+          elementExecutionTracker.exit();
+        }
+        baseCloseable.close();
+        ;
+      };
     }
 
     public String getWorkItemId() {

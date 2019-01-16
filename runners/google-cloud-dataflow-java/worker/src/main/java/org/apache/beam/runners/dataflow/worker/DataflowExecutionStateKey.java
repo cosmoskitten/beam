@@ -65,7 +65,8 @@ public abstract class DataflowExecutionStateKey implements Comparable<DataflowEx
       String stateName,
       @Nullable String requestingStepName,
       @Nullable Integer inputIndex) {
-    return new AutoValue_DataflowExecutionStateKey(nameContext, stateName, requestingStepName, inputIndex);
+    return new AutoValue_DataflowExecutionStateKey(
+        nameContext, stateName, requestingStepName, inputIndex);
   }
 
   @Override

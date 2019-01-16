@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.approximateSplitRequestAtPosition;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.consumedParallelismFromProgress;
 import static org.apache.beam.runners.dataflow.worker.ReaderTestUtils.positionFromSplitResult;
@@ -55,9 +54,7 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterBackedElementByteSizeObserver;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementExecutionTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils;
@@ -99,8 +96,7 @@ public class GroupingShuffleReaderTest {
   private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
-  private final ExecutionStateTracker tracker =
-      new ExecutionStateTracker(sampler, ElementExecutionTracker.newForTest());
+  private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);
   private Closeable trackerCleanup;
 
   // As Shuffle records, {@code KV} is encoded as 10 records. Each records uses an integer as key
@@ -145,18 +141,12 @@ public class GroupingShuffleReaderTest {
 
   private void setCurrentExecutionState(String mockOriginalName) {
     ExecutionStateTracker.ExecutionState state =
-        new ExecutionStateTracker.ExecutionState(nameContextForTest(), "activity") {
+        new ExecutionStateTracker.ExecutionState("activity") {
           @Override
           public void takeSample(long millisSinceLastSample) {}
 
           @Override
           public void reportLull(Thread trackedThread, long millis) {}
-
-          @Override
-          public NameContext getStepName() {
-            return NameContext.create(
-                MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME);
-          }
         };
     tracker.enterState(state);
   }

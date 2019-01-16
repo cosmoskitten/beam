@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
-import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -163,7 +162,7 @@ public class DataflowWorkerLoggingHandlerTest {
   @Test
   public void testWithAllValuesInMDC() throws IOException {
     ExecutionState state =
-        new ExecutionState(nameContextForTest(), "activity") {
+        new ExecutionState("activity") {
           @Override
           public void takeSample(long millisSinceLastSample) {}
 

@@ -173,6 +173,8 @@ public class DataflowOperationContext implements OperationContext {
      */
     @Nullable private final Integer inputIndex;
 
+    private final NameContext stepName;
+
     private final ProfileScope profileScope;
     @Nullable private final MetricsContainer metricsContainer;
 
@@ -183,11 +185,19 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable Integer inputIndex,
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope) {
-      super(nameContext, stateName);
+      super(stateName);
+      this.stepName = nameContext;
       this.requestingStepName = requestingStepName;
       this.inputIndex = inputIndex;
       this.profileScope = Preconditions.checkNotNull(profileScope);
       this.metricsContainer = metricsContainer;
+    }
+
+    /**
+     * Returns the {@link NameContext} identifying the executing step associated with this state.
+     */
+    public NameContext getStepName() {
+      return stepName;
     }
 
     @Override

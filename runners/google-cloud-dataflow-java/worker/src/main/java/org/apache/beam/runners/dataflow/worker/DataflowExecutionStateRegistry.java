@@ -94,9 +94,9 @@ public abstract class DataflowExecutionStateRegistry {
   /**
    * Internal method to create and register an ExecutionState.
    *
-   * <p>Do not call this method directly. Instead, use the {@link DataflowExecutionStateRegistry#getState},
-   * and {@link DataflowExecutionStateRegistry#getIOState} public methods, or implement your own public
-   * create method.
+   * <p>Do not call this method directly. Instead, use the {@link
+   * DataflowExecutionStateRegistry#getState}, and {@link DataflowExecutionStateRegistry#getIOState}
+   * public methods, or implement your own public create method.
    */
   protected abstract DataflowOperationContext.DataflowExecutionState createState(
       NameContext nameContext,
