@@ -17,10 +17,10 @@
 
 import CommonJobProperties as commonJobProperties
 
-job('beam_sonarqube_report_test') {
+job('beam_sonarqube_report') {
   commonJobProperties.setTopLevelMainJobProperties(
         delegate, 'master', 120,
-        true) // needed for included regions PR triggering; see [JENKINS-23606]
+        true)
 
   /**
    * https://issues.jenkins-ci.org/browse/JENKINS-42741
@@ -41,7 +41,6 @@ job('beam_sonarqube_report_test') {
     archiveJunit('**/build/test-results/**/*.xml')
   }
 
-
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
@@ -49,7 +48,7 @@ job('beam_sonarqube_report_test') {
       tasks("sonarqube")
       switches("--continue")
       switches("-PdisableSpotlessCheck=true")
-      
+
       // disable parallelization to avoid output collisions
       switches("--no-parallel")
     }
