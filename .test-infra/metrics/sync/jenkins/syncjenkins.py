@@ -124,6 +124,15 @@ def fetchBuildsForJob(jobUrl):
   return r.json()[u'builds']
 
 
+# Quickpatch to save from integer overflow.
+# Proper fix should include database migration to utilizing bigint
+def trimInt(duration):
+  postgresqlIntMax = 2147483647
+  return duration if duration <= postgresqlIntMax else postgresqlIntMax
+
+def extractTiming(timings, timingName):
+  return trimInt(timings[timingName]) if timings is not None else -1
+
 def buildRowValuesArray(jobName, build):
   timings = next((x
                   for x in build[u'actions']
@@ -139,13 +148,13 @@ def buildRowValuesArray(jobName, build):
           build[u'duration'],
           build[u'estimatedDuration'],
           build[u'fullDisplayName'],
-          timings[u'blockedDurationMillis'] if timings is not None else -1,
-          timings[u'buildableDurationMillis'] if timings is not None else -1,
-          timings[u'buildingDurationMillis'] if timings is not None else -1,
-          timings[u'executingTimeMillis'] if timings is not None else -1,
-          timings[u'queuingDurationMillis'] if timings is not None else -1,
-          timings[u'totalDurationMillis'] if timings is not None else -1,
-          timings[u'waitingDurationMillis'] if timings is not None else -1]
+          extractTiming(timings, u'blockedDurationMillis'),
+          extractTiming(timings, u'buildableDurationMillis'),
+          extractTiming(timings, u'buildingDurationMillis'),
+          extractTiming(timings, u'executingTimeMillis'),
+          extractTiming(timings, u'queuingDurationMillis'),
+          extractTiming(timings, u'totalDurationMillis'),
+          extractTiming(timings, u'waitingDurationMillis')]
   return values
 
 
