@@ -44,7 +44,11 @@ class WordCountTest(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = collections.defaultdict(int)
     for word in re.findall(r'[\w\']+', self.SAMPLE_TEXT, re.UNICODE):
+<<<<<<< HEAD
       expected_words[word] += 1
+=======
+      expected_words[word.encode('utf-8')] += 1
+>>>>>>> c3ddfa5bf5780bfc913ab137d389fbe9cd45557b
     wordcount.run([
         '--input=%s*' % temp_path,
         '--output=%s.result' % temp_path])
@@ -52,7 +56,11 @@ class WordCountTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
+<<<<<<< HEAD
         match = re.search(r'(\S+): ([0-9]+)', line.decode('utf-8'))
+=======
+        match = re.search(r'(\S+): ([0-9]+)', line, re.UNICODE)
+>>>>>>> c3ddfa5bf5780bfc913ab137d389fbe9cd45557b
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     self.assertEqual(sorted(results), sorted(expected_words.items()))
