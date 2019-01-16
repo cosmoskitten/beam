@@ -54,8 +54,6 @@ public class ShuffleReadCounter {
     if (this.experimentEnabled) {
       ExecutionStateTracker.ExecutionState currentState =
           ExecutionStateTracker.getCurrentExecutionState();
-      // TODO(ajamato): Remove the need for a cast, after providing a more generalized way to
-      // get a state identifier.
       String currentStateName = null;
       if (currentState instanceof DataflowExecutionState) {
         currentStateName = ((DataflowExecutionState) currentState).getStepName().originalName();

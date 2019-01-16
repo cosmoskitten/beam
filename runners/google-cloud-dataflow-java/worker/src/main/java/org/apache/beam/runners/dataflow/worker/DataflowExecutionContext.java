@@ -254,7 +254,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     @Override
     public Closeable activate() {
-      // TODO why is this here? This should be documented.
       Closer closer = Closer.create();
       try {
         closer.register(super.activate());
@@ -281,13 +280,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       super.takeSample(millisSinceLastSample);
     }
 
-    /**
-     * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
-     * Closeable} that should be called when that state is completed.
-     *
-     * <p>This must be the only place where the variable numTransitions is updated, and always
-     * called from the execution thread.
-     */
     @Override
     public Closeable enterState(ExecutionState newState) {
       Closeable baseCloseable = super.enterState(newState);
@@ -302,7 +294,6 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           elementExecutionTracker.exit();
         }
         baseCloseable.close();
-        ;
       };
     }
 

@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.api.services.dataflow.model.CounterUpdate;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -36,9 +35,9 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
+import org.apache.beam.runners.dataflow.worker.TestOperationContext.TestDataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
@@ -63,7 +62,6 @@ public class GroupingShuffleEntryIteratorTest {
 
   private static final String MOCK_STAGE_NAME = "mockStageName";
   private static final String MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1 = "mockOriginalName1";
-  private static final String MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2 = "mockOriginalName2";
   private static final String MOCK_SYSTEM_NAME = "mockSystemName";
   private static final String MOCK_USER_NAME = "mockUserName";
   private static final String ORIGINAL_SHUFFLE_STEP_NAME = "originalName";
@@ -119,25 +117,9 @@ public class GroupingShuffleEntryIteratorTest {
 
   private void setCurrentExecutionState(String mockOriginalName) {
     DataflowExecutionState state =
-        new DataflowExecutionState(
+        new TestDataflowExecutionState(
             NameContext.create(MOCK_STAGE_NAME, mockOriginalName, MOCK_SYSTEM_NAME, MOCK_USER_NAME),
-            "activity",
-            null /* requestingStepName */,
-            null /* inputIndex */,
-            null /* metricsContainer */,
-            ScopedProfiler.INSTANCE.emptyScope()) {
-          @Override
-          public void takeSample(long millisSinceLastSample) {}
-
-          @Override
-          public void reportLull(Thread trackedThread, long millis) {}
-
-          @Nullable
-          @Override
-          public CounterUpdate extractUpdate(boolean isFinalUpdate) {
-            return null;
-          }
-        };
+            "activity");
     tracker.enterState(state);
   }
 

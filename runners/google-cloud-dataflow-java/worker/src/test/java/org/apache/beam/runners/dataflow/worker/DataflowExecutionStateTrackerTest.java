@@ -77,7 +77,10 @@ public class DataflowExecutionStateTrackerTest {
     assertElementProcessingTimeCounter(step1, 10, 4);
   }
 
-  /** {@link ExecutionStateSampler} should take one last sample when a tracker is deactivated. */
+  /**
+   * {@link DataflowExecutionStateTrackerTest} should take one last sample when a tracker is
+   * deactivated.
+   */
   @Test
   public void testTakesSampleOnDeactivate() throws IOException {
     enableTimePerElementExperiment();
