@@ -825,7 +825,6 @@ public class TextIOReadTest {
     }
 
     @Test
-    @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
     @Category(NeedsRunner.class)
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
