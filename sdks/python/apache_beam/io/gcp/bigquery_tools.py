@@ -107,7 +107,7 @@ def parse_table_schema_from_json(schema_string):
   return bigquery.TableSchema(fields=fields)
 
 
-def _parse_table_reference(table, dataset=None, project=None):
+def parse_table_reference(table, dataset=None, project=None):
   """Parses a table reference into a (project, dataset, table) tuple.
 
   Args:
@@ -126,8 +126,7 @@ def _parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A bigquery.TableReference object. The object has the following attributes:
-    projectId, datasetId, and tableId.
+    A TableReference for the table name that was provided.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -178,6 +177,7 @@ class BigQueryWrapper(object):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials())
+
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
@@ -200,7 +200,7 @@ class BigQueryWrapper(object):
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
   def _get_temp_table(self, project_id):
-    return _parse_table_reference(
+    return parse_table_reference(
         table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
         dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
         project=project_id)
@@ -255,24 +255,34 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _insert_load_job(self, project_id, job_id, table_reference, source_uris,
-                       schema=None):
+  def _insert_load_job(self,
+                       project_id,
+                       job_id,
+                       table_reference,
+                       source_uris,
+                       schema=None,
+                       write_disposition=None,
+                       create_disposition=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.project_id,
+        projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 load=bigquery.JobConfigurationLoad(
-                    source_uris=source_uris,
-                    destination_table=table_reference,
+                    sourceUris=source_uris,
+                    destinationTable=table_reference,
+                    schema=schema,
+                    writeDisposition=write_disposition,
+                    createDisposition=create_disposition,
+                    sourceFormat='NEWLINE_DELIMITED_JSON',
+                    autodetect=schema is None,
                 )
             ),
             jobReference=reference,
         )
     )
-
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId
+    return response.jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -461,6 +471,32 @@ class BigQueryWrapper(object):
       else:
         raise
     self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+
+  def get_job(self, project, job_id, location=None):
+    request = bigquery.BigqueryJobsGetRequest()
+    request.jobId = job_id
+    request.projectId = project
+    request.location = location
+
+    return self.client.jobs.Get(request)
+
+  def perform_load_job(self,
+                       destination,
+                       files,
+                       job_id,
+                       schema=None,
+                       write_disposition=None,
+                       create_disposition=None):
+    """Starts a job to load data into BigQuery.
+
+    Returns:
+      bigquery.JobReference with the information about the job that was started.
+    """
+    return self._insert_load_job(
+        destination.projectId, job_id, destination, files,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

@@ -337,7 +337,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     elif table is None and query is None:
       raise ValueError('A BigQuery table or a query must be specified')
     elif table is not None:
-      self.table_reference = bigquery_tools._parse_table_reference(
+      self.table_reference = bigquery_tools.parse_table_reference(
           table, dataset, project)
       self.query = None
       self.use_legacy_sql = True
@@ -464,7 +464,7 @@ bigquery_v2_messages.TableSchema` object.
           'Google Cloud IO not available, '
           'please install apache_beam[gcp]')
 
-    self.table_reference = bigquery_tools._parse_table_reference(
+    self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
     if isinstance(schema, (str, unicode)):
@@ -698,7 +698,7 @@ bigquery_v2_messages.TableSchema`
         insert.
       test_client: Override the default bigquery client used for testing.
     """
-    self.table_reference = bigquery_tools._parse_table_reference(
+    self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     self.create_disposition = BigQueryDisposition.validate_create(
         create_disposition)
