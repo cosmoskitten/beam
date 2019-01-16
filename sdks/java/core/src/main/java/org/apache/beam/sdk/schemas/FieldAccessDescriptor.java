@@ -44,14 +44,13 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.Builder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.MapQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-
+import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 
 /**
  * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
@@ -66,10 +65,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
   @AutoValue
   public abstract static class FieldDescriptor implements Serializable {
     /** Qualifier for a list selector. */
-    public static class ListQualifier implements Serializable {}
+    public enum ListQualifier {
+      ALL // Select all elements of the list.
+    }
 
     /** Qualifier for a map selector. */
-    public static class MapQualifier implements Serializable {}
+    public enum MapQualifier {
+      ALL // Select all elements of the map.
+    }
 
     /** OneOf union for a collection selector. */
     @AutoOneOf(Qualifier.Kind.class)
@@ -102,20 +105,21 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
     public abstract List<Qualifier> getQualifiers();
 
-    static Builder builder() {
+    public static Builder builder() {
       return new AutoValue_FieldAccessDescriptor_FieldDescriptor.Builder()
           .setQualifiers(Collections.emptyList());
     }
 
+    /** Builder class. */
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setFieldName(@Nullable String name);
+    public abstract static class Builder {
+      public abstract Builder setFieldName(@Nullable String name);
 
-      abstract Builder setFieldId(@Nullable Integer id);
+      public abstract Builder setFieldId(@Nullable Integer id);
 
-      abstract Builder setQualifiers(List<Qualifier> qualifiers);
+      public abstract Builder setQualifiers(List<Qualifier> qualifiers);
 
-      abstract FieldDescriptor build();
+      public abstract FieldDescriptor build();
     }
 
     abstract Builder toBuilder();
@@ -135,6 +139,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     abstract FieldAccessDescriptor build();
   }
 
+  /** If true, all fields are being accessed. */
   public abstract boolean getAllFields();
 
   public abstract Set<FieldDescriptor> getFieldsAccessed();
@@ -212,10 +217,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return withFields(fields);
   }
 
+  /** Returns a {@link FieldAccessDescriptor} that accesses the specified fields. */
   public static FieldAccessDescriptor withFields(FieldDescriptor... fields) {
     return withFields(Arrays.asList(fields));
   }
 
+  /** Returns a {@link FieldAccessDescriptor} that accesses the specified fields. */
   public static FieldAccessDescriptor withFields(Iterable<FieldDescriptor> fields) {
     return builder().setFieldsAccessed(Sets.newLinkedHashSet(fields)).build();
   }
@@ -230,6 +237,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     Multimap<String, FieldAccessDescriptor> nestedFieldsAccessed = ArrayListMultimap.create();
     for (FieldAccessDescriptor fieldAccessDescriptor : fieldAccessDescriptors) {
       if (fieldAccessDescriptor.getAllFields()) {
+        // If one of the descriptors is a wildcard, we can short circuit and return a wildcard.
         return FieldAccessDescriptor.withAllFields();
       }
 
@@ -247,16 +255,20 @@ public abstract class FieldAccessDescriptor implements Serializable {
         nestedFieldsAccessed.put(field.getFieldName(), nested.getValue());
       }
     }
+    // Start off by unioning together the set of full fields we are accessing at this level.
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFields(fieldsAccessed.values());
+
+    // Now, union all the nested fields.
     for (Map.Entry<String, Collection<FieldAccessDescriptor>> entry :
         nestedFieldsAccessed.asMap().entrySet()) {
       if (fieldsAccessed.get(entry.getKey()) != null) {
-        // We're already reading the entire field, so no need to specify nested fields.
+        // We're already reading this entire field which includes all nested fields. Skip over
+        // this field.
         continue;
       }
-      // If there are multiple subdescriptors for this field (e.g. a.b, a.c, a.d), union them
-      // together and create a new nested field description.
+      // If there are multiple subdescriptors for this field (e.g. a.b, a.c, a.d), recursively
+      // union them together and create a new nested field description.
       fieldAccessDescriptor =
           fieldAccessDescriptor.withNestedField(entry.getKey(), union(entry.getValue()));
     }
@@ -308,21 +320,28 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return toBuilder().setFieldInsertionOrder(true).build();
   }
 
+  /** Return the field ids accessed. Should not be called until after {@link #resolve} is called. */
   public Set<Integer> fieldIdsAccessed() {
-    return getFieldsAccessed()
-        .stream()
+    return getFieldsAccessed().stream()
         .map(FieldDescriptor::getFieldId)
         .collect(Collectors.toSet());
   }
 
+  /**
+   * Return the nested fields keyed by field ids. Should not be called until after {@link #resolve}
+   * is called.
+   */
   public Map<Integer, FieldAccessDescriptor> nestedFieldsById() {
-    return getNestedFieldsAccessed()
-        .entrySet()
-        .stream()
+    return getNestedFieldsAccessed().entrySet().stream()
         .collect(Collectors.toMap(f -> f.getKey().getFieldId(), f -> f.getValue()));
   }
 
-  // After resolution, fields are always ordered by their field name.
+  /**
+   * Resolve the {@link FieldAccessDescriptor} against a schema.
+   *
+   * <p>Resolve will resolve all of the field names into field ids, validating that all field names
+   * specified in the descriptor exist in the actual schema.
+   */
   public FieldAccessDescriptor resolve(Schema schema) {
     Set<FieldDescriptor> resolvedFieldIdsAccessed = resolveFieldIdsAccessed(schema);
     Map<FieldDescriptor, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
@@ -363,21 +382,6 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return fields;
   }
 
-  private static Schema getFieldSchema(FieldType type) {
-    if (TypeName.ROW.equals(type.getTypeName())) {
-      return type.getRowSchema();
-    } else if (TypeName.ARRAY.equals(type.getTypeName())
-        && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
-      return type.getCollectionElementType().getRowSchema();
-    } else if (TypeName.MAP.equals(type.getTypeName())
-        && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
-      return type.getMapValueType().getRowSchema();
-    } else {
-      throw new IllegalArgumentException(
-          "FieldType " + type + " must be either a row or " + " a container containing rows");
-    }
-  }
-
   private Map<FieldDescriptor, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
     Map<FieldDescriptor, FieldAccessDescriptor> nestedFields;
     if (getFieldInsertionOrder()) {
@@ -393,6 +397,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
       FieldDescriptor fieldDescriptor = entry.getKey();
       FieldAccessDescriptor fieldAccessDescriptor = entry.getValue();
       validateFieldDescriptor(schema, fieldDescriptor);
+
+      // Resolve the field id of the field that has nested access.
       if (entry.getKey().getFieldId() == null) {
         fieldDescriptor =
             fieldDescriptor
@@ -402,32 +408,52 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
 
       // If there are nested arrays or maps, walk down them until we find the next row. If there
-      // are missing qualifiers, fill them in. This allows users to omit the qualifiers when they
-      // will simply be wildcard qualifiers anyway.
+      // are missing qualifiers, fill them in. This allows users to omit the qualifiers in the
+      // simple case where they are all wildcards. For example, if a is a list of a list of row,
+      // the user could select a[*][*].b, however we allow them to simply type a.b for brevity.
       FieldType fieldType = schema.getField(fieldDescriptor.getFieldId()).getType();
       Iterator<Qualifier> qualifierIt = fieldDescriptor.getQualifiers().iterator();
       List<Qualifier> qualifiers = Lists.newArrayList();
       while (fieldType.getTypeName().isCollectionType() || fieldType.getTypeName().isMapType()) {
         Qualifier qualifier = qualifierIt.hasNext() ? qualifierIt.next() : null;
         if (fieldType.getTypeName().isCollectionType()) {
-          qualifier = (qualifier == null) ? Qualifier.of(new ListQualifier()) : qualifier;
+          qualifier = (qualifier == null) ? Qualifier.of(ListQualifier.ALL) : qualifier;
           Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.LIST));
+          Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
           qualifiers.add(qualifier);
           fieldType = fieldType.getCollectionElementType();
         } else if (fieldType.getTypeName().isMapType()) {
-          qualifier = (qualifier == null) ? Qualifier.of(new MapQualifier()) : qualifier;
+          qualifier = (qualifier == null) ? Qualifier.of(MapQualifier.ALL) : qualifier;
           Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.MAP));
+          Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
           qualifiers.add(qualifier);
           fieldType = fieldType.getMapValueType();
         }
       }
 
+      // fieldType should now be the row we are selecting from, so recursively resolve it and
+      // store the result in the list of resolved nested fields.
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(getFieldSchema(fieldType));
       nestedFields.put(
           fieldDescriptor.toBuilder().setQualifiers(qualifiers).build(), fieldAccessDescriptor);
     }
 
     return nestedFields;
+  }
+
+  private static Schema getFieldSchema(FieldType type) {
+    if (TypeName.ROW.equals(type.getTypeName())) {
+      return type.getRowSchema();
+    } else if (TypeName.ARRAY.equals(type.getTypeName())
+        && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
+      return type.getCollectionElementType().getRowSchema();
+    } else if (TypeName.MAP.equals(type.getTypeName())
+        && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
+      return type.getMapValueType().getRowSchema();
+    } else {
+      throw new IllegalArgumentException(
+          "FieldType " + type + " must be either a row or " + " a container containing rows");
+    }
   }
 
   private static void validateFieldDescriptor(Schema schema, FieldDescriptor fieldDescriptor) {
@@ -438,6 +464,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
     }
     // If qualifiers were specified, validate them.
+    // For example, if a selector was a[*][*], then a needs to be a List of a List.
     Field field =
         (fieldId != null)
             ? schema.getField(fieldId)
@@ -446,16 +473,17 @@ public abstract class FieldAccessDescriptor implements Serializable {
     for (Qualifier qualifier : fieldDescriptor.getQualifiers()) {
       switch (qualifier.getKind()) {
         case LIST:
+          Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
           checkArgument(fieldType.getTypeName().equals(TypeName.ARRAY));
           fieldType = fieldType.getCollectionElementType();
           break;
         case MAP:
+          Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
           checkArgument(fieldType.getTypeName().equals(TypeName.MAP));
-          // TODO: We should support a way to extract map keys.
           fieldType = fieldType.getMapValueType();
           break;
         default:
-          break;
+          throw new IllegalStateException("Unexpected qualifier type " + qualifier.getKind());
       }
     }
   }

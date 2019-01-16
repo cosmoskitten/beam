@@ -26,6 +26,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.MapQualifier;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -167,6 +169,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     Qualifier qualifier = qualifiers.get(qualifierPosition);
     switch (qualifier.getKind()) {
       case LIST:
+        Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
         FieldType componentType =
             Preconditions.checkNotNull(inputFieldType.getCollectionElementType());
         FieldType outputComponent =
@@ -175,6 +178,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
                 .withNullable(componentType.getNullable());
         return FieldType.array(outputComponent).withNullable(inputFieldType.getNullable());
       case MAP:
+        Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
         FieldType keyType = Preconditions.checkNotNull(inputFieldType.getMapKeyType());
         FieldType valueType = Preconditions.checkNotNull(inputFieldType.getMapValueType());
         FieldType outputValueType =

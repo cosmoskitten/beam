@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.stream.Collectors;
@@ -174,9 +175,7 @@ public class FieldAccessDescriptorTest {
     FieldAccessDescriptor nestedAccess = fieldAccessDescriptor.nestedFieldsById().get(1);
     assertEquals(
         ImmutableSet.of(0, 1),
-        nestedAccess
-            .getFieldsAccessed()
-            .stream()
+        nestedAccess.getFieldsAccessed().stream()
             .map(FieldDescriptor::getFieldId)
             .collect(Collectors.toSet()));
   }
@@ -189,9 +188,7 @@ public class FieldAccessDescriptorTest {
     assertEquals(2, fieldAccessDescriptor.getFieldsAccessed().size());
     assertEquals(
         ImmutableSet.of(0, 1),
-        fieldAccessDescriptor
-            .getFieldsAccessed()
-            .stream()
+        fieldAccessDescriptor.getFieldsAccessed().stream()
             .map(FieldDescriptor::getFieldId)
             .collect(Collectors.toSet()));
     assertTrue(fieldAccessDescriptor.nestedFieldsById().isEmpty());
