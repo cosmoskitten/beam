@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import datetime
 import decimal
 import json
+import re
 import time
 import unittest
 
@@ -31,11 +32,11 @@ import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
-
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -67,7 +68,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
     client.datasets.Delete.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
@@ -75,11 +76,11 @@ class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_dataset_retries_fail(self, patched_time_sleep):
     client = mock.Mock()
     client.datasets.Delete.side_effect = ValueError("Cannot delete")
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     with self.assertRaises(ValueError):
       wrapper._delete_dataset('', '')
     self.assertEqual(
-        beam.io.gcp.bigquery.MAX_RETRIES + 1,
+        beam.io.gcp.bigquery_tools.MAX_RETRIES + 1,
         client.datasets.Delete.call_count)
     self.assertTrue(client.datasets.Delete.called)
 
@@ -87,7 +88,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client = mock.Mock()
     client.tables.Delete.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
@@ -95,7 +96,7 @@ class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_table_retries_fail(self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Delete.side_effect = ValueError("Cannot delete")
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     with self.assertRaises(ValueError):
       wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
@@ -107,7 +108,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         HttpError(response={'status': '408'}, url='', content=''),
         bigquery.BigqueryDatasetsDeleteResponse()
     ]
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
@@ -118,7 +119,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         HttpError(response={'status': '408'}, url='', content=''),
         bigquery.BigqueryTablesDeleteResponse()
     ]
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
@@ -128,7 +129,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.datasets.Get.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
             projectId='project_id', datasetId='dataset_id'))
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     with self.assertRaises(RuntimeError):
       wrapper.create_temporary_dataset('project_id', 'location')
     self.assertTrue(client.datasets.Get.called)
@@ -140,7 +141,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.datasets.Insert.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
             projectId='project_id', datasetId='dataset_id'))
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
 
@@ -149,7 +150,7 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.datasets.Get.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
             projectId='project_id', datasetId='dataset_id'))
-    wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
 
