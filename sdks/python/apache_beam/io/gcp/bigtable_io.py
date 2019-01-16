@@ -30,9 +30,8 @@ DoFn to set the Cells and then we call the WriteToBigtable to insert
 those generated rows in the table.
 
   main_table = (p
-       | 'Generate Row Values' >> beam.Create(row_values)
-       | 'Generate Direct Rows' >> beam.ParDo(GenerateDirectRows())
-       | 'Write to BT' >> beam.ParDo(WriteToBigtable(beam_options)))
+       | 'Generate Direct Rows' >> GenerateDirectRows(number)
+       | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
 """
 from __future__ import absolute_import
 
