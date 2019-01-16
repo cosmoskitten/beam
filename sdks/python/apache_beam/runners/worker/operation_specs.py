@@ -354,7 +354,7 @@ def get_coder_from_spec(coder_spec):
 
   # We pass coders in the form "<coder_name>$<pickled_data>" to make the job
   # description JSON more readable.
-  return coders.coders.deserialize_coder(coder_spec['@type'])
+  return coders.coders.deserialize_coder(coder_spec['@type'].encode('utf-8'))
 
 
 class MapTask(object):

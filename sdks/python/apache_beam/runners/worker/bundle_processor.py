@@ -590,9 +590,11 @@ class BeamTransformFactory(object):
     if coder_proto.spec.spec.urn:
       return self.context.coders.get_by_id(coder_id)
     else:
+      payload = coder_proto.spec.spec.payload
+      if isinstance(payload, bytes):
+        payload = payload.decode('utf-8')
       # No URN, assume cloud object encoding json bytes.
-      return operation_specs.get_coder_from_spec(
-          json.loads(coder_proto.spec.spec.payload))
+      return operation_specs.get_coder_from_spec(json.loads(payload))
 
   def get_windowed_coder(self, pcoll_id):
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
