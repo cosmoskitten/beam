@@ -44,7 +44,6 @@ from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.job_server import DockerizedJobServer
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import sdk_worker_main
-from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 
 __all__ = ['PortableRunner']
 
@@ -189,7 +188,7 @@ class PortableRunner(runner.PipelineRunner):
                  for k, v in options.get_all_options().items()
                  if v is not None}
 
-    channel = GRPCChannelFactory.insecure_channel(job_endpoint)
+    channel = grpc.insecure_channel(job_endpoint)
     grpc.channel_ready_future(channel).result()
     job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
 
@@ -213,8 +212,7 @@ class PortableRunner(runner.PipelineRunner):
     prepare_response = send_prepare_request()
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
-          GRPCChannelFactory.insecure_channel(
-              prepare_response.artifact_staging_endpoint.url),
+          grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
           prepare_response.staging_session_token)
       retrieval_token, _ = stager.stage_job_resources(
           options,
@@ -222,31 +220,20 @@ class PortableRunner(runner.PipelineRunner):
     else:
       retrieval_token = None
 
-    try:
-      state_stream = job_service.GetStateStream(
-          beam_job_api_pb2.GetJobStateRequest(
-              job_id=prepare_response.preparation_id))
-      message_stream = job_service.GetMessageStream(
-          beam_job_api_pb2.JobMessagesRequest(
-              job_id=prepare_response.preparation_id))
-    except Exception:  # pylint: disable=broad-except
-      logging.warn('Cannot create stream from preparation_id, falling back to '
-                   'job_id. This may result in missed job states or messages. '
-                   'See BEAM-6442 for more information.')
-
     # Run the job and wait for a result.
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
 
-    if not state_stream or not message_stream:
-      state_stream = job_service.GetStateStream(
-          beam_job_api_pb2.GetJobStateRequest(
-              job_id=run_response.job_id))
-      message_stream = job_service.GetMessageStream(
-          beam_job_api_pb2.JobMessagesRequest(
-              job_id=run_response.job_id))
+    # TODO(BEAM-6442): remove preparation_id and move getting streams to before
+    # starting the job.
+    state_stream = job_service.GetStateStream(
+        beam_job_api_pb2.GetJobStateRequest(
+            job_id=run_response.job_id))
+    message_stream = job_service.GetMessageStream(
+        beam_job_api_pb2.JobMessagesRequest(
+            job_id=run_response.job_id))
 
     return PipelineResult(job_service, run_response.job_id, message_stream,
                           state_stream, cleanup_callbacks)
