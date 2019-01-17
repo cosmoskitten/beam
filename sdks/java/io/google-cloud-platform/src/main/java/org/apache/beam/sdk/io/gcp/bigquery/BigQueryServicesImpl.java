@@ -53,11 +53,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.BackOffAdapter;
@@ -678,7 +678,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
-        this.executor = options.as(GcsOptions.class).getExecutorService();
+        this.executor = Executors.newSingleThreadExecutor();
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
         throw new AssertionError(
