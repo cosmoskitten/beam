@@ -1478,6 +1478,7 @@ public class StreamingDataflowWorker {
             systemNameToComputationIdMap.containsKey(mapTask.getSystemName())
                 ? systemNameToComputationIdMap.get(mapTask.getSystemName())
                 : mapTask.getSystemName();
+        // TODO(b/110224474): get per-stage TransformUserNameToStateFamily map from windmill.
         addComputation(computationId, mapTask, ImmutableMap.of());
       } catch (IOException e) {
         LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
@@ -1518,6 +1519,8 @@ public class StreamingDataflowWorker {
         mapTask.setStageName(computationConfig.getStageName());
         mapTask.setInstructions(computationConfig.getInstructions());
         // TODO:XXX Pass computationConfig.getTransformUserNameToStateFamily()
+        // addComputation(
+        //        computationConfig.getComputationId(), mapTask, computationConfig.getTransformUserNameToStateFamily());
         addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
       }
     }
