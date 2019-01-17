@@ -15,23 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
+import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Helper that provides context data such as output for config generation. */
 public class ConfigContext {
   private final Map<PValue, String> idMap;
   private AppliedPTransform<?, ?, ?> currentTransform;
+  private final SamzaPipelineOptions options;
 
-  public ConfigContext(Map<PValue, String> idMap) {
+  public ConfigContext(Map<PValue, String> idMap, SamzaPipelineOptions options) {
     this.idMap = idMap;
+    this.options = options;
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
@@ -49,6 +51,10 @@ public class ConfigContext {
 
   public String getOutputId(TransformHierarchy.Node node) {
     return getIdForPValue(Iterables.getOnlyElement(node.getOutputs().values()));
+  }
+
+  public SamzaPipelineOptions getPipelineOptions() {
+    return this.options;
   }
 
   private String getIdForPValue(PValue pvalue) {

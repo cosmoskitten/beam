@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import copy
-import inspect
 import logging
 import random
 import re
@@ -64,6 +63,7 @@ from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import getfullargspec
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
@@ -275,14 +275,14 @@ class RestrictionProvider(object):
 def get_function_arguments(obj, func):
   """Return the function arguments based on the name provided. If they have
   a _inspect_function attached to the class then use that otherwise default
-  to the python inspect library.
+  to the modified version of python inspect library.
   """
   func_name = '_inspect_%s' % func
   if hasattr(obj, func_name):
     f = getattr(obj, func_name)
     return f()
   f = getattr(obj, func)
-  return inspect.getargspec(f)
+  return getfullargspec(f)
 
 
 class _DoFnParam(object):
@@ -295,6 +295,10 @@ class _DoFnParam(object):
     if type(self) == type(other):
       return self.param_id == other.param_id
     return False
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash(self.param_id)
@@ -442,12 +446,21 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
 def _fn_takes_side_inputs(fn):
   try:
-    argspec = inspect.getargspec(fn)
+    argspec = getfullargspec(fn)
   except TypeError:
     # We can't tell; maybe it does.
     return True
   is_bound = isinstance(fn, types.MethodType) and fn.__self__ is not None
-  return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
+
+  try:
+    varkw = argspec.varkw
+    kwonlyargs = argspec.kwonlyargs
+  except AttributeError:  # Python 2
+    varkw = argspec.keywords
+    kwonlyargs = []
+
+  return (len(argspec.args) + len(kwonlyargs) > 1 + is_bound or
+          argspec.varargs or varkw)
 
 
 class CallableWrapperDoFn(DoFn):
@@ -515,7 +528,7 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
   def _inspect_process(self):
-    return inspect.getargspec(self._process_argspec_fn())
+    return getfullargspec(self._process_argspec_fn())
 
 
 class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -991,6 +1004,9 @@ class ParDo(PTransformWithSideInputs):
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
+  def runner_api_requires_keyed_input(self):
+    return userstate.is_stateful_dofn(self.fn)
+
 
 class _MultiParDo(PTransform):
 
@@ -1199,13 +1215,21 @@ class CombineGlobally(PTransform):
     self.kwargs = kwargs
 
   def display_data(self):
-    return {'combine_fn':
+    return {
+        'combine_fn':
             DisplayDataItem(self.fn.__class__, label='Combine Function'),
-            'combine_fn_dd':
-            self.fn}
+        'combine_fn_dd':
+            self.fn,
+    }
 
   def default_label(self):
-    return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
+    if self.fanout is None:
+      return '%s(%s)' % (self.__class__.__name__,
+                         ptransform.label_from_callable(self.fn))
+    else:
+      return '%s(%s, fanout=%s)' % (self.__class__.__name__,
+                                    ptransform.label_from_callable(self.fn),
+                                    self.fanout)
 
   def _clone(self, **extra_attributes):
     clone = copy.copy(self)
@@ -1311,16 +1335,18 @@ class CombinePerKey(PTransformWithSideInputs):
     aggregation.
 
     Args:
-      fanout: either an int, for a constant-degree fanout, or a callable
-          mapping keys to a key-specific degree of fanout
+      fanout: either None, for no fanout, an int, for a constant-degree fanout,
+          or a callable mapping keys to a key-specific degree of fanout.
 
     Returns:
       A per-key combining PTransform with the specified fanout.
     """
     from apache_beam.transforms.combiners import curry_combine_fn
-    return _CombinePerKeyWithHotKeyFanout(
-        curry_combine_fn(self.fn, self.args, self.kwargs),
-        fanout)
+    if fanout is None:
+      return self
+    else:
+      return _CombinePerKeyWithHotKeyFanout(
+          curry_combine_fn(self.fn, self.args, self.kwargs), fanout)
 
   def display_data(self):
     return {'combine_fn':
@@ -1374,6 +1400,9 @@ class CombinePerKey(PTransformWithSideInputs):
   def from_runner_api_parameter(combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
+  def runner_api_requires_keyed_input(self):
+    return True
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
@@ -1471,9 +1500,15 @@ class CombineValuesDoFn(DoFn):
 class _CombinePerKeyWithHotKeyFanout(PTransform):
 
   def __init__(self, combine_fn, fanout):
+    self._combine_fn = combine_fn
     self._fanout_fn = (
         (lambda key: fanout) if isinstance(fanout, int) else fanout)
-    self._combine_fn = combine_fn
+
+  def default_label(self):
+    return '%s(%s, fanout=%s)' % (
+        self.__class__.__name__,
+        ptransform.label_from_callable(self._combine_fn),
+        ptransform.label_from_callable(self._fanout_fn))
 
   def expand(self, pcoll):
 
@@ -1508,6 +1543,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
+      # TODO(BEAM-4030): Remove the getattr indirection.
+      compact = getattr(combine_fn, 'compact', None)
 
     class PostCombineFn(CombineFn):
       @staticmethod
@@ -1519,6 +1556,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
           return combine_fn.add_input(accumulator, value)
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
+      # TODO(BEAM-4030): Remove the getattr indirection.
+      compact = getattr(combine_fn, 'compact', None)
       extract_output = combine_fn.extract_output
 
     def StripNonce(nonce_key_value):
@@ -1606,12 +1645,19 @@ class GroupByKey(PTransform):
               | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
+  def infer_output_type(self, input_type):
+    key_type, value_type = trivial_inference.key_value_types(input_type)
+    return KV[key_type, Iterable[value_type]]
+
   def to_runner_api_parameter(self, unused_context):
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
+
+  def runner_api_requires_keyed_input(self):
+    return True
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1750,6 +1796,10 @@ class Windowing(object):
           and self.accumulation_mode == other.accumulation_mode
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash((self.windowfn, self.accumulation_mode,
@@ -1943,7 +1993,7 @@ PTransform.register_urn(
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, values):
+  def __init__(self, values, reshuffle=True):
     """Initializes a Create transform.
 
     Args:
@@ -1956,6 +2006,7 @@ class Create(PTransform):
     elif isinstance(values, dict):
       values = values.items()
     self.values = tuple(values)
+    self.reshuffle = reshuffle
 
   def to_runner_api_parameter(self, context):
     # Required as this is identified by type in PTransformOverrides.
@@ -1972,26 +2023,36 @@ class Create(PTransform):
             self.infer_output_type(None))
 
   def expand(self, pbegin):
-    from apache_beam.io import iobase
     assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-    coder = typecoders.registry.get_coder(self.get_output_type())
-    debug_options = self.pipeline._options.view_as(DebugOptions)
     # Must guard against this as some legacy runners don't implement impulse.
+    debug_options = pbegin.pipeline._options.view_as(DebugOptions)
     fn_api = (debug_options.experiments
               and 'beam_fn_api' in debug_options.experiments)
-    # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
-    # These special cases are often used in building up more complex
-    # transforms (e.g. Write).
-    if fn_api and len(self.values) == 0:
-      return pbegin | Impulse() | FlatMap(
-          lambda _: ()).with_output_types(self.get_output_type())
-    elif fn_api and len(self.values) == 1:
-      serialized_value = coder.encode(self.values[0])
-      return pbegin | Impulse() | Map(
-          lambda _: coder.decode(serialized_value)).with_output_types(
-              self.get_output_type())
+    if fn_api:
+      coder = typecoders.registry.get_coder(self.get_output_type())
+      serialized_values = [coder.encode(v) for v in self.values]
+      reshuffle = self.reshuffle
+      # Avoid the "redistributing" reshuffle for 0 and 1 element Creates.
+      # These special cases are often used in building up more complex
+      # transforms (e.g. Write).
+
+      class MaybeReshuffle(PTransform):
+        def expand(self, pcoll):
+          if len(serialized_values) > 1 and reshuffle:
+            from apache_beam.transforms.util import Reshuffle
+            return pcoll | Reshuffle()
+          else:
+            return pcoll
+      return (
+          pbegin
+          | Impulse()
+          | FlatMap(lambda _: serialized_values)
+          | MaybeReshuffle()
+          | Map(coder.decode).with_output_types(self.get_output_type()))
     else:
+      self.pipeline = pbegin.pipeline
+      from apache_beam.io import iobase
+      coder = typecoders.registry.get_coder(self.get_output_type())
       source = self._create_source_from_iterable(self.values, coder)
       return (pbegin.pipeline
               | iobase.Read(source).with_output_types(self.get_output_type()))

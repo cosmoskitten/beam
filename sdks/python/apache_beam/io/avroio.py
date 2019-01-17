@@ -330,20 +330,20 @@ class _AvroBlock(object):
 
   @staticmethod
   def _decompress_bytes(data, codec):
-    if codec == 'null':
+    if codec == b'null':
       return data
-    elif codec == 'deflate':
+    elif codec == b'deflate':
       # zlib.MAX_WBITS is the window size. '-' sign indicates that this is
       # raw data (without headers). See zlib and Avro documentations for more
       # details.
       return zlib.decompress(data, -zlib.MAX_WBITS)
-    elif codec == 'snappy':
+    elif codec == b'snappy':
       # Snappy is an optional avro codec.
       # See Snappy and Avro documentation for more details.
       try:
         import snappy
       except ImportError:
-        raise ValueError('Snappy does not seem to be installed.')
+        raise ValueError('python-snappy does not seem to be installed.')
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
       # We take care to avoid extra copies of data while slicing large objects
@@ -360,8 +360,10 @@ class _AvroBlock(object):
   def records(self):
     decoder = avroio.BinaryDecoder(
         io.BytesIO(self._decompressed_block_bytes))
-    reader = avroio.DatumReader(
-        writers_schema=self._schema, readers_schema=self._schema)
+
+    writer_schema = self._schema
+    reader_schema = self._schema
+    reader = avroio.DatumReader(writer_schema, reader_schema)
 
     current_record = 0
     while current_record < self._num_records:

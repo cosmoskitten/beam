@@ -1,56 +1,56 @@
-///*
-// * Licensed to the Apache Software Foundation (ASF) under one
-// * or more contributor license agreements.  See the NOTICE file
-// * distributed with this work for additional information
-// * regarding copyright ownership.  The ASF licenses this file
-// * to you under the Apache License, Version 2.0 (the
-// * "License"); you may not use this file except in compliance
-// * with the License.  You may obtain a copy of the License at
-// *
-// *     http://www.apache.org/licenses/LICENSE-2.0
-// *
-// * Unless required by applicable law or agreed to in writing, software
-// * distributed under the License is distributed on an "AS IS" BASIS,
-// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// * See the License for the specific language governing permissions and
-// * limitations under the License.
-// */
-//package org.apache.beam.sdk.extensions.euphoria.core.testkit;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.extensions.euphoria.core.testkit;
 //
-//import static org.junit.Assert.assertEquals;
+// import static org.junit.Assert.assertEquals;
 //
-//import java.time.Instant;
-//import java.util.Arrays;
-//import java.util.List;
-//import java.util.Objects;
-//import java.util.concurrent.atomic.AtomicBoolean;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
-//import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
-//import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
-//import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
-//import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-//import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-//import org.apache.beam.sdk.values.KV;
-//import org.junit.Test;
+// import java.time.Instant;
+// import java.util.Arrays;
+// import java.util.List;
+// import java.util.Objects;
+// import java.util.concurrent.atomic.AtomicBoolean;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.Dataset;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.TimeInterval;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.dataset.windowing.Windowing;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.FlatMap;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceStateByKey;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceWindow;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.State;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.StateContext;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorage;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.operator.state.ValueStorageDescriptor;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.util.Sums;
+// import org.apache.beam.sdk.extensions.euphoria.core.client.util.Triple;
+// import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.AbstractOperatorTest;
+// import org.apache.beam.sdk.extensions.euphoria.core.testkit.junit.Processing;
+// import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+// import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+// import org.apache.beam.sdk.values.KV;
+// import org.junit.Test;
 //
-///** Tests capabilities of {@link Windowing}. */
-//@Processing(Processing.Type.ALL)
-//public class WindowingTest extends AbstractOperatorTest {
+/// ** Tests capabilities of {@link Windowing}. */
+// @Processing(Processing.Type.ALL)
+// public class WindowingTest extends AbstractOperatorTest {
 //
 //  static final AtomicBoolean ON_CLEAR_VALIDATED = new AtomicBoolean(false);
 //
@@ -270,7 +270,8 @@
 //            // extract window timestamp
 //            return FlatMap.of(keyValues)
 //                .using(
-//                    (KV<String, Integer> in, Collector<Triple<Instant, Instant, Integer>> out) -> {
+//                    (KV<String, Integer> in, Collector<Triple<Instant, Instant, Integer>> out) ->
+// {
 //                      long windowBegin = ((TimeInterval) out.getWindow()).getStartMillis();
 //                      long windowEnd = ((TimeInterval) out.getWindow()).getEndMillis();
 //                      out.collect(
@@ -485,4 +486,4 @@
 //    }
 //  }
 //  */
-//}
+// }

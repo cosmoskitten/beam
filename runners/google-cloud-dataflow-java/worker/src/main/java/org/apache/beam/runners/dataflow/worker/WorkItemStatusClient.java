@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MetricStructuredName;
@@ -30,8 +29,6 @@ import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +47,8 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,17 +117,20 @@ public class WorkItemStatusClient {
     Status error = new Status();
     error.setCode(2); // Code.UNKNOWN.  TODO: Replace with a generated definition.
     // TODO: Attach the stack trace as exception details, not to the message.
+    String logPrefix = String.format("Failure processing work item %s", uniqueWorkId());
     if (isOutOfMemoryError(t)) {
       String message =
           "An OutOfMemoryException occurred. Consider specifying higher memory "
               + "instances in PipelineOptions.\n";
-      LOG.error(message);
+      LOG.error("{}: {}", logPrefix, message);
       error.setMessage(message + DataflowWorkerLoggingHandler.formatException(t));
     } else {
-      LOG.error("Uncaught exception occurred during work unit execution. This will be retried.", t);
+      LOG.error(
+          "{}: Uncaught exception occurred during work unit execution. This will be retried.",
+          logPrefix,
+          t);
       error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
     }
-    LOG.warn("Failure processing work item {}", uniqueWorkId());
     status.setErrors(ImmutableList.of(error));
 
     return execute(status);
@@ -264,6 +266,7 @@ public class WorkItemStatusClient {
     return status;
   }
 
+  // todo(migryz) this method should return List<CounterUpdate> instead of updating member variable
   @VisibleForTesting
   synchronized void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
@@ -271,13 +274,18 @@ public class WorkItemStatusClient {
     }
 
     boolean isFinalUpdate = Boolean.TRUE.equals(status.getCompleted());
-    ImmutableList.Builder<CounterUpdate> counterUpdatesBuilder = ImmutableList.builder();
-    counterUpdatesBuilder.addAll(extractCounters(worker.getOutputCounters()));
-    counterUpdatesBuilder.addAll(extractMetrics(isFinalUpdate));
-    counterUpdatesBuilder.addAll(extractMsecCounters(isFinalUpdate));
-    counterUpdatesBuilder.addAll(worker.extractMetricUpdates());
 
-    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesBuilder.build();
+    ImmutableList.Builder<CounterUpdate> counterUpdatesListBuilder = ImmutableList.builder();
+    // Output counters
+    counterUpdatesListBuilder.addAll(extractCounters(worker.getOutputCounters()));
+    // User metrics reported in Worker
+    counterUpdatesListBuilder.addAll(extractMetrics(isFinalUpdate));
+    // MSec counters reported in worker
+    counterUpdatesListBuilder.addAll(extractMsecCounters(isFinalUpdate));
+    // Metrics reported in SDK runner.
+    counterUpdatesListBuilder.addAll(worker.extractMetricUpdates());
+
+    ImmutableList<CounterUpdate> counterUpdates = counterUpdatesListBuilder.build();
     status.setCounterUpdates(counterUpdates);
   }
 

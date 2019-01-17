@@ -65,6 +65,10 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
   def __hash__(self):
     return hash((self.step, self.metric))
 
@@ -106,6 +110,10 @@ class MetricResult(object):
     return (self.key == other.key and
             self.committed == other.committed and
             self.attempted == other.attempted)
+
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __hash__(self):
     return hash((self.key, self.committed, self.attempted))
@@ -237,6 +245,14 @@ class MetricsContainer(object):
           ptransform=transform_id
       ))
     return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
+
+  def reset(self):
+    for counter in self.counters.values():
+      counter.reset()
+    for distribution in self.distributions.values():
+      distribution.reset()
+    for gauge in self.gauges.values():
+      gauge.reset()
 
 
 class MetricUpdates(object):

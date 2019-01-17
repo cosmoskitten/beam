@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.DataInputStream;
@@ -31,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionState
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
 final class ChunkingShuffleBatchReader implements ShuffleBatchReader {

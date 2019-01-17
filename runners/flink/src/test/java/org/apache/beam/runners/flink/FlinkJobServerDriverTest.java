@@ -17,18 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.sdk.options.PortablePipelineOptions.SDK_WORKER_PARALLELISM_PIPELINE;
-import static org.apache.beam.sdk.options.PortablePipelineOptions.SDK_WORKER_PARALLELISM_STAGE;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
-import java.net.ServerSocket;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +42,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.port, is(8099));
     assertThat(config.artifactPort, is(8098));
     assertThat(config.flinkMasterUrl, is("[auto]"));
-    assertThat(config.sdkWorkerParallelism, is(SDK_WORKER_PARALLELISM_PIPELINE));
+    assertThat(config.sdkWorkerParallelism, is(1L));
     assertThat(config.cleanArtifactsPerJob, is(false));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
@@ -63,14 +59,14 @@ public class FlinkJobServerDriverTest {
               "--artifact-port",
               "43",
               "--flink-master-url=jobmanager",
-              "--sdk-worker-parallelism=stage",
+              "--sdk-worker-parallelism=4",
               "--clean-artifacts-per-job",
             });
     assertThat(driver.configuration.host, is("test"));
     assertThat(driver.configuration.port, is(42));
     assertThat(driver.configuration.artifactPort, is(43));
     assertThat(driver.configuration.flinkMasterUrl, is("jobmanager"));
-    assertThat(driver.configuration.sdkWorkerParallelism, is(SDK_WORKER_PARALLELISM_STAGE));
+    assertThat(driver.configuration.sdkWorkerParallelism, is(4L));
     assertThat(driver.configuration.cleanArtifactsPerJob, is(true));
   }
 
@@ -86,33 +82,30 @@ public class FlinkJobServerDriverTest {
   public void testJobServerDriver() throws Exception {
     FlinkJobServerDriver driver = null;
     Thread driverThread = null;
-    final PrintStream oldOut = System.out;
+    final PrintStream oldOut = System.err;
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PrintStream newOut = new PrintStream(baos);
     try {
       System.setErr(newOut);
-      int freePort = getFreePort();
-      int freePort2 = getFreePort();
-      driver =
-          FlinkJobServerDriver.fromParams(
-              new String[] {
-                "--job-port", String.valueOf(freePort),
-                "--artifact-port", String.valueOf(freePort2)
-              });
+      driver = FlinkJobServerDriver.fromParams(new String[] {"--job-port=0", "--artifact-port=0"});
       driverThread = new Thread(driver);
       driverThread.start();
       boolean success = false;
       while (!success) {
         newOut.flush();
         String output = baos.toString(Charsets.UTF_8.name());
-        if (output.contains("JobService started on localhost:" + freePort)
-            && output.contains("ArtifactStagingService started on localhost:" + freePort2)) {
+        if (output.contains("JobService started on localhost:")
+            && output.contains("ArtifactStagingService started on localhost:")) {
           success = true;
         } else {
           Thread.sleep(100);
         }
       }
       assertThat(driverThread.isAlive(), is(true));
+    } catch (Throwable t) {
+      // restore to print exception
+      System.setErr(oldOut);
+      throw t;
     } finally {
       System.setErr(oldOut);
       if (driver != null) {
@@ -122,12 +115,6 @@ public class FlinkJobServerDriverTest {
         driverThread.interrupt();
         driverThread.join();
       }
-    }
-  }
-
-  private static int getFreePort() throws IOException {
-    try (ServerSocket socket = new ServerSocket(0)) {
-      return socket.getLocalPort();
     }
   }
 }

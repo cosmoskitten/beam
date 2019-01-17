@@ -59,7 +59,7 @@ The Flink cluster version has to match the version used by the FlinkRunner. To f
   <th>Flink version</th>
 </tr>
 <tr>
-  <td>2.7.0, 2.6.0</td>
+  <td>2.8.0, 2.7.0, 2.6.0</td>
   <td>1.5.x</td>
 </tr>
 <tr>
@@ -114,7 +114,7 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --flinkMaster=<flink master url> \
-      --filesToStage=target/word-count-beam--bundled-0.1.jar"
+      --filesToStage=target/word-count-beam-bundled-0.1.jar"
 ```
 If you have a Flink `JobManager` running on your local machine you can give `localhost:8081` for
 `flinkMaster`.

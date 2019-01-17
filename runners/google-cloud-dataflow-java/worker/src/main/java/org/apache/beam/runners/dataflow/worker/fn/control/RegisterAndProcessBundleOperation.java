@@ -15,29 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Table;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -63,6 +58,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -70,8 +66,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +91,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
   private static final OutputReceiver[] EMPTY_RECEIVERS = new OutputReceiver[0];
 
-  private final Supplier<String> idGenerator;
+  private final IdGenerator idGenerator;
   private final InstructionRequestHandler instructionRequestHandler;
   private final StateDelegator beamFnStateDelegator;
   private final RegisterRequest registerRequest;
@@ -109,7 +110,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   private String grpcReadTransformOutputName = null;
 
   public RegisterAndProcessBundleOperation(
-      Supplier<String> idGenerator,
+      IdGenerator idGenerator,
       InstructionRequestHandler instructionRequestHandler,
       StateDelegator beamFnStateDelegator,
       RegisterRequest registerRequest,
@@ -220,6 +221,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
   /**
    * Returns an id for the current bundle being processed.
    *
+   * <p>Generates new id with idGenerator if no id is cached.
+   *
    * <p><b>Note</b>: This operation could be used across multiple bundles, so a unique id is
    * generated for every bundle. {@link Operation Operations} accessing the bundle id should only
    * call this once per bundle and cache the id in the {@link Operation#start()} method and clear it
@@ -227,7 +230,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
    */
   public synchronized String getProcessBundleInstructionId() {
     if (processBundleId == null) {
-      processBundleId = idGenerator.get();
+      processBundleId = idGenerator.getId();
     }
     return processBundleId;
   }
@@ -241,7 +244,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       if (registerFuture == null) {
         InstructionRequest request =
             InstructionRequest.newBuilder()
-                .setInstructionId(idGenerator.get())
+                .setInstructionId(idGenerator.getId())
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
@@ -292,6 +295,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
   }
 
+  public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {
+    return ptransformIdToUserStepContext;
+  }
+
   /**
    * Returns the compound metrics recorded, by issuing a request to the SDK harness.
    *
@@ -306,16 +313,19 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * @throws InterruptedException
    * @throws ExecutionException
    */
-  public CompletionStage<BeamFnApi.Metrics> getMetrics()
+  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
       throws InterruptedException, ExecutionException {
     // processBundleId may be reset if this bundle finishes asynchronously.
     String processBundleId = this.processBundleId;
+
     if (processBundleId == null) {
-      return CompletableFuture.completedFuture(BeamFnApi.Metrics.getDefaultInstance());
+      return CompletableFuture.completedFuture(
+          BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
     }
+
     InstructionRequest processBundleRequest =
         InstructionRequest.newBuilder()
-            .setInstructionId(idGenerator.get())
+            .setInstructionId(idGenerator.getId())
             .setProcessBundleProgress(
                 ProcessBundleProgressRequest.newBuilder().setInstructionReference(processBundleId))
             .build();
@@ -327,7 +337,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
               if (!response.getError().isEmpty()) {
                 throw new IllegalStateException(response.getError());
               }
-              return response.getProcessBundleProgress().getMetrics();
+              return response.getProcessBundleProgress();
             });
   }
 
@@ -335,6 +345,20 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
     return getProcessBundleResponse(processBundleResponse)
         .thenApply(response -> response.getMetrics());
+  }
+
+  public CompletionStage<List<MonitoringInfo>> getFinalMonitoringInfos() {
+    return getProcessBundleResponse(processBundleResponse)
+        .thenApply(response -> response.getMonitoringInfosList());
+  }
+
+  public boolean hasFailed() throws ExecutionException, InterruptedException {
+    if (processBundleResponse != null && processBundleResponse.toCompletableFuture().isDone()) {
+      return !processBundleResponse.toCompletableFuture().get().getError().isEmpty();
+    } else {
+      // At the very least, we don't know that this has failed yet.
+      return false;
+    }
   }
 
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
@@ -474,7 +498,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
     BagState<ByteString> state =
         userStateData.computeIfAbsent(
             stateRequest.getStateKey(),
-            (unused) ->
+            unused ->
                 userStepContext
                     .stateInternals()
                     .state(

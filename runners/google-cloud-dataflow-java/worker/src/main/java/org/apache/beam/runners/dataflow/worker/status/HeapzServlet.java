@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import javax.management.InstanceNotFoundException;
@@ -29,6 +27,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
 
 /**
  * Respond to /heapz with a page allowing downloading of the heap dumps.

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.samza;
 
 import java.util.Map;
@@ -78,7 +77,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
 
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
-    SamzaPipelineTranslator.createConfig(pipeline, idMap, configBuilder);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
     final ApplicationRunner runner = ApplicationRunner.fromConfig(configBuilder.build());
 
     final SamzaExecutionContext executionContext = new SamzaExecutionContext();

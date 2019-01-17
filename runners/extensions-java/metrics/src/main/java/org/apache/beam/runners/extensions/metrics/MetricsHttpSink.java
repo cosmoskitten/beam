@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.extensions.metrics;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -32,15 +31,15 @@ import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink {
   private final String urlString;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
-  public MetricsHttpSink(PipelineOptions pipelineOptions) {
+  public MetricsHttpSink(MetricsOptions pipelineOptions) {
     this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
   }
 

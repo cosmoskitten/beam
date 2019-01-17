@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.MapTask;
@@ -34,15 +30,6 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.EvictingQueue;
-import com.google.common.collect.Iterables;
-import com.google.common.graph.MutableNetwork;
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -51,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -89,7 +77,6 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.dataflow.worker.fn.IdGenerator;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateRegisterFnOperationFunction;
 import org.apache.beam.runners.dataflow.worker.graph.DeduceFlattenLocationsFunction;
@@ -115,7 +102,6 @@ import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.util.FluentBackoff;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
@@ -127,11 +113,28 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.protobuf.v3.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.EvictingQueue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.MultimapBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -141,12 +144,14 @@ import org.slf4j.LoggerFactory;
 public class StreamingDataflowWorker {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
 
+  /** The idGenerator to generate unique id globally. */
+  private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
   /**
    * Fix up MapTask representation because MultiOutputInfos are missing from system generated
    * ParDoInstructions.
    */
   private static final Function<MapTask, MapTask> fixMultiOutputInfos =
-      new FixMultiOutputInfosOnParDoInstructions(IdGenerator::generate);
+      new FixMultiOutputInfosOnParDoInstructions(idGenerator);
 
   /**
    * Function which converts map tasks to their network representation for execution.
@@ -157,7 +162,7 @@ public class StreamingDataflowWorker {
    * </ul>
    */
   private static final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToBaseNetwork =
-      new MapTaskToNetworkFunction();
+      new MapTaskToNetworkFunction(idGenerator);
 
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
@@ -435,11 +440,11 @@ public class StreamingDataflowWorker {
     final Counter<Long, Long> totalProcessingMsecs;
     final Counter<Long, Long> timerProcessingMsecs;
 
-    StageInfo(String stageName, String systemName) {
+    StageInfo(String stageName, String systemName, StreamingDataflowWorker worker) {
       this.stageName = stageName;
       this.systemName = systemName;
       metricsContainerRegistry = StreamingStepMetricsContainer.createRegistry();
-      executionStateRegistry = new StreamingModeExecutionStateRegistry();
+      executionStateRegistry = new StreamingModeExecutionStateRegistry(worker);
       NameContext nameContext = NameContext.create(stageName, null, systemName, null);
       deltaCounters = new CounterSet();
       throttledMsecs =
@@ -625,11 +630,9 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  IdGenerator::generate, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline,
-                  IdGenerator::generate,
-                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -638,9 +641,10 @@ public class StreamingDataflowWorker {
 
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> transformToRunnerNetwork =
           new CreateRegisterFnOperationFunction(
-              IdGenerator::generate,
+              idGenerator,
               this::createPortNode,
-              lengthPrefixUnknownCoders.andThen(sdkFusedStage));
+              lengthPrefixUnknownCoders.andThen(sdkFusedStage),
+              false);
 
       mapTaskToNetwork =
           mapTaskToBaseNetwork
@@ -667,8 +671,8 @@ public class StreamingDataflowWorker {
         RemoteGrpcPort.newBuilder()
             .setApiServiceDescriptor(sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
             .build(),
-        IdGenerator.generate(),
-        IdGenerator.generate(),
+        idGenerator.getId(),
+        idGenerator.getId(),
         predecessorId,
         successorId);
   }
@@ -691,7 +695,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.getQueue().size() == 0;
+    return workUnitExecutor.getQueue().isEmpty();
   }
 
   public void start() {
@@ -935,9 +939,7 @@ public class StreamingDataflowWorker {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately; otherwise
         // we half-close the stream after some time and create a new one.
-        if (!stream.awaitTermination(3, TimeUnit.MINUTES)) {
-          stream.close();
-        }
+        stream.closeAfterDefaultTimeout();
       } catch (InterruptedException e) {
         // Continue processing until !running.get()
       }
@@ -1095,7 +1097,7 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), (s) -> new StageInfo(s, mapTask.getSystemName()));
+            mapTask.getStageName(), s -> new StageInfo(s, mapTask.getSystemName(), this));
 
     ExecutionState executionState = null;
 
@@ -1141,9 +1143,9 @@ public class StreamingDataflowWorker {
         DataflowMapTaskExecutor mapTaskExecutor =
             mapTaskExecutorFactory.create(
                 worker.getControlClientHandler(),
-                worker.getDataService(),
+                worker.getGrpcDataFnServer(),
                 sdkHarnessRegistry.beamFnDataApiServiceDescriptor(),
-                worker.getStateService(),
+                worker.getGrpcStateFnServer(),
                 mapTaskNetwork,
                 options,
                 mapTask.getStageName(),
@@ -1151,7 +1153,7 @@ public class StreamingDataflowWorker {
                 sinkRegistry,
                 context,
                 pendingDeltaCounters,
-                IdGenerator::generate);
+                idGenerator);
         ReadOperation readOperation = mapTaskExecutor.getReadOperation();
         // Disable progress updates since its results are unused  for streaming
         // and involves starting a thread.
@@ -1312,9 +1314,9 @@ public class StreamingDataflowWorker {
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
-      long processingTimeMicros =
-          TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - processingStartTimeNanos);
-      stageInfo.totalProcessingMsecs.addValue(processingTimeMicros);
+      long processingTimeMsecs =
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
+      stageInfo.totalProcessingMsecs.addValue(processingTimeMsecs);
 
       // Attribute all the processing to timers if the work item contains any timers.
       // Tests show that work items rarely contain both timers and message bundles. It should
@@ -1322,7 +1324,7 @@ public class StreamingDataflowWorker {
       // Another option: Derive time split between messages and timers based on recent totals.
       // either here or in DFE.
       if (work.getWorkItem().hasTimers()) {
-        stageInfo.timerProcessingMsecs.addValue(processingTimeMicros);
+        stageInfo.timerProcessingMsecs.addValue(processingTimeMsecs);
       }
 
       DataflowWorkerLoggingMDC.setWorkId(null);
@@ -1519,7 +1521,7 @@ public class StreamingDataflowWorker {
       if (config.getWindmillServicePort() != null && config.getWindmillServicePort() != 0) {
         port = config.getWindmillServicePort().intValue();
       }
-      HashSet<HostAndPort> endpoints = new HashSet<HostAndPort>();
+      HashSet<HostAndPort> endpoints = new HashSet<>();
       for (String endpoint : Splitter.on(',').split(config.getWindmillServiceEndpoint())) {
         endpoints.add(HostAndPort.fromString(endpoint).withDefaultPort(port));
       }
@@ -1647,10 +1649,7 @@ public class StreamingDataflowWorker {
   // Returns true if reporting the exception is successful and the work should be retried.
   private boolean reportFailure(String computation, Windmill.WorkItem work, Throwable t) {
     // Enqueue the errors to be sent to DFE in periodic updates
-    synchronized (pendingFailuresToReport) {
-      pendingFailuresToReport.add(
-          buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
-    }
+    addFailure(buildExceptionStackTrace(t, options.getMaxStackTraceDepthToReport()));
     if (windmillServiceEnabled) {
       return true;
     } else {
@@ -1663,6 +1662,16 @@ public class StreamingDataflowWorker {
                   .setWorkToken(work.getWorkToken())
                   .build());
       return !response.getFailed();
+    }
+  }
+
+  /**
+   * Adds the given failure message to the queue of messages to be reported to DFE in periodic
+   * updates.
+   */
+  public void addFailure(String failureMessage) {
+    synchronized (pendingFailuresToReport) {
+      pendingFailuresToReport.add(failureMessage);
     }
   }
 
@@ -1704,18 +1713,73 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Returns key for a counter update. It is a String in case of legacy counter and
+   * CounterStructuredName in the case of a structured counter.
+   */
+  private Object getCounterUpdateKey(CounterUpdate counterUpdate) {
+    Object key = null;
+    if (counterUpdate.getNameAndKind() != null) {
+      key = counterUpdate.getNameAndKind().getName();
+    } else if (counterUpdate.getStructuredNameAndMetadata() != null) {
+      key = counterUpdate.getStructuredNameAndMetadata().getName();
+    }
+    checkArgument(key != null, "Could not find name for CounterUpdate: %s", counterUpdate);
+    return key;
+  }
+
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
 
-    List<CounterUpdate> counterUpdates = new ArrayList<>();
-    if (publishCounters) {
-      stageInfoMap.values().forEach((s) -> counterUpdates.addAll(s.extractCounterUpdates()));
+    List<CounterUpdate> counterUpdates = new ArrayList<>(128);
 
+    if (publishCounters) {
+      stageInfoMap.values().forEach(s -> counterUpdates.addAll(s.extractCounterUpdates()));
       counterUpdates.addAll(
           cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+    }
+
+    // Handle duplicate counters from different stages. Store all the counters in a multi-map and
+    // send the counters that appear multiple times in separate RPCs. Same logical counter could
+    // appear in multiple stages if a step runs in multiple stages (as with flatten-unzipped stages)
+    // especially if the counter definition does not set execution_step_name.
+    ListMultimap<Object, CounterUpdate> counterMultimap =
+        MultimapBuilder.hashKeys(counterUpdates.size()).linkedListValues().build();
+    boolean hasDuplicates = false;
+
+    for (CounterUpdate c : counterUpdates) {
+      Object key = getCounterUpdateKey(c);
+      if (counterMultimap.containsKey(key)) {
+        hasDuplicates = true;
+      }
+      counterMultimap.put(key, c);
+    }
+
+    // Clears counterUpdates and enqueues unique counters from counterMultimap. If a counter
+    // appears more than once, one of them is extracted leaving the remaining in the map.
+    Runnable extractUniqueCounters =
+        () -> {
+          counterUpdates.clear();
+          for (Iterator<Object> iter = counterMultimap.keySet().iterator(); iter.hasNext(); ) {
+            List<CounterUpdate> counters = counterMultimap.get(iter.next());
+            counterUpdates.add(counters.get(0));
+            if (counters.size() == 1) {
+              // There is single value. Remove the entry through the iterator.
+              iter.remove();
+            } else {
+              // Otherwise remove the first value.
+              counters.remove(0);
+            }
+          }
+        };
+
+    if (hasDuplicates) {
+      extractUniqueCounters.run();
+    } else { // Common case: no duplicates. We can just send counterUpdates, empty the multimap.
+      counterMultimap.clear();
     }
 
     List<Status> errors;
@@ -1735,10 +1799,16 @@ public class StreamingDataflowWorker {
             .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
             .setErrors(errors)
             .setCounterUpdates(counterUpdates);
-    // We can't populate per-workitem fields like TotalThrottlerWaitTimeSeconds in WorkItemStatus.
-    // This work item does not represent any specific stage on DFE.
-
     workUnitClient.reportWorkItemStatus(workItemStatus);
+
+    // Send any counters appearing more than once in subsequent RPCs:
+    while (!counterMultimap.isEmpty()) {
+      extractUniqueCounters.run();
+      workUnitClient.reportWorkItemStatus(
+          new WorkItemStatus()
+              .setWorkItemId(WINDMILL_COUNTER_UPDATE_WORK_ID)
+              .setCounterUpdates(counterUpdates));
+    }
   }
 
   /**

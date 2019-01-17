@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -36,17 +35,26 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Requirements;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -184,6 +192,7 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-6352")
   @Category(NeedsRunner.class)
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final Path basePath = tmpFolder.getRoot().toPath().resolve("watch");
@@ -378,5 +387,38 @@ public class FileIOTest implements Serializable {
                 0,
                 0,
                 Compression.UNCOMPRESSED));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFileIoDynamicNaming() throws IOException {
+    // Test for BEAM-6407.
+
+    String outputFileName = tmpFolder.newFile().getAbsolutePath();
+    PCollectionView<String> outputFileNameView =
+        p.apply("outputFileName", Create.of(outputFileName)).apply(View.asSingleton());
+
+    Contextful.Fn<String, FileIO.Write.FileNaming> fileNaming =
+        (element, c) ->
+            (window, pane, numShards, shardIndex, compression) ->
+                c.sideInput(outputFileNameView) + "-" + shardIndex;
+
+    p.apply(Create.of(""))
+        .apply(
+            "WriteDynamicFilename",
+            FileIO.<String, String>writeDynamic()
+                .by(SerializableFunctions.constant(""))
+                .withDestinationCoder(StringUtf8Coder.of())
+                .via(TextIO.sink())
+                .withTempDirectory(tmpFolder.newFolder().getAbsolutePath())
+                .withNaming(
+                    Contextful.of(
+                        fileNaming, Requirements.requiresSideInputs(outputFileNameView))));
+
+    // We need to run the TestPipeline with the default options.
+    p.run(PipelineOptionsFactory.create()).waitUntilFinish();
+    assertTrue(
+        "Output file shard 0 exists after pipeline completes",
+        new File(outputFileName + "-0").exists());
   }
 }

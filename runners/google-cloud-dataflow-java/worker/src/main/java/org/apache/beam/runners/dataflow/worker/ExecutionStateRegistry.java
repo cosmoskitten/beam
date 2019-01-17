@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker;
 
-import static com.google.common.base.Predicates.notNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates.notNull;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import com.google.common.collect.FluentIterable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nullable;
@@ -29,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
 
 /** Manages the instances of {@link ExecutionState} */
 public abstract class ExecutionStateRegistry {
@@ -87,7 +86,7 @@ public abstract class ExecutionStateRegistry {
         ExecutionStateKey.create(nameContext, stateName, requestingStepName, inputIndex);
     return createdStates.computeIfAbsent(
         stateKey,
-        (unused) ->
+        unused ->
             createState(
                 nameContext, stateName, requestingStepName, inputIndex, container, profileScope));
   }
@@ -109,7 +108,7 @@ public abstract class ExecutionStateRegistry {
 
   public Iterable<CounterUpdate> extractUpdates(boolean isFinalUpdate) {
     return FluentIterable.from(createdStates.values())
-        .transform((state) -> state.extractUpdate(isFinalUpdate))
+        .transform(state -> state.extractUpdate(isFinalUpdate))
         .filter(notNull());
   }
 }

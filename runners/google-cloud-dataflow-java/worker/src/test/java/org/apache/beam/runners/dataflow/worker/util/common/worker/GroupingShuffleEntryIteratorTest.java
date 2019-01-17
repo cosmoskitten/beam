@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static org.apache.beam.runners.dataflow.worker.NameContextsForTests.nameContextForTest;
@@ -24,8 +23,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +40,8 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -191,7 +190,7 @@ public class GroupingShuffleEntryIteratorTest {
 
     assertEquals(expectedEntry, values1Copy2.next());
 
-    Map<String, Long> expectedReadBytesMap = new HashMap<String, Long>();
+    Map<String, Long> expectedReadBytesMap = new HashMap<>();
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 15L);
 
     // Verify that each executing step used when reading from the GroupingShuffleReader

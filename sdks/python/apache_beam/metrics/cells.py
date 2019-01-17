@@ -147,6 +147,10 @@ class CounterCell(Counter, MetricCell):
     super(CounterCell, self).__init__(*args)
     self.value = CounterAggregator.identity_element()
 
+  def reset(self):
+    self.commit = CellCommitState()
+    self.value = CounterAggregator.identity_element()
+
   def combine(self, other):
     result = CounterCell()
     result.inc(self.value + other.value)
@@ -187,6 +191,10 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
+    self.data = DistributionAggregator.identity_element()
+
+  def reset(self):
+    self.commit = CellCommitState()
     self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
@@ -230,6 +238,10 @@ class GaugeCell(Gauge, MetricCell):
     super(GaugeCell, self).__init__(*args)
     self.data = GaugeAggregator.identity_element()
 
+  def reset(self):
+    self.commit = CellCommitState()
+    self.data = GaugeAggregator.identity_element()
+
   def combine(self, other):
     result = GaugeCell()
     result.data = self.data.combine(other.data)
@@ -264,7 +276,8 @@ class DistributionResult(object):
     return hash(self.data)
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
@@ -314,7 +327,8 @@ class GaugeResult(object):
     return hash(self.data)
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeResult(value={}, timestamp={})>'.format(
@@ -351,7 +365,8 @@ class GaugeData(object):
     return hash((self.value, self.timestamp))
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<GaugeData(value={}, timestamp={})>'.format(
@@ -422,7 +437,8 @@ class DistributionData(object):
     return hash((self.sum, self.count, self.min, self.max))
 
   def __ne__(self, other):
-    return not self.__eq__(other)
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
 
   def __repr__(self):
     return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(

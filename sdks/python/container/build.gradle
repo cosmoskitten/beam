@@ -46,14 +46,16 @@ task copyDockerfileDependencies(type: Copy, dependsOn: build) {
   from configurations.sdkSourceTarball
   from file("./base_image_requirements.txt")
   into "build/target"
-  configurations.sdkSourceTarball.stopExecutionIfEmpty()
+  if(configurations.sdkSourceTarball.isEmpty()) {
+    throw new StopExecutionException('sdk source tarball is empty');
+  }
 }
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/boot'
   build {
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
+    // Build for linux and mac.
+    targetPlatform = ['linux-amd64', 'darwin-amd64']
     outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
   }
 }
