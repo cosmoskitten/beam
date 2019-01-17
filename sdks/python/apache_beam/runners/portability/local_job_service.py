@@ -101,6 +101,9 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def GetStateStream(self, request, context=None):
     """Yields state transitions since the stream started.
       """
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+
     job = self._jobs[request.job_id]
     for state in job.get_state_stream():
       yield beam_job_api_pb2.GetJobStateResponse(state=state)
@@ -108,6 +111,9 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def GetMessageStream(self, request, context=None):
     """Yields messages since the stream started.
       """
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+
     job = self._jobs[request.job_id]
     for msg in job.get_message_stream():
       if isinstance(msg, int):
