@@ -38,7 +38,6 @@ public class MetadataCoderV2Test {
                 FileSystems.matchNewResource(filePath.toString(), false /* isDirectory */))
             .setIsReadSeekEfficient(true)
             .setSizeBytes(1024)
-            .setLastModifiedMillis(MetadataCoder.UNKNOWN_LAST_MODIFIED_MILLIS)
             .build();
     CoderProperties.coderDecodeEncodeEqual(MetadataCoderV2.of(), metadata);
   }
