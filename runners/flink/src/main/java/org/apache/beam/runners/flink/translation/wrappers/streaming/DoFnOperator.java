@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -65,6 +66,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -272,6 +274,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void initializeState(StateInitializationContext context) throws Exception {
+    // Clear cache to get rid of any references to the Flink Classloader
+    // See https://jira.apache.org/jira/browse/BEAM-6460
+    PipelineOptionsFactory.resetCache();
+
     super.initializeState(context);
 
     ListStateDescriptor<WindowedValue<InputT>> pushedBackStateDescriptor =
@@ -391,6 +397,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       super.dispose();
       checkFinishBundleTimer.cancel(true);
     } finally {
+      // Clear cache to get rid of any references to the Flink Classloader
+      // See https://jira.apache.org/jira/browse/BEAM-6460
+      TypeFactory.defaultInstance().clearCache();
       if (bundleStarted) {
         invokeFinishBundle();
       }

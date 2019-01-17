@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -26,6 +27,7 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -133,13 +135,23 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void open(Configuration parameters) throws Exception {
+    // Clear cache to get rid of any references to the Flink Classloader
+    // See https://jira.apache.org/jira/browse/BEAM-6460
+    PipelineOptionsFactory.resetCache();
+
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
   }
 
   @Override
   public void close() throws Exception {
-    doFnInvoker.invokeTeardown();
+    try {
+      doFnInvoker.invokeTeardown();
+    } finally {
+      // Clear cache to get rid of any references to the Flink Classloader
+      // See https://jira.apache.org/jira/browse/BEAM-6460
+      TypeFactory.defaultInstance().clearCache();
+    }
   }
 
   static class DoFnOutputManager implements DoFnRunners.OutputManager {
