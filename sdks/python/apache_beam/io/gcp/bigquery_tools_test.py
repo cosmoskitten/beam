@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import datetime
 import decimal
 import json
+import logging
 import re
 import time
 import unittest
@@ -612,3 +613,8 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
 
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
