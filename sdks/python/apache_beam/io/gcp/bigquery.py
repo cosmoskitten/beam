@@ -140,7 +140,6 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-
 __all__ = [
     'TableRowJsonCoder',
     'BigQueryDisposition',

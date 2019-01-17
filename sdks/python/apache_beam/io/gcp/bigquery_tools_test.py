@@ -24,17 +24,16 @@ import re
 import time
 import unittest
 
-from future.utils import iteritems
-
 import mock
+from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
-from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
 
