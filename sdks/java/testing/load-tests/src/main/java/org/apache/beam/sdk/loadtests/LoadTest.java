@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.loadtests;
 
 import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
-import static org.apache.beam.sdk.loadtests.JobFailure.assertFailure;
 import static org.apache.beam.sdk.loadtests.JobFailure.handleFailure;
 
 import java.io.IOException;
@@ -94,16 +93,13 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     LoadTestResult testResult = LoadTestResult.create(pipelineResult, metricsNamespace, testStartTime);
     ConsoleResultPublisher.publish(testResult);
 
-    Optional<JobFailure> failure = assertFailure(pipelineResult, testResult);
+    handleFailure(pipelineResult, testResult);
 
-    if(failure.isPresent()) {
-      return handleFailure(pipelineResult, failure.get());
-    } else {
-      if (options.getPublishToBigQuery()) {
-        publishResultToBigQuery(testResult);
-      }
-      return pipelineResult;
+    if (options.getPublishToBigQuery()) {
+      publishResultToBigQuery(testResult);
     }
+
+    return pipelineResult;
   }
 
   private void publishResultToBigQuery(LoadTestResult testResult) {
