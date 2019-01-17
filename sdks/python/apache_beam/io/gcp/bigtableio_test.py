@@ -28,7 +28,6 @@ import uuid
 import pytz
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtableio import BigtableConfiguration
 from apache_beam.io.gcp.bigtableio import _BigTableWriteFn
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -66,15 +65,15 @@ class WriteToBigTable(beam.PTransform):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
 
   """
-  def __init__(self, number, project_id=None,instance_id=None,
+  def __init__(self, number, project_id=None, instance_id=None,
                table_id=None):
     super(GenerateDirectRows, self).__init__()
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
-    self.project_id = project_id
-    self.instance_id = instance_id
-    self.table_id = table_id
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
 
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
@@ -91,10 +90,8 @@ class WriteToBigTable(beam.PTransform):
 
   def expand(self, pvalue):
     return (pvalue
-            | beam.Create(self._generate()),
-            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.project_id,
-                                                           self.instance_id,
-                                                           self.table_id)))
+            | beam.Create(self._generate())
+            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.beam_options)))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -167,11 +164,12 @@ class BigtableIOWriteIT(unittest.TestCase):
     pipeline_options = PipelineOptions(pipeline_args)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
+      config_data = {'project_id':self.project,
+                     'instance_id':self.instance,
+                     'table_id':self.table}
       _ = (
           pipeline
-          | 'Generate Direct Rows' >> WriteToBigTable (number, project_id=self.project_id,
-                                                       instance_id=self.instance_id,
-                                                       table_id=self.table_id))
+          | 'Generate Direct Rows' >> WriteToBigTable(number, **config_data))
 
       result = pipeline.run()
       result.wait_until_finish()

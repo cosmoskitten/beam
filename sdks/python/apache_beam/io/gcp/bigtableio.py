@@ -37,7 +37,6 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayDataItem
 
 try:
@@ -60,16 +59,22 @@ class _BigTableWriteFn(beam.DoFn):
     self.beam_options = beam_options
     self.table = None
     self.batcher = None
-    self.project_id = project_id
-    self.instance_id = instance_id
-    self.table_id = table_id
+    self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def __getstate__(self):
+    return self.beam_options
+
+  def __setstate__(self, options):
+    self.beam_options = options
+    self.table = None
+    self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def start_bundle(self):
     if self.table is None:
-      client = Client(project=self.project_id)
-      instance = client.instance(self.instance_id)
-      self.table = instance.table(self.table_id)
+      client = Client(project=self.beam_options['project_id'])
+      instance = client.instance(self.beam_options['instance_id'])
+      self.table = instance.table(self.beam_options['table_id'])
     self.batcher = MutationsBatcher(self.table)
 
   def process(self, row):
