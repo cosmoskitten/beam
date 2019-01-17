@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
   dependencies {
