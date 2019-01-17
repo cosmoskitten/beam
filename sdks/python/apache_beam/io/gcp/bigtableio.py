@@ -54,8 +54,8 @@ class _BigTableWriteFn(beam.DoFn):
   :param beam_options: class `~bigtable_configuration.BigtableConfiguration`
   """
 
-  def __init__(self, project_id, instance_id, table_id):
-    super(BigTableWriteFn, self).__init__(beam_options)
+  def __init__(self, beam_options):
+    super(_BigTableWriteFn, self).__init__()
     self.beam_options = beam_options
     self.table = None
     self.batcher = None
