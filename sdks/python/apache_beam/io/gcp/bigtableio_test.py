@@ -28,8 +28,8 @@ import uuid
 import pytz
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtable_io import BigtableConfiguration
-from apache_beam.io.gcp.bigtable_io import WriteToBigtable
+from apache_beam.io.gcp.bigtableio import BigtableConfiguration
+from apache_beam.io.gcp.bigtableio import _BigTableWriteFn
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
@@ -62,15 +62,19 @@ def _retry_on_unavailable(exc):
   return exc.code() == StatusCode.UNAVAILABLE
 
 
-class GenerateDirectRows(beam.PTransform):
+class WriteToBigTable(beam.PTransform):
   """ Generates an iterator of DirectRow object to process on beam pipeline.
 
   """
-  def __init__(self, number, **kwargs):
-    super(GenerateDirectRows, self).__init__(**kwargs)
+  def __init__(self, number, project_id=None,instance_id=None,
+               table_id=None):
+    super(GenerateDirectRows, self).__init__()
     self.number = number
     self.rand = random.choice(string.ascii_letters + string.digits)
     self.column_family_id = 'cf1'
+    self.project_id = project_id
+    self.instance_id = instance_id
+    self.table_id = table_id
 
   def _generate(self):
     value = ''.join(self.rand for i in range(100))
@@ -87,7 +91,10 @@ class GenerateDirectRows(beam.PTransform):
 
   def expand(self, pvalue):
     return (pvalue
-            | beam.Create(self._generate()))
+            | beam.Create(self._generate()),
+            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.project_id,
+                                                           self.instance_id,
+                                                           self.table_id)))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -156,16 +163,15 @@ class BigtableIOWriteIT(unittest.TestCase):
 
   def test_bigtable_write(self):
     number = self.number
-    config = BigtableConfiguration(self.project, self.instance_id,
-                                   self.table_id)
     pipeline_args = self.test_pipeline.options_list
     pipeline_options = PipelineOptions(pipeline_args)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
       _ = (
           pipeline
-          | 'Generate Direct Rows' >> GenerateDirectRows(number)
-          | 'Write to BT' >> beam.ParDo(WriteToBigtable(config)))
+          | 'Generate Direct Rows' >> WriteToBigTable (number, project_id=self.project_id,
+                                                       instance_id=self.instance_id,
+                                                       table_id=self.table_id))
 
       result = pipeline.run()
       result.wait_until_finish()
