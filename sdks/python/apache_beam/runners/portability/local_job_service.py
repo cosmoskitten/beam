@@ -110,8 +110,9 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       """
     job = self._jobs[request.job_id]
     for msg in job.get_message_stream():
-      if isinstance(msg, beam_job_api_pb2.GetJobStateResponse):
-        resp = beam_job_api_pb2.JobMessagesResponse(state_response=msg)
+      if isinstance(msg, int):
+        resp = beam_job_api_pb2.JobMessagesResponse(
+            state_response=beam_job_api_pb2.GetJobStateResponse(state=msg))
       else:
         resp = beam_job_api_pb2.JobMessagesResponse(message_response=msg)
       yield resp
@@ -185,8 +186,6 @@ class BeamJob(threading.Thread):
     # Inform consumers of the new state.
     for queue in self._state_queues:
       queue.put(new_state)
-    for queue in self._log_queues:
-      queue.put(beam_job_api_pb2.GetJobStateResponse(state=new_state))
     self._state = new_state
 
   def run(self):
@@ -197,7 +196,7 @@ class BeamJob(threading.Thread):
         self.state = beam_job_api_pb2.JobState.DONE
       except:  # pylint: disable=bare-except
         logging.exception('Error running pipeline.')
-        logging.exception(traceback.format_exc())
+        logging.exception(traceback)
         self.state = beam_job_api_pb2.JobState.FAILED
         raise
 
@@ -212,6 +211,7 @@ class BeamJob(threading.Thread):
     state_queue = queue.Queue()
     self._state_queues.append(state_queue)
 
+    yield self.state
     while True:
       current_state = state_queue.get(block=True)
       yield current_state
@@ -222,13 +222,15 @@ class BeamJob(threading.Thread):
     # Register for any new messages.
     log_queue = queue.Queue()
     self._log_queues.append(log_queue)
+    self._state_queues.append(log_queue)
 
     current_state = self.state
+    yield current_state
     while current_state not in TERMINAL_STATES:
       msg = log_queue.get(block=True)
       yield msg
-      if isinstance(msg, beam_job_api_pb2.GetJobStateResponse):
-        current_state = msg.state
+      if isinstance(msg, int):
+        current_state = msg
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
