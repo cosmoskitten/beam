@@ -255,8 +255,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
     }
     // Start off by unioning together the set of full fields we are accessing at this level.
-    FieldAccessDescriptor fieldAccessDescriptor =
-        FieldAccessDescriptor.withFields(fieldsAccessed);
+    FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withFields(fieldsAccessed);
 
     // Now, union all the nested fields.
     for (Map.Entry<String, Collection<FieldAccessDescriptor>> entry :
