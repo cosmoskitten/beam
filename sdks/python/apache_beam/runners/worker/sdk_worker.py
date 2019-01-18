@@ -41,6 +41,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
@@ -57,10 +58,12 @@ class SdkHarness(object):
     self._worker_id = worker_id
     if credentials is None:
       logging.info('Creating insecure control channel for %s.', control_address)
-      self._control_channel = grpc.insecure_channel(control_address)
+      self._control_channel = GRPCChannelFactory.insecure_channel(
+          control_address)
     else:
       logging.info('Creating secure control channel for %s.', control_address)
-      self._control_channel = grpc.secure_channel(control_address, credentials)
+      self._control_channel = GRPCChannelFactory.secure_channel(
+          control_address, credentials)
     grpc.channel_ready_future(self._control_channel).result(timeout=60)
     logging.info('Control channel established.')
 
@@ -362,10 +365,11 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
                      ('grpc.max_send_message_length', -1)]
           if self._credentials is None:
             logging.info('Creating insecure state channel for %s.', url)
-            grpc_channel = grpc.insecure_channel(url, options=options)
+            grpc_channel = GRPCChannelFactory.insecure_channel(
+                url, options=options)
           else:
             logging.info('Creating secure state channel for %s.', url)
-            grpc_channel = grpc.secure_channel(
+            grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=options)
           logging.info('State channel established.')
           # Add workerId to the grpc channel
