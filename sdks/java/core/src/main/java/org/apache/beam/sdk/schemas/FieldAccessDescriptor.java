@@ -231,9 +231,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
   // containing named fields, not those containing ids.
   private static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {
-    // We want to dedup by field name only, so we can't use Set.
-    // TODO: once we support array slices, we need to look at more than field name.
-    Map<String, FieldDescriptor> fieldsAccessed = Maps.newLinkedHashMap();
+    Set<FieldDescriptor> fieldsAccessed = Sets.newLinkedHashSet();
     Multimap<String, FieldAccessDescriptor> nestedFieldsAccessed = ArrayListMultimap.create();
     for (FieldAccessDescriptor fieldAccessDescriptor : fieldAccessDescriptors) {
       if (fieldAccessDescriptor.getAllFields()) {
@@ -245,7 +243,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
         if (field.getFieldName() == null) {
           throw new IllegalArgumentException("union requires field names.");
         }
-        fieldsAccessed.put(field.getFieldName(), field);
+        // Clear the fieldId field so we only look at the fieldName.
+        fieldsAccessed.add(field.toBuilder().setFieldId(null).build());
         // We're already reading the entire field, so no need to specify nested fields.
         nestedFieldsAccessed.removeAll(field);
       }
@@ -257,12 +256,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
     }
     // Start off by unioning together the set of full fields we are accessing at this level.
     FieldAccessDescriptor fieldAccessDescriptor =
-        FieldAccessDescriptor.withFields(fieldsAccessed.values());
+        FieldAccessDescriptor.withFields(fieldsAccessed);
 
     // Now, union all the nested fields.
     for (Map.Entry<String, Collection<FieldAccessDescriptor>> entry :
         nestedFieldsAccessed.asMap().entrySet()) {
-      if (fieldsAccessed.get(entry.getKey()) != null) {
+      if (fieldsAccessed.contains(entry.getKey())) {
         // We're already reading this entire field which includes all nested fields. Skip over
         // this field.
         continue;
