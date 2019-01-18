@@ -23,9 +23,12 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -92,8 +95,19 @@ public class TestBoundedTable extends TestTable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
+    PTransform<PBegin, PCollection<Row>> valueTransform;
+
+    if (rows.isEmpty()) {
+      valueTransform =
+          Create.empty(
+              SchemaCoder.of(
+                  schema, SerializableFunctions.identity(), SerializableFunctions.identity()));
+    } else {
+      valueTransform = Create.of(rows);
+    }
+
     return begin
-        .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), Create.of(rows))
+        .apply("MockedBoundedTable_Reader_" + COUNTER.incrementAndGet(), valueTransform)
         .setRowSchema(getSchema());
   }
 
