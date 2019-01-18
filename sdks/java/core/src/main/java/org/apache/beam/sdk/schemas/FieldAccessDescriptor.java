@@ -232,7 +232,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
   private static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {
     Set<FieldDescriptor> fieldsAccessed = Sets.newLinkedHashSet();
-    Multimap<String, FieldAccessDescriptor> nestedFieldsAccessed = ArrayListMultimap.create();
+    Multimap<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessed =
+        ArrayListMultimap.create();
     for (FieldAccessDescriptor fieldAccessDescriptor : fieldAccessDescriptors) {
       if (fieldAccessDescriptor.getAllFields()) {
         // If one of the descriptors is a wildcard, we can short circuit and return a wildcard.
@@ -250,15 +251,15 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
       for (Map.Entry<FieldDescriptor, FieldAccessDescriptor> nested :
           fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
-        FieldDescriptor field = nested.getKey();
-        nestedFieldsAccessed.put(field.getFieldName(), nested.getValue());
+        FieldDescriptor field = nested.getKey().toBuilder().setFieldId(null).build();
+        nestedFieldsAccessed.put(field, nested.getValue());
       }
     }
     // Start off by unioning together the set of full fields we are accessing at this level.
     FieldAccessDescriptor fieldAccessDescriptor = FieldAccessDescriptor.withFields(fieldsAccessed);
 
     // Now, union all the nested fields.
-    for (Map.Entry<String, Collection<FieldAccessDescriptor>> entry :
+    for (Map.Entry<FieldDescriptor, Collection<FieldAccessDescriptor>> entry :
         nestedFieldsAccessed.asMap().entrySet()) {
       if (fieldsAccessed.contains(entry.getKey())) {
         // We're already reading this entire field which includes all nested fields. Skip over

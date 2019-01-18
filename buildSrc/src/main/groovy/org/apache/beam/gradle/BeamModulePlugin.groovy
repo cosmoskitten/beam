@@ -1427,7 +1427,7 @@ class BeamModulePlugin implements Plugin<Project> {
             // options.  Note the braces cannot be omitted, otherwise the
             // plugin will not be added. This is because of the implicit way
             // NamedDomainObjectContainer binds the methods.
-            grpc { }
+            grpc {}
           }
         }
       }
@@ -1444,9 +1444,6 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyAntlrNature = {
       project.apply plugin: 'antlr'
       def generatedDir = "${project.buildDir}/generated/source-src/antlr/main/java/"
-      project.sourceSets {
-        generated { java.srcDir generatedDir }
-      }
       project.idea {
         module {
           sourceDirs += project.file(generatedDir)
