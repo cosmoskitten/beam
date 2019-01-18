@@ -91,7 +91,9 @@ class WriteToBigTable(beam.PTransform):
   def expand(self, pvalue):
     return (pvalue
             | beam.Create(self._generate())
-            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.beam_options)))
+            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.beam_options['project_id'],
+                                                           self.beam_options['instance_id'],
+                                                           self.beam_options['table_id'])))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
