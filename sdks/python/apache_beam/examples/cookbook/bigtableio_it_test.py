@@ -98,7 +98,7 @@ class WriteToBigTable(beam.PTransform):
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
-class BigtableIOWriteIT(unittest.TestCase):
+class BigtableIOWriteTest(unittest.TestCase):
   """ Bigtable Write Connector Test
 
   """

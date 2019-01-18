@@ -41,7 +41,6 @@ from apache_beam.transforms.display import DisplayDataItem
 
 try:
   from google.cloud.bigtable import Client
-  from google.cloud.bigtable.batcher import MutationsBatcher
 except ImportError:
   pass
 
@@ -77,22 +76,29 @@ class _BigTableWriteFn(beam.DoFn):
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = MutationsBatcher(self.table)
+    self.batcher = self.table.mutations_batcher()
 
   def process(self, row):
     self.written.inc()
+    # You need to set the timestamp in the cells in this row object,
+    # when we do a retry we will mutating the same object, but, with this
+    # we are going to set our cell with new values.
+    # Example:
+    # direct_row.set_cell('cf1',
+    #                     'field1',
+    #                     'value1',
+    #                     timestamp=datetime.datetime.now())
     self.batcher.mutate(row)
 
   def finish_bundle(self):
-    result = self.batcher.flush()
+    self.batcher.flush()
     self.batcher = None
-    return result
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self.beam_options.project_id,
+    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
                                          label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options.instance_id,
+            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
                                           label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options.table_id,
+            'tableId': DisplayDataItem(self.beam_options['table_id'],
                                        label='Bigtable Table Id')
            }
