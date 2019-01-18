@@ -53,7 +53,7 @@ class BeamFilesystemArtifactService(
       except Exception:
         pass
 
-  def _retrieval_token(self, staging_session_token):
+  def retrieval_token(self, staging_session_token):
     return self._sha256(staging_session_token)
 
   def _artifact_path(self, retrieval_token, name):
@@ -74,7 +74,7 @@ class BeamFilesystemArtifactService(
       if first:
         first = False
         metadata = request.metadata.metadata
-        retrieval_token = self._retrieval_token(
+        retrieval_token = self.retrieval_token(
             request.metadata.staging_session_token)
         self._mkdir(retrieval_token)
         temp_path = os.path.join(
@@ -97,7 +97,7 @@ class BeamFilesystemArtifactService(
     return beam_artifact_api_pb2.PutArtifactResponse()
 
   def CommitManifest(self, request, context=None):
-    retrieval_token = self._retrieval_token(request.staging_session_token)
+    retrieval_token = self.retrieval_token(request.staging_session_token)
     with filesystems.FileSystems.create(
         self._manifest_path(retrieval_token), 'w') as fout:
       fout.write(request.manifest.SerializeToString())
