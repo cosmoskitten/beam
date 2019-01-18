@@ -220,20 +220,30 @@ class PortableRunner(runner.PipelineRunner):
     else:
       retrieval_token = None
 
+    try:
+      state_stream = job_service.GetStateStream(
+          beam_job_api_pb2.GetJobStateRequest(
+              job_id=prepare_response.preparation_id))
+      message_stream = job_service.GetMessageStream(
+          beam_job_api_pb2.JobMessagesRequest(
+              job_id=prepare_response.preparation_id))
+    except Exception:
+      # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
+      state_stream = message_stream = None
+
     # Run the job and wait for a result.
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
             retrieval_token=retrieval_token))
 
-    # TODO(BEAM-6442): remove preparation_id and move getting streams to before
-    # starting the job.
-    state_stream = job_service.GetStateStream(
-        beam_job_api_pb2.GetJobStateRequest(
-            job_id=run_response.job_id))
-    message_stream = job_service.GetMessageStream(
-        beam_job_api_pb2.JobMessagesRequest(
-            job_id=run_response.job_id))
+    if state_stream is None:
+      state_stream = job_service.GetStateStream(
+          beam_job_api_pb2.GetJobStateRequest(
+              job_id=run_response.job_id))
+      message_stream = job_service.GetMessageStream(
+          beam_job_api_pb2.JobMessagesRequest(
+              job_id=run_response.job_id))
 
     return PipelineResult(job_service, run_response.job_id, message_stream,
                           state_stream, cleanup_callbacks)
