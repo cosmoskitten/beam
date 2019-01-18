@@ -89,11 +89,12 @@ class WriteToBigTable(beam.PTransform):
       yield direct_row
 
   def expand(self, pvalue):
+    beam_options = self.beam_options
     return (pvalue
             | beam.Create(self._generate())
-            | 'Write to BT' >> beam.ParDo(_BigTableWriteFn(self.beam_options['project_id'],
-                                                           self.beam_options['instance_id'],
-                                                           self.beam_options['table_id'])))
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'])))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
