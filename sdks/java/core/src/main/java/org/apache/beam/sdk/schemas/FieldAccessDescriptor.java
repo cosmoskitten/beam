@@ -452,7 +452,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
       return type.getMapValueType().getRowSchema();
     } else {
       throw new IllegalArgumentException(
-          "FieldType " + type + " must be either a row or " + " a container containing rows");
+          "FieldType " + type + " must be either a row or a container containing rows");
     }
   }
 

@@ -287,7 +287,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
           return selectedMap;
         }
       default:
-        throw new RuntimeException("Unexpected.");
+        throw new RuntimeException("Unexpected type " + qualifier.getKind());
     }
   }
 }
