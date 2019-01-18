@@ -74,6 +74,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
 
+  // Using 64 MB in cases where we cannot compute a valid desired bundle size based on the
+  // information provided by the runner.
+  private static final long DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024;
+
   private final BoundedSource<T> source;
 
   /**
@@ -127,9 +131,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
         if (desiredBundleSize <= 0) {
           LOG.warn(
-              "BoundedSource {} cannot estimate its size, skips the initial splits.",
-              boundedSource);
-          return ImmutableList.of(this);
+              "Cannot determine a valid desired bundle size for BoundedSource {}. Using default "
+                  + "size of {} bytes",
+              boundedSource,
+              DEFAULT_DESIRED_BUNDLE_SIZE);
+          desiredBundleSize = DEFAULT_DESIRED_BUNDLE_SIZE;
         }
         List<? extends BoundedSource<T>> splits = boundedSource.split(desiredBundleSize, options);
         return splits.stream()
