@@ -24,6 +24,7 @@ import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -241,17 +242,13 @@ public abstract class FieldAccessDescriptor implements Serializable {
       }
 
       for (FieldDescriptor field : fieldAccessDescriptor.getFieldsAccessed()) {
-        if (field.getFieldName() == null) {
-          throw new IllegalArgumentException("union requires field names.");
-        }
-        // Clear the fieldId field so we only look at the fieldName.
-        fieldsAccessed.add(field.toBuilder().setFieldId(null).build());
+        fieldsAccessed.add(field);
         // We're already reading the entire field, so no need to specify nested fields.
         nestedFieldsAccessed.removeAll(field);
       }
       for (Map.Entry<FieldDescriptor, FieldAccessDescriptor> nested :
           fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
-        FieldDescriptor field = nested.getKey().toBuilder().setFieldId(null).build();
+        FieldDescriptor field = nested.getKey();
         nestedFieldsAccessed.put(field, nested.getValue());
       }
     }
@@ -342,7 +339,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
    * specified in the descriptor exist in the actual schema.
    */
   public FieldAccessDescriptor resolve(Schema schema) {
-    Set<FieldDescriptor> resolvedFieldIdsAccessed = resolveFieldIdsAccessed(schema);
+    Set<FieldDescriptor> resolvedFieldIdsAccessed = resolveDirectFieldsAccessed(schema);
     Map<FieldDescriptor, FieldAccessDescriptor> resolvedNestedFieldsAccessed =
         resolveNestedFieldsAccessed(schema);
 
@@ -361,7 +358,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
         .build();
   }
 
-  private Set<FieldDescriptor> resolveFieldIdsAccessed(Schema schema) {
+  private Set<FieldDescriptor> resolveDirectFieldsAccessed(Schema schema) {
     Set<FieldDescriptor> fields;
     if (getFieldInsertionOrder()) {
       fields = Sets.newLinkedHashSet();
@@ -376,6 +373,10 @@ public abstract class FieldAccessDescriptor implements Serializable {
       if (field.getFieldId() == null) {
         field = field.toBuilder().setFieldId(schema.indexOf(field.getFieldName())).build();
       }
+      if (field.getFieldName() == null) {
+        field = field.toBuilder().setFieldName(schema.nameOf(field.getFieldId())).build();
+      }
+      field = fillInMissingQualifiers(field, schema);
       fields.add(field);
     }
     return fields;
@@ -404,40 +405,66 @@ public abstract class FieldAccessDescriptor implements Serializable {
                 .toBuilder()
                 .setFieldId(schema.indexOf(fieldDescriptor.getFieldName()))
                 .build();
+      } else if (entry.getKey().getFieldName() == null) {
+        fieldDescriptor =
+            fieldDescriptor
+                .toBuilder()
+                .setFieldName(schema.nameOf(fieldDescriptor.getFieldId()))
+                .build();
       }
 
-      // If there are nested arrays or maps, walk down them until we find the next row. If there
-      // are missing qualifiers, fill them in. This allows users to omit the qualifiers in the
-      // simple case where they are all wildcards. For example, if a is a list of a list of row,
-      // the user could select a[*][*].b, however we allow them to simply type a.b for brevity.
-      FieldType fieldType = schema.getField(fieldDescriptor.getFieldId()).getType();
-      Iterator<Qualifier> qualifierIt = fieldDescriptor.getQualifiers().iterator();
-      List<Qualifier> qualifiers = Lists.newArrayList();
-      while (fieldType.getTypeName().isCollectionType() || fieldType.getTypeName().isMapType()) {
-        Qualifier qualifier = qualifierIt.hasNext() ? qualifierIt.next() : null;
-        if (fieldType.getTypeName().isCollectionType()) {
-          qualifier = (qualifier == null) ? Qualifier.of(ListQualifier.ALL) : qualifier;
-          Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.LIST));
-          Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
-          qualifiers.add(qualifier);
-          fieldType = fieldType.getCollectionElementType();
-        } else if (fieldType.getTypeName().isMapType()) {
-          qualifier = (qualifier == null) ? Qualifier.of(MapQualifier.ALL) : qualifier;
-          Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.MAP));
-          Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
-          qualifiers.add(qualifier);
-          fieldType = fieldType.getMapValueType();
-        }
-      }
-
+      fieldDescriptor = fillInMissingQualifiers(fieldDescriptor, schema);
       // fieldType should now be the row we are selecting from, so recursively resolve it and
       // store the result in the list of resolved nested fields.
-      fieldAccessDescriptor = fieldAccessDescriptor.resolve(getFieldSchema(fieldType));
-      nestedFields.put(
-          fieldDescriptor.toBuilder().setQualifiers(qualifiers).build(), fieldAccessDescriptor);
+      fieldAccessDescriptor = fieldAccessDescriptor.resolve(
+          getFieldDescriptorSchema(fieldDescriptor, schema));
+      // We might still have duplicate FieldDescriptors, even if union was called earlier. Until
+      //  resolving against an actual schema we might not have been to tell that two
+      // FielDescriptors were equivalent.
+      nestedFields.merge(fieldDescriptor, fieldAccessDescriptor,
+          (d1, d2) -> union(ImmutableList.of(d1, d2)));
     }
 
     return nestedFields;
+  }
+
+  private FieldDescriptor fillInMissingQualifiers(FieldDescriptor fieldDescriptor, Schema schema) {
+    // If there are nested arrays or maps, walk down them until we find the next row. If there
+    // are missing qualifiers, fill them in. This allows users to omit the qualifiers in the
+    // simple case where they are all wildcards. For example, if a is a list of a list of row,
+    // the user could select a[*][*].b, however we allow them to simply type a.b for brevity.
+    FieldType fieldType = schema.getField(fieldDescriptor.getFieldId()).getType();
+    Iterator<Qualifier> qualifierIt = fieldDescriptor.getQualifiers().iterator();
+    List<Qualifier> qualifiers = Lists.newArrayList();
+    while (fieldType.getTypeName().isCollectionType() || fieldType.getTypeName().isMapType()) {
+      Qualifier qualifier = qualifierIt.hasNext() ? qualifierIt.next() : null;
+      if (fieldType.getTypeName().isCollectionType()) {
+        qualifier = (qualifier == null) ? Qualifier.of(ListQualifier.ALL) : qualifier;
+        Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.LIST));
+        Preconditions.checkArgument(qualifier.getList().equals(ListQualifier.ALL));
+        qualifiers.add(qualifier);
+        fieldType = fieldType.getCollectionElementType();
+      } else if (fieldType.getTypeName().isMapType()) {
+        qualifier = (qualifier == null) ? Qualifier.of(MapQualifier.ALL) : qualifier;
+        Preconditions.checkArgument(qualifier.getKind().equals(Qualifier.Kind.MAP));
+        Preconditions.checkArgument(qualifier.getMap().equals(MapQualifier.ALL));
+        qualifiers.add(qualifier);
+        fieldType = fieldType.getMapValueType();
+      }
+    }
+    return fieldDescriptor.toBuilder().setQualifiers(qualifiers).build();
+  }
+
+  private Schema getFieldDescriptorSchema(FieldDescriptor fieldDescriptor, Schema schema) {
+    FieldType fieldType = schema.getField(fieldDescriptor.getFieldId()).getType();
+    while (fieldType.getTypeName().isCollectionType() || fieldType.getTypeName().isMapType()) {
+      if (fieldType.getTypeName().isCollectionType()) {
+        fieldType = fieldType.getCollectionElementType();
+      } else if (fieldType.getTypeName().isMapType()) {
+        fieldType = fieldType.getMapValueType();
+      }
+    }
+    return getFieldSchema(fieldType);
   }
 
   private static Schema getFieldSchema(FieldType type) {
