@@ -416,13 +416,13 @@ public abstract class FieldAccessDescriptor implements Serializable {
       fieldDescriptor = fillInMissingQualifiers(fieldDescriptor, schema);
       // fieldType should now be the row we are selecting from, so recursively resolve it and
       // store the result in the list of resolved nested fields.
-      fieldAccessDescriptor = fieldAccessDescriptor.resolve(
-          getFieldDescriptorSchema(fieldDescriptor, schema));
+      fieldAccessDescriptor =
+          fieldAccessDescriptor.resolve(getFieldDescriptorSchema(fieldDescriptor, schema));
       // We might still have duplicate FieldDescriptors, even if union was called earlier. Until
       //  resolving against an actual schema we might not have been to tell that two
       // FielDescriptors were equivalent.
-      nestedFields.merge(fieldDescriptor, fieldAccessDescriptor,
-          (d1, d2) -> union(ImmutableList.of(d1, d2)));
+      nestedFields.merge(
+          fieldDescriptor, fieldAccessDescriptor, (d1, d2) -> union(ImmutableList.of(d1, d2)));
     }
 
     return nestedFields;
