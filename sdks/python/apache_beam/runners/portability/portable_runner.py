@@ -196,6 +196,7 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.remove_data_plane_ops,
                     fn_api_runner_transforms.sort_stages],
             known_runner_urns=set([
+                common_urns.composites.RESHUFFLE.urn,
                 common_urns.primitives.IMPULSE.urn,
                 common_urns.primitives.FLATTEN.urn,
                 common_urns.primitives.GROUP_BY_KEY.urn]))

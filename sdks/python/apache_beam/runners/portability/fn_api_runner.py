@@ -321,6 +321,9 @@ class FnApiRunner(runner.PipelineRunner):
                 fn_api_runner_transforms.inject_timer_pcollections,
                 fn_api_runner_transforms.sort_stages,
                 fn_api_runner_transforms.window_pcollection_coders],
+        known_runner_urns=frozenset([
+            common_urns.primitives.FLATTEN.urn,
+            common_urns.primitives.GROUP_BY_KEY.urn]),
         use_state_iterables=self._use_state_iterables)
 
   def run_stages(self, stage_context, stages):

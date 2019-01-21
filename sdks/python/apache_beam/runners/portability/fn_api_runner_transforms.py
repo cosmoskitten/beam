@@ -104,7 +104,7 @@ class Stage(object):
             str(env2).replace('\n', ' ')))
       return env1
 
-  def can_fuse(self, consumer):
+  def can_fuse(self, consumer, context):
     try:
       self._merge_environments(self.environment, consumer.environment)
     except ValueError:
@@ -116,8 +116,8 @@ class Stage(object):
     return (
         not consumer.forced_root
         and not self in consumer.must_follow
-        and not self.is_flatten() and not consumer.is_flatten()
-        and not self.is_gbk() and not consumer.is_gbk()
+        and not self.is_runner_urn(context)
+        and not consumer.is_runner_urn(context)
         and no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
@@ -131,12 +131,8 @@ class Stage(object):
         parent=self.parent if self.parent == other.parent else None,
         forced_root=self.forced_root or other.forced_root)
 
-  def is_flatten(self):
-    return any(transform.spec.urn == common_urns.primitives.FLATTEN.urn
-               for transform in self.transforms)
-
-  def is_gbk(self):
-    return any(transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn
+  def is_runner_urn(self, context):
+    return any(transform.spec.urn in context.known_runner_urns
                for transform in self.transforms)
 
   def side_inputs(self):
@@ -172,9 +168,9 @@ class Stage(object):
     self.transforms = new_transforms
 
   def executable_stage_transform(
-      self, known_runner_transforms, all_consumers, components):
+      self, known_runner_urns, all_consumers, components):
     if (len(self.transforms) == 1
-        and self.transforms[0].spec.urn in known_runner_transforms):
+        and self.transforms[0].spec.urn in known_runner_urns):
       return self.transforms[0]
 
     else:
@@ -273,8 +269,9 @@ class TransformContext(object):
   _KNOWN_CODER_URNS = set(
       value.urn for value in common_urns.coders.__dict__.values())
 
-  def __init__(self, components, use_state_iterables=False):
+  def __init__(self, components, known_runner_urns, use_state_iterables=False):
     self.components = components
+    self.known_runner_urns = known_runner_urns
     self.use_state_iterables = use_state_iterables
     self.safe_coders = {}
     self.bytes_coder_id = self.add_or_get_coder_id(
@@ -384,13 +381,8 @@ def leaf_transform_stages(
         yield stage
 
 
-class _Everything(object):
-  def __contains__(self, item):
-    return True
-
-
 def pipeline_from_stages(
-    pipeline_proto, stages, known_runner_transforms=_Everything()):
+    pipeline_proto, stages, known_runner_urns):
 
   # In case it was a generator that mutates components as it
   # produces outputs (as is the case with most transformations).
@@ -427,7 +419,7 @@ def pipeline_from_stages(
 
   for stage in stages:
     transform = stage.executable_stage_transform(
-        known_runner_transforms, all_consumers, components)
+        known_runner_urns, all_consumers, components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     add_parent(transform_id, stage.parent)
@@ -441,15 +433,18 @@ def pipeline_from_stages(
 def create_and_optimize_stages(
     pipeline_proto,
     phases,
+    known_runner_urns,
     use_state_iterables=False):
   pipeline_context = TransformContext(
       pipeline_proto.components,
+      known_runner_urns,
       use_state_iterables=use_state_iterables)
 
   # Initial set of stages are singleton leaf transforms.
   stages = list(leaf_transform_stages(
       pipeline_proto.root_transform_ids,
-      pipeline_proto.components))
+      pipeline_proto.components,
+      union(known_runner_urns, KNOWN_COMPOSITES)))
 
   # Apply each phase in order.
   for phase in phases:
@@ -465,11 +460,12 @@ def create_and_optimize_stages(
 def optimize_pipeline(
     pipeline_proto,
     phases,
-    known_runner_urns=_Everything(),
+    known_runner_urns,
     **kwargs):
   unused_context, stages = create_and_optimize_stages(
       pipeline_proto,
       phases,
+      known_runner_urns,
       **kwargs)
   return pipeline_from_stages(pipeline_proto, stages, known_runner_urns)
 
@@ -840,7 +836,7 @@ def greedily_fuse(stages, pipeline_context):
       # Update consumer.must_follow set, as it's used in can_fuse.
       consumer.must_follow = frozenset(
           replacement(s) for s in consumer.must_follow)
-      if producer.can_fuse(consumer):
+      if producer.can_fuse(consumer, pipeline_context):
         fuse(producer, consumer)
       else:
         # If we can't fuse, do a read + write.
