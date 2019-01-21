@@ -44,7 +44,7 @@ class MultipleOutputParDo(unittest.TestCase):
     results = []
     with open_shards(result_path) as result_file:
       for line in result_file:
-        match = re.search(r'([A-Za-z]+): ([0-9]+)', line)
+        match = re.search(r'([A-Za-z]+): ([0-9]+)', line.decode('utf-8'))
         if match is not None:
           results.append((match.group(1), int(match.group(2))))
     return results

@@ -69,7 +69,7 @@ class JuliaSetTest(unittest.TestCase):
       # Should have a line for each x-coordinate.
       self.assertEqual(grid_size, len(output_lines))
       for line in output_lines:
-        coordinates = re.findall(r'(\(\d+, \d+, \d+\))', line)
+        coordinates = re.findall(r'(\(\d+, \d+, \d+\))', line.decode('utf-8'))
 
         # Should have 5 coordinates on each line.
         self.assertTrue(coordinates)

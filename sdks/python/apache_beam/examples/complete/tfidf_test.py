@@ -85,8 +85,8 @@ class TfIdfTest(unittest.TestCase):
     with open_shards(os.path.join(
         temp_folder, 'result-*-of-*')) as result_file:
       for line in result_file:
-        match = re.search(EXPECTED_LINE_RE, line)
-        logging.info('Result line: %s', line)
+        match = re.search(EXPECTED_LINE_RE, line.decode('utf-8'))
+        logging.info('Result line: %s', line.decode('utf-8'))
         if match is not None:
           results.append(
               (match.group(1), match.group(2), float(match.group(3))))

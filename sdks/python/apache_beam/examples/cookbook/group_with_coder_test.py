@@ -58,7 +58,7 @@ class GroupWithCoderTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        name, points = line.split(',')
+        name, points = line.decode('utf-8').split(',')
         results.append((name, int(points)))
       logging.info('result: %s', results)
     self.assertEqual(
@@ -79,7 +79,7 @@ class GroupWithCoderTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        name, points = line.split(',')
+        name, points = line.decode('utf-8').split(',')
         results.append((name, int(points)))
       logging.info('result: %s', results)
     self.assertEqual(
