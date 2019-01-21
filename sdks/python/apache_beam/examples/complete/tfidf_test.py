@@ -41,7 +41,7 @@ EXPECTED_RESULTS = set([
     ('def', '2.txt', 0.2027325540540822)])
 
 
-EXPECTED_LINE_RE = r'\(u\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
+EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
 class TfIdfTest(unittest.TestCase):
@@ -49,7 +49,7 @@ class TfIdfTest(unittest.TestCase):
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'wb') as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
 
   def test_tfidf_transform(self):
     with TestPipeline() as p:
@@ -85,8 +85,8 @@ class TfIdfTest(unittest.TestCase):
     with open_shards(os.path.join(
         temp_folder, 'result-*-of-*')) as result_file:
       for line in result_file:
-        match = re.search(EXPECTED_LINE_RE, line)
-        logging.info('Result line: %s', line)
+        match = re.search(EXPECTED_LINE_RE, line.decode('utf-8'))
+        logging.info('Result line: %s', line.decode('utf-8'))
         if match is not None:
           results.append(
               (match.group(1), match.group(2), float(match.group(3))))

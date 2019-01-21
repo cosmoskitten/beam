@@ -28,7 +28,8 @@ from apache_beam.testing.util import open_shards
 
 # Patch group_with_coder.PlayerCoder.decode(). To test that the PlayerCoder was
 # used, we do not strip the prepended 'x:' string when decoding a Player object.
-group_with_coder.PlayerCoder.decode = lambda self, s: group_with_coder.Player(s)
+group_with_coder.PlayerCoder.decode = lambda self, s: group_with_coder.Player(
+    s.decode('utf-8'))
 
 
 class GroupWithCoderTest(unittest.TestCase):
@@ -41,7 +42,7 @@ class GroupWithCoderTest(unittest.TestCase):
   def create_temp_file(self, records):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       for record in records:
-        f.write('%s\n' % record)
+        f.write(b'%s\n' % record.encode('utf-8'))
       return f.name
 
   def test_basics_with_type_check(self):
@@ -57,7 +58,7 @@ class GroupWithCoderTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        name, points = line.split(',')
+        name, points = line.decode('utf-8').split(',')
         results.append((name, int(points)))
       logging.info('result: %s', results)
     self.assertEqual(
@@ -78,7 +79,7 @@ class GroupWithCoderTest(unittest.TestCase):
     results = []
     with open_shards(temp_path + '.result-*-of-*') as result_file:
       for line in result_file:
-        name, points = line.split(',')
+        name, points = line.decode('utf-8').split(',')
         results.append((name, int(points)))
       logging.info('result: %s', results)
     self.assertEqual(
