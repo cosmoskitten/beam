@@ -130,11 +130,7 @@ public class FlinkJobInvocation implements JobInvocation {
     // Fused pipeline proto.
     // TODO: Consider supporting partially-fused graphs.
     RunnerApi.Pipeline fusedPipeline =
-        trimmedPipeline
-                .getComponents()
-                .getTransformsMap()
-                .values()
-                .stream()
+        trimmedPipeline.getComponents().getTransformsMap().values().stream()
                 .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
             ? pipeline
             : GreedyPipelineFuser.fuse(pipeline).toPipeline();
