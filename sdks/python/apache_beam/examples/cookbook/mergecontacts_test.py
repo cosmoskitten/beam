@@ -87,7 +87,7 @@ class MergeContactsTest(unittest.TestCase):
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
+      f.write(contents.encode('utf-8'))
       return f.name
 
   def normalize_tsv_results(self, tsv_data):
@@ -118,7 +118,7 @@ class MergeContactsTest(unittest.TestCase):
         '--output_stats=%s.stats' % result_prefix], assert_results=(2, 1, 3))
 
     with open_shards('%s.tsv-*-of-*' % result_prefix) as f:
-      contents = f.read()
+      contents = f.read().decode('utf-8')
       self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
 
 
