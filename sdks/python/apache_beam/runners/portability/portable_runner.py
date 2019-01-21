@@ -156,7 +156,8 @@ class PortableRunner(runner.PipelineRunner):
       portable_options.environment_config, server = (
           BeamFnExternalWorkerPoolServicer.start(
               sdk_worker_main._get_worker_count(options)))
-      cleanup_callbacks = [functools.partial(server.stop, 1)]
+      globals()['x'] = server
+      cleanup_callbacks = [lambda: logging.warn('shutting down server')] # [functools.partial(server.stop, 1)]
     else:
       cleanup_callbacks = []
 
@@ -176,12 +177,19 @@ class PortableRunner(runner.PipelineRunner):
     # Preemptively apply combiner lifting, until all runners support it.
     # This optimization is idempotent.
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'combine').lower()
+        'pre_optimize', 'all').lower()
     if not options.view_as(StandardOptions).streaming:
+      flink_known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn])
       if pre_optimize == 'combine':
         proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
             proto_pipeline,
-            phases=[fn_api_runner_transforms.lift_combiners])
+            phases=[fn_api_runner_transforms.lift_combiners],
+            known_runner_urns=flink_known_urns,
+            partial=True)
       elif pre_optimize == 'all':
         proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
             proto_pipeline,
@@ -189,17 +197,14 @@ class PortableRunner(runner.PipelineRunner):
                     fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
                     fn_api_runner_transforms.fix_side_input_pcoll_coders,
                     fn_api_runner_transforms.lift_combiners,
+                    fn_api_runner_transforms.fix_flatten_coders,
                     # fn_api_runner_transforms.sink_flattens,
                     fn_api_runner_transforms.greedily_fuse,
                     fn_api_runner_transforms.read_to_impulse,
                     fn_api_runner_transforms.extract_impulse_stages,
                     fn_api_runner_transforms.remove_data_plane_ops,
                     fn_api_runner_transforms.sort_stages],
-            known_runner_urns=set([
-                common_urns.composites.RESHUFFLE.urn,
-                common_urns.primitives.IMPULSE.urn,
-                common_urns.primitives.FLATTEN.urn,
-                common_urns.primitives.GROUP_BY_KEY.urn]))
+            known_runner_urns=flink_known_urns)
       elif pre_optimize == 'none':
         pass
       else:

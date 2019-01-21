@@ -382,7 +382,7 @@ def leaf_transform_stages(
 
 
 def pipeline_from_stages(
-    pipeline_proto, stages, known_runner_urns):
+    pipeline_proto, stages, known_runner_urns, partial):
 
   # In case it was a generator that mutates components as it
   # produces outputs (as is the case with most transformations).
@@ -418,8 +418,11 @@ def pipeline_from_stages(
         all_consumers[pcoll].add(id(transform))
 
   for stage in stages:
-    transform = stage.executable_stage_transform(
-        known_runner_urns, all_consumers, components)
+    if partial:
+      transform = only_element(stage.transforms)
+    else:
+      transform = stage.executable_stage_transform(
+          known_runner_urns, all_consumers, components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
     add_parent(transform_id, stage.parent)
@@ -461,13 +464,15 @@ def optimize_pipeline(
     pipeline_proto,
     phases,
     known_runner_urns,
+    partial=False,
     **kwargs):
   unused_context, stages = create_and_optimize_stages(
       pipeline_proto,
       phases,
       known_runner_urns,
       **kwargs)
-  return pipeline_from_stages(pipeline_proto, stages, known_runner_urns)
+  return pipeline_from_stages(
+      pipeline_proto, stages, known_runner_urns, partial)
 
 
 # Optimization stages.
@@ -721,26 +726,16 @@ def expand_gbk(stages, pipeline_context):
       yield stage
 
 
-def sink_flattens(stages, pipeline_context):
-  """Sink flattens and remove them from the graph.
-
-  A flatten that cannot be sunk/fused away becomes multiple writes (to the
-  same logical sink) followed by a read.
+def fix_flatten_coders(stages, pipeline_context):
+  """Ensures that the inputs of Flatten have the same coders as the output.
   """
-  # TODO(robertwb): Actually attempt to sink rather than always materialize.
-  # TODO(robertwb): Possibly fuse this into one of the stages.
   pcollections = pipeline_context.components.pcollections
   for stage in stages:
-    assert len(stage.transforms) == 1
-    transform = stage.transforms[0]
+    transform = only_element(stage.transforms)
     if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
-      # This is used later to correlate the read and writes.
-      buffer_id = create_buffer_id(transform.unique_name)
-      output_pcoll_id, = list(transform.outputs.values())
+      output_pcoll_id = only_element(transform.outputs.values())
       output_coder_id = pcollections[output_pcoll_id].coder_id
-      flatten_writes = []
-      for local_in, pcoll_in in transform.inputs.items():
-
+      for local_in, pcoll_in in list(transform.inputs.items()):
         if pcollections[pcoll_in].coder_id != output_coder_id:
           # Flatten requires that all its inputs be materialized with the
           # same coder as its output.  Add stages to transcode flatten
@@ -761,14 +756,31 @@ def sink_flattens(stages, pipeline_context):
           pcollections[transcoded_pcollection].CopyFrom(
               pcollections[pcoll_in])
           pcollections[transcoded_pcollection].coder_id = output_coder_id
-        else:
-          transcoded_pcollection = pcoll_in
+          transform.inputs[local_in] = transcoded_pcollection
 
+    yield stage
+
+
+def sink_flattens(stages, pipeline_context):
+  """Sink flattens and remove them from the graph.
+
+  A flatten that cannot be sunk/fused away becomes multiple writes (to the
+  same logical sink) followed by a read.
+  """
+  # TODO(robertwb): Actually attempt to sink rather than always materialize.
+  # TODO(robertwb): Possibly fuse this into one of the stages.
+  for stage in fix_flatten_coders(stages, pipeline_context):
+    transform = only_element(stage.transforms)
+    if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
+      # This is used later to correlate the read and writes.
+      buffer_id = create_buffer_id(transform.unique_name)
+      flatten_writes = []
+      for local_in, pcoll_in in transform.inputs.items():
         flatten_write = Stage(
             transform.unique_name + '/Write/' + local_in,
             [beam_runner_api_pb2.PTransform(
                 unique_name=transform.unique_name + '/Write/' + local_in,
-                inputs={local_in: transcoded_pcollection},
+                inputs={local_in: pcoll_in},
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=bundle_processor.DATA_OUTPUT_URN,
                     payload=buffer_id))],
@@ -849,7 +861,8 @@ def greedily_fuse(stages, pipeline_context):
                   inputs={'in': pcoll},
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
-                      payload=buffer_id))])
+                      payload=buffer_id))],
+              downstream_side_inputs=producer.downstream_side_inputs)
           fuse(producer, write_pcoll)
         if consumer.has_as_main_input(pcoll):
           read_pcoll = Stage(
@@ -860,6 +873,7 @@ def greedily_fuse(stages, pipeline_context):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       payload=buffer_id))],
+              downstream_side_inputs=consumer.downstream_side_inputs,
               must_follow=frozenset([write_pcoll]))
           fuse(read_pcoll, consumer)
         else:
@@ -1038,12 +1052,15 @@ def inject_timer_pcollections(stages, pipeline_context):
 def sort_stages(stages, pipeline_context):
   """Order stages suitable for sequential execution.
   """
+  all_stages = set(stages)
   seen = set()
   ordered = []
 
   def process(stage):
     if stage not in seen:
       seen.add(stage)
+      if stage not in all_stages:
+        return
       for prev in stage.must_follow:
         process(prev)
       ordered.append(stage)
