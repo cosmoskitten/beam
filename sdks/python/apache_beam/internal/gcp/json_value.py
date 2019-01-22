@@ -53,7 +53,7 @@ def get_typed_value_descriptor(obj):
     ~exceptions.TypeError: if the Python object has a type that is not
       supported.
   """
-  if isinstance(obj, (str, unicode)):
+  if isinstance(obj, (bytes, unicode)):
     type_name = 'Text'
   elif isinstance(obj, bool):
     type_name = 'Boolean'
