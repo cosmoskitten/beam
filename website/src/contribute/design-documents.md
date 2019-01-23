@@ -140,6 +140,7 @@ This is a collection of documents that may or may not be up to date.
 - Splittable DoFn for Python SDK [[doc](http://s.apache.org/splittable-do-fn-python-sdk)]
 - Parquet IO for Python SDK [[doc](https://docs.google.com/document/d/1-FT6zmjYhYFWXL8aDM5mNeiUnZdKnnB021zTo4S-0Wg)]
 - Building Python Wheels [[doc](https://docs.google.com/document/d/1MRVFs48e6g7wORshr2UpuOVD_yTSJTbmR65_j8XbGek)]
+- Runner supported features plugin [[doc](https://s.apache.org/k79W)]
 
 ### Go
 - Apache Beam Go SDK design [[doc](https://s.apache.org/beam-go-sdk-design-rfc)]
