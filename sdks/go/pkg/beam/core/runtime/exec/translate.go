@@ -28,14 +28,20 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 )
 
+// TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource = "urn:org.apache.beam:source:runner:0.1"
-	urnDataSink   = "urn:org.apache.beam:sink:runner:0.1"
+	urnDataSource           = "urn:org.apache.beam:source:runner:0.1"
+	urnDataSink             = "urn:org.apache.beam:sink:runner:0.1"
+	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
+	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
+	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -57,10 +63,10 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			return nil, err
 		}
 
-		u := &DataSource{UID: b.idgen.New(), Port: port}
+		u := &DataSource{UID: b.idgen.New()}
 
 		for key, pid := range transform.GetOutputs() {
-			u.Target = Target{ID: id, Name: key}
+			u.SID = StreamID{Target: Target{ID: id, Name: key}, Port: port}
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
@@ -68,14 +74,18 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			}
 
 			if cid == "" {
-				u.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				u.Coder = coder.NewW(c, wc)
 			} else {
 				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(u.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
 				}
 			}
 		}
@@ -92,7 +102,7 @@ type builder struct {
 	prev map[string]int      // PCollectionID -> #incoming
 	succ map[string][]linkID // PCollectionID -> []linkID
 
-	windowing map[string]*window.Window
+	windowing map[string]*window.WindowingStrategy
 	nodes     map[string]Node // PCollectionID -> Node (cache)
 	links     map[linkID]Node // linkID -> Node (cache)
 
@@ -135,7 +145,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		prev: prev,
 		succ: succ,
 
-		windowing: make(map[string]*window.Window),
+		windowing: make(map[string]*window.WindowingStrategy),
 		nodes:     make(map[string]Node),
 		links:     make(map[linkID]Node),
 
@@ -148,7 +158,7 @@ func (b *builder) build() (*Plan, error) {
 	return NewPlan(b.desc.GetId(), b.units)
 }
 
-func (b *builder) makeWindow(id string) (*window.Window, error) {
+func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, error) {
 	if w, exists := b.windowing[id]; exists {
 		return w, nil
 	}
@@ -157,13 +167,60 @@ func (b *builder) makeWindow(id string) (*window.Window, error) {
 	if !ok {
 		return nil, fmt.Errorf("windowing strategy %v not found", id)
 	}
-	if urn := ws.GetWindowFn().GetSpec().GetUrn(); urn != graphx.URNGlobalWindowsWindowFn {
-		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
+	if err != nil {
+		return nil, err
 	}
-
-	w := window.NewGlobalWindow()
+	w := &window.WindowingStrategy{Fn: wfn}
 	b.windowing[id] = w
 	return w, nil
+}
+
+func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+	switch urn := wfn.GetUrn(); urn {
+	case graphx.URNGlobalWindowsWindowFn:
+		return window.NewGlobalWindows(), nil
+
+	case graphx.URNFixedWindowsWindowFn:
+		var payload pb.FixedWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewFixedWindows(size), nil
+
+	case graphx.URNSlidingWindowsWindowFn:
+		var payload pb.SlidingWindowsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		period, err := ptypes.Duration(payload.GetPeriod())
+		if err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSlidingWindows(period, size), nil
+
+	case graphx.URNSessionsWindowFn:
+		var payload pb.SessionsPayload
+		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		gap, err := ptypes.Duration(payload.GetGapSize())
+		if err != nil {
+			return nil, err
+		}
+		return window.NewSessions(gap), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported window type: %v", urn)
+	}
 }
 
 func (b *builder) makePCollections(out []string) ([]Node, error) {
@@ -178,17 +235,32 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 	return ret, nil
 }
 
-func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, error) {
+func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.WindowCoder, error) {
 	col, ok := b.desc.GetPcollections()[id]
 	if !ok {
-		return nil, fmt.Errorf("pcollection %v not found", id)
+		return nil, nil, fmt.Errorf("pcollection %v not found", id)
 	}
 	c, err := b.coders.Coder(col.CoderId)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
-	return coder.SkipW(c), nil
+	if coder.IsW(c) {
+		// TODO(herohde) 3/16/2018: remove potential WindowedValue from Dataflow.
+		// However, windowing strategies are not yet passed through, so the main
+		// path always gives us GlobalWindows.
+
+		return coder.SkipW(c), c.Window, nil
+	}
+
+	ws, ok := b.desc.GetWindowingStrategies()[col.GetWindowingStrategyId()]
+	if !ok {
+		return nil, nil, fmt.Errorf("windowing strategy %v not found", id)
+	}
+	wc, err := b.coders.WindowCoder(ws.GetWindowCoderId())
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, wc, nil
 }
 
 func (b *builder) makePCollection(id string) (Node, error) {
@@ -264,22 +336,29 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn:
+	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
 		var data string
-		if urn == graphx.URNParDo {
+		switch urn {
+		case graphx.URNParDo:
 			var pardo pb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, fmt.Errorf("invalid ParDo payload for %v: %v", transform, err)
 			}
 			data = string(pardo.GetDoFn().GetSpec().GetPayload())
-		} else {
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+			var cmb pb.CombinePayload
+			if err := proto.Unmarshal(payload, &cmb); err != nil {
+				return nil, fmt.Errorf("invalid CombinePayload payload for %v: %v", transform, err)
+			}
+			data = string(cmb.GetCombineFn().GetSpec().GetPayload())
+		default:
 			// TODO(herohde) 12/4/2017: we see DoFns directly with Dataflow. Handle that
 			// case here, for now, so that the harness can use this logic.
 
 			data = string(payload)
 		}
 
-		// TODO(herohde) 1/28/2018: Once we're fully off the old way,
+		// TODO(herohde) 1/28/2018: Once Dataflow's fully off the old way,
 		// we can simply switch on the ParDo DoFn URN directly.
 
 		var tp v1.TransformPayload
@@ -287,9 +366,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, fmt.Errorf("invalid transform payload for %v: %v", transform, err)
 		}
 
-		switch tp.GetUrn() {
+		switch tpUrn := tp.GetUrn(); tpUrn {
 		case graphx.URNDoFn:
-			op, fn, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
+			op, fn, _, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
 			if err != nil {
 				return nil, err
 			}
@@ -303,39 +382,55 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
 				n.PID = path.Base(n.Fn.Name())
-				if len(in) == 1 {
-					u = n
-					break
+
+				input := unmarshalKeyedValues(transform.GetInputs())
+				for i := 1; i < len(input); i++ {
+					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
+					// For now, assume we don't need any information in the pardo payload.
+
+					ec, wc, err := b.makeCoderForPCollection(input[i])
+					if err != nil {
+						return nil, err
+					}
+
+					sid := StreamID{
+						Port: Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+						Target: Target{
+							ID:   id.to,                 // PTransformID
+							Name: fmt.Sprintf("i%v", i), // SideInputID (= local id, "iN")
+						},
+					}
+					side := NewSideInputAdapter(sid, coder.NewW(ec, wc))
+					n.Side = append(n.Side, side)
 				}
-
-				panic("NYI: side input")
-
-			case graph.Combine:
-				n := &Combine{UID: b.idgen.New(), Out: out[0]}
-				n.Fn, err = graph.AsCombineFn(fn)
-				if err != nil {
-					return nil, err
-				}
-
-				// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
-				// instead of inferring it here?
-
-				c, err := b.makeCoderForPCollection(from)
-				if err != nil {
-					return nil, err
-				}
-
-				n.IsPerKey = coder.IsCoGBK(c)
-				n.UsesKey = typex.IsKV(in[0].Type)
-
 				u = n
 
+			case graph.Combine:
+				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
+				cn.Fn, err = graph.AsCombineFn(fn)
+				if err != nil {
+					return nil, err
+				}
+				cn.UsesKey = typex.IsKV(in[0].Type)
+				switch urn {
+				case urnPerKeyCombinePre:
+					u = &LiftedCombine{Combine: cn}
+				case urnPerKeyCombineMerge:
+					u = &MergeAccumulators{Combine: cn}
+				case urnPerKeyCombineExtract:
+					u = &ExtractOutput{Combine: cn}
+				default: // For unlifted combines
+					u = cn
+				}
 			default:
 				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))
 			}
 
+		case graphx.URNIterableSideInputKey:
+			u = &FixedKey{UID: b.idgen.New(), Key: []byte(iterableSideInputKey), Out: out[0]}
+
 		case graphx.URNInject:
-			c, err := b.makeCoderForPCollection(from)
+			c, _, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
@@ -349,7 +444,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			for _, id := range transform.GetOutputs() {
 				pid = id
 			}
-			c, err := b.makeCoderForPCollection(pid)
+			c, _, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
@@ -367,26 +462,44 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			return nil, fmt.Errorf("unexpected payload: %v", tp)
 		}
 
+	case graphx.URNWindow:
+		var wp pb.WindowIntoPayload
+		if err := proto.Unmarshal(payload, &wp); err != nil {
+			return nil, fmt.Errorf("invalid WindowInto payload for %v: %v", transform, err)
+		}
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		if err != nil {
+			return nil, err
+		}
+		u = &WindowInto{UID: b.idgen.New(), Fn: wfn, Out: out[0]}
+
+	case graphx.URNFlatten:
+		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {
 			return nil, err
 		}
 
-		sink := &DataSink{UID: b.idgen.New(), Port: port}
+		sink := &DataSink{UID: b.idgen.New()}
 
 		for key, pid := range transform.GetInputs() {
-			sink.Target = Target{ID: id.to, Name: key}
+			sink.SID = StreamID{Target: Target{ID: id.to, Name: key}, Port: port}
 
 			if cid == "" {
-				sink.Coder, err = b.makeCoderForPCollection(pid)
+				c, wc, err := b.makeCoderForPCollection(pid)
 				if err != nil {
 					return nil, err
 				}
+				sink.Coder = coder.NewW(c, wc)
 			} else {
 				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
 				if err != nil {
 					return nil, err
+				}
+				if !coder.IsW(sink.Coder) {
+					return nil, fmt.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 				}
 			}
 		}
@@ -403,44 +516,43 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 // unmarshalKeyedValues converts a map {"i1": "b", ""i0": "a"} into an ordered list of
 // of values: {"a", "b"}. If the keys are not in the expected format, the returned
-// list does not guarantee any order.
+// list does not guarantee any order, but will respect ordered values.
 func unmarshalKeyedValues(m map[string]string) []string {
 	if len(m) == 0 {
 		return nil
+	}
+	if len(m) == 1 && stringx.Keys(m)[0] == "bogus" {
+		return nil // Ignore special bogus node for legacy Dataflow.
 	}
 
 	// (1) Compute index. If generated by the marshaller, we have
 	// a "iN" name that directly indicates the position.
 
-	index := make(map[string]int)
-	complete := true
+	ordered := make(map[int]string)
+	var unordered []string
 
 	for key := range m {
-		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); !strings.HasPrefix(key, "i") || err != nil {
-			complete = false
-			break
-		} else {
-			index[key] = i
-		}
+		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); strings.HasPrefix(key, "i") && err == nil {
+			if i < len(m) {
+				ordered[i] = key
+				continue
+			} // else: out-of-range index.
+		} // else: not in "iN" form.
+
+		unordered = append(unordered, key)
 	}
 
-	// (2) Impose order, if present, on values.
-
-	if !complete {
-		// Inserted node or fallback. Assume any order is ok.
-		var ret []string
-		for key, value := range m {
-			if key == "bogus" {
-				continue // Ignore special bogus node for legacy Dataflow.
-			}
-			ret = append(ret, value)
-		}
-		return ret
-	}
+	// (2) Impose order, to the extent present, on values.
 
 	ret := make([]string, len(m))
-	for key, value := range m {
-		ret[index[key]] = value
+	k := 0
+	for i := 0; i < len(ret); i++ {
+		if key, ok := ordered[i]; ok {
+			ret[i] = m[key]
+		} else {
+			ret[i] = m[unordered[k]]
+			k++
+		}
 	}
 	return ret
 }

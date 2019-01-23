@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertFalse;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -201,7 +201,7 @@ public class WaitTest implements Serializable {
   public void testWaitWithSomeSignalWindowsEmpty() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
-        Duration.standardSeconds(0) /* lateness */,
+        Duration.ZERO /* lateness */,
         20 /* numMainElements */,
         FixedWindows.of(Duration.standardSeconds(1)),
         10 /* numSignalElements */,

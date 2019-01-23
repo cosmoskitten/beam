@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
 
@@ -27,8 +29,36 @@ import org.apache.calcite.rel.RelNode;
 public interface BeamRelNode extends RelNode {
 
   /**
-   * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
-   * DFS(Depth-First-Search) algorithm.
+   * Whether the collection of rows represented by this relational expression is bounded (known to
+   * be finite) or unbounded (may or may not be finite).
+   *
+   * @return bounded if and only if all PCollection inputs are bounded
    */
-  PTransform<PCollectionTuple, PCollection<Row>> toPTransform();
+  default PCollection.IsBounded isBounded() {
+    return getPCollectionInputs().stream()
+            .allMatch(
+                rel ->
+                    BeamSqlRelUtils.getBeamRelInput(rel).isBounded()
+                        == PCollection.IsBounded.BOUNDED)
+        ? PCollection.IsBounded.BOUNDED
+        : PCollection.IsBounded.UNBOUNDED;
+  }
+
+  default List<RelNode> getPCollectionInputs() {
+    return getInputs();
+  };
+
+  PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
+
+  /** Perform a DFS(Depth-First-Search) to find the PipelineOptions config. */
+  default Map<String, String> getPipelineOptions() {
+    Map<String, String> options = null;
+    for (RelNode input : getInputs()) {
+      Map<String, String> inputOptions = ((BeamRelNode) input).getPipelineOptions();
+      assert inputOptions != null;
+      assert options == null || options == inputOptions;
+      options = inputOptions;
+    }
+    return options;
+  }
 }

@@ -32,9 +32,6 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
@@ -48,6 +45,9 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,10 +114,11 @@ class BigtableServiceImpl implements BigtableService {
     public boolean start() throws IOException {
       RowSet.Builder rowSetBuilder = RowSet.newBuilder();
       for (ByteKeyRange sourceRange : source.getRanges()) {
-        rowSetBuilder = rowSetBuilder.addRowRanges(
-            RowRange.newBuilder()
-                .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
-                .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+        rowSetBuilder =
+            rowSetBuilder.addRowRanges(
+                RowRange.newBuilder()
+                    .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
+                    .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
       }
       RowSet rowSet = rowSetBuilder.build();
 
@@ -125,9 +126,7 @@ class BigtableServiceImpl implements BigtableService {
           session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
 
       ReadRowsRequest.Builder requestB =
-          ReadRowsRequest.newBuilder()
-              .setRows(rowSet)
-              .setTableName(tableNameSr);
+          ReadRowsRequest.newBuilder().setRows(rowSet).setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
@@ -138,7 +137,7 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public boolean advance() throws IOException {
       currentRow = results.next();
-      return (currentRow != null);
+      return currentRow != null;
     }
 
     @Override
@@ -219,13 +218,13 @@ class BigtableServiceImpl implements BigtableService {
     }
 
     @Override
-    public CompletionStage<MutateRowResponse> writeRecord(
-        KV<ByteString, Iterable<Mutation>> record)
+    public CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
-      MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
-          .setRowKey(record.getKey())
-          .addAllMutations(record.getValue())
-          .build();
+      MutateRowsRequest.Entry request =
+          MutateRowsRequest.Entry.newBuilder()
+              .setRowKey(record.getKey())
+              .addAllMutations(record.getValue())
+              .build();
 
       CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
       Futures.addCallback(
@@ -247,10 +246,7 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public String toString() {
-    return MoreObjects
-        .toStringHelper(BigtableServiceImpl.class)
-        .add("options", options)
-        .toString();
+    return MoreObjects.toStringHelper(BigtableServiceImpl.class).add("options", options).toString();
   }
 
   @Override

@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
+import com.google.common.base.MoreObjects;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -39,6 +39,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   private final ImmutableListBundleFactory underlying;
+
   private CloningBundleFactory() {
     this.underlying = ImmutableListBundleFactory.create();
   }
@@ -50,8 +51,7 @@ class CloningBundleFactory implements BundleFactory {
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(
-      PCollection<T> output) {
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
     return new CloningBundle<>(underlying.createBundle(output));
   }
 
@@ -92,6 +92,14 @@ class CloningBundleFactory implements BundleFactory {
     @Override
     public CommittedBundle<T> commit(Instant synchronizedProcessingTime) {
       return underlying.commit(synchronizedProcessingTime);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("Data", underlying.toString())
+          .add("Coder", coder.toString())
+          .toString();
     }
   }
 }

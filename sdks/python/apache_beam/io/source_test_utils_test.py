@@ -15,9 +15,13 @@
 # limitations under the License.
 #
 
+from __future__ import absolute_import
+
 import logging
+import sys
 import tempfile
 import unittest
+from builtins import range
 
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam.io.filebasedsource_test import LineSource
@@ -25,16 +29,22 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 class SourceTestUtilsTest(unittest.TestCase):
 
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
+
   def _create_file_with_data(self, lines):
     assert isinstance(lines, list)
     with tempfile.NamedTemporaryFile(delete=False) as f:
       for line in lines:
-        f.write(line + '\n')
+        f.write(line + b'\n')
 
       return f.name
 
   def _create_data(self, num_lines):
-    return ['line ' + str(i) for i in range(num_lines)]
+    return [b'line ' + str(i).encode('latin1') for i in range(num_lines)]
 
   def _create_source(self, data):
     source = LineSource(self._create_file_with_data(data))
@@ -47,7 +57,7 @@ class SourceTestUtilsTest(unittest.TestCase):
   def test_read_from_source(self):
     data = self._create_data(100)
     source = self._create_source(data)
-    self.assertItemsEqual(
+    self.assertCountEqual(
         data, source_test_utils.read_from_source(source, None, None))
 
   def test_source_equals_reference_source(self):
@@ -58,7 +68,7 @@ class SourceTestUtilsTest(unittest.TestCase):
     if len(sources_info) < 2:
       raise ValueError('Test is too trivial since splitting only generated %d'
                        'bundles. Please adjust the test so that at least '
-                       'two splits get generated.', len(sources_info))
+                       'two splits get generated.' % len(sources_info))
 
     source_test_utils.assert_sources_equal_reference_source(
         (reference_source, None, None), sources_info)

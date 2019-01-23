@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterables;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.metrics.Counter;
@@ -30,11 +28,13 @@ import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
- * A customized {@link DoFnRunner} that handles late data dropping for
- * a {@link KeyedWorkItem} input {@link DoFn}.
+ * A customized {@link DoFnRunner} that handles late data dropping for a {@link KeyedWorkItem} input
+ * {@link DoFn}.
  *
  * <p>It expands windows before checking data lateness.
  *
@@ -72,16 +72,17 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
 
   @Override
   public void processElement(WindowedValue<KeyedWorkItem<K, InputT>> elem) {
-    Iterable<WindowedValue<InputT>> nonLateElements = lateDataFilter.filter(
-        elem.getValue().key(), elem.getValue().elementsIterable());
-    KeyedWorkItem<K, InputT> keyedWorkItem = KeyedWorkItems.workItem(
-        elem.getValue().key(), elem.getValue().timersIterable(), nonLateElements);
+    Iterable<WindowedValue<InputT>> nonLateElements =
+        lateDataFilter.filter(elem.getValue().key(), elem.getValue().elementsIterable());
+    KeyedWorkItem<K, InputT> keyedWorkItem =
+        KeyedWorkItems.workItem(
+            elem.getValue().key(), elem.getValue().timersIterable(), nonLateElements);
     doFnRunner.processElement(elem.withValue(keyedWorkItem));
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
   }
 
@@ -90,9 +91,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     doFnRunner.finishBundle();
   }
 
-  /**
-   * It filters late data in a {@link KeyedWorkItem}.
-   */
+  /** It filters late data in a {@link KeyedWorkItem}. */
   @VisibleForTesting
   static class LateDataFilter {
     private final WindowingStrategy<?, ?> windowingStrategy;
@@ -100,17 +99,16 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     private final Counter droppedDueToLateness;
 
     public LateDataFilter(
-        WindowingStrategy<?, ?> windowingStrategy,
-        TimerInternals timerInternals) {
+        WindowingStrategy<?, ?> windowingStrategy, TimerInternals timerInternals) {
       this.windowingStrategy = windowingStrategy;
       this.timerInternals = timerInternals;
-      this.droppedDueToLateness = Metrics.counter(LateDataDroppingDoFnRunner.class,
-          DROPPED_DUE_TO_LATENESS);
+      this.droppedDueToLateness =
+          Metrics.counter(LateDataDroppingDoFnRunner.class, DROPPED_DUE_TO_LATENESS);
     }
 
     /**
-     * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains
-     * non-late input elements.
+     * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains non-late input
+     * elements.
      */
     public <K, InputT> Iterable<WindowedValue<InputT>> filter(
         final K key, Iterable<WindowedValue<InputT>> elements) {
@@ -118,9 +116,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           StreamSupport.stream(elements.spliterator(), false)
               .map(
                   input ->
-                      input
-                          .getWindows()
-                          .stream()
+                      input.getWindows().stream()
                           .map(
                               window ->
                                   WindowedValue.of(
@@ -151,15 +147,14 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
         }
       }
 
-      Iterable<WindowedValue<InputT>> nonLateElements =
-          StreamSupport.stream(concatElements.spliterator(), false)
-              .filter(
-                  input -> {
-                    BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                    return !canDropDueToExpiredWindow(window);
-                  })
-              .collect(Collectors.toList());
-      return nonLateElements;
+      // return nonLateElements
+      return StreamSupport.stream(concatElements.spliterator(), false)
+          .filter(
+              input -> {
+                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+                return !canDropDueToExpiredWindow(window);
+              })
+          .collect(Collectors.toList());
     }
 
     /** Is {@code window} expired w.r.t. the garbage collection watermark? */

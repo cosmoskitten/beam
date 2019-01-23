@@ -17,20 +17,19 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
@@ -38,6 +37,7 @@ import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputSt
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 /** Various compression types for reading/writing files. */
+@SuppressWarnings("ImmutableEnumChecker")
 public enum Compression {
   /**
    * When reading a file, automatically determine the compression type based on filename extension.
@@ -143,11 +143,11 @@ public enum Compression {
   };
 
   private final String suggestedSuffix;
-  private final List<String> detectedSuffixes;
+  private final ImmutableList<String> detectedSuffixes;
 
   Compression(String suggestedSuffix, String... detectedSuffixes) {
     this.suggestedSuffix = suggestedSuffix;
-    this.detectedSuffixes = Arrays.asList(detectedSuffixes);
+    this.detectedSuffixes = ImmutableList.copyOf(detectedSuffixes);
   }
 
   public String getSuggestedSuffix() {

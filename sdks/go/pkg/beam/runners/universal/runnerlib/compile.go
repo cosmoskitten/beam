@@ -27,13 +27,24 @@ import (
 	"strings"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
+
+// IsWorkerCompatibleBinary returns the path to itself and true if running
+// a linux-amd64 binary that can directly be used as a worker binary.
+func IsWorkerCompatibleBinary() (string, bool) {
+	return "", false
+}
+
+var unique int32
 
 // BuildTempWorkerBinary creates a local worker binary in the tmp directory
 // for linux/amd64. Caller responsible for deleting the binary.
 func BuildTempWorkerBinary(ctx context.Context) (string, error) {
-	filename := filepath.Join(os.TempDir(), fmt.Sprintf("beam-go-%v", time.Now().UnixNano()))
+	id := atomic.AddInt32(&unique, 1)
+	filename := filepath.Join(os.TempDir(), fmt.Sprintf("worker-%v-%v", id, time.Now().UnixNano()))
 	if err := BuildWorkerBinary(ctx, filename); err != nil {
 		return "", err
 	}
@@ -45,18 +56,18 @@ func BuildTempWorkerBinary(ctx context.Context) (string, error) {
 //
 //   /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
 // * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
-//   /usr/local/go/src/runtime/proc.go (skip: 4)
-//   /usr/local/go/src/runtime/asm_amd64.s (skip: 5)
+//   /usr/local/go/src/runtime/proc.go (skip: 4)      // not always present
+//   /usr/local/go/src/runtime/asm_amd64.s (skip: 4 or 5)
 func BuildWorkerBinary(ctx context.Context, filename string) error {
 	program := ""
 	for i := 3; ; i++ {
 		_, file, _, ok := runtime.Caller(i)
-		if !ok || strings.HasSuffix(file, "runtime/proc.go") {
+		if !ok || !strings.HasSuffix(file, ".go") || strings.HasSuffix(file, "runtime/proc.go") {
 			break
 		}
 		program = file
 	}
-	if program == "" {
+	if !strings.HasSuffix(program, ".go") {
 		return fmt.Errorf("could not detect user main")
 	}
 
@@ -68,7 +79,7 @@ func BuildWorkerBinary(ctx context.Context, filename string) error {
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to cross-compile %v: %v\n%v", program, err, out)
+		return fmt.Errorf("failed to cross-compile %v: %v\n%v", program, err, string(out))
 	}
 	return nil
 }

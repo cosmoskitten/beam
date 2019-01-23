@@ -63,12 +63,16 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+from __future__ import absolute_import
+
 import collections
 import copy
 import sys
 import types
+from builtins import next
+from builtins import zip
 
-import six
+from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -174,6 +178,10 @@ class TypeConstraint(object):
       else:
         visitor(t, visitor_arg)
 
+  def __ne__(self, other):
+    # TODO(BEAM-5949): Needed for Python 2 compatibility.
+    return not self == other
+
 
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
@@ -217,7 +225,7 @@ class SequenceTypeConstraint(IndexableTypeConstraint):
   """
 
   def __init__(self, inner_type, sequence_type):
-    self.inner_type = inner_type
+    self.inner_type = normalize(inner_type)
     self._sequence_type = sequence_type
 
   def __eq__(self, other):
@@ -337,10 +345,12 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   if sys.version_info[0] == 2:
-    possible_classes.append(types.ClassType)
+    # Access from __dict__ to avoid py27-lint3 compatibility checker complaint.
+    possible_classes.append(types.__dict__["ClassType"])
   is_not_type_constraint = (
       not isinstance(type_param, tuple(possible_classes))
-      and type_param is not None)
+      and type_param is not None
+      and getattr(type_param, '__module__', None) != 'typing')
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
 
@@ -411,17 +421,25 @@ class AnyTypeConstraint(TypeConstraint):
   def __repr__(self):
     return 'Any'
 
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
+
   def type_check(self, instance):
     pass
 
 
 class TypeVariable(AnyTypeConstraint):
 
+  def __init__(self, name):
+    self.name = name
+
   def __eq__(self, other):
     return type(self) == type(other) and self.name == other.name
 
-  def __init__(self, name):
-    self.name = name
+  def __hash__(self):
+    # TODO(BEAM-3730): Fix typehints.TypeVariable issues with __hash__.
+    return hash(id(self))
 
   def __repr__(self):
     return 'TypeVariable[%s]' % self.name
@@ -455,7 +473,7 @@ class UnionHint(CompositeTypeHint):
   class UnionConstraint(TypeConstraint):
 
     def __init__(self, union_types):
-      self.union_types = set(union_types)
+      self.union_types = set(normalize(t) for t in union_types)
 
     def __eq__(self, other):
       return (isinstance(other, UnionHint.UnionConstraint)
@@ -578,7 +596,7 @@ class TupleHint(CompositeTypeHint):
   class TupleConstraint(IndexableTypeConstraint):
 
     def __init__(self, type_params):
-      self.tuple_types = tuple(type_params)
+      self.tuple_types = tuple(normalize(t) for t in type_params)
 
     def __eq__(self, other):
       return (isinstance(other, TupleHint.TupleConstraint)
@@ -757,8 +775,8 @@ class DictHint(CompositeTypeHint):
   class DictConstraint(TypeConstraint):
 
     def __init__(self, key_type, value_type):
-      self.key_type = key_type
-      self.value_type = value_type
+      self.key_type = normalize(key_type)
+      self.value_type = normalize(value_type)
 
     def __repr__(self):
       return 'Dict[%s, %s]' % (_unified_repr(self.key_type),
@@ -953,7 +971,7 @@ class IteratorHint(CompositeTypeHint):
   class IteratorTypeConstraint(TypeConstraint):
 
     def __init__(self, t):
-      self.yielded_type = t
+      self.yielded_type = normalize(t)
 
     def __repr__(self):
       return 'Iterator[%s]' % _unified_repr(self.yielded_type)
@@ -992,8 +1010,8 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-@six.add_metaclass(GetitemConstructor)
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+                                            TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -1003,7 +1021,7 @@ class WindowedTypeConstraint(TypeConstraint):
   """
 
   def __init__(self, inner_type):
-    self.inner_type = inner_type
+    self.inner_type = normalize(inner_type)
 
   def __eq__(self, other):
     return (isinstance(other, WindowedTypeConstraint)
@@ -1058,20 +1076,37 @@ Generator = GeneratorHint()
 WindowedValue = WindowedTypeConstraint
 
 
-_KNOWN_PRIMITIVE_TYPES = {
+# There is a circular dependency between defining this mapping
+# and using it in normalize().  Initialize it here and populate
+# it below.
+_KNOWN_PRIMITIVE_TYPES = {}
+
+
+def normalize(x, none_as_type=False):
+    # None is inconsistantly used for Any, unknown, or NoneType.
+  if none_as_type and x is None:
+    return type(None)
+  elif x in _KNOWN_PRIMITIVE_TYPES:
+    return _KNOWN_PRIMITIVE_TYPES[x]
+  elif getattr(x, '__module__', None) == 'typing':
+    # Avoid circular imports
+    from apache_beam.typehints import native_type_compatibility
+    beam_type = native_type_compatibility.convert_to_beam_type(x)
+    if beam_type != x:
+      # We were able to do the conversion.
+      return beam_type
+    else:
+      # It might be a compatible type we don't understand.
+      return Any
+  return x
+
+
+_KNOWN_PRIMITIVE_TYPES.update({
     dict: Dict[Any, Any],
     list: List[Any],
     tuple: Tuple[Any, ...],
     set: Set[Any],
-    # Using None for the NoneType is a common convention.
-    None: type(None),
-}
-
-
-def normalize(x):
-  if x in _KNOWN_PRIMITIVE_TYPES:
-    return _KNOWN_PRIMITIVE_TYPES[x]
-  return x
+})
 
 
 def is_consistent_with(sub, base):
@@ -1088,8 +1123,8 @@ def is_consistent_with(sub, base):
     return True
   if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
     return True
-  sub = normalize(sub)
-  base = normalize(base)
+  sub = normalize(sub, none_as_type=True)
+  base = normalize(base, none_as_type=True)
   if isinstance(base, TypeConstraint):
     if isinstance(sub, UnionConstraint):
       return all(is_consistent_with(c, base) for c in sub.union_types)

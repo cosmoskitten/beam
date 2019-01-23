@@ -17,22 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
 import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verifyNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -82,6 +74,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -144,7 +144,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
-    private Compression canonical;
+    private final Compression canonical;
 
     CompressionType(Compression canonical) {
       this.canonical = canonical;
@@ -167,7 +167,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     public static CompressionType fromCanonical(Compression canonical) {
-      switch(canonical) {
+      switch (canonical) {
         case AUTO:
           throw new IllegalArgumentException("AUTO is not supported for writing");
 
@@ -333,7 +333,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       } catch (CannotProvideCoderException e) {
         throw new CannotProvideCoderException(
             "Failed to infer coder for DestinationT from type "
-                + descriptor + ", please provide it explicitly by overriding getDestinationCoder()",
+                + descriptor
+                + ", please provide it explicitly by overriding getDestinationCoder()",
             e);
       }
     }
@@ -437,6 +438,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   /** Return a subclass of {@link WriteOperation} that will manage the write to the sink. */
   public abstract WriteOperation<DestinationT, OutputT> createWriteOperation();
 
+  @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     getDynamicDestinations().populateDisplayData(builder);
   }
@@ -588,7 +590,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         @Nullable DestinationT dest,
         @Nullable BoundedWindow window,
         @Nullable Integer numShards,
-        Collection<FileResult<DestinationT>> existingResults) throws Exception {
+        Collection<FileResult<DestinationT>> existingResults)
+        throws Exception {
       Collection<FileResult<DestinationT>> completeResults =
           windowedWrites
               ? existingResults
@@ -598,11 +601,13 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         checkArgument(
             Objects.equals(dest, res.getDestination()),
             "File result has wrong destination: expected %s, got %s",
-            dest, res.getDestination());
+            dest,
+            res.getDestination());
         checkArgument(
             Objects.equals(window, res.getWindow()),
             "File result has wrong window: expected %s, got %s",
-            window, res.getWindow());
+            window,
+            res.getWindow());
       }
       List<KV<FileResult<DestinationT>, ResourceId>> outputFilenames = Lists.newArrayList();
 
@@ -642,11 +647,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       for (FileResult<DestinationT> result : resultsWithShardNumbers) {
         checkArgument(
             result.getShard() != UNKNOWN_SHARDNUM, "Should have set shard number on %s", result);
-        ResourceId finalFilename = result.getDestinationFile(
-            windowedWrites,
-            getSink().getDynamicDestinations(),
-            effectiveNumShards,
-            getSink().getWritableByteChannelFactory());
+        ResourceId finalFilename =
+            result.getDestinationFile(
+                windowedWrites,
+                getSink().getDynamicDestinations(),
+                effectiveNumShards,
+                getSink().getWritableByteChannelFactory());
         checkArgument(
             !distinctFilenames.containsKey(finalFilename),
             "Filename policy must generate unique filenames, but generated the same name %s "
@@ -752,7 +758,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
-      FileSystems.copy(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
       removeTemporaryFiles(srcFiles);
     }
 
@@ -1090,6 +1096,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
     }
 
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(FileResult.class)
           .add("tempFilename", tempFilename)
@@ -1179,9 +1186,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     @Nullable
     String getMimeType();
 
-    /**
-     * @return an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP}
-     */
+    /** @return an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP} */
     @Nullable
     String getSuggestedFilenameSuffix();
   }

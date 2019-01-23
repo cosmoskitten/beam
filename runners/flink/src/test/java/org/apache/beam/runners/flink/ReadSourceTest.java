@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.base.Joiner;
 import java.io.File;
 import java.net.URI;
 import org.apache.beam.sdk.Pipeline;
@@ -26,20 +25,18 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-/**
- * Reads from a bounded source in batch execution.
- */
+/** Reads from a bounded source in batch execution. */
 public class ReadSourceTest extends JavaProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceTest() {
-  }
+  public ReadSourceTest() {}
 
-  private static final String[] EXPECTED_RESULT = new String[] {
-     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+  private static final String[] EXPECTED_RESULT =
+      new String[] {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
   @Override
   protected void preSubmit() throws Exception {
@@ -67,19 +64,19 @@ public class ReadSourceTest extends JavaProgramTestBase {
 
     Pipeline p = FlinkTestPipeline.createForBatch();
 
-    PCollection<String> result = p
-        .apply(GenerateSequence.from(0).to(10))
-        .apply(ParDo.of(new DoFn<Long, String>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) throws Exception {
-            c.output(c.element().toString());
-          }
-        }));
+    PCollection<String> result =
+        p.apply(GenerateSequence.from(0).to(10))
+            .apply(
+                ParDo.of(
+                    new DoFn<Long, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        c.output(c.element().toString());
+                      }
+                    }));
 
     result.apply(TextIO.write().to(new URI(resultPath).getPath() + "/part"));
 
     p.run();
   }
 }
-
-

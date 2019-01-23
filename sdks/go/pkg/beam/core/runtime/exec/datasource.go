@@ -28,14 +28,12 @@ import (
 
 // DataSource is a Root execution unit.
 type DataSource struct {
-	UID    UnitID
-	Port   Port
-	Target Target
-	Coder  *coder.Coder
-	Out    Node
+	UID   UnitID
+	SID   StreamID
+	Coder *coder.Coder
+	Out   Node
 
-	sid    StreamID
-	source DataReader
+	source DataManager
 	count  int64
 	start  time.Time
 }
@@ -48,29 +46,30 @@ func (n *DataSource) Up(ctx context.Context) error {
 	return nil
 }
 
-func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
-	n.sid = StreamID{Port: n.Port, Target: n.Target, InstID: id}
-	n.source = data
+func (n *DataSource) StartBundle(ctx context.Context, id string, data DataContext) error {
+	n.source = data.Data
 	n.start = time.Now()
 	atomic.StoreInt64(&n.count, 0)
 	return n.Out.StartBundle(ctx, id, data)
 }
 
 func (n *DataSource) Process(ctx context.Context) error {
-	r, err := n.source.OpenRead(ctx, n.sid)
+	r, err := n.source.OpenRead(ctx, n.SID)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 
 	c := coder.SkipW(n.Coder)
+	wc := MakeWindowDecoder(n.Coder.Window)
+
 	switch {
 	case coder.IsCoGBK(c):
 		ck := MakeElementDecoder(c.Components[0])
 		cv := MakeElementDecoder(c.Components[1])
 
 		for {
-			t, err := DecodeWindowedValueHeader(r)
+			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -85,6 +84,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
 			key.Timestamp = t
+			key.Windows = ws
 
 			// TODO(herohde) 4/30/2017: the State API will be handle re-iterations
 			// and only "small" value streams would be inline. Presumably, that
@@ -147,7 +147,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 		for {
 			atomic.AddInt64(&n.count, 1)
-			t, err := DecodeWindowedValueHeader(r)
+			ws, t, err := DecodeWindowedValueHeader(wc, r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -160,6 +160,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
 			elm.Timestamp = t
+			elm.Windows = ws
 
 			// log.Printf("READ: %v %v", elm.Key.Type(), elm.Key.Interface())
 
@@ -172,20 +173,17 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
 	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
-	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)
 }
 
 func (n *DataSource) Down(ctx context.Context) error {
-	n.sid = StreamID{}
 	n.source = nil
 	return nil
 }
 
 func (n *DataSource) String() string {
-	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSource[%v] Out:%v", sid, n.Out.ID())
+	return fmt.Sprintf("DataSource[%v] Coder:%v Out:%v", n.SID, n.Coder, n.Out.ID())
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
@@ -199,5 +197,5 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	if n == nil {
 		return ProgressReportSnapshot{}
 	}
-	return ProgressReportSnapshot{n.sid.Target.ID, n.sid.Target.Name, atomic.LoadInt64(&n.count)}
+	return ProgressReportSnapshot{n.SID.Target.ID, n.SID.Target.Name, atomic.LoadInt64(&n.count)}
 }

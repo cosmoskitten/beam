@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.data;
 
-import com.google.common.util.concurrent.SettableFuture;
-import io.grpc.stub.StreamObserver;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +34,10 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +53,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
-  public static GrpcDataService create(ExecutorService executor) {
-    return new GrpcDataService(executor);
+  public static GrpcDataService create(
+      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
+    return new GrpcDataService(executor, outboundObserverFactory);
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
@@ -68,11 +69,23 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
   private final ExecutorService executor;
+  private final OutboundObserverFactory outboundObserverFactory;
 
-  private GrpcDataService(ExecutorService executor) {
+  private GrpcDataService(
+      ExecutorService executor, OutboundObserverFactory outboundObserverFactory) {
     this.connectedClient = SettableFuture.create();
     this.additionalMultiplexers = new LinkedBlockingQueue<>();
     this.executor = executor;
+    this.outboundObserverFactory = outboundObserverFactory;
+  }
+
+  /** @deprecated This constructor is for migrating Dataflow purpose only. */
+  @Deprecated
+  public GrpcDataService() {
+    this.connectedClient = null;
+    this.additionalMultiplexers = null;
+    this.executor = null;
+    this.outboundObserverFactory = null;
   }
 
   @Override
@@ -80,7 +93,8 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       final StreamObserver<BeamFnApi.Elements> outboundElementObserver) {
     LOG.info("Beam Fn Data client connected.");
     BeamFnDataGrpcMultiplexer multiplexer =
-        new BeamFnDataGrpcMultiplexer(null, inboundObserver -> outboundElementObserver);
+        new BeamFnDataGrpcMultiplexer(
+            null, outboundObserverFactory, inbound -> outboundElementObserver);
     // First client that connects completes this future.
     if (!connectedClient.set(multiplexer)) {
       additionalMultiplexers.offer(multiplexer);

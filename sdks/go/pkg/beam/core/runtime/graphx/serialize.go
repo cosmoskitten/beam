@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"time"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -27,7 +29,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -46,13 +47,15 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 		}
 		ret.Fn = ref
 	}
-
 	if edge.CombineFn != nil {
 		ref, err := encodeFn((*graph.Fn)(edge.CombineFn))
 		if err != nil {
 			return nil, fmt.Errorf("encode: bad combinefn: %v", err)
 		}
 		ret.Fn = ref
+	}
+	if edge.WindowFn != nil {
+		ret.WindowFn = encodeWindowFn(edge.WindowFn)
 	}
 
 	for _, in := range edge.Input {
@@ -76,8 +79,9 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 // DecodeMultiEdge converts the wire representation into the preprocessed
 // components representing that edge. We deserialize to components to avoid
 // inserting the edge into a graph or creating a detached edge.
-func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, []*graph.Inbound, []*graph.Outbound, error) {
+func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, *window.Fn, []*graph.Inbound, []*graph.Outbound, error) {
 	var u *graph.Fn
+	var wfn *window.Fn
 	var inbound []*graph.Inbound
 	var outbound []*graph.Outbound
 
@@ -87,29 +91,32 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (graph.Opcode, *graph.Fn, []*graph.Inbo
 		var err error
 		u, err = decodeFn(edge.Fn)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
 		}
+	}
+	if edge.WindowFn != nil {
+		wfn = decodeWindowFn(edge.WindowFn)
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
 		}
 		t, err := decodeFullType(in.Type)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
 		t, err := decodeFullType(out.Type)
 		if err != nil {
-			return "", nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
+			return "", nil, nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
 
-	return opcode, u, inbound, outbound, nil
+	return opcode, u, wfn, inbound, outbound, nil
 }
 
 func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
@@ -156,6 +163,32 @@ func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 		Dec:  dec,
 	}
 	return ret, nil
+}
+
+func encodeWindowFn(w *window.Fn) *v1.WindowFn {
+	return &v1.WindowFn{
+		Kind:     string(w.Kind),
+		SizeMs:   duration2ms(w.Size),
+		PeriodMs: duration2ms(w.Period),
+		GapMs:    duration2ms(w.Gap),
+	}
+}
+
+func decodeWindowFn(w *v1.WindowFn) *window.Fn {
+	return &window.Fn{
+		Kind:   window.Kind(w.Kind),
+		Size:   ms2duration(w.SizeMs),
+		Period: ms2duration(w.PeriodMs),
+		Gap:    ms2duration(w.GapMs),
+	}
+}
+
+func duration2ms(d time.Duration) int64 {
+	return d.Nanoseconds() / 1e6
+}
+
+func ms2duration(d int64) time.Duration {
+	return time.Duration(d) * time.Millisecond
 }
 
 func encodeFn(u *graph.Fn) (*v1.Fn, error) {
@@ -434,6 +467,8 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 
 	case typex.EventTimeType:
 		return v1.Type_EVENTTIME, true
+	case typex.WindowType:
+		return v1.Type_WINDOW, true
 	case typex.KVType:
 		return v1.Type_KV, true
 	case typex.CoGBKType:
@@ -583,6 +618,8 @@ func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 
 	case v1.Type_EVENTTIME:
 		return typex.EventTimeType, nil
+	case v1.Type_WINDOW:
+		return typex.WindowType, nil
 	case v1.Type_KV:
 		return typex.KVType, nil
 	case v1.Type_COGBK:
@@ -703,268 +740,5 @@ func decodeInputKind(k v1.MultiEdge_Inbound_InputKind) (graph.InputKind, error) 
 		return graph.ReIter, nil
 	default:
 		return graph.Main, fmt.Errorf("invalid input kind: %v", k)
-	}
-}
-
-// CoderRef defines the (structured) Coder in serializable form. It is
-// an artifact of the CloudObject encoding.
-type CoderRef struct {
-	Type         string      `json:"@type,omitempty"`
-	Components   []*CoderRef `json:"component_encodings,omitempty"`
-	IsWrapper    bool        `json:"is_wrapper,omitempty"`
-	IsPairLike   bool        `json:"is_pair_like,omitempty"`
-	IsStreamLike bool        `json:"is_stream_like,omitempty"`
-}
-
-// Exported types are used for translation lookup.
-const (
-	WindowedValueType = "kind:windowed_value"
-	BytesType         = "kind:bytes"
-	VarIntType        = "kind:varint"
-	GlobalWindowType  = "kind:global_window"
-	streamType        = "kind:stream"
-	pairType          = "kind:pair"
-	lengthPrefixType  = "kind:length_prefix"
-
-	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
-)
-
-// WrapExtraWindowedValue adds an additional WV needed for side input, which
-// expects the coder to have exactly one component with the element.
-func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
-	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c}}
-}
-
-// EncodeCoderRefs returns the encoded forms understood by the runner.
-func EncodeCoderRefs(list []*coder.Coder) ([]*CoderRef, error) {
-	var refs []*CoderRef
-	for _, c := range list {
-		ref, err := EncodeCoderRef(c)
-		if err != nil {
-			return nil, err
-		}
-		refs = append(refs, ref)
-	}
-	return refs, nil
-}
-
-// EncodeCoderRef returns the encoded form understood by the runner.
-func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
-	switch c.Kind {
-	case coder.Custom:
-		ref, err := encodeCustomCoder(c.Custom)
-		if err != nil {
-			return nil, err
-		}
-		data, err := protox.EncodeBase64(ref)
-		if err != nil {
-			return nil, err
-		}
-		return &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{{Type: data}}}, nil
-
-	case coder.KV:
-		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad KV: %v", c)
-		}
-
-		key, err := EncodeCoderRef(c.Components[0])
-		if err != nil {
-			return nil, err
-		}
-		value, err := EncodeCoderRef(c.Components[1])
-		if err != nil {
-			return nil, err
-		}
-		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
-
-	case coder.CoGBK:
-		if len(c.Components) < 2 {
-			return nil, fmt.Errorf("bad CoGBK: %v", c)
-		}
-
-		refs, err := EncodeCoderRefs(c.Components)
-		if err != nil {
-			return nil, err
-		}
-
-		value := refs[1]
-		if len(c.Components) > 2 {
-			// TODO(BEAM-490): don't inject union coder for CoGBK.
-
-			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
-			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
-		}
-
-		stream := &CoderRef{Type: streamType, Components: []*CoderRef{value}, IsStreamLike: true}
-		return &CoderRef{Type: pairType, Components: []*CoderRef{refs[0], stream}, IsPairLike: true}, nil
-
-	case coder.WindowedValue:
-		if len(c.Components) != 1 || c.Window == nil {
-			return nil, fmt.Errorf("bad windowed value: %v", c)
-		}
-
-		elm, err := EncodeCoderRef(c.Components[0])
-		if err != nil {
-			return nil, err
-		}
-		w, err := encodeWindow(c.Window)
-		if err != nil {
-			return nil, err
-		}
-		return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
-
-	case coder.Bytes:
-		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
-		return &CoderRef{Type: BytesType}, nil
-
-	case coder.VarInt:
-		return &CoderRef{Type: VarIntType}, nil
-
-	default:
-		return nil, fmt.Errorf("bad coder kind: %v", c.Kind)
-	}
-}
-
-// DecodeCoderRefs extracts usable coders from the encoded runner form.
-func DecodeCoderRefs(list []*CoderRef) ([]*coder.Coder, error) {
-	var ret []*coder.Coder
-	for _, ref := range list {
-		c, err := DecodeCoderRef(ref)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, c)
-	}
-	return ret, nil
-}
-
-// DecodeCoderRef extracts a usable coder from the encoded runner form.
-func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
-	switch c.Type {
-	case BytesType:
-		return coder.NewBytes(), nil
-
-	case VarIntType:
-		return coder.NewVarInt(), nil
-
-	case pairType:
-		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad pair: %+v", c)
-		}
-
-		key, err := DecodeCoderRef(c.Components[0])
-		if err != nil {
-			return nil, err
-		}
-
-		elm := c.Components[1]
-		kind := coder.KV
-		root := typex.KVType
-
-		isGBK := elm.Type == streamType
-		if isGBK {
-			elm = elm.Components[0]
-			kind = coder.CoGBK
-			root = typex.CoGBKType
-
-			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
-			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
-			// CoGBK has a first-class representation.
-
-			if refs, ok := isCoGBKList(elm); ok {
-				values, err := DecodeCoderRefs(refs)
-				if err != nil {
-					return nil, err
-				}
-
-				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
-				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
-			}
-		}
-
-		value, err := DecodeCoderRef(elm)
-		if err != nil {
-			return nil, err
-		}
-
-		t := typex.New(root, key.T, value.T)
-		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
-
-	case lengthPrefixType:
-		if len(c.Components) != 1 {
-			return nil, fmt.Errorf("bad length prefix: %+v", c)
-		}
-
-		var ref v1.CustomCoder
-		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
-			return nil, fmt.Errorf("base64 decode for %v failed: %v", c.Components[0].Type, err)
-		}
-		custom, err := decodeCustomCoder(&ref)
-		if err != nil {
-			return nil, err
-		}
-		t := typex.New(custom.Type)
-		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
-
-	case WindowedValueType:
-		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad windowed value: %+v", c)
-		}
-
-		elm, err := DecodeCoderRef(c.Components[0])
-		if err != nil {
-			return nil, err
-		}
-		w, err := decodeWindow(c.Components[1])
-		if err != nil {
-			return nil, err
-		}
-		t := typex.New(typex.WindowedValueType, elm.T)
-
-		return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: []*coder.Coder{elm}, Window: w}, nil
-
-	case streamType:
-		return nil, fmt.Errorf("stream must be pair value: %+v", c)
-
-	default:
-		return nil, fmt.Errorf("custom coders must be length prefixed: %+v", c)
-	}
-}
-
-func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
-	if ref.Type != lengthPrefixType {
-		return nil, false
-	}
-	ref2 := ref.Components[0]
-	if ref2.Type != cogbklistType {
-		return nil, false
-	}
-	return ref2.Components, true
-}
-
-// TODO(wcn): Windowing information isn't currently propagated through
-// our code. These methods will be used by other packages, so exporting
-// them now.
-
-// encodeWindow translates the preprocessed representation of a Beam coder
-// into the wire representation, capturing the underlying types used by
-// the coder.
-func encodeWindow(w *window.Window) (*CoderRef, error) {
-	switch w.Kind() {
-	case window.GlobalWindow:
-		return &CoderRef{Type: GlobalWindowType}, nil
-	default:
-		return nil, fmt.Errorf("bad window kind: %v", w.Kind())
-	}
-}
-
-// decodeWindow receives the wire representation of a Beam coder, extracting
-// the preprocessed representation, expanding all types used by the coder.
-func decodeWindow(w *CoderRef) (*window.Window, error) {
-	switch w.Type {
-	case GlobalWindowType:
-		return window.NewGlobalWindow(), nil
-	default:
-		return nil, fmt.Errorf("bad window: %v", w.Type)
 	}
 }

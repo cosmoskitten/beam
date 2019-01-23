@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -29,6 +27,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -52,7 +52,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   private SimplePushbackSideInputDoFnRunner(
-          DoFnRunner<InputT, OutputT> underlying,
+      DoFnRunner<InputT, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
     this.underlying = underlying;
@@ -98,8 +98,7 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       return false;
     }
     for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow =
-          view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+      BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }
@@ -108,8 +107,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-                      TimeDomain timeDomain) {
+  public void onTimer(
+      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
     underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
@@ -119,4 +118,3 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
     underlying.finishBundle();
   }
 }
-

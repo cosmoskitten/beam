@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyGoNature()
 applyDockerNature()
 
@@ -27,6 +27,11 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
 
+configurations {
+  sdkSourceTarball
+  sdkHarnessLauncher
+}
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -34,20 +39,36 @@ dependencies {
     build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
     test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
   }
+  sdkSourceTarball project(path: ":beam-sdks-python", configuration: "distConfig")
+}
+
+task copyDockerfileDependencies(type: Copy, dependsOn: build) {
+  from configurations.sdkSourceTarball
+  from file("./base_image_requirements.txt")
+  into "build/target"
+  if(configurations.sdkSourceTarball.isEmpty()) {
+    throw new StopExecutionException('sdk source tarball is empty');
+  }
 }
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/boot'
   build {
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
+    // Build for linux and mac.
+    targetPlatform = ['linux-amd64', 'darwin-amd64']
+    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
   }
 }
 
 docker {
   name containerImageName(name: "python")
-  files "./build/"
+  files "./build"
 }
+
+artifacts {
+  sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: build
+}
+
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn build
+dockerPrepare.dependsOn copyDockerfileDependencies

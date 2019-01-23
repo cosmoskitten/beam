@@ -15,13 +15,8 @@
 
 package beam
 
-func init() {
-	RegisterFunction(addFixedKeyFn)
-	RegisterFunction(dropKeyFn)
-	RegisterFunction(dropValueFn)
-	RegisterFunction(swapKVFn)
-	RegisterFunction(explodeFn)
-}
+//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,JSONDec,JSONEnc,ProtoEnc,ProtoDec,makePartitionFn,createFn
 
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
@@ -31,6 +26,12 @@ func init() {
 // awsio, etc. transformation based on the filename schema. Such wrappers would
 // look exactly like the more primitive sources/sinks, but be picked at
 // pipeline construction time.
+
+// NewPipelineWithRoot creates a new empty pipeline and its root scope.
+func NewPipelineWithRoot() (*Pipeline, Scope) {
+	p := NewPipeline()
+	return p, p.Root()
+}
 
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
@@ -83,12 +84,6 @@ func swapKVFn(x X, y Y) (Y, X) {
 
 // Explode is a PTransform that takes a single PCollection<[]A> and returns a
 // PCollection<A> containing all the elements for each incoming slice.
-//
-// Example of use:
-//
-//    d := top.Top(s, merged, 5, ...)    // PCollection<[]A>
-//    top5 := beam.Explode(s, d)
-//
 func Explode(s Scope, col PCollection) PCollection {
 	s = s.Scope("beam.Explode")
 	return ParDo(s, explodeFn, col)

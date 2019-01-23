@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package direct contains the direct runner for running single-bundle
+// pipelines in the current process. Useful for testing.
 package direct
 
 import (
@@ -34,6 +36,12 @@ func init() {
 
 // Execute runs the pipeline in-process.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
+	log.Info(ctx, "Executing pipeline with the direct runner.")
+
+	if !beam.Initialized() {
+		log.Warn(ctx, "Beam has not been initialized. Call beam.Init() before pipeline construction.")
+	}
+
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
 
@@ -45,8 +53,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return fmt.Errorf("translation failed: %v", err)
 	}
+	log.Info(ctx, plan)
 
-	if err = plan.Execute(ctx, "", nil); err != nil {
+	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
 		plan.Down(ctx) // ignore any teardown errors
 		return err
 	}
@@ -238,10 +247,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		return b.links[id], nil
 
 	case graph.Combine:
-		isPerKey := typex.IsCoGBK(edge.Input[0].From.Type())
 		usesKey := typex.IsKV(edge.Input[0].Type)
 
-		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, IsPerKey: isPerKey, UsesKey: usesKey, Out: out[0]}
+		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, UsesKey: usesKey, Out: out[0]}
 
 	case graph.CoGBK:
 		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
@@ -270,6 +278,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		for i := 0; i < len(edge.Input); i++ {
 			b.links[linkID{edge.ID(), i}] = u
 		}
+
+	case graph.WindowInto:
+		u = &exec.WindowInto{UID: b.idgen.New(), Fn: edge.WindowFn, Out: out[0]}
 
 	default:
 		return nil, fmt.Errorf("unexpected edge: %v", edge)

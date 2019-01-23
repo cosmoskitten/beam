@@ -17,12 +17,16 @@
 
 """iobase.RangeTracker implementations provided with Apache Beam.
 """
+from __future__ import absolute_import
+from __future__ import division
 
+import codecs
 import logging
 import math
 import threading
+from builtins import zip
 
-from six import integer_types
+from past.builtins import long
 
 from apache_beam.io import iobase
 
@@ -47,9 +51,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, integer_types)
+    assert isinstance(start, (int, long))
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, integer_types)
+      assert isinstance(end, (int, long))
 
     assert start <= end
 
@@ -85,17 +89,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
           'last-returned record [starting at %d]' %
           (record_start, self._last_record_start))
 
-    if split_point:
-      if (self._offset_of_last_split_point != -1 and
-          record_start == self._offset_of_last_split_point):
-        raise ValueError(
-            'Record at a split point has same offset as the previous split '
-            'point: %d' % record_start)
-    elif self._last_record_start == -1:
-      raise ValueError(
-          'The first record [starting at %d] must be at a split point' %
-          record_start)
-
     if (split_point and self._offset_of_last_split_point != -1 and
         record_start == self._offset_of_last_split_point):
       raise ValueError(
@@ -123,7 +116,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
-    assert isinstance(split_offset, integer_types)
+    assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         logging.debug('refusing to split %r at %d: stop position unspecified',
@@ -337,14 +330,14 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     """
     assert 0 <= fraction <= 1, fraction
     if start is None:
-      start = ''
+      start = b''
     if fraction == 1:
       return end
     elif fraction == 0:
       return start
     else:
       if not end:
-        common_prefix_len = len(start) - len(start.lstrip('\xFF'))
+        common_prefix_len = len(start) - len(start.lstrip(b'\xFF'))
       else:
         for ix, (s, e) in enumerate(zip(start, end)):
           if s != e:
@@ -355,8 +348,8 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       # Convert the relative precision of fraction (~53 bits) to an absolute
       # precision needed to represent values between start and end distinctly.
       prec = common_prefix_len + int(-math.log(fraction, 256)) + 7
-      istart = cls._string_to_int(start, prec)
-      iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+      istart = cls._bytestring_to_int(start, prec)
+      iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
       ikey = istart + int((iend - istart) * fraction)
       # Could be equal due to rounding.
       # Adjust to ensure we never return the actual start and end
@@ -365,7 +358,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
         ikey += 1
       elif ikey == iend:
         ikey -= 1
-      return cls._string_from_int(ikey, prec).rstrip('\0')
+      return cls._bytestring_from_int(ikey, prec).rstrip(b'\0')
 
   @classmethod
   def position_to_fraction(cls, key, start=None, end=None):
@@ -376,19 +369,19 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     if not key:
       return 0
     if start is None:
-      start = ''
+      start = b''
     prec = len(start) + 7
     if key.startswith(start):
       # Higher absolute precision needed for very small values of fixed
       # relative position.
-      prec = max(prec, len(key) - len(key[len(start):].strip('\0')) + 7)
-    istart = cls._string_to_int(start, prec)
-    ikey = cls._string_to_int(key, prec)
-    iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+      prec = max(prec, len(key) - len(key[len(start):].strip(b'\0')) + 7)
+    istart = cls._bytestring_to_int(start, prec)
+    ikey = cls._bytestring_to_int(key, prec)
+    iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
     return float(ikey - istart) / (iend - istart)
 
   @staticmethod
-  def _string_to_int(s, prec):
+  def _bytestring_to_int(s, prec):
     """
     Returns int(256**prec * f) where f is the fraction
     represented by interpreting '.' + s as a base-256
@@ -397,15 +390,15 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     if not s:
       return 0
     elif len(s) < prec:
-      s += '\0' * (prec - len(s))
+      s += b'\0' * (prec - len(s))
     else:
       s = s[:prec]
-    return int(s.encode('hex'), 16)
+    return int(codecs.encode(s, 'hex'), 16)
 
   @staticmethod
-  def _string_from_int(i, prec):
+  def _bytestring_from_int(i, prec):
     """
-    Inverse of _string_to_int.
+    Inverse of _bytestring_to_int.
     """
     h = '%x' % i
-    return ('0' * (2 * prec - len(h)) + h).decode('hex')
+    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')

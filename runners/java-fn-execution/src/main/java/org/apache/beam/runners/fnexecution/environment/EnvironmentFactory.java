@@ -15,23 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.fnexecution.environment;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.control.ControlClientPool;
+import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
+import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
+import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
+import org.apache.beam.sdk.fn.IdGenerator;
 
-/**
- * Manages access to {@link Environment environments} which communicate to an {@link
- * SdkHarnessClient}.
- */
+/** Creates {@link Environment environments} which communicate to an {@link SdkHarnessClient}. */
 public interface EnvironmentFactory {
-  /**
-   * Retrieve a handle to an active {@link Environment}. This may allocate resources if required.
-   *
-   * <p>TODO: Determine and document the owner of the returned environment. If the environment is
-   * owned by the manager, make the Manager {@link AutoCloseable}.
-   */
-  RemoteEnvironment getEnvironment(RunnerApi.Environment container) throws Exception;
+  /** Creates an active {@link Environment} and returns a handle to it. */
+  RemoteEnvironment createEnvironment(RunnerApi.Environment environment) throws Exception;
+
+  /** Provider for a {@link EnvironmentFactory} and {@link ServerFactory} for the environment. */
+  interface Provider {
+
+    /** Creates {@link EnvironmentFactory} for the provided GrpcServices. */
+    EnvironmentFactory createEnvironmentFactory(
+        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        ControlClientPool clientPool,
+        IdGenerator idGenerator);
+
+    /** Create the {@link ServerFactory} applicable to this environment. */
+    default ServerFactory getServerFactory() {
+      return ServerFactory.createDefault();
+    }
+  }
 }

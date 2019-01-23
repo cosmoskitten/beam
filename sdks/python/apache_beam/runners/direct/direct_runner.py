@@ -25,6 +25,7 @@ from __future__ import absolute_import
 
 import itertools
 import logging
+import time
 
 from google.protobuf import wrappers_pb2
 
@@ -32,7 +33,6 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal.util import ArgumentPlaceholder
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
@@ -45,6 +45,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
+from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
@@ -67,11 +68,11 @@ class SwitchingDirectRunner(PipelineRunner):
   implemented in the FnApiRunner.
   """
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     use_fnapi_runner = True
 
     # Streaming mode is not yet supported on the FnApiRunner.
-    if pipeline._options.view_as(StandardOptions).streaming:
+    if options.view_as(StandardOptions).streaming:
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
@@ -132,7 +133,7 @@ class SwitchingDirectRunner(PipelineRunner):
     else:
       runner = BundleBasedDirectRunner()
 
-    return runner.run_pipeline(pipeline)
+    return runner.run_pipeline(pipeline, options)
 
 
 # Type variables.
@@ -172,22 +173,6 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   def from_runner_api_parameter(payload, context):
     return _StreamingGroupAlsoByWindow(
         context.windowing_strategies.get_by_id(payload.value))
-
-
-class _DirectReadFromPubSub(PTransform):
-  def __init__(self, source):
-    self._source = source
-
-  def _infer_output_coder(self, unused_input_type=None,
-                          unused_input_coder=None):
-    return coders.BytesCoder()
-
-  def get_windowing(self, inputs):
-    return beam.Windowing(beam.window.GlobalWindows())
-
-  def expand(self, pvalue):
-    # This is handled as a native transform.
-    return PCollection(self.pipeline)
 
 
 def _get_transform_overrides(pipeline_options):
@@ -260,8 +245,72 @@ def _get_transform_overrides(pipeline_options):
   return overrides
 
 
+class _DirectReadFromPubSub(PTransform):
+  def __init__(self, source):
+    self._source = source
+
+  def _infer_output_coder(self, unused_input_type=None,
+                          unused_input_coder=None):
+    return coders.BytesCoder()
+
+  def get_windowing(self, inputs):
+    return beam.Windowing(beam.window.GlobalWindows())
+
+  def expand(self, pvalue):
+    # This is handled as a native transform.
+    return PCollection(self.pipeline)
+
+
+class _DirectWriteToPubSubFn(DoFn):
+  BUFFER_SIZE_ELEMENTS = 100
+  FLUSH_TIMEOUT_SECS = BUFFER_SIZE_ELEMENTS * 0.5
+
+  def __init__(self, sink):
+    self.project = sink.project
+    self.short_topic_name = sink.topic_name
+    self.id_label = sink.id_label
+    self.timestamp_attribute = sink.timestamp_attribute
+    self.with_attributes = sink.with_attributes
+
+    # TODO(BEAM-4275): Add support for id_label and timestamp_attribute.
+    if sink.id_label:
+      raise NotImplementedError('DirectRunner: id_label is not supported for '
+                                'PubSub writes')
+    if sink.timestamp_attribute:
+      raise NotImplementedError('DirectRunner: timestamp_attribute is not '
+                                'supported for PubSub writes')
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, elem):
+    self._buffer.append(elem)
+    if len(self._buffer) >= self.BUFFER_SIZE_ELEMENTS:
+      self._flush()
+
+  def finish_bundle(self):
+    self._flush()
+
+  def _flush(self):
+    from google.cloud import pubsub
+    pub_client = pubsub.PublisherClient()
+    topic = pub_client.topic_path(self.project, self.short_topic_name)
+
+    if self.with_attributes:
+      futures = [pub_client.publish(topic, elem.data, **elem.attributes)
+                 for elem in self._buffer]
+    else:
+      futures = [pub_client.publish(topic, elem)
+                 for elem in self._buffer]
+
+    timer_start = time.time()
+    for future in futures:
+      remaining = self.FLUSH_TIMEOUT_SECS - (time.time() - timer_start)
+      future.result(remaining)
+    self._buffer = []
+
+
 def _get_pubsub_transform_overrides(pipeline_options):
-  from google.cloud import pubsub
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
 
@@ -276,55 +325,25 @@ def _get_pubsub_transform_overrides(pipeline_options):
                         '(use the --streaming flag).')
       return _DirectReadFromPubSub(transform._source)
 
-  class WriteStringsToPubSubOverride(PTransformOverride):
+  class WriteToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
-      return isinstance(applied_ptransform.transform,
-                        beam_pubsub.WriteStringsToPubSub)
+      return isinstance(
+          applied_ptransform.transform,
+          (beam_pubsub.WriteToPubSub, beam_pubsub._WriteStringsToPubSub))
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception('PubSub I/O is only available in streaming mode '
                         '(use the --streaming flag).')
+      return beam.ParDo(_DirectWriteToPubSubFn(transform._sink))
 
-      class _DirectWriteToPubSub(beam.DoFn):
-        _topic = None
-
-        def __init__(self, project, topic_name):
-          self.project = project
-          self.topic_name = topic_name
-
-        def start_bundle(self):
-          if self._topic is None:
-            self._topic = pubsub.Client(project=self.project).topic(
-                self.topic_name)
-          self._buffer = []
-
-        def process(self, elem):
-          self._buffer.append(elem.encode('utf-8'))
-          if len(self._buffer) >= 100:
-            self._flush()
-
-        def finish_bundle(self):
-          self._flush()
-
-        def _flush(self):
-          if self._buffer:
-            with self._topic.batch() as batch:
-              for datum in self._buffer:
-                batch.publish(datum)
-            self._buffer = []
-
-      project = transform._sink.project
-      topic_name = transform._sink.topic_name
-      return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
-
-  return [ReadFromPubSubOverride(), WriteStringsToPubSubOverride()]
+  return [ReadFromPubSubOverride(), WriteToPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -340,7 +359,7 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.testing.test_stream import TestStream
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(pipeline.options))
+    pipeline.replace_all(_get_transform_overrides(options))
 
     # If the TestStream I/O is used, use a mock test clock.
     class _TestStreamUsageVisitor(PipelineVisitor):
@@ -357,14 +376,16 @@ class BundleBasedDirectRunner(PipelineRunner):
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
 
+    # TODO(BEAM-4274): Circular import runners-metrics. Requires refactoring.
+    from apache_beam.metrics.execution import MetricsEnvironment
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline._options,
-        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
+        options,
+        BundleFactory(stacked=options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,
@@ -408,11 +429,8 @@ class DirectPipelineResult(PipelineResult):
           'result.wait_until_finish() to wait for completion of pipeline '
           'execution.')
 
-  def _is_in_terminal_state(self):
-    return self._state is not PipelineState.RUNNING
-
   def wait_until_finish(self, duration=None):
-    if not self._is_in_terminal_state():
+    if not PipelineState.is_terminal(self.state):
       if duration:
         raise NotImplementedError(
             'DirectRunner does not support duration argument.')
@@ -429,3 +447,13 @@ class DirectPipelineResult(PipelineResult):
 
   def metrics(self):
     return self._evaluation_context.metrics()
+
+  def cancel(self):
+    """Shuts down pipeline workers.
+
+    For testing use only. Does not properly wait for pipeline workers to shut
+    down.
+    """
+    self._state = PipelineState.CANCELLING
+    self._executor.shutdown()
+    self._state = PipelineState.CANCELLED

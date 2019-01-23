@@ -16,21 +16,24 @@
 #
 """Utilities for ``FileSystem`` implementations."""
 
+from __future__ import absolute_import
+
 import abc
 import io
 import os
+from builtins import object
+
+from future.utils import with_metaclass
 
 __all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
            'PipeStream']
 
 
-class Downloader(object):
+class Downloader(with_metaclass(abc.ABCMeta, object)):
   """Download interface for a single file.
 
   Implementations should support random access reads.
   """
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractproperty
   def size(self):
@@ -52,10 +55,8 @@ class Downloader(object):
     """
 
 
-class Uploader(object):
+class Uploader(with_metaclass(abc.ABCMeta, object)):
   """Upload interface for a single file."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def put(self, data):
@@ -79,7 +80,7 @@ class Uploader(object):
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
 
-  def __init__(self, downloader, mode='r'):
+  def __init__(self, downloader, mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -160,7 +161,7 @@ class DownloaderStream(io.RawIOBase):
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
 
-  def __init__(self, uploader, mode='w'):
+  def __init__(self, uploader, mode='wb'):
     """Initializes the stream.
 
     Args:
@@ -213,7 +214,7 @@ class PipeStream(object):
     self.conn = recv_pipe
     self.closed = False
     self.position = 0
-    self.remaining = ''
+    self.remaining = b''
 
   def read(self, size):
     """Read data from the wrapped pipe connection.
@@ -238,7 +239,7 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    return ''.join(data_list)
+    return b''.join(data_list)
 
   def tell(self):
     """Tell the file's current offset.

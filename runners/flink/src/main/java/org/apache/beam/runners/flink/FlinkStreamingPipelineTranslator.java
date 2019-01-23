@@ -17,32 +17,36 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
-import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
+import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate
- * the user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a
- * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
- *
+ * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the
+ * user-provided {@link org.apache.beam.sdk.values.PCollection}-based job into a {@link
+ * org.apache.flink.streaming.api.datastream.DataStream} one.
  */
 class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
@@ -53,14 +57,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private int depth = 0;
 
-  private FlinkRunner flinkRunner;
-
-  public FlinkStreamingPipelineTranslator(
-      FlinkRunner flinkRunner,
-      StreamExecutionEnvironment env,
-      PipelineOptions options) {
+  public FlinkStreamingPipelineTranslator(StreamExecutionEnvironment env, PipelineOptions options) {
     this.streamingContext = new FlinkStreamingTranslationContext(env, options);
-    this.flinkRunner = flinkRunner;
   }
 
   @Override
@@ -156,47 +154,75 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   /**
-   * The interface that every Flink translator of a Beam operator should implement.
-   * This interface is for <b>streaming</b> jobs. For examples of such translators see
-   * {@link FlinkStreamingTransformTranslators}.
+   * The interface that every Flink translator of a Beam operator should implement. This interface
+   * is for <b>streaming</b> jobs. For examples of such translators see {@link
+   * FlinkStreamingTransformTranslators}.
    */
   abstract static class StreamTransformTranslator<T extends PTransform> {
 
-    /**
-     * Translate the given transform.
-     */
+    /** Translate the given transform. */
     abstract void translateNode(T transform, FlinkStreamingTranslationContext context);
 
-    /**
-     * Returns true iff this translator can translate the given transform.
-     */
+    /** Returns true iff this translator can translate the given transform. */
     boolean canTranslate(T transform, FlinkStreamingTranslationContext context) {
       return true;
     }
   }
 
-  /**
-   * A {@link PTransformOverrideFactory} that overrides a <a
-   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with {@link SplittableParDo}.
-   */
-  static class SplittableParDoOverrideFactory<InputT, OutputT>
+  @VisibleForTesting
+  static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
+          PCollection<UserT>,
+          WriteFilesResult<DestinationT>,
+          WriteFiles<UserT, DestinationT, OutputT>> {
+    FlinkPipelineOptions options;
+
+    StreamingShardedWriteFactory(PipelineOptions options) {
+      this.options = options.as(FlinkPipelineOptions.class);
+    }
+
     @Override
-    public PTransformReplacement<PCollection<InputT>, PCollectionTuple>
+    public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+                    PCollection<UserT>,
+                    WriteFilesResult<DestinationT>,
+                    WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          (SplittableParDo<InputT, OutputT, ?>) SplittableParDo.forAppliedParDo(transform));
+      // By default, if numShards is not set WriteFiles will produce one file per bundle. In
+      // streaming, there are large numbers of small bundles, resulting in many tiny files.
+      // Instead we pick parallelism * 2 to ensure full parallelism, but prevent too-many files.
+      Integer jobParallelism = options.getParallelism();
+
+      Preconditions.checkArgument(
+          jobParallelism > 0,
+          "Parallelism of a job should be greater than 0. Currently set: {}",
+          jobParallelism);
+      int numShards = jobParallelism * 2;
+
+      try {
+        List<PCollectionView<?>> sideInputs =
+            WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+        FileBasedSink sink = WriteFilesTranslation.getSink(transform);
+
+        @SuppressWarnings("unchecked")
+        WriteFiles<UserT, DestinationT, OutputT> replacement =
+            WriteFiles.to(sink).withSideInputs(sideInputs);
+        if (WriteFilesTranslation.isWindowedWrites(transform)) {
+          replacement = replacement.withWindowedWrites();
+        }
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            replacement.withNumShards(numShards));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
-      return ReplacementOutputs.tagged(outputs, newOutput);
+        Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+      return Collections.emptyMap();
     }
   }
 }

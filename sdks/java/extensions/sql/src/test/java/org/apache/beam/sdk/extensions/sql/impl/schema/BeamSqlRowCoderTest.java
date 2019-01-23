@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -31,33 +32,31 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-/**
- * Tests for BeamSqlRowCoder.
- */
+/** Tests for BeamSqlRowCoder. */
 public class BeamSqlRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    RelDataType relDataType = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
-        .builder()
-        .add("col_tinyint", SqlTypeName.TINYINT)
-        .add("col_smallint", SqlTypeName.SMALLINT)
-        .add("col_integer", SqlTypeName.INTEGER)
-        .add("col_bigint", SqlTypeName.BIGINT)
-        .add("col_float", SqlTypeName.FLOAT)
-        .add("col_double", SqlTypeName.DOUBLE)
-        .add("col_decimal", SqlTypeName.DECIMAL)
-        .add("col_string_varchar", SqlTypeName.VARCHAR)
-        .add("col_time", SqlTypeName.TIME)
-        .add("col_timestamp", SqlTypeName.TIMESTAMP)
-        .add("col_boolean", SqlTypeName.BOOLEAN)
-        .build();
+    RelDataType relDataType =
+        new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
+            .builder()
+            .add("col_tinyint", SqlTypeName.TINYINT)
+            .add("col_smallint", SqlTypeName.SMALLINT)
+            .add("col_integer", SqlTypeName.INTEGER)
+            .add("col_bigint", SqlTypeName.BIGINT)
+            .add("col_float", SqlTypeName.FLOAT)
+            .add("col_double", SqlTypeName.DOUBLE)
+            .add("col_decimal", SqlTypeName.DECIMAL)
+            .add("col_string_varchar", SqlTypeName.VARCHAR)
+            .add("col_time", SqlTypeName.TIME)
+            .add("col_timestamp", SqlTypeName.TIMESTAMP)
+            .add("col_boolean", SqlTypeName.BOOLEAN)
+            .build();
 
-    Schema beamSchema = CalciteUtils.toBeamSchema(relDataType);
+    Schema beamSchema = CalciteUtils.toSchema(relDataType);
 
     Row row =
-        Row
-            .withSchema(beamSchema)
+        Row.withSchema(beamSchema)
             .addValues(
                 Byte.valueOf("1"),
                 Short.valueOf("1"),
@@ -71,7 +70,9 @@ public class BeamSqlRowCoderTest {
                 DateTime.now(),
                 true)
             .build();
-    RowCoder coder = beamSchema.getRowCoder();
+    Coder<Row> coder =
+        SchemaCoder.of(
+            beamSchema, SerializableFunctions.identity(), SerializableFunctions.identity());
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

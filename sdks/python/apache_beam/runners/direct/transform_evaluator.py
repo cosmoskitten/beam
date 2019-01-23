@@ -20,8 +20,12 @@
 from __future__ import absolute_import
 
 import collections
+import logging
 import random
 import time
+from builtins import object
+
+from future.utils import iteritems
 
 import apache_beam.io as io
 from apache_beam import coders
@@ -35,6 +39,7 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
+from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
 from apache_beam.runners.direct.sdf_direct_runner import ProcessElements
 from apache_beam.runners.direct.sdf_direct_runner import ProcessFn
 from apache_beam.runners.direct.sdf_direct_runner import SDFProcessElementInvoker
@@ -50,6 +55,8 @@ from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
+from apache_beam.transforms.userstate import get_dofn_specs
+from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import TypeCheckError
@@ -89,7 +96,7 @@ class TransformEvaluatorRegistry(object):
 
   def get_evaluator(
       self, applied_ptransform, input_committed_bundle,
-      side_inputs, scoped_metrics_container):
+      side_inputs):
     """Returns a TransformEvaluator suitable for processing given inputs."""
     assert applied_ptransform
     assert bool(applied_ptransform.side_inputs) == bool(side_inputs)
@@ -106,8 +113,7 @@ class TransformEvaluatorRegistry(object):
           'Execution of [%s] not implemented in runner %s.' % (
               type(applied_ptransform.transform), self))
     return evaluator(self._evaluation_context, applied_ptransform,
-                     input_committed_bundle, side_inputs,
-                     scoped_metrics_container)
+                     input_committed_bundle, side_inputs)
 
   def get_root_bundle_provider(self, applied_ptransform):
     provider_cls = None
@@ -140,11 +146,16 @@ class TransformEvaluatorRegistry(object):
     Returns:
       True if executor should execute applied_ptransform serially.
     """
-    return isinstance(applied_ptransform.transform,
-                      (core._GroupByKeyOnly,
-                       _StreamingGroupByKeyOnly,
-                       _StreamingGroupAlsoByWindow,
-                       _NativeWrite))
+    if isinstance(applied_ptransform.transform,
+                  (core._GroupByKeyOnly,
+                   _StreamingGroupByKeyOnly,
+                   _StreamingGroupAlsoByWindow,
+                   _NativeWrite)):
+      return True
+    elif (isinstance(applied_ptransform.transform, core.ParDo) and
+          is_stateful_dofn(applied_ptransform.transform.dofn)):
+      return True
+    return False
 
 
 class RootBundleProvider(object):
@@ -189,7 +200,7 @@ class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -197,7 +208,7 @@ class _TransformEvaluator(object):
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
         applied_ptransform)
-    self.scoped_metrics_container = scoped_metrics_container
+    self._step_context = self._execution_context.get_step_context()
 
   def _expand_outputs(self):
     outputs = set()
@@ -251,7 +262,7 @@ class _TransformEvaluator(object):
     timer and passes it to process_element().  Evaluator subclasses which
     desire different timer delivery semantics can override process_timer().
     """
-    state = self.step_context.get_keyed_state(timer_firing.encoded_key)
+    state = self._step_context.get_keyed_state(timer_firing.encoded_key)
     state.clear_timer(
         timer_firing.window, timer_firing.name, timer_firing.time_domain)
     self.process_timer(timer_firing)
@@ -265,7 +276,7 @@ class _TransformEvaluator(object):
 
   def process_element(self, element):
     """Processes a new element as part of the current bundle."""
-    raise NotImplementedError('%s do not process elements.', type(self))
+    raise NotImplementedError('%s do not process elements.' % type(self))
 
   def finish_bundle(self):
     """Finishes the bundle and produces output."""
@@ -279,13 +290,13 @@ class _BoundedReadEvaluator(_TransformEvaluator):
   MAX_ELEMENT_PER_BUNDLE = 1000
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
     super(_BoundedReadEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def finish_bundle(self):
     assert len(self._outputs) == 1
@@ -314,12 +325,12 @@ class _TestStreamEvaluator(_TransformEvaluator):
   """TransformEvaluator for the TestStream transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     self.test_stream = applied_ptransform.transform
     super(_TestStreamEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     self.current_index = -1
@@ -366,50 +377,67 @@ class _TestStreamEvaluator(_TransformEvaluator):
 
 
 class _PubSubSubscriptionWrapper(object):
-  """Wrapper for garbage-collecting temporary PubSub subscriptions."""
+  """Wrapper for managing temporary PubSub subscriptions."""
 
-  def __init__(self, subscription, should_cleanup):
-    self.subscription = subscription
-    self.should_cleanup = should_cleanup
+  def __init__(self, project, short_topic_name, short_sub_name):
+    """Initialize subscription wrapper.
+
+    If sub_name is None, will create a temporary subscription to topic_name.
+
+    Args:
+      project: GCP project name for topic and subscription. May be None.
+        Required if sub_name is None.
+      short_topic_name: Valid topic name without
+        'projects/{project}/topics/' prefix. May be None.
+        Required if sub_name is None.
+      short_sub_name: Valid subscription name without
+        'projects/{project}/subscriptions/' prefix. May be None.
+    """
+    from google.cloud import pubsub
+    self.sub_client = pubsub.SubscriberClient()
+
+    if short_sub_name is None:
+      self.sub_name = self.sub_client.subscription_path(
+          project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+      topic_name = self.sub_client.topic_path(project, short_topic_name)
+      self.sub_client.create_subscription(self.sub_name, topic_name)
+      self._should_cleanup = True
+    else:
+      self.sub_name = self.sub_client.subscription_path(project, short_sub_name)
+      self._should_cleanup = False
 
   def __del__(self):
-    if self.should_cleanup:
-      self.subscription.delete()
+    if self._should_cleanup:
+      self.sub_client.delete_subscription(self.sub_name)
 
 
 class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
+  # A mapping of transform to _PubSubSubscriptionWrapper.
   _subscription_cache = {}
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_PubSubReadEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     self.source = self._applied_ptransform.transform._source
-    self._subscription = _PubSubReadEvaluator.get_subscription(
+    if self.source.id_label:
+      raise NotImplementedError(
+          'DirectRunner: id_label is not supported for PubSub reads')
+    self._sub_name = _PubSubReadEvaluator.get_subscription(
         self._applied_ptransform, self.source.project, self.source.topic_name,
         self.source.subscription_name)
 
   @classmethod
-  def get_subscription(cls, transform, project, topic, subscription_name):
+  def get_subscription(cls, transform, project, topic, short_sub_name):
     if transform not in cls._subscription_cache:
-      from google.cloud import pubsub
-      should_create = not subscription_name
-      if should_create:
-        subscription_name = 'beam_%d_%x' % (
-            int(time.time()), random.randrange(1 << 32))
-      wrapper = _PubSubSubscriptionWrapper(
-          pubsub.Client(project=project).topic(topic).subscription(
-              subscription_name),
-          should_create)
-      if should_create:
-        wrapper.subscription.create()
+      wrapper = _PubSubSubscriptionWrapper(project, topic, short_sub_name)
       cls._subscription_cache[transform] = wrapper
-    return cls._subscription_cache[transform].subscription
+    return cls._subscription_cache[transform].sub_name
 
   def start_bundle(self):
     pass
@@ -424,30 +452,34 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     # evaluator fails with an exception before emitting a bundle. However,
     # the DirectRunner currently doesn't retry work items anyway, so the
     # pipeline would enter an inconsistent state on any error.
-    with pubsub.subscription.AutoAck(
-        self._subscription, return_immediately=True,
-        max_messages=10) as results:
-      def _get_element(message):
-        parsed_message = PubsubMessage._from_message(message)
-        if timestamp_attribute:
-          try:
-            rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
-          except KeyError as e:
-            raise KeyError('Timestamp attribute not found: %s' % e)
-          try:
-            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
-          except ValueError:
-            try:
-              timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
-            except ValueError as e:
-              raise ValueError('Bad timestamp value: %s' % e)
-        else:
-          timestamp = Timestamp.from_rfc3339(message.service_timestamp)
+    sub_client = pubsub.SubscriberClient()
+    response = sub_client.pull(self._sub_name, max_messages=10,
+                               return_immediately=True)
 
-        return timestamp, parsed_message
+    def _get_element(message):
+      parsed_message = PubsubMessage._from_message(message)
+      if (timestamp_attribute and
+          timestamp_attribute in parsed_message.attributes):
+        rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
+        try:
+          timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+        except ValueError:
+          try:
+            timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+          except ValueError as e:
+            raise ValueError('Bad timestamp value: %s' % e)
+      else:
+        timestamp = Timestamp(message.publish_time.seconds,
+                              message.publish_time.nanos // 1000)
 
-      return [_get_element(message)
-              for unused_ack_id, message in results.items()]
+      return timestamp, parsed_message
+
+    results = [_get_element(rm.message) for rm in response.received_messages]
+    ack_ids = [rm.ack_id for rm in response.received_messages]
+    if ack_ids:
+      sub_client.acknowledge(self._sub_name, ack_ids)
+
+    return results
 
   def finish_bundle(self):
     data = self._read_from_pubsub(self.source.timestamp_attribute)
@@ -459,7 +491,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         if self.source.with_attributes:
           element = message
         else:
-          element = message.payload
+          element = message.data
         bundle.output(
             GlobalWindows.windowed_value(element, timestamp=timestamp))
       bundles = [bundle]
@@ -481,11 +513,11 @@ class _FlattenEvaluator(_TransformEvaluator):
   """TransformEvaluator for Flatten transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_FlattenEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
@@ -534,11 +566,11 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container,
+               input_committed_bundle, side_inputs,
                perform_dofn_pickle_test=True):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
     # This is a workaround for SDF implementation. SDF implementation adds state
     # to the SDF that is not picklable.
     self._perform_dofn_pickle_test = perform_dofn_pickle_test
@@ -563,6 +595,22 @@ class _ParDoEvaluator(_TransformEvaluator):
     args = transform.args if hasattr(transform, 'args') else []
     kwargs = transform.kwargs if hasattr(transform, 'kwargs') else {}
 
+    self.user_state_context = None
+    self.user_timer_map = {}
+    if is_stateful_dofn(dofn):
+      kv_type_hint = self._applied_ptransform.inputs[0].element_type
+      if kv_type_hint and kv_type_hint != typehints.Any:
+        coder = coders.registry.get_coder(kv_type_hint)
+        self.key_coder = coder.key_coder()
+      else:
+        self.key_coder = coders.registry.get_coder(typehints.Any)
+
+      self.user_state_context = DirectUserStateContext(
+          self._step_context, dofn, self.key_coder)
+      _, all_timer_specs = get_dofn_specs(dofn)
+      for timer_spec in all_timer_specs:
+        self.user_timer_map['user/%s' % timer_spec.name] = timer_spec
+
     self.runner = DoFnRunner(
         dofn, args, kwargs,
         self._side_inputs,
@@ -570,16 +618,26 @@ class _ParDoEvaluator(_TransformEvaluator):
         tagged_receivers=self._tagged_receivers,
         step_name=self._applied_ptransform.full_label,
         state=DoFnState(self._counter_factory),
-        scoped_metrics_container=self.scoped_metrics_container)
+        user_state_context=self.user_state_context)
     self.runner.start()
+
+  def process_timer(self, timer_firing):
+    if timer_firing.name not in self.user_timer_map:
+      logging.warning('Unknown timer fired: %s', timer_firing)
+    timer_spec = self.user_timer_map[timer_firing.name]
+    self.runner.process_user_timer(
+        timer_spec, self.key_coder.decode(timer_firing.encoded_key),
+        timer_firing.window, timer_firing.timestamp)
 
   def process_element(self, element):
     self.runner.process(element)
 
   def finish_bundle(self):
     self.runner.finish()
-    bundles = self._tagged_receivers.values()
+    bundles = list(self._tagged_receivers.values())
     result_counters = self._counter_factory.get_counters()
+    if self.user_state_context:
+      self.user_state_context.commit()
     return TransformResult(
         self, bundles, [], result_counters, None)
 
@@ -592,19 +650,18 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   COMPLETION_TAG = _CombiningValueStateTag('completed', any)
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_GroupByKeyOnlyEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    self.step_context = self._execution_context.get_step_context()
-    self.global_state = self.step_context.get_keyed_state(None)
+    self.global_state = self._step_context.get_keyed_state(None)
 
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
@@ -629,7 +686,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         and len(element.value) == 2):
       k, v = element.value
       encoded_k = self.key_coder.encode(k)
-      state = self.step_context.get_keyed_state(encoded_k)
+      state = self._step_context.get_keyed_state(encoded_k)
       state.add_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG, v)
     else:
       raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
@@ -647,12 +704,12 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         gbk_result = []
         # TODO(ccy): perhaps we can clean this up to not use this
         # internal attribute of the DirectStepContext.
-        for encoded_k in self.step_context.existing_keyed_state:
+        for encoded_k in self._step_context.existing_keyed_state:
           # Ignore global state.
           if encoded_k is None:
             continue
           k = self.key_coder.decode(encoded_k)
-          state = self.step_context.get_keyed_state(encoded_k)
+          state = self._step_context.get_keyed_state(encoded_k)
           vs = state.get_state(None, _GroupByKeyOnlyEvaluator.ELEMENTS_TAG)
           gbk_result.append(GlobalWindows.windowed_value((k, vs)))
 
@@ -687,11 +744,11 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   MAX_ELEMENT_PER_BUNDLE = None
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_StreamingGroupByKeyOnlyEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     self.gbk_items = collections.defaultdict(list)
@@ -719,7 +776,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in self.gbk_items.iteritems():
+    for encoded_k, vs in iteritems(self.gbk_items):
       if not bundle:
         bundle = self._evaluation_context.create_bundle(
             self.output_pcollection)
@@ -739,16 +796,15 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   """
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_StreamingGroupAlsoByWindowEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
-    self.step_context = self._execution_context.get_step_context()
     self.driver = create_trigger_driver(
         self._applied_ptransform.transform.windowing,
         clock=self._evaluation_context._watermark_manager._clock)
@@ -768,7 +824,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     encoded_k, timer_firings, vs = (
         kwi.encoded_key, kwi.timer_firings, kwi.elements)
     k = self.key_coder.decode(encoded_k)
-    state = self.step_context.get_keyed_state(encoded_k)
+    state = self._step_context.get_keyed_state(encoded_k)
 
     for timer_firing in timer_firings:
       for wvalue in self.driver.process_timer(
@@ -798,11 +854,11 @@ class _NativeWriteEvaluator(_TransformEvaluator):
   ELEMENTS_TAG = _ListStateTag('elements')
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     assert not side_inputs
     super(_NativeWriteEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     assert applied_ptransform.transform.sink
     self._sink = applied_ptransform.transform.sink
@@ -818,8 +874,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
             == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
-    self.step_context = self._execution_context.get_step_context()
-    self.global_state = self.step_context.get_keyed_state(None)
+    self.global_state = self._step_context.get_keyed_state(None)
 
   def process_timer(self, timer_firing):
     # We do not need to emit a KeyedWorkItem to process_element().
@@ -867,10 +922,10 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
   DEFAULT_MAX_DURATION = 1
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
+               input_committed_bundle, side_inputs):
     super(_ProcessElementsEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
+        side_inputs)
 
     process_elements_transform = applied_ptransform.transform
     assert isinstance(process_elements_transform, ProcessElements)
@@ -884,8 +939,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     assert isinstance(self._process_fn, ProcessFn)
 
-    self.step_context = self._execution_context.get_step_context()
-    self._process_fn.step_context = self.step_context
+    self._process_fn.step_context = self._step_context
 
     process_element_invoker = (
         SDFProcessElementInvoker(
@@ -895,7 +949,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     self._par_do_evaluator = _ParDoEvaluator(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container, perform_dofn_pickle_test=False)
+        side_inputs, perform_dofn_pickle_test=False)
     self.keyed_holds = {}
 
   def start_bundle(self):
@@ -916,7 +970,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
     self._par_do_evaluator.process_element(element)
 
-    state = self.step_context.get_keyed_state(key)
+    state = self._step_context.get_keyed_state(key)
     self.keyed_holds[key] = state.get_state(
         window, self._process_fn.watermark_hold_tag)
 

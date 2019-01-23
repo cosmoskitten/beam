@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
@@ -70,7 +70,8 @@ public class PrepareWrite<T, DestinationT>
                     checkArgument(
                         tableRow != null,
                         "formatFunction may not return null, but %s returned null on element %s",
-                        formatFunction, context.element());
+                        formatFunction,
+                        context.element());
                     context.output(KV.of(tableDestination, tableRow));
                   }
                 })

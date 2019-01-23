@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sorter;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,6 +29,7 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -42,7 +42,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 /** Does an external sort of the provided values using Hadoop's {@link SequenceFile}. */
 class ExternalSorter implements Sorter {
-  private Options options;
+  private final Options options;
 
   /** Whether {@link #sort()} was already called. */
   private boolean sortCalled = false;
@@ -170,6 +170,7 @@ class ExternalSorter implements Sorter {
 
   /** An {@link Iterable} producing the iterators over sorted data. */
   private class SortedRecordsIterable implements Iterable<KV<byte[], byte[]>> {
+    @Nonnull
     @Override
     public Iterator<KV<byte[], byte[]>> iterator() {
       return new SortedRecordsIterator();
@@ -181,7 +182,7 @@ class ExternalSorter implements Sorter {
     private RawKeyValueIterator iterator;
 
     /** Next {@link KV} to return from {@link #next()}. */
-    private KV<byte[], byte[]> nextKV = null;
+    private KV<byte[], byte[]> nextKV;
 
     SortedRecordsIterator() {
       try {

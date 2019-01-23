@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,8 +34,7 @@ public abstract class SplittableProcessElementInvoker<
     InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
-    @Nullable
-    private final RestrictionT residualRestriction;
+    @Nullable private final RestrictionT residualRestriction;
     private final DoFn.ProcessContinuation continuation;
     private final @Nullable Instant futureOutputWatermark;
 
@@ -53,8 +52,8 @@ public abstract class SplittableProcessElementInvoker<
 
     /**
      * Can be {@code null} only if {@link #getContinuation} specifies the call should not resume.
-     * However, the converse is not true: this can be non-null even if {@link #getContinuation}
-     * is {@link DoFn.ProcessContinuation#stop()}.
+     * However, the converse is not true: this can be non-null even if {@link #getContinuation} is
+     * {@link DoFn.ProcessContinuation#stop()}.
      */
     @Nullable
     public RestrictionT getResidualRestriction() {

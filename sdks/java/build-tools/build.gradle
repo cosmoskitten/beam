@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyJavaNature(exportJavadoc: false)
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"

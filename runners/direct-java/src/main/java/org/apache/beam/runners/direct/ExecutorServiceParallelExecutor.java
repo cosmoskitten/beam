@@ -17,14 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.base.Optional;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -44,7 +36,16 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -55,7 +56,8 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 final class ExecutorServiceParallelExecutor
-    implements PipelineExecutor, BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
+    implements PipelineExecutor,
+        BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -71,23 +73,28 @@ final class ExecutorServiceParallelExecutor
 
   private final QueueMessageReceiver visibleUpdates;
 
+  private final ExecutorService metricsExecutor;
+
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     return new ExecutorServiceParallelExecutor(
-        targetParallelism, registry, transformEnforcements, context);
+        targetParallelism, registry, transformEnforcements, context, metricsExecutor);
   }
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       TransformEvaluatorRegistry registry,
       Map<String, Collection<ModelEnforcementFactory>> transformEnforcements,
-      EvaluationContext context) {
+      EvaluationContext context,
+      ExecutorService metricsExecutor) {
     this.targetParallelism = targetParallelism;
+    this.metricsExecutor = metricsExecutor;
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
     this.executorService =
@@ -135,6 +142,8 @@ final class ExecutorServiceParallelExecutor
   }
 
   @Override
+  // TODO: [BEAM-4563] Pass Future back to consumer to check for async errors
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
     ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
@@ -299,16 +308,25 @@ final class ExecutorServiceParallelExecutor
       errors.add(re);
     }
     try {
+      metricsExecutor.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
       registry.cleanup();
     } catch (final Exception e) {
       errors.add(e);
     }
     pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     if (!errors.isEmpty()) {
-      final IllegalStateException exception = new IllegalStateException(
-        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
-        + errors.stream().map(Exception::getMessage)
-          .collect(Collectors.joining("\n- ", "- ", "")));
+      final IllegalStateException exception =
+          new IllegalStateException(
+              "Error"
+                  + (errors.size() == 1 ? "" : "s")
+                  + " during executor shutdown:\n"
+                  + errors.stream()
+                      .map(Exception::getMessage)
+                      .collect(Collectors.joining("\n- ", "- ", "")));
       visibleUpdates.failed(exception);
       throw exception;
     }
@@ -372,9 +390,7 @@ final class ExecutorServiceParallelExecutor
       updates.offer(VisibleExecutorUpdate.finished());
     }
 
-    /**
-     * Try to get the next unconsumed message in this {@link QueueMessageReceiver}.
-     */
+    /** Try to get the next unconsumed message in this {@link QueueMessageReceiver}. */
     @Nullable
     private VisibleExecutorUpdate tryNext(Duration timeout) throws InterruptedException {
       return updates.poll(timeout.getMillis(), TimeUnit.MILLISECONDS);

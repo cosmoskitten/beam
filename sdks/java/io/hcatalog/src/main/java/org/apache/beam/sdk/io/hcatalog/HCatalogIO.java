@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.io.hcatalog;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * optional parameters are database &amp; filter For instance:
  *
  * <pre>{@code
- * Map<String, String> configProperties = new HashMap<String, String>();
+ * Map<String, String> configProperties = new HashMap<>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
@@ -92,12 +92,12 @@ import org.slf4j.LoggerFactory;
  * beforehand, the transform does not create a new table if it does not exist For instance:
  *
  * <pre>{@code
- * Map<String, String> configProperties = new HashMap<String, String>();
+ * Map<String, String> configProperties = new HashMap<>();
  * configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
  *
  * pipeline
  *   .apply(...)
- *   .apply(HiveIO.write()
+ *   .apply(HCatalogIO.write()
  *       .withConfigProperties(configProperties)
  *       .withDatabase("default") //optional, assumes default if none specified
  *       .withTable("employee")
@@ -129,22 +129,40 @@ public class HCatalogIO {
   @VisibleForTesting
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
-    @Nullable abstract Map<String, String> getConfigProperties();
-    @Nullable abstract String getDatabase();
-    @Nullable abstract String getTable();
-    @Nullable abstract String getFilter();
-    @Nullable abstract ReaderContext getContext();
-    @Nullable abstract Integer getSplitId();
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @Nullable
+    abstract String getDatabase();
+
+    @Nullable
+    abstract String getTable();
+
+    @Nullable
+    abstract String getFilter();
+
+    @Nullable
+    abstract ReaderContext getContext();
+
+    @Nullable
+    abstract Integer getSplitId();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfigProperties(Map<String, String> configProperties);
+
       abstract Builder setDatabase(String database);
+
       abstract Builder setTable(String table);
+
       abstract Builder setFilter(String filter);
+
       abstract Builder setSplitId(Integer splitId);
+
       abstract Builder setContext(ReaderContext context);
+
       abstract Read build();
     }
 
@@ -258,8 +276,8 @@ public class HCatalogIO {
         desiredSplitCount = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
       }
       ReaderContext readerContext = getReaderContext(desiredSplitCount);
-      //process the splits returned by native API
-      //this could be different from 'desiredSplitCount' calculated above
+      // process the splits returned by native API
+      // this could be different from 'desiredSplitCount' calculated above
       LOG.info(
           "Splitting into bundles of {} bytes: "
               + "estimated size {}, desired split count {}, actual split count {}",
@@ -340,20 +358,34 @@ public class HCatalogIO {
   /** A {@link PTransform} to write to a HCatalog managed source. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HCatRecord>, PDone> {
-    @Nullable abstract Map<String, String> getConfigProperties();
-    @Nullable abstract String getDatabase();
-    @Nullable abstract String getTable();
-    @Nullable abstract Map<String, String> getPartition();
+    @Nullable
+    abstract Map<String, String> getConfigProperties();
+
+    @Nullable
+    abstract String getDatabase();
+
+    @Nullable
+    abstract String getTable();
+
+    @Nullable
+    abstract Map<String, String> getPartition();
+
     abstract long getBatchSize();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfigProperties(Map<String, String> configProperties);
+
       abstract Builder setDatabase(String database);
+
       abstract Builder setTable(String table);
+
       abstract Builder setPartition(Map<String, String> partition);
+
       abstract Builder setBatchSize(long batchSize);
+
       abstract Write build();
     }
 
@@ -454,7 +486,7 @@ public class HCatalogIO {
           masterWriter.commit(writerContext);
         } catch (HCatException e) {
           LOG.error("Exception in flush - write/commit data to Hive", e);
-          //abort on exception
+          // abort on exception
           masterWriter.abort(writerContext);
           throw e;
         } finally {

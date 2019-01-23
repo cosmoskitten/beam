@@ -23,10 +23,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
@@ -42,6 +38,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,6 +142,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
    */
+  @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
   private boolean waitForStreamingJobTermination(
       final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     // In streaming, there are infinite retries, so rather than timeout
@@ -180,9 +181,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /**
-   * Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise.
-   */
+  /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */
   private boolean waitForBatchJobTermination(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     {
@@ -318,14 +317,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
-    private final StringBuffer errorMessage;
+    private final StringBuilder errorMessage;
     private volatile boolean hasSeenError;
 
     private ErrorMonitorMessagesHandler(
         DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
-      this.errorMessage = new StringBuffer();
+      this.errorMessage = new StringBuilder();
       this.hasSeenError = false;
     }
 

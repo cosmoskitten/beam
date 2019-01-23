@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.ListMultimap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /**
  * Methods for interacting with the underlying structure of a {@link Pipeline} that is being
@@ -48,8 +48,7 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
       ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers,
       Set<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames) {
-    return new DirectGraph(
-        producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
+    return new DirectGraph(producers, viewWriters, perElementConsumers, rootTransforms, stepNames);
   }
 
   private DirectGraph(
@@ -82,10 +81,10 @@ class DirectGraph implements ExecutableGraph<AppliedPTransform<?, ?, ?>, PValue>
   }
 
   @Override
-  public Collection<PValue> getProduced(AppliedPTransform<?, ?, ?> toRefresh) {
+  public Collection<PValue> getProduced(AppliedPTransform<?, ?, ?> producer) {
     // TODO: This must only be called on primitive transforms; composites should return empty
     // values.
-    return toRefresh.getOutputs().values();
+    return producer.getOutputs().values();
   }
 
   @Override

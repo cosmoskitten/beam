@@ -28,14 +28,14 @@ func TestMultiplex(t *testing.T) {
 	b := &CaptureNode{UID: 2}
 	c := &CaptureNode{UID: 3}
 	multiplex := &Multiplex{UID: 4, Out: []Node{a, b, c}}
-	in := &FixedRoot{UID: 5, Elements: makeValues(1, 2, 3), Out: multiplex}
+	in := &FixedRoot{UID: 5, Elements: makeInput(1, 2, 3), Out: multiplex}
 
 	p, err := NewPlan("a", []Unit{a, b, c, multiplex, in})
 	if err != nil {
 		t.Fatalf("failed to construct plan: %v", err)
 	}
 
-	if err := p.Execute(context.Background(), "1", nil); err != nil {
+	if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
 	if err := p.Down(context.Background()); err != nil {

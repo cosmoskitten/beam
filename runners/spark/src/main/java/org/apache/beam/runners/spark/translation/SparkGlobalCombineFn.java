@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,11 +34,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /**
- * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn}
- * with a {@link CombineWithContext.Context} for the SparkRunner.
+ * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn} with a {@link
+ * CombineWithContext.Context} for the SparkRunner.
  */
 public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
   private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
@@ -57,9 +56,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
 
   /**
    * Implements Spark's zeroValue function in:
-   * <p>
-   * {@link org.apache.spark.api.java.JavaRDD#aggregate}.
-   * </p>
+   *
+   * <p>{@link org.apache.spark.api.java.JavaRDD#aggregate}.
    */
   Iterable<WindowedValue<AccumT>> zeroValue() {
     return Lists.newArrayList();
@@ -73,15 +71,15 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
     WindowFn<?, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
-    //--- inputs iterator, by window order.
+    // --- inputs iterator, by window order.
     final Iterator<WindowedValue<InputT>> iterator = sortedInputs.iterator();
     WindowedValue<InputT> currentInput = iterator.next();
     BoundedWindow currentWindow = Iterables.getFirst(currentInput.getWindows(), null);
 
     // first create the accumulator and accumulate first input.
     AccumT accumulator = combineFn.createAccumulator(ctxtForInput(currentInput));
-    accumulator = combineFn.addInput(accumulator, currentInput.getValue(),
-        ctxtForInput(currentInput));
+    accumulator =
+        combineFn.addInput(accumulator, currentInput.getValue(), ctxtForInput(currentInput));
 
     // keep track of the timestamps assigned by the TimestampCombiner.
     Instant windowTimestamp =
@@ -101,8 +99,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
       WindowedValue<InputT> nextValue = iterator.next();
       BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
 
-      boolean mergingAndIntersecting = merging
-          && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
+      boolean mergingAndIntersecting =
+          merging && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
 
       if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
         if (mergingAndIntersecting) {
@@ -110,8 +108,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
           currentWindow = merge((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
         }
         // keep accumulating and carry on ;-)
-        accumulator = combineFn.addInput(accumulator, nextValue.getValue(),
-            ctxtForInput(nextValue));
+        accumulator =
+            combineFn.addInput(accumulator, nextValue.getValue(), ctxtForInput(nextValue));
         windowTimestamp =
             timestampCombiner.merge(
                 currentWindow,
@@ -122,15 +120,16 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
       } else {
         // moving to the next window, first add the current accumulation to output
         // and initialize the accumulator.
-        output.add(WindowedValue.of(accumulator, windowTimestamp, currentWindow,
-            PaneInfo.NO_FIRING));
+        output.add(
+            WindowedValue.of(accumulator, windowTimestamp, currentWindow, PaneInfo.NO_FIRING));
         // re-init accumulator, window and timestamp.
         accumulator = combineFn.createAccumulator(ctxtForInput(nextValue));
-        accumulator = combineFn.addInput(accumulator, nextValue.getValue(),
-            ctxtForInput(nextValue));
+        accumulator =
+            combineFn.addInput(accumulator, nextValue.getValue(), ctxtForInput(nextValue));
         currentWindow = nextWindow;
-        windowTimestamp = timestampCombiner.assign(currentWindow,
-            windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
+        windowTimestamp =
+            timestampCombiner.assign(
+                currentWindow, windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
       }
     }
 
@@ -142,23 +141,21 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
 
   /**
    * Implement Spark's seqOp function in:
-   * <p>
-   * {@link org.apache.spark.api.java.JavaRDD#aggregate}.
-   * </p>
+   *
+   * <p>{@link org.apache.spark.api.java.JavaRDD#aggregate}.
    */
-  Iterable<WindowedValue<AccumT>> seqOp(Iterable<WindowedValue<AccumT>> accum,
-                                        WindowedValue<InputT> input) {
+  Iterable<WindowedValue<AccumT>> seqOp(
+      Iterable<WindowedValue<AccumT>> accum, WindowedValue<InputT> input) {
     return combOp(accum, createAccumulator(input));
   }
 
   /**
    * Implement Spark's combOp function in:
-   * <p>
-   * {@link org.apache.spark.api.java.JavaRDD#aggregate}.
-   * </p>
+   *
+   * <p>{@link org.apache.spark.api.java.JavaRDD#aggregate}.
    */
-  Iterable<WindowedValue<AccumT>> combOp(Iterable<WindowedValue<AccumT>> a1,
-                                         Iterable<WindowedValue<AccumT>> a2) {
+  Iterable<WindowedValue<AccumT>> combOp(
+      Iterable<WindowedValue<AccumT>> a1, Iterable<WindowedValue<AccumT>> a2) {
 
     // concatenate accumulators.
     Iterable<WindowedValue<AccumT>> accumulators = Iterables.concat(a1, a2);
@@ -173,7 +170,7 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     @SuppressWarnings("unchecked")
     TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
-    //--- accumulators iterator, by window order.
+    // --- accumulators iterator, by window order.
     final Iterator<WindowedValue<AccumT>> iterator = sortedAccumulators.iterator();
 
     // get the first accumulator and assign it to the current window's accumulators.
@@ -198,8 +195,8 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
       WindowedValue<AccumT> nextValue = iterator.next();
       BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
 
-      boolean mergingAndIntersecting = merging
-          && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
+      boolean mergingAndIntersecting =
+          merging && isIntersecting((IntervalWindow) currentWindow, (IntervalWindow) nextWindow);
 
       if (mergingAndIntersecting || nextWindow.equals(currentWindow)) {
         if (mergingAndIntersecting) {
@@ -220,11 +217,11 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
         // transforming a KV<K, Iterable<AccumT>> into a KV<K, Iterable<AccumT>>.
         // for the (possibly merged) window.
         Iterable<AccumT> accumsToMerge = Iterables.unmodifiableIterable(currentWindowAccumulators);
-        WindowedValue<Iterable<AccumT>> preMergeWindowedValue = WindowedValue.of(
-            accumsToMerge, mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
+        WindowedValue<Iterable<AccumT>> preMergeWindowedValue =
+            WindowedValue.of(accumsToMerge, mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
         // applying the actual combiner onto the accumulators.
-        AccumT accumulated = combineFn.mergeAccumulators(accumsToMerge,
-            ctxtForInput(preMergeWindowedValue));
+        AccumT accumulated =
+            combineFn.mergeAccumulators(accumsToMerge, ctxtForInput(preMergeWindowedValue));
         WindowedValue<AccumT> postMergeWindowedValue = preMergeWindowedValue.withValue(accumulated);
         // emit the accumulated output.
         output.add(postMergeWindowedValue);
@@ -241,10 +238,10 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
     // merge the last chunk of accumulators.
     Instant mergedTimestamp = timestampCombiner.merge(currentWindow, windowTimestamps);
     Iterable<AccumT> accumsToMerge = Iterables.unmodifiableIterable(currentWindowAccumulators);
-    WindowedValue<Iterable<AccumT>> preMergeWindowedValue = WindowedValue.of(
-        accumsToMerge, mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
-    AccumT accumulated = combineFn.mergeAccumulators(accumsToMerge,
-        ctxtForInput(preMergeWindowedValue));
+    WindowedValue<Iterable<AccumT>> preMergeWindowedValue =
+        WindowedValue.of(accumsToMerge, mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
+    AccumT accumulated =
+        combineFn.mergeAccumulators(accumsToMerge, ctxtForInput(preMergeWindowedValue));
     WindowedValue<AccumT> postMergeWindowedValue = preMergeWindowedValue.withValue(accumulated);
     output.add(postMergeWindowedValue);
 

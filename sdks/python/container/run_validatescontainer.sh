@@ -25,17 +25,16 @@
 #
 # Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
 
+echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+
 set -e
 set -v
 
-# pip install --user installation location.
-LOCAL_PATH=$HOME/.local/bin/
-
 # Where to store integration test outputs.
-GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
+GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
-PROJECT=apache-beam-testing
+PROJECT=${PROJECT:-apache-beam-testing}
 
 # Verify in the root of the repository
 test -d sdks/python/container
@@ -45,21 +44,6 @@ command -v docker
 command -v gcloud
 docker -v
 gcloud -v
-
-# ensure gcloud is version 186 or above
-TMPDIR=$(mktemp -d)
-gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
-if [[ "$gcloud_ver" < "186" ]]
-then
-  pushd $TMPDIR
-  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
-  tar xf gcloud.tar.gz
-  ./google-cloud-sdk/install.sh --quiet
-  . ./google-cloud-sdk/path.bash.inc
-  popd
-  gcloud components update --quiet || echo 'gcloud components update failed'
-  gcloud -v
-fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
@@ -73,11 +57,16 @@ docker images | grep $TAG
 # Push the container
 gcloud docker -- push $CONTAINER
 
-# INFRA does not install virtualenv
-pip install virtualenv --user
+function cleanup_container {
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  echo "Removed the container"
+}
+trap cleanup_container EXIT
 
 # Virtualenv for the rest of the script to run setup & e2e test
-${LOCAL_PATH}/virtualenv sdks/python/container
+virtualenv sdks/python/container
 . sdks/python/container/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
@@ -90,7 +79,7 @@ SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
 python setup.py nosetests \
   --attr ValidatesContainer \
-  --nocapture \
+  --nologcapture \
   --processes=1 \
   --process-timeout=900 \
   --test-pipeline-options=" \
@@ -102,12 +91,5 @@ python setup.py nosetests \
     --output=$GCS_LOCATION/output \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1"
-
-# Delete the container locally and remotely
-docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-
-# Clean up tempdir
-rm -rf $TMPDIR
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

@@ -15,12 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -47,6 +43,9 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -150,10 +149,7 @@ public final class TranslationUtils {
 
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return itr -> {
-      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
-      return outputItr;
-    };
+    return itr -> Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
   }
 
   /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */
@@ -227,15 +223,6 @@ public final class TranslationUtils {
     }
   }
 
-  public static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not support splittable DoFn: %s", SparkRunner.class.getSimpleName(), doFn));
-    }
-  }
   /**
    * Reject state and timers {@link DoFn}.
    *
@@ -331,6 +318,7 @@ public final class TranslationUtils {
 
   /**
    * Utility to get mapping between TupleTag and a coder.
+   *
    * @param outputs - A map of tuple tags and pcollections
    * @return mapping between TupleTag and a coder
    */
@@ -354,6 +342,7 @@ public final class TranslationUtils {
 
   /**
    * Returns a pair function to convert value to bytes via coder.
+   *
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert value to bytes via coder
    */
@@ -369,9 +358,10 @@ public final class TranslationUtils {
 
   /**
    * Returns a pair function to convert bytes to value via coder.
+   *
    * @param coderMap - mapping between TupleTag and a coder
    * @return a pair function to convert bytes to value via coder
-   * */
+   */
   public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
@@ -384,6 +374,7 @@ public final class TranslationUtils {
 
   /**
    * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
+   *
    * @param level StorageLevel required
    * @return true if the level is memory only
    */

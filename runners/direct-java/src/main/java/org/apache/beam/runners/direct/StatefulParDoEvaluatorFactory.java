@@ -17,13 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +52,10 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
@@ -106,14 +106,14 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   @SuppressWarnings({"unchecked", "rawtypes"})
   private TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+              PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+              PCollectionTuple,
               StatefulParDo<K, InputT, OutputT>>
           application,
       CommittedBundle<KeyedWorkItem<K, KV<K, InputT>>> inputBundle)
       throws Exception {
 
-    final DoFn<KV<K, InputT>, OutputT> doFn =
-        application.getTransform().getDoFn();
+    final DoFn<KV<K, InputT>, OutputT> doFn = application.getTransform().getDoFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // If the DoFn is stateful, schedule state clearing.
@@ -161,16 +161,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         taggedValues.put(pv.getKey(), (PCollection<?>) pv.getValue());
       }
       PCollection<?> pc =
-          taggedValues
-              .get(
-                  transformOutputWindow
-                      .getTransform()
-                      .getTransform()
-                      .getMainOutputTag());
+          taggedValues.get(transformOutputWindow.getTransform().getTransform().getMainOutputTag());
       WindowingStrategy<?, ?> windowingStrategy = pc.getWindowingStrategy();
       BoundedWindow window = transformOutputWindow.getWindow();
-      final DoFn<?, ?> doFn =
-          transformOutputWindow.getTransform().getTransform().getDoFn();
+      final DoFn<?, ?> doFn = transformOutputWindow.getTransform().getTransform().getDoFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
       final DirectStepContext stepContext =
@@ -210,7 +204,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   @AutoValue
   abstract static class AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> {
     abstract AppliedPTransform<
-            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+            PCollectionTuple,
             StatefulParDo<K, InputT, OutputT>>
         getTransform();
 
@@ -220,7 +215,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     static <K, InputT, OutputT> AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> create(
         AppliedPTransform<
-                PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
+                PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>,
+                PCollectionTuple,
                 StatefulParDo<K, InputT, OutputT>>
             transform,
         StructuralKey<K> key,

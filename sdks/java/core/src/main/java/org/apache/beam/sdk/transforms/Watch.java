@@ -17,23 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.transforms.Contextful.Fn.Context.wrapProcessContext;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.hash.Funnel;
-import com.google.common.hash.Funnels;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,6 +47,7 @@ import org.apache.beam.sdk.coders.SnappyCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -64,6 +56,15 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnel;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -291,8 +292,8 @@ public class Watch {
     }
 
     /**
-     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition
-     * with a given input type, passing {@code null} to the original condition as input.
+     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition with
+     * a given input type, passing {@code null} to the original condition as input.
      */
     public static <InputT, StateT> TerminationCondition<InputT, StateT> ignoreInput(
         TerminationCondition<?, StateT> condition) {
@@ -684,12 +685,14 @@ public class Watch {
       }
 
       return input
-          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
-          .withSideInputs(getPollFn().getRequirements().getSideInputs()))
+          .apply(
+              ParDo.of(new WatchGrowthFn<>(this, outputCoder, outputKeyFn, outputKeyCoder))
+                  .withSideInputs(getPollFn().getRequirements().getSideInputs()))
           .setCoder(KvCoder.of(input.getCoder(), outputCoder));
     }
   }
 
+  @UnboundedPerElement
   private static class WatchGrowthFn<InputT, OutputT, KeyT, TerminationStateT>
       extends DoFn<InputT, KV<InputT, OutputT>> {
     private final Watch.Growth<InputT, OutputT, KeyT> spec;
@@ -795,8 +798,8 @@ public class Watch {
     @GetRestrictionCoder
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Coder<GrowthState<OutputT, KeyT, TerminationStateT>> getRestrictionCoder() {
-      return SnappyCoder.of(GrowthStateCoder.of(
-          outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder()));
+      return SnappyCoder.of(
+          GrowthStateCoder.of(outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder()));
     }
   }
 
@@ -933,8 +936,7 @@ public class Watch {
       ImmutableMap.Builder<HashCode, Instant> newCompleted = ImmutableMap.builder();
       newCompleted.putAll(state.completed);
       for (Map.Entry<HashCode, TimestampedValue<OutputT>> claimedOutput : claimed.entrySet()) {
-        newCompleted.put(
-            claimedOutput.getKey(), claimedOutput.getValue().getTimestamp());
+        newCompleted.put(claimedOutput.getKey(), claimedOutput.getValue().getTimestamp());
       }
       GrowthState<OutputT, KeyT, TerminationStateT> residual =
           new GrowthState<>(

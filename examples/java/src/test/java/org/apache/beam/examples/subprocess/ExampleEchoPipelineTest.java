@@ -17,7 +17,8 @@
  */
 package org.apache.beam.examples.subprocess;
 
-import com.google.common.collect.ImmutableList;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,17 +56,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * To keep {@link org.apache.beam.examples.subprocess.ExampleEchoPipeline} simple,
- * it is not factored or testable. This test file should be maintained with a copy of its
- * code for a basic smoke test.
- **/
+ * To keep {@link org.apache.beam.examples.subprocess.ExampleEchoPipeline} simple, it is not
+ * factored or testable. This test file should be maintained with a copy of its code for a basic
+ * smoke test.
+ */
+@RunWith(JUnit4.class)
 public class ExampleEchoPipelineTest {
 
   static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
 
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  @Test public void testExampleEchoPipeline() throws Exception {
+  @Test
+  public void testExampleEchoPipeline() throws Exception {
 
     // Create two Bash files as tests for the binary files
 
@@ -75,18 +79,16 @@ public class ExampleEchoPipelineTest {
 
     try (SeekableByteChannel channel =
         FileChannel.open(fileA, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-      channel.write(ByteBuffer.wrap(getTestShellEcho().getBytes()));
+      channel.write(ByteBuffer.wrap(getTestShellEcho().getBytes(UTF_8)));
     }
 
     try (SeekableByteChannel channel =
         FileChannel.open(fileB, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-        channel.write(ByteBuffer.wrap(getTestShellEchoAgain().getBytes()));
+      channel.write(ByteBuffer.wrap(getTestShellEchoAgain().getBytes(UTF_8)));
     }
 
-
     // Read in the options for the pipeline
-    SubProcessPipelineOptions options = PipelineOptionsFactory
-        .as(SubProcessPipelineOptions.class);
+    SubProcessPipelineOptions options = PipelineOptionsFactory.as(SubProcessPipelineOptions.class);
 
     options.setConcurrency(2);
     options.setSourcePath(fileA.getParent().toString());
@@ -108,24 +110,23 @@ public class ExampleEchoPipelineTest {
     // Define the pipeline which is two transforms echoing the inputs out to Logs
     // For this use case we will make use of two shell files instead of the binary to make
     // testing easier
-    PCollection<KV<String, String>> output = p.apply(Create.of(sampleData))
-        .apply("Echo inputs round 1",
-            ParDo.of(new EchoInputDoFn(configuration, fileA.getFileName().toString())))
-        .apply("Echo inputs round 2",
-            ParDo.of(new EchoInputDoFn(configuration, fileB.getFileName().toString())));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of(sampleData))
+            .apply(
+                "Echo inputs round 1",
+                ParDo.of(new EchoInputDoFn(configuration, fileA.getFileName().toString())))
+            .apply(
+                "Echo inputs round 2",
+                ParDo.of(new EchoInputDoFn(configuration, fileB.getFileName().toString())));
 
     PAssert.that(output).containsInAnyOrder(sampleData);
 
     p.run();
-
-
   }
 
-  /**
-   * Simple DoFn that echos the element, used as an example of running a C++ library.
-   */
-  @SuppressWarnings("serial") @RunWith(JUnit4.class) public static class EchoInputDoFn
-      extends DoFn<KV<String, String>, KV<String, String>> {
+  /** Simple DoFn that echos the element, used as an example of running a C++ library. */
+  @SuppressWarnings("serial")
+  private static class EchoInputDoFn extends DoFn<KV<String, String>, KV<String, String>> {
 
     static final Logger LOG = LoggerFactory.getLogger(EchoInputDoFn.class);
 
@@ -139,11 +140,13 @@ public class ExampleEchoPipelineTest {
       this.binaryName = binary;
     }
 
-    @Setup public void setUp() throws Exception {
+    @Setup
+    public void setUp() throws Exception {
       CallingSubProcessUtils.setUp(configuration, binaryName);
     }
 
-    @ProcessElement public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       try {
         // Our Library takes a single command in position 0 which it will echo back in the result
         SubProcessCommandLineArgs commands = new SubProcessCommandLineArgs();
@@ -165,11 +168,11 @@ public class ExampleEchoPipelineTest {
     }
   }
 
-  private static String getTestShellEcho(){
+  private static String getTestShellEcho() {
     return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
   }
 
-  private static String getTestShellEchoAgain(){
+  private static String getTestShellEchoAgain() {
     return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
   }
 
@@ -178,26 +181,30 @@ public class ExampleEchoPipelineTest {
 
     // Any request to open gets a new bogus channel
     Mockito.when(mockGcsUtil.open(Mockito.any(GcsPath.class)))
-        .then(new Answer<SeekableByteChannel>() {
+        .then(
+            new Answer<SeekableByteChannel>() {
 
-          @Override public SeekableByteChannel answer(InvocationOnMock invocation)
-              throws Throwable {
-            return FileChannel.open(Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.DELETE_ON_CLOSE);
-          }
-        });
+              @Override
+              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+                return FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.DELETE_ON_CLOSE);
+              }
+            });
 
     // Any request for expansion returns a list containing the original GcsPath
     // This is required to pass validation that occurs in TextIO during apply()
-    Mockito.when(mockGcsUtil.expand(Mockito.any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
+    Mockito.when(mockGcsUtil.expand(Mockito.any(GcsPath.class)))
+        .then(
+            new Answer<List<GcsPath>>() {
 
-      @Override public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-      }
-    });
+              @Override
+              public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+                return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+              }
+            });
 
     return mockGcsUtil;
   }
-
-    }
+}

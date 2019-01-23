@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +28,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.SyntheticComponents;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
 
 /** A {@link Pipeline} which has been separated into collections of executable components. */
 @AutoValue
@@ -65,8 +65,7 @@ public abstract class FusedPipeline {
     Set<String> executableTransformIds =
         Sets.union(
             executableStageTransforms.keySet(),
-            getRunnerExecutedTransforms()
-                .stream()
+            getRunnerExecutedTransforms().stream()
                 .map(PTransformNode::getId)
                 .collect(Collectors.toSet()));
 
@@ -81,10 +80,14 @@ public abstract class FusedPipeline {
                 false)
             .map(PTransformNode::getId)
             .collect(Collectors.toList());
-    return Pipeline.newBuilder()
-        .setComponents(fusedComponents)
-        .addAllRootTransformIds(rootTransformIds)
-        .build();
+    Pipeline res =
+        Pipeline.newBuilder()
+            .setComponents(fusedComponents)
+            .addAllRootTransformIds(rootTransformIds)
+            .build();
+    // Validate that fusion didn't produce a malformed pipeline.
+    PipelineValidator.validate(res);
+    return res;
   }
 
   /**
@@ -98,28 +101,16 @@ public abstract class FusedPipeline {
   private Map<String, PTransform> getEnvironmentExecutedTransforms() {
     Map<String, PTransform> topLevelTransforms = new HashMap<>();
     for (ExecutableStage stage : getFusedStages()) {
-      topLevelTransforms.put(
-          generateStageId(
-              stage,
-              Sets.union(getComponents().getTransformsMap().keySet(), topLevelTransforms.keySet())),
-          stage.toPTransform());
+      String baseName =
+          String.format(
+              "%s/%s",
+              stage.getInputPCollection().getPCollection().getUniqueName(),
+              stage.getEnvironment().getUrn());
+      Set<String> usedNames =
+          Sets.union(topLevelTransforms.keySet(), getComponents().getTransformsMap().keySet());
+      String uniqueId = SyntheticComponents.uniqueId(baseName, usedNames::contains);
+      topLevelTransforms.put(uniqueId, stage.toPTransform(uniqueId));
     }
     return topLevelTransforms;
-  }
-
-  private String generateStageId(ExecutableStage stage, Set<String> existingIds) {
-    int i = 0;
-    String name;
-    do {
-      // Instead this could include the name of the root transforms
-      name =
-          String.format(
-              "%s/%s.%s",
-              stage.getInputPCollection().getPCollection().getUniqueName(),
-              stage.getEnvironment().getUrl(),
-              i);
-      i++;
-    } while (existingIds.contains(name));
-    return name;
   }
 }

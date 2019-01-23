@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
@@ -34,17 +31,17 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link BigQuerySourceBase} for reading BigQuery tables.
- */
+/** A {@link BigQuerySourceBase} for reading BigQuery tables. */
 @VisibleForTesting
 class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
-  static <T>BigQueryTableSource<T> create(
+  static <T> BigQueryTableSource<T> create(
       String stepUuid,
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
@@ -61,8 +58,7 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn
-  ) {
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
     super(stepUuid, bqServices, coder, parseFn);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
@@ -100,11 +96,13 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
-          BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
+      TableReference table =
+          setDefaultProjectIfAbsent(
+              options.as(BigQueryOptions.class),
+              BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
-      Table tableRef = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-              .getTable(table);
+      Table tableRef =
+          bqServices.getDatasetService(options.as(BigQueryOptions.class)).getTable(table);
       Long numBytes = tableRef.getNumBytes();
       if (tableRef.getStreamingBuffer() != null) {
         numBytes += tableRef.getStreamingBuffer().getEstimatedBytes().longValue();

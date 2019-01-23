@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
@@ -28,8 +26,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 
 /**
@@ -39,13 +39,13 @@ import org.hamcrest.TypeSafeMatcher;
 public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
   private final String inputPCollectionId;
   private final Collection<SideInputId> sideInputIds;
-  private final Collection<String> materializedPCollection;
+  private final Matcher<Iterable<? extends String>> materializedPCollection;
   private final Collection<String> fusedTransforms;
 
   private ExecutableStageMatcher(
       String inputPCollectionId,
       Collection<SideInputId> sideInputIds,
-      Collection<String> materializedPCollection,
+      Matcher<Iterable<? extends String>> materializedPCollection,
       Collection<String> fusedTransforms) {
     this.inputPCollectionId = inputPCollectionId;
     this.sideInputIds = sideInputIds;
@@ -55,7 +55,7 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
 
   public static ExecutableStageMatcher withInput(String inputId) {
     return new ExecutableStageMatcher(
-        inputId, ImmutableList.of(), ImmutableList.of(), ImmutableList.of());
+        inputId, ImmutableList.of(), Matchers.emptyIterable(), ImmutableList.of());
   }
 
   public ExecutableStageMatcher withSideInputs(SideInputId... sideInputs) {
@@ -68,12 +68,28 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
 
   public ExecutableStageMatcher withNoOutputs() {
     return new ExecutableStageMatcher(
-        inputPCollectionId, sideInputIds, ImmutableList.of(), fusedTransforms);
+        inputPCollectionId, sideInputIds, Matchers.emptyIterable(), fusedTransforms);
+  }
+
+  public ExecutableStageMatcher withOutputs(Matcher<String>... pCollections) {
+    return new ExecutableStageMatcher(
+        inputPCollectionId,
+        sideInputIds,
+        Matchers.containsInAnyOrder(pCollections),
+        fusedTransforms);
+  }
+
+  public ExecutableStageMatcher withOutputs(Matcher<Iterable<? extends String>> pCollections) {
+    return new ExecutableStageMatcher(
+        inputPCollectionId, sideInputIds, pCollections, fusedTransforms);
   }
 
   public ExecutableStageMatcher withOutputs(String... pCollections) {
     return new ExecutableStageMatcher(
-        inputPCollectionId, sideInputIds, ImmutableList.copyOf(pCollections), fusedTransforms);
+        inputPCollectionId,
+        sideInputIds,
+        Matchers.containsInAnyOrder(pCollections),
+        fusedTransforms);
   }
 
   public ExecutableStageMatcher withTransforms(String... transforms) {
@@ -89,8 +105,7 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
     return item.getInputPCollection().getId().equals(inputPCollectionId)
         && containsInAnyOrder(sideInputIds.toArray())
             .matches(
-                item.getSideInputs()
-                    .stream()
+                item.getSideInputs().stream()
                     .map(
                         ref ->
                             SideInputId.newBuilder()
@@ -98,16 +113,13 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
                                 .setLocalName(ref.localName())
                                 .build())
                     .collect(Collectors.toSet()))
-        && containsInAnyOrder(materializedPCollection.toArray(new String[0]))
-            .matches(
-                item.getOutputPCollections()
-                    .stream()
-                    .map(PCollectionNode::getId)
-                    .collect(Collectors.toSet()))
+        && materializedPCollection.matches(
+            item.getOutputPCollections().stream()
+                .map(PCollectionNode::getId)
+                .collect(Collectors.toSet()))
         && containsInAnyOrder(fusedTransforms.toArray(new String[0]))
             .matches(
-                item.getTransforms()
-                    .stream()
+                item.getTransforms().stream()
                     .map(PTransformNode::getId)
                     .collect(Collectors.toSet()));
   }
@@ -121,7 +133,7 @@ public class ExecutableStageMatcher extends TypeSafeMatcher<ExecutableStage> {
                 ExecutableStage.class.getSimpleName(), PCollection.class.getSimpleName()))
         .appendText(inputPCollectionId)
         .appendText(String.format(", output %ss ", PCollection.class.getSimpleName()))
-        .appendValueList("[", ", ", "]", materializedPCollection)
+        .appendDescriptionOf(materializedPCollection)
         .appendText(String.format(" and fused %ss ", PTransform.class.getSimpleName()))
         .appendValueList("[", ", ", "]", fusedTransforms);
   }

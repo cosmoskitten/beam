@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.cache.CacheLoader;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,6 +40,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -53,7 +53,7 @@ class SplittableProcessElementsEvaluatorFactory<
         PositionT,
         TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
     implements TransformEvaluatorFactory {
-  private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
+  private final ParDoEvaluatorFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final ScheduledExecutorService ses;
   private final EvaluationContext evaluationContext;
@@ -107,9 +107,10 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> createEvaluator(
+  private TransformEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+              PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>,
+              PCollectionTuple,
               ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
           application,
       CommittedBundle<InputT> inputBundle)
@@ -117,20 +118,22 @@ class SplittableProcessElementsEvaluatorFactory<
     final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
-    final DoFnLifecycleManagerRemovingTransformEvaluator
-      <KeyedWorkItem<String, KV<InputT, RestrictionT>>> evaluator =
-      delegateFactory.createEvaluator(
-        (AppliedPTransform) application,
-        (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>) inputBundle.getPCollection(),
-        inputBundle.getKey(),
-        application.getTransform().getSideInputs(),
-        application.getTransform().getMainOutputTag(),
-        application.getTransform().getAdditionalOutputTags().getAll());
-    final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> pde =
-      evaluator.getParDoEvaluator();
+    final DoFnLifecycleManagerRemovingTransformEvaluator<
+            KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>
+        evaluator =
+            delegateFactory.createEvaluator(
+                (AppliedPTransform) application,
+                (PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>)
+                    inputBundle.getPCollection(),
+                inputBundle.getKey(),
+                application.getTransform().getSideInputs(),
+                application.getTransform().getMainOutputTag(),
+                application.getTransform().getAdditionalOutputTags().getAll());
+    final ParDoEvaluator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> pde =
+        evaluator.getParDoEvaluator();
     final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-      (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
-        ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
+        (ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
+            ProcessFnRunner.class.cast(pde.getFnRunner()).getFn();
 
     final DirectExecutionContext.DirectStepContext stepContext = pde.getStepContext();
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());
@@ -176,7 +179,7 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   private static <InputT, OutputT, RestrictionT>
-      ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
+      ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
     return (options,
         fn,
@@ -186,6 +189,8 @@ class SplittableProcessElementsEvaluatorFactory<
         mainOutputTag,
         additionalOutputTags,
         stepContext,
+        inputCoder,
+        outputCoders,
         windowingStrategy) -> {
       ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
       return DoFnRunners.newProcessFnRunner(
@@ -197,6 +202,8 @@ class SplittableProcessElementsEvaluatorFactory<
           mainOutputTag,
           additionalOutputTags,
           stepContext,
+          inputCoder,
+          outputCoders,
           windowingStrategy);
     };
   }

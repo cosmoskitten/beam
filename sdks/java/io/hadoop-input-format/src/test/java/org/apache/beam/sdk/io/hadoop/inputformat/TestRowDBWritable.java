@@ -31,8 +31,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 
 /**
- * A subclass of {@link org.apache.beam.sdk.io.common.TestRow} to be used with
- * {@link org.apache.hadoop.mapreduce.lib.db.DBInputFormat}.
+ * A subclass of {@link org.apache.beam.sdk.io.common.TestRow} to be used with {@link
+ * org.apache.hadoop.mapreduce.lib.db.DBInputFormat}.
  */
 @DefaultCoder(AvroCoder.class)
 public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
@@ -40,10 +40,19 @@ public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
   private Integer id;
   private String name;
 
-  @Override public Integer id() {
+  public TestRowDBWritable() {}
+
+  public TestRowDBWritable(Integer id, String name) {
+    this.id = id;
+    this.name = name;
+  }
+
+  @Override
+  public Integer id() {
     return id;
   }
 
+  @Override
   public String name() {
     return name;
   }
@@ -68,14 +77,13 @@ public class TestRowDBWritable extends TestRow implements DBWritable, Writable {
 
   @Override
   public void readFields(DataInput in) throws IOException {
-   id = in.readInt();
-   name = in.readUTF();
+    id = in.readInt();
+    name = in.readUTF();
   }
 
   static class PrepareStatementFromTestRow implements JdbcIO.PreparedStatementSetter<TestRow> {
     @Override
-    public void setParameters(TestRow element, PreparedStatement statement)
-        throws SQLException {
+    public void setParameters(TestRow element, PreparedStatement statement) throws SQLException {
       statement.setLong(1, element.id());
       statement.setString(2, element.name());
     }

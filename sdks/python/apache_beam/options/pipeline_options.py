@@ -17,7 +17,13 @@
 
 """Pipeline options obtained from command line parsing."""
 
+from __future__ import absolute_import
+
 import argparse
+import logging
+from builtins import list
+from builtins import object
+from collections import OrderedDict
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -102,6 +108,14 @@ class _BeamArgumentParser(argparse.ArgumentParser):
     # have add_argument do most of the work
     self.add_argument(*args, **kwargs)
 
+  # The argparse package by default tries to autocomplete option names. This
+  # results in an "ambiguous option" error from argparse when an unknown option
+  # matching multiple known ones are used. This suppresses that behavior.
+  def error(self, message):
+    if message.startswith('ambiguous option: '):
+      return
+    super(_BeamArgumentParser, self).error(message)
+
 
 class PipelineOptions(HasDisplayData):
   """Pipeline options class used as container for command line options.
@@ -175,10 +189,13 @@ class PipelineOptions(HasDisplayData):
       A PipelineOptions object representing the given arguments.
     """
     flags = []
-    for k, v in options.iteritems():
+    for k, v in options.items():
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+      elif isinstance(v, list):
+        for i in v:
+          flags.append('--%s=%s' % (k, i))
       else:
         flags.append('--%s=%s' % (k, v))
 
@@ -206,11 +223,39 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    known_args, _ = parser.parse_known_args(self._flags)
+    known_args, unknown_args = parser.parse_known_args(self._flags)
+    # Parse args which are not known at this point but might be recognized
+    # at a later point in time, i.e. by the actual Runner.
+    if unknown_args and unknown_args[0] != '':
+      logging.info("Parsing unknown args: %s", unknown_args)
+
+      def enumerate_args(args):
+        cleaned_args = OrderedDict()
+        for arg in args:
+          if arg.startswith('--'):
+            # split argument name if it's in arg_name=value syntax
+            arg_name = arg.split('=', 1)[0]
+            # count identical arg names
+            if arg_name not in cleaned_args:
+              cleaned_args[arg_name] = 1
+            else:
+              cleaned_args[arg_name] += 1
+        return cleaned_args
+
+      for arg_name, num_times in enumerate_args(unknown_args).items():
+        parser.add_argument(arg_name,
+                            nargs='?',
+                            action='append' if num_times > 1 else 'store')
+
+      # repeat parsing with unknown options added
+      known_args, unknown_args = parser.parse_known_args(self._flags)
+      if unknown_args:
+        logging.warning("Discarding unparseable args: %s", unknown_args)
+
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result.keys():
+    for k in list(result):
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
@@ -233,7 +278,7 @@ class PipelineOptions(HasDisplayData):
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
-    return sorted(dir(type(self)) + self.__dict__.keys() +
+    return sorted(dir(type(self)) + list(self.__dict__) +
                   self._visible_option_list())
 
   def __getattr__(self, name):
@@ -314,6 +359,12 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_repeat',
+        type=int,
+        default=0,
+        help='replay every bundle this many extra times, for profiling'
+        'and debugging')
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -368,13 +419,20 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
-    parser.add_argument(
-        '--label', '--labels',
-        dest='labels',
-        action='append',
-        default=None,
-        help='Labels that will be applied to this Dataflow job. Labels are key '
-        'value pairs separated by = (e.g. --label key=value).')
+    parser.add_argument('--label', '--labels',
+                        dest='labels',
+                        action='append',
+                        default=None,
+                        help='Labels to be applied to this Dataflow job. '
+                        'Labels are key value pairs separated by = '
+                        '(e.g. --label key=value).')
+    parser.add_argument('--update',
+                        default=False,
+                        action='store_true',
+                        help='Update an existing streaming Cloud Dataflow job. '
+                        'Experimental. '
+                        'See https://cloud.google.com/dataflow/pipelines/'
+                        'updating-a-pipeline')
 
   def validate(self, validator):
     errors = []
@@ -507,6 +565,20 @@ class WorkerOptions(PipelineOptions):
         default=None,
         action='store_false',
         help='Whether to assign only private IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--min_cpu_platform',
+        dest='min_cpu_platform',
+        type=str,
+        help='GCE minimum CPU platform. Default is determined by GCP.'
+    )
+    parser.add_argument(
+        '--dataflow_worker_jar',
+        dest='dataflow_worker_jar',
+        type=str,
+        help='Dataflow worker jar file. If specified, the jar file is staged '
+             'in GCS, then gets loaded by workers. End users usually '
+             'should not use this feature.'
+    )
 
   def validate(self, validator):
     errors = []
@@ -546,7 +618,12 @@ class ProfilingOptions(PipelineOptions):
                         help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
-                        help='GCS path for saving profiler data.')
+                        help='path for saving profiler data.')
+    parser.add_argument('--profile_sample_rate',
+                        type=float,
+                        default=1.0,
+                        help='A number between 0 and 1 indicating the ratio '
+                        'of bundles that should be profiled.')
 
 
 class SetupOptions(PipelineOptions):
@@ -633,6 +710,56 @@ class SetupOptions(PipelineOptions):
          'same order they were specified on the command line.'))
 
 
+class PortableOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--job_endpoint',
+                        default=None,
+                        help=
+                        ('Job service endpoint to use. Should be in the form '
+                         'of address and port, e.g. localhost:3000'))
+    parser.add_argument(
+        '--environment_type', default=None,
+        help=('Set the default environment type for running '
+              'user code. Possible options are DOCKER and PROCESS.'))
+    parser.add_argument(
+        '--environment_config', default=None,
+        help=('Set environment configuration for running the user code.\n For '
+              'DOCKER: Url for the docker image.\n For PROCESS: json of the '
+              'form {"os": "<OS>", "arch": "<ARCHITECTURE>", "command": '
+              '"<process to execute>", "env":{"<Environment variables 1>": '
+              '"<ENV_VAL>"} }. All fields in the json are optional except '
+              'command.'))
+
+
+class FlinkOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        type=str,
+                        help=
+                        ('Address of the Flink master where the pipeline '
+                         'should be executed. Can either be of the form '
+                         '\'host:port\' or one of the special values '
+                         '[local], [collection], or [auto].'))
+    parser.add_argument('--parallelism',
+                        type=int,
+                        help=
+                        ('The degree of parallelism to be used when '
+                         'distributing operations onto workers.'))
+    parser.add_argument('--shutdown_sources_on_final_watermark',
+                        default=False,
+                        action='store_true',
+                        help=
+                        ('If set to true, allows sources to shutdown '
+                         'after emitting the final Watermark. '
+                         'Note: Checkpoints/Savepoints can only be '
+                         'taken when all operators, including sources, '
+                         'are running.'))
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod
@@ -649,12 +776,33 @@ class TestOptions(PipelineOptions):
         default=False,
         help=('Used in unit testing runners without submitting the '
               'actual job.'))
+    parser.add_argument(
+        '--wait_until_finish_duration',
+        default=None,
+        type=int,
+        help='The time to wait (in milliseconds) for test pipeline to finish. '
+             'If it is set to None, it will wait indefinitely until the job '
+             'is finished.')
 
   def validate(self, validator):
     errors = []
     if self.view_as(TestOptions).on_success_matcher:
       errors.extend(validator.validate_test_matcher(self, 'on_success_matcher'))
     return errors
+
+
+class TestDataflowOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # This option is passed to Dataflow Runner's Pub/Sub client. The camelCase
+    # style in 'dest' matches the runner's.
+    parser.add_argument(
+        '--pubsub_root_url',
+        dest='pubsubRootUrl',
+        default=None,
+        help='Root URL for use with the Google Cloud Pub/Sub API.',)
+
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.

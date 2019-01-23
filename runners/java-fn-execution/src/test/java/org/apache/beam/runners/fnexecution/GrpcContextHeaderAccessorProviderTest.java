@@ -14,26 +14,26 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
-
+ */
 package org.apache.beam.runners.fnexecution;
 
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
-import io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
-import io.grpc.Server;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,7 +55,8 @@ public class GrpcContextHeaderAccessorProviderTest {
     TestDataService testService = new TestDataService(Mockito.mock(StreamObserver.class), consumer);
     ApiServiceDescriptor serviceDescriptor =
         ApiServiceDescriptor.newBuilder().setUrl("testServer").build();
-    Server server = InProcessServerFactory.create().create(testService, serviceDescriptor);
+    Server server =
+        InProcessServerFactory.create().create(ImmutableList.of(testService), serviceDescriptor);
     final Metadata.Key<String> workerIdKey =
         Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
     Channel channel =

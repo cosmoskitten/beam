@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.err
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Predicates;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -84,9 +84,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertTrue(signature.isSplittable());
     assertTrue(
-        signature
-            .extraParameters()
-            .stream()
+        signature.extraParameters().stream()
             .anyMatch(
                 Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)
                     ::apply));
@@ -129,19 +127,13 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures
-            .getSignature(BaseSplittableFn.class)
-            .isBoundedPerElement());
+        DoFnSignatures.getSignature(BaseSplittableFn.class).isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures
-            .getSignature(BoundedSplittableFn.class)
-            .isBoundedPerElement());
+        DoFnSignatures.getSignature(BoundedSplittableFn.class).isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures
-            .getSignature(UnboundedSplittableFn.class)
-            .isBoundedPerElement());
+        DoFnSignatures.getSignature(UnboundedSplittableFn.class).isBoundedPerElement());
   }
 
   private static class BaseFnWithoutContinuation extends DoFn<Integer, String> {
@@ -193,6 +185,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.getSignature(UnboundedFnWithContinuation.class).isBoundedPerElement());
   }
+
   @Test
   public void testUnsplittableIsBounded() throws Exception {
     class UnsplittableFn extends DoFn<Integer, String> {
@@ -202,9 +195,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures
-            .getSignature(UnsplittableFn.class)
-            .isBoundedPerElement());
+        DoFnSignatures.getSignature(UnsplittableFn.class).isBoundedPerElement());
   }
 
   @Test
@@ -333,10 +324,10 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignatures.getSignature(BadFn.class);
   }
 
-  abstract class SomeDefaultTracker
+  abstract static class SomeDefaultTracker
       extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {}
 
-  abstract class RestrictionWithDefaultTracker
+  abstract static class RestrictionWithDefaultTracker
       implements HasDefaultTracker<RestrictionWithDefaultTracker, SomeDefaultTracker> {}
 
   @Test
@@ -352,8 +343,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     DoFnSignature signature = DoFnSignatures.getSignature(Fn.class);
-    assertEquals(
-        SomeDefaultTracker.class, signature.processElement().trackerT().getRawType());
+    assertEquals(SomeDefaultTracker.class, signature.processElement().trackerT().getRawType());
   }
 
   @Test

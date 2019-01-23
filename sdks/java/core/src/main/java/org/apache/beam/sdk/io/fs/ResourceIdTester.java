@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.fs;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.testing.EqualsTester;
@@ -32,14 +32,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
 
-/**
- * A utility to test {@link ResourceId} implementations.
- */
+/** A utility to test {@link ResourceId} implementations. */
 @Experimental(Kind.FILESYSTEM)
 public final class ResourceIdTester {
   /**
-   * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the
-   * {@link ResourceId} spec.
+   * Enforces that the {@link ResourceId} implementation of {@code baseDirectory} meets the {@link
+   * ResourceId} spec.
    */
   public static void runResourceIdBattery(ResourceId baseDirectory) {
     checkArgument(
@@ -108,15 +106,15 @@ public final class ResourceIdTester {
     try {
       ResourceId badFile = baseDirectory.resolve("file/", RESOLVE_FILE);
       fail(String.format("Resolving badFile %s should have failed", badFile));
-    } catch (Throwable t) {
+    } catch (IllegalArgumentException e) {
       // expected
     }
 
     ResourceId file = baseDirectory.resolve("file", RESOLVE_FILE);
     try {
-      baseDirectory.resolve("file2", RESOLVE_FILE);
+      file.resolve("file2", RESOLVE_FILE);
       fail(String.format("Should not be able to resolve against file resource %s", file));
-    } catch (Throwable t) {
+    } catch (IllegalStateException e) {
       // expected
     }
   }
@@ -133,8 +131,7 @@ public final class ResourceIdTester {
       } else {
         cloned = FileSystems.matchNewResource(resourceId.toString(), false /* isDirectory */);
       }
-      assertThat(
-          "ResourceId equals clone of itself", cloned, equalTo(resourceId));
+      assertThat("ResourceId equals clone of itself", cloned, equalTo(resourceId));
       // .. and clones have consistent toString.
       assertThat(
           "ResourceId toString consistency", cloned.toString(), equalTo(resourceId.toString()));

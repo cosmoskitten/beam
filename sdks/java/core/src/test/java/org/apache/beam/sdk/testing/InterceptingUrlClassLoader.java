@@ -17,46 +17,46 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Sets;
-import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.util.function.Predicate;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
 
 /**
- * A classloader that intercepts loading of specifically named classes. This classloader copies
- * the original classes definition and is useful for testing code which needs to validate usage
- * with multiple classloaders..
+ * A classloader that intercepts loading of specifically named classes. This classloader copies the
+ * original classes definition and is useful for testing code which needs to validate usage with
+ * multiple classloaders..
  */
 public class InterceptingUrlClassLoader extends ClassLoader {
-    private final Predicate<String> test;
+  private final Predicate<String> test;
 
-    public InterceptingUrlClassLoader(final ClassLoader parent, final String... ownedClasses) {
-        this(parent, Predicates.in(Sets.newHashSet(ownedClasses))::apply);
+  public InterceptingUrlClassLoader(final ClassLoader parent, final String... ownedClasses) {
+    this(parent, Predicates.in(Sets.newHashSet(ownedClasses))::apply);
+  }
+
+  public InterceptingUrlClassLoader(final ClassLoader parent, final Predicate<String> test) {
+    super(parent);
+    this.test = test;
+  }
+
+  @Override
+  public Class<?> loadClass(final String name) throws ClassNotFoundException {
+    final Class<?> alreadyLoaded = super.findLoadedClass(name);
+    if (alreadyLoaded != null) {
+      return alreadyLoaded;
     }
 
-    public InterceptingUrlClassLoader(final ClassLoader parent, final Predicate<String> test) {
-        super(parent);
-        this.test = test;
+    if (name != null && test.test(name)) {
+      try {
+        final String classAsResource = name.replace('.', '/') + ".class";
+        final byte[] classBytes =
+            ByteStreams.toByteArray(getParent().getResourceAsStream(classAsResource));
+        return defineClass(name, classBytes, 0, classBytes.length);
+      } catch (final IOException e) {
+        throw new RuntimeException(e);
+      }
     }
-
-    @Override
-    public Class<?> loadClass(final String name) throws ClassNotFoundException {
-        final Class<?> alreadyLoaded = super.findLoadedClass(name);
-        if (alreadyLoaded != null) {
-            return alreadyLoaded;
-        }
-
-        if (name != null && test.test(name)) {
-            try {
-                final String classAsResource = name.replace('.', '/') + ".class";
-                final byte[] classBytes =
-                        ByteStreams.toByteArray(getParent().getResourceAsStream(classAsResource));
-                return defineClass(name, classBytes, 0, classBytes.length);
-            } catch (final IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return getParent().loadClass(name);
-    }
+    return getParent().loadClass(name);
+  }
 }

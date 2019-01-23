@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import platform
 import subprocess
 
@@ -30,6 +32,7 @@ force_shell = platform.system() == 'Windows'
 # We mimic the interface of the standard Python subprocess module.
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
+CalledProcessError = subprocess.CalledProcessError
 
 
 def call(*args, **kwargs):

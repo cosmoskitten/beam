@@ -15,15 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
@@ -51,10 +45,15 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap.Builder;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 
 /**
- * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of
- * {@link Coder} {@link CloudObjectTranslator Cloud Object Translators}.
+ * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of {@link
+ * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
@@ -132,7 +131,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
     for (Class<? extends Coder> atomicCoder : KNOWN_ATOMIC_CODERS) {
       builder.put(atomicCoder, CloudObjectTranslators.atomic(atomicCoder));
     }
-    return builder
-        .build();
+    return builder.build();
   }
 }

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import static org.junit.Assert.assertNotNull;
@@ -27,9 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Unit tests for {@link BigDecimalConverter}.
- */
+/** Unit tests for {@link BigDecimalConverter}. */
 public class BigDecimalConverterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import java.util.Collection;
@@ -35,7 +34,7 @@ public interface ExecutableGraph<ExecutableT, CollectionT> {
 
   ExecutableT getProducer(CollectionT collection);
 
-  Collection<CollectionT> getProduced(ExecutableT toRefresh);
+  Collection<CollectionT> getProduced(ExecutableT producer);
 
   Collection<CollectionT> getPerElementInputs(ExecutableT transform);
 

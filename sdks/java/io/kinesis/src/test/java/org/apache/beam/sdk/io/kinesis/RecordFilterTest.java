@@ -19,24 +19,21 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static org.mockito.BDDMockito.given;
 
-import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-/***
- */
+/** * */
 @RunWith(MockitoJUnitRunner.class)
 public class RecordFilterTest {
 
-  @Mock
-  private ShardCheckpoint checkpoint;
-  @Mock
-  private KinesisRecord record1, record2, record3, record4, record5;
+  @Mock private ShardCheckpoint checkpoint;
+  @Mock private KinesisRecord record1, record2, record3, record4, record5;
 
   @Test
   public void shouldFilterOutRecordsBeforeOrAtCheckpoint() {
@@ -45,8 +42,7 @@ public class RecordFilterTest {
     given(checkpoint.isBeforeOrAt(record3)).willReturn(true);
     given(checkpoint.isBeforeOrAt(record4)).willReturn(false);
     given(checkpoint.isBeforeOrAt(record5)).willReturn(true);
-    List<KinesisRecord> records = Lists.newArrayList(record1, record2,
-        record3, record4, record5);
+    List<KinesisRecord> records = Lists.newArrayList(record1, record2, record3, record4, record5);
     RecordFilter underTest = new RecordFilter();
 
     List<KinesisRecord> retainedRecords = underTest.apply(records, checkpoint);

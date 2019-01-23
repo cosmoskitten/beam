@@ -15,21 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.fn.harness;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -39,12 +35,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
 
 /**
  * A runner which creates {@link Reader}s for each {@link BoundedSource} sent as an input and
@@ -54,8 +53,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
   /** A registrar which provides a factory to handle Java {@link BoundedSource}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
-  public static class Registrar implements
-      PTransformRunnerFactory.Registrar {
+  public static class Registrar implements PTransformRunnerFactory.Registrar {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
@@ -79,30 +77,27 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Map<String, PCollection> pCollections,
         Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-        Consumer<ThrowingRunnable> addStartFunction,
-        Consumer<ThrowingRunnable> addFinishFunction) {
+        ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        BundleSplitListener splitListener) {
 
+      // TODO make the receiver aware of its transform context as well.
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
         consumers.addAll(pCollectionIdsToConsumers.get(pCollectionId));
       }
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      BoundedSourceRunner<InputT, OutputT> runner = new BoundedSourceRunner(
-          pipelineOptions,
-          pTransform.getSpec(),
-          consumers.build());
+      BoundedSourceRunner<InputT, OutputT> runner =
+          new BoundedSourceRunner(pipelineOptions, pTransform.getSpec(), consumers.build());
 
       // TODO: Remove and replace with source being sent across gRPC port
-      addStartFunction.accept(runner::start);
+      startFunctionRegistry.register(pTransformId, runner::start);
 
-      FnDataReceiver runReadLoop =
-          (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
+      FnDataReceiver runReadLoop = (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
-        pCollectionIdsToConsumers.put(
-            pCollectionId,
-            runReadLoop);
+        pCollectionIdsToConsumers.put(pCollectionId, runReadLoop);
       }
 
       return runner;
@@ -124,8 +119,8 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
   /**
    * @deprecated The runner harness is meant to send the source over the Beam Fn Data API which
-   * would be consumed by the {@link #runReadLoop}. Drop this method once the runner harness sends
-   * the source instead of unpacking it from the data block of the function specification.
+   *     would be consumed by the {@link #runReadLoop}. Drop this method once the runner harness
+   *     sends the source instead of unpacking it from the data block of the function specification.
    */
   @Deprecated
   public void start() throws Exception {
@@ -152,11 +147,10 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
   }
 
   /**
-   * Creates a {@link Reader} for each {@link BoundedSource} and executes the {@link Reader}s
-   * read loop. See {@link Reader} for further details of the read loop.
+   * Creates a {@link Reader} for each {@link BoundedSource} and executes the {@link Reader}s read
+   * loop. See {@link Reader} for further details of the read loop.
    *
-   * <p>Propagates any exceptions caused during reading or processing via a consumer to the
-   * caller.
+   * <p>Propagates any exceptions caused during reading or processing via a consumer to the caller.
    */
   public void runReadLoop(WindowedValue<InputT> value) throws Exception {
     try (Reader<OutputT> reader = value.getValue().createReader(pipelineOptions)) {
@@ -166,8 +160,9 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
       }
       do {
         // TODO: Should this use the input window as the window for all the outputs?
-        WindowedValue<OutputT> nextValue = WindowedValue.timestampedValueInGlobalWindow(
-            reader.getCurrent(), reader.getCurrentTimestamp());
+        WindowedValue<OutputT> nextValue =
+            WindowedValue.timestampedValueInGlobalWindow(
+                reader.getCurrent(), reader.getCurrentTimestamp());
         for (FnDataReceiver<WindowedValue<OutputT>> consumer : consumers) {
           consumer.accept(nextValue);
         }

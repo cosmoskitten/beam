@@ -16,8 +16,11 @@
 #
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
+
+from __future__ import absolute_import
 from __future__ import print_function
 
+import logging
 import time
 
 from apache_beam.internal import pickler
@@ -29,30 +32,36 @@ from apache_beam.runners.runner import PipelineState
 
 __all__ = ['TestDataflowRunner']
 
-WAIT_TIMEOUT = 2 * 60
+# Dataflow take up to 10mins for the long tail of starting/stopping worker
+# pool.
+WAIT_IN_STATE_TIMEOUT = 10 * 60
 
 
 class TestDataflowRunner(DataflowRunner):
-  def run_pipeline(self, pipeline):
+  def run_pipeline(self, pipeline, options):
     """Execute test pipeline and verify test matcher"""
-    options = pipeline._options.view_as(TestOptions)
-    on_success_matcher = options.on_success_matcher
+    test_options = options.view_as(TestOptions)
+    on_success_matcher = test_options.on_success_matcher
+    wait_duration = test_options.wait_until_finish_duration
+    is_streaming = options.view_as(StandardOptions).streaming
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
-    options.on_success_matcher = None
+    test_options.on_success_matcher = None
 
-    self.result = super(TestDataflowRunner, self).run_pipeline(pipeline)
+    self.result = super(TestDataflowRunner, self).run_pipeline(
+        pipeline, options)
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
-      print('Found: %s.' % self.build_console_url(pipeline.options))
+      print('Found: %s.' % self.build_console_url(options))
 
     try:
-      if not options.view_as(StandardOptions).streaming:
-        self.result.wait_until_finish()
-      else:
-        self.wait_until_in_state(PipelineState.RUNNING)
+      self.wait_until_in_state(PipelineState.RUNNING)
+
+      if is_streaming and not wait_duration:
+        logging.warning('Waiting indefinitely for streaming job.')
+      self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:
         from hamcrest import assert_that as hc_assert_that
@@ -60,8 +69,7 @@ class TestDataflowRunner(DataflowRunner):
     finally:
       if not self.result.is_in_terminal_state():
         self.result.cancel()
-      if options.view_as(StandardOptions).streaming:
-        self.wait_until_in_state(PipelineState.CANCELLED, timeout=300)
+        self.wait_until_in_state(PipelineState.CANCELLED)
 
     return self.result
 
@@ -74,8 +82,8 @@ class TestDataflowRunner(DataflowRunner):
         'https://console.cloud.google.com/dataflow/jobsDetail/locations'
         '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
 
-  def wait_until_in_state(self, expected_state, timeout=WAIT_TIMEOUT):
-    """Wait until Dataflow pipeline terminate or enter RUNNING state."""
+  def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
+    """Wait until Dataflow pipeline enters a certain state."""
     if not self.result.has_job:
       raise IOError('Failed to get the Dataflow job id.')
 
@@ -88,5 +96,5 @@ class TestDataflowRunner(DataflowRunner):
 
     raise RuntimeError('Timeout after %d seconds while waiting for job %s '
                        'enters expected state %s. Current state is %s.' %
-                       (WAIT_TIMEOUT, self.result.job_id,
+                       (timeout, self.result.job_id(),
                         expected_state, self.result.state))

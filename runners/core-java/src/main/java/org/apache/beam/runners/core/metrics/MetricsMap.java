@@ -15,11 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.metrics;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +24,8 @@ import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /**
  * A map from {@code K} to {@code T} that supports getting or creating values associated with a key
@@ -52,9 +51,7 @@ public class MetricsMap<K, T> implements Serializable {
     this.factory = factory;
   }
 
-  /**
-   * Get or create the value associated with the given key.
-   */
+  /** Get or create the value associated with the given key. */
   public T get(K key) {
     T metric = metrics.get(key);
     if (metric == null) {
@@ -64,24 +61,18 @@ public class MetricsMap<K, T> implements Serializable {
     return metric;
   }
 
-  /**
-   * Get the value associated with the given key, if it exists.
-   */
+  /** Get the value associated with the given key, if it exists. */
   @Nullable
   public T tryGet(K key) {
     return metrics.get(key);
   }
 
-  /**
-   * Return an iterable over the entries in the current {@link  MetricsMap}.
-   */
+  /** Return an iterable over the entries in the current {@link MetricsMap}. */
   public Iterable<Map.Entry<K, T>> entries() {
     return Iterables.unmodifiableIterable(metrics.entrySet());
   }
 
-  /**
-   * Return an iterable over the values in the current {@link MetricsMap}.
-   */
+  /** Return an iterable over the values in the current {@link MetricsMap}. */
   public Iterable<T> values() {
     return Iterables.unmodifiableIterable(metrics.values());
   }

@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -69,6 +66,9 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,8 +87,7 @@ class BatchLoads<DestinationT>
   // save on the cost of shuffling some of this data.
   // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
-  @VisibleForTesting
-  static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
+  @VisibleForTesting static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
   @VisibleForTesting
   // Maximum number of files in a single partition.
@@ -111,12 +110,12 @@ class BatchLoads<DestinationT>
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
   static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
-  // The maximum number of retry jobs.
-  static final int MAX_RETRY_JOBS = 3;
+  static final int DEFAULT_MAX_RETRY_JOBS = 3;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  private final boolean ignoreUnknownValues;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
   private final boolean singletonTable;
@@ -127,12 +126,20 @@ class BatchLoads<DestinationT>
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
+  private ValueProvider<String> loadJobProjectId;
 
-  BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
-             boolean singletonTable,
-             DynamicDestinations<?, DestinationT> dynamicDestinations,
-             Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customGcsTempLocation) {
+  // The maximum number of times to retry failed load or copy jobs.
+  private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
+
+  BatchLoads(
+      WriteDisposition writeDisposition,
+      CreateDisposition createDisposition,
+      boolean singletonTable,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      Coder<DestinationT> destinationCoder,
+      ValueProvider<String> customGcsTempLocation,
+      @Nullable ValueProvider<String> loadJobProjectId,
+      boolean ignoreUnknownValues) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -144,6 +151,8 @@ class BatchLoads<DestinationT>
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
+    this.loadJobProjectId = loadJobProjectId;
+    this.ignoreUnknownValues = ignoreUnknownValues;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -162,6 +171,14 @@ class BatchLoads<DestinationT>
 
   public void setTriggeringFrequency(Duration triggeringFrequency) {
     this.triggeringFrequency = triggeringFrequency;
+  }
+
+  public int getMaxRetryJobs() {
+    return maxRetryJobs;
+  }
+
+  public void setMaxRetryJobs(int maxRetryJobs) {
+    this.maxRetryJobs = maxRetryJobs;
   }
 
   public void setNumFileShards(int numFileShards) {
@@ -282,7 +299,11 @@ class BatchLoads<DestinationT>
             "WriteRenameTriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -338,7 +359,11 @@ class BatchLoads<DestinationT>
             "WriteRenameUntriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                        bigQueryServices,
+                        loadJobIdPrefixView,
+                        writeDisposition,
+                        createDisposition,
+                        maxRetryJobs))
                 .withSideInputs(loadJobIdPrefixView));
     writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
@@ -507,7 +532,10 @@ class BatchLoads<DestinationT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId,
+                maxRetryJobs,
+                ignoreUnknownValues));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -536,7 +564,10 @@ class BatchLoads<DestinationT>
                 writeDisposition,
                 createDisposition,
                 sideInputs,
-                dynamicDestinations));
+                dynamicDestinations,
+                loadJobProjectId,
+                maxRetryJobs,
+                ignoreUnknownValues));
   }
 
   private WriteResult writeResult(Pipeline p) {

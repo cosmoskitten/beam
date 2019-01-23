@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_DATABASE;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_FILTER;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.TEST_TABLE;
+import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.buildHCatRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getConfigPropertiesAsMap;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getExpectedRecords;
-import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getHCatRecords;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.getReaderContext;
 import static org.apache.beam.sdk.io.hcatalog.HCatalogIOTestUtils.insertTestData;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -73,8 +73,7 @@ import org.junit.runners.model.Statement;
 public class HCatalogIOTest implements Serializable {
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
-  @ClassRule
-  public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
   @Rule public final transient TestPipeline defaultPipeline = TestPipeline.create();
 
@@ -85,6 +84,7 @@ public class HCatalogIOTest implements Serializable {
   @Rule
   public final transient TestRule testDataSetupRule =
       new TestWatcher() {
+        @Override
         public Statement apply(final Statement base, final Description description) {
           return new Statement() {
             @Override
@@ -113,12 +113,12 @@ public class HCatalogIOTest implements Serializable {
   private @interface NeedsEmptyTestTables {}
 
   @BeforeClass
-  public static void setupEmbeddedMetastoreService () throws IOException {
+  public static void setupEmbeddedMetastoreService() throws IOException {
     service = new EmbeddedMetastoreService(TMP_FOLDER.getRoot().getAbsolutePath());
   }
 
   @AfterClass
-  public static void shutdownEmbeddedMetastoreService () throws Exception {
+  public static void shutdownEmbeddedMetastoreService() throws Exception {
     service.executeQuery("drop table " + TEST_TABLE);
     service.close();
   }
@@ -128,7 +128,7 @@ public class HCatalogIOTest implements Serializable {
   @NeedsEmptyTestTables
   public void testWriteThenReadSuccess() throws Exception {
     defaultPipeline
-        .apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
+        .apply(Create.of(buildHCatRecords(TEST_RECORDS_COUNT)))
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
@@ -138,21 +138,22 @@ public class HCatalogIOTest implements Serializable {
                 .withBatchSize(512L));
     defaultPipeline.run();
 
-    PCollection<String> output = readAfterWritePipeline
-        .apply(
-            HCatalogIO.read()
-                .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-                .withDatabase(TEST_DATABASE)
-                .withTable(TEST_TABLE)
-                .withFilter(TEST_FILTER))
-        .apply(
-            ParDo.of(
-                new DoFn<HCatRecord, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element().get(0).toString());
-                  }
-                }));
+    PCollection<String> output =
+        readAfterWritePipeline
+            .apply(
+                HCatalogIO.read()
+                    .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                    .withDatabase(TEST_DATABASE)
+                    .withTable(TEST_TABLE)
+                    .withFilter(TEST_FILTER))
+            .apply(
+                ParDo.of(
+                    new DoFn<HCatRecord, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element().get(0).toString());
+                      }
+                    }));
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
     readAfterWritePipeline.run();
   }
@@ -164,7 +165,7 @@ public class HCatalogIOTest implements Serializable {
     thrown.expectMessage(containsString("org.apache.hive.hcatalog.common.HCatException"));
     thrown.expectMessage(containsString("NoSuchObjectException"));
     defaultPipeline
-        .apply(Create.of(getHCatRecords(TEST_RECORDS_COUNT)))
+        .apply(Create.of(buildHCatRecords(TEST_RECORDS_COUNT)))
         .apply(
             HCatalogIO.write()
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))

@@ -15,19 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Objects;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -84,6 +77,12 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -762,7 +761,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       PCollection<KV<DestinationT, String>> outputFilenames =
           input
               .apply("Finalize", ParDo.of(new FinalizeFn()).withSideInputs(finalizeSideInputs))
-              .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
+              .setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()))
+              // Reshuffle the filenames to make sure they are observable downstream
+              // only after each one is done finalizing.
+              .apply(Reshuffle.viaRandomKey());
 
       TupleTag<KV<DestinationT, String>> perDestinationOutputFilenamesTag =
           new TupleTag<>("perDestinationOutputFilenames");
@@ -791,11 +793,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ? writeOperation.finalizeDestination(
                     defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
                 : finalizeAllDestinations(fileResults, fixedNumShards);
+        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
         for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
           FileResult<DestinationT> res = entry.getKey();
           c.output(KV.of(res.getDestination(), entry.getValue().toString()));
         }
-        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
       }
     }
   }

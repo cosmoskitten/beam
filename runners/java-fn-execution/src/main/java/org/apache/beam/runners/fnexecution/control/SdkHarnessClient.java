@@ -17,32 +17,36 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
+import org.apache.beam.runners.fnexecution.state.StateDelegator.Registration;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,40 +60,22 @@ public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
   /**
-   * A supply of unique identifiers, used internally. These must be unique across all Fn API
-   * clients.
-   */
-  public interface IdGenerator {
-    String getId();
-  }
-
-  /** A supply of unique identifiers that are simply incrementing longs. */
-  private static class CountingIdGenerator implements IdGenerator {
-    private final AtomicLong nextId = new AtomicLong(0L);
-
-    @Override
-    public String getId() {
-      return String.valueOf(nextId.incrementAndGet());
-    }
-  }
-
-  /**
    * A processor capable of creating bundles for some registered {@link ProcessBundleDescriptor}.
    */
-  public class BundleProcessor<T> {
+  public class BundleProcessor {
     private final ProcessBundleDescriptor processBundleDescriptor;
     private final CompletionStage<RegisterResponse> registrationFuture;
-    private final RemoteInputDestination<WindowedValue<T>> remoteInput;
+    private final Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputs;
     private final StateDelegator stateDelegator;
 
     private BundleProcessor(
         ProcessBundleDescriptor processBundleDescriptor,
         CompletionStage<RegisterResponse> registrationFuture,
-        RemoteInputDestination<WindowedValue<T>> remoteInput,
+        Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputs,
         StateDelegator stateDelegator) {
       this.processBundleDescriptor = processBundleDescriptor;
       this.registrationFuture = registrationFuture;
-      this.remoteInput = remoteInput;
+      this.remoteInputs = remoteInputs;
       this.stateDelegator = stateDelegator;
     }
 
@@ -104,20 +90,27 @@ public class SdkHarnessClient implements AutoCloseable {
      * in the {@link BeamFnApi.ProcessBundleDescriptor}.
      *
      * <p>NOTE: It is important to {@link #close()} each bundle after all elements are emitted.
+     *
      * <pre>{@code
-     * try (ActiveBundle<InputT> bundle = SdkHarnessClient.newBundle(...)) {
-     *   FnDataReceiver<InputT> inputReceiver = bundle.getInputReceiver();
-     *   // send all elements ...
+     * try (ActiveBundle bundle = SdkHarnessClient.newBundle(...)) {
+     *   FnDataReceiver<InputT> inputReceiver =
+     *       (FnDataReceiver) bundle.getInputReceivers().get(mainPCollectionId);
+     *   // send all main input elements ...
      * }
      * }</pre>
      */
-    public ActiveBundle<T> newBundle(
-        Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers) {
-      return newBundle(outputReceivers, request -> {
-        throw new UnsupportedOperationException(String.format(
-            "The %s does not have a registered state handler.",
-            ActiveBundle.class.getSimpleName()));
-      });
+    public ActiveBundle newBundle(
+        Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers,
+        BundleProgressHandler progressHandler) {
+      return newBundle(
+          outputReceivers,
+          request -> {
+            throw new UnsupportedOperationException(
+                String.format(
+                    "The %s does not have a registered state handler.",
+                    ActiveBundle.class.getSimpleName()));
+          },
+          progressHandler);
     }
 
     /**
@@ -127,16 +120,19 @@ public class SdkHarnessClient implements AutoCloseable {
      * in the {@link BeamFnApi.ProcessBundleDescriptor}.
      *
      * <p>NOTE: It is important to {@link #close()} each bundle after all elements are emitted.
+     *
      * <pre>{@code
-     * try (ActiveBundle<InputT> bundle = SdkHarnessClient.newBundle(...)) {
-     *   FnDataReceiver<InputT> inputReceiver = bundle.getInputReceiver();
+     * try (ActiveBundle bundle = SdkHarnessClient.newBundle(...)) {
+     *   FnDataReceiver<InputT> inputReceiver =
+     *       (FnDataReceiver) bundle.getInputReceivers().get(mainPCollectionId);
      *   // send all elements ...
      * }
      * }</pre>
      */
-    public ActiveBundle<T> newBundle(
+    public ActiveBundle newBundle(
         Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers,
-        StateRequestHandler stateRequestHandler) {
+        StateRequestHandler stateRequestHandler,
+        BundleProgressHandler progressHandler) {
       String bundleId = idGenerator.getId();
 
       final CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
@@ -157,8 +153,8 @@ public class SdkHarnessClient implements AutoCloseable {
       CompletionStage<BeamFnApi.ProcessBundleResponse> specificResponse =
           genericResponse.thenApply(InstructionResponse::getProcessBundle);
       Map<BeamFnApi.Target, InboundDataClient> outputClients = new HashMap<>();
-      for (Map.Entry<BeamFnApi.Target, RemoteOutputReceiver<?>> targetReceiver
-          : outputReceivers.entrySet()) {
+      for (Map.Entry<BeamFnApi.Target, RemoteOutputReceiver<?>> targetReceiver :
+          outputReceivers.entrySet()) {
         InboundDataClient outputClient =
             attachReceiver(
                 bundleId,
@@ -167,16 +163,24 @@ public class SdkHarnessClient implements AutoCloseable {
         outputClients.put(targetReceiver.getKey(), outputClient);
       }
 
-      CloseableFnDataReceiver<WindowedValue<T>> dataReceiver =
-          fnApiDataService.send(
-              LogicalEndpoint.of(bundleId, remoteInput.getTarget()), remoteInput.getCoder());
+      ImmutableMap.Builder<String, CloseableFnDataReceiver<WindowedValue<?>>> dataReceiversBuilder =
+          ImmutableMap.builder();
+      for (Map.Entry<String, RemoteInputDestination<WindowedValue<?>>> remoteInput :
+          remoteInputs.entrySet()) {
+        dataReceiversBuilder.put(
+            remoteInput.getKey(),
+            fnApiDataService.send(
+                LogicalEndpoint.of(bundleId, remoteInput.getValue().getTarget()),
+                (Coder) remoteInput.getValue().getCoder()));
+      }
 
-      return new ActiveBundle<>(
+      return new ActiveBundle(
           bundleId,
           specificResponse,
-          dataReceiver,
+          dataReceiversBuilder.build(),
           outputClients,
-          stateDelegator.registerForProcessBundleInstructionId(bundleId, stateRequestHandler));
+          stateDelegator.registerForProcessBundleInstructionId(bundleId, stateRequestHandler),
+          progressHandler);
     }
 
     private <OutputT> InboundDataClient attachReceiver(
@@ -189,69 +193,78 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /** An active bundle for a particular {@link BeamFnApi.ProcessBundleDescriptor}. */
-  public static class ActiveBundle<InputT> implements AutoCloseable {
+  public static class ActiveBundle implements RemoteBundle {
     private final String bundleId;
     private final CompletionStage<BeamFnApi.ProcessBundleResponse> response;
-    private final CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver;
+    private final Map<String, CloseableFnDataReceiver<WindowedValue<?>>> inputReceivers;
     private final Map<BeamFnApi.Target, InboundDataClient> outputClients;
     private final StateDelegator.Registration stateRegistration;
+    private final BundleProgressHandler progressHandler;
 
     private ActiveBundle(
         String bundleId,
-        CompletionStage<BeamFnApi.ProcessBundleResponse> response,
-        CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver,
-        Map<BeamFnApi.Target, InboundDataClient> outputClients,
-        StateDelegator.Registration stateRegistration) {
+        CompletionStage<ProcessBundleResponse> response,
+        Map<String, CloseableFnDataReceiver<WindowedValue<?>>> inputReceivers,
+        Map<Target, InboundDataClient> outputClients,
+        StateDelegator.Registration stateRegistration,
+        BundleProgressHandler progressHandler) {
       this.bundleId = bundleId;
       this.response = response;
-      this.inputReceiver = inputReceiver;
+      this.inputReceivers = inputReceivers;
       this.outputClients = outputClients;
       this.stateRegistration = stateRegistration;
+      this.progressHandler = progressHandler;
     }
 
-    /**
-     * Returns an id used to represent this bundle.
-     */
-    public String getBundleId() {
+    /** Returns an id used to represent this bundle. */
+    @Override
+    public String getId() {
       return bundleId;
     }
 
     /**
-     * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them
-     * to the SDK.
+     * Get a map of PCollection ids to {@link FnDataReceiver receiver}s which consume input
+     * elements, forwarding them to the remote environment.
      */
-    public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
-      return inputReceiver;
+    @Override
+    public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+      return (Map) inputReceivers;
     }
 
     /**
      * Blocks till bundle processing is finished. This is comprised of:
+     *
      * <ul>
-     *   <li>closing the {@link #getInputReceiver() input receiver}.</li>
-     *   <li>waiting for the SDK to say that processing the bundle is finished.</li>
-     *   <li>waiting for all inbound data clients to complete</li>
+     *   <li>closing each {@link #getInputReceivers() input receiver}.
+     *   <li>waiting for the SDK to say that processing the bundle is finished.
+     *   <li>waiting for all inbound data clients to complete
      * </ul>
      *
-     * <p>This method will throw an exception if bundle processing has failed.
-     * {@link Throwable#getSuppressed()} will return all the reasons as to why processing has
-     * failed.
+     * <p>This method will throw an exception if bundle processing has failed. {@link
+     * Throwable#getSuppressed()} will return all the reasons as to why processing has failed.
      */
     @Override
     public void close() throws Exception {
       Exception exception = null;
-      try {
-        inputReceiver.close();
-      } catch (Exception e) {
-        exception = e;
+      for (CloseableFnDataReceiver<?> inputReceiver : inputReceivers.values()) {
+        try {
+          inputReceiver.close();
+        } catch (Exception e) {
+          if (exception == null) {
+            exception = e;
+          } else {
+            exception.addSuppressed(e);
+          }
+        }
       }
       try {
         // We don't have to worry about the completion stage.
         if (exception == null) {
-          MoreFutures.get(response);
+          progressHandler.onCompleted(MoreFutures.get(response));
         } else {
           // TODO: [BEAM-3962] Handle aborting the bundle being processed.
-          throw new IllegalStateException("Processing bundle failed, "
-              + "TODO: [BEAM-3962] abort bundle.");
+          throw new IllegalStateException(
+              "Processing bundle failed, " + "TODO: [BEAM-3962] abort bundle.");
         }
       } catch (Exception e) {
         if (exception == null) {
@@ -292,7 +305,6 @@ public class SdkHarnessClient implements AutoCloseable {
       if (exception != null) {
         throw exception;
       }
-
     }
   }
 
@@ -300,8 +312,6 @@ public class SdkHarnessClient implements AutoCloseable {
   private final InstructionRequestHandler fnApiControlClient;
   private final FnDataService fnApiDataService;
 
-  @SuppressWarnings("unchecked") /* SdkHarnessClient does not need to know the type information of
-  BundleProcessor. */
   private final ConcurrentHashMap<String, BundleProcessor> clientProcessors;
 
   private SdkHarnessClient(
@@ -321,7 +331,8 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public static SdkHarnessClient usingFnApiClient(
       InstructionRequestHandler fnApiControlClient, FnDataService fnApiDataService) {
-    return new SdkHarnessClient(fnApiControlClient, fnApiDataService, new CountingIdGenerator());
+    return new SdkHarnessClient(
+        fnApiControlClient, fnApiDataService, IdGenerators.incrementingLongs());
   }
 
   public SdkHarnessClient withIdGenerator(IdGenerator idGenerator) {
@@ -329,56 +340,55 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /**
-   * Provides {@link BundleProcessor} that is capable of processing bundles not
-   * containing any state accesses such as:
+   * Provides {@link BundleProcessor} that is capable of processing bundles not containing any state
+   * accesses such as:
+   *
    * <ul>
-   *   <li>Side inputs</li>
-   *   <li>User state</li>
-   *   <li>Remote references</li>
+   *   <li>Side inputs
+   *   <li>User state
+   *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the
-   * {@link ProcessBundleDescriptor#getId() process bundle descriptor id}.
-   * A previously created instance may be returned.
+   * <p>Note that bundle processors are cached based upon the the {@link
+   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
+   * may be returned.
    */
-  public <T> BundleProcessor<T> getProcessor(
+  public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
-      RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
+      Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputDesinations) {
     checkState(
         !descriptor.hasStateApiServiceDescriptor(),
         "The %s cannot support a %s containing a state %s.",
         BundleProcessor.class.getSimpleName(),
         BeamFnApi.ProcessBundleDescriptor.class.getSimpleName(),
         Endpoints.ApiServiceDescriptor.class.getSimpleName());
-    return getProcessor(descriptor, remoteInputDesination, NoOpStateDelegator.INSTANCE);
+    return getProcessor(descriptor, remoteInputDesinations, NoOpStateDelegator.INSTANCE);
   }
 
   /**
-   * Provides {@link BundleProcessor} that is capable of processing bundles containing
-   * state accesses such as:
+   * Provides {@link BundleProcessor} that is capable of processing bundles containing state
+   * accesses such as:
+   *
    * <ul>
-   *   <li>Side inputs</li>
-   *   <li>User state</li>
-   *   <li>Remote references</li>
+   *   <li>Side inputs
+   *   <li>User state
+   *   <li>Remote references
    * </ul>
    *
-   * <p>Note that bundle processors are cached based upon the the
-   * {@link ProcessBundleDescriptor#getId() process bundle descriptor id}.
-   * A previously created instance may be returned.
+   * <p>Note that bundle processors are cached based upon the the {@link
+   * ProcessBundleDescriptor#getId() process bundle descriptor id}. A previously created instance
+   * may be returned.
    */
-  @SuppressWarnings("unchecked")
-  public <T> BundleProcessor<T> getProcessor(
+  public BundleProcessor getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
-      RemoteInputDestination<WindowedValue<T>> remoteInputDesination,
+      Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputDesinations,
       StateDelegator stateDelegator) {
-    BundleProcessor<T> bundleProcessor =
+    @SuppressWarnings("unchecked")
+    BundleProcessor bundleProcessor =
         clientProcessors.computeIfAbsent(
-            descriptor.getId(),
-            s -> create(
-                descriptor,
-                remoteInputDesination,
-                stateDelegator));
-    checkArgument(bundleProcessor.processBundleDescriptor.equals(descriptor),
+            descriptor.getId(), s -> create(descriptor, remoteInputDesinations, stateDelegator));
+    checkArgument(
+        bundleProcessor.processBundleDescriptor.equals(descriptor),
         "The provided %s with id %s collides with an existing %s with the same id but "
             + "containing different contents.",
         BeamFnApi.ProcessBundleDescriptor.class.getSimpleName(),
@@ -388,39 +398,34 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /**
-   * A {@link StateDelegator} that issues zero state requests to any provided
-   * {@link StateRequestHandler state handlers}.
+   * A {@link StateDelegator} that issues zero state requests to any provided {@link
+   * StateRequestHandler state handlers}.
    */
   private static class NoOpStateDelegator implements StateDelegator {
     private static final NoOpStateDelegator INSTANCE = new NoOpStateDelegator();
+
     @Override
-    public Registration registerForProcessBundleInstructionId(String processBundleInstructionId,
-        StateRequestHandler handler) {
+    public Registration registerForProcessBundleInstructionId(
+        String processBundleInstructionId, StateRequestHandler handler) {
       return Registration.INSTANCE;
     }
 
-    /**
-     * The corresponding registration for a {@link NoOpStateDelegator} that does nothing.
-     */
+    /** The corresponding registration for a {@link NoOpStateDelegator} that does nothing. */
     private static class Registration implements StateDelegator.Registration {
       private static final Registration INSTANCE = new Registration();
 
       @Override
-      public void deregister() {
-      }
+      public void deregister() {}
 
       @Override
-      public void abort() {
-      }
+      public void abort() {}
     }
   }
 
-  /**
-   * Registers a {@link BeamFnApi.ProcessBundleDescriptor} for future processing.
-   */
-  private <T> BundleProcessor<T> create(
+  /** Registers a {@link BeamFnApi.ProcessBundleDescriptor} for future processing. */
+  private BundleProcessor create(
       BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
-      RemoteInputDestination<WindowedValue<T>> remoteInputDestination,
+      Map<String, RemoteInputDestination<WindowedValue<?>>> remoteInputDestinations,
       StateDelegator stateDelegator) {
 
     LOG.debug("Registering {}", processBundleDescriptor);
@@ -438,29 +443,16 @@ public class SdkHarnessClient implements AutoCloseable {
     CompletionStage<RegisterResponse> registerResponseFuture =
         genericResponse.thenApply(InstructionResponse::getRegister);
 
-    BundleProcessor<T> bundleProcessor = new BundleProcessor<>(
-        processBundleDescriptor,
-        registerResponseFuture,
-        remoteInputDestination,
-        stateDelegator);
+    BundleProcessor bundleProcessor =
+        new BundleProcessor(
+            processBundleDescriptor,
+            registerResponseFuture,
+            remoteInputDestinations,
+            stateDelegator);
 
     return bundleProcessor;
   }
 
   @Override
   public void close() {}
-
-  /**
-   * A pair of {@link Coder} and {@link FnDataReceiver} which can be registered to receive elements
-   * for a {@link LogicalEndpoint}.
-   */
-  @AutoValue
-  public abstract static class RemoteOutputReceiver<T> {
-    public static <T> RemoteOutputReceiver of (Coder<T> coder, FnDataReceiver<T> receiver) {
-      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver<>(coder, receiver);
-    }
-
-    public abstract Coder<T> getCoder();
-    public abstract FnDataReceiver<T> getReceiver();
-  }
 }

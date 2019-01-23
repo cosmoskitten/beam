@@ -17,35 +17,68 @@
  */
 package org.apache.beam.runners.fnexecution.state;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
-import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.ServerCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 
 /** An implementation of the Beam Fn State service. */
 public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     implements StateDelegator, FnService {
-  private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
+  /** Create a new {@link GrpcStateService}. */
+  public static GrpcStateService create() {
+    return new GrpcStateService();
+  }
 
-  public GrpcStateService()
-      throws Exception {
+  private final ConcurrentLinkedQueue<Inbound> clients;
+  private final ConcurrentMap<String, StateRequestHandler> requestHandlers;
+
+  private GrpcStateService() {
     this.requestHandlers = new ConcurrentHashMap<>();
+    this.clients = new ConcurrentLinkedQueue<>();
   }
 
   @Override
-  public void close() {
-    // TODO: Track multiple clients and disconnect them cleanly instead of forcing termination
+  public void close() throws Exception {
+    Exception thrown = null;
+    for (Inbound inbound : clients) {
+      try {
+        // the call may be cancelled because the sdk harness hung up
+        // (we terminate the environment before terminating the service endpoints)
+        if (inbound.outboundObserver instanceof ServerCallStreamObserver) {
+          if (((ServerCallStreamObserver) inbound.outboundObserver).isCancelled()) {
+            // skip to avoid call already closed exception
+            continue;
+          }
+        }
+        inbound.outboundObserver.onCompleted();
+      } catch (Exception t) {
+        if (thrown == null) {
+          thrown = t;
+        } else {
+          thrown.addSuppressed(t);
+        }
+      }
+    }
+    if (thrown != null) {
+      throw thrown;
+    }
   }
 
   @Override
   public StreamObserver<StateRequest> state(StreamObserver<StateResponse> responseObserver) {
-    return new Inbound(responseObserver);
+    Inbound rval = new Inbound(responseObserver);
+    clients.add(rval);
+    return rval;
   }
 
   @Override
@@ -92,10 +125,10 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     @Override
     public void onNext(StateRequest request) {
       StateRequestHandler handler =
-        requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
+          requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
         CompletionStage<StateResponse.Builder> result = handler.handle(request);
-        result.whenCompleteAsync(
+        result.whenComplete(
             (StateResponse.Builder responseBuilder, Throwable t) ->
                 // note that this is threadsafe if and only if outboundObserver is threadsafe.
                 outboundObserver.onNext(
@@ -133,4 +166,3 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
     }
   }
 }
-

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Class representing a Pub/Sub message. Each message contains a single message payload and
- * a map of attached attributes.
+ * Class representing a Pub/Sub message. Each message contains a single message payload and a map of
+ * attached attributes.
  */
 public class PubsubMessage {
 
@@ -36,25 +36,19 @@ public class PubsubMessage {
     this.attributes = attributes;
   }
 
-  /**
-   * Returns the main PubSub message.
-   */
+  /** Returns the main PubSub message. */
   public byte[] getPayload() {
     return message;
   }
 
-  /**
-   * Returns the given attribute value. If not such attribute exists, returns null.
-   */
+  /** Returns the given attribute value. If not such attribute exists, returns null. */
   @Nullable
   public String getAttribute(String attribute) {
     checkNotNull(attribute, "attribute");
     return attributes.get(attribute);
   }
 
-  /**
-   * Returns the full map of attributes. This is an unmodifiable map.
-   */
+  /** Returns the full map of attributes. This is an unmodifiable map. */
   public Map<String, String> getAttributeMap() {
     return attributes;
   }

@@ -17,6 +17,10 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+from __future__ import absolute_import
+
+from builtins import object
+from builtins import range
 
 globals()['INT64_MAX'] = 2**63 - 1
 globals()['INT64_MIN'] = -2**63
@@ -60,6 +64,7 @@ class DataflowDistributionCounter(object):
   BUCKET_PER_TEN = 3
 
   def __init__(self):
+    global INT64_MAX  # pylint: disable=global-variable-not-assigned
     self.min = INT64_MAX
     self.max = 0
     self.count = 0
@@ -112,3 +117,6 @@ class DataflowDistributionCounter(object):
     histogram.firstBucketOffset = first_bucket_offset
     histogram.bucketCounts = (
         self.buckets[first_bucket_offset:last_bucket_offset + 1])
+
+  def merge(self, accumulators):
+    raise NotImplementedError()

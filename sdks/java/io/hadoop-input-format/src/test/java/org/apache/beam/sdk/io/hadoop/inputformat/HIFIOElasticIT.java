@@ -1,20 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
- * agreements. See the NOTICE file distributed with this work for additional information regarding
- * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License. You may obtain a
- * copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License
- * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- * or implied. See the License for the specific language governing permissions and limitations under
- * the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
-import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -40,13 +42,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an
- * independent Elasticsearch instance.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an independent
+ * Elasticsearch instance.
  *
- * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in
- * the database.
+ * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
+ * database.
  *
  * <p>You can run this test by doing the following:
+ *
  * <pre>
  *  ./gradlew integrationTest -p sdks/java/io/hadoop-input-format
  *  -Dit.test=org.apache.beam.sdk.io.hadoop.inputformat.HIFIOElasticIT
@@ -63,7 +66,6 @@ import org.junit.runners.JUnit4;
  * and spark in the pom. You'll want to activate those in addition to the normal test runner
  * invocation pipeline options.
  */
-
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
 
@@ -73,8 +75,7 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFITestOptions options;
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
@@ -87,7 +88,7 @@ public class HIFIOElasticIT implements Serializable {
    * successfully.
    */
   @Test
-  public void testHifIOWithElastic() throws SecurityException, IOException {
+  public void testHifIOWithElastic() throws SecurityException {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     final long expectedRowCount = 1000L;
     String expectedHashCode = "42e254c8689050ed0a617ff5e80ea392";
@@ -106,7 +107,7 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  MapElements<LinkedMapWritable, String> transformFunc =
+  private final MapElements<LinkedMapWritable, String> transformFunc =
       MapElements.via(
           new SimpleFunction<LinkedMapWritable, String>() {
             @Override
@@ -145,7 +146,7 @@ public class HIFIOElasticIT implements Serializable {
    * separator.
    */
   private String addFieldValuesToRow(String row, MapWritable mapw, String columnName) {
-    Object valueObj = (Object) mapw.get(new Text(columnName));
+    Object valueObj = mapw.get(new Text(columnName));
     row += valueObj.toString() + "|";
     return row;
   }
@@ -159,16 +160,17 @@ public class HIFIOElasticIT implements Serializable {
     String expectedHashCode = "d7a7e4e42c2ca7b83ef7c1ad1ebce000";
     Long expectedRecordsCount = 1L;
     Configuration conf = getConfiguration(options);
-    String query = "{"
-                  + "  \"query\": {"
-                  + "  \"match\" : {"
-                  + "    \"Title\" : {"
-                  + "      \"query\" : \"Title9\","
-                  + "      \"type\" : \"boolean\""
-                  + "    }"
-                  + "  }"
-                  + "  }"
-                  + "}";
+    String query =
+        "{"
+            + "  \"query\": {"
+            + "  \"match\" : {"
+            + "    \"Title\" : {"
+            + "      \"query\" : \"Title9\","
+            + "      \"type\" : \"boolean\""
+            + "    }"
+            + "  }"
+            + "  }"
+            + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -202,8 +204,10 @@ public class HIFIOElasticIT implements Serializable {
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
-    conf.setClass("mapreduce.job.inputformat.class",
-        org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+    conf.setClass(
+        "mapreduce.job.inputformat.class",
+        org.elasticsearch.hadoop.mr.EsInputFormat.class,
+        InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", LinkedMapWritable.class, Object.class);
     // Optimizations added to change the max docs per partition, scroll size and batch size of

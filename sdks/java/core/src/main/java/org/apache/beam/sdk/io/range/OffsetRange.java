@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.range;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -27,8 +27,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
     implements Serializable,
-    HasDefaultTracker<
-                OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
+        HasDefaultTracker<
+            OffsetRange, org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker> {
   private final long from;
   private final long to;
 

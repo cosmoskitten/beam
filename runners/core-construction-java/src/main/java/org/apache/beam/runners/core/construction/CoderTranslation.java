@@ -15,19 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -36,6 +29,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {
@@ -77,8 +75,8 @@ public class CoderTranslation {
         .build();
   }
 
-  public static RunnerApi.Coder toProto(
-      Coder<?> coder, SdkComponents components) throws IOException {
+  public static RunnerApi.Coder toProto(Coder<?> coder, SdkComponents components)
+      throws IOException {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }
@@ -135,7 +133,7 @@ public class CoderTranslation {
   private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
       throws IOException {
     String coderUrn = coder.getSpec().getSpec().getUrn();
-    List<Coder<?>> coderComponents = new LinkedList<>();
+    List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       Coder<?> innerCoder = components.getCoder(componentId);
       coderComponents.add(innerCoder);

@@ -29,12 +29,12 @@ import (
 
 // DataSink is a Node.
 type DataSink struct {
-	UID    UnitID
-	Port   Port
-	Target Target
-	Coder  *coder.Coder
+	UID   UnitID
+	SID   StreamID
+	Coder *coder.Coder
 
 	enc   ElementEncoder
+	wEnc  WindowEncoder
 	w     io.WriteCloser
 	count int64
 	start time.Time
@@ -46,13 +46,12 @@ func (n *DataSink) ID() UnitID {
 
 func (n *DataSink) Up(ctx context.Context) error {
 	n.enc = MakeElementEncoder(coder.SkipW(n.Coder))
+	n.wEnc = MakeWindowEncoder(n.Coder.Window)
 	return nil
 }
 
-func (n *DataSink) StartBundle(ctx context.Context, id string, data DataManager) error {
-	sid := StreamID{Port: n.Port, Target: n.Target, InstID: id}
-
-	w, err := data.OpenWrite(ctx, sid)
+func (n *DataSink) StartBundle(ctx context.Context, id string, data DataContext) error {
+	w, err := data.Data.OpenWrite(ctx, n.SID)
 	if err != nil {
 		return err
 	}
@@ -68,14 +67,12 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	var b bytes.Buffer
 
 	atomic.AddInt64(&n.count, 1)
-	if err := EncodeWindowedValueHeader(value.Timestamp, &b); err != nil {
+	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, &b); err != nil {
 		return err
 	}
-
 	if err := n.enc.Encode(value, &b); err != nil {
 		return fmt.Errorf("failed to encode element %v with coder %v: %v", value, n.enc, err)
 	}
-
 	if _, err := n.w.Write(b.Bytes()); err != nil {
 		return err
 	}
@@ -83,7 +80,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 }
 
 func (n *DataSink) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	log.Infof(ctx, "DataSink: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	return n.w.Close()
 }
 
@@ -92,6 +89,5 @@ func (n *DataSink) Down(ctx context.Context) error {
 }
 
 func (n *DataSink) String() string {
-	sid := StreamID{Port: n.Port, Target: n.Target}
-	return fmt.Sprintf("DataSink[%v]", sid)
+	return fmt.Sprintf("DataSink[%v] Coder:%v", n.SID, n.Coder)
 }
