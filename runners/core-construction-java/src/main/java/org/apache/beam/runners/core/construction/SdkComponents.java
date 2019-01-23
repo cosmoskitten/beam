@@ -124,8 +124,8 @@ public class SdkComponents {
   }
 
   /**
-   * Returns an SdkComponents like this one, but which will prefix all newly generated ids
-   * with the given string.
+   * Returns an SdkComponents like this one, but which will prefix all newly generated ids with the
+   * given string.
    *
    * <p>Useful for ensuring independently-constructed components have non-overlapping ids.
    */
