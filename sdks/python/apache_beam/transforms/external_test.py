@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import unittest
 
 import apache_beam as beam
@@ -140,3 +141,8 @@ class ExternalTransformTest(unittest.TestCase):
 
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
