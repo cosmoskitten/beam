@@ -54,6 +54,9 @@ service JobService {
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  // Get the supported pipeline options of the runner
+  rpc DescribePipelineOptions (DescribePipelineOptionsRequest) returns (DescribePipelineOptionsResponse);
 }
 
 
@@ -175,4 +178,38 @@ message JobState {
     STARTING = 9;
     CANCELLING = 10;
   }
+}
+
+
+// DescribePipelineOptions provides metadata about the options supported by a runner.
+// It will be used by the SDK client to validate the options specified by or
+// list available options to the user.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+message DescribePipelineOptionsRequest {
+  // TODO: base options to support proxy functionality
+}
+
+// Metadata for a pipeline option.
+message PipelineOptionDescriptor {
+  // (Required) The option key.
+  string key = 1;
+
+  // (Required) Type of option.
+  // TODO: enumerate
+  string type = 2;
+
+  // (Optional) Description suitable for display / help text.
+  string description = 3;
+
+  // (Optional) Default value.
+  string default_value = 4;
+
+  // (Required) The group this option belongs to.
+  string group = 5;
+}
+
+message DescribePipelineOptionsResponse {
+  // Map of pipeline option key to descriptor.
+  // Note that keys are expected to be unique accross groups.
+  map<string, PipelineOptionDescriptor> options = 1;
 }

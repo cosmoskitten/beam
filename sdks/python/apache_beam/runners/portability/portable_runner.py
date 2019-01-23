@@ -189,12 +189,6 @@ class PortableRunner(runner.PipelineRunner):
       proto_pipeline = fn_api_runner_transforms.with_stages(
           proto_pipeline, stages)
 
-    # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-                 for k, v in options.get_all_options().items()
-                 if v is not None}
-
     if not job_service:
       channel = grpc.insecure_channel(job_endpoint)
       grpc.channel_ready_future(channel).result()
@@ -202,7 +196,51 @@ class PortableRunner(runner.PipelineRunner):
     else:
       channel = None
 
+    # fetch runner options from job service
+    def send_options_request(max_retries=5):
+      num_retries = 0
+      while True:
+        try:
+          # This reports channel is READY but connections may fail
+          # Seems to be only an issue on Mac with port forwardings
+          if channel:
+            grpc.channel_ready_future(channel).result()
+          return job_service.DescribePipelineOptions(
+                    beam_job_api_pb2.DescribePipelineOptionsRequest()
+          )
+        except grpc._channel._Rendezvous as e:
+          num_retries += 1
+          if num_retries > max_retries:
+            raise e
+
+    options_response = send_options_request()
+
+    def add_runner_options(parser):
+      for option_name in options_response.options:
+        option = options_response.options[option_name]
+        try:
+          # no default values - we don't want runner options
+          # added unless they were specified by the user
+          # TODO: types
+          parser.add_argument("--" + option_name,
+                        action='store',
+                        help=option.description
+                              )
+        except Exception, e:
+          # ignore runner options that are already present
+          if 'conflicting option string' not in str(e):
+            raise
+          logging.debug("Runner option '%s' was already added" % option_name)
+
+    # TODO: Define URNs for options.
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+                 for k, v in options.get_all_options(add_extra_args=add_runner_options).items()
+                 if v is not None}
+    print p_options
+
     # Sends the PrepareRequest but retries in case the channel is not ready
+    # TODO: remove retry here since it is covered above
     def send_prepare_request(max_retries=5):
       num_retries = 0
       while True:

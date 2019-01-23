@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -55,6 +56,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
+
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -63,6 +66,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
@@ -628,6 +632,55 @@ public class PipelineOptionsFactory {
       }
       out.println();
     }
+  }
+
+  public static Map<String, PipelineOptionDescriptor> describe(Set<Class<? extends PipelineOptions>> ifaces) {
+    checkNotNull(ifaces);
+    Map<String, PipelineOptionDescriptor> result = new HashMap<>();
+
+    for (Class<? extends PipelineOptions> iface : ifaces) {
+      CACHE.get().validateWellFormed(iface);
+
+      Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface);
+
+      RowSortedTable<Class<?>, String, Method> ifacePropGetterTable =
+              TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());
+      for (PipelineOptionSpec prop : properties) {
+        ifacePropGetterTable.put(prop.getDefiningInterface(), prop.getName(), prop.getGetterMethod());
+      }
+
+      for (Map.Entry<Class<?>, Map<String, Method>> ifaceToPropertyMap :
+              ifacePropGetterTable.rowMap().entrySet()) {
+        Class<?> currentIface = ifaceToPropertyMap.getKey();
+        Map<String, Method> propertyNamesToGetters = ifaceToPropertyMap.getValue();
+
+        List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
+        lists.sort(String.CASE_INSENSITIVE_ORDER);
+        for (String propertyName : lists) {
+          Method method = propertyNamesToGetters.get(propertyName);
+          // TODO: type representation
+          String printableType = method.getReturnType().getSimpleName();
+          if (method.getReturnType().isEnum()) {
+            printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
+          }
+          String optionKey = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
+          Description description = method.getAnnotation(Description.class);
+          PipelineOptionDescriptor.Builder builder = PipelineOptionDescriptor.newBuilder()
+                  .setKey(optionKey)
+                  .setType(printableType)
+                  .setGroup(currentIface.getName());
+          Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
+          if (defaultValue.isPresent()) {
+            builder.setDefaultValue(defaultValue.get());
+          }
+          if (description != null) {
+            builder.setDescription(description.value());
+          }
+          result.put(optionKey, builder.build());
+        }
+      }
+    }
+    return result;
   }
 
   /**
