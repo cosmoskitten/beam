@@ -201,6 +201,12 @@ class PortableRunner(runner.PipelineRunner):
           # This reports channel is READY but connections may fail
           # Seems to be only an issue on Mac with port forwardings
           grpc.channel_ready_future(channel).result()
+
+          print job_service.DescribePipelineOptions(
+              beam_job_api_pb2.DescribePipelineOptionsRequest()
+          )
+          sys.exit()
+
           return job_service.Prepare(
               beam_job_api_pb2.PrepareJobRequest(
                   job_name='job', pipeline=proto_pipeline,
