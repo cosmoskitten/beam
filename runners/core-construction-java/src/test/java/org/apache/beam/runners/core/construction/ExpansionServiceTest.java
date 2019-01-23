@@ -22,8 +22,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +30,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 /** Tests for {@link ExpansionService}. */

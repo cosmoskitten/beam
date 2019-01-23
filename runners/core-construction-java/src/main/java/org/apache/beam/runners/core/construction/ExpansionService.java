@@ -18,9 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -168,7 +165,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
-        rehydratedComponents.getSdkComponents().withNamespace(request.getNamespace());
+        rehydratedComponents.getSdkComponents().withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents);
     String expandedTransformId =

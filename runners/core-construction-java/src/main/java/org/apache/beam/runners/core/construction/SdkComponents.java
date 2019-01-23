@@ -44,7 +44,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
 public class SdkComponents {
-  private final String namespace;
+  private final String newIdPrefix;
   private final RunnerApi.Components.Builder componentsBuilder = RunnerApi.Components.newBuilder();
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds = HashBiMap.create();
@@ -101,12 +101,12 @@ public class SdkComponents {
     return sdkComponents;
   }
 
-  private SdkComponents(String namespace) {
-    this.namespace = namespace;
+  private SdkComponents(String newIdPrefix) {
+    this.newIdPrefix = newIdPrefix;
   }
 
-  private SdkComponents(RunnerApi.Components components, String namespace) {
-    this.namespace = namespace;
+  private SdkComponents(RunnerApi.Components components, String newIdPrefix) {
+    this.newIdPrefix = newIdPrefix;
 
     if (components == null) {
       return;
@@ -118,11 +118,19 @@ public class SdkComponents {
     reservedIds.addAll(components.getCodersMap().keySet());
     reservedIds.addAll(components.getEnvironmentsMap().keySet());
 
+    environmentIds.inverse().putAll(components.getEnvironmentsMap());
+
     componentsBuilder.mergeFrom(components);
   }
 
-  public SdkComponents withNamespace(String namespace) {
-    SdkComponents sdkComponents = new SdkComponents(componentsBuilder.build(), namespace);
+  /**
+   * Returns an SdkComponents like this one, but which will prefix all newly generated ids
+   * with the given string.
+   *
+   * <p>Useful for ensuring independently-constructed components have non-overlapping ids.
+   */
+  public SdkComponents withNewIdPrefix(String newIdPrefix) {
+    SdkComponents sdkComponents = new SdkComponents(componentsBuilder.build(), newIdPrefix);
     sdkComponents.transformIds.putAll(transformIds);
     sdkComponents.pCollectionIds.putAll(pCollectionIds);
     sdkComponents.windowingStrategyIds.putAll(windowingStrategyIds);
@@ -273,10 +281,10 @@ public class SdkComponents {
   }
 
   private String uniqify(String baseName, Set<String> existing) {
-    String name = namespace + baseName;
+    String name = newIdPrefix + baseName;
     int increment = 1;
     while (existing.contains(name) || reservedIds.contains(name)) {
-      name = namespace + baseName + Integer.toString(increment);
+      name = newIdPrefix + baseName + Integer.toString(increment);
       increment++;
     }
     return name;
