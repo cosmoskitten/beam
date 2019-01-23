@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.runners.flink.translation.utils;
 
-/**
- * Category tag for validation tests which are not supported by Dataflow portable worker with
- * use_exetuable_stage_bundle_execution, which needs more investigations.
- */
-// TODO(BEAM-6231): Triage test failures introduced by using ExecutableStage.
-public interface DataflowPortabilityExecutableStageUnsupported {}
+import com.fasterxml.jackson.databind.type.TypeFactory;
+
+/** Utilities for dealing with classloading. */
+public class FlinkClassloading {
+
+  public static void deleteStaticCaches() {
+    // Clear cache to get rid of any references to the Flink Classloader
+    // See https://jira.apache.org/jira/browse/BEAM-6460
+    TypeFactory.defaultInstance().clearCache();
+  }
+}
