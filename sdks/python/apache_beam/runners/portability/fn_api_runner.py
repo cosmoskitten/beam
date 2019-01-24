@@ -814,6 +814,8 @@ class BasicProvisionService(
 class GrpcWorkerHandler(WorkerHandler):
   """An grpc based controller for fn API control, state and data planes."""
 
+  _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
+
   def __init__(self, state, provision_info):
     self.state = state
     self.provision_info = provision_info
@@ -900,10 +902,10 @@ class GrpcWorkerHandler(WorkerHandler):
     self.control_handler.done()
     self.data_plane_handler.close()
     to_wait = [
-        self.control_server.stop(5),
-        self.data_server.stop(5),
-        self.state_server.stop(5),
-        self.logging_server.stop(5)
+        self.control_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.data_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.state_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS),
+        self.logging_server.stop(self._DEFAULT_SHUTDOWN_TIMEOUT_SECS)
     ]
     for w in to_wait:
       w.wait()
