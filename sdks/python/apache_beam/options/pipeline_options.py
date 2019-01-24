@@ -201,7 +201,7 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False, add_default_args=None):
+  def get_all_options(self, drop_default=False, add_extra_args=None):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -210,8 +210,8 @@ class PipelineOptions(HasDisplayData):
     Args:
       drop_default: If set to true, options that are equal to their default
         values, are not returned as part of the result dictionary.
-      add_default_args: Callback to populate default arguments, can be used by
-        runner to provide otherwise unknown args.
+      add_extra_args: Callback to populate additional arguments, can be used by
+        runner to supply otherwise unknown args.
 
     Returns:
       Dictionary of all args and values.
@@ -221,12 +221,12 @@ class PipelineOptions(HasDisplayData):
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()
-    if add_default_args:
-      add_default_args(parser)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
+    if add_extra_args:
+        add_extra_args(parser)
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if unknown_args:
       logging.warning("Discarding unparseable args: %s", unknown_args)
@@ -709,24 +709,6 @@ class PortableOptions(PipelineOptions):
               '"<process to execute>", "env":{"<Environment variables 1>": '
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
-
-
-class FlinkOptions(PipelineOptions):
-
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    parser.add_argument('--flink_master',
-                        type=str,
-                        help=
-                        ('Address of the Flink master where the pipeline '
-                         'should be executed. Can either be of the form '
-                         '\'host:port\' or one of the special values '
-                         '[local], [collection], or [auto].'))
-    parser.add_argument('--parallelism',
-                        type=int,
-                        help=
-                        ('The degree of parallelism to be used when '
-                         'distributing operations onto workers.'))
 
 
 class TestOptions(PipelineOptions):
