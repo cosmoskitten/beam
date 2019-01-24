@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
+import org.apache.kafka.common.serialization.StringSerializer;
 
 /**
  * Pipeline that generates synthetic data and publishes it in PubSub topic.
@@ -50,9 +53,13 @@ import org.apache.beam.sdk.values.KV;
  * <pre>
  *  ./gradlew :beam-sdks-java-load-tests:run -PloadTest.args='
  *    --insertionPipelineTopic=TOPIC_NAME
+ *    --kafkaBootstrapServerAddress=SERVER_ADDRESS
  *    --sourceOptions={"numRecords":1000,...}'
  *    -PloadTest.mainClass="org.apache.beam.sdk.loadtests.SyntheticDataPubSubPublisher"
  *  </pre>
+ *
+ * Parameter kafkaBootstrapServerAddress is optional. If supplied, pipeline topic will be treated as
+ * Kafka topic name and records will be published to Kafka instead of PubSub.
  */
 public class SyntheticDataPubSubPublisher {
 
@@ -73,6 +80,11 @@ public class SyntheticDataPubSubPublisher {
     String getInsertionPipelineTopic();
 
     void setInsertionPipelineTopic(String topic);
+
+    @Description("Kafka server address (optional)")
+    String getKafkaBootstrapServerAddress();
+
+    void setKafkaBootstrapServerAddress(String address);
   }
 
   public static void main(String[] args) throws IOException {
@@ -83,12 +95,39 @@ public class SyntheticDataPubSubPublisher {
 
     Pipeline pipeline = Pipeline.create(options);
 
-    pipeline
-        .apply("Read synthetic data", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Map to PubSub messages", MapElements.via(new MapBytesToPubSubMessage()))
-        .apply("Write to PubSub", PubsubIO.writeMessages().to(options.getInsertionPipelineTopic()));
-
+    if (options.getKafkaBootstrapServerAddress() != null) {
+      pipeline
+          .apply("Read synthetic data", Read.from(new SyntheticBoundedSource(sourceOptions)))
+          .apply("Map to Kafka messages", MapElements.via(new MapKVToString()))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Void, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddress())
+                  .withTopic(options.getInsertionPipelineTopic())
+                  .withValueSerializer(StringSerializer.class)
+                  .values());
+    } else {
+      pipeline
+          .apply("Read synthetic data", Read.from(new SyntheticBoundedSource(sourceOptions)))
+          .apply("Map to PubSub messages", MapElements.via(new MapBytesToPubSubMessage()))
+          .apply(
+              "Write to PubSub", PubsubIO.writeMessages().to(options.getInsertionPipelineTopic()));
+    }
     pipeline.run().waitUntilFinish();
+  }
+
+  public static class MapKVToString extends SimpleFunction<KV<byte[], byte[]>, String> {
+    @Override
+    public String apply(KV<byte[], byte[]> input) {
+      StringBuilder stringBuilder =
+          new StringBuilder()
+              .append("{")
+              .append(Arrays.toString(input.getKey()))
+              .append(",")
+              .append(Arrays.toString(input.getValue()))
+              .append("}");
+      return stringBuilder.toString();
+    }
   }
 
   private static class MapBytesToPubSubMessage
