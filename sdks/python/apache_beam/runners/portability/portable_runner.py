@@ -221,8 +221,11 @@ class PortableRunner(runner.PipelineRunner):
           # no default values - we don't want runner options
           # added unless they were specified by the user
           # TODO: types
+          action = 'store'
+          if 'Boolean' == option.type:
+            action = 'store_true'
           parser.add_argument("--" + option.name,
-                        action='store',
+                        action=action,
                         help=option.description
                               )
         except Exception, e:
