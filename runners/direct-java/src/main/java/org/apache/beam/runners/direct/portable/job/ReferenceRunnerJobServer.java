@@ -144,6 +144,9 @@ public class ReferenceRunnerJobServer {
     return jobServiceConfig;
   }
 
+  /**
+   * Helper class that represents configuration for runner server.
+   */
   public static class ServerConfiguration {
     @Option(
         name = "-p",
