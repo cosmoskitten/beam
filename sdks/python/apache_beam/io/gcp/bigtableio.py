@@ -44,8 +44,9 @@ try:
 except ImportError:
   pass
 
+__all__ = ['WriteToBigTable']
 
-class BigTableWriteFn(beam.DoFn):
+class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
 
@@ -60,7 +61,7 @@ class BigTableWriteFn(beam.DoFn):
       instance_id: GCP Instance to write the Rows
       table_id: GCP Table to write the `DirectRows`
     """
-    super(BigTableWriteFn, self).__init__()
+    super(_BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -126,6 +127,6 @@ class WriteToBigTable(beam.PTransform):
   def expand(self, pvalue):
     beam_options = self.beam_options
     return (pvalue
-            | beam.ParDo(BigTableWriteFn(beam_options['project_id'],
-                                         beam_options['instance_id'],
-                                         beam_options['table_id'])))
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'])))
