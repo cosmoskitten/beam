@@ -56,7 +56,10 @@ LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
 
 class GenerateTestRows(beam.PTransform):
-  """ Generates an iterator of DirectRow object to process on beam pipeline.
+  """ A transform test to run write to the Bigtable Table.
+
+  A PTransform that generate a list of `DirectRow` to write it in
+  Bigtable Table.
 
   """
   def __init__(self, number, project_id=None, instance_id=None,

@@ -54,7 +54,13 @@ class BigTableWriteFn(beam.DoFn):
   """
 
   def __init__(self, project_id, instance_id, table_id):
-    super(_BigTableWriteFn, self).__init__()
+    """
+    Args:
+      project_id: GCP Project of to write the Rows
+      instance_id: GCP Instance to write the Rows
+      table_id: GCP Table to write the `DirectRows`
+    """
+    super(BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -103,8 +109,11 @@ class BigTableWriteFn(beam.DoFn):
                                        label='Bigtable Table Id')
            }
 
+
 class WriteToBigTable(beam.PTransform):
-  """ Generates an iterator of DirectRow object to process on beam pipeline.
+  """ A transform to write to the Bigtable Table.
+
+  A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
   def __init__(self, number, project_id=None, instance_id=None,
@@ -117,6 +126,6 @@ class WriteToBigTable(beam.PTransform):
   def expand(self, pvalue):
     beam_options = self.beam_options
     return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
+            | beam.ParDo(BigTableWriteFn(beam_options['project_id'],
+                                         beam_options['instance_id'],
+                                         beam_options['table_id'])))
