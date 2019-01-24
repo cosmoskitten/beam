@@ -46,6 +46,7 @@ except ImportError:
 
 __all__ = ['WriteToBigTable']
 
+
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
@@ -117,7 +118,7 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, number, project_id=None, instance_id=None,
+  def __init__(self, project_id=None, instance_id=None,
                table_id=None):
     super(WriteToBigTable, self).__init__()
     self.beam_options = {'project_id': project_id,
