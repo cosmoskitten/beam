@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Implementation of the Arrtifact{Staging,Retrieval}Service.
+"""Implementation of an Artifact{Staging,Retrieval}Service.
 
 The staging service here can be backed by any beam filesystem.
 """
@@ -23,7 +23,6 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import os
 import random
 import re
 
@@ -36,7 +35,7 @@ class BeamFilesystemArtifactService(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer,
     beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
 
-  _DEFAULT_CHUNK_SIZE = 10 << 20  # 10mb
+  _DEFAULT_CHUNK_SIZE = 2 << 20  # 2mb
 
   def __init__(self, root, chunk_size=_DEFAULT_CHUNK_SIZE):
     self._root = root
@@ -46,7 +45,7 @@ class BeamFilesystemArtifactService(
     return hashlib.sha256(string.encode('utf-8')).hexdigest()
 
   def _mkdir(self, retrieval_token):
-    dir = os.path.join(self._root, retrieval_token)
+    dir = filesystems.FileSystems.join(self._root, retrieval_token)
     if not filesystems.FileSystems.exists(dir):
       try:
         filesystems.FileSystems.mkdirs(dir)
@@ -60,13 +59,15 @@ class BeamFilesystemArtifactService(
     # These are user-provided, best to check.
     assert re.match('^[0-9a-f]+$', retrieval_token)
     self._mkdir(retrieval_token)
-    return os.path.join(self._root, retrieval_token, self._sha256(name))
+    return filesystems.FileSystems.join(
+        self._root, retrieval_token, self._sha256(name))
 
   def _manifest_path(self, retrieval_token):
     # These are user-provided, best to check.
     assert re.match('^[0-9a-f]+$', retrieval_token)
     self._mkdir(retrieval_token)
-    return os.path.join(self._root, retrieval_token, 'manifest.proto')
+    return filesystems.FileSystems.join(
+        self._root, retrieval_token, 'manifest.proto')
 
   def PutArtifact(self, request_iterator, context=None):
     first = True
@@ -77,7 +78,7 @@ class BeamFilesystemArtifactService(
         retrieval_token = self.retrieval_token(
             request.metadata.staging_session_token)
         self._mkdir(retrieval_token)
-        temp_path = os.path.join(
+        temp_path = filesystems.FileSystems.join(
             self._root,
             retrieval_token,
             '%x.tmp' % random.getrandbits(128))
@@ -99,14 +100,14 @@ class BeamFilesystemArtifactService(
   def CommitManifest(self, request, context=None):
     retrieval_token = self.retrieval_token(request.staging_session_token)
     with filesystems.FileSystems.create(
-        self._manifest_path(retrieval_token), 'w') as fout:
+        self._manifest_path(retrieval_token)) as fout:
       fout.write(request.manifest.SerializeToString())
     return beam_artifact_api_pb2.CommitManifestResponse(
         retrieval_token=retrieval_token)
 
   def GetManifest(self, request, context=None):
     with filesystems.FileSystems.open(
-        self._manifest_path(request.retrieval_token), 'w') as fin:
+        self._manifest_path(request.retrieval_token)) as fin:
       return beam_artifact_api_pb2.GetManifestResponse(
           manifest=beam_artifact_api_pb2.Manifest.FromString(
               fin.read()))
