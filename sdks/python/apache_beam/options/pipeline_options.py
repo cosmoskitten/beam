@@ -201,7 +201,7 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False):
+  def get_all_options(self, drop_default=False, add_default_args=None):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -210,6 +210,8 @@ class PipelineOptions(HasDisplayData):
     Args:
       drop_default: If set to true, options that are equal to their default
         values, are not returned as part of the result dictionary.
+      add_default_args: Callback to populate default arguments, can be used by
+        runner to provide otherwise unknown args.
 
     Returns:
       Dictionary of all args and values.
@@ -219,39 +221,15 @@ class PipelineOptions(HasDisplayData):
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser()
+    if add_default_args:
+      add_default_args(parser)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    # Parse args which are not known at this point but might be recognized
-    # at a later point in time, i.e. by the actual Runner.
-    if unknown_args and unknown_args[0] != '':
-      logging.info("Parsing unknown args: %s", unknown_args)
-
-      def enumerate_args(args):
-        cleaned_args = OrderedDict()
-        for arg in args:
-          if arg.startswith('--'):
-            # split argument name if it's in arg_name=value syntax
-            arg_name = arg.split('=', 1)[0]
-            # count identical arg names
-            if arg_name not in cleaned_args:
-              cleaned_args[arg_name] = 1
-            else:
-              cleaned_args[arg_name] += 1
-        return cleaned_args
-
-      for arg_name, num_times in enumerate_args(unknown_args).items():
-        parser.add_argument(arg_name,
-                            nargs='?',
-                            action='append' if num_times > 1 else 'store')
-
-      # repeat parsing with unknown options added
-      known_args, unknown_args = parser.parse_known_args(self._flags)
-      if unknown_args:
-        logging.warning("Discarding unparseable args: %s", unknown_args)
-
+    if unknown_args:
+      logging.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
     # Apply the overrides if any

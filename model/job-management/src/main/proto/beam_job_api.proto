@@ -183,7 +183,8 @@ message JobState {
 
 // DescribePipelineOptions provides metadata about the options supported by a runner.
 // It will be used by the SDK client to validate the options specified by or
-// list available options to the user. // Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// list available options to the user.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
 message DescribePipelineOptionsRequest {
   // TODO: base options to support proxy functionality
 }
@@ -208,5 +209,7 @@ message PipelineOptionDescriptor {
 }
 
 message DescribePipelineOptionsResponse {
+  // Map of pipeline option key to descriptor.
+  // Note that keys are expected to be unique accross groups.
   map<string, PipelineOptionDescriptor> options = 1;
 }

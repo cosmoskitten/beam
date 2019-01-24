@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
@@ -657,13 +658,15 @@ public class PipelineOptionsFactory {
         lists.sort(String.CASE_INSENSITIVE_ORDER);
         for (String propertyName : lists) {
           Method method = propertyNamesToGetters.get(propertyName);
+          // TODO: type representation
           String printableType = method.getReturnType().getSimpleName();
           if (method.getReturnType().isEnum()) {
             printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
           }
+          String optionKey = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
           Description description = method.getAnnotation(Description.class);
           PipelineOptionDescriptor.Builder builder = PipelineOptionDescriptor.newBuilder()
-                  .setKey(propertyName)
+                  .setKey(optionKey)
                   .setType(printableType)
                   .setGroup(currentIface.getName());
           Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
@@ -673,7 +676,7 @@ public class PipelineOptionsFactory {
           if (description != null) {
             builder.setDescription(description.value());
           }
-          result.put(propertyName, builder.build());
+          result.put(optionKey, builder.build());
         }
       }
     }

@@ -183,17 +183,47 @@ class PortableRunner(runner.PipelineRunner):
       proto_pipeline = fn_api_runner_transforms.with_stages(
           proto_pipeline, stages)
 
-    # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-                 for k, v in options.get_all_options().items()
-                 if v is not None}
-
     channel = GRPCChannelFactory.insecure_channel(job_endpoint)
     grpc.channel_ready_future(channel).result()
     job_service = beam_job_api_pb2_grpc.JobServiceStub(channel)
 
+    # fetch runner options from job service
+    def send_options_request(max_retries=5):
+        num_retries = 0
+        while True:
+            try:
+                # This reports channel is READY but connections may fail
+                # Seems to be only an issue on Mac with port forwardings
+                grpc.channel_ready_future(channel).result()
+                return job_service.DescribePipelineOptions(
+                    beam_job_api_pb2.DescribePipelineOptionsRequest()
+                )
+            except grpc._channel._Rendezvous as e:
+                num_retries += 1
+                if num_retries > max_retries:
+                    raise e
+    options_response = send_options_request()
+
+    def add_runner_options(parser):
+      for option_name in options_response.options:
+        option = options_response.options[option_name]
+        # TODO: types
+        parser.add_argument("--" + option_name,
+                        action='store',
+                        help=option.description,
+                        default=option.default_value
+                              )
+
+    # TODO: Define URNs for options.
+    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
+    p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+                 for k, v in options.get_all_options(add_default_args=add_runner_options).items()
+                 if v is not None}
+
+    print p_options
+
     # Sends the PrepareRequest but retries in case the channel is not ready
+    # TODO: remove retry here since it is covered above
     def send_prepare_request(max_retries=5):
       num_retries = 0
       while True:
@@ -201,12 +231,6 @@ class PortableRunner(runner.PipelineRunner):
           # This reports channel is READY but connections may fail
           # Seems to be only an issue on Mac with port forwardings
           grpc.channel_ready_future(channel).result()
-
-          print job_service.DescribePipelineOptions(
-              beam_job_api_pb2.DescribePipelineOptionsRequest()
-          )
-          sys.exit()
-
           return job_service.Prepare(
               beam_job_api_pb2.PrepareJobRequest(
                   job_name='job', pipeline=proto_pipeline,
