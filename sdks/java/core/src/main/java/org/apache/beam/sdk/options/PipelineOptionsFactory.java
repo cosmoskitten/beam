@@ -634,9 +634,9 @@ public class PipelineOptionsFactory {
     }
   }
 
-  public static Map<String, PipelineOptionDescriptor> describe(Set<Class<? extends PipelineOptions>> ifaces) {
+  public static List<PipelineOptionDescriptor> describe(Set<Class<? extends PipelineOptions>> ifaces) {
     checkNotNull(ifaces);
-    Map<String, PipelineOptionDescriptor> result = new HashMap<>();
+    List<PipelineOptionDescriptor> result = new ArrayList<>();
 
     for (Class<? extends PipelineOptions> iface : ifaces) {
       CACHE.get().validateWellFormed(iface);
@@ -663,10 +663,10 @@ public class PipelineOptionsFactory {
           if (method.getReturnType().isEnum()) {
             printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
           }
-          String optionKey = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
+          String optionName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
           Description description = method.getAnnotation(Description.class);
           PipelineOptionDescriptor.Builder builder = PipelineOptionDescriptor.newBuilder()
-                  .setKey(optionKey)
+                  .setName(optionName)
                   .setType(printableType)
                   .setGroup(currentIface.getName());
           Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
@@ -676,7 +676,7 @@ public class PipelineOptionsFactory {
           if (description != null) {
             builder.setDescription(description.value());
           }
-          result.put(optionKey, builder.build());
+          result.add(builder.build());
         }
       }
     }

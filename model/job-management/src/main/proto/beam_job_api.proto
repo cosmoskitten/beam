@@ -186,13 +186,12 @@ message JobState {
 // list available options to the user.
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 message DescribePipelineOptionsRequest {
-  // TODO: base options to support proxy functionality
 }
 
 // Metadata for a pipeline option.
 message PipelineOptionDescriptor {
-  // (Required) The option key.
-  string key = 1;
+  // (Required) The option name.
+  string name = 1;
 
   // (Required) Type of option.
   // TODO: enumerate
@@ -209,7 +208,6 @@ message PipelineOptionDescriptor {
 }
 
 message DescribePipelineOptionsResponse {
-  // Map of pipeline option key to descriptor.
-  // Note that keys are expected to be unique accross groups.
-  map<string, PipelineOptionDescriptor> options = 1;
+  // List of pipeline option descriptors.
+  repeated PipelineOptionDescriptor options = 1;
 }

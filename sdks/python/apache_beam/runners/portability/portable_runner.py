@@ -216,13 +216,12 @@ class PortableRunner(runner.PipelineRunner):
     options_response = send_options_request()
 
     def add_runner_options(parser):
-      for option_name in options_response.options:
-        option = options_response.options[option_name]
+      for option in options_response.options:
         try:
           # no default values - we don't want runner options
           # added unless they were specified by the user
           # TODO: types
-          parser.add_argument("--" + option_name,
+          parser.add_argument("--" + option.name,
                         action='store',
                         help=option.description
                               )
@@ -230,7 +229,7 @@ class PortableRunner(runner.PipelineRunner):
           # ignore runner options that are already present
           if 'conflicting option string' not in str(e):
             raise
-          logging.debug("Runner option '%s' was already added" % option_name)
+          logging.debug("Runner option '%s' was already added" % option.name)
 
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509

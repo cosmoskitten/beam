@@ -317,7 +317,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
     LOG.trace("{} {}", DescribePipelineOptionsRequest.class.getSimpleName(), request);
     try {
       DescribePipelineOptionsResponse response = DescribePipelineOptionsResponse.newBuilder()
-              .putAllOptions(PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
+              .addAllOptions(PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
