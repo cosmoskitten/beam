@@ -161,6 +161,7 @@ public class ReferenceRunner {
     return res;
   }
 
+  /** TODO. */
   public void execute() throws Exception {
     ExecutableGraph<PTransformNode, PCollectionNode> graph = PortableGraph.forPipeline(pipeline);
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
