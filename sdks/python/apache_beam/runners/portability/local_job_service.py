@@ -162,7 +162,8 @@ class LocalJobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       yield resp
 
   def DescribePipelineOptions(self, request, context=None):
-      return beam_job_api_pb2.DescribePipelineOptionsResponse()
+    return beam_job_api_pb2.DescribePipelineOptionsResponse()
+
 
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.

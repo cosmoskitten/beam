@@ -23,7 +23,6 @@ import argparse
 import logging
 from builtins import list
 from builtins import object
-from collections import OrderedDict
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -226,7 +225,7 @@ class PipelineOptions(HasDisplayData):
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args:
-        add_extra_args(parser)
+      add_extra_args(parser)
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if unknown_args:
       logging.warning("Discarding unparseable args: %s", unknown_args)

@@ -280,11 +280,12 @@ class PipelineOptionsTest(unittest.TestCase):
         '--extra_arg', 'val2',
         '--extra_arg=val3',
         '--unknown_arg', 'val4'])
+    
     def add_extra_options(parser):
       parser.add_argument("--extra_arg", action='append')
 
-    self.assertEqual(options.get_all_options(add_extra_args=add_extra_options)['extra_arg'],
-                     ['val1', 'val2', 'val3'])
+    self.assertEqual(options.get_all_options(add_extra_args=add_extra_options)
+                     ['extra_arg'], ['val1', 'val2', 'val3'])
 
   # The argparse package by default tries to autocomplete option names. This
   # results in an "ambiguous option" error from argparse when an unknown option

@@ -206,8 +206,7 @@ class PortableRunner(runner.PipelineRunner):
           if channel:
             grpc.channel_ready_future(channel).result()
           return job_service.DescribePipelineOptions(
-                    beam_job_api_pb2.DescribePipelineOptionsRequest()
-          )
+              beam_job_api_pb2.DescribePipelineOptionsRequest())
         except grpc._channel._Rendezvous as e:
           num_retries += 1
           if num_retries > max_retries:
@@ -222,23 +221,24 @@ class PortableRunner(runner.PipelineRunner):
           # added unless they were specified by the user
           # TODO: types
           action = 'store'
-          if 'Boolean' == option.type:
+          if option.type == 'Boolean':
             action = 'store_true'
-          parser.add_argument("--" + option.name,
-                        action=action,
-                        help=option.description
-                              )
-        except Exception, e:
+          parser.add_argument("--%s" % option.name,
+                              action=action,
+                              help=option.description
+                             )
+        except Exception as e:
           # ignore runner options that are already present
           # only in this case is duplicate not treated as error
           if 'conflicting option string' not in str(e):
             raise
           logging.debug("Runner option '%s' was already added" % option.name)
 
+    all_options = options.get_all_options(add_extra_args=add_runner_options)
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-                 for k, v in options.get_all_options(add_extra_args=add_runner_options).items()
+                 for k, v in all_options.items()
                  if v is not None}
     print p_options
 
