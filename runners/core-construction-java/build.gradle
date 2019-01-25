@@ -56,3 +56,15 @@ task runExpansionService (type: JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
+
+task testExpansionService(type: Jar) {
+  dependsOn = [shadowJar, shadowTestJar]
+  manifest {
+    attributes(
+            'Main-Class': 'org.apache.beam.runners.core.construction.TestExpansionService'
+    )
+  }
+  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  from sourceSets.main.output
+  from sourceSets.test.output
+}

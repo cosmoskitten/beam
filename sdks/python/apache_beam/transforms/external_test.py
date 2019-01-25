@@ -19,10 +19,16 @@
 
 from __future__ import absolute_import
 
-import logging
+import argparse
+import subprocess
+import sys
 import unittest
 
+import grpc
+from past.builtins import unicode
+
 import apache_beam as beam
+from apache_beam.portability import python_urns
 from apache_beam.runners.portability import expansion_service
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -30,6 +36,9 @@ from apache_beam.transforms import ptransform
 
 
 class ExternalTransformTest(unittest.TestCase):
+
+  # This will be overwritten if set via a flag.
+  expansion_service_jar = None
 
   def test_simple(self):
 
@@ -142,7 +151,55 @@ class ExternalTransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
+  def test_java_expansion(self):
+    if not self.expansion_service_jar:
+      raise unittest.SkipTest('No expansion service jar provided.')
+
+    # The actual definitions of these transforms is in
+    # org.apache.beam.runners.core.construction.TestExpansionService.
+    TEST_COUNT_URN = "pytest:beam:transforms:count"
+    TEST_FILTER_URN = "pytest:beam:transforms:filter_less_than"
+
+    # Run as cheaply as possible on the portable runner.
+    # TODO(robertwb): Support this directly in the direct runner.
+    options = beam.options.pipeline_options.PipelineOptions(
+        runner='PortableRunner',
+        experiments=['beam_fn_api'],
+        environment_type=python_urns.EMBEDDED_PYTHON,
+        job_endpoint='embed')
+
+    try:
+      # Start the java server and wait for it to be ready.
+      port = '8091'
+      address = 'localhost:%s' % port
+      server = subprocess.Popen(
+          ['java', '-jar', self.expansion_service_jar, port])
+      with grpc.insecure_channel(address) as channel:
+        grpc.channel_ready_future(channel).result()
+
+      # Run a simple count-filtered-letters pipeline.
+      with beam.Pipeline(options=options) as p:
+        res = (
+            p
+            | beam.Create(list('aaabccxyyzzz'))
+            | beam.Map(unicode)
+            | beam.ExternalTransform(TEST_FILTER_URN, 'middle', address)
+            | beam.ExternalTransform(TEST_COUNT_URN, None, address)
+            | beam.Map(lambda kv: '%s: %s' % kv))
+
+        assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))
+
+    finally:
+      server.kill()
+
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--expansion_service_jar')
+  known_args, sys.argv = parser.parse_known_args(sys.argv)
+
+  if known_args.expansion_service_jar:
+    ExternalTransformTest.expansion_service_jar = (
+        known_args.expansion_service_jar)
+
   unittest.main()

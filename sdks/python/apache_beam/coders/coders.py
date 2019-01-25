@@ -329,6 +329,9 @@ class StrUtf8Coder(Coder):
   def to_type_hint(self):
     return unicode
 
+Coder.register_structured_urn(
+    common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
+
 
 class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""

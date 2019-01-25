@@ -21,12 +21,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import contextlib
+import copy
 import threading
 
 import grpc
 
 from apache_beam import pvalue
-from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
@@ -50,6 +50,9 @@ class ExternalTransform(ptransform.PTransform):
     self._payload = payload
     self._endpoint = endpoint
     self._namespace = self._fresh_namespace()
+
+  def default_label(self):
+    return '%s(%s)' % (self.__class__.__name__, self._urn)
 
   @classmethod
   @contextlib.contextmanager
@@ -77,7 +80,7 @@ class ExternalTransform(ptransform.PTransform):
         next(iter(self._inputs.values())).pipeline
         if self._inputs
         else pvalueish.pipeline)
-    context = pipeline_context.PipelineContext(use_fake_coders=False)
+    context = pipeline_context.PipelineContext()
     transform_proto = beam_runner_api_pb2.PTransform(
         unique_name=self._EXPANDED_TRANSFORM_UNIQUE_NAME,
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -110,8 +113,7 @@ class ExternalTransform(ptransform.PTransform):
       raise RuntimeError(response.error)
     self._expanded_components = response.components
     self._expanded_transform = response.transform
-    result_context = pipeline_context.PipelineContext(
-        response.components, use_fake_coders=False)
+    result_context = pipeline_context.PipelineContext(response.components)
 
     def fix_output(pcoll, tag):
       pcoll.pipeline = pipeline
@@ -149,8 +151,23 @@ class ExternalTransform(ptransform.PTransform):
       pcoll_renames[self._expanded_transform.outputs[tag]] = (
           context.pcollections.get_id(pcoll))
 
+    def _equivalent(coder1, coder2):
+      return coder1 == coder2 or _normalize(coder1) == _normalize(coder2)
+
+    def _normalize(coder_proto):
+      normalized = copy.copy(coder_proto)
+      normalized.spec.environment_id = ''
+      # TODO(robertwb): Normalize components as well.
+      return normalized
+
     for id, proto in self._expanded_components.coders.items():
       if id.startswith(self._namespace):
+        context.coders.put_proto(id, proto)
+      elif id in context.coders:
+        if not _equivalent(context.coders._id_to_proto[id], proto):
+          raise RuntimeError('Re-used coder id: %s\n%s\n%s' % (
+              id, context.coders._id_to_proto[id], proto))
+      else:
         context.coders.put_proto(id, proto)
     for id, proto in self._expanded_components.windowing_strategies.items():
       if id.startswith(self._namespace):
@@ -159,10 +176,6 @@ class ExternalTransform(ptransform.PTransform):
       if id.startswith(self._namespace):
         context.environments.put_proto(id, proto)
     for id, proto in self._expanded_components.pcollections.items():
-      if proto.coder_id not in  context.coders:
-        pickler.loads(proto.coder_id)
-        proto.coder_id = context.coder_id_from_element_type(
-            pickler.loads(proto.coder_id))
       if id not in pcoll_renames:
         context.pcollections.put_proto(id, proto)
 
