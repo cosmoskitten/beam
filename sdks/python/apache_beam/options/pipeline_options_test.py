@@ -280,7 +280,7 @@ class PipelineOptionsTest(unittest.TestCase):
         '--extra_arg', 'val2',
         '--extra_arg=val3',
         '--unknown_arg', 'val4'])
-    
+
     def add_extra_options(parser):
       parser.add_argument("--extra_arg", action='append')
 

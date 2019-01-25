@@ -632,6 +632,10 @@ public class PipelineOptionsFactory {
     }
   }
 
+  /**
+   * Outputs the set of options available to be set for the passed in {@link PipelineOptions}
+   * interfaces. The output for consumption of the job service client.
+   */
   public static List<PipelineOptionDescriptor> describe(
       Set<Class<? extends PipelineOptions>> ifaces) {
     checkNotNull(ifaces);
