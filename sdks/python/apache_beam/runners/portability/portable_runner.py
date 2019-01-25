@@ -230,6 +230,7 @@ class PortableRunner(runner.PipelineRunner):
                               )
         except Exception, e:
           # ignore runner options that are already present
+          # only in this case is duplicate not treated as error
           if 'conflicting option string' not in str(e):
             raise
           logging.debug("Runner option '%s' was already added" % option.name)
