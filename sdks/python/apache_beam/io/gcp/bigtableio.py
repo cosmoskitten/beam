@@ -30,8 +30,10 @@ DoFn to set the Cells and then we call the BigTableWriteFn to insert
 those generated rows in the table.
 
   main_table = (p
-       | 'Generate Direct Rows' >> GenerateDirectRows(number)
-       | 'Write to BT' >> beam.ParDo(BigTableWriteFn(config)))
+                | beam.Create(self._generate())
+                | WriteToBigTable(project_id,
+                                  instance_id,
+                                  table_id))
 """
 from __future__ import absolute_import
 
@@ -44,16 +46,26 @@ try:
 except ImportError:
   pass
 
+__all__ = ['WriteToBigTable']
+
 
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
+  Args:
+    project_id(str): GCP Project ID
+    instance_id(str): GCP Instance ID
+    table_id(str): GCP Table ID
 
-  :type beam_options: class:`~bigtable_configuration.BigtableConfiguration`
-  :param beam_options: class `~bigtable_configuration.BigtableConfiguration`
   """
 
   def __init__(self, project_id, instance_id, table_id):
+    """ Constructor of the Write connector of Bigtable
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
     super(_BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
@@ -102,3 +114,30 @@ class _BigTableWriteFn(beam.DoFn):
             'tableId': DisplayDataItem(self.beam_options['table_id'],
                                        label='Bigtable Table Id')
            }
+
+
+class WriteToBigTable(beam.PTransform):
+  """ A transform to write to the Bigtable Table.
+
+  A PTransform that write a list of `DirectRow` into the Bigtable Table
+
+  """
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None):
+    """ The PTransform to access the Bigtable Write connector
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
+    super(WriteToBigTable, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
+
+  def expand(self, pvalue):
+    beam_options = self.beam_options
+    return (pvalue
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'])))
