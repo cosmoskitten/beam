@@ -31,6 +31,7 @@ option java_outer_classname = "JobApi";
 
 import "beam_runner_api.proto";
 import "endpoints.proto";
+import "beam_job_metrics.proto";
 import "google/protobuf/struct.proto";
 
 
@@ -54,6 +55,8 @@ service JobService {
 
   // Subscribe to a stream of state changes and messages from the job
   rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+
+  rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse);
 }
 
 
@@ -150,6 +153,14 @@ message JobMessage {
     JOB_MESSAGE_WARNING = 4;
     JOB_MESSAGE_ERROR = 5;
   }
+}
+
+message GetJobMetricsRequest {
+  string job_id = 1; // (required)
+}
+
+message GetJobMetricsResponse {
+  repeated MetricStatus metric_statuses = 1;
 }
 
 message JobMessagesResponse {
