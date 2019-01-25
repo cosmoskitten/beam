@@ -240,7 +240,6 @@ class PortableRunner(runner.PipelineRunner):
     p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
                  for k, v in all_options.items()
                  if v is not None}
-    print p_options
 
     # Sends the PrepareRequest but retries in case the channel is not ready
     # TODO: remove retry here since it is covered above
