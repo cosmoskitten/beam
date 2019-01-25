@@ -28,7 +28,7 @@ import uuid
 import pytz
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtableio import _BigTableWriteFn
+from apache_beam.io.gcp.bigtableio import WriteToBigTable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState
@@ -55,14 +55,11 @@ label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
 
-def _retry_on_unavailable(exc):
-  """Retry only errors whose status code is 'UNAVAILABLE'."""
-  from grpc import StatusCode
-  return exc.code() == StatusCode.UNAVAILABLE
+class GenerateTestRows(beam.PTransform):
+  """ A transform test to run write to the Bigtable Table.
 
-
-class WriteToBigTable(beam.PTransform):
-  """ Generates an iterator of DirectRow object to process on beam pipeline.
+  A PTransform that generate a list of `DirectRow` to write it in
+  Bigtable Table.
 
   """
   def __init__(self, number, project_id=None, instance_id=None,
@@ -92,9 +89,9 @@ class WriteToBigTable(beam.PTransform):
     beam_options = self.beam_options
     return (pvalue
             | beam.Create(self._generate())
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
+            | WriteToBigTable(beam_options['project_id'],
+                              beam_options['instance_id'],
+                              beam_options['table_id']))
 
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
@@ -172,7 +169,7 @@ class BigtableIOWriteTest(unittest.TestCase):
                      'table_id':self.table}
       _ = (
           pipeline
-          | 'Generate Direct Rows' >> WriteToBigTable(number, **config_data))
+          | 'Generate Direct Rows' >> GenerateTestRows(number, **config_data))
 
       result = pipeline.run()
       result.wait_until_finish()

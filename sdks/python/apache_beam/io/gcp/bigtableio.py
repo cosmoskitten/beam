@@ -44,6 +44,8 @@ try:
 except ImportError:
   pass
 
+__all__ = ['WriteToBigTable']
+
 
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
@@ -54,6 +56,12 @@ class _BigTableWriteFn(beam.DoFn):
   """
 
   def __init__(self, project_id, instance_id, table_id):
+    """
+    Args:
+      project_id: GCP Project of to write the Rows
+      instance_id: GCP Instance to write the Rows
+      table_id: GCP Table to write the `DirectRows`
+    """
     super(_BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
@@ -102,3 +110,24 @@ class _BigTableWriteFn(beam.DoFn):
             'tableId': DisplayDataItem(self.beam_options['table_id'],
                                        label='Bigtable Table Id')
            }
+
+
+class WriteToBigTable(beam.PTransform):
+  """ A transform to write to the Bigtable Table.
+
+  A PTransform that write a list of `DirectRow` into the Bigtable Table
+
+  """
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None):
+    super(WriteToBigTable, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
+
+  def expand(self, pvalue):
+    beam_options = self.beam_options
+    return (pvalue
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'])))
