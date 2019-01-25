@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
@@ -313,11 +312,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   }
 
   @Override
-  public void describePipelineOptions(DescribePipelineOptionsRequest request, StreamObserver<DescribePipelineOptionsResponse> responseObserver) {
+  public void describePipelineOptions(
+      DescribePipelineOptionsRequest request,
+      StreamObserver<DescribePipelineOptionsResponse> responseObserver) {
     LOG.trace("{} {}", DescribePipelineOptionsRequest.class.getSimpleName(), request);
     try {
-      DescribePipelineOptionsResponse response = DescribePipelineOptionsResponse.newBuilder()
-              .addAllOptions(PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
+      DescribePipelineOptionsResponse response =
+          DescribePipelineOptionsResponse.newBuilder()
+              .addAllOptions(
+                  PipelineOptionsFactory.describe(PipelineOptionsFactory.getRegisteredOptions()))
               .build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();

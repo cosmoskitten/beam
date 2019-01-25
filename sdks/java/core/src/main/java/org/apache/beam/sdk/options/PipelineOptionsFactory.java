@@ -40,7 +40,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -56,7 +55,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
-
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -634,7 +632,8 @@ public class PipelineOptionsFactory {
     }
   }
 
-  public static List<PipelineOptionDescriptor> describe(Set<Class<? extends PipelineOptions>> ifaces) {
+  public static List<PipelineOptionDescriptor> describe(
+      Set<Class<? extends PipelineOptions>> ifaces) {
     checkNotNull(ifaces);
     List<PipelineOptionDescriptor> result = new ArrayList<>();
 
@@ -644,13 +643,14 @@ public class PipelineOptionsFactory {
       Set<PipelineOptionSpec> properties = PipelineOptionsReflector.getOptionSpecs(iface);
 
       RowSortedTable<Class<?>, String, Method> ifacePropGetterTable =
-              TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());
+          TreeBasedTable.create(ClassNameComparator.INSTANCE, Ordering.natural());
       for (PipelineOptionSpec prop : properties) {
-        ifacePropGetterTable.put(prop.getDefiningInterface(), prop.getName(), prop.getGetterMethod());
+        ifacePropGetterTable.put(
+            prop.getDefiningInterface(), prop.getName(), prop.getGetterMethod());
       }
 
       for (Map.Entry<Class<?>, Map<String, Method>> ifaceToPropertyMap :
-              ifacePropGetterTable.rowMap().entrySet()) {
+          ifacePropGetterTable.rowMap().entrySet()) {
         Class<?> currentIface = ifaceToPropertyMap.getKey();
         Map<String, Method> propertyNamesToGetters = ifaceToPropertyMap.getValue();
 
@@ -665,7 +665,8 @@ public class PipelineOptionsFactory {
           }
           String optionName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
           Description description = method.getAnnotation(Description.class);
-          PipelineOptionDescriptor.Builder builder = PipelineOptionDescriptor.newBuilder()
+          PipelineOptionDescriptor.Builder builder =
+              PipelineOptionDescriptor.newBuilder()
                   .setName(optionName)
                   .setType(printableType)
                   .setGroup(currentIface.getName());
