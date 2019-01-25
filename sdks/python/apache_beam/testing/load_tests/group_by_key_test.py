@@ -77,6 +77,7 @@ import os
 import unittest
 
 import apache_beam as beam
+from apache_beam import Pipeline
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsMonitor
