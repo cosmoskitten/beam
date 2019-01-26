@@ -71,9 +71,15 @@ class MetricResultsTest(unittest.TestCase):
     key = MetricKey('Top1/Outer1/Inner1', name)
     self.assertTrue(MetricResults.matches(filter, key))
 
-    filter = MetricsFilter().with_step('step1')
+    filter = MetricsFilter().with_step('Step1')
     name = MetricName('ns1', 'name1')
-    key = MetricKey('step1', name)
+    key = MetricKey('Step1', name)
+    self.assertTrue(MetricResults.matches(filter, key))
+
+    key = MetricKey('Step10', name)
+    self.assertFalse(MetricResults.matches(filter, key))
+
+    key = MetricKey('Step10/Step1', name)
     self.assertTrue(MetricResults.matches(filter, key))
 
     filter = MetricsFilter().with_step('Top1/Outer1')
