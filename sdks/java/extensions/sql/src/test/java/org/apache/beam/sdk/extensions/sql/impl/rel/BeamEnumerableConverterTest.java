@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -91,6 +92,35 @@ public class BeamEnumerableConverterTest {
     assertEquals(2, row.length);
     assertEquals(0L, row[0]);
     assertEquals(1L, row[1]);
+    assertFalse(enumerator.moveNext());
+    enumerator.close();
+  }
+
+  @Test
+  public void testToEnumerable_collectNullValue() {
+    Schema schema =
+        Schema.builder()
+            .addNullableField("id", FieldType.INT64)
+            .addNullableField("col", FieldType.INT64)
+            .build();
+    RelDataType type = CalciteUtils.toCalciteRowType(schema, TYPE_FACTORY);
+    ImmutableList<ImmutableList<RexLiteral>> tuples =
+        ImmutableList.of(
+            ImmutableList.of(
+                rexBuilder.makeNullLiteral(
+                    CalciteUtils.toRelDataType(TYPE_FACTORY, FieldType.INT64)),
+                rexBuilder.makeNullLiteral(
+                    CalciteUtils.toRelDataType(TYPE_FACTORY, FieldType.INT64))));
+    BeamRelNode node = new BeamValuesRel(cluster, type, tuples, null);
+
+    Enumerable<Object> enumerable = BeamEnumerableConverter.toEnumerable(options, node);
+    Enumerator<Object> enumerator = enumerable.enumerator();
+
+    assertTrue(enumerator.moveNext());
+    Object[] row = (Object[]) enumerator.current();
+    assertEquals(2, row.length);
+    assertEquals(null, row[0]);
+    assertEquals(null, row[1]);
     assertFalse(enumerator.moveNext());
     enumerator.close();
   }

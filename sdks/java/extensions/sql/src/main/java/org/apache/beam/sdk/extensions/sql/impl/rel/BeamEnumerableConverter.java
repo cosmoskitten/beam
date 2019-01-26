@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -195,7 +196,21 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     Collector.globalValues.remove(id);
 
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(removeClassForNullFromValues(values));
+  }
+
+  private static List<Object> removeClassForNullFromValues(Queue<Object> values) {
+    List<Object> ret = new ArrayList();
+    Iterator<Object> iterator = values.iterator();
+    while (iterator.hasNext()) {
+      Object o = iterator.next();
+      if (o == ClassForNull.INSTANCE) {
+        ret.add(null);
+      } else {
+        ret.add(o);
+      }
+    }
+    return ret;
   }
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
@@ -220,7 +235,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       values.remove();
     }
 
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(removeClassForNullFromValues(values));
   }
 
   private static class Collector extends DoFn<Row, Void> {
@@ -240,7 +255,11 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     public void processElement(ProcessContext context) {
       Object[] avaticaRow = rowToAvatica(context.element());
       if (avaticaRow.length == 1) {
-        values.add(avaticaRow[0]);
+        if (avaticaRow[0] == null) {
+          values.add(ClassForNull.INSTANCE);
+        } else {
+          values.add(avaticaRow[0]);
+        }
       } else {
         values.add(avaticaRow);
       }
@@ -367,4 +386,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     p.traverseTopologically(visitor);
     return visitor.boundedness == IsBounded.UNBOUNDED;
   }
+}
+
+class ClassForNull {
+  public static final ClassForNull INSTANCE = new ClassForNull();
 }
