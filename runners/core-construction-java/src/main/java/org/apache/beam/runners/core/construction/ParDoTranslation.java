@@ -164,14 +164,6 @@ public class ParDoTranslation {
     final Pipeline pipeline = appliedPTransform.getPipeline();
     final DoFn<?, ?> doFn = parDo.getFn();
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    final String restrictionCoderId;
-    if (signature.processElement().isSplittable()) {
-      final Coder<?> restrictionCoder =
-          DoFnInvokers.invokerFor(doFn).invokeGetRestrictionCoder(pipeline.getCoderRegistry());
-      restrictionCoderId = components.registerCoder(restrictionCoder);
-    } else {
-      restrictionCoderId = "";
-    }
 
     // TODO: Is there a better way to do this?
     Set<String> allInputs =
@@ -189,6 +181,25 @@ public class ParDoTranslation {
         (PCollection<?>) appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
     final DoFnSchemaInformation doFnSchemaInformation =
         ParDo.getDoFnSchemaInformation(doFn, mainInput);
+    return translateParDo(parDo, doFnSchemaInformation, pipeline, components);
+  }
+
+  public static ParDoPayload translateParDo(
+      ParDo.MultiOutput<?, ?> parDo,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Pipeline pipeline,
+      SdkComponents components)
+      throws IOException {
+    final DoFn<?, ?> doFn = parDo.getFn();
+    final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    final String restrictionCoderId;
+    if (signature.processElement().isSplittable()) {
+      final Coder<?> restrictionCoder =
+          DoFnInvokers.invokerFor(doFn).invokeGetRestrictionCoder(pipeline.getCoderRegistry());
+      restrictionCoderId = components.registerCoder(restrictionCoder);
+    } else {
+      restrictionCoderId = "";
+    }
 
     return payloadForParDoLike(
         new ParDoLike() {

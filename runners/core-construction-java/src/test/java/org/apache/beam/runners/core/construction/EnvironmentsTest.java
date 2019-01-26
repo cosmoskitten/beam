@@ -33,14 +33,20 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PartitioningWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -104,40 +110,40 @@ public class EnvironmentsTest implements Serializable {
     Optional<Environment> env = Environments.getEnvironment(builder, rehydratedComponents);
     assertThat(env.isPresent(), is(false));
   }
-  /*
-    @Test
-    public void getEnvironmentParDo() throws IOException {
-      SdkComponents components = SdkComponents.create();
-      components.registerEnvironment(Environments.createDockerEnvironment("java"));
-      ParDoPayload payload =
-          ParDoTranslation.translateParDo(
-              ParDo.of(
-                      new DoFn<String, String>() {
-                        @ProcessElement
-                        public void process(ProcessContext ctxt) {}
-                      })
-                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
-              Pipeline.create(),
-              components);
-      RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(components.toComponents());
-      PTransform builder =
-          PTransform.newBuilder()
-              .setSpec(
-                  FunctionSpec.newBuilder()
-                      .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
-                      .setPayload(payload.toByteString())
-                      .build())
-              .build();
-      Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
-      assertThat(
-          env,
-          equalTo(
-              components
-                  .toComponents()
-                  .getEnvironmentsOrThrow(payload.getDoFn().getEnvironmentId())));
-    }
-  */
+
+  @Test
+  public void getEnvironmentParDo() throws IOException {
+    SdkComponents components = SdkComponents.create();
+    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    ParDoPayload payload =
+        ParDoTranslation.translateParDo(
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void process(ProcessContext ctxt) {}
+                    })
+                .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+            DoFnSchemaInformation.create(),
+            Pipeline.create(),
+            components);
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forComponents(components.toComponents());
+    PTransform builder =
+        PTransform.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(payload.toByteString())
+                    .build())
+            .build();
+    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
+    assertThat(
+        env,
+        equalTo(
+            components
+                .toComponents()
+                .getEnvironmentsOrThrow(payload.getDoFn().getEnvironmentId())));
+  }
 
   @Test
   public void getEnvironmentWindowIntoKnown() throws IOException {
