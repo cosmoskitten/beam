@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpec
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
@@ -184,8 +183,7 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
           (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
 
       final DoFnSchemaInformation doFnSchemaInformation =
-          ParDo.getDoFnSchemaInformation(
-              doFn, mainInput, ImmutableSet.of(parDo.getMainOutputTag()), parDo.getMainOutputTag());
+          ParDo.getDoFnSchemaInformation(doFn, mainInput);
 
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {

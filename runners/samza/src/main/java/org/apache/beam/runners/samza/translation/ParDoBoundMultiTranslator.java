@@ -29,9 +29,9 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.samza.runtime.DoFnOp;
 import org.apache.beam.runners.samza.runtime.Op;
 import org.apache.beam.runners.samza.runtime.OpAdapter;
@@ -227,8 +227,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final DoFnSchemaInformation doFnSchemaInformation;
     try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
-          ctx.getCurrentTransform());
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

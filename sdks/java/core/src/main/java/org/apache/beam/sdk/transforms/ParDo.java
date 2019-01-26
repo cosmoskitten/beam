@@ -877,7 +877,6 @@ public class ParDo {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public PCollectionTuple expand(PCollection<? extends InputT> input) {
       // SplittableDoFn should be forbidden on the runner-side.
       validateWindowType(input, fn);
