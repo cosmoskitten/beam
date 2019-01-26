@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 
 /**

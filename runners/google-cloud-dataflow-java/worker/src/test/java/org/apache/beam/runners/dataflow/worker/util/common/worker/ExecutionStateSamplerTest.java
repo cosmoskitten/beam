@@ -23,7 +23,9 @@ import static org.mockito.Mockito.mock;
 
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.junit.Before;
 import org.junit.Test;
