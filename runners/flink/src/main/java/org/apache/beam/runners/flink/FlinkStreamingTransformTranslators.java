@@ -491,8 +491,8 @@ class FlinkStreamingTransformTranslators {
 
       DoFnSchemaInformation doFnSchemaInformation;
       try {
-        doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
-            context.getCurrentTransform());
+        doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

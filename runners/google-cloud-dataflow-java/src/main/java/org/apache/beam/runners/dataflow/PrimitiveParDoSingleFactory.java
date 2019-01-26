@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.getMainInput;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.getMainInputName;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
@@ -161,8 +159,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
     }
 
     private static RunnerApi.ParDoPayload payloadForParDoSingle(
-        final AppliedPTransform<?, ?, ParDoSingle<?, ?>> transform,
-        SdkComponents components) throws IOException {
+        final AppliedPTransform<?, ?, ParDoSingle<?, ?>> transform, SdkComponents components)
+        throws IOException {
       final ParDoSingle<?, ?> parDo = transform.getTransform();
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
@@ -173,23 +171,21 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
               ParDoSingle.class.getSimpleName()));
 
       // TODO: Is there a better way to do this?
-      Set<String> allInputs = transform.getInputs().keySet().stream()
-          .map(TupleTag::getId)
-          .collect(Collectors.toSet());
+      Set<String> allInputs =
+          transform.getInputs().keySet().stream().map(TupleTag::getId).collect(Collectors.toSet());
       Set<String> sideInputs =
           parDo.getSideInputs().stream()
-          .map(s -> s.getTagInternal().getId())
-          .collect(Collectors.toSet());
+              .map(s -> s.getTagInternal().getId())
+              .collect(Collectors.toSet());
       Set<String> timerInputs = signature.timerDeclarations().keySet();
-      String mainInputName = Iterables.getOnlyElement(
-          Sets.difference(
-              allInputs,
-              Sets.union(sideInputs, timerInputs)));
-      PCollection<?> mainInput = (PCollection<?>) transform.getInputs()
-          .get(new TupleTag<>(mainInputName));
+      String mainInputName =
+          Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+      PCollection<?> mainInput =
+          (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
 
-      final DoFnSchemaInformation doFnSchemaInformation = ParDo.getDoFnSchemaInformation(
-          doFn, mainInput, ImmutableSet.of(parDo.getMainOutputTag()), parDo.getMainOutputTag());
+      final DoFnSchemaInformation doFnSchemaInformation =
+          ParDo.getDoFnSchemaInformation(
+              doFn, mainInput, ImmutableSet.of(parDo.getMainOutputTag()), parDo.getMainOutputTag());
 
       return ParDoTranslation.payloadForParDoLike(
           new ParDoTranslation.ParDoLike() {

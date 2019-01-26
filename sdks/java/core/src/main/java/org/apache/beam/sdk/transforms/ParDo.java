@@ -571,14 +571,14 @@ public class ParDo {
   }
 
   @Internal
-  public static  DoFnSchemaInformation getDoFnSchemaInformation(DoFn<?, ?> fn, PCollection<?> input) {
+  public static DoFnSchemaInformation getDoFnSchemaInformation(
+      DoFn<?, ?> fn, PCollection<?> input) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
     RowParameter rowParameter = processElementMethod.getRowParameter();
     // Can only ask for a Row if a Schema was specified!
     if (rowParameter != null) {
-      validateRowParameter(
-          rowParameter, input.getCoder(), signature.fieldAccessDeclarations(), fn);
+      validateRowParameter(rowParameter, input.getCoder(), signature.fieldAccessDeclarations(), fn);
     }
     SchemaElementParameter elementParameter = processElementMethod.getSchemaElementParameter();
     boolean validateInputSchema = elementParameter != null;
@@ -875,7 +875,6 @@ public class ParDo {
           additionalOutputTags,
           fnDisplayData);
     }
-
 
     @Override
     @SuppressWarnings("unchecked")

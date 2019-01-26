@@ -67,7 +67,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
@@ -89,8 +88,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
@@ -336,8 +333,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     clazzDescription, signature.onWindowExpiration()))
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(
-                delegateWithDowncastOrThrow(
-                    clazzDescription, signature.getInitialRestriction()))
+                delegateWithDowncastOrThrow(clazzDescription, signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
             .intercept(splitRestrictionDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
@@ -436,7 +432,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     public DoFnMethodDelegation(TypeDescription doFnType, Method targetMethod) {
       this.doFnType = doFnType;
       this.targetMethod = new MethodDescription.ForLoadedMethod(targetMethod);
-      this.targetHasReturn = !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
+      this.targetHasReturn =
+          !TypeDescription.VOID.equals(this.targetMethod.getReturnType().asErasure());
     }
 
     @Override

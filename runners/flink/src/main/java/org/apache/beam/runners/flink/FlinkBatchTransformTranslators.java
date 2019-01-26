@@ -504,7 +504,8 @@ class FlinkBatchTransformTranslators {
       DoFnSchemaInformation doFnSchemaInformation;
       try {
         mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
-        doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+        doFnSchemaInformation =
+            ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

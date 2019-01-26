@@ -26,7 +26,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 
@@ -213,10 +212,7 @@ public class PCollectionTuple implements PInput, POutput {
       @SuppressWarnings("unchecked")
       PCollection outputCollection =
           PCollection.createPrimitiveOutputInternal(
-                  pipeline,
-                  windowingStrategy,
-                  isBounded,
-                  (Coder) coders.get(outputTag))
+                  pipeline, windowingStrategy, isBounded, (Coder) coders.get(outputTag))
               .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);

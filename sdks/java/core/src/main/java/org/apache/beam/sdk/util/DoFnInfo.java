@@ -56,7 +56,12 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       TupleTag<OutputT> mainOutput,
       DoFnSchemaInformation doFnSchemaInformation) {
     return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, Collections.emptyMap(), mainOutput,
+        doFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        Collections.emptyMap(),
+        mainOutput,
         doFnSchemaInformation);
   }
 
@@ -70,12 +75,24 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
       TupleTag<OutputT> mainOutput,
       DoFnSchemaInformation doFnSchemaInformation) {
     return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput, doFnSchemaInformation);
+        doFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        outputCoders,
+        mainOutput,
+        doFnSchemaInformation);
   }
 
   public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
     return DoFnInfo.forFn(
-        newFn, windowingStrategy, sideInputViews, inputCoder, outputCoders, mainOutput, doFnSchemaInformation);
+        newFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        outputCoders,
+        mainOutput,
+        doFnSchemaInformation);
   }
 
   private DoFnInfo(

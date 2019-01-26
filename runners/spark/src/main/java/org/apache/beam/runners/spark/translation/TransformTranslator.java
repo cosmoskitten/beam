@@ -360,9 +360,9 @@ public final class TransformTranslator {
 
         DoFnSchemaInformation doFnSchemaInformation;
         try {
-          doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
-              context.getCurrentTransform());
-          } catch (IOException e) {
+          doFnSchemaInformation =
+              ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+        } catch (IOException e) {
           throw new RuntimeException(e);
         }
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =

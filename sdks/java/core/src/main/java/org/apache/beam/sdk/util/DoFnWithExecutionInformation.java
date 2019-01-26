@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.values.TupleTag;
@@ -27,8 +26,8 @@ import org.apache.beam.sdk.values.TupleTag;
 /** The data that the Java SDK harness needs to execute a DoFn. */
 @AutoValue
 public abstract class DoFnWithExecutionInformation implements Serializable {
-  public static DoFnWithExecutionInformation of(DoFn<?, ?> fn, TupleTag<?> tag,
-                                                DoFnSchemaInformation doFnSchemaInformation) {
+  public static DoFnWithExecutionInformation of(
+      DoFn<?, ?> fn, TupleTag<?> tag, DoFnSchemaInformation doFnSchemaInformation) {
     return new AutoValue_DoFnWithExecutionInformation(fn, tag, doFnSchemaInformation);
   }
 

@@ -886,8 +886,8 @@ public class DataflowPipelineTranslator {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             DoFnSchemaInformation doFnSchemaInformation;
             try {
-              doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
-                  context.getCurrentTransform());
+              doFnSchemaInformation =
+                  ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
@@ -931,7 +931,7 @@ public class DataflowPipelineTranslator {
             try {
               doFnSchemaInformation =
                   ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-              } catch (IOException e) {
+            } catch (IOException e) {
               throw new RuntimeException(e);
             }
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
@@ -1004,8 +1004,8 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             DoFnSchemaInformation doFnSchemaInformation;
             try {
-              doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
-                  context.getCurrentTransform());
+              doFnSchemaInformation =
+                  ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
@@ -1095,7 +1095,12 @@ public class DataflowPipelineTranslator {
           byteArrayToJsonString(
               serializeToByteArray(
                   DoFnInfo.forFn(
-                      fn, windowingStrategy, sideInputs, inputCoder, outputCoders, mainOutput,
+                      fn,
+                      windowingStrategy,
+                      sideInputs,
+                      inputCoder,
+                      outputCoders,
+                      mainOutput,
                       doFnSchemaInformation))));
     }
 

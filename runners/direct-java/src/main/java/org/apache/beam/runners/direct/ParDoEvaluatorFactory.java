@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoEvaluator.DoFnRunnerFactory;

@@ -83,7 +83,7 @@ class ParDoTranslator<InputT, OutputT>
     DoFnSchemaInformation doFnSchemaInformation;
     try {
       doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
-      } catch (IOException e) {
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
 

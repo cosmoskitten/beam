@@ -77,7 +77,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         schemaCoder,
         outputCoders,
         windowingStrategy,
-            doFnSchemaInformation) -> {
+        doFnSchemaInformation) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
               options,

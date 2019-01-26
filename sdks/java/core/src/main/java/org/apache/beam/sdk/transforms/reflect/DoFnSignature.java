@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -729,8 +728,7 @@ public abstract class DoFnSignature {
     @Nullable
     public SchemaElementParameter getSchemaElementParameter() {
       Optional<Parameter> parameter =
-          extraParameters()
-              .stream()
+          extraParameters().stream()
               .filter(Predicates.instanceOf(SchemaElementParameter.class)::apply)
               .findFirst();
       return parameter.isPresent() ? ((SchemaElementParameter) parameter.get()) : null;
