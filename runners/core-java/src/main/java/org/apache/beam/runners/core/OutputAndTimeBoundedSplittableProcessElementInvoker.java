@@ -145,15 +145,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public OutputReceiver<OutputT> outputReceiver(
-                  DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-                TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
-                return DoFnOutputReceivers.windowedReceiver(processContext, tag);
+              public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+                return DoFnOutputReceivers.windowedReceiver(processContext, null);
               }
 
               @Override
-              public <S> OutputReceiver<S> outputSchemaReceiver(
-                  DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+              public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
                 throw new UnsupportedOperationException("Not supported in SplittableDoFn");
               }
 

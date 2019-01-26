@@ -97,7 +97,7 @@ public class DoFnInvokersTest {
     //     .thenReturn(mockPaneInfo);
     when(mockArgumentProvider.element(Matchers.<DoFn>any())).thenReturn(mockElement);
     when(mockArgumentProvider.timestamp(Matchers.<DoFn>any())).thenReturn(mockTimestamp);
-    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any(), Matchers.<String>any()))
+    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);

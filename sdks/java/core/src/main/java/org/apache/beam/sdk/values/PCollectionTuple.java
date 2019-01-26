@@ -197,8 +197,7 @@ public class PCollectionTuple implements PInput, POutput {
       TupleTagList outputTags,
       Map<TupleTag<?>, Coder<?>> coders,
       WindowingStrategy<?, ?> windowingStrategy,
-      IsBounded isBounded,
-      Map<TupleTag<?>, SerializableFunction<Coder<?>, Boolean>> outputCoderRestrictions) {
+      IsBounded isBounded) {
     Map<TupleTag<?>, PCollection<?>> pcollectionMap = new LinkedHashMap<>();
     for (TupleTag<?> outputTag : outputTags.tupleTags) {
       if (pcollectionMap.containsKey(outputTag)) {
@@ -217,8 +216,7 @@ public class PCollectionTuple implements PInput, POutput {
                   pipeline,
                   windowingStrategy,
                   isBounded,
-                  (Coder) coders.get(outputTag),
-                  outputCoderRestrictions.get(outputTag))
+                  (Coder) coders.get(outputTag))
               .setTypeDescriptor(outputTag.getTypeDescriptor());
 
       pcollectionMap.put(outputTag, outputCollection);

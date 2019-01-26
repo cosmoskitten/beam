@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -368,15 +367,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access output receiver outside of @ProcessElement method.");
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access output receiver outside of @ProcessElement method.");
     }
@@ -490,15 +487,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access outputReceiver in @FinishBundle method.");
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access outputReceiver in @FinishBundle method.");
     }
@@ -712,22 +707,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           "Cannot access time domain outside of @ProcessTimer method.");
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<OutputT> tag = (outputTag == null) ? mainOutputTag : new TupleTag<>(outputTag);
-      return DoFnOutputReceivers.windowedReceiver(this, tag);
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<?> tag = (outputTag == null) ? mainOutputTag : new TupleTag<>(outputTag);
-      SerializableFunction rowToOutput =
-          ((SchemaCoder<?>) outputCoders.get(tag)).getFromRowFunction();
-      return DoFnOutputReceivers.schemaOutputReceiver(
-          this, tag, doFnSchemaInformation.getOutputReceiverToRow(tag), rowToOutput);
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
@@ -875,20 +862,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<OutputT> tag = (outputTag == null) ? mainOutputTag : new TupleTag<>(outputTag);
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
       return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<?> tag = (outputTag == null) ? mainOutputTag : new TupleTag<>(outputTag);
-      SerializableFunction rowToOutput =
-          ((SchemaCoder<?>) outputCoders.get(tag)).getFromRowFunction();
-      return DoFnOutputReceivers.schemaOutputReceiver(
-          this, tag, doFnSchemaInformation.getOutputReceiverToRow(tag), rowToOutput);
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override

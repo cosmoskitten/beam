@@ -425,10 +425,8 @@ public abstract class DoFnSignature {
       return TIME_DOMAIN_PARAMETER;
     }
 
-    public static OutputReceiverParameter outputReceiverParameter(
-        TypeDescriptor<?> outputParameterT, @Nullable String tag, boolean schemaConvert) {
-      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(
-          outputParameterT, tag, schemaConvert);
+    public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver);
     }
 
     public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
@@ -567,12 +565,7 @@ public abstract class DoFnSignature {
     public abstract static class OutputReceiverParameter extends Parameter {
       OutputReceiverParameter() {}
 
-      public abstract TypeDescriptor<?> getOutputParameterT();
-
-      @Nullable
-      public abstract String getOutputTag();
-
-      public abstract boolean getSchemaConvert();
+      public abstract boolean isRowReceiver();
     }
 
     /**
@@ -744,12 +737,13 @@ public abstract class DoFnSignature {
     }
 
     /** The {@link OutputReceiverParameter} for a main output, or null if there is none. */
-    public List<OutputReceiverParameter> getOutputReceivers() {
-      return extraParameters()
-          .stream()
-          .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
-          .map(OutputReceiverParameter.class::cast)
-          .collect(Collectors.toList());
+    @Nullable
+    public OutputReceiverParameter getMainOutputReceiver() {
+      Optional<Parameter> parameter =
+          extraParameters().stream()
+              .filter(Predicates.instanceOf(OutputReceiverParameter.class)::apply)
+              .findFirst();
+      return parameter.isPresent() ? ((OutputReceiverParameter) parameter.get()) : null;
     }
 
     /**

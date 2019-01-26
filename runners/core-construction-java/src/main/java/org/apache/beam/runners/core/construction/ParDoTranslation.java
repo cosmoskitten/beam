@@ -187,13 +187,7 @@ public class ParDoTranslation {
         Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
     PCollection<?> mainInput = (PCollection<?>) appliedPTransform.getInputs().get(
         new TupleTag<>(mainInputName));
-
-    Set<TupleTag<?>> allOutputTags = ImmutableSet.copyOf(
-        TupleTagList.of(parDo.getAdditionalOutputTags()
-            .getAll()).and(parDo.getMainOutputTag()).getAll());
-
-    final DoFnSchemaInformation doFnSchemaInformation = ParDo.getDoFnSchemaInformation(
-        doFn, mainInput, allOutputTags, parDo.getMainOutputTag());
+    final DoFnSchemaInformation doFnSchemaInformation = ParDo.getDoFnSchemaInformation(doFn, mainInput);
 
     return payloadForParDoLike(
         new ParDoLike() {

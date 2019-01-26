@@ -32,6 +32,7 @@ import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -118,6 +120,8 @@ public class FnApiDoFnRunner<InputT, OutputT>
 
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
+
+  private DoFnSchemaInformation doFnSchemaInformation;
 
   FnApiDoFnRunner(Context<InputT, OutputT> context) {
     this.context = context;
@@ -199,6 +203,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
       fieldAccessDescriptor = fieldAccessDescriptor.resolve(context.schemaCoder.getSchema());
     }
     this.fieldAccessDescriptor = fieldAccessDescriptor;
+    this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
   }
 
   @Override
@@ -439,8 +444,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
     @Override
     public Object schemaElement(DoFn<InputT, OutputT> doFn) {
       Row row = context.schemaCoder.getToRowFunction().apply(element());
-      return doFn.getDoFnSchemaInformation().getElementParameterSchema().getFromRowFunction()
-          .apply(row);
+      return doFnSchemaInformation.getElementParameterSchema().getFromRowFunction().apply(row);
     }
 
     @Override
@@ -461,20 +465,13 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
-      return DoFnOutputReceivers.windowedReceiver(this, tag);
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(this, null);
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<S> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
-      SerializableFunction rowToOutput =
-          ((SchemaCoder<?>) context.outputCoders.get(tag)).getFromRowFunction();
-      return DoFnOutputReceivers.schemaOutputReceiver(
-          this, null, doFn.getDoFnSchemaInformation().getOutputReceiverToRow(tag), rowToOutput);
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
     }
 
     @Override
@@ -656,20 +653,13 @@ public class FnApiDoFnRunner<InputT, OutputT>
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<OutputT> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
-      return DoFnOutputReceivers.windowedReceiver(this, tag);
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(this, null);
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-      TupleTag<S> tag = (outputTag == null) ? null : new TupleTag<>(outputTag);
-      SerializableFunction rowToOutput =
-          ((SchemaCoder<?>) context.outputCoders.get(tag)).getFromRowFunction();
-      return DoFnOutputReceivers.schemaOutputReceiver(
-          this, null, doFn.getDoFnSchemaInformation().getOutputReceiverToRow(tag), rowToOutput);
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
     }
 
     @Override

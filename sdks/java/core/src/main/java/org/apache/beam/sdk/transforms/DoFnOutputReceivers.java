@@ -32,31 +32,26 @@ import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 public class DoFnOutputReceivers {
-  private static class SchemaConversionOutputReceiver<T, S> implements OutputReceiver<S> {
-    private final WindowedContextOutputReceiver<T> outputReceiver;
-    private final SerializableFunction<S, Row> fromInputToRow;
-    private final SerializableFunction<Row, T> fromRowToOutput;
+  private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
+    WindowedContextOutputReceiver<T> outputReceiver;
+    SchemaCoder<T> schemaCoder;
 
-    SchemaConversionOutputReceiver(
+    public RowOutputReceiver(
         DoFn<?, ?>.WindowedContext context,
         @Nullable TupleTag<T> outputTag,
-        SerializableFunction<S, Row> fromInputToRow,
-        SerializableFunction<Row, T> fromRowToOutput) {
+        SchemaCoder<T> schemaCoder) {
       outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
-      this.fromInputToRow = fromInputToRow;
-      this.fromRowToOutput = fromRowToOutput;
+      this.schemaCoder = checkNotNull(schemaCoder);
     }
 
     @Override
-    public void output(S output) {
-      T realOutput = fromRowToOutput.apply(fromInputToRow.apply(output));
-      outputReceiver.output(realOutput);
+    public void output(Row output) {
+      outputReceiver.output(schemaCoder.getFromRowFunction().apply(output));
     }
 
     @Override
-    public void outputWithTimestamp(S output, Instant timestamp) {
-      T realOutput = fromRowToOutput.apply(fromInputToRow.apply(output));
-      outputReceiver.outputWithTimestamp(realOutput, timestamp);
+    public void outputWithTimestamp(Row output, Instant timestamp) {
+      outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
     }
   }
 
@@ -116,17 +111,13 @@ public class DoFnOutputReceivers {
       checkState(
           outputCoder instanceof SchemaCoder,
           "Output with tag " + tag + " must have a schema in order to call " + " getRowReceiver");
-      return DoFnOutputReceivers.schemaOutputReceiver(
-          context,
-          tag,
-          SerializableFunctions.identity(),
-          ((SchemaCoder<T>) outputCoder).getFromRowFunction());
+      return DoFnOutputReceivers.rowReceiver(context, tag, (SchemaCoder<T>) outputCoder);
     }
   }
 
   /** Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
-  public static <S> OutputReceiver<S> windowedReceiver(
-      DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<S> outputTag) {
+  public static <T> OutputReceiver<T> windowedReceiver(
+      DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
     return new WindowedContextOutputReceiver<>(context, outputTag);
   }
 
@@ -149,12 +140,10 @@ public class DoFnOutputReceivers {
    * Returns a {@link OutputReceiver} that automatically converts a {@link Row} to the user's output
    * type and delegates to {@link WindowedContextOutputReceiver}.
    */
-  public static <T, S> OutputReceiver<S> schemaOutputReceiver(
+  public static <T> OutputReceiver<Row> rowReceiver(
       DoFn<?, ?>.WindowedContext context,
       @Nullable TupleTag<T> outputTag,
-      SerializableFunction<S, Row> fromInputToRow,
-      SerializableFunction<Row, T> fromRowToOutput) {
-    return new SchemaConversionOutputReceiver<>(
-        context, outputTag, fromInputToRow, fromRowToOutput);
+      SchemaCoder<T> schemaCoder) {
+    return new RowOutputReceiver<>(context, outputTag, schemaCoder);
   }
 }

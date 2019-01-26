@@ -311,8 +311,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
               outputTagsToCoders,
               windowingStrategy,
-              input.isBounded().and(signature.isBoundedPerElement()),
-              Collections.emptyMap());
+              input.isBounded().and(signature.isBoundedPerElement()));
 
       // Set output type descriptor similarly to how ParDo.MultiOutput does it.
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());

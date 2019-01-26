@@ -249,17 +249,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public OutputReceiver<OutputT> outputReceiver(
-          DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+      public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
         return new OutputReceiver<OutputT>() {
           @Override
           public void output(OutputT output) {
-            if (outputTag == null) {
-              outerContext.output(output);
-            }
-            {
-              outerContext.output(new TupleTag<>(outputTag), output);
-            }
+            outerContext.output(output);
           }
 
           @Override
@@ -267,12 +261,6 @@ public class SplittableParDoNaiveBounded {
             outerContext.outputWithTimestamp(output, timestamp);
           }
         };
-      }
-
-      @Override
-      public <S> OutputReceiver<S> outputSchemaReceiver(
-          DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
-        throw new UnsupportedOperationException();
       }
 
       @Override
@@ -371,6 +359,11 @@ public class SplittableParDoNaiveBounded {
 
       @Override
       public Row asRow(@Nullable String id) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
 

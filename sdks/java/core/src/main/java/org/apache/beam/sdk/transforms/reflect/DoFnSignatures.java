@@ -49,7 +49,6 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.SchemaConvert;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
@@ -923,11 +922,19 @@ public class DoFnSignatures {
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(OutputReceiver.class)) {
-      @Nullable String outputTag = getOutputTag(param.getAnnotations());
-      boolean convertSchema = hasSchemaConvertAnnotation(param.getAnnotations());
-      TypeDescriptor<?> outputReceiverT =
-          TypeDescriptor.of(((ParameterizedType) paramT.getType()).getActualTypeArguments()[0]);
-      return Parameter.outputReceiverParameter(outputReceiverT, outputTag, convertSchema);
+      // It's a schema row receiver if it's an OutputReceiver<Row> _and_ the output type is not
+      // already Row.
+      boolean schemaRowReceiver =
+          paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
+              && !outputT.equals(TypeDescriptor.of(Row.class));
+      if (!schemaRowReceiver) {
+        TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
+        paramErrors.checkArgument(
+            paramT.equals(expectedReceiverT),
+            "OutputReceiver should be parameterized by %s",
+            outputT);
+      }
+      return Parameter.outputReceiverParameter(schemaRowReceiver);
     } else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
@@ -1037,12 +1044,6 @@ public class DoFnSignatures {
   }
 
   @Nullable
-  private static String getOutputTag(List<Annotation> annotations) {
-    DoFn.OutputTag stateId = findFirstOfType(annotations, DoFn.OutputTag.class);
-    return stateId != null ? stateId.value() : null;
-  }
-
-  @Nullable
   private static String getTimerId(List<Annotation> annotations) {
     DoFn.TimerId stateId = findFirstOfType(annotations, DoFn.TimerId.class);
     return stateId != null ? stateId.value() : null;
@@ -1073,10 +1074,6 @@ public class DoFnSignatures {
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
-  }
-
-  private static boolean hasSchemaConvertAnnotation(List<Annotation> annotations) {
-    return annotations.stream().anyMatch(a -> a.annotationType().equals(SchemaConvert.class));
   }
 
   @Nullable

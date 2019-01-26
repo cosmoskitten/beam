@@ -60,6 +60,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
@@ -417,7 +418,8 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, Coder<?>> outputCoders,
           Coder keyCoder,
           KeySelector<WindowedValue<InputT>, ?> keySelector,
-          Map<Integer, PCollectionView<?>> transformedSideInputs);
+          Map<Integer, PCollectionView<?>> transformedSideInputs,
+          DoFnSchemaInformation doFnSchemaInformation);
     }
 
     static <InputT, OutputT> void translateParDo(
@@ -487,6 +489,14 @@ class FlinkStreamingTransformTranslators {
           new CoderTypeInformation<>(
               context.getWindowedInputCoder((PCollection<OutputT>) outputs.get(mainOutputTag)));
 
+      DoFnSchemaInformation doFnSchemaInformation;
+      try {
+        doFnSchemaInformation = ParDoTranslation.getSchemaInformation(
+            context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
@@ -505,7 +515,8 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                new HashMap<>() /* side-input mapping */);
+                new HashMap<>() /* side-input mapping */,
+                doFnSchemaInformation);
 
         outputStream =
             inputDataStream.transform(transformName, outputTypeInformation, doFnOperator);
@@ -531,7 +542,8 @@ class FlinkStreamingTransformTranslators {
                 outputCoders,
                 keyCoder,
                 keySelector,
-                transformedSideInputs.f0);
+                transformedSideInputs.f0,
+                doFnSchemaInformation);
 
         if (stateful) {
           // we have to manually construct the two-input transform because we're not

@@ -152,11 +152,10 @@ public interface DoFnInvoker<InputT, OutputT> {
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
-    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn, @Nullable String outputTag);
+    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a {@link OutputReceiver} for outputting to the default output. */
-    <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag);
+    /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
+    OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
@@ -228,8 +227,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public OutputReceiver<OutputT> outputReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
@@ -237,8 +235,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public <S> OutputReceiver<S> outputSchemaReceiver(
-        DoFn<InputT, OutputT> doFn, @Nullable String outputTag) {
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

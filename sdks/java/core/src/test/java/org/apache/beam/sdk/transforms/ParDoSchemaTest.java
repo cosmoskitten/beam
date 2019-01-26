@@ -325,6 +325,7 @@ public class ParDoSchemaTest implements Serializable {
                   @ProcessElement
                   public void process(@Element Row row) {}
                 }));
+    pipeline.run();
   }
 
   @Test

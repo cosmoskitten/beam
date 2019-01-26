@@ -25,11 +25,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Field;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -67,7 +65,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -226,33 +223,7 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void process(OutputReceiver<Row> rowReceiver) {}
             }.getClass());
-    List<OutputReceiverParameter> parameters = sig.processElement().getOutputReceivers();
-    assertEquals(1, parameters.size());
-    assertEquals(TypeDescriptors.rows(), parameters.get(0).getOutputParameterT());
-  }
-
-  @Test
-  public void testMultipleOutputReceivers() {
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<String, String>() {
-              @ProcessElement
-              public void process(
-                  OutputReceiver<String> receiver1,
-                  @OutputTag("foo") OutputReceiver<String> receiver2,
-                  @OutputTag("bar") OutputReceiver<String> receiver3) {}
-            }.getClass());
-    List<OutputReceiverParameter> parameters = sig.processElement().getOutputReceivers();
-    assertEquals(3, parameters.size());
-    List<OutputReceiverParameter> expected =
-        ImmutableList.of(
-            new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(
-                TypeDescriptors.strings(), null, false),
-            new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(
-                TypeDescriptors.strings(), "foo", false),
-            new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(
-                TypeDescriptors.strings(), "bar", false));
-    assertEquals(expected, parameters);
+    assertThat(sig.processElement().getMainOutputReceiver().isRowReceiver(), is(true));
   }
 
   @Test

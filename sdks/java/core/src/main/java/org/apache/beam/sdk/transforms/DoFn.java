@@ -634,11 +634,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target(ElementType.PARAMETER)
-  public @interface SchemaConvert {}
-
   /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
@@ -923,22 +918,5 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     interface Callback {
       void onBundleSuccess() throws Exception;
     }
-  }
-
-  private DoFnSchemaInformation doFnSchemaInformation = DoFnSchemaInformation.create();
-  @Nullable
-  public DoFnSchemaInformation getDoFnSchemaInformation() {
-    return doFnSchemaInformation;
-  }
-
-  public void setDoFnSchemaInformation(DoFnSchemaInformation doFnSchemaInformation) {
-    this.doFnSchemaInformation = doFnSchemaInformation;
-  }
-
-  TupleTag<OutputT> mainOutputTagForApplication;
-
-
-  public TupleTag<OutputT> getMainOutputTag() {
-    return mainOutputTagForApplication;
   }
 }
