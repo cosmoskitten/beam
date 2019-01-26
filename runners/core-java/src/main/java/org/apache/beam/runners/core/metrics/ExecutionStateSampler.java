@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -66,6 +67,7 @@ public class ExecutionStateSampler {
 
   private static final long PERIOD_MS = 200;
 
+  @Nullable
   private Future<Void> executionSamplerFuture = null;
 
   /**
@@ -141,7 +143,7 @@ public class ExecutionStateSampler {
   }
 
   /**
-   * Deregister tracker after MapTask completes
+   * Deregister tracker after MapTask completes.
    *
    * <p>This method needs to be synchronized to prevent race condition with sampling thread
    */
@@ -161,7 +163,7 @@ public class ExecutionStateSampler {
   }
 
   /**
-   * Attributing sampling time to trackers
+   * Attributing sampling time to trackers.
    *
    * <p>This method needs to be synchronized to prevent race condition with removing tracker
    */

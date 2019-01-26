@@ -25,10 +25,14 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
-/** Tracks the current state of a single execution thread. */
+/** Tracks the current state of a single execution thread.
+ * TODO(BEAM-6431) Address findbugs concurrency issues.
+ */
+@NotThreadSafe
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -102,6 +106,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private final ExecutionStateSampler sampler;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
+  @Nullable
   private Thread trackedThread = null;
 
   /**
@@ -110,6 +115,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
+  @Nullable
   private volatile ExecutionState currentState;
 
   /**
@@ -141,8 +147,13 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   @Override
+  public boolean equals(Object o) {
+    return this == o;
+  }
+
+  @Override
   public int compareTo(ExecutionStateTracker o) {
-    if (this == o) {
+    if (this.equals(o)) {
       return 0;
     } else {
       return System.identityHashCode(this) - System.identityHashCode(o);
