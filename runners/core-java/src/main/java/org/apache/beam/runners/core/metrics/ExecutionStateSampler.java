@@ -67,8 +67,7 @@ public class ExecutionStateSampler {
 
   private static final long PERIOD_MS = 200;
 
-  @Nullable
-  private Future<Void> executionSamplerFuture = null;
+  @Nullable private Future<Void> executionSamplerFuture = null;
 
   /**
    * Called to start the ExecutionStateSampler. Until the returned {@link Closeable} is closed, the

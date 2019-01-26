@@ -30,8 +30,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
-/** Tracks the current state of a single execution thread.
- * TODO(BEAM-6431) Address findbugs concurrency issues.
+/**
+ * Tracks the current state of a single execution thread. TODO(BEAM-6431) Address findbugs
+ * concurrency issues.
  */
 @NotThreadSafe
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
@@ -107,8 +108,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private final ExecutionStateSampler sampler;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
-  @Nullable
-  private Thread trackedThread = null;
+  @Nullable private Thread trackedThread = null;
 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
@@ -116,8 +116,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  @Nullable
-  private volatile ExecutionState currentState;
+  @Nullable private volatile ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
@@ -232,7 +231,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * from the execution thread.
    */
   @SuppressWarnings("NonAtomicVolatileUpdate")
-  @SuppressFBWarnings(value="VO_VOLATILE_INCREMENT", justification="Intentional for performance.")
+  @SuppressFBWarnings(
+      value = "VO_VOLATILE_INCREMENT",
+      justification = "Intentional for performance.")
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
