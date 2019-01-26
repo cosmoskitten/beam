@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -176,7 +177,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static Enumerable<Object> collect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<>();
+    ConcurrentLinkedQueue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -195,12 +196,26 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     Collector.globalValues.remove(id);
 
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(removeClassForNullFromValues(values));
+  }
+
+  private static List<Object> removeClassForNullFromValues(Queue<Object> values) {
+    List<Object> ret = new ArrayList();
+    Iterator<Object> iterator = values.iterator();
+    while (iterator.hasNext()) {
+      Object o = iterator.next();
+      if (o == ClassForNull.INSTANCE) {
+        ret.add(null);
+      } else {
+        ret.add(o);
+      }
+    }
+    return ret;
   }
 
   private static Enumerable<Object> limitCollect(PipelineOptions options, BeamRelNode node) {
     long id = options.getOptionsId();
-    Queue<Object> values = new ConcurrentLinkedQueue<>();
+    ConcurrentLinkedQueue<Object> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
         options
@@ -219,16 +234,16 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     while (values.size() > limitCount) {
       values.remove();
     }
-
-    return Linq4j.asEnumerable(values);
+    return Linq4j.asEnumerable(removeClassForNullFromValues(values));
   }
 
   private static class Collector extends DoFn<Row, Void> {
 
     // This will only work on the direct runner.
-    private static final Map<Long, Queue<Object>> globalValues = new ConcurrentHashMap<>();
+    private static final Map<Long, ConcurrentLinkedQueue<Object>> globalValues =
+        new ConcurrentHashMap<>();
 
-    @Nullable private volatile Queue<Object> values;
+    @Nullable private volatile ConcurrentLinkedQueue<Object> values;
 
     @StartBundle
     public void startBundle(StartBundleContext context) {
@@ -240,7 +255,14 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     public void processElement(ProcessContext context) {
       Object[] avaticaRow = rowToAvatica(context.element());
       if (avaticaRow.length == 1) {
-        values.add(avaticaRow[0]);
+        // if avaticaRow.length == 1, that means input Row contains only 1 column/element,
+        // then an Object instead of Object[] should be returned because of CalciteResultSet's
+        // behaviour that tries to convert one column row to an Object.
+        if (avaticaRow[0] == null) {
+          values.add(ClassForNull.INSTANCE);
+        } else {
+          values.add(avaticaRow[0]);
+        }
       } else {
         values.add(avaticaRow);
       }
@@ -367,4 +389,8 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     p.traverseTopologically(visitor);
     return visitor.boundedness == IsBounded.UNBOUNDED;
   }
+}
+
+class ClassForNull {
+  public static final ClassForNull INSTANCE = new ClassForNull();
 }
