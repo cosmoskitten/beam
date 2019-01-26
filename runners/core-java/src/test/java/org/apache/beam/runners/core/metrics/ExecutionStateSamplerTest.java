@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.util.common.worker;
+package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
