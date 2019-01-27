@@ -150,16 +150,22 @@ class MetricResults(object):
     return False
 
   @staticmethod
-  def _matches_sub_path(actual_scope, filter_scope):
-    start_pos = actual_scope.find(filter_scope)
+  def _matches_sub_path(actual_scope, filter_scope, start=0):
+    start_pos = actual_scope.find(filter_scope, start)
     end_pos = start_pos + len(filter_scope)
 
     if start_pos == -1:
       return False  # No match at all
     elif start_pos != 0 and actual_scope[start_pos - 1] != '/':
-      return False  # The first entry was not exactly matched
+      # The current match is a strict suffix of the filter-scope; advance one
+      # position past its start-point and try again
+      return MetricResults._matches_sub_path(
+          actual_scope, filter_scope, start=start_pos+1)
     elif end_pos != len(actual_scope) and actual_scope[end_pos] != '/':
-      return False  # The last entry was not exactly matched
+      # The current match is a strict prefix of the filter-scope; advance one
+      # position past its start-point and try again
+      return MetricResults._matches_sub_path(
+          actual_scope, filter_scope, start=start_pos+1)
     return True
 
   @staticmethod
