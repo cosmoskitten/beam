@@ -219,14 +219,15 @@ class PortableRunner(runner.PipelineRunner):
         try:
           # no default values - we don't want runner options
           # added unless they were specified by the user
-          # TODO: types
-          action = 'store'
-          if option.type == 'Boolean':
-            action = 'store_true'
-          parser.add_argument("--%s" % option.name,
-                              action=action,
-                              help=option.description
-                             )
+          add_arg_args = {'action' : 'store', 'help' : option.description}
+          if option.type == 'boolean':
+            add_arg_args['action'] = 'store_true'\
+              if option.default_value != 'true' else 'store_false'
+          elif option.type == 'integer':
+            add_arg_args['type'] = int
+          elif option.type == 'list':
+            add_arg_args['action'] = 'append'
+          parser.add_argument("--%s" % option.name, **add_arg_args)
         except Exception as e:
           # ignore runner options that are already present
           # only in this case is duplicate not treated as error

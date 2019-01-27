@@ -194,7 +194,8 @@ message PipelineOptionDescriptor {
   string name = 1;
 
   // (Required) Type of option.
-  // TODO: enumerate
+  // Matching JSON types, since options are represented as JSON.
+  // "string", "boolean", "integer", "number", "list", "map"
   string type = 2;
 
   // (Optional) Description suitable for display / help text.

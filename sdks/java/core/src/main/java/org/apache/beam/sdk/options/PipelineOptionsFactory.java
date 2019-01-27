@@ -35,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -632,6 +633,20 @@ public class PipelineOptionsFactory {
     }
   }
 
+  private static Set<Class<?>> JSON_INTEGER_TYPES =
+      Sets.newHashSet(
+          short.class,
+          Short.class,
+          int.class,
+          Integer.class,
+          long.class,
+          Long.class,
+          BigInteger.class);
+
+  private static Set<Class<?>> JSON_NUMBER_TYPES =
+      Sets.newHashSet(
+          float.class, Float.class, double.class, Double.class, java.math.BigDecimal.class);
+
   /**
    * Outputs the set of options available to be set for the passed in {@link PipelineOptions}
    * interfaces. The output for consumption of the job service client.
@@ -662,17 +677,18 @@ public class PipelineOptionsFactory {
         lists.sort(String.CASE_INSENSITIVE_ORDER);
         for (String propertyName : lists) {
           Method method = propertyNamesToGetters.get(propertyName);
-          // TODO: type representation
-          String printableType = method.getReturnType().getSimpleName();
-          if (method.getReturnType().isEnum()) {
-            printableType = Joiner.on(" | ").join(method.getReturnType().getEnumConstants());
+          String type = method.getReturnType().getSimpleName().toLowerCase();
+          if (JSON_INTEGER_TYPES.contains(method.getReturnType())) {
+            type = "integer";
+          } else if (JSON_NUMBER_TYPES.contains(method.getReturnType())) {
+            type = "number";
           }
           String optionName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
           Description description = method.getAnnotation(Description.class);
           PipelineOptionDescriptor.Builder builder =
               PipelineOptionDescriptor.newBuilder()
                   .setName(optionName)
-                  .setType(printableType)
+                  .setType(type)
                   .setGroup(currentIface.getName());
           Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
           if (defaultValue.isPresent()) {
