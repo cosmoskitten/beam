@@ -633,7 +633,7 @@ public class PipelineOptionsFactory {
     }
   }
 
-  private static Set<Class<?>> JSON_INTEGER_TYPES =
+  private static final Set<Class<?>> JSON_INTEGER_TYPES =
       Sets.newHashSet(
           short.class,
           Short.class,
@@ -643,7 +643,7 @@ public class PipelineOptionsFactory {
           Long.class,
           BigInteger.class);
 
-  private static Set<Class<?>> JSON_NUMBER_TYPES =
+  private static final Set<Class<?>> JSON_NUMBER_TYPES =
       Sets.newHashSet(
           float.class, Float.class, double.class, Double.class, java.math.BigDecimal.class);
 
