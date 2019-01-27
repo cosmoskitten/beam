@@ -195,7 +195,7 @@ message PipelineOptionDescriptor {
 
   // (Required) Type of option.
   // Matching JSON types, since options are represented as JSON.
-  // "string", "boolean", "integer", "number", "list", "map"
+  // "string" | "boolean" | "integer" | "number" | "list" | "map" | "object"
   string type = 2;
 
   // (Optional) Description suitable for display / help text.

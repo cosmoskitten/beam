@@ -197,6 +197,7 @@ class PortableRunner(runner.PipelineRunner):
       channel = None
 
     # fetch runner options from job service
+    # retries in case the channel is not ready
     def send_options_request(max_retries=5):
       num_retries = 0
       while True:
@@ -242,26 +243,10 @@ class PortableRunner(runner.PipelineRunner):
                  for k, v in all_options.items()
                  if v is not None}
 
-    # Sends the PrepareRequest but retries in case the channel is not ready
-    # TODO: remove retry here since it is covered above
-    def send_prepare_request(max_retries=5):
-      num_retries = 0
-      while True:
-        try:
-          # This reports channel is READY but connections may fail
-          # Seems to be only an issue on Mac with port forwardings
-          if channel:
-            grpc.channel_ready_future(channel).result()
-          return job_service.Prepare(
-              beam_job_api_pb2.PrepareJobRequest(
-                  job_name='job', pipeline=proto_pipeline,
-                  pipeline_options=job_utils.dict_to_struct(p_options)))
-        except grpc._channel._Rendezvous as e:
-          num_retries += 1
-          if num_retries > max_retries:
-            raise e
-
-    prepare_response = send_prepare_request()
+    prepare_response = job_service.Prepare(
+        beam_job_api_pb2.PrepareJobRequest(
+            job_name='job', pipeline=proto_pipeline,
+            pipeline_options=job_utils.dict_to_struct(p_options)))
     if prepare_response.artifact_staging_endpoint.url:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(prepare_response.artifact_staging_endpoint.url),
