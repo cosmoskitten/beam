@@ -30,6 +30,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
+import org.apache.beam.sdk.testing.Foo;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -321,7 +322,8 @@ public class MetricsTest implements Serializable {
       UsesAttemptedMetrics.class,
       UsesCounterMetrics.class,
       UsesDistributionMetrics.class,
-      UsesGaugeMetrics.class
+      UsesGaugeMetrics.class,
+      Foo.class
     })
     @Test
     public void testAllAttemptedMetrics() {
@@ -332,7 +334,12 @@ public class MetricsTest implements Serializable {
       assertAllMetrics(metrics, false);
     }
 
-    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesCounterMetrics.class,
+      Foo.class
+    })
     @Test
     public void testAttemptedCounterMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -340,7 +347,12 @@ public class MetricsTest implements Serializable {
       assertCounterMetrics(metrics, false);
     }
 
-    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesDistributionMetrics.class,
+      Foo.class
+    })
     @Test
     public void testAttemptedDistributionMetrics() {
       PipelineResult result = runPipelineWithMetrics();
@@ -348,7 +360,12 @@ public class MetricsTest implements Serializable {
       assertDistributionMetrics(metrics, false);
     }
 
-    @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesAttemptedMetrics.class,
+      UsesGaugeMetrics.class,
+      Foo.class
+    })
     @Test
     public void testAttemptedGaugeMetrics() {
       PipelineResult result = runPipelineWithMetrics();
