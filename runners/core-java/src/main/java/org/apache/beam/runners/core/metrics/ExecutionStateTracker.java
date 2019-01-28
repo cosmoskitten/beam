@@ -29,12 +29,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
-/**
- * Tracks the current state of a single execution thread. TODO(BEAM-6431) Address findbugs
- * concurrency issues.
- */
-@SuppressFBWarnings(
-    value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
+/** Tracks the current state of a single execution thread. */
+@SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
