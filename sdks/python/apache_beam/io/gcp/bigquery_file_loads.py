@@ -20,11 +20,15 @@ Functionality to perform file loads into BigQuery for Batch and Streaming
 pipelines.
 """
 
+from __future__ import absolute_import
+
 import datetime
 import logging
 import random
 import time
 import uuid
+
+from future.utils import iteritems
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -32,7 +36,7 @@ from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.options import value_provider as vp
 
-ONE_TERABYTE = (1L << 40)
+ONE_TERABYTE = (1 << 40)
 
 # The maximum file size for imports is 5TB. We keep our files under that.
 _DEFAULT_MAX_FILE_SIZE = 4 * ONE_TERABYTE
@@ -122,7 +126,7 @@ class WriteRecordsToFile(beam.DoFn):
                max_files_per_bundle=_DEFAULT_MAX_WRITERS_PER_BUNDLE,
                max_file_size=_DEFAULT_MAX_FILE_SIZE,
                coder=None):
-    """Initialize a :clas:`WriteRecordsToFile`.
+    """Initialize a :class:`WriteRecordsToFile`.
 
     Args:
       max_files_per_bundle (int): The maximum number of files that can be kept
@@ -173,7 +177,7 @@ class WriteRecordsToFile(beam.DoFn):
   def finish_bundle(self):
     # TODO: Maybe output to WRITTEN_FILE_TAG here instead of at the begining?
     #  it would permit to add file size.
-    for _, writer in self._destination_to_file_writer.iteritems():
+    for _, writer in iteritems(self._destination_to_file_writer):
       writer.close()
     self._destination_to_file_writer = {}
 
