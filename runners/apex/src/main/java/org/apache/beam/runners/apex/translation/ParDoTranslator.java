@@ -166,6 +166,7 @@ class ParDoTranslator<InputT, OutputT>
               sideInputs,
               input.getCoder(),
               outputCoders,
+              DoFnSchemaInformation.create(),
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
