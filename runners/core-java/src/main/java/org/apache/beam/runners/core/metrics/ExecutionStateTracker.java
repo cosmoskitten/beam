@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
@@ -34,7 +33,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  * Tracks the current state of a single execution thread. TODO(BEAM-6431) Address findbugs
  * concurrency issues.
  */
-@NotThreadSafe
+@SuppressFBWarnings(
+    value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
