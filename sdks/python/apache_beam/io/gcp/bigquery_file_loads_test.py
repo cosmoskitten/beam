@@ -21,25 +21,24 @@ from __future__ import absolute_import
 
 import json
 import logging
-import mock
 import os
 import random
 import time
 import unittest
 
-from nose.plugins.attrib import attr
+import mock
 from hamcrest.core.core.allof import all_of
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -270,9 +269,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
-      outputs = (p
-       | beam.Create(_ELEMENTS)
-       | transform)
+      outputs = p | beam.Create(_ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
       dest_job = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS]
@@ -344,18 +341,18 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_NAME_LANGUAGE_ELEMENTS)
-      (input
-       | "LoadWithSchema" >> bqfl.BigQueryBatchFileLoads(
-              table_reference=output_table_1,
-              schema=self.BIG_QUERY_SCHEMA,
-              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+      _ = (input
+           | "LoadWithSchema" >> bqfl.BigQueryBatchFileLoads(
+               table_reference=output_table_1,
+               schema=self.BIG_QUERY_SCHEMA,
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
-      (input
-       | "LoadWithoutSchema" >> bqfl.BigQueryBatchFileLoads(
-              table_reference=output_table_2,
-              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+      _ = (input
+           | "LoadWithoutSchema" >> bqfl.BigQueryBatchFileLoads(
+               table_reference=output_table_2,
+               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
   def tearDown(self):
     request = bigquery_api.BigqueryDatasetsDeleteRequest(

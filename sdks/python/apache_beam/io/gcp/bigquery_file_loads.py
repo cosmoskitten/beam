@@ -32,7 +32,6 @@ from apache_beam.io import filesystems as fs
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.options import value_provider as vp
 
-
 ONE_TERABYTE = (1L << 40)
 
 # The maximum file size for imports is 5TB. We keep our files under that.
@@ -174,7 +173,7 @@ class WriteRecordsToFile(beam.DoFn):
   def finish_bundle(self):
     # TODO: Maybe output to WRITTEN_FILE_TAG here instead of at the begining?
     #  it would permit to add file size.
-    for dest, writer in self._destination_to_file_writer.iteritems():
+    for _, writer in self._destination_to_file_writer.iteritems():
       writer.close()
     self._destination_to_file_writer = {}
 
