@@ -15,28 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.sdk.metrics;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.MetricName;
 
-/** Metrics are keyed by the step name they are associated with and the name of the metric. */
+/** The results of a single current metric. */
 @Experimental(Kind.METRICS)
+@JsonFilter("committedMetrics")
 @AutoValue
-public abstract class MetricKey implements Serializable {
+public abstract class DefaultMetricResult<T> implements MetricResult<T> {
+  @Override
+  public abstract MetricName getName();
 
-  /** The step name that is associated with this metric or Null if none is associated. */
-  @Nullable
-  public abstract String stepName();
+  @Override
+  public abstract String getStep();
 
-  /** The name of the metric. */
-  public abstract MetricName metricName();
+  @Override
+  public abstract T getCommitted();
 
-  public static MetricKey create(String stepName, MetricName metricName) {
-    return new AutoValue_MetricKey(stepName, metricName);
+  @Override
+  public abstract T getAttempted();
+
+  public static <T> DefaultMetricResult<T> create(
+      MetricName name, String step, T committed, T attempted) {
+    return new AutoValue_DefaultMetricResult<>(name, step, committed, attempted);
   }
 }
