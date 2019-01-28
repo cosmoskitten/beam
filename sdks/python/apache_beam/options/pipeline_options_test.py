@@ -284,7 +284,7 @@ class PipelineOptionsTest(unittest.TestCase):
     def add_extra_options(parser):
       parser.add_argument("--extra_arg", action='append')
 
-    self.assertEqual(options.get_all_options(add_extra_args=add_extra_options)
+    self.assertEqual(options.get_all_options(add_extra_args_fn=add_extra_options)
                      ['extra_arg'], ['val1', 'val2', 'val3'])
 
   # The argparse package by default tries to autocomplete option names. This
