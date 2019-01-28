@@ -28,6 +28,8 @@ import unittest
 
 import mock
 from hamcrest.core.core.allof import all_of
+from hamcrest.core.core.is_ import is_
+from hamcrest.core import assert_that as hamcrest_assert
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -43,7 +45,7 @@ from apache_beam.testing.util import equal_to
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
-  pass
+  HttpError = None
 
 
 _DESTINATION_ELEMENT_PAIRS = [
@@ -80,6 +82,7 @@ _DISTINCT_DESTINATIONS = list(
 _ELEMENTS = list([elm[1] for elm in _DESTINATION_ELEMENT_PAIRS])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   maxDiff = None
 
@@ -110,7 +113,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       file_count = files | "CountFiles" >> beam.combiners.Count.Globally()
 
       _ = files | "FilesExist" >> beam.Map(
-          lambda x: self.assertTrue(os.path.exists(x)))
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
       assert_that(file_count, equal_to([3]), label='check file count')
 
       destinations = dest_file_pc | "GetDests" >> beam.Map(lambda x: x[0])
@@ -142,7 +145,8 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
                             ('project1:dataset1.table3', 1)]))
 
       # Check that the files exist
-      _ = dest_file_pc | beam.Map(lambda x: x[1]) | beam.Map(os.path.exists)
+      _ = dest_file_pc | beam.Map(lambda x: x[1]) | beam.Map(
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
 
     self._consume_input(fn, check_many_files)
 
@@ -178,11 +182,13 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
                   label='file count')
 
       # Check that the files exist
-      _ = dest_file_pc | beam.Map(lambda x: x[1]) | beam.Map(os.path.exists)
+      _ = dest_file_pc | beam.Map(lambda x: x[1]) | beam.Map(
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
 
     self._consume_input(fn, check_many_files)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 
   def _consume_input(self, fn, input, checks):
@@ -209,7 +215,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       file_count = files | "CountFiles" >> beam.combiners.Count.Globally()
 
       _ = files | "FilesExist" >> beam.Map(
-          lambda x: self.assertTrue(os.path.exists(x)))
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True)))
       assert_that(file_count, equal_to([3]), label='check file count')
 
       destinations = output_pc | "GetDests" >> beam.Map(lambda x: x[0])
@@ -241,6 +247,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     self._consume_input(fn, _DESTINATION_ELEMENT_PAIRS, check_multiple_files)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   def test_records_traverse_transform_with_mocks(self):
@@ -282,8 +289,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                       | "GetDests" >> beam.Map(lambda x: x[0]))
 
       # All files exist
-      _ = (files | beam.Map(lambda x:
-                            self.assertTrue(os.path.exists)))
+      _ = (files | beam.Map(
+          lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
 
       # One file per destination
       assert_that(files | beam.combiners.Count.Globally(),
@@ -297,6 +304,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                   equal_to([job_reference]), label='CheckJobs')
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIT(unittest.TestCase):
 
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
