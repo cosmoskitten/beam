@@ -711,16 +711,16 @@ class PortableOptions(PipelineOptions):
 
 
 class RunnerOptions(PipelineOptions):
-    """Runner options are provided by the job service.
+  """Runner options are provided by the job service.
 
-    The SDK has no a priori knowledge of runner options.
-    It should be able to work with any portable runner.
-    Runner specific options are discovered from the job service endpoint.
-    """
-    @classmethod
-    def _add_argparse_args(cls, parser):
-        # TODO: help option to display discovered options
-        pass
+  The SDK has no a priori knowledge of runner options.
+  It should be able to work with any portable runner.
+  Runner specific options are discovered from the job service endpoint.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    # TODO: help option to display discovered options
+    pass
 
 
 class TestOptions(PipelineOptions):
