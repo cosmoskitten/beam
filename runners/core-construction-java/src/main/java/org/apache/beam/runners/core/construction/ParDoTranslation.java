@@ -179,6 +179,7 @@ public class ParDoTranslation {
         Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
     PCollection<?> mainInput =
         (PCollection<?>) appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
+
     final DoFnSchemaInformation doFnSchemaInformation =
         ParDo.getDoFnSchemaInformation(doFn, mainInput);
     return translateParDo(parDo, doFnSchemaInformation, pipeline, components);
