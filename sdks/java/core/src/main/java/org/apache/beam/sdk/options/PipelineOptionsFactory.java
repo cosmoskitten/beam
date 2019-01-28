@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -677,18 +678,23 @@ public class PipelineOptionsFactory {
         lists.sort(String.CASE_INSENSITIVE_ORDER);
         for (String propertyName : lists) {
           Method method = propertyNamesToGetters.get(propertyName);
-          String type = method.getReturnType().getSimpleName().toLowerCase();
-          if (JSON_INTEGER_TYPES.contains(method.getReturnType())) {
-            type = "integer";
-          } else if (JSON_NUMBER_TYPES.contains(method.getReturnType())) {
-            type = "number";
+          Class<?> returnType = method.getReturnType();
+          PipelineOptionType.Enum optionType = PipelineOptionType.Enum.STRING;
+          if (JSON_INTEGER_TYPES.contains(returnType)) {
+            optionType = PipelineOptionType.Enum.INTEGER;
+          } else if (JSON_NUMBER_TYPES.contains(returnType)) {
+            optionType = PipelineOptionType.Enum.NUMBER;
+          } else if (returnType == boolean.class || returnType == Boolean.class) {
+            optionType = PipelineOptionType.Enum.BOOLEAN;
+          } else if (List.class.isAssignableFrom(returnType)) {
+            optionType = PipelineOptionType.Enum.ARRAY;
           }
           String optionName = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, propertyName);
           Description description = method.getAnnotation(Description.class);
           PipelineOptionDescriptor.Builder builder =
               PipelineOptionDescriptor.newBuilder()
                   .setName(optionName)
-                  .setType(type)
+                  .setType(optionType)
                   .setGroup(currentIface.getName());
           Optional<String> defaultValue = getDefaultValueFromAnnotation(method);
           if (defaultValue.isPresent()) {

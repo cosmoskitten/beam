@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps.uniqueIndex;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -2096,44 +2098,42 @@ public class PipelineOptionsFactoryTest {
         Collections2.filter(
             described, input -> input.getGroup().equals(TestDescribeOptions.class.getName()));
     assertEquals(6, filtered.size());
-    Map<String, PipelineOptionDescriptor> mapped =
-        org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps.uniqueIndex(
-            filtered, input -> input.getName());
+    Map<String, PipelineOptionDescriptor> mapped = uniqueIndex(filtered, input -> input.getName());
 
     PipelineOptionDescriptor listDesc = mapped.get("list");
     assertThat(listDesc, notNullValue());
     assertThat(listDesc.getDescription(), isEmptyString());
-    assertEquals("list", listDesc.getType());
+    assertEquals(PipelineOptionType.Enum.ARRAY, listDesc.getType());
     assertThat(listDesc.getDefaultValue(), isEmptyString());
 
     PipelineOptionDescriptor stringDesc = mapped.get("string");
     assertThat(stringDesc, notNullValue());
     assertThat(stringDesc.getDescription(), isEmptyString());
-    assertEquals("string", stringDesc.getType());
+    assertEquals(PipelineOptionType.Enum.STRING, stringDesc.getType());
     assertThat(stringDesc.getDefaultValue(), isEmptyString());
 
     PipelineOptionDescriptor integerDesc = mapped.get("integer");
     assertThat(integerDesc, notNullValue());
     assertEquals("integer property", integerDesc.getDescription());
-    assertEquals("integer", integerDesc.getType());
+    assertEquals(PipelineOptionType.Enum.INTEGER, integerDesc.getType());
     assertThat(integerDesc.getDefaultValue(), isEmptyString());
 
     PipelineOptionDescriptor floatDesc = mapped.get("float");
     assertThat(integerDesc, notNullValue());
     assertEquals("float number property", floatDesc.getDescription());
-    assertEquals("number", floatDesc.getType());
+    assertEquals(PipelineOptionType.Enum.NUMBER, floatDesc.getType());
     assertThat(floatDesc.getDefaultValue(), isEmptyString());
 
     PipelineOptionDescriptor booleanSimpleDesc = mapped.get("boolean_simple");
     assertThat(booleanSimpleDesc, notNullValue());
     assertEquals("simple boolean property", booleanSimpleDesc.getDescription());
-    assertEquals("boolean", booleanSimpleDesc.getType());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanSimpleDesc.getType());
     assertThat(booleanSimpleDesc.getDefaultValue(), equalTo("true"));
 
     PipelineOptionDescriptor booleanWrapperDesc = mapped.get("boolean_wrapper");
     assertThat(booleanWrapperDesc, notNullValue());
     assertThat(booleanWrapperDesc.getDescription(), isEmptyString());
-    assertEquals("boolean", booleanWrapperDesc.getType());
+    assertEquals(PipelineOptionType.Enum.BOOLEAN, booleanWrapperDesc.getType());
     assertThat(booleanWrapperDesc.getDefaultValue(), equalTo("false"));
   }
 }

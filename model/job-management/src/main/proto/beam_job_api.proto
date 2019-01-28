@@ -188,15 +188,27 @@ message JobState {
 message DescribePipelineOptionsRequest {
 }
 
+// Type for pipeline options.
+// Types mirror those of JSON, since that's how pipeline options are serialized.
+message PipelineOptionType {
+  enum Enum {
+    STRING = 0;
+    BOOLEAN = 1;
+    // whole numbers, see https://json-schema.org/understanding-json-schema/reference/numeric.html
+    INTEGER = 2;
+    NUMBER = 3;
+    ARRAY = 4;
+    OBJECT = 5;
+  };
+}
+
 // Metadata for a pipeline option.
 message PipelineOptionDescriptor {
   // (Required) The option name.
   string name = 1;
 
   // (Required) Type of option.
-  // Matching JSON types, since options are represented as JSON.
-  // "string" | "boolean" | "integer" | "number" | "list" | "map" | "object"
-  string type = 2;
+  PipelineOptionType.Enum type = 2;
 
   // (Optional) Description suitable for display / help text.
   string description = 3;

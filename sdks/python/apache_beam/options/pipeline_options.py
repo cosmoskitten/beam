@@ -200,7 +200,7 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False, add_extra_args=None):
+  def get_all_options(self, drop_default=False, add_extra_args_fn=None):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -209,8 +209,8 @@ class PipelineOptions(HasDisplayData):
     Args:
       drop_default: If set to true, options that are equal to their default
         values, are not returned as part of the result dictionary.
-      add_extra_args: Callback to populate additional arguments, can be used by
-        runner to supply otherwise unknown args.
+      add_extra_args_fn: Callback to populate additional arguments, can be used
+        by runner to supply otherwise unknown args.
 
     Returns:
       Dictionary of all args and values.
@@ -224,8 +224,8 @@ class PipelineOptions(HasDisplayData):
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-    if add_extra_args:
-      add_extra_args(parser)
+    if add_extra_args_fn:
+      add_extra_args_fn(parser)
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if unknown_args:
       logging.warning("Discarding unparseable args: %s", unknown_args)
@@ -708,6 +708,19 @@ class PortableOptions(PipelineOptions):
               '"<process to execute>", "env":{"<Environment variables 1>": '
               '"<ENV_VAL>"} }. All fields in the json are optional except '
               'command.'))
+
+
+class RunnerOptions(PipelineOptions):
+    """Runner options are provided by the job service.
+
+    The SDK has no a priori knowledge of runner options.
+    It should be able to work with any portable runner.
+    Runner specific options are discovered from the job service endpoint.
+    """
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        # TODO: help option to display discovered options
+        pass
 
 
 class TestOptions(PipelineOptions):

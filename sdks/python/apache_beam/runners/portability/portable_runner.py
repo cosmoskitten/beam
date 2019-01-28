@@ -221,12 +221,12 @@ class PortableRunner(runner.PipelineRunner):
           # no default values - we don't want runner options
           # added unless they were specified by the user
           add_arg_args = {'action' : 'store', 'help' : option.description}
-          if option.type == 'boolean':
+          if option.type == beam_job_api_pb2.PipelineOptionType.BOOLEAN:
             add_arg_args['action'] = 'store_true'\
               if option.default_value != 'true' else 'store_false'
-          elif option.type == 'integer':
+          elif option.type == beam_job_api_pb2.PipelineOptionType.INTEGER:
             add_arg_args['type'] = int
-          elif option.type == 'list':
+          elif option.type == beam_job_api_pb2.PipelineOptionType.ARRAY:
             add_arg_args['action'] = 'append'
           parser.add_argument("--%s" % option.name, **add_arg_args)
         except Exception as e:
@@ -236,7 +236,7 @@ class PortableRunner(runner.PipelineRunner):
             raise
           logging.debug("Runner option '%s' was already added" % option.name)
 
-    all_options = options.get_all_options(add_extra_args=add_runner_options)
+    all_options = options.get_all_options(add_extra_args_fn=add_runner_options)
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     p_options = {'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
