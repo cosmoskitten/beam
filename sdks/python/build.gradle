@@ -79,8 +79,11 @@ lint.dependsOn lintPy27_3
 toxTask "lintPy3", "py3-lint"
 lint.dependsOn lintPy3
 
-toxTask "testGcp", "py27-gcp"
-test.dependsOn testGcp
+toxTask "testPy2Gcp", "py27-gcp"
+test.dependsOn testPy2Gcp
+
+toxTask "testPy3cp", "py3-gcp"
+test.dependsOn testPy3Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
