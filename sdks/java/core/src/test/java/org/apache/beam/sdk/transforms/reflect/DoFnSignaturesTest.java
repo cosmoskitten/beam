@@ -206,18 +206,6 @@ public class DoFnSignaturesTest {
   }
 
   @Test
-  public void testMissingFieldAccess() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("No FieldAccessDescriptor defined.");
-    DoFnSignature sig =
-        DoFnSignatures.getSignature(
-            new DoFn<String, String>() {
-              @ProcessElement
-              public void process(@FieldAccess("foo") @Element Row row) {}
-            }.getClass());
-  }
-
-  @Test
   public void testRowReceiver() {
     DoFnSignature sig =
         DoFnSignatures.getSignature(

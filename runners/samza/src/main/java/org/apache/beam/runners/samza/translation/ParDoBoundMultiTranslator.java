@@ -227,7 +227,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final DoFnSchemaInformation doFnSchemaInformation;
     try {
-      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+      doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
