@@ -188,12 +188,16 @@ class FnApiRunnerTest(unittest.TestCase):
               (9, list(range(7, 10)))]),
           label='windowed')
 
-  def test_flattened_side_input(self):
+  def test_flattened_side_input(self, with_transcoding=True):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
-      side3 = p | 'side3' >> beam.Create([('b', 3)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        side3 = p | 'side3' >> beam.Create([('another_type')])
+      else:
+        side3 = p | 'side3' >> beam.Create([('b', 3)])
       side = (side1, side2) | beam.Flatten()
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
@@ -201,6 +205,8 @@ class FnApiRunnerTest(unittest.TestCase):
           label='CheckFlattenAsSideInput')
       assert_that(
           (side, side3) | 'FlattenAfter' >> beam.Flatten(),
+          equal_to([('a', 1), ('b', 2), ('another_type')])
+          if with_transcoding else
           equal_to([('a', 1), ('b', 2), ('b', 3)]),
           label='CheckFlattenOfSideInput')
 
@@ -360,12 +366,20 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create([1, 2, 3]) | beam.Reshuffle(),
                   equal_to([1, 2, 3]))
 
-  def test_flatten(self):
+  def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
+      if with_transcoding:
+        # Additional element which does not match with the first type
+        additional = [ord('d')]
+      else:
+        additional = ['d']
       res = (p | 'a' >> beam.Create(['a']),
              p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(['d'])) | beam.Flatten()
-      assert_that(res, equal_to(['a', 'b', 'c', 'd']))
+             p | 'd' >> beam.Create(additional)) | beam.Flatten()
+      assert_that(res,
+                  equal_to(['a', 'b', 'c', ord('d')])
+                  if with_transcoding else
+                  equal_to(['a', 'b', 'c', 'd']))
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
