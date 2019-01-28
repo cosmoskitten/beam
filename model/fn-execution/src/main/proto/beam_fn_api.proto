@@ -29,7 +29,7 @@
 syntax = "proto3";
 
 /* TODO: Consider consolidating common components in another package
- * and lanaguage namespaces for re-use with Runner Api.
+ * and language namespaces for re-use with Runner Api.
  */
 
 package org.apache.beam.model.fn_execution.v1;
@@ -330,7 +330,7 @@ message Annotation {
 
 // Populated MonitoringInfoSpecs for specific URNs.
 // Indicating the required fields to be set.
-// SDKS and RunnerHarnesses can load these instances into memory and write a
+// SDKs and RunnerHarnesses can load these instances into memory and write a
 // validator or code generator to assist with populating and validating
 // MonitoringInfo protos.
 message MonitoringInfoSpecs {
