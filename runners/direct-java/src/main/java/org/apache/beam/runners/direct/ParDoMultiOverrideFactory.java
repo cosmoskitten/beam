@@ -201,7 +201,8 @@ public class ParDoMultiOverrideFactory<InputT, OutputT>
           // the input
           .apply(
           "Stateful ParDo",
-          new StatefulParDo<>(doFn, mainOutputTag, additionalOutputTags, sideInputs, doFnSchemaInformation));
+          new StatefulParDo<>(
+              doFn, mainOutputTag, additionalOutputTags, sideInputs, doFnSchemaInformation));
     }
   }
 
