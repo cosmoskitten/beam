@@ -284,7 +284,7 @@ class TestReadFromTFRecord(unittest.TestCase):
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.DEFLATE,
                       validate=True))
-        assert_that(result, equal_to(['foo', 'bar']))
+        assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip(self):
     with TempDir() as temp_dir:
@@ -402,7 +402,7 @@ class TestReadAllFromTFRecord(unittest.TestCase):
                   | ReadAllFromTFRecord(
                       coder=coders.BytesCoder(),
                       compression_type=CompressionTypes.DEFLATE))
-        assert_that(result, equal_to(['foo', 'bar']))
+        assert_that(result, equal_to([b'foo', b'bar']))
 
   def test_process_gzip(self):
     with TempDir() as temp_dir:
