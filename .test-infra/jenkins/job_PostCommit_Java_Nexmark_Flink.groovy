@@ -42,7 +42,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=FlinkRunner',
+              '--runner=TestFlinkRunner',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -58,7 +58,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=FlinkRunner',
+              '--runner=TestFlinkRunner',
               '--streaming=true',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -74,7 +74,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=FlinkRunner',
+              '--runner=TestFlinkRunner',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -91,7 +91,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
-              '--runner=FlinkRunner',
+              '--runner=TestFlinkRunner',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
