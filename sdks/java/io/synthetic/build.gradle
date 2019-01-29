@@ -29,7 +29,6 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow library.java.guava
-  shadow library.java.kafka_clients
 
   shadowTest library.java.vendored_guava_20_0
   testCompile library.java.junit
@@ -37,5 +36,4 @@ dependencies {
   testCompile library.java.hamcrest_library
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
 }
