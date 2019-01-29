@@ -624,7 +624,7 @@ class PTransformWithSideInputs(PTransform):
     if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
-    self.fn = self.make_fn(fn)
+    self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
     super(PTransformWithSideInputs, self).__init__()
 
