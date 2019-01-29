@@ -2093,12 +2093,17 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testDescribe() {
     List<PipelineOptionDescriptor> described =
-        PipelineOptionsFactory.describe(Sets.newHashSet(TestDescribeOptions.class));
+        PipelineOptionsFactory.describe(
+            Sets.newHashSet(PipelineOptions.class, TestDescribeOptions.class));
+
+    Map<String, PipelineOptionDescriptor> mapped = uniqueIndex(described, input -> input.getName());
+    assertEquals("no duplicates", described.size(), mapped.size());
+
     Collection<PipelineOptionDescriptor> filtered =
         Collections2.filter(
             described, input -> input.getGroup().equals(TestDescribeOptions.class.getName()));
     assertEquals(6, filtered.size());
-    Map<String, PipelineOptionDescriptor> mapped = uniqueIndex(filtered, input -> input.getName());
+    mapped = uniqueIndex(filtered, input -> input.getName());
 
     PipelineOptionDescriptor listDesc = mapped.get("list");
     assertThat(listDesc, notNullValue());

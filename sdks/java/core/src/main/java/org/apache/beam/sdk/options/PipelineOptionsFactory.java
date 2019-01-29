@@ -656,6 +656,7 @@ public class PipelineOptionsFactory {
       Set<Class<? extends PipelineOptions>> ifaces) {
     checkNotNull(ifaces);
     List<PipelineOptionDescriptor> result = new ArrayList<>();
+    Set<Class<?>> seenIfaces = Sets.newHashSet();
 
     for (Class<? extends PipelineOptions> iface : ifaces) {
       CACHE.get().validateWellFormed(iface);
@@ -672,6 +673,9 @@ public class PipelineOptionsFactory {
       for (Map.Entry<Class<?>, Map<String, Method>> ifaceToPropertyMap :
           ifacePropGetterTable.rowMap().entrySet()) {
         Class<?> currentIface = ifaceToPropertyMap.getKey();
+        if (!seenIfaces.add(currentIface)) {
+          break;
+        }
         Map<String, Method> propertyNamesToGetters = ifaceToPropertyMap.getValue();
 
         List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
