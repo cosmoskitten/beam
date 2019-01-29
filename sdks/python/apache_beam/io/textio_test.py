@@ -560,7 +560,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file(suffix='.deflate')
       with open(file_name, 'wb') as f:
-        f.write(zlib.compress('\n'.join(lines)))
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(file_name)
@@ -659,7 +659,7 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with open(file_name, 'wb') as f:
-        f.write(zlib.compress('\n'.join(lines)))
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -674,10 +674,10 @@ class TextSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = tempdir.create_temp_file()
       with open(file_name, 'wb') as f:
-        f.write(zlib.compress(b'\n'.join(lines)))
+        f.write(zlib.compress('\n'.join(lines).encode('utf-8')))
 
       with open(file_name, 'wb') as f:
-        f.write('corrupt')
+        f.write(b'corrupt')
 
       pipeline = TestPipeline()
       pcoll = pipeline | 'Read' >> ReadFromText(
@@ -695,19 +695,19 @@ class TextSourceTest(unittest.TestCase):
       lines = ['a', 'b', 'c']
       with open(deflate_file_name1, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(zlib.compress(data))
+        dst.write(zlib.compress(data.encode('utf-8')))
 
       deflate_file_name2 = tempdir.create_temp_file()
       lines = ['p', 'q', 'r']
       with open(deflate_file_name2, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(zlib.compress(data))
+        dst.write(zlib.compress(data.encode('utf-8')))
 
       deflate_file_name3 = tempdir.create_temp_file()
       lines = ['x', 'y', 'z']
       with open(deflate_file_name3, 'wb') as dst:
         data = '\n'.join(lines) + '\n'
-        dst.write(zlib.compress(data))
+        dst.write(zlib.compress(data.encode('utf-8')))
 
       final_deflate_file = tempdir.create_temp_file()
       with open(deflate_file_name1, 'rb') as src, \
