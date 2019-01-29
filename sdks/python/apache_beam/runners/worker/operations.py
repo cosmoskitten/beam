@@ -682,8 +682,9 @@ class PGBKCVOperation(Operation):
     self.table = {}
     self.key_count = 0
 
-  def output_key(self, wkey, value):
+  def output_key(self, wkey, accumulator):
     windows, key = wkey
+    value = self.combine_fn.compact_accumulator(accumulator)
     if windows is 0:
       self.output(_globally_windowed_value.with_value((key, value)))
     else:
