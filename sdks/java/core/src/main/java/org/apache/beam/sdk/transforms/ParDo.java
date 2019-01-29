@@ -63,7 +63,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
@@ -633,45 +632,6 @@ public class ParDo {
     return doFnSchemaInformation;
   }
 
-  private static SerializableFunction<Coder<?>, Boolean> getSchemaRestriction(
-      TypeDescriptor<?> typeDescriptor, SchemaRegistry schemaRegistry) {
-    boolean isRow = typeDescriptor.equals(TypeDescriptors.rows());
-    final Schema schema;
-    if (!isRow) {
-      try {
-        schema = schemaRegistry.getSchema(typeDescriptor);
-      } catch (NoSuchSchemaException e) {
-        throw new RuntimeException("No schema registered for " + typeDescriptor);
-      }
-    } else {
-      schema = null;
-    }
-    return getSchemaRestriction(schema);
-  }
-
-  private static SerializableFunction<Coder<?>, Boolean> getSchemaRestriction(Schema schema) {
-    return coder -> {
-      if (!(coder instanceof SchemaCoder)) {
-        return false;
-      }
-      SchemaCoder schemaCoder = (SchemaCoder) coder;
-      if (schema != null) {
-        return schema.assignableToIgnoreNullable(schemaCoder.getSchema());
-      }
-      return true;
-    };
-  }
-
-  private static void checkConversionSchema(Schema inputSchema, Schema outputSchema) {
-    if (!inputSchema.assignableToIgnoreNullable(outputSchema)) {
-      throw new IllegalArgumentException(
-          "Cannot convert items with schema "
-              + inputSchema
-              + " to a type with schema"
-              + outputSchema);
-    }
-  }
-
   /**
    * A {@link PTransform} that, when applied to a {@code PCollection<InputT>}, invokes a
    * user-specified {@code DoFn<InputT, OutputT>} on all its elements, with all its outputs
@@ -885,8 +845,6 @@ public class ParDo {
       if (signature.usesState() || signature.usesTimers()) {
         validateStateApplicableForInput(fn, input);
       }
-
-      DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
       // as schema. However coder/schema inference may not have happened yet at this point.

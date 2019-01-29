@@ -185,6 +185,7 @@ public class ParDoTranslation {
     return translateParDo(parDo, doFnSchemaInformation, pipeline, components);
   }
 
+  /** Translate a ParDo. */
   public static ParDoPayload translateParDo(
       ParDo.MultiOutput<?, ?> parDo,
       DoFnSchemaInformation doFnSchemaInformation,
@@ -401,6 +402,7 @@ public class ParDoTranslation {
             Sets.union(payload.getSideInputsMap().keySet(), payload.getTimerSpecsMap().keySet())));
   }
 
+  /** Translate state specs. */
   public static RunnerApi.StateSpec translateStateSpec(
       StateSpec<?> stateSpec, final SdkComponents components) throws IOException {
     final RunnerApi.StateSpec.Builder builder = RunnerApi.StateSpec.newBuilder();

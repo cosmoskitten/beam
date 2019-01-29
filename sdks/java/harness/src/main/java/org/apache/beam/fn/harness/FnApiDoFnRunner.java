@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -158,10 +157,6 @@ public class FnApiDoFnRunner<InputT, OutputT>
             outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
           }
         };
-
-    DoFnSignature doFnSignature = DoFnSignatures.getSignature(context.doFn.getClass());
-    DoFnSignature.ProcessElementMethod processElementMethod =
-        DoFnSignatures.getSignature(context.doFn.getClass()).processElement();
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
   }
 

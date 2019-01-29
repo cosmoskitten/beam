@@ -25,6 +25,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
@@ -357,17 +358,17 @@ public class ParDoSchemaTest implements Serializable {
                 }));
   }
 
+  /** POJO used for testing. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class InferredPojo {
-    String stringField;
-    Integer integerField;
+  public static class InferredPojo {
+    public final String stringField;
+    public final Integer integerField;
 
-    InferredPojo(String stringField, Integer integerField) {
+    @SchemaCreate
+    public InferredPojo(String stringField, Integer integerField) {
       this.stringField = stringField;
       this.integerField = integerField;
     }
-
-    InferredPojo() {}
   }
 
   @Test
@@ -405,17 +406,17 @@ public class ParDoSchemaTest implements Serializable {
     pipeline.run();
   }
 
+  /** Pojo used for testing. */
   @DefaultSchema(JavaFieldSchema.class)
-  static class InferredPojo2 {
-    Integer integerField;
-    String stringField;
+  public static class InferredPojo2 {
+    public final Integer integerField;
+    public final String stringField;
 
-    InferredPojo2(String stringField, Integer integerField) {
+    @SchemaCreate
+    public InferredPojo2(String stringField, Integer integerField) {
       this.stringField = stringField;
       this.integerField = integerField;
     }
-
-    InferredPojo2() {}
   }
 
   @Test

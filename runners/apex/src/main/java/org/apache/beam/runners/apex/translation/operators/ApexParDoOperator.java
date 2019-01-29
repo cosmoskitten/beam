@@ -142,6 +142,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       additionalOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
+  /** Constructor. */
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,

@@ -117,6 +117,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient FlinkMetricContainer flinkMetricContainer;
   private transient long backupWatermarkHold = Long.MIN_VALUE;
 
+  /** Constructor. */
   public ExecutableStageDoFnOperator(
       String stepName,
       Coder<WindowedValue<InputT>> windowedInputCoder,

@@ -105,6 +105,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Nullable private final DoFnSchemaInformation doFnSchemaInformation;
 
+  /** Constructor. */
   public SimpleDoFnRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
