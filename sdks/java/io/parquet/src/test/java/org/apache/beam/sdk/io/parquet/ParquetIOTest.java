@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,6 +90,15 @@ public class ParquetIOTest implements Serializable {
 
   @Test
   public void testWriteAndReadFiles() {
+    writeReadAssert(CompressionCodecName.UNCOMPRESSED);
+  }
+
+  @Test
+  public void testCompression() {
+    writeReadAssert(CompressionCodecName.SNAPPY);
+  }
+
+  private void writeReadAssert(CompressionCodecName compressionCodec) {
     List<GenericRecord> records = generateGenericRecords(1000);
 
     PCollection<GenericRecord> writeThenRead =
@@ -96,7 +106,7 @@ public class ParquetIOTest implements Serializable {
             .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
             .apply(
                 FileIO.<GenericRecord>write()
-                    .via(ParquetIO.sink(SCHEMA))
+                    .via(ParquetIO.sink(SCHEMA).withCompressionCodec(compressionCodec))
                     .to(temporaryFolder.getRoot().getAbsolutePath()))
             .getPerDestinationOutputFilenames()
             .apply(Values.create())
