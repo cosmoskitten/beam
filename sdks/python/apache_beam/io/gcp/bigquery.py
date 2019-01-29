@@ -666,7 +666,7 @@ class WriteToBigQuery(PTransform):
     """Initialize a WriteToBigQuery transform.
 
     Args:
-      table (str, callable, TableReference): The ID of the table, or a callable
+      table (str, callable): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
          numbers ``0-9``, or underscores ``_``. If dataset argument is
          :data:`None` then the table argument must contain the entire table
