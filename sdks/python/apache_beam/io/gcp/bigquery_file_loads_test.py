@@ -27,9 +27,9 @@ import time
 import unittest
 
 import mock
+from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
-from hamcrest.core import assert_that as hamcrest_assert
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
