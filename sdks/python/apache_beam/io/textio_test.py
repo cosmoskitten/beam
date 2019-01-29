@@ -1064,6 +1064,30 @@ class TextSinkTest(unittest.TestCase):
     with gzip.GzipFile(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), [])
 
+  def test_write_deflate_file(self):
+    sink = TextSink(
+      self.path, compression_type=CompressionTypes.DEFLATE)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), self.lines)
+
+  def test_write_deflate_file_auto(self):
+    self.path = self._create_temp_file(suffix='.deflate')
+    sink = TextSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), self.lines)
+
+  def test_write_deflate_file_empty(self):
+    sink = TextSink(
+      self.path, compression_type=CompressionTypes.DEFLATE)
+    self._write_lines(sink, [])
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(zlib.decompress(f.read()).splitlines(), [])
+
   def test_write_text_file_with_header(self):
     header = b'header1\nheader2'
     sink = TextSink(self.path, header=header)
