@@ -1611,18 +1611,48 @@ class BeamModulePlugin implements Plugin<Project> {
         outputs.dirs(project.ext.envdir)
       }
 
+      def pythonSdkDeps = project.files(
+              project.fileTree(dir: "${pythonRootDir}", include: [
+                'apache_beam/**/*.py',
+                'apache_beam/**/*.pyx',
+                'apache_beam/**/*.pxd',
+                'apache_beam/testing/data/**',
+                'scripts/**',
+                '.pylintrc',
+                'MANIFEST.in',
+                'gen_protos.py',
+                'setup.cfg',
+                'setup.py',
+                'test_config.py',
+                'tox.ini',
+              ]),
+              project.fileTree(dir: "${project.rootDir}", include: 'model/**'),
+              )
+
       project.configurations { distConfig }
 
       project.task('sdist', dependsOn: 'setupVirtualenv') {
         doLast {
+          // Copy sdk sources to isolate directory
+          def copiedSrcDir = "${project.buildDir}/srcs"
+          project.copy {
+            from pythonSdkDeps
+            into copiedSrcDir
+          }
+
+          // Build artifact
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${pythonRootDir} && python setup.py sdist --keep-temp --formats zip,gztar --dist-dir ${project.buildDir}"
+            args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedSrcDir} && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
           }
           def collection = project.fileTree("${project.buildDir}"){ include '**/*.tar.gz' exclude '**/apache-beam.tar.gz'}
           println "sdist archive name: ${collection.singleFile}"
+
           // we need a fixed name for the artifact
           project.copy { from collection.singleFile; into "${project.buildDir}"; rename { 'apache-beam.tar.gz' } }
+
+          // Cleanup copied sources
+          project.delete copiedSrcDir
         }
       }
 
@@ -1672,6 +1702,20 @@ class BeamModulePlugin implements Plugin<Project> {
           argList.add("--$k $v")
         }
         return argList.join(' ')
+      }
+
+      project.ext.toxTask = { name, tox_env ->
+        project.tasks.create(name) {
+          dependsOn = ['sdist']
+          doLast {
+            project.exec {
+              executable 'sh'
+              args '-c', ". ${project.ext.envdir}/bin/activate && ${pythonRootDir}/scripts/run_tox.sh $tox_env ${project.buildDir}/apache-beam.tar.gz"
+            }
+          }
+          inputs.files pythonSdkDeps
+          outputs.files project.fileTree(dir: "${pythonRootDir}/target/.tox/${tox_env}/log/")
+        }
       }
     }
   }
