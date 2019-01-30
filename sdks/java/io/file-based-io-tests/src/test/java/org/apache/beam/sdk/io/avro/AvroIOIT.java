@@ -32,6 +32,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
@@ -131,13 +132,21 @@ public class AvroIOIT {
 
     PCollection<String> consolidatedHashcode =
         testFilenames
+            .apply("Match all files", FileIO.matchAll())
+            .apply("Read matches", FileIO.readMatches())
+            .apply("Read files", AvroIO.readFilesGenericRecords(AVRO_SCHEMA))
+            .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
+            .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcodeViaReadAll =
+        testFilenames
             .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
             .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+    PAssert.thatSingleton(consolidatedHashcodeViaReadAll).isEqualTo(expectedHash);
 
     testFilenames.apply(
         "Delete test files",

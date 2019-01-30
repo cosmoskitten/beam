@@ -283,6 +283,23 @@ public class AvroIO {
         .build();
   }
 
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   *
+   * <p>You can read {@link GenericRecord} by using {@code #readFiles(GenericRecord.class)} or
+   * {@code #readFiles(new Schema.Parser().parse(schema))} if the schema is a String.
+   */
+  public static <T> ReadFiles<T> readFiles(Class<T> recordClass) {
+    return new AutoValue_AvroIO_ReadFiles.Builder<T>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .setInferBeamSchema(false)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .build();
+  }
+
   /** Like {@link #read}, but reads each filepattern in the input {@link PCollection}. */
   public static <T> ReadAll<T> readAll(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadAll.Builder<T>()
@@ -290,10 +307,7 @@ public class AvroIO {
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setInferBeamSchema(false)
-        // 64MB is a reasonable value that allows to amortize the cost of opening files,
-        // but is not so large as to exhaust a typical runner's maximum amount of output per
-        // ProcessElement call.
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -309,8 +323,22 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #readGenericRecords(Schema)}, but reads each filepattern in the input {@link
-   * PCollection}.
+   * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   */
+  public static ReadFiles<GenericRecord> readFilesGenericRecords(Schema schema) {
+    return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>()
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .setInferBeamSchema(false)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
+        .build();
+  }
+
+  /**
+   * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    */
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
@@ -318,7 +346,7 @@ public class AvroIO {
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setInferBeamSchema(false)
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -328,6 +356,11 @@ public class AvroIO {
    */
   public static Read<GenericRecord> readGenericRecords(String schema) {
     return readGenericRecords(new Schema.Parser().parse(schema));
+  }
+
+  /** Like {@link #readGenericRecords(String)}, but for {@link FileIO.ReadableFile} collections. */
+  public static ReadFiles<GenericRecord> readFilesGenericRecords(String schema) {
+    return readFilesGenericRecords(new Schema.Parser().parse(schema));
   }
 
   /**
@@ -359,7 +392,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_ParseAll.Builder<T>()
         .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
         .setParseFn(parseFn)
-        .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
+        .setDesiredBundleSizeBytes(DEFAULT_BUNDLE_SIZE_BYTES)
         .build();
   }
 
@@ -447,6 +480,12 @@ public class AvroIO {
     }
     return pc;
   }
+
+  /**
+   * 64MB is a reasonable value that allows to amortize the cost of opening files, but is not so
+   * large as to exhaust a typical runner's maximum amount of output per ProcessElement call.
+   */
+  private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
   /** Implementation of {@link #read} and {@link #readGenericRecords}. */
   @AutoValue
@@ -668,12 +707,7 @@ public class AvroIO {
           input
               .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
               .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
-              .apply(
-                  "Read all via FileBasedSource",
-                  new ReadAllViaFileBasedSource<>(
-                      getDesiredBundleSizeBytes(),
-                      new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
-                      AvroCoder.of(getRecordClass(), getSchema())));
+              .apply(readFiles(getRecordClass()));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
 
@@ -701,6 +735,93 @@ public class AvroIO {
           EmptyMatchTreatment.DISALLOW,
           recordClass,
           schemaSupplier.get());
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /** Implementation of {@link #readFiles}. */
+  @AutoValue
+  public abstract static class ReadFiles<T>
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+    abstract MatchConfiguration getMatchConfiguration();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract Schema getSchema();
+
+    abstract long getDesiredBundleSizeBytes();
+
+    abstract boolean getInferBeamSchema();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setMatchConfiguration(MatchConfiguration matchConfiguration);
+
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+
+      abstract Builder<T> setSchema(Schema schema);
+
+      abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+
+      abstract Builder<T> setInferBeamSchema(boolean infer);
+
+      abstract ReadFiles<T> build();
+    }
+
+    /** Sets the {@link MatchConfiguration}. */
+    public ReadFiles<T> withMatchConfiguration(MatchConfiguration configuration) {
+      return toBuilder().setMatchConfiguration(configuration).build();
+    }
+
+    /** Like {@link Read#withEmptyMatchTreatment}. */
+    public ReadFiles<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
+    }
+
+    /** Like {@link Read#watchForNewFiles}. */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public ReadFiles<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
+    }
+
+    @VisibleForTesting
+    ReadFiles<T> withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public ReadFiles<T> withBeamSchemas(boolean withBeamSchemas) {
+      return toBuilder().setInferBeamSchema(withBeamSchemas).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+      checkNotNull(getSchema(), "schema");
+      PCollection<T> read =
+          input.apply(
+              "Read all via FileBasedSource",
+              new ReadAllViaFileBasedSource<>(
+                  getDesiredBundleSizeBytes(),
+                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                  AvroCoder.of(getRecordClass(), getSchema())));
+      return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.include("matchConfiguration", getMatchConfiguration());
     }
   }
 
@@ -1311,7 +1432,7 @@ public class AvroIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @VisibleForTesting TypedWrite<T, ?, T> inner;
+    @VisibleForTesting final TypedWrite<T, ?, T> inner;
 
     Write(TypedWrite<T, ?, T> inner) {
       this.inner = inner;
