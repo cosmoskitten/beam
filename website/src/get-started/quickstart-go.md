@@ -79,6 +79,67 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 This runner is not yet available for the Go SDK.
 ```
 
+Here is how a basic implementation of WordCount looks like.
+
+```
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"regexp"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+
+	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+)
+
+var (
+	input = flag.String("input", "data/*", "File(s) to read.")
+	output = flag.String("output", "outputs/wordcounts.txt", "Output filename.")
+)
+
+var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+
+func main() {
+  flag.Parse()
+
+	beam.Init()
+
+	pipeline := beam.NewPipeline()
+	root := pipeline.Root()
+
+	lines := textio.Read(root, *input)
+	words := beam.ParDo(root, func(line string, emit func(string)) {
+		for _, word := range wordRE.FindAllString(line, -1) {
+			emit(word)
+		}
+	}, lines)
+	counted := stats.Count(root, words)
+	formatted := beam.ParDo(root, func(word string, count int) string {
+		return fmt.Sprintf("%s: %v", word, count)
+	}, counted)
+	textio.Write(root, *output, formatted)
+
+	direct.Execute(context.Background(), pipeline)
+}
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1z4mR2oLa6jfqSXl73gaR-nPo9fV9R6Jv">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/get-started/quickstart-go.ipynb">
+  View source on GitHub
+</a>
+
+For a more detailed code explanation, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+
 ## Next Steps
 
 * Learn more about the [Beam SDK for Go]({{ site.baseurl }}/documentation/sdks/go/)

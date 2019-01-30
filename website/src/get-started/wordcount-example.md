@@ -102,13 +102,151 @@ To view the full code in Go, see
 * Writing output (in this example: writing to a text file)
 * Running the Pipeline
 
+Here is how a basic implementation of WordCount looks like.
+
+```java
+package samples.quickstart;
+
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.FlatMapElements;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptors;
+
+import java.util.Arrays;
+
+public class WordCount {
+  public static void main(String[] args) {
+    String inputsDir = "data/*";
+    String outputsPrefix = "outputs/part";
+
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("Read lines", TextIO.read().from(inputsDir))
+        .apply("Find words", FlatMapElements.into(TypeDescriptors.strings())
+            .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
+        .apply("Filter empty words", Filter.by((String word) -> !word.isEmpty()))
+        .apply("Count words", Count.perElement())
+        .apply("Write results", MapElements.into(TypeDescriptors.strings())
+            .via((KV<String, Long> wordCount) ->
+                  wordCount.getKey() + ": " + wordCount.getValue()))
+        .apply(TextIO.write().to(outputsPrefix));
+    pipeline.run();
+  }
+}
+```
+
+```py
+import apache_beam as beam
+import re
+
+inputs_pattern = 'data/*'
+outputs_prefix = 'outputs/part'
+
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Read lines' >> beam.io.ReadFromText(inputs_pattern)
+      | 'Find words' >> beam.FlatMap(lambda line: re.findall(r"[a-zA-Z']+", line))
+      | 'Pair words with 1' >> beam.Map(lambda word: (word, 1))
+      | 'Group and sum' >> beam.CombinePerKey(sum)
+      | 'Format results' >> beam.Map(lambda word_count: str(word_count))
+      | 'Write results' >> beam.io.WriteToText(outputs_prefix)
+  )
+```
+
+```go
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"regexp"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+
+	_ "github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local"
+)
+
+var (
+	input = flag.String("input", "data/*", "File(s) to read.")
+	output = flag.String("output", "outputs/wordcounts.txt", "Output filename.")
+)
+
+var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+
+func main() {
+  flag.Parse()
+
+	beam.Init()
+
+	pipeline := beam.NewPipeline()
+	root := pipeline.Root()
+
+	lines := textio.Read(root, *input)
+	words := beam.ParDo(root, func(line string, emit func(string)) {
+		for _, word := range wordRE.FindAllString(line, -1) {
+			emit(word)
+		}
+	}, lines)
+	counted := stats.Count(root, words)
+	formatted := beam.ParDo(root, func(word string, count int) string {
+		return fmt.Sprintf("%s: %v", word, count)
+	}, counted)
+	textio.Write(root, *output, formatted)
+
+	direct.Execute(context.Background(), pipeline)
+}
+```
+
+{:.language-java}
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1U5YYTXLEYbshspMzl_f4erKjYoCW9mfh">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/get-started/quickstart-java.ipynb">
+  View source on GitHub
+</a>
+
+{:.language-py}
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1zAbdVJLIgUb0j1WGaE7-devEsh88zgJi">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/get-started/quickstart-py.ipynb">
+  View source on GitHub
+</a>
+
+{:.language-go}
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1z4mR2oLa6jfqSXl73gaR-nPo9fV9R6Jv">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/get-started/quickstart-go.ipynb">
+  View source on GitHub
+</a>
+
+{:.language-java}
+{:.language-py}
+{:.language-go}
 The following sections explain these concepts in detail, using the relevant code
 excerpts from the MinimalWordCount pipeline.
 
 ### Creating the pipeline
 
-{:.language-java}
-{:.language-py}
 In this example, the code first creates a `PipelineOptions` object. This object
 lets us set various options for our pipeline, such as the pipeline runner that
 will execute our pipeline and any runner-specific configuration required by the

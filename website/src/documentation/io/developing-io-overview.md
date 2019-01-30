@@ -58,6 +58,33 @@ Beam source:
 cases where you might want to use a `Source` (such as
 [dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
 
+```
+import apache_beam as beam
+import logging
+
+def count(n):
+  for i in range(n):
+    yield i
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Create inputs' >> beam.Create([10])
+      | 'Generate elements' >> beam.ParDo(count)
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1r-o2QJ-D-I0TV4NIQR6pAN2t4Pxt2-Ey">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/io/custom-inputs-pardo.ipynb">
+  View source on GitHub
+</a>
+
 (Java only) For **unbounded (streaming) sources**, you must use the `Source`
 interface and extend the `UnboundedSource` abstract subclass. `UnboundedSource`
 supports features that are useful for streaming pipelines, such as
@@ -151,6 +178,38 @@ example:
     cannot be parallelized. In this case, the `ParDo` would open the file and
     read in sequence, producing a `PCollection` of records from the file.
 
+```
+import apache_beam as beam
+import logging
+import glob
+
+def read_lines(filename):
+  with open(filename) as f:
+    for line in f:
+      yield line.strip()
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Create inputs' >> beam.Create([
+          'data1/*.txt',
+          'data2/*.txt',
+        ])
+      | 'Expand file patterns' >> beam.FlatMap(glob.glob)
+      | 'Read lines' >> beam.ParDo(read_lines)
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1r-o2QJ-D-I0TV4NIQR6pAN2t4Pxt2-Ey">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/io/custom-inputs-pardo.ipynb">
+  View source on GitHub
+</a>
 
 ## Sinks
 
@@ -158,6 +217,42 @@ To create a Beam sink, we recommend that you use a `ParDo` that writes the
 received records to the data store. To develop more complex sinks (for example,
 to support data de-duplication when failures are retried by a runner), use
 `ParDo`, `GroupByKey`, and other available Beam transforms.
+
+```
+import apache_beam as beam
+import logging
+import random
+import os
+
+if not os.path.exists('outputs'):
+  os.makedirs('outputs')
+
+def write_to_file(key_value):
+  batch_idx, values = key_value
+  with open('outputs/part-{}'.format(batch_idx), 'w') as f:
+    for value in values:
+      f.write('{}\n'.format(value))
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Create inputs' >> beam.Create([i for i in range(10)])
+      | 'Set key to a randomized batch number' >> beam.Map(
+          lambda element: (random.randint(1, 3), element))
+      | 'Group into batches' >> beam.GroupByKey()
+      | 'Write to files' >> beam.ParDo(write_to_file)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1wFNkV6PlEI_wEb9rGtwHe1WW_FUan7eM">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/sdks/python/notebooks/io/custom-outputs-pardo.ipynb">
+  View source on GitHub
+</a>
 
 For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
 provided by both the Java and Python SDKs. See our language specific
