@@ -63,13 +63,13 @@ test.dependsOn testCython
 // project.
 testCython.mustRunAfter testPython2, testPy2Gcp
 
-toxTask "docs", "docs"
-assemble.dependsOn docs
+toxTask "pydoc", "docs"
+assemble.dependsOn pydoc
 
 toxTask "cover", "cover"
 
 task preCommitPy2() {
-  dependsOn "docs"
+  dependsOn "pydoc"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
   dependsOn "lint"
