@@ -509,6 +509,11 @@ public class RemoteExecutionTest implements Serializable {
                     new DoFn<byte[], String>() {
                       private boolean emitted = false;
 
+                      @StartBundle
+                      public void startBundle() throws InterruptedException {
+                        Thread.sleep(2000); // TODO smarter test without sleeps???
+                      }
+
                       @ProcessElement
                       public void process(ProcessContext ctxt) {
                         // TODO(BEAM-6467): Impulse is producing two elements instead of one.
@@ -520,6 +525,11 @@ public class RemoteExecutionTest implements Serializable {
                           Metrics.counter(RemoteExecutionTest.class, counterMetricName).inc();
                         }
                         emitted = true;
+                      }
+
+                      @DoFn.FinishBundle
+                      public void finishBundle() throws InterruptedException {
+                        Thread.sleep(2000); // TODO smarter test without sleeps???
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
