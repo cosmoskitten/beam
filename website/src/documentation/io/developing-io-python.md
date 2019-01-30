@@ -178,20 +178,118 @@ The Beam SDK for Python contains some convenient abstract base classes to help y
 
 To create a source for a new file type, you need to create a sub-class of `FileBasedSource`.  Sub-classes of `FileBasedSource` must implement the method `FileBasedSource.read_records()`.
 
+```
+import apache_beam as beam
+import logging
+import ijson
+
+# Create a generator of objects from a given JSON file.
+def read_json_objects(file_object):
+  for item in ijson.items(file_object, 'item'):
+    yield item
+
+class JsonSource(beam.io.filebasedsource.FileBasedSource):
+  def __init__(self, file_pattern):
+    super(JsonSource, self).__init__(file_pattern, splittable=False)
+
+  def in_range(self, range_tracker, position):
+    try:
+      return range_tracker.set_current_position(position)
+    except ValueError:
+      return range_tracker.try_claim(position)
+
+  def read_records(self, filename, range_tracker):
+    with self.open_file(filename) as f:
+      f.seek(range_tracker.start_position() or 0)
+      while self.in_range(range_tracker, f.tell()):
+        for obj in read_json_objects(f):
+          yield obj
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Read JSON objects' >> beam.io.Read(JsonSource('data/*'))
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1hPNfIUnYbQSGClPcGP2fBOU0aF5gRd3k">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-filebasedsource.ipynb">
+  View source on GitHub
+</a>
+
 See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
 
 
 ### Reading from a new Source
 
-The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
+The following example, `RangeSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_source %}```
+import apache_beam as beam
+import logging
 
-To read data from the source in your pipeline, use the `Read` transform:
+class RangeSource(beam.io.iobase.BoundedSource):
+  def __init__(self, start, stop, step=1):
+    self.start = start
+    self.stop = stop
+    self.step = step
 
+  def estimate_size(self):
+    return (self.stop - self.start) / self.step
+
+  def get_range_tracker(self, start, stop):
+    if start is None:
+      start = self.start
+    if stop is None:
+      stop = self.stop
+    return beam.io.range_trackers.OffsetRangeTracker(start, stop)
+
+  def read(self, range_tracker):
+    start = range_tracker.start_position()
+    stop = range_tracker.stop_position()
+    for i in range(start, stop, self.step):
+      if not range_tracker.try_claim(i):
+        return
+      yield i
+
+  def split(self, bundle_size, start=None, stop=None):
+    if start is None:
+      start = self.start
+    if stop is None:
+      stop = self.stop
+
+    for bundle_start in range(start, stop, bundle_size):
+      bundle_stop = min(stop, bundle_start + bundle_size)
+      yield beam.io.iobase.SourceBundle(
+          weight=bundle_stop - bundle_start,
+          source=self,
+          start_position=bundle_start,
+          stop_position=bundle_stop,
+      )
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Read from RangeSource' >> beam.io.Read(RangeSource(10, 100, 10))
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_new_source %}```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1GLFB4adNS1oifRklCmyF4MFRQuea6MaV">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-boundedsource.ipynb">
+  View source on GitHub
+</a>
 
 **Note:** When you create a source that end-users are going to use, we
 recommended that you do not expose the code for the source itself as
@@ -257,18 +355,42 @@ composite `PTransform` that performs both the read operation and the reshard.
 See Beam’s [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
 for additional information about wrapping with a `PTransform`.
 
-The following examples change the source and sink from the above sections so
-that they are not exposed to end-users. For the source, rename `CountingSource`
-to `_CountingSource`. Then, create the wrapper `PTransform`, called
-`ReadFromCountingSource`:
+The following example wraps the source from the above sections in a
+`PTransform` called `ReadFromRangeSource`.
+The source can be renamed from `RangeSource` to `_RangeSource` so that
+it is not exposed to end-users.
 
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_ptransform %}```
+class ReadFromRangeSource(beam.PTransform):
+  def __init__(self, start, stop, step=1):
+    super(ReadFromRangeSource, self).__init__()
+    self.start = start
+    self.stop = stop
+    self.step = step
 
-Finally, read from the source:
+  def expand(self, pcollection):
+    return (
+      pcollection
+      | 'RangeSource' >> beam.io.Read(_RangeSource(self.start, self.stop, self.step))
+    )
 
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Read from RangeSource' >> ReadFromRangeSource(10, 100, 10)
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
 ```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_ptransform %}```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1GLFB4adNS1oifRklCmyF4MFRQuea6MaV">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-boundedsource.ipynb">
+  View source on GitHub
+</a>
 
 For the sink, rename `SimpleKVSink` to `_SimpleKVSink`. Then, create the wrapper `PTransform`, called `WriteToKVSink`:
 

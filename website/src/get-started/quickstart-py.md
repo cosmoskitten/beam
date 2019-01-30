@@ -207,9 +207,41 @@ This runner is not yet available for the Python SDK.
 ```
 
 After the pipeline completes, you can view the output files at your specified
-output path. For example, if you specify `/dir1/counts` for the `--output`
-parameter, the pipeline writes the files to `/dir1/` and names the files
-sequentially in the format `counts-0000-of-0001`.
+output path. For example, if you specify `outputs/part` for the `--output`
+parameter, the pipeline writes the files to `outputs/` and names the files
+sequentially in the format `part-0000-of-0001`.
+
+Here is how a basic implementation of WordCount looks like.
+
+```
+import apache_beam as beam
+import re
+
+inputs_pattern = 'data/*'
+outputs_prefix = 'outputs/part'
+
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Read lines' >> beam.io.ReadFromText(inputs_pattern)
+      | 'Find words' >> beam.FlatMap(lambda line: re.findall(r"[a-zA-Z']+", line))
+      | 'Pair words with 1' >> beam.Map(lambda word: (word, 1))
+      | 'Group and sum' >> beam.CombinePerKey(sum)
+      | 'Format results' >> beam.Map(lambda word_count: str(word_count))
+      | 'Write results' >> beam.io.WriteToText(outputs_prefix)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.research.google.com/drive/1zAbdVJLIgUb0j1WGaE7-devEsh88zgJi">
+  Run code in Google Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/get-started/quickstart-py.ipynb">
+  View source on GitHub
+</a>
+
+For a more detailed code explanation, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 
 ## Next Steps
 
