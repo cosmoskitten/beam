@@ -1066,7 +1066,7 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_deflate_file(self):
     sink = TextSink(
-      self.path, compression_type=CompressionTypes.DEFLATE)
+        self.path, compression_type=CompressionTypes.DEFLATE)
     self._write_lines(sink, self.lines)
 
     with open(self.path, 'rb') as f:
@@ -1082,7 +1082,7 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_deflate_file_empty(self):
     sink = TextSink(
-      self.path, compression_type=CompressionTypes.DEFLATE)
+        self.path, compression_type=CompressionTypes.DEFLATE)
     self._write_lines(sink, [])
 
     with open(self.path, 'rb') as f:
