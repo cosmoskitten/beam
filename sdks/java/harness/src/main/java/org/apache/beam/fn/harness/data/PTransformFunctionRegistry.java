@@ -17,11 +17,19 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.fn.harness.SimpleExecutionState;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -51,6 +59,15 @@ public class PTransformFunctionRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(PTransformFunctionRegistry.class);
 
   private List<ThrowingRunnable> runnables = new ArrayList<>();
+  private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
+  private ExecutionStateTracker stateTracker;
+  private String stateName;
+
+  public PTransformFunctionRegistry(ExecutionStateTracker stateTracker, String stateName) {
+    this.stateTracker = stateTracker;
+    this.stateName = stateName;
+  }
+
 
   /**
    * Register the runnable to process the specific pTransformId.
@@ -59,15 +76,43 @@ public class PTransformFunctionRegistry {
    * @param runnable
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
+    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
+    // TODO get this in a proper way, reuse method from simple monitoring info builder?
+    labelsMetadata.put("Ptransform", pTransformId);
+    SimpleExecutionState state = new SimpleExecutionState(this.stateName, labelsMetadata);
+    executionStates.add(state);
+
     ThrowingRunnable wrapped =
         () -> {
           // TODO(ajamato): Setup the proper pTransform context for Metrics to use.
           // TODO(ajamato): Set the proper state sampler state for ExecutionTime Metrics to use.
-          runnable.run();
+          try (Closeable close = this.stateTracker.enterState(state)) {
+            runnable.run();
+          }
         };
     runnables.add(wrapped);
   }
 
+  public List<MonitoringInfo> getMonitoringInfos() {
+    List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
+    for (SimpleExecutionState state : executionStates) {
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(false);
+      // TODO implement them all
+       if (this.stateName.equals("start")) {
+        builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+      } else if (this.stateName.equals("finish")) {
+        builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+      }
+      for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
+        builder.setLabel(entry.getKey(), entry.getValue());
+      }
+      builder.setInt64Value(state.getTotalMillis());
+      monitoringInfos.add(builder.build());
+    }
+    return monitoringInfos;
+  }
+
+  
   /**
    * @return A list of wrapper functions which will invoke the registered functions indirectly. The
    *     order of registry is maintained.
