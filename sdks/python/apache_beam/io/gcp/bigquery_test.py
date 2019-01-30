@@ -525,25 +525,25 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
     schema1 = {'fields': [
-      {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-      {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
     schema2 = {'fields': [
-      {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-      {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
 
     pipeline_verifiers = [
-      BigqueryFullResultMatcher(
-          project=self.project,
-          query="SELECT * FROM %s" % output_table_1,
-          data=[(d['name'], d['language'])
-                for d in _ELEMENTS
-                if 'language' in d]),
-      BigqueryFullResultMatcher(
-          project=self.project,
-          query="SELECT * FROM %s" % output_table_2,
-          data=[(d['name'], d['foundation'])
-                for d in _ELEMENTS
-                if 'foundation' in d])]
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_1,
+            data=[(d['name'], d['language'])
+                  for d in _ELEMENTS
+                  if 'language' in d]),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % output_table_2,
+            data=[(d['name'], d['foundation'])
+                  for d in _ELEMENTS
+                  if 'foundation' in d])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))
@@ -553,10 +553,10 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
 
       _ = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-              table=lambda x: ((output_table_1, schema1)
-                               if 'language' in x
-                               else (output_table_2, schema2)),
-              method='STREAMING_INSERTS'))
+               table=lambda x: ((output_table_1, schema1)
+                                if 'language' in x
+                                else (output_table_2, schema2)),
+               method='STREAMING_INSERTS'))
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
