@@ -82,20 +82,17 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
   void loadTest() throws IOException {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
-    PCollection<KV<byte[], byte[]>> input =
-        pipeline
-            .apply("Read input", readFromSource(sourceOptions))
-            .apply("Collect start time metrics", ParDo.of(runtimeMonitor));
-    input = applyWindowing(input);
+    PCollection<KV<byte[], byte[]>> input = pipeline
+        .apply("Read input", readFromSource(sourceOptions))
+        .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
+        .apply("Total bytes monitor", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
 
-    input.apply(
-        "Total bytes monitor", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
+    input = applyWindowing(input);
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
       applyStepIfPresent(input, format("Synthetic step (%s)", branch), syntheticStep)
           .apply(format("Group by key (%s)", branch), GroupByKey.create())
-          .apply(
-              format("Ungroup and reiterate (%s)", branch),
+          .apply(format("Ungroup and reiterate (%s)", branch),
               ParDo.of(new UngroupAndReiterate(options.getIterations())))
           .apply(format("Collect end time metrics (%s)", branch), ParDo.of(runtimeMonitor));
     }
