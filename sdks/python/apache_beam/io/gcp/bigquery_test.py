@@ -402,74 +402,7 @@ class WriteToBigQuery(unittest.TestCase):
     self.assertEqual(expected_dict_schema, dict_schema)
 
 
-class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
-  BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
-
-  def setUp(self):
-    self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
-
-    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
-                                  str(int(time.time())),
-                                  random.randint(0, 10000))
-    self.bigquery_client = bigquery_tools.BigQueryWrapper()
-    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
-    self.output_table = "%s.output_table" % (self.dataset_id)
-    logging.info("Created dataset %s in project %s",
-                 self.dataset_id, self.project)
-
-  @attr('PABIT')
-  def test_multiple_destinations_transform(self):
-    output_table_1 = '%s%s' % (self.output_table, 1)
-    output_table_2 = '%s%s' % (self.output_table, 2)
-    schema1 = {'fields': [
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
-    schema2 = {'fields': [
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
-
-    pipeline_verifiers = [
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
-                  if 'language' in d]),
-        BigqueryFullResultMatcher(
-            project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
-                  if 'foundation' in d])]
-
-    args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers))
-
-    with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_ELEMENTS)  # TODO import these form BQFL
-
-      _ = (input
-           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
-               table=lambda x: ((output_table_1, schema1)
-                                if 'language' in x
-                                else (output_table_2, schema2)),
-               method='STREAMING_INSERTS'))
-
-  def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
-        deleteContents=True)
-    try:
-      logging.info("Deleting dataset %s in project %s",
-                   self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
-      logging.debug('Failed to clean up dataset %s in project %s',
-                    self.dataset_id, self.project)
-
-
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
   def test_dofn_client_process_performs_batching(self):
@@ -568,6 +501,74 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     fn.finish_bundle()
     # InsertRows not called in finish bundle as no records
     self.assertFalse(client.tabledata.InsertAll.called)
+
+
+class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
+  BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
+
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+
+    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
+                                  str(int(time.time())),
+                                  random.randint(0, 10000))
+    self.bigquery_client = bigquery_tools.BigQueryWrapper()
+    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    self.output_table = "%s.output_table" % (self.dataset_id)
+    logging.info("Created dataset %s in project %s",
+                 self.dataset_id, self.project)
+
+  @attr('PABIT')
+  def test_multiple_destinations_transform(self):
+    output_table_1 = '%s%s' % (self.output_table, 1)
+    output_table_2 = '%s%s' % (self.output_table, 2)
+    schema1 = {'fields': [
+      {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+    schema2 = {'fields': [
+      {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+      {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
+
+    pipeline_verifiers = [
+      BigqueryFullResultMatcher(
+          project=self.project,
+          query="SELECT * FROM %s" % output_table_1,
+          data=[(d['name'], d['language'])
+                for d in _ELEMENTS
+                if 'language' in d]),
+      BigqueryFullResultMatcher(
+          project=self.project,
+          query="SELECT * FROM %s" % output_table_2,
+          data=[(d['name'], d['foundation'])
+                for d in _ELEMENTS
+                if 'foundation' in d])]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | beam.Create(_ELEMENTS)  # TODO import these form BQFL
+
+      _ = (input
+           | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
+              table=lambda x: ((output_table_1, schema1)
+                               if 'language' in x
+                               else (output_table_2, schema2)),
+              method='STREAMING_INSERTS'))
+
+  def tearDown(self):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=self.project, datasetId=self.dataset_id,
+        deleteContents=True)
+    try:
+      logging.info("Deleting dataset %s in project %s",
+                   self.dataset_id, self.project)
+      self.bigquery_client.client.datasets.Delete(request)
+    except HttpError:
+      logging.debug('Failed to clean up dataset %s in project %s',
+                    self.dataset_id, self.project)
 
 
 if __name__ == '__main__':
