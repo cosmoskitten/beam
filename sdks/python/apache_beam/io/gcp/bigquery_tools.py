@@ -257,6 +257,39 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _insert_copy_job(self,
+                       project_id,
+                       job_id,
+                       from_table_reference,
+                       to_table_reference,
+                       create_disposition=None,
+                       write_disposition=None):
+    reference = bigquery.JobReference()
+    reference.jobId = job_id
+    reference.projectId = project_id
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=project_id,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                copy=bigquery.JobConfigurationTableCopy(
+                    destinationTable=to_table_reference,
+                    sourceTable=from_table_reference,
+                    createDisposition=create_disposition,
+                    writeDisposition=write_disposition,
+                )
+            ),
+            jobReference=reference,
+        )
+    )
+
+    logging.info("Inserting job request: %s", request)
+    response = self.client.jobs.Insert(request)
+    logging.info("Response was %s", response)
+    return response.jobReference
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _insert_load_job(self,
                        project_id,
                        job_id,
