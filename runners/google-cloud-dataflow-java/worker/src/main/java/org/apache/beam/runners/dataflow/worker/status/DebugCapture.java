@@ -76,11 +76,13 @@ public class DebugCapture {
 
     // Implicitly read. Not a bug.
     @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    @Key public String name;
+    @Key
+    public String name;
 
     // Implicitly read. Not a bug.
     @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    @Key public String content;
+    @Key
+    public String content;
   }
 
   /** Interface for capturable components. */
