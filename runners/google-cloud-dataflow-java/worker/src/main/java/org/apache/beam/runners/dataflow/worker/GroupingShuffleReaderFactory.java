@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.decodeBase64;
-import static com.google.common.flogger.util.Checks.checkArgument;
 import static org.apache.beam.runners.dataflow.util.Structs.getBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
