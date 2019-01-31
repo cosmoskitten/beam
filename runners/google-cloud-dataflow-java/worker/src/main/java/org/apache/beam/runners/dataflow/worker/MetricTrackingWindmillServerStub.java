@@ -44,7 +44,7 @@ import org.joda.time.Duration;
  * {@link #NUM_THREADS} polling that queue and making requests to WMS in batches of size {@link
  * #MAX_READS_PER_BATCH}.
  */
-public final class MetricTrackingWindmillServerStub {
+public class MetricTrackingWindmillServerStub {
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final AtomicInteger activeHeartbeats = new AtomicInteger();
@@ -111,7 +111,10 @@ public final class MetricTrackingWindmillServerStub {
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.readQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
     this.readPool = new ArrayList<>(NUM_THREADS);
+    this.useStreamingRequests = useStreamingRequests;
+  }
 
+  public void start() {
     if (useStreamingRequests) {
       streamPool =
           new WindmillServerStub.StreamPool<>(
@@ -128,7 +131,6 @@ public final class MetricTrackingWindmillServerStub {
         readPool.get(i).start();
       }
     }
-    this.useStreamingRequests = useStreamingRequests;
   }
 
   private void getDataLoop() {
