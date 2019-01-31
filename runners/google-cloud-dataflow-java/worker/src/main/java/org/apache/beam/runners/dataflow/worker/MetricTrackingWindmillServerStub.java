@@ -44,7 +44,7 @@ import org.joda.time.Duration;
  * {@link #NUM_THREADS} polling that queue and making requests to WMS in batches of size {@link
  * #MAX_READS_PER_BATCH}.
  */
-public class MetricTrackingWindmillServerStub {
+public final class MetricTrackingWindmillServerStub {
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final AtomicInteger activeHeartbeats = new AtomicInteger();
