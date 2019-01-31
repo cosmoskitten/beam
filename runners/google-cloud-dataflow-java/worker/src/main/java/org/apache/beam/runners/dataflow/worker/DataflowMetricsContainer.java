@@ -30,11 +30,10 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  * An implementation of {@link MetricsContainer} that reads the current execution state (tracked in
  * a field) to determine the current step. This allows the {@link MetricsEnvironment} to only be
  * updated once on entry to the entire stage, rather than in between every step.
- *
- * <p><b>Not actually serializable</b>. {@link MetricsContainer} is Serializable only due to its
- * tendency to be caught in a closure. This implementation should never be serialized.
  */
-@SuppressFBWarnings("SE_BAD_FIELD") // not serializable
+// not clear why the interface extends Serializable
+// https://issues.apache.org/jira/browse/BEAM-6573
+@SuppressFBWarnings("SE_BAD_FIELD")
 public class DataflowMetricsContainer implements MetricsContainer {
 
   private final ExecutionStateTracker executionStateTracker;
