@@ -24,6 +24,10 @@ import java.lang.annotation.RetentionPolicy;
 import javax.annotation.Nonnull;
 import javax.annotation.meta.TypeQualifierDefault;
 
+/**
+ * An annotation to apply to a package or class that will help findbugs enforce non-null by default
+ * discipline.
+ */
 @Documented
 @Nonnull
 @TypeQualifierDefault({
