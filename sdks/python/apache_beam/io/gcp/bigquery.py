@@ -542,12 +542,15 @@ bigquery_v2_messages.TableSchema` object.
 class BigQueryWriteFn(DoFn):
   """A ``DoFn`` that streams writes to BigQuery once the table is created."""
 
-  MAX_BUFFERED_ROWS = 2000
-  MAX_BUFFER_SIZE = 500
+  DEFAULT_MAX_BUFFERED_ROWS = 2000
+  DEFAULT_MAX_BATCH_SIZE = 500
 
   def __init__(
-      self, batch_size, create_disposition, write_disposition, test_client,
-      max_buffered_rows=MAX_BUFFERED_ROWS):
+      self, batch_size=DEFAULT_MAX_BATCH_SIZE,
+      create_disposition=None,
+      write_disposition=None,
+      test_client=None,
+      max_buffered_rows=DEFAULT_MAX_BUFFERED_ROWS):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -570,6 +573,10 @@ class BigQueryWriteFn(DoFn):
         -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
         For streaming pipelines WriteTruncate can not be used.
       test_client: Override the default bigquery client used for testing.
+      max_buffered_rows: The maximum number of rows that are allowed to stay
+        buffered when running dynamic destinations. When destinations are
+        dynamic, it is important to keep caches small even when a single
+        batch has not been completely filled up.
     """
     self.test_client = test_client
     self.create_disposition = create_disposition
@@ -577,7 +584,7 @@ class BigQueryWriteFn(DoFn):
     self._reset_rows_buffer()
 
     self._total_buffered_rows = 0
-    self._max_batch_size = batch_size or BigQueryWriteFn.MAX_BUFFER_SIZE
+    self._max_batch_size = batch_size
     self._max_buffered_rows = max_buffered_rows
 
   def display_data(self):
@@ -661,7 +668,7 @@ class BigQueryWriteFn(DoFn):
   def _flush_all_batches(self):
     logging.debug('Attempting to flush to all destinations. Total buffered: %s',
                   self._total_buffered_rows)
-    for destination in self._rows_buffer.keys():
+    for destination in list(self._rows_buffer.keys()):
       if not self._rows_buffer[destination]:
         continue
       self._flush_batch(destination)
@@ -675,7 +682,7 @@ class BigQueryWriteFn(DoFn):
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
-    logging.debug('Flushing data from %s. Total %s rows.',
+    logging.debug('Flushing data to %s. Total %s rows.',
                   destination, len(rows))
     passed, errors = self.bigquery_wrapper.insert_rows(
         project_id=table_reference.projectId,
