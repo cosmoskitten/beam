@@ -201,20 +201,24 @@ public class StreamingDataflowWorker {
   }
 
   private static class KeyCommitTooLargeException extends Exception {
-    public static KeyCommitTooLargeException causedBy(String computationId,
-        long byteLimit, WorkItemCommitRequest request) {
+    public static KeyCommitTooLargeException causedBy(
+        String computationId, long byteLimit, WorkItemCommitRequest request) {
       StringBuilder message = new StringBuilder();
       message.append("Commit request for stage ");
       message.append(computationId);
       message.append(" and key ");
       message.append(request.getKey().toStringUtf8());
       if (request.getSerializedSize() > 0) {
-        message.append(" has size " + request.getSerializedSize() +
-            " which is more than the limit of " + byteLimit);
+        message.append(
+            " has size "
+                + request.getSerializedSize()
+                + " which is more than the limit of "
+                + byteLimit);
       } else {
         message.append(" is larger than 2GB and cannot be processed");
       }
-      message.append(". This may be caused by grouping a very "
+      message.append(
+          ". This may be caused by grouping a very "
               + "large amount of data in a single window without using Combine,"
               + " or by producing a large amount of data from a single input element.");
       return new KeyCommitTooLargeException(message.toString());
@@ -568,8 +572,9 @@ public class StreamingDataflowWorker {
     this.javaHarnessMaxMemory =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_MAX_MEMORY.counterName());
-    this.windmillMaxObservedWorkItemCommitBytes = pendingCumulativeCounters.intMax(
-        StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
+    this.windmillMaxObservedWorkItemCommitBytes =
+        pendingCumulativeCounters.intMax(
+            StreamingSystemCounterNames.WINDMILL_MAX_WORK_ITEM_COMMIT_BYTES.counterName());
     this.isDoneFuture = new CompletableFuture<>();
 
     this.threadFactory =
@@ -1264,7 +1269,8 @@ public class StreamingDataflowWorker {
       int byteLimit = maxWorkItemCommitBytes;
       int commitSize = commitRequest.getSerializedSize();
       // Detect overflow of integer serialized size or if the byte limit was exceeded.
-      windmillMaxObservedWorkItemCommitBytes.addValue(commitSize < 0 ? Integer.MAX_VALUE : commitSize);
+      windmillMaxObservedWorkItemCommitBytes.addValue(
+          commitSize < 0 ? Integer.MAX_VALUE : commitSize);
       if (commitSize < 0) {
         throw KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
       } else if (commitSize > byteLimit) {
