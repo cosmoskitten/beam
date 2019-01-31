@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
@@ -390,4 +391,15 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
     }
   }
+
+  /** GCP <a href="https://cloud.google.com/kms/">Cloud KMS</a> key for operations. */
+  @Description(
+      "GCP Cloud KMS key for creation of new objects, such as GCS objects and BigQuery tables. "
+          + "Semantics vary per service. Key format is: "
+          + "projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>")
+  @Experimental
+  @Nullable
+  String getGcpKmsKey();
+
+  void setGcpKmsKey(String gcpKmsKey);
 }
