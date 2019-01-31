@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.services.storage.Storage.Objects.Rewrite;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -128,6 +129,23 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   Boolean getGcsPerformanceMetrics();
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
+
+  /**
+   * Has the effect of performing copy operations with multiple calls to the rewrite API.
+   *
+   * <p>Takes effect only in certain conditions. See {@link
+   * Rewrite#setMaxBytesRewrittenPerCall(java.lang.Long)} for details.
+   *
+   * <p>For testing purposes only.
+   */
+  @Description(
+      "Has the effect of performing copy operations with multiple calls to the rewrite API. "
+          + "For testing purposes only.")
+  @Experimental
+  @Nullable
+  Long getMaxBytesRewrittenPerCall();
+
+  void setMaxBytesRewrittenPerCall(Long maxBytesRewrittenPerCall);
 
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
