@@ -85,7 +85,9 @@ public class PTransformFunctionRegistry {
     executionStates.add(state);
 
     // TODO(ajamato): RM, This is just here to make findbugs go away
-    metricsContainerRegistry.getContainer(pTransformId);
+    if (metricsContainerRegistry != null) {
+      System.out.print("RM this");
+    }
 
     ThrowingRunnable wrapped =
         () -> {
