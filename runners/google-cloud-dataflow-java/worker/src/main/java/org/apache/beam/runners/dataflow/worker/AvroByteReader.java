@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.ReportedParallelism;
@@ -62,6 +64,9 @@ public class AvroByteReader<T> extends NativeReader<T> {
       long endPosition,
       Coder<T> coder,
       PipelineOptions options) {
+    checkArgument(filename != null, "filename must not be null");
+    checkArgument(coder != null, "coder must not be null");
+    checkArgument(options != null, "options must not be null");
     this.filename = filename;
     this.startPosition = startPosition;
     this.endPosition = endPosition;

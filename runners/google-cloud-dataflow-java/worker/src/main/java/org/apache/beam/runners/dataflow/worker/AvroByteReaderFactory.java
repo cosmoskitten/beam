@@ -55,7 +55,7 @@ public class AvroByteReaderFactory implements ReaderFactory {
       DataflowOperationContext operationContext)
       throws Exception {
     checkArgument(coder != null, "coder must not be null");
-    checkArgument(coder != null, "options must not be null");
+    checkArgument(options != null, "options must not be null");
     return create(spec, coder, options);
   }
 
