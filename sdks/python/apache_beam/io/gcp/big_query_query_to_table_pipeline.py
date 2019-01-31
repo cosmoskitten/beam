@@ -48,6 +48,9 @@ def run_bq_pipeline(argv=None):
   parser.add_argument('--use_standard_sql', action='store_true',
                       dest='use_standard_sql',
                       help='Output BQ table to write results to.')
+  parser.add_argument('--gs_location',
+                      default=None,
+                      help='GCS bucket location to use to store files.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   table_schema = parse_table_schema_from_json(known_args.output_schema)
@@ -62,7 +65,8 @@ def run_bq_pipeline(argv=None):
            known_args.output,
            schema=table_schema,
            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+           write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+           gs_location=known_args.gs_location))
 
   result = p.run()
   result.wait_until_finish()
