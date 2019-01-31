@@ -44,8 +44,6 @@ import org.slf4j.LoggerFactory;
  * DebugCapture encapsulates a simple periodic sender for HTML pages to the debug capture service.
  * It is dynamically configured by the service.
  */
-// The fields are written but only implicitly read. Not a bug.
-@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -76,7 +74,12 @@ public class DebugCapture {
       this.content = content;
     }
 
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     @Key public String name;
+
+    // Implicitly read. Not a bug.
+    @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     @Key public String content;
   }
 
