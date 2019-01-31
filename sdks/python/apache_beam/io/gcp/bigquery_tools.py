@@ -129,7 +129,8 @@ def parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A TableReference for the table name that was provided.
+    A TableReference object from the bigquery API. The object has the following
+    attributes: projectId, datasetId, and tableId.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
