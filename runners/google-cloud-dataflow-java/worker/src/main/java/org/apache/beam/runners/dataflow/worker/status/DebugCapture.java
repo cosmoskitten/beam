@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
 import com.google.api.services.dataflow.model.SendDebugCaptureRequest;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
  * DebugCapture encapsulates a simple periodic sender for HTML pages to the debug capture service.
  * It is dynamically configured by the service.
  */
+// The fields are written but only implicitly read. Not a bug.
+@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
