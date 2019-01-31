@@ -229,13 +229,12 @@ public class ProcessBundleHandler {
     PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    ExecutionStateTracker stateTracker = new ExecutionStateTracker(
-        ExecutionStateSampler.instance());
-    PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry(
-        stateTracker, "start"); // TODO use constant
-    PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry(
-        stateTracker, "finish"); // TODO use constant.
-
+    ExecutionStateTracker stateTracker =
+        new ExecutionStateTracker(ExecutionStateSampler.instance());
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(null, stateTracker, "start"); // TODO use constant
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(null, stateTracker, "finish"); // TODO use constant.
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -325,11 +324,16 @@ public class ProcessBundleHandler {
           if (!allResiduals.isEmpty()) {
             response.addAllResidualRoots(allResiduals.values());
           }
-
-          for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
-            response.addMonitoringInfos(mi);
-          }
         }
+      }
+      for (MonitoringInfo mi : startFunctionRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      for (MonitoringInfo mi : finishFunctionRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      for (MonitoringInfo mi : metricsContainer.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
       }
     }
 

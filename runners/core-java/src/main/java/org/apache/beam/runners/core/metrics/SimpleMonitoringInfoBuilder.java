@@ -71,7 +71,6 @@ public class SimpleMonitoringInfoBuilder {
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
 
-
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
 
@@ -154,9 +153,15 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
-  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropriate type URN. */
   public SimpleMonitoringInfoBuilder setInt64Value(long value) {
     this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.setInt64TypeUrn();
+    return this;
+  }
+
+  /** Sets the the appropriate type URN for sum int64 counters. */
+  public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(SUM_INT64_TYPE_URN);
     return this;
   }
@@ -189,6 +194,18 @@ public class SimpleMonitoringInfoBuilder {
     MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
     builder.mergeFrom(input);
     builder.clearTimestamp();
+    return builder.build();
+  }
+
+  /**
+   * @return A copy of the MonitoringInfo with the value cleared, to allow comparing two
+   *     MonitoringInfos when the value is non deterministic (i.e. execution time).
+   */
+  @VisibleForTesting
+  public static MonitoringInfo clearValue(MonitoringInfo input) {
+    MonitoringInfo.Builder builder = MonitoringInfo.newBuilder();
+    builder.mergeFrom(input);
+    builder.clearMetric();
     return builder.build();
   }
 

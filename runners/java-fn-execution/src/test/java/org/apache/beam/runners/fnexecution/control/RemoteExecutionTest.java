@@ -619,7 +619,15 @@ public class RemoteExecutionTest implements Serializable {
             // Assert the timestamps are non empty then 0 them out before comparing.
             List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
             for (MonitoringInfo mi : response.getMonitoringInfosList()) {
-              result.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+              MonitoringInfo miCleaned = SimpleMonitoringInfoBuilder.clearTimestamp(mi);
+              if (miCleaned.getUrn().equals(SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN)
+                  || miCleaned.getUrn().equals(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN)
+                  || miCleaned
+                      .getUrn()
+                      .equals(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN)) {
+                miCleaned = SimpleMonitoringInfoBuilder.clearValue(miCleaned);
+              }
+              result.add(miCleaned);
             }
 
             // The user counter is counted in both ParDos, so it should be counted twice for each
@@ -661,7 +669,28 @@ public class RemoteExecutionTest implements Serializable {
             builder.setInt64Value(6);
             expected.add(builder.build());
 
-            assertEquals(5, result.size());
+            String[] transformIds =
+                (new String[] {
+                  "fn/read/impulse.out:0",
+                  "processA/ParMultiDo(Anonymous)",
+                  "processB/ParMultiDo(Anonymous)",
+                  "create/ParMultiDo(Anonymous)"
+                });
+            for (String pTransformId : transformIds) {
+              builder = new SimpleMonitoringInfoBuilder(false);
+              builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+              builder.setInt64TypeUrn();
+              builder.setPTransformLabel(pTransformId);
+              expected.add(builder.build());
+
+              builder = new SimpleMonitoringInfoBuilder(false);
+              builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+              builder.setInt64TypeUrn();
+              builder.setPTransformLabel(pTransformId);
+              expected.add(builder.build());
+            }
+
+            assertEquals(expected.size(), result.size());
             assertThat(result, containsInAnyOrder(expected.toArray()));
           }
         };
