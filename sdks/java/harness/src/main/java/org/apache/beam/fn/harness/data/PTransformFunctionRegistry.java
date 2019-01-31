@@ -25,11 +25,9 @@ import java.util.Map;
 import org.apache.beam.fn.harness.SimpleExecutionState;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 /**
  * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
@@ -39,8 +37,8 @@ import org.slf4j.LoggerFactory;
  * <p>Usage: // Instantiate and use the registry for each class of functions. i.e. start. finish.
  *
  * <pre>
- * PTransformFunctionRegistry startFunctionRegistry = new PTransformFunctionRegistry();
- * PTransformFunctionRegistry finishFunctionRegistry = new PTransformFunctionRegistry();
+ * PTransformFunctionRegistry startFunctionRegistry;
+ * PTransformFunctionRegistry finishFunctionRegistry;
  * startFunctionRegistry.register(myStartThrowingRunnable);
  * finishFunctionRegistry.register(myFinishThrowingRunnable);
  *
@@ -56,18 +54,22 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class PTransformFunctionRegistry {
-  private static final Logger LOG = LoggerFactory.getLogger(PTransformFunctionRegistry.class);
 
   private List<ThrowingRunnable> runnables = new ArrayList<>();
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
+  private MetricsContainerStepMap metricsContainerRegistry;
   private ExecutionStateTracker stateTracker;
   private String stateName;
 
-  public PTransformFunctionRegistry(ExecutionStateTracker stateTracker, String stateName) {
+  public PTransformFunctionRegistry(
+      MetricsContainerStepMap metricsContainerRegistry,
+      ExecutionStateTracker stateTracker,
+      String stateName) {
+    this.metricsContainerRegistry = metricsContainerRegistry;
+    this.stateName = stateName;
     this.stateTracker = stateTracker;
     this.stateName = stateName;
   }
-
 
   /**
    * Register the runnable to process the specific pTransformId.
@@ -78,9 +80,12 @@ public class PTransformFunctionRegistry {
   public void register(String pTransformId, ThrowingRunnable runnable) {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
     // TODO get this in a proper way, reuse method from simple monitoring info builder?
-    labelsMetadata.put("Ptransform", pTransformId);
+    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
     SimpleExecutionState state = new SimpleExecutionState(this.stateName, labelsMetadata);
     executionStates.add(state);
+
+    // TODO(ajamato): RM, This is just here to make findbugs go away
+    metricsContainerRegistry.getContainer(pTransformId);
 
     ThrowingRunnable wrapped =
         () -> {
@@ -98,7 +103,7 @@ public class PTransformFunctionRegistry {
     for (SimpleExecutionState state : executionStates) {
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(false);
       // TODO implement them all
-       if (this.stateName.equals("start")) {
+      if (this.stateName.equals("start")) {
         builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
       } else if (this.stateName.equals("finish")) {
         builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
@@ -112,7 +117,6 @@ public class PTransformFunctionRegistry {
     return monitoringInfos;
   }
 
-  
   /**
    * @return A list of wrapper functions which will invoke the registered functions indirectly. The
    *     order of registry is maintained.

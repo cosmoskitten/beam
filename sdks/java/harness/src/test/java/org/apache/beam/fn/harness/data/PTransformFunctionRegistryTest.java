@@ -21,6 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,7 +34,9 @@ public class PTransformFunctionRegistryTest {
 
   @Test
   public void functionsAreInvokedIndirectlyAfterRegisteringAndInvoking() throws Exception {
-    PTransformFunctionRegistry testObject = new PTransformFunctionRegistry();
+    PTransformFunctionRegistry testObject =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
 
     ThrowingRunnable runnableA = mock(ThrowingRunnable.class);
     ThrowingRunnable runnableB = mock(ThrowingRunnable.class);
