@@ -614,7 +614,11 @@ class BigQueryWriteFn(DoFn):
     self._observed_tables = set()
 
   def _create_table_if_needed(self, schema, table_reference):
-    if table_reference in self._observed_tables:
+    str_table_reference = '%s:%s.%s' % (
+        table_reference.projectId,
+        table_reference.datasetId,
+        table_reference.tableId)
+    if str_table_reference in self._observed_tables:
       return
 
     logging.debug('Creating or getting table %s with schema %s.',
@@ -630,7 +634,7 @@ class BigQueryWriteFn(DoFn):
         table_reference.tableId,
         table_schema,
         self.create_disposition, self.write_disposition)
-    self._observed_tables.add(table_reference)
+    self._observed_tables.add(str_table_reference)
 
   def process(self, element, unused_create_fn_output=None):
     destination = element[0]
