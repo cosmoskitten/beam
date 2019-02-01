@@ -104,6 +104,7 @@ public class AutoValueSchemaTest {
 
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
+
   abstract static class SimpleAutoValue implements SimpleSchema {
     @Override
     public abstract String getStr();

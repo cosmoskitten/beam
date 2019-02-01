@@ -23,15 +23,22 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.WithExceptions.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithExceptions.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
@@ -515,4 +522,124 @@ public class MapElementsTest implements Serializable {
       return val * 2;
     }
   }
+
+  /** Test of {@link MapElements#withExceptions()} using a pre-built exception handler. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testExceptionAsMap() {
+    Result<PCollection<Integer>, KV<Integer, Map<String, String>>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .withExceptions()
+                    .via(new WithExceptions.ExceptionAsMapHandler<Integer>() {}));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    Map<String, String> expectedFailureInfo =
+        ImmutableMap.of("className", "java.lang.ArithmeticException");
+    PAssert.thatSingleton(result.errors())
+        .satisfies(
+            kv -> {
+              assertEquals(Integer.valueOf(0), kv.getKey());
+              assertThat(kv.getValue().entrySet(), hasSize(3));
+              assertThat(kv.getValue(), hasKey("stackTrace"));
+              assertEquals("java.lang.ArithmeticException", kv.getValue().get("className"));
+              assertEquals("/ by zero", kv.getValue().get("message"));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /** Test of {@link MapElements#withExceptions()} with handling defined via lambda expression. */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWithExceptionsLambda() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .withExceptions()
+                    .into(
+                        TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()))
+                    .via(f -> KV.of(f.element(), f.exception().getMessage())));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+
+    pipeline.run();
+  }
+
+  /** Test of {@link MapElements#withExceptions()} with a {@link SimpleFunction} and no {@code into}
+   * call.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWithExceptionsSimpleFunction() {
+    Result<PCollection<Integer>, KV<Integer, String>> result =
+        pipeline
+            .apply(Create.of(0, 1))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via((Integer i) -> 1 / i)
+                    .withExceptions()
+                    .via(
+                        new SimpleFunction<ExceptionElement<Integer>, KV<Integer, String>>() {
+                          @Override
+                          public KV<Integer, String> apply(ExceptionElement<Integer> failure) {
+                            return KV.of(failure.element(), failure.exception().getMessage());
+                          }
+                        }));
+
+    PAssert.that(result.output()).containsInAnyOrder(1);
+
+    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMapWithExceptionsDisplayData() {
+    InferableFunction<Integer, Integer> inferableFn =
+        new InferableFunction<Integer, Integer>() {
+          @Override
+          public Integer apply(Integer input) {
+            return input;
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("foo", "baz"));
+          }
+        };
+
+    InferableFunction<ExceptionElement<Integer>, String> exceptionHandler =
+        new InferableFunction<ExceptionElement<Integer>, String>() {
+          @Override
+          public String apply(ExceptionElement<Integer> input) throws Exception {
+            return "";
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.add(DisplayData.item("bar", "buz"));
+          }
+        };
+
+    MapElements.MapWithExceptions<?, ?, ?> mapWithExceptions = MapElements
+        .via(inferableFn)
+        .withExceptions()
+        .via(exceptionHandler);
+    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("exceptionHandler.class", exceptionHandler.getClass()));
+    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("foo", "baz"));
+    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("bar", "buz"));
+  }
+
 }
