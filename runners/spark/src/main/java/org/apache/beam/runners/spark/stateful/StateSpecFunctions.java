@@ -82,7 +82,7 @@ public class StateSpecFunctions {
    * StateSpec#function(scala.Function3)} signature which employs scala's native {@link
    * scala.Option}, instead of the {@link
    * StateSpec#function(org.apache.spark.api.java.function.Function3)} signature, which employs
-   * Guava's {@link com.google.common.base.Optional}.
+   * Guava's {@link org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional}.
    *
    * <p>See also <a href="https://issues.apache.org/jira/browse/SPARK-4819">SPARK-4819</a>.
    *
