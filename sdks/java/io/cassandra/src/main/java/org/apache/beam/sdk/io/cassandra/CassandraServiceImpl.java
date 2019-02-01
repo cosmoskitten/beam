@@ -238,13 +238,10 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       List<String> queries = new ArrayList<>();
       for (RingRange range : split) {
         if (range.isWrapping()) {
-          // A wrapping range is one that overlaps from the end of the partitioner range
-          // and its
+          // A wrapping range is one that overlaps from the end of the partitioner range and its
           // start (ie : when the start token of the split is greater than the end token)
-          // We need to generate two queries here : one that goes from the start token to
-          // the end of
-          // the partitioner range, and the other from the start of the partitioner range
-          // to the
+          // We need to generate two queries here : one that goes from the start token to the end of
+          // the partitioner range, and the other from the start of the partitioner range to the
           // end token of the split.
           queries.add(generateRangeQuery(spec.keyspace(),spec.table(),spec.where(),partitionKey,range.getStart(),null));
           // Generation of the second query of the wrapping range
