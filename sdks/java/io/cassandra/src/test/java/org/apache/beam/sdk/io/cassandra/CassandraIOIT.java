@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -112,6 +113,12 @@ public class CassandraIOIT implements Serializable {
     runRead();
   }
 
+  @Test
+  public void testWriteThenReadWithWhere() {
+    runWrite();
+    runReadWithWhere();
+  }
+
   private void runWrite() {
     pipelineWrite
         .apply("GenSequence", GenerateSequence.from(0).to((long) options.getNumberOfRecords()))
@@ -147,6 +154,23 @@ public class CassandraIOIT implements Serializable {
 
     PAssert.thatSingleton(consolidatedHashcode)
         .isEqualTo(TestRow.getExpectedHashForRowCount(options.getNumberOfRecords()));
+
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  private void runReadWithWhere() {
+    PCollection<Scientist> output =
+        pipelineRead.apply(
+            CassandraIO.<Scientist>read()
+                .withHosts(options.getCassandraHost())
+                .withPort(options.getCassandraPort())
+                .withKeyspace(KEYSPACE)
+                .withTable(TABLE)
+                .withEntity(Scientist.class)
+                .withCoder(SerializableCoder.of(Scientist.class))
+                .withWhere("name='Newton'"));
+
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
     pipelineRead.run().waitUntilFinish();
   }
