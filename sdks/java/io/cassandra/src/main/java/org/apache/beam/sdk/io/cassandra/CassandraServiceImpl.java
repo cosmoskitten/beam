@@ -28,7 +28,6 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
@@ -192,7 +191,12 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
         LOG.warn(
             "Only Murmur3Partitioner is supported for splitting, using an unique source for "
                 + "the read");
-        String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
+        String splitQuery =
+            String.format(
+                "SELECT * FROM %s.%s%s;",
+                spec.keyspace(),
+                spec.table(),
+                spec.where() == null ? "" : String.format(" WHERE %s", spec.where()));
         return Collections.singletonList(
             new CassandraIO.CassandraSource<>(spec, Collections.singletonList(splitQuery)));
       }
