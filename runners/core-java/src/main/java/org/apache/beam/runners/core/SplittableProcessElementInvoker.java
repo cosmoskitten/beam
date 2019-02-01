@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,9 +42,12 @@ public abstract class SplittableProcessElementInvoker<
         @Nullable RestrictionT residualRestriction,
         DoFn.ProcessContinuation continuation,
         @Nullable Instant futureOutputWatermark) {
-      this.continuation = checkNotNull(continuation);
+      checkArgument(continuation != null, "continuation must not be null");
+      this.continuation = continuation;
       if (continuation.shouldResume()) {
-        checkNotNull(residualRestriction);
+        checkArgument(
+            residualRestriction != null,
+            "residual restriction must not be null if continuation indicate it should resume");
       }
       this.residualRestriction = residualRestriction;
       this.futureOutputWatermark = futureOutputWatermark;
