@@ -61,4 +61,37 @@ function cleanup_container {
 }
 trap cleanup_container EXIT
 
-echo "Successfully built Python 3 container $CONTAINER"
+echo ">>> Successfully built Python 3 container $CONTAINER"
+
+# Python 3 virtualenv for the rest of the script to run setup & e2e test
+virtualenv sdks/python/container -p python 3.5
+. sdks/python/container/bin/activate
+cd sdks/python
+pip install -e .[gcp,test]
+
+# Install test dependencies for ValidatesContainer tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+
+# Create a tarball
+python setup.py sdist
+SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+
+# Run ValidatesRunner tests on Google Cloud Dataflow service
+echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"
+python setup.py nosetests \
+  --attr Py3IT \
+  --nologcapture \
+  --processes=1 \
+  --process-timeout=900 \
+  --test-pipeline-options=" \
+    --runner=TestDataflowRunner \
+    --project=$PROJECT \
+    --worker_harness_container_image=$CONTAINER:$TAG \
+    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
+    --output=$GCS_LOCATION/output \
+    --sdk_location=$SDK_LOCATION \
+    --requirements_file=postcommit_requirements.txt \
+    --num_workers=1"
+
+echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
