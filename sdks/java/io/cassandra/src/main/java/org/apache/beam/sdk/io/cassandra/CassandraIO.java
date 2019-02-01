@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.cassandra;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.datastax.driver.core.querybuilder.Clause;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;

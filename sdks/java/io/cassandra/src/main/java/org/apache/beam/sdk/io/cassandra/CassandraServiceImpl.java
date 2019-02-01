@@ -243,11 +243,27 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
           // We need to generate two queries here : one that goes from the start token to the end of
           // the partitioner range, and the other from the start of the partitioner range to the
           // end token of the split.
-          queries.add(generateRangeQuery(spec.keyspace(),spec.table(),spec.where(),partitionKey,range.getStart(),null));
+          queries.add(
+              generateRangeQuery(
+                  spec.keyspace(),
+                  spec.table(),
+                  spec.where(),
+                  partitionKey,
+                  range.getStart(),
+                  null));
           // Generation of the second query of the wrapping range
-          queries.add(generateRangeQuery(spec.keyspace(),spec.table(),spec.where(),partitionKey,null,range.getEnd()));
+          queries.add(
+              generateRangeQuery(
+                  spec.keyspace(), spec.table(), spec.where(), partitionKey, null, range.getEnd()));
         } else {
-          queries.add(generateRangeQuery(spec.keyspace(),spec.table(),spec.where(),partitionKey,range.getStart(),range.getEnd()));
+          queries.add(
+              generateRangeQuery(
+                  spec.keyspace(),
+                  spec.table(),
+                  spec.where(),
+                  partitionKey,
+                  range.getStart(),
+                  range.getEnd()));
         }
       }
       sources.add(new CassandraIO.CassandraSource<>(spec, queries));
@@ -256,20 +272,29 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   private static String generateRangeQuery(
-    String keyspace,
-    String table,
-    String where,
-    String partitionKey,
-    BigInteger rangeStart,
-    BigInteger rangeEnd)
-  {
-          String query = String.format("SELECT * FROM %s.%s WHERE %s;", keyspace, table,
-          Joiner.on(" AND ").skipNulls().join(
-            where==null?null:String.format("(%s)", where),
-            rangeStart==null?null:String.format("(token(%s)>=%d)", partitionKey, rangeStart),
-            rangeEnd==null?null:String.format("(token(%s)<%d)", partitionKey, rangeEnd)));
-      LOG.debug("Cassandra generated read query : {}", query);
-      return query;
+      String keyspace,
+      String table,
+      String where,
+      String partitionKey,
+      BigInteger rangeStart,
+      BigInteger rangeEnd) {
+    String query =
+        String.format(
+            "SELECT * FROM %s.%s WHERE %s;",
+            keyspace,
+            table,
+            Joiner.on(" AND ")
+                .skipNulls()
+                .join(
+                    where == null ? null : String.format("(%s)", where),
+                    rangeStart == null
+                        ? null
+                        : String.format("(token(%s)>=%d)", partitionKey, rangeStart),
+                    rangeEnd == null
+                        ? null
+                        : String.format("(token(%s)<%d)", partitionKey, rangeEnd)));
+    LOG.debug("Cassandra generated read query : {}", query);
+    return query;
   }
 
   private static long getNumSplits(
