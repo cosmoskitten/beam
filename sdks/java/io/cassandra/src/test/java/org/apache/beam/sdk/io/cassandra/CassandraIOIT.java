@@ -163,7 +163,7 @@ public class CassandraIOIT implements Serializable {
                 .withTable(TABLE)
                 .withEntity(Scientist.class)
                 .withCoder(SerializableCoder.of(Scientist.class))
-                .withWhere("id=100"));
+                .withWhere("id=101"));
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(1L);
 
