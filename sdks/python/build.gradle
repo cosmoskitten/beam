@@ -79,8 +79,11 @@ lint.dependsOn lintPy27_3
 toxTask "lintPy3", "py3-lint"
 lint.dependsOn lintPy3
 
-toxTask "testGcp", "py27-gcp"
-test.dependsOn testGcp
+toxTask "testPy2Gcp", "py27-gcp"
+test.dependsOn testPy2Gcp
+
+toxTask "testPy3Gcp", "py3-gcp"
+test.dependsOn testPy3Gcp
 
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
@@ -93,7 +96,7 @@ test.dependsOn testCython
 // Ensure that testCython runs exclusively to other tests. This line is not
 // actually required, since gradle doesn't do parallel execution within a
 // project.
-testCython.mustRunAfter testPython2, testGcp
+testCython.mustRunAfter testPython2, testPy2Gcp
 
 toxTask "docs", "docs"
 assemble.dependsOn docs
@@ -105,7 +108,8 @@ task preCommit() {
   dependsOn "testCython"
   dependsOn "testPython2"
   dependsOn "testPython3"
-  dependsOn "testGcp"
+  dependsOn "testPy2Gcp"
+  dependsOn "testPy3Gcp"
   dependsOn "lint"
 }
 
@@ -221,11 +225,13 @@ def portableWordCountTask(name, streaming) {
               "--output=/tmp/py-wordcount-direct",
               "--runner=PortableRunner",
               "--experiments=worker_threads=100",
+              "--parallelism=2",
+              "--shutdown_sources_on_final_watermark",
       ]
       if (streaming)
         options += ["--streaming"]
       else
-      // workaround for local file output in docker container
+        // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
@@ -257,6 +263,8 @@ task integrationTest(dependsOn: ['installGcpTest', 'sdist']) {
     // Build pipeline options that configures pipeline job
     if (project.hasProperty('pipelineOptions'))
       argMap["pipeline_opts"] = project.property('pipelineOptions')
+    if (project.hasProperty('kmsKeyName'))
+      argMap["kms_key_name"] = project.property('kmsKeyName')
 
     def cmdArgs = mapToArgString(argMap)
     exec {
@@ -324,8 +332,11 @@ class CompatibilityMatrixConfig {
   SDK_WORKER_TYPE workerType = SDK_WORKER_TYPE.DOCKER
 
   enum SDK_WORKER_TYPE {
-    DOCKER, PROCESS
+    DOCKER, PROCESS, LOOPBACK
   }
+
+  // Whether to pre-optimize the pipeline with the Python optimizer.
+  boolean preOptimize = false
 }
 
 def flinkCompatibilityMatrix = {
@@ -333,18 +344,21 @@ def flinkCompatibilityMatrix = {
   def workerType = config.workerType.name()
   def streaming = config.streaming
   def environment_config = config.workerType == CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS ? "--environment_config='{\"command\": \"${project(":beam-sdks-python:").buildDir.absolutePath}/sdk_worker.sh\"}'" : ""
-  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${workerType}"
+  def name = "flinkCompatibilityMatrix${streaming ? 'Streaming' : 'Batch'}${config.preOptimize ? 'PreOptimize' : ''}${workerType}"
+  def extra_experiments = []
+  if (config.preOptimize)
+    extra_experiments.add('pre_optimize=all')
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
     dependsOn ':beam-runners-flink_2.11-job-server:shadowJar'
     if (workerType.toLowerCase() == 'docker')
       dependsOn ':beam-sdks-python-container:docker'
-    else
+    else if (workerType.toLowerCase() == 'process')
       dependsOn 'createProcessWorker'
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e . && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":beam-runners-flink_2.11-job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }
@@ -360,8 +374,14 @@ task flinkCompatibilityMatrixProcess() {
   dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.PROCESS)
 }
 
+task flinkCompatibilityMatrixLoopback() {
+  dependsOn flinkCompatibilityMatrix(streaming: false, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK)
+  dependsOn flinkCompatibilityMatrix(streaming: true, workerType: CompatibilityMatrixConfig.SDK_WORKER_TYPE.LOOPBACK, preOptimize: true)
+}
+
 task flinkValidatesRunner() {
-  dependsOn 'flinkCompatibilityMatrixDocker'
+  dependsOn 'flinkCompatibilityMatrixLoopback'
 }
 
 task postCommit() {
@@ -409,7 +429,7 @@ project.task('createProcessWorker') {
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":beam-sdks-python-container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \". ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${project.ext.envdir}/bin/activate && ${workerScript} \$* \""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode

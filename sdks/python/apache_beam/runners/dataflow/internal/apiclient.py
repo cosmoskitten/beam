@@ -478,6 +478,7 @@ class DataflowApplicationClient(object):
 
     request = storage.StorageObjectsInsertRequest(
         bucket=bucket, name=name)
+    start_time = time.time()
     logging.info('Starting GCS upload to %s...', gcs_location)
     upload = storage.Upload(stream, mime_type)
     try:
@@ -493,7 +494,8 @@ class DataflowApplicationClient(object):
                        'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
-    logging.info('Completed GCS upload to %s', gcs_location)
+    logging.info('Completed GCS upload to %s in %s seconds.', gcs_location,
+                 int(time.time() - start_time))
     return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -510,7 +512,8 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, io.BytesIO(job.json()))
+      self.stage_file(gcs_or_local_path, file_name,
+                      io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)

@@ -30,7 +30,6 @@ from tempfile import mkdtemp
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import FlinkOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import portable_runner
@@ -45,6 +44,7 @@ if __name__ == '__main__':
   #     --flink_job_server_jar=/path/to/job_server.jar \
   #     --type=Batch \
   #     --environment_type=docker \
+  #     --extra_experiments=beam_experiments \
   #     [FlinkRunnerTest.test_method, ...]
 
   parser = argparse.ArgumentParser(add_help=True)
@@ -55,6 +55,8 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
+  parser.add_argument('--extra_experiments', default=[], action='append',
+                      help='Beam experiments config.')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -63,6 +65,7 @@ if __name__ == '__main__':
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
+  extra_experiments = known_args.extra_experiments
 
   # This is defined here to only be run when we invoke this file explicitly.
   class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
@@ -128,13 +131,12 @@ if __name__ == '__main__':
 
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
-      options.view_as(DebugOptions).experiments = ['beam_fn_api']
-      options.view_as(FlinkOptions).parallelism = 1
-      if environment_type == 'process':
-        options.view_as(PortableOptions).environment_type = 'PROCESS'
-      else:
-        options.view_as(PortableOptions).environment_type = 'DOCKER'
-
+      options.view_as(DebugOptions).experiments = [
+          'beam_fn_api'] + extra_experiments
+      options._all_options['parallelism'] = 1
+      options._all_options['shutdown_sources_on_final_watermark'] = True
+      options.view_as(PortableOptions).environment_type = (
+          environment_type.upper())
       if environment_config:
         options.view_as(PortableOptions).environment_config = environment_config
 
@@ -163,6 +165,12 @@ if __name__ == '__main__':
 
     def test_error_traceback_includes_user_code(self):
       raise unittest.SkipTest("BEAM-6019")
+
+    def test_flattened_side_input(self):
+      # Blocked on support for transcoding
+      # https://jira.apache.org/jira/browse/BEAM-6523
+      super(FlinkRunnerTest, self).test_flattened_side_input(
+          with_transcoding=False)
 
     def test_metrics(self):
       """Run a simple DoFn that increments a counter, and verify that its
