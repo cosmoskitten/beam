@@ -362,6 +362,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     return serverInfo;
   }
 
+  /** A container for EnvironmentFactory and its corresponding Grpc servers. */
   @AutoValue
   public abstract static class ServerInfo {
     abstract GrpcFnServer<FnApiControlClientPoolService> getControlServer();
