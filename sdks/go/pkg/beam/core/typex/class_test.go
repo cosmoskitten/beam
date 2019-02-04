@@ -47,6 +47,23 @@ func TestClassOf(t *testing.T) {
 		}{}), Concrete},
 		{reflect.TypeOf(struct{ A []int }{}), Concrete},
 		{reflect.TypeOf(reflect.Value{}), Concrete}, // ok: private fields
+		{reflect.TypeOf(map[string]int{}), Concrete},
+		{reflect.TypeOf(map[string]func(){}), Invalid},
+		{reflect.TypeOf(map[error]int{}), Invalid},
+		{reflect.TypeOf([4]int{}), Concrete},
+		{reflect.TypeOf([1]string{}), Concrete},
+		{reflect.TypeOf([0]string{}), Concrete},
+		{reflect.TypeOf([3]struct{ Q []string }{}), Concrete},
+		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.TypeOf([1]string{}), Concrete},
+		{reflect.TypeOf([0]string{}), Concrete},
+		{reflect.TypeOf([0]interface{}{}), Concrete},
+		{reflect.PtrTo(reflectx.String), Concrete},
+		{reflect.PtrTo(reflectx.Uint32), Concrete},
+		{reflect.PtrTo(reflectx.Bool), Concrete},
+		{reflect.TypeOf([4]int{}), Concrete},
+		{reflect.TypeOf(&struct{ A int }{}), Concrete},
+		{reflect.TypeOf(&struct{ A *int }{}), Concrete},
 
 		{reflect.TypeOf([]X{}), Container},
 		{reflect.TypeOf([][][]X{}), Container},
@@ -63,18 +80,19 @@ func TestClassOf(t *testing.T) {
 
 		{EventTimeType, Invalid},                                     // special
 		{WindowType, Invalid},                                        // special
-		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // also special
+		{reflectx.Context, Invalid},                                  // special
+		{reflectx.Error, Invalid},                                    // special
+		{reflect.TypeOf((*ConcreteTestWindow)(nil)).Elem(), Invalid}, // special
 
 		{KVType, Composite},
 		{CoGBKType, Composite},
 		{WindowedValueType, Composite},
 
-		{reflect.TypeOf((*interface{})(nil)).Elem(), Invalid}, // empty interface
-		{reflectx.Context, Invalid},                           // interface
-		{reflectx.Error, Invalid},                             // interface
-		{reflect.TypeOf(func() {}), Invalid},                  // function
-		{reflect.TypeOf(make(chan int)), Invalid},             // chan
-		{reflect.TypeOf(struct{ A error }{}), Invalid},        // public interface field
+		{reflect.TypeOf((*interface{})(nil)).Elem(), Concrete}, // special
+
+		{reflect.TypeOf(func() {}), Invalid},           // function
+		{reflect.TypeOf(make(chan int)), Invalid},      // chan
+		{reflect.TypeOf(struct{ A error }{}), Invalid}, // public interface field
 	}
 
 	for _, test := range tests {
