@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -178,7 +179,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
   // bundle control
-  private transient boolean bundleStarted = false;
+  private transient AtomicBoolean bundleStarted;
   private transient long elementCount;
   private transient long lastFinishBundleTime;
   private transient ScheduledFuture<?> checkFinishBundleTimer;
@@ -367,6 +368,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
+    bundleStarted = new AtomicBoolean(false);
     elementCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
@@ -389,14 +391,15 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void dispose() throws Exception {
     try {
-      super.dispose();
       checkFinishBundleTimer.cancel(true);
-    } finally {
       FlinkClassloading.deleteStaticCaches();
-      if (bundleStarted) {
-        invokeFinishBundle();
-      }
+      invokeFinishBundle();
       doFnInvoker.invokeTeardown();
+    } finally {
+      // This releases all task's resources. We need to call this last
+      // to ensure that state, timers, or output buffers can still be
+      // accessed during finishing the bundle.
+      super.dispose();
     }
   }
 
@@ -651,10 +654,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
    * processWatermark.
    */
   private void checkInvokeStartBundle() {
-    if (!bundleStarted) {
+    if (bundleStarted.compareAndSet(false, true)) {
       outputManager.flushBuffer();
       pushbackDoFnRunner.startBundle();
-      bundleStarted = true;
     }
   }
 
@@ -674,10 +676,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
-  protected void invokeFinishBundle() {
-    if (bundleStarted) {
+  protected final void invokeFinishBundle() {
+    if (bundleStarted.compareAndSet(true, false)) {
       pushbackDoFnRunner.finishBundle();
-      bundleStarted = false;
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
     }
