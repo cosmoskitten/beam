@@ -120,6 +120,7 @@ to BigQuery.
 from __future__ import absolute_import
 
 import collections
+import itertools
 import json
 import logging
 from builtins import object
@@ -129,6 +130,7 @@ from future.utils import itervalues
 from past.builtins import unicode
 
 import apache_beam as beam
+from apache_beam import pvalue
 from apache_beam import coders
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -140,6 +142,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.window import  GlobalWindows
 
 __all__ = [
     'TableRowJsonCoder',
@@ -545,12 +548,16 @@ class BigQueryWriteFn(DoFn):
   DEFAULT_MAX_BUFFERED_ROWS = 2000
   DEFAULT_MAX_BATCH_SIZE = 500
 
+  FAILED_ROWS = 'FailedRows'
+
   def __init__(
-      self, batch_size=DEFAULT_MAX_BATCH_SIZE,
+      self,
+      batch_size,
       create_disposition=None,
       write_disposition=None,
       test_client=None,
-      max_buffered_rows=DEFAULT_MAX_BUFFERED_ROWS):
+      max_buffered_rows=None,
+      retry_strategy=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -577,6 +584,8 @@ class BigQueryWriteFn(DoFn):
         buffered when running dynamic destinations. When destinations are
         dynamic, it is important to keep caches small even when a single
         batch has not been completely filled up.
+      retry_strategy: The strategy to use when retrying streaming inserts
+        into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
     """
     self.test_client = test_client
     self.create_disposition = create_disposition
@@ -584,11 +593,16 @@ class BigQueryWriteFn(DoFn):
     self._reset_rows_buffer()
 
     self._total_buffered_rows = 0
-    self._max_batch_size = batch_size
-    self._max_buffered_rows = max_buffered_rows
+    self._max_batch_size = batch_size or BigQueryWriteFn.DEFAULT_MAX_BATCH_SIZE
+    self._max_buffered_rows = (max_buffered_rows
+                               or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS)
+    self._retry_strategy = (
+        retry_strategy or bigquery_tools.RetryStrategy.RETRY_ON_TRANSIENT_ERROR)
 
   def display_data(self):
-    return {'max_batch_size': self._max_batch_size}
+    return {'max_batch_size': self._max_batch_size,
+            'max_buffered_rows': self._max_buffered_rows,
+            'retry_strategy': self._retry_strategy}
 
   def _reset_rows_buffer(self):
     self._rows_buffer = collections.defaultdict(lambda: [])
@@ -645,7 +659,6 @@ class BigQueryWriteFn(DoFn):
 
   def process(self, element, unused_create_fn_output=None):
     destination = element[0]
-    schema = None
     if isinstance(destination, tuple):
       schema = destination[1]
       destination = destination[0]
@@ -657,23 +670,23 @@ class BigQueryWriteFn(DoFn):
     self._rows_buffer[destination].append(row)
     self._total_buffered_rows += 1
     if len(self._rows_buffer[destination]) >= self._max_batch_size:
-      self._flush_batch(destination)
-
-    if self._total_buffered_rows >= self._max_buffered_rows:
-      self._flush_all_batches()
+      return self._flush_batch(destination)
+    elif self._total_buffered_rows >= self._max_buffered_rows:
+      return self._flush_all_batches()
 
   def finish_bundle(self):
-    self._flush_all_batches()
+    return self._flush_all_batches()
 
   def _flush_all_batches(self):
     logging.debug('Attempting to flush to all destinations. Total buffered: %s',
                   self._total_buffered_rows)
-    for destination in list(self._rows_buffer.keys()):
-      if not self._rows_buffer[destination]:
-        continue
-      self._flush_batch(destination)
+
+    return itertools.chain(*[self._flush_batch(destination)
+                             for destination in list(self._rows_buffer.keys())
+                             if self._rows_buffer[destination]])
 
   def _flush_batch(self, destination):
+
     # Flush the current batch of rows to BigQuery.
     rows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
@@ -684,19 +697,33 @@ class BigQueryWriteFn(DoFn):
 
     logging.debug('Flushing data to %s. Total %s rows.',
                   destination, len(rows))
-    passed, errors = self.bigquery_wrapper.insert_rows(
-        project_id=table_reference.projectId,
-        dataset_id=table_reference.datasetId,
-        table_id=table_reference.tableId,
-        rows=rows)
-    if not passed:
-      raise RuntimeError('Could not successfully insert rows to BigQuery'
-                         ' table [%s:%s.%s]. Errors: %s'%
-                         (self.project_id, self.dataset_id,
-                          self.table_id, errors))
-    logging.debug("Successfully wrote %d rows.", len(self._rows_buffer))
+
+    while True:
+      # TODO: Figure out an insertId to make calls idempotent.
+      passed, errors = self.bigquery_wrapper.insert_rows(
+          project_id=table_reference.projectId,
+          dataset_id=table_reference.datasetId,
+          table_id=table_reference.tableId,
+          rows=rows,
+          skip_invalid_rows=True)
+
+      logging.debug("Passed: %s. Errors are %s", passed, errors)
+      failed_rows = [rows[entry.index] for entry in errors]
+      should_retry = any(
+          bigquery_tools.RetryStrategy.should_retry(
+              self._retry_strategy, entry.errors[0].reason)
+          for entry in errors)
+      rows = failed_rows
+
+      if not should_retry:
+        break
+
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
+
+    return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
+                                GlobalWindows.windowed_value(
+                                    (destination, row))) for row in failed_rows]
 
 
 class WriteToBigQuery(PTransform):
@@ -709,7 +736,9 @@ class WriteToBigQuery(PTransform):
   def __init__(self, table, dataset=None, project=None, schema=None,
                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=BigQueryDisposition.WRITE_APPEND,
-               batch_size=None, test_client=None, method=Method.DEFAULT):
+               batch_size=None, test_client=None,
+               insert_retry_strategy=None,
+               method=Method.DEFAULT):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -755,6 +784,8 @@ bigquery_v2_messages.TableSchema`
       batch_size (int): Number of rows to be written to BQ per streaming API
         insert.
       test_client: Override the default bigquery client used for testing.
+      insert_retry_strategy: The strategy to use when retrying streaming inserts
+        into BigQuery. Options are shown in bigquery_tools.RetryStrategy attrs.
       method: The method to use to insert data to BigQuery. It may be file loads
         or streaming inserts. Default is file loads for batch pipelines and
         streaming inserts for streaming pipelines.
@@ -768,6 +799,7 @@ bigquery_v2_messages.TableSchema`
     self.schema = schema
     self.batch_size = batch_size
     self.test_client = test_client
+    self.insert_retry_strategy = insert_retry_strategy
     self.method = method
 
   @staticmethod
@@ -862,10 +894,13 @@ bigquery_v2_messages.TableSchema):
     else:
       table_fn = lambda x: self.table_reference
 
-    return (pcoll
-            | 'AppendDestination' >> beam.Map(
-                lambda x: (table_fn(x), x))  # TODO(pabloem) Use bqfl transform.
-            | 'StreamInsertRows' >> ParDo(bigquery_write_fn))
+    outputs = (pcoll
+               | 'AppendDestination' >> beam.Map(
+                   lambda x: (table_fn(x), x))  # TODO(pabloem) Use bqfl transf.
+               | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
+                   BigQueryWriteFn.FAILED_ROWS, main='main'))
+
+    return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
 
   def display_data(self):
     res = {}
