@@ -1527,9 +1527,9 @@ public class StreamingDataflowWorker {
         mapTask.setStageName(computationConfig.getStageName());
         mapTask.setInstructions(computationConfig.getInstructions());
         // TODO:XXX Pass computationConfig.getTransformUserNameToStateFamily()
-        // addComputation(
-        //        computationConfig.getComputationId(), mapTask, computationConfig.getTransformUserNameToStateFamily());
-        addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
+        addComputation(
+                computationConfig.getComputationId(), mapTask, computationConfig.getTransformUserNameToStateFamily());
+        // addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
       }
     }
 
