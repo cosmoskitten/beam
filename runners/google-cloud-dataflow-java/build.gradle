@@ -300,6 +300,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/*KmsKeyIT.class'
   maxParallelForks 4
@@ -340,6 +341,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
     include '**/*IT.class'
     exclude '**/BigQueryIOReadIT.class'
+    exclude '**/BigQueryIOStorageReadIT.class'
     exclude '**/PubsubReadIT.class'
     exclude '**/SpannerReadIT.class'
     exclude '**/BigtableReadIT.class'
