@@ -95,7 +95,7 @@ var (
 func validateEncoder(t reflect.Type, encode interface{}) error {
 	// Check if it uses the real type in question.
 	if err := funcx.Satisfy(encode, funcx.Replace(encodeSig, typex.TType, t)); err != nil {
-		return fmt.Errorf("encode has incorrect signature: %v", err)
+		return fmt.Errorf("validateEncoder: incorrect signature: %v", err)
 	}
 	// TODO(lostluck): 2019.02.03 - Determine if there are encode allocation bottlenecks.
 	return nil
