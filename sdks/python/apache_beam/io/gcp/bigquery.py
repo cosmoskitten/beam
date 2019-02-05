@@ -130,8 +130,8 @@ from future.utils import itervalues
 from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
@@ -142,7 +142,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.window import  GlobalWindows
+from apache_beam.transforms.window import GlobalWindows
 
 __all__ = [
     'TableRowJsonCoder',
