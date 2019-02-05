@@ -37,7 +37,7 @@ func TestExtractor(t *testing.T) {
 			expected: []string{"runtime.RegisterFunction(MyIdent)", "runtime.RegisterFunction(MyDropVal)", "runtime.RegisterFunction(MyOtherDoFn)", "runtime.RegisterType(reflect.TypeOf((*foo)(nil)).Elem())", "funcMakerStringГString", "funcMakerIntStringГInt", "funcMakerFooГStringFoo"},
 		},
 		{name: "imports1", files: []string{imports}, pkg: "imports",
-			expected: []string{"runtime.RegisterFunction(MyImportedTypesDoFn)", "runtime.RegisterType(reflect.TypeOf((*rand.Rand)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*time.Time)(nil)).Elem())", "funcMakerRand۰RandГTime۰Time", "\"math/rand\"", "\"time\""},
+			expected: []string{"runtime.RegisterFunction(MyImportedTypesDoFn)", "runtime.RegisterType(reflect.TypeOf((*rand.Rand)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*time.Time)(nil)).Elem())", "funcMakerᏘRand۰RandГTime۰Time", "\"math/rand\"", "\"time\""},
 		},
 		{name: "emits1", files: []string{emits}, pkg: "emits",
 			expected: []string{"runtime.RegisterFunction(anotherFn)", "runtime.RegisterFunction(emitFn)", "runtime.RegisterType(reflect.TypeOf((*reInt)(nil)).Elem())", "funcMakerEmitIntIntГ", "emitMakerIntInt", "funcMakerIntIntEmitIntIntГError"},
@@ -47,7 +47,22 @@ func TestExtractor(t *testing.T) {
 		},
 		{name: "structs1", files: []string{structs}, pkg: "structs", ids: []string{"myDoFn"},
 			expected: []string{"runtime.RegisterType(reflect.TypeOf((*myDoFn)(nil)).Elem())", "funcMakerEmitIntГ", "emitMakerInt", "funcMakerValTypeValTypeEmitIntГ", "runtime.RegisterType(reflect.TypeOf((*valType)(nil)).Elem())", "reflectx.RegisterStructWrapper(reflect.TypeOf((*myDoFn)(nil)).Elem(), wrapMakerMyDoFn)"},
-			excluded: []string{"funcMakerStringГ", "emitMakerString", "nonPipelineType", "UnrelatedMethod1", "UnrelatedMethod2", "UnrelatedMethod3"},
+			excluded: []string{"funcMakerStringГ", "emitMakerString", "nonPipelineType", "UnrelatedMethod1", "UnrelatedMethod2", "UnrelatedMethod3", "nonLifecycleMethod"},
+		},
+		{name: "excludedtypes", files: []string{excludedtypes}, pkg: "excludedtypes",
+			expected: []string{"runtime.RegisterFunction(ShouldExist)", "funcMakerTypex۰TГTypex۰XError"},
+			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
+		},
+		{name: "newtypes", files: []string{newtypes}, pkg: "newtypes",
+			expected: []string{"runtime.RegisterFunction(included)", "runtime.RegisterFunction(users)", "funcMakerMapOfString_IntᏘIntГArrayOf4ᏘInt", "runtime.RegisterType(reflect.TypeOf((*myInterface)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())"},
+			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
+		},
+		{name: "alias", files: []string{alias}, pkg: "alias",
+			expected: []string{"runtime.RegisterType(reflect.TypeOf((*io.Reader)(nil)).Elem())"},
+			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myError)(nil)).Elem())"},
+		},
+		{name: "vars", files: []string{vars}, pkg: "vars",
+			excluded: []string{"runtime.RegisterFunction(strings.MyTitle)", "runtime.RegisterFunction(anonFunction)"},
 		},
 	}
 	for _, test := range tests {
@@ -117,6 +132,54 @@ func MyImportedTypesDoFn(r *rand.Rand) time.Time {
 }
 `
 
+const excludedtypes = `
+package excludedtypes
+
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam"
+)
+
+func ShouldExist(v beam.T) (beam.X, error) {
+	return nil
+}
+`
+
+const newtypes = `
+package newtypes
+
+func included(k map[string]int, v *int) [4]*int {
+	return [4]*int{}
+}
+
+type myType struct{}
+type myInterface interface{}
+
+func users(k *myType, v [2]myInterface) {	
+}
+`
+
+const alias = `
+package newtypes
+
+import (
+	"io"
+)
+
+type myType = io.Reader
+type myError = error
+`
+
+const vars = `
+package vars
+
+import (
+	"strings"
+)
+var myTitle = strings.Title
+
+var anonFunction = func(int) int {return 0}
+`
+
 const emits = `
 package emits
 
@@ -151,6 +214,8 @@ func (f *myDoFn) Setup(emit func(int)) {}
 func (f *myDoFn) StartBundle(emit func(int)) {}
 func (f *myDoFn) FinishBundle(emit func(int)) error {}
 func (f *myDoFn) Teardown(emit func(int)) {}
+
+func (f *myDoFn) nonLifecycleMethod() {}
 
 type nonPipelineType int
 
