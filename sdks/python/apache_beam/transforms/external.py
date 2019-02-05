@@ -24,8 +24,6 @@ import contextlib
 import copy
 import threading
 
-import grpc
-
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
@@ -33,6 +31,15 @@ from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import ptransform
+
+
+# Protect against environments where grpc is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  import grpc
+except ImportError:
+  grpc = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class ExternalTransform(ptransform.PTransform):
@@ -45,6 +52,8 @@ class ExternalTransform(ptransform.PTransform):
   _IMPULSE_PREFIX = 'impulse'
 
   def __init__(self, urn, payload, endpoint):
+    if grpc is None:
+      raise NotImplementedError('Grpc required for external transforms.')
     # TODO: Start an endpoint given an environment?
     self._urn = urn
     self._payload = payload
