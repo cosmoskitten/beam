@@ -305,8 +305,8 @@ class _BigTableReadFn(iobase.BoundedSource):
                                         label='Bigtable Project Id',
                                         key='projectId'),
            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
-                                        label='Bigtable Instance Id',
-                                        key='instanceId'),
+                                         label='Bigtable Instance Id',
+                                         key='instanceId'),
            'tableId': DisplayDataItem(self.beam_options['table_id'],
                                       label='Bigtable Table Id',
                                       key='tableId')}
