@@ -38,6 +38,8 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
@@ -536,6 +538,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
         {'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'}]}
 
+    bad_record = {'language': 1, 'manguage': 2}
+
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
@@ -556,12 +560,19 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS)  # TODO import these form BQFL
 
-      _ = (input
+      input2 = p | "Broken record" >> beam.Create([bad_record])
+
+      input = (input, input2) | beam.Flatten()
+
+      r = (input
            | "WriteWithMultipleDests" >> beam.io.gcp.bigquery.WriteToBigQuery(
                table=lambda x: ((output_table_1, schema1)
                                 if 'language' in x
                                 else (output_table_2, schema2)),
                method='STREAMING_INSERTS'))
+
+      assert_that(r[beam.io.gcp.bigquery.BigQueryWriteFn.FAILED_ROWS],
+                  equal_to([(output_table_1, bad_record)]))
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
