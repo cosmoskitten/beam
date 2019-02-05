@@ -54,6 +54,11 @@ public interface TestPipelineOptions extends PipelineOptions {
 
   void setTestTimeoutSeconds(Long value);
 
+  @Nullable
+  String getKmsKey();
+
+  void setKmsKey(String kmsKey);
+
   /** Factory for {@link PipelineResult} matchers which always pass. */
   class AlwaysPassMatcherFactory
       implements DefaultValueFactory<SerializableMatcher<PipelineResult>> {
