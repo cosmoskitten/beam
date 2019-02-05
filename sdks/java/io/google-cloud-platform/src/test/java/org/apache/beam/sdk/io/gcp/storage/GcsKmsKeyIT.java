@@ -29,7 +29,6 @@ import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -65,19 +64,19 @@ public class GcsKmsKeyIT {
   }
 
   /**
-   * Tests writing to GCS with --gcpKmsKey set on the command line. This includes writing temporary
-   * files with kmsKey and performing rename operations with destKmsKey. Verifies that resulting
-   * output uses specified key and is readable. Does not verify temporary files' encryption key.
+   * Tests writing to gcpTempLocation with --dataflowKmsKey set on the command line. Verifies that
+   * resulting output uses specified key and is readable. Does not verify any temporary files.
    */
   @Test
   public void testGcsWriteWithKmsKey() {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    final String expectedKmsKey = options.as(GcpOptions.class).getGcpKmsKey();
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    final String expectedKmsKey = gcsOptions.getDataflowKmsKey();
     assertThat(expectedKmsKey, notNullValue());
 
     ResourceId filenamePrefix =
-        FileSystems.matchNewResource(options.getTempRoot(), true)
+        FileSystems.matchNewResource(gcsOptions.getGcpTempLocation(), true)
             .resolve(
                 String.format("GcsKmsKeyIT-%tF-%<tH-%<tM-%<tS-%<tL.output", new Date()),
                 StandardResolveOptions.RESOLVE_FILE);
@@ -93,10 +92,10 @@ public class GcsKmsKeyIT {
     String filePattern = filenamePrefix + "*-of-*";
     assertThat(result, new FileChecksumMatcher(EXPECTED_CHECKSUM, filePattern));
 
+    // Verify objects have KMS key set.
     try {
       MatchResult matchResult =
           Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(filePattern)));
-      GcsOptions gcsOptions = options.as(GcsOptions.class);
       GcsUtil gcsUtil = gcsOptions.getGcsUtil();
       for (Metadata metadata : matchResult.metadata()) {
         String kmsKey =
