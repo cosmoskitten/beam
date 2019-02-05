@@ -36,6 +36,10 @@ those generated rows in the table.
                                   table_id))
 """
 from __future__ import absolute_import
+from __future__ import division
+
+import copy
+import math
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -165,7 +169,6 @@ class _BigTableReadFn(iobase.BoundedSource):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(self.__class__, self).__init__()
-    from apache_beam.metrics import Metrics
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id,
@@ -176,7 +179,6 @@ class _BigTableReadFn(iobase.BoundedSource):
 
   def _getTable(self):
     if self.table is None:
-      options = self.beam_options
       client = Client(project=self.beam_options['project_id'])
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
@@ -237,9 +239,9 @@ class _BigTableReadFn(iobase.BoundedSource):
           end = sample_row.row_key
           range_tracker = LexicographicKeyRangeTracker(start, end)
 
-          for split_key_range in self.split_range_sized_subranges(current,
-                                                                  desired_size,
-                                                                  range_tracker):
+          for split_key_range in self.split_range_subranges(current,
+                                                            desired_size,
+                                                            range_tracker):
             yield split_key_range
         start = sample_row.row_key
       l = sample_row.offset_bytes
@@ -250,26 +252,26 @@ class _BigTableReadFn(iobase.BoundedSource):
                            start_key,
                            end_key):
     range_tracker = LexicographicKeyRangeTracker(start_key, end_key)
-    return self.split_range_sized_subranges(current_size,
-                                            desired_bundle_size,
-                                            range_tracker)
+    return self.split_range_subranges(current_size,
+                                      desired_bundle_size,
+                                      range_tracker)
 
   def fraction_to_position(self, position, range_start, range_stop):
     return LexicographicKeyRangeTracker.fraction_to_position(position,
                                                              range_start,
                                                              range_stop)
 
-  def split_range_sized_subranges(self,
-                                  sample_size_bytes,
-                                  desired_bundle_size,
-                                  ranges):
+  def split_range_subranges(self,
+                            sample_size_bytes,
+                            desired_bundle_size,
+                            ranges):
 
     last_key = copy.deepcopy(ranges.stop_position())
     s = ranges.start_position()
     e = ranges.stop_position()
 
-    split_ = float(desired_bundle_size) / float(sample_size_bytes)
-    split_count = int(math.ceil(sample_size_bytes / desired_bundle_size))
+    split_ = float(desired_bundle_size) // float(sample_size_bytes)
+    split_count = int(math.ceil(sample_size_bytes // desired_bundle_size))
 
     for i in range(split_count):
       estimate_position = ((i + 1) * split_)
@@ -280,33 +282,34 @@ class _BigTableReadFn(iobase.BoundedSource):
       yield iobase.SourceBundle(sample_size_bytes * split_, self, s, e)
       s = position
     if not s == last_key:
-      yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key )
+      yield iobase.SourceBundle(sample_size_bytes * split_, self, s, last_key)
 
   def read(self, range_tracker):
     if range_tracker.start_position() is not None:
       if not range_tracker.try_claim(range_tracker.start_position()):
         # there needs to be a way to cancel the request.
         return
-    read_rows = self._getTable().read_rows(start_key=range_tracker.start_position(),
-      end_key=range_tracker.stop_position(),
-      filter_=self.beam_options['filter_'])
+    start_position = range_tracker.start_position()
+    stop_position = range_tracker.stop_position()
+    filter_ = self.beam_options['filter_']
+    read_rows = self._getTable().read_rows(start_key=start_position,
+                                           end_key=stop_position,
+                                           filter_=filter_)
 
     for row in read_rows:
       self.read_row.inc()
       yield row
 
   def display_data(self):
-    ret = {
-      'projectId': DisplayDataItem(self.beam_options['project_id'],
-                                   label='Bigtable Project Id',
-                                   key='projectId'),
-      'instanceId': DisplayDataItem(self.beam_options['instance_id'],
-                                    label='Bigtable Instance Id',
-                                    key='instanceId'),
-      'tableId': DisplayDataItem(self.beam_options['table_id'],
-                                 label='Bigtable Table Id',
-                                 key='tableId')}
-    
+    ret = {'projectId': DisplayDataItem(self.beam_options['project_id'],
+                                        label='Bigtable Project Id',
+                                        key='projectId'),
+           'instanceId': DisplayDataItem(self.beam_options['instance_id'],
+                                        label='Bigtable Instance Id',
+                                        key='instanceId'),
+           'tableId': DisplayDataItem(self.beam_options['table_id'],
+                                      label='Bigtable Table Id',
+                                      key='tableId')}
     return ret
 
 
@@ -317,8 +320,10 @@ class ReadFromBigTable(beam.PTransform):
                          'table_id': table_id}
 
   def expand(self, pvalue):
-    beam_options = self.beam_options
+    project_id = self.beam_options['project_id']
+    instance_id = self.beam_options['instance_id']
+    table_id = self.beam_options['table_id']
     return (pvalue
-            | 'ReadFromBigtable' >> beam.io.Read(_BigTableReadFn(beam_options['project_id'],
-                                                                 beam_options['instance_id'],
-                                                                 beam_options['table_id'])))
+            | 'ReadFromBigtable' >> beam.io.Read(_BigTableReadFn(project_id,
+                                                                 instance_id,
+                                                                 table_id)))
