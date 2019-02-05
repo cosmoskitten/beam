@@ -73,7 +73,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.GcsUtil.RewriteOp;
@@ -852,7 +851,6 @@ public class GcsUtilTest {
     RewriteOp rewrite = rewrites.pop();
     assertTrue(rewrite.getReadyToEnqueue());
     Storage.Objects.Rewrite request = rewrite.rewriteRequest;
-    assertNull(request.getDestinationKmsKeyName());
     assertNull(request.getMaxBytesRewrittenPerCall());
   }
 
@@ -860,7 +858,6 @@ public class GcsUtilTest {
   public void testMakeRewriteOpsWithOptions() throws IOException {
     GcsOptions gcsOptions = gcsOptionsWithTestCredential();
     gcsOptions.setMaxBytesRewrittenPerCall(1337L);
-    gcsOptions.as(GcpOptions.class).setGcpKmsKey("kms_key");
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
 
     LinkedList<RewriteOp> rewrites =
@@ -870,7 +867,6 @@ public class GcsUtilTest {
     RewriteOp rewrite = rewrites.pop();
     assertTrue(rewrite.getReadyToEnqueue());
     Storage.Objects.Rewrite request = rewrite.rewriteRequest;
-    assertEquals("kms_key", request.getDestinationKmsKeyName());
     assertEquals(Long.valueOf(1337L), request.getMaxBytesRewrittenPerCall());
   }
 

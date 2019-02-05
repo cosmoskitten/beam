@@ -19,12 +19,12 @@ package org.apache.beam.sdk.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -42,22 +42,21 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GcsUtilIT {
-  private static final String KMS_KEY =
-      "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test";
-
   /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   @Test
   public void testRewriteMultiPart() throws IOException {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    // Setting the KMS key is required to trigger multi-part rewrites.
-    options.as(GcpOptions.class).setGcpKmsKey(KMS_KEY);
     GcsOptions gcsOptions = options.as(GcsOptions.class);
+    // Setting the KMS key is necessary to trigger multi-part rewrites (gcpTempLocation is created
+    // with a bucket default key).
+    assertNotNull(gcsOptions.getGcpKmsKey());
+
     gcsOptions.setMaxBytesRewrittenPerCall(50L * 1024 * 1024);
     GcsUtil gcsUtil = gcsOptions.getGcsUtil();
     String srcFilename = "gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json";
     String dstFilename =
-        options.getTempRoot()
+        gcsOptions.getGcpTempLocation()
             + String.format(
                 "/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testRewriteMultiPart.copy", new Date());
     gcsUtil.numRewriteTokensUsed = new AtomicInteger();

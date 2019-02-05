@@ -99,7 +99,6 @@ public class GcsUtil {
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
           gcsOptions.getGcsUploadBufferSizeBytes(),
-          gcsOptions.getGcpKmsKey(),
           gcsOptions.getMaxBytesRewrittenPerCall());
     }
 
@@ -109,14 +108,12 @@ public class GcsUtil {
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         @Nullable Integer uploadBufferSizeBytes,
-        @Nullable String kmsKey,
         @Nullable Long maxBytesRewrittenPerCall) {
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
           executorService,
           uploadBufferSizeBytes,
-          kmsKey,
           maxBytesRewrittenPerCall);
     }
   }
@@ -153,9 +150,6 @@ public class GcsUtil {
   // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
-
-  /** Cloud KMS key used to encrypt new objects. */
-  @Nullable private final String kmsKey;
 
   /** Rewrite operation setting. For testing purposes only. */
   @Nullable private Long maxBytesRewrittenPerCall;
@@ -227,13 +221,11 @@ public class GcsUtil {
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
       @Nullable Integer uploadBufferSizeBytes,
-      @Nullable String kmsKey,
       @Nullable Long maxBytesRewrittenPerCall) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
-    this.kmsKey = kmsKey;
     this.maxBytesRewrittenPerCall = maxBytesRewrittenPerCall;
     this.numRewriteTokensUsed = null;
   }
@@ -448,7 +440,7 @@ public class GcsUtil {
             path.getBucket(),
             path.getObject(),
             type,
-            kmsKey,
+            /* kmsKeyName= */ null,
             AsyncWriteChannelOptions.newBuilder().build(),
             new ObjectWriteConditions(),
             Collections.emptyMap());
@@ -659,9 +651,6 @@ public class GcsUtil {
           storageClient
               .objects()
               .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
-      if (kmsKey != null) {
-        rewriteRequest.setDestinationKmsKeyName(kmsKey);
-      }
       if (maxBytesRewrittenPerCall != null) {
         rewriteRequest.setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
       }
