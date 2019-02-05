@@ -401,7 +401,8 @@ public class FakeJobService implements JobService, Serializable {
         new Table()
             .setTableReference(destination)
             .setSchema(schema)
-            .setTimePartitioning(partitioning));
+            .setTimePartitioning(partitioning)
+            .setEncryptionConfiguration(copy.getDestinationEncryptionConfiguration()));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");
   }
