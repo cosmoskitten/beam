@@ -98,9 +98,7 @@ public class GcsUtil {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
-          gcsOptions.getGcsUploadBufferSizeBytes(),
-          gcsOptions.getGcpKmsKey(),
-          gcsOptions.getMaxBytesRewrittenPerCall());
+          gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
@@ -108,16 +106,9 @@ public class GcsUtil {
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
-        @Nullable Integer uploadBufferSizeBytes,
-        @Nullable String kmsKey,
-        @Nullable Long maxBytesRewrittenPerCall) {
+        @Nullable Integer uploadBufferSizeBytes) {
       return new GcsUtil(
-          storageClient,
-          httpRequestInitializer,
-          executorService,
-          uploadBufferSizeBytes,
-          kmsKey,
-          maxBytesRewrittenPerCall);
+          storageClient, httpRequestInitializer, executorService, uploadBufferSizeBytes);
     }
   }
 
@@ -154,11 +145,8 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
-  /** Cloud KMS key used to encrypt new objects. */
-  @Nullable private final String kmsKey;
-
   /** Rewrite operation setting. For testing purposes only. */
-  @Nullable private Long maxBytesRewrittenPerCall;
+  @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
 
   @VisibleForTesting @Nullable AtomicInteger numRewriteTokensUsed;
 
@@ -226,15 +214,12 @@ public class GcsUtil {
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
-      @Nullable Integer uploadBufferSizeBytes,
-      @Nullable String kmsKey,
-      @Nullable Long maxBytesRewrittenPerCall) {
+      @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
-    this.kmsKey = kmsKey;
-    this.maxBytesRewrittenPerCall = maxBytesRewrittenPerCall;
+    this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
   }
 
@@ -448,7 +433,7 @@ public class GcsUtil {
             path.getBucket(),
             path.getObject(),
             type,
-            kmsKey,
+            /* kmsKeyName= */ null,
             AsyncWriteChannelOptions.newBuilder().build(),
             new ObjectWriteConditions(),
             Collections.emptyMap());
@@ -659,9 +644,6 @@ public class GcsUtil {
           storageClient
               .objects()
               .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
-      if (kmsKey != null) {
-        rewriteRequest.setDestinationKmsKeyName(kmsKey);
-      }
       if (maxBytesRewrittenPerCall != null) {
         rewriteRequest.setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
       }

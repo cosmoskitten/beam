@@ -113,7 +113,7 @@ def dataflowUploadTemp = project.findProperty('dataflowTempRoot') ?: 'gs://temp-
 def testFilesToStage = project.findProperty('filesToStage') ?: 'test.txt'
 def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 def dataflowFnApiWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
-def gcpKmsKey = project.findProperty('gcpKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
 def dockerImageContainer = "${dockerImageRoot}/java"
@@ -317,7 +317,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
             "--tempRoot=${dataflowPostCommitTempRoot}",
             "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
             "--workerHarnessContainerImage=",
-            "--gcpKmsKey=${gcpKmsKey}",
+            "--dataflowKmsKey=${dataflowKmsKey}",
     ])
 
     include '**/*KmsKeyIT.class'
