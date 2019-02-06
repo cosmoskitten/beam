@@ -140,7 +140,10 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
         "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT",
         "apache_beam.io.gcp.bigquery_io_read_it_test",
     ]
-    def batchTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def batchTestOpts = basicTestOpts
+    // Due to BEAM-6603, disabled nocapture to avoid large console log.
+    batchTestOpts.remove("--nocapture")
+    batchTestOpts += ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": batchTestOpts]
     def batchCmdArgs = project.mapToArgString(argMap)
@@ -156,7 +159,10 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest",
     ]
-    def streamingTestOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
+    def streamingTestOpts = basicTestOpts
+    // Due to BEAM-6603, disabled nocapture to avoid large console log.
+    streamingTestOpts.remove("--nocapture")
+    streamingTestOpts += ["--tests=${tests.join(',')}"]
     def argMap = ["runner": "TestDirectRunner",
                   "streaming": "true",
                   "test_opts": streamingTestOpts]
