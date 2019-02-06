@@ -29,6 +29,7 @@ task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def testOpts = [
         "--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "--logging-level=INFO",
         "--nocapture",    // Print stdout instantly
     ]
     def argMap = ["runner": "TestDirectRunner",
