@@ -53,6 +53,9 @@ __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 class ReadFromDatastore(PTransform):
   """A ``PTransform`` for reading from Google Cloud Datastore.
+  
+  This IO supports Dataflow Batch scenario only.
+  Dataflow Streaming is not supported.
 
   To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use
   ``ReadFromDatastore`` transform by providing a `project` id and a `query` to
