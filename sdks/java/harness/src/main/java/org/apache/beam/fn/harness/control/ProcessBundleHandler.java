@@ -31,6 +31,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.MetricsBeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -141,6 +142,7 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
+      MetricsBeamFnDataClient metricsClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -161,6 +163,7 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            metricsClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
@@ -191,7 +194,7 @@ public class ProcessBundleHandler {
           .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
           .createRunnerForPTransform(
               options,
-              beamFnDataClient,
+              metricsClient,
               beamFnStateClient,
               pTransformId,
               pTransform,
@@ -209,6 +212,11 @@ public class ProcessBundleHandler {
 
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
+    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
+    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
+    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
+    MetricsBeamFnDataClient metricsClient = new MetricsBeamFnDataClient(this.beamFnDataClient);
+
     String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
@@ -281,6 +289,7 @@ public class ProcessBundleHandler {
 
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            metricsClient,
             entry.getKey(),
             entry.getValue(),
             request::getInstructionId,
@@ -300,8 +309,8 @@ public class ProcessBundleHandler {
           startFunction.run();
         }
 
-        // TODO how are we ensuring that start() is called before all elements process()ed
-        // and finish() is called after?
+        // TODO. Is there any guarantee that start() is executed first?
+        metricsClient.drainAndBlock();
 
         // Need to reverse this since we want to call finish in topological order.
         for (ThrowingRunnable finishFunction :
@@ -313,6 +322,8 @@ public class ProcessBundleHandler {
           response.addAllResidualRoots(allResiduals.values());
         }
       }
+      // TODO(ajamato): Cleanup and package all of these into a single call, using an container with
+      // references to all of these.
       // Get start bundle Execution Time Metrics.
       for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
@@ -321,13 +332,18 @@ public class ProcessBundleHandler {
       for (MonitoringInfo mi : pCollectionConsumerRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
-
       // Get finish bundle Execution Time Metrics.
       for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
-      // Extract all other MonitoringInfos other than the execution time monitoring infos.
+      // Extract all other MonitoringInfos other than the execution time MonitoringInfos from
+      // start() and finish() calls.
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        response.addMonitoringInfos(mi);
+      }
+      // Extract all other MonitoringInfos other than the execution time MonitoringInfos from
+      // process() calls.
+      for (MonitoringInfo mi : metricsClient.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
     }

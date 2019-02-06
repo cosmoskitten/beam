@@ -26,6 +26,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
@@ -45,14 +46,16 @@ public class PCollectionConsumerRegistry {
 
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
   private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
-  private MetricsContainerStepMap metricsContainerRegistry;
-  private ExecutionStateTracker stateTracker;
+  //private MetricsContainerStepMap metricsContainerRegistry;
+  //private ExecutionStateTracker stateTracker;
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
   public PCollectionConsumerRegistry(
-      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) {
-    this.metricsContainerRegistry = metricsContainerRegistry;
-    this.stateTracker = stateTracker;
+      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) { // TODO remove parameters
+    // TODO get metricsContainerRegistry from thread local
+    //this.metricsContainerRegistry = metricsContainerRegistry;
+    // TODO get stateTracker from thread local
+    //this.stateTracker = stateTracker;
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
     this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
@@ -96,14 +99,15 @@ public class PCollectionConsumerRegistry {
     // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
     // Process Bundle Execution time metric.
     // Note: That the consumer will be invoked concurrently by separate threads.
-    // MetricsContainerRegistry is not thread safe, so make sure that we capture a reference
-    // to the MetricsContainerImpl outside of the
-    final MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+
     FnDataReceiver<WindowedValue<T>> wrapAndEnableMetricContainer =
         (WindowedValue<T> input) -> {
-          // This code is multithreaded!
+          // This code is invoked CONCURRENTLY!
+          final MetricsContainerImpl container =
+              MetricsContainerStepMapEnvironment.getCurrent().getContainer(pTransformId);
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
+            try (Closeable trackerCloseable =
+                ExecutionStateTracker.enterStateForCurrentTracker(state)) {
               consumer.accept(input);
             }
           }
@@ -132,7 +136,7 @@ public class PCollectionConsumerRegistry {
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
       wrappedConsumer =
-          new ElementCountFnDataReceiver(consumer, pCollectionId, metricsContainerRegistry);
+          new ElementCountFnDataReceiver(consumer, pCollectionId, null); // TODO remove parameter
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;
