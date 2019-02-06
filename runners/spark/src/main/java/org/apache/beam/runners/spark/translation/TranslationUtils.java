@@ -346,7 +346,8 @@ public final class TranslationUtils {
    * @return a pair function to convert value to bytes via coder
    */
   public static PairFunction<
-          Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>,
+          Tuple2<TupleTag<?>, WindowedValue<?>>,
+          TupleTag<?>,
           ValueAndCoderKryoSerializable<WindowedValue<?>>>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
@@ -364,7 +365,8 @@ public final class TranslationUtils {
    * @return a pair function to convert bytes to value via coder
    */
   public static PairFunction<
-          Tuple2<TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>, TupleTag<?>,
+          Tuple2<TupleTag<?>, ValueAndCoderKryoSerializable<WindowedValue<?>>>,
+          TupleTag<?>,
           WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return tuple2 -> {
