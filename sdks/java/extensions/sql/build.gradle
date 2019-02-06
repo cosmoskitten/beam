@@ -80,15 +80,17 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.jackson_databind
   shadow library.java.jackson_dataformat_yaml
+  compile "com.fasterxml.jackson.core:jackson-databind:2.9.8"
+  shadow "org.apache.hive:hive-serde:2.1.0"
+  shadow "org.apache.hive:hive-common:2.1.0"
+  shadow "org.apache.hadoop:hadoop-common:2.7.3"
   shadow "com.google.code.findbugs:jsr305:3.0.0"
   shadow "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1"
-  shadow "org.apache.hadoop:hadoop-common:2.7.3"
-  shadow "org.apache.hive:hive-exec:2.1.0"
+  shadow "org.apache.hive:hive-metastore:2.1.0"
   shadow("org.apache.hive.hcatalog:hive-hcatalog-core:2.1.0") {
-    // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
-    // gets registered and gets started instead of ours
-    exclude group: "org.apache.calcite", module:"calcite-avatica"
-    exclude group: "org.apache.calcite", module:"calcite-avatica"
+      // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
+      // gets registered and gets started instead of ours
+      exclude group: "org.apache.calcite", module:"calcite-avatica"
   }
   shadow library.java.joda_time
   shadow "com.alibaba:fastjson:1.2.49"
