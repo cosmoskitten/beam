@@ -95,9 +95,13 @@ public class PCollectionConsumerRegistry {
     // PTransform context. This ensures that user metrics obtain the pTransform ID when they are
     // created. Also use the ExecutionStateTracker and enter an appropriate state to track the
     // Process Bundle Execution time metric.
+    // Note: That the consumer will be invoked concurrently by separate threads.
+    // MetricsContainerRegistry is not thread safe, so make sure that we capture a reference
+    // to the MetricsContainerImpl outside of the
+    final MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
     FnDataReceiver<WindowedValue<T>> wrapAndEnableMetricContainer =
         (WindowedValue<T> input) -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
+          // This code is multithreaded!
           try (Closeable closeable = MetricsEnvironment.scopedMetricsContainer(container)) {
             try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
               consumer.accept(input);
