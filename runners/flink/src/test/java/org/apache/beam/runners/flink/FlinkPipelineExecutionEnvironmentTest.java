@@ -26,7 +26,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Every.everyItem;
 import static org.junit.Assert.fail;
 
-import com.google.common.base.Charsets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Rule;
