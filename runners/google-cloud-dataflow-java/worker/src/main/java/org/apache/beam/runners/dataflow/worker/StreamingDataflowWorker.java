@@ -854,16 +854,19 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private synchronized void addComputation(String computationId, MapTask originalMapTask,
-                                           Map<String, String> transformUserNameToStateFamily) {
+  private synchronized void addComputation(
+      String computationId,
+      MapTask originalMapTask,
+      Map<String, String> transformUserNameToStateFamily) {
     // Map task instances are shared amongst multiple threads during computation hence
     // we fix the map task before we add a new computation state that would reference it.
     MapTask mapTask = fixMultiOutputInfos.apply(originalMapTask);
     if (!computationMap.containsKey(computationId)) {
       LOG.info("Adding config for {}: {}", computationId, mapTask);
       computationMap.put(
-          computationId, new ComputationState(computationId, mapTask, workUnitExecutor,
-                      transformUserNameToStateFamily));
+          computationId,
+          new ComputationState(
+              computationId, mapTask, workUnitExecutor, transformUserNameToStateFamily));
     }
   }
 
@@ -1147,8 +1150,9 @@ public class StreamingDataflowWorker {
                 pendingDeltaCounters,
                 computationId,
                 readerCache,
-                    !computationState.getTransformUserNameToStateFamily().isEmpty()
-                            ? computationState.getTransformUserNameToStateFamily() : stateNameMap,
+                !computationState.getTransformUserNameToStateFamily().isEmpty()
+                    ? computationState.getTransformUserNameToStateFamily()
+                    : stateNameMap,
                 stateCache.forComputation(computationId),
                 stageInfo.metricsContainerRegistry,
                 executionStateTracker,
@@ -1479,6 +1483,20 @@ public class StreamingDataflowWorker {
         response.getSystemNameToComputationIdMapList()) {
       systemNameToComputationIdMap.put(entry.getSystemName(), entry.getComputationId());
     }
+
+    // Outer keys are computation ids. Outer values are map from transform username to state family.
+    Map<String, Map<String, String>> transformUserNameToStateFamilyByComputationId =
+        new HashMap<>();
+    for (Windmill.GetConfigResponse.ComputationConfigMapEntry computationConfig :
+        response.getComputationConfigMapList()) {
+      Map<String, String> transformUserNameToStateFamily =
+          transformUserNameToStateFamilyByComputationId.get(computationConfig.getComputationId());
+      for (Windmill.ComputationConfig.TransformUserNameToStateFamilyEntry entry :
+          computationConfig.getComputationConfig().getTransformUserNameToStateFamilyList()) {
+        transformUserNameToStateFamily.put(entry.getTransformUserName(), entry.getStateFamily());
+      }
+    }
+
     for (String serializedMapTask : response.getCloudWorksList()) {
       try {
         MapTask mapTask = parseMapTask(serializedMapTask);
@@ -1486,8 +1504,10 @@ public class StreamingDataflowWorker {
             systemNameToComputationIdMap.containsKey(mapTask.getSystemName())
                 ? systemNameToComputationIdMap.get(mapTask.getSystemName())
                 : mapTask.getSystemName();
-        // TODO(b/110224474): get per-stage TransformUserNameToStateFamily map from windmill.
-        addComputation(computationId, mapTask, ImmutableMap.of());
+        addComputation(
+            computationId,
+            mapTask,
+            transformUserNameToStateFamilyByComputationId.get(computationId));
       } catch (IOException e) {
         LOG.warn("Parsing MapTask failed: {}", serializedMapTask);
         LOG.warn("Error: ", e);
@@ -1527,9 +1547,10 @@ public class StreamingDataflowWorker {
         mapTask.setStageName(computationConfig.getStageName());
         mapTask.setInstructions(computationConfig.getInstructions());
         // TODO:XXX Pass computationConfig.getTransformUserNameToStateFamily()
-        addComputation(
-                computationConfig.getComputationId(), mapTask, computationConfig.getTransformUserNameToStateFamily());
-        // addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
+        //        addComputation(
+        //                computationConfig.getComputationId(), mapTask,
+        // computationConfig.getTransformUserNameToStateFamily());
+        addComputation(computationConfig.getComputationId(), mapTask, ImmutableMap.of());
       }
     }
 
@@ -1867,13 +1888,15 @@ public class StreamingDataflowWorker {
     private final ConcurrentMap<SdkWorkerHarness, ConcurrentLinkedQueue<ExecutionState>>
         executionStateQueues = new ConcurrentHashMap<>();
 
-    public ComputationState(String computationId, MapTask mapTask, BoundedQueueExecutor executor,
-                            Map<String, String> transformUserNameToStateFamily) {
+    public ComputationState(
+        String computationId,
+        MapTask mapTask,
+        BoundedQueueExecutor executor,
+        Map<String, String> transformUserNameToStateFamily) {
       this.computationId = computationId;
       this.mapTask = mapTask;
       this.executor = executor;
-      this.transformUserNameToStateFamily =
-              ImmutableMap.copyOf(transformUserNameToStateFamily);
+      this.transformUserNameToStateFamily = ImmutableMap.copyOf(transformUserNameToStateFamily);
       Preconditions.checkNotNull(mapTask.getStageName());
       Preconditions.checkNotNull(mapTask.getSystemName());
     }
