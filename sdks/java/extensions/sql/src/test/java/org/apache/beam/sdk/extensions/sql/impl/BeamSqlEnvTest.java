@@ -33,9 +33,12 @@ public class BeamSqlEnvTest {
     TestTableProvider nested = new TestTableProvider();
     TestTableProvider anotherOne = new TestTableProvider();
 
-    BeamSqlEnv env = BeamSqlEnv.withTableProvider(root);
-    env.addSchema("nested", nested);
-    env.addSchema("anotherOne", anotherOne);
+    BeamSqlEnv env =
+        BeamSqlEnv.builder()
+            .setInitializeTableProvider(root)
+            .addSchema("nested", nested)
+            .addSchema("anotherOne", anotherOne)
+            .build();
 
     Connection connection = env.connection;
     connection.createStatement().execute("CREATE EXTERNAL TABLE nested.person (id INT) TYPE test");
