@@ -51,16 +51,16 @@ import org.slf4j.LoggerFactory;
  * The core component to handle through a SQL statement, from explain execution plan, to generate a
  * Beam pipeline.
  */
-class BeamQueryPlanner {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
+class CalciteQueryPlanner implements QueryPlanner {
+  private static final Logger LOG = LoggerFactory.getLogger(CalciteQueryPlanner.class);
 
-  private JdbcConnection connection;
+  private final Planner planner;
 
-  BeamQueryPlanner(JdbcConnection connection) {
-    this.connection = connection;
+  CalciteQueryPlanner(JdbcConnection connection) {
+    planner = Frameworks.getPlanner(defaultConfig(connection));
   }
 
-  public FrameworkConfig config() {
+  public FrameworkConfig defaultConfig(JdbcConnection connection) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -102,8 +102,8 @@ class BeamQueryPlanner {
   }
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
+  @Override
   public SqlNode parse(String sqlStatement) throws SqlParseException {
-    Planner planner = getPlanner();
     SqlNode parsed;
     try {
       parsed = planner.parse(sqlStatement);
@@ -114,10 +114,10 @@ class BeamQueryPlanner {
   }
 
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
+  @Override
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException, CannotPlanException {
     BeamRelNode beamRelNode;
-    Planner planner = getPlanner();
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       SqlNode validated = planner.validate(parsed);
@@ -141,9 +141,5 @@ class BeamQueryPlanner {
       planner.close();
     }
     return beamRelNode;
-  }
-
-  private Planner getPlanner() {
-    return Frameworks.getPlanner(config());
   }
 }

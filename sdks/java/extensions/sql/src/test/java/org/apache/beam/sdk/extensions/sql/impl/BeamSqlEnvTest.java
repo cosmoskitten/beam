@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.junit.Test;
 
@@ -33,9 +34,11 @@ public class BeamSqlEnvTest {
     TestTableProvider nested = new TestTableProvider();
     TestTableProvider anotherOne = new TestTableProvider();
 
-    BeamSqlEnv env = BeamSqlEnv.withTableProvider(root);
-    env.addSchema("nested", nested);
-    env.addSchema("anotherOne", anotherOne);
+    BeamSqlEnv env =
+        BeamSqlEnvBuilder.builder(root)
+            .addSchema("nested", nested)
+            .addSchema("anotherOne", anotherOne)
+            .build();
 
     Connection connection = env.connection;
     connection.createStatement().execute("CREATE EXTERNAL TABLE nested.person (id INT) TYPE test");
