@@ -119,7 +119,7 @@ if [[ $confirmation = "y" ]]; then
   cd beam/${RELEASE}
 
   echo "----------------Downloading Source Release-------------------"
-  SOURCE_RELEASE_ZIP=$(echo "apache-beam-${RELEASE}-source-release.zip")
+  SOURCE_RELEASE_ZIP="apache-beam-${RELEASE}-source-release.zip"
   # Check whether there is an existing dist dir
   if (svn ls "${SOURCE_RELEASE_ZIP}"); then
     echo "Removing existing ${SOURCE_RELEASE_ZIP}."
