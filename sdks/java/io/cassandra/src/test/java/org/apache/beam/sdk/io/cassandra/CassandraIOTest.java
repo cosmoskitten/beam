@@ -200,7 +200,7 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.CassandraSource<Scientist> source = new CassandraIO.CassandraSource<>(read, null);
     long estimatedSizeBytes = source.getEstimatedSizeBytes(pipelineOptions);
     // the size is the sum of the bytes size of the String representation of a scientist in the map
-    assertEquals(4644L, estimatedSizeBytes);
+    assertEquals(4608L, estimatedSizeBytes);
   }
 
   @Test
