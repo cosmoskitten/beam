@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
@@ -48,6 +50,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   public static final String PROCESS_TIMERS_STATE_NAME = "process-timers";
   public static final String FINISH_STATE_NAME = "finish";
   public static final String ABORT_STATE_NAME = "abort";
+
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateTracker.class);
+
 
   /** An {@link ExecutionState} represents the current state of an execution thread. */
   public abstract static class ExecutionState {
@@ -168,6 +173,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   @Nullable
   public static ExecutionState getCurrentExecutionState() {
     ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
+    LOG.info("tracker " + tracker);
+    LOG.info("tracker.currentState " + tracker.currentState);
     return tracker == null ? null : tracker.currentState;
   }
 
