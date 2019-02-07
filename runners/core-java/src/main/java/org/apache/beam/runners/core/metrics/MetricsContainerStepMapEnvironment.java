@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-// TODO(ajamato): Consider putting this logic in MetricsEnvironment, after moving
-// files around to prevent dependency cycles.
-
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
@@ -28,6 +25,9 @@ import java.io.Closeable;
  * A Utility class to support set a thread local MetricContainerStepMap. The thread local
  * MetricContainerStepMap can used to set the appropriate MetricContainer by downstream pCollection
  * consumers code, without changing the FnDataReceiver interface.
+ *
+ * <p>TODO(ajamato): Consider putting this logic in MetricsEnvironment, after moving files around to
+ * prevent dependency cycles.
  */
 public class MetricsContainerStepMapEnvironment {
 
@@ -39,7 +39,7 @@ public class MetricsContainerStepMapEnvironment {
    *
    * @return A {@link Closeable} to deactivate state sampling.
    */
-  public static Closeable activate() {
+  private static Closeable activate() {
     checkState(
         METRICS_CONTAINER_STEP_MAP_FOR_THREAD.get() == null,
         "MetricsContainerStepMapEnvironment is already active in current scope.");
@@ -52,14 +52,29 @@ public class MetricsContainerStepMapEnvironment {
   }
 
   /**
-   * Precondition: a MetricsContainerStepMap is activated() in the current scope.
-   *
-   * @return The currently in scope thread local MetricContainerStepMap.
+   * @return The currently in scope thread local MetricContainerStepMap or a new
+   *     MetricsContainerStepMap().
    */
   public static MetricsContainerStepMap getCurrent() {
     checkState(
         METRICS_CONTAINER_STEP_MAP_FOR_THREAD.get() != null,
-        "MetricsContainerStepMapEnvironment is not active in current scope.");
+        "MetricsContainerStepMapEnvironment is not already active in current scope.");
     return METRICS_CONTAINER_STEP_MAP_FOR_THREAD.get();
+  }
+
+  /**
+   * Activates a MetricsContainerStepMap and ExecutionStateTracker on the current scope.
+   *
+   * @return a single closeable which closes the metrics environment and tracker and the
+   */
+  public static Closeable setupMetricEnvironment() {
+    Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.activate();
+    ExecutionStateTracker stateTracker =
+        new ExecutionStateTracker(ExecutionStateSampler.instance());
+    Closeable closeTracker = stateTracker.activate();
+    return () -> {
+      closeTracker.close();
+      closeMetricsMap.close();
+    };
   }
 }

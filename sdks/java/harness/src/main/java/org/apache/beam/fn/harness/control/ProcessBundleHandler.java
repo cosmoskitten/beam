@@ -32,6 +32,7 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MetricsBeamFnDataClient;
+import org.apache.beam.fn.harness.data.MetricsPCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -142,7 +143,7 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
-      MetricsBeamFnDataClient metricsClient,
+      BeamFnDataClient metricsClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -210,6 +211,10 @@ public class ProcessBundleHandler {
     }
   }
 
+  /**
+   * Processes a bundle, running the start(), process(), and finish() functions. This function is
+   * required to be reentrant.
+   */
   public BeamFnApi.InstructionResponse.Builder processBundle(BeamFnApi.InstructionRequest request)
       throws Exception {
     // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
@@ -225,7 +230,8 @@ public class ProcessBundleHandler {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
-    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
+    MetricsPCollectionConsumerRegistry pCollectionConsumerRegistry =
+        new MetricsPCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -308,8 +314,8 @@ public class ProcessBundleHandler {
           startFunction.run();
         }
 
-        // TODO. Is there any guarantee that start() is executed first?
-        metricsClient.drainAndBlock();
+        // Wait until all process() calls are done.
+        metricsClient.waitTillDone();
 
         // Need to reverse this since we want to call finish in topological order.
         for (ThrowingRunnable finishFunction :

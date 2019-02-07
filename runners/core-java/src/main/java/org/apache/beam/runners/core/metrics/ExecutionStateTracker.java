@@ -168,7 +168,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   @Nullable
   public static ExecutionState getCurrentExecutionState() {
     ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
-    return tracker != null ? null : tracker.currentState;
+    return tracker == null ? null : tracker.currentState;
   }
 
   /**
@@ -251,7 +251,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * current thread, and uses that execution state tracker.
    */
   public static Closeable enterStateForCurrentTracker(ExecutionState newState) {
-    // TODO(ajamato): Optomize with a thead local variable.
+    // TODO(ajamato): Optimize with a thead local variable.
     ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
     checkState(tracker != null, "Cannot enterStateForCurrentTracker if no tracker is active.");
     return tracker.enterState(newState);

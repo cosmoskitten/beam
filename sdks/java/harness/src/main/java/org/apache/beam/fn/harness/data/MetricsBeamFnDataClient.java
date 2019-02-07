@@ -25,8 +25,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,7 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link BeamFnDataClient} that queues elements so that they can be consumed and processed in the
+ * A {@link MetricsBeamFnDataClient} introduces a so that they can be consumed and processed in the
  * thread which calls @{link #drainAndBlock}.
  */
 public class MetricsBeamFnDataClient implements BeamFnDataClient {
@@ -97,8 +95,7 @@ public class MetricsBeamFnDataClient implements BeamFnDataClient {
    * intended for use with a newly constructed MetricsBeamFnDataClient in {@link
    * ProcessBundleHandler#processBundle(InstructionRequest)}.
    */
-  public void drainAndBlock() throws Exception {
-    // TODO(ajamato): Optomize by doing the merges here with completed maps?
+  public void waitTillDone() throws Exception {
     while (true) {
       if (allDone()) {
         break;
@@ -151,14 +148,17 @@ public class MetricsBeamFnDataClient implements BeamFnDataClient {
      */
     @Override
     public void accept(WindowedValue<T> value) throws Exception {
-      try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.activate()) {
-        metricsContainerStepMaps.add(MetricsContainerStepMapEnvironment.getCurrent());
-
-        ExecutionStateTracker stateTracker =
-            new ExecutionStateTracker(ExecutionStateSampler.instance());
-        try (Closeable closeTracker = stateTracker.activate()) {
+      try {
+        try (Closeable close = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
+          metricsContainerStepMaps.add(MetricsContainerStepMapEnvironment.getCurrent());
           this.consumer.accept(value);
         }
+      } catch (Exception e) {
+        LOG.error("Client failed to dequeue and process WindowedValue", e);
+        for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
+          inboundDataClient.fail(e);
+        }
+        throw e;
       }
     }
   }

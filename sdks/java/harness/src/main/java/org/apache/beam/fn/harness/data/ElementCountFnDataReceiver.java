@@ -40,8 +40,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
   private FnDataReceiver<WindowedValue<T>> original;
   private Counter counter;
 
-  public ElementCountFnDataReceiver(
-      FnDataReceiver<WindowedValue<T>> original, String pCollection) { // TODO remove parameter
+  public ElementCountFnDataReceiver(FnDataReceiver<WindowedValue<T>> original, String pCollection) {
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);

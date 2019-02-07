@@ -609,9 +609,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     List<WindowedValue<Iterable<String>>> mainOutputValues = new ArrayList<>();
 
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_PTRANSFORM_ID,

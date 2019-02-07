@@ -51,7 +51,7 @@ public class ElementCountFnDataReceiverTest {
   public void testCountsElements() throws Exception {
     final String pCollectionA = "pCollectionA";
 
-    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.activate()) {
+    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
       FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
       ElementCountFnDataReceiver<String> wrapperConsumer =
           new ElementCountFnDataReceiver(consumer, pCollectionA);
@@ -81,7 +81,7 @@ public class ElementCountFnDataReceiverTest {
     mockStatic(MetricsEnvironment.class, withSettings().verboseLogging());
     final String pCollectionA = "pCollectionA";
 
-    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.activate()) {
+    try (Closeable closeMetricsMap = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
 
       FnDataReceiver<WindowedValue<String>> consumer =
           mock(FnDataReceiver.class, withSettings().verboseLogging());
