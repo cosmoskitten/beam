@@ -247,8 +247,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /**
-   * Enters the new state, but assumes an execution state tracker has already been activated
-   * on the current thread, and uses that execution state tracker.
+   * Enters the new state, but assumes an execution state tracker has already been activated on the
+   * current thread, and uses that execution state tracker.
    */
   public static Closeable enterStateForCurrentTracker(ExecutionState newState) {
     // TODO(ajamato): Optomize with a thead local variable.

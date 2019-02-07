@@ -20,8 +20,6 @@ package org.apache.beam.fn.harness.data;
 import java.io.Closeable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -149,7 +147,7 @@ public class MetricsBeamFnDataClient implements BeamFnDataClient {
      * This method is thread safe, we expect multiple threads to call this, passing in data when new
      * data arrives via the MetricsBeamFnDataClient's mainClient.
      *
-     * This code is invoked CONCURRENTLY, by separate threads.
+     * <p>This code is invoked CONCURRENTLY, by separate threads.
      */
     @Override
     public void accept(WindowedValue<T> value) throws Exception {

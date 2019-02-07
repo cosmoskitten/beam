@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.data;
 import java.io.Closeable;
 import java.util.HashMap;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -42,9 +41,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
   private Counter counter;
 
   public ElementCountFnDataReceiver(
-      FnDataReceiver<WindowedValue<T>> original,
-      String pCollection,
-      MetricsContainerStepMap metricContainerRegistry) { // TODO remove parameter
+      FnDataReceiver<WindowedValue<T>> original, String pCollection) { // TODO remove parameter
     this.original = original;
     HashMap<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);

@@ -25,7 +25,6 @@ import java.util.Set;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -46,16 +45,9 @@ public class PCollectionConsumerRegistry {
 
   private ListMultimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers;
   private Map<String, ElementCountFnDataReceiver> pCollectionIdsToWrappedConsumer;
-  //private MetricsContainerStepMap metricsContainerRegistry;
-  //private ExecutionStateTracker stateTracker;
   private SimpleStateRegistry executionStates = new SimpleStateRegistry();
 
-  public PCollectionConsumerRegistry(
-      MetricsContainerStepMap metricsContainerRegistry, ExecutionStateTracker stateTracker) { // TODO remove parameters
-    // TODO get metricsContainerRegistry from thread local
-    //this.metricsContainerRegistry = metricsContainerRegistry;
-    // TODO get stateTracker from thread local
-    //this.stateTracker = stateTracker;
+  public PCollectionConsumerRegistry() {
     this.pCollectionIdsToConsumers = ArrayListMultimap.create();
     this.pCollectionIdsToWrappedConsumer = new HashMap<String, ElementCountFnDataReceiver>();
   }
@@ -135,8 +127,7 @@ public class PCollectionConsumerRegistry {
           pCollectionIdsToConsumers.get(pCollectionId);
       FnDataReceiver<WindowedValue<?>> consumer =
           MultiplexingFnDataReceiver.forConsumers(consumers);
-      wrappedConsumer =
-          new ElementCountFnDataReceiver(consumer, pCollectionId, null); // TODO remove parameter
+      wrappedConsumer = new ElementCountFnDataReceiver(consumer, pCollectionId);
       pCollectionIdsToWrappedConsumer.put(pCollectionId, wrappedConsumer);
     }
     return wrappedConsumer;

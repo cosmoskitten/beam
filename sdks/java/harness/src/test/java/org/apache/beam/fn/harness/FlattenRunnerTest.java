@@ -68,10 +68,7 @@ public class FlattenRunnerTest {
             .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    PCollectionConsumerRegistry consumers =
-        new PCollectionConsumerRegistry(
-            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    PCollectionConsumerRegistry consumers = new PCollectionConsumerRegistry();
     consumers.register(
         "mainOutputTarget",
         pTransformId,

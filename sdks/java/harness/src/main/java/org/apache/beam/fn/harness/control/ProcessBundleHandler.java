@@ -225,8 +225,7 @@ public class ProcessBundleHandler {
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ExecutionStateTracker stateTracker =
         new ExecutionStateTracker(ExecutionStateSampler.instance());
-    PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        new PCollectionConsumerRegistry(metricsContainerRegistry, stateTracker);
+    PCollectionConsumerRegistry pCollectionConsumerRegistry = new PCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
