@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.testng.AssertJUnit.assertFalse;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -315,16 +316,14 @@ public class MetricsBeamFnDataClientTest {
       Future<?> drainElementsFuture =
           executor.submit(
               () -> {
-                boolean intentionallyFailed = false;
+                boolean failed = false;
                 try {
                   metricsClient.waitTillDone();
-                } catch (RuntimeException e) {
-                  intentionallyFailed = true;
                 } catch (Exception e) {
+                  failed = true;
                   LOG.error("Unintentional failure", e);
-                  fail();
                 }
-                assertTrue(intentionallyFailed);
+                assertFalse(failed);
               });
 
       // Fail all InboundObservers if any of the downstream consumers fail.
