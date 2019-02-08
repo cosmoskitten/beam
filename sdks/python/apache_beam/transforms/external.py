@@ -203,6 +203,15 @@ class ExternalTransform(ptransform.PTransform):
                    for tag, pcoll in proto.outputs.items()})
       context.transforms.put_proto(id, new_proto)
 
+    self._expanded_transform = beam_runner_api_pb2.PTransform(
+        unique_name=full_label,
+        spec=self._expanded_transform.spec,
+        subtransforms=self._expanded_transform.subtransforms,
+        inputs=self._expanded_transform.inputs,
+        outputs={
+            tag: pcoll_renames.get(pcoll, pcoll)
+            for tag, pcoll in self._expanded_transform.outputs.items()})
+
     return self._expanded_transform
 
 
