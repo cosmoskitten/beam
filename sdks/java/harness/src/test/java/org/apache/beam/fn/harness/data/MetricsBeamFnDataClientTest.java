@@ -214,7 +214,7 @@ public class MetricsBeamFnDataClientTest {
                 receiveAllValuesB.countDown();
               });
 
-      Future<?> drainElementsFuture =
+      Future<?> waitUntilDoneFuture =
           executor.submit(
               () -> {
                 try {
@@ -238,7 +238,7 @@ public class MetricsBeamFnDataClientTest {
 
       // Wait for these threads to terminate
       sendElementsFuture.get();
-      drainElementsFuture.get();
+      waitUntilDoneFuture.get();
     } finally {
       server.shutdownNow();
     }
@@ -313,7 +313,7 @@ public class MetricsBeamFnDataClientTest {
                 inboundValuesB.add(wv);
               });
 
-      Future<?> drainElementsFuture =
+      Future<?> waitUntilDoneFuture =
           executor.submit(
               () -> {
                 boolean failed = false;
@@ -352,7 +352,7 @@ public class MetricsBeamFnDataClientTest {
 
       // Wait for these threads to terminate
       sendElementsFuture.get();
-      drainElementsFuture.get();
+      waitUntilDoneFuture.get();
     } finally {
       server.shutdownNow();
     }
