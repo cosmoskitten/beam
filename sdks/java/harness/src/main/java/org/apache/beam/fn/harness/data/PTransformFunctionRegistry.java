@@ -17,24 +17,14 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.io.Closeable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.SimpleExecutionState;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.runners.core.metrics.SimpleStateRegistry;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 
 /**
- * A class to to register and retrieve functions for bundle processing (i.e. the start, or finish
- * function). The purpose of this class is to wrap these functions with instrumentation for metrics
- * and other telemetry collection.
+ * A class to to register and retrieve functions for runner classes (i.e. the start, or finish
+ * function). The purpose of this class is to wrap these functions with instrumentation i.e. for
+ * metrics and other telemetry collection.
  *
  * <p>Usage: // Instantiate and use the registry for each class of functions. i.e. start. finish.
  *
@@ -57,28 +47,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
  */
 public class PTransformFunctionRegistry {
 
-  private MetricsContainerStepMap metricsContainerRegistry;
-  private ExecutionStateTracker stateTracker;
-  private String executionTimeUrn;
   private List<ThrowingRunnable> runnables = new ArrayList<>();
-  private SimpleStateRegistry executionStates = new SimpleStateRegistry();
-
-  /**
-   * Construct the registry to run for either start or finish bundle functions.
-   *
-   * @param metricsContainerRegistry - Used to enable a metric container to properly account for the
-   *     pTransform in user metrics.
-   * @param stateTracker - The tracker to enter states in order to calculate execution time metrics.
-   * @param executionTimeUrn - The URN to use for the execution time metrics.
-   */
-  public PTransformFunctionRegistry(
-      MetricsContainerStepMap metricsContainerRegistry,
-      ExecutionStateTracker stateTracker,
-      String executionTimeUrn) {
-    this.metricsContainerRegistry = metricsContainerRegistry;
-    this.executionTimeUrn = executionTimeUrn;
-    this.stateTracker = stateTracker;
-  }
 
   /**
    * Register the runnable to process the specific pTransformId and track its execution time.
@@ -87,26 +56,7 @@ public class PTransformFunctionRegistry {
    * @param runnable
    */
   public void register(String pTransformId, ThrowingRunnable runnable) {
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, pTransformId);
-    SimpleExecutionState state = new SimpleExecutionState(this.executionTimeUrn, labelsMetadata);
-    executionStates.register(state);
-
-    ThrowingRunnable wrapped =
-        () -> {
-          MetricsContainerImpl container = metricsContainerRegistry.getContainer(pTransformId);
-          try (Closeable metricCloseable = MetricsEnvironment.scopedMetricsContainer(container)) {
-            try (Closeable trackerCloseable = this.stateTracker.enterState(state)) {
-              runnable.run();
-            }
-          }
-        };
-    runnables.add(wrapped);
-  }
-
-  /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
-  public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
-    return executionStates.getExecutionTimeMonitoringInfos();
+    runnables.add(runnable);
   }
 
   /**

@@ -33,6 +33,7 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MetricsBeamFnDataClient;
 import org.apache.beam.fn.harness.data.MetricsPCollectionConsumerRegistry;
+import org.apache.beam.fn.harness.data.MetricsPTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -54,9 +55,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
-import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMapEnvironment;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -227,23 +226,14 @@ public class ProcessBundleHandler {
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
-    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-    ExecutionStateTracker stateTracker =
-        new ExecutionStateTracker(ExecutionStateSampler.instance());
     MetricsPCollectionConsumerRegistry pCollectionConsumerRegistry =
         new MetricsPCollectionConsumerRegistry();
     HashSet<String> processedPTransformIds = new HashSet<>();
 
-    PTransformFunctionRegistry startFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            stateTracker,
-            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
-    PTransformFunctionRegistry finishFunctionRegistry =
-        new PTransformFunctionRegistry(
-            metricsContainerRegistry,
-            stateTracker,
-            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+    MetricsPTransformFunctionRegistry startFunctionRegistry =
+        new MetricsPTransformFunctionRegistry(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+    MetricsPTransformFunctionRegistry finishFunctionRegistry =
+        new MetricsPTransformFunctionRegistry(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -307,7 +297,7 @@ public class ProcessBundleHandler {
             splitListener);
       }
 
-      try (Closeable closeTracker = stateTracker.activate()) {
+      try (Closeable closeTracker = MetricsContainerStepMapEnvironment.setupMetricEnvironment()) {
         // Already in reverse topological order so we don't need to do anything.
         for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
           LOG.debug("Starting function {}", startFunction);
@@ -326,6 +316,13 @@ public class ProcessBundleHandler {
         if (!allResiduals.isEmpty()) {
           response.addAllResidualRoots(allResiduals.values());
         }
+
+        // Extract all other MonitoringInfos other than the execution time MonitoringInfos from
+        // start() and finish() calls.
+        for (MonitoringInfo mi :
+            MetricsContainerStepMapEnvironment.getCurrent().getMonitoringInfos()) {
+          response.addMonitoringInfos(mi);
+        }
       }
       // TODO(ajamato): Cleanup and package all of these into a single call, using an container with
       // references to all of these.
@@ -339,11 +336,6 @@ public class ProcessBundleHandler {
       }
       // Get finish bundle Execution Time Metrics.
       for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
-        response.addMonitoringInfos(mi);
-      }
-      // Extract all other MonitoringInfos other than the execution time MonitoringInfos from
-      // start() and finish() calls.
-      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
       // Extract all other MonitoringInfos other than the execution time MonitoringInfos from
