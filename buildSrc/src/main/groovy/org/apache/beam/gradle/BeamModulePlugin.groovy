@@ -348,10 +348,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_spanner_version = "1.6.0"
     def google_clients_version = "1.27.0"
     def google_auth_version = "0.12.0"
-    def grpc_version = "1.13.1"
+    def grpc_version = "1.16.1"
     def protobuf_version = "3.6.0"
     def guava_version = "20.0"
-    def netty_version = "4.1.25.Final"
+    def netty_version = "4.1.30.Final"
     def proto_google_common_protos_version = "1.12.0"
     def hamcrest_version = "1.3"
     def hadoop_version = "2.7.3"
@@ -462,7 +462,7 @@ class BeamModulePlugin implements Plugin<Project> {
         mockito_core                                : "org.mockito:mockito-core:1.10.19",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.8.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.17.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-mockito-release-full:1.6.4",
