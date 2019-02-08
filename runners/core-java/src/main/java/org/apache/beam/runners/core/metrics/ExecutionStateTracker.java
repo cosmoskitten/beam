@@ -49,7 +49,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   public static final String FINISH_STATE_NAME = "finish";
   public static final String ABORT_STATE_NAME = "abort";
 
-
   /** An {@link ExecutionState} represents the current state of an execution thread. */
   public abstract static class ExecutionState {
     private final String stateName;
