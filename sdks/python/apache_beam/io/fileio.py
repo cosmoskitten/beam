@@ -27,7 +27,7 @@ These transforms currently do not support splitting by themselves.
 
 from __future__ import absolute_import
 
-from builtins import unicode
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import filesystems
