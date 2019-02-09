@@ -24,7 +24,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 /**
  * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
  * more convenient way to collect the necessary fields to repackage the metric into a MonitoringInfo
- * proto later. Intended for internal use only (SDK and RunnerHarness developement).
+ * proto later. Intended for internal use only (SDK and RunnerHarness development).
  */
 public class LabeledMetrics {
   /**
