@@ -32,9 +32,9 @@ from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
-
 EXPANSION_SERVICE_PORT = '8097'
 EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
+
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
@@ -86,13 +86,15 @@ def run(pipeline_args, input_file, output_file):
   result = p.run()
   result.wait_until_finish()
 
+
 def wait_for_ready():
   with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
     grpc.channel_ready_future(channel).result()
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  """Main entry point; defines and runs the wordcount pipeline."""
+
   parser = argparse.ArgumentParser()
   parser.add_argument('--input',
                       dest='input',
@@ -110,7 +112,8 @@ if __name__ == '__main__':
   known_args, pipeline_args = parser.parse_known_args()
   try:
     server = subprocess.Popen([
-        'java', '-jar', known_args.expansion_service_jar, EXPANSION_SERVICE_PORT])
+        'java', '-jar', known_args.expansion_service_jar,
+        EXPANSION_SERVICE_PORT])
     wait_for_ready()
 
     run(pipeline_args, known_args.input, known_args.output)
