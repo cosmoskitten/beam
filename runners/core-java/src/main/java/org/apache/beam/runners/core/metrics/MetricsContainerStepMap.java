@@ -31,6 +31,8 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.labels.MetricLabels;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Metrics containers by step.
@@ -38,6 +40,8 @@ import org.apache.beam.sdk.metrics.labels.MetricLabels;
  * <p>This class is not thread-safe.
  */
 public class MetricsContainerStepMap implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMap.class);
+
   private Map<MetricLabels, MetricsContainerImpl> metricsContainers;
 
   public MetricsContainerStepMap() {
@@ -162,6 +166,7 @@ public class MetricsContainerStepMap implements Serializable {
 
   @Override
   public String toString() {
+    LOG.info("Converting MCSM to MRs");
     return asAttemptedOnlyMetricResults(this).toString();
   }
 
