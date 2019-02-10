@@ -94,7 +94,7 @@ public class FlinkMetricContainerTest {
     counter.inc();
 
     assertThat(flinkCounter.getCount(), is(0L));
-    container.updateMetrics("step");
+    container.updateMetrics();
     assertThat(flinkCounter.getCount(), is(2L));
   }
 
@@ -111,10 +111,10 @@ public class FlinkMetricContainerTest {
 
     assertThat(flinkGauge.getValue(), is(GaugeResult.empty()));
     // first set will install the mocked gauge
-    container.updateMetrics("step");
+    container.updateMetrics();
     gauge.set(1);
     gauge.set(42);
-    container.updateMetrics("step");
+    container.updateMetrics();
     assertThat(flinkGauge.getValue().getValue(), is(42L));
   }
 
@@ -132,6 +132,7 @@ public class FlinkMetricContainerTest {
     SimpleMonitoringInfoBuilder userCountBuilder = new SimpleMonitoringInfoBuilder();
     userCountBuilder.setUrnForUserMetric("ns1", "metric1");
     userCountBuilder.setInt64Value(111);
+    userCountBuilder.setPTransformLabel("step");
     MonitoringInfo userCountMonitoringInfo = userCountBuilder.build();
     assertNotNull(userCountMonitoringInfo);
 
@@ -145,8 +146,7 @@ public class FlinkMetricContainerTest {
 
     assertThat(userCounter.getCount(), is(0L));
     assertThat(elemCounter.getCount(), is(0L));
-    container.updateMetrics(
-        "step", ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
+    container.updateMetrics(ImmutableList.of(userCountMonitoringInfo, elemCountMonitoringInfo));
     assertThat(userCounter.getCount(), is(111L));
     assertThat(elemCounter.getCount(), is(222L));
   }
@@ -238,12 +238,12 @@ public class FlinkMetricContainerTest {
 
     assertThat(flinkGauge.getValue(), is(DistributionResult.IDENTITY_ELEMENT));
     // first set will install the mocked distribution
-    container.updateMetrics("step");
+    container.updateMetrics();
     distribution.update(42);
     distribution.update(-23);
     distribution.update(0);
     distribution.update(1);
-    container.updateMetrics("step");
+    container.updateMetrics();
     assertThat(flinkGauge.getValue().getMax(), is(42L));
     assertThat(flinkGauge.getValue().getMin(), is(-23L));
     assertThat(flinkGauge.getValue().getCount(), is(4L));
