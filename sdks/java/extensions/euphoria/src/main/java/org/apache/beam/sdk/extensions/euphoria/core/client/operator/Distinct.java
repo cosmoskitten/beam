@@ -272,7 +272,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
     PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
     return ReduceByKey.named(getName().orElse(null))
         .of(input)
-        .keyBy(getKeyExtractor())
+        .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(e -> e, getOutputType().orElse(null))
         .combineBy(
             e -> e.findAny().orElseThrow(() -> new IllegalStateException("Processing empty key?")),
