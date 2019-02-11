@@ -18,11 +18,19 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
 
-    static void loadTest(context, String title, Runner runner, Map<String, Object> options, String mainClass) {
+    static void loadTest(context, String title, Runner runner, Map<String, Object> options, String mainClass, TriggeringContext triggeringContext) {
         options.put('runner', runner.option)
+
+        String datasetKey = 'bigQueryDatasetName'
+        String datasetValue = options.get(datasetKey)
+
+        if (datasetValue) {
+            options.put(datasetKey , setContextualDatasetName(datasetValue, triggeringContext))
+        }
 
         context.steps {
             shell("echo *** ${title} ***")
@@ -39,5 +47,13 @@ class LoadTestsBuilder {
 
     private static String parseOptions(Map<String, Object> options) {
         options.collect { "--${it.key}=${it.value.toString()}".replace('\"', '\\"') }.join(' ')
+    }
+
+    private String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
+        if (triggeringContext == TriggeringContext.PR) {
+            return baseName + '_PRs'
+        } else {
+            return baseName
+        }
     }
 }

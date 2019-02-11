@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
@@ -45,16 +46,16 @@ def loadTestConfigurations = [
 ]
 
 for (testConfiguration in loadTestConfigurations) {
-    PhraseTriggeringPostCommitBuilder.postCommitJob(
-            testConfiguration.jobName,
-            testConfiguration.prTriggerPhrase,
-            testConfiguration.prCommitStatusName,
-            this
-    ) {
-        description(testConfiguration.jobDescription)
-        commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
-        loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
-    }
+  PhraseTriggeringPostCommitBuilder.postCommitJob(
+          testConfiguration.jobName,
+          testConfiguration.prTriggerPhrase,
+          testConfiguration.prCommitStatusName,
+          this
+  ) {
+    description(testConfiguration.jobDescription)
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+    loadTestsBuilder.loadTest(delegate, testConfiguration.jobDescription, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+  }
 }
 
 def smokeTestConfigurations = [
@@ -125,10 +126,10 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Java Load Tests Smoke',
         this
 ) {
-    description("Runs load tests in \"smoke\" mode to check if everything works well")
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  description("Runs load tests in \"smoke\" mode to check if everything works well")
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    for (testConfiguration in smokeTestConfigurations) {
-      loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
-    }
+  for (testConfiguration in smokeTestConfigurations) {
+    loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+  }
 }
