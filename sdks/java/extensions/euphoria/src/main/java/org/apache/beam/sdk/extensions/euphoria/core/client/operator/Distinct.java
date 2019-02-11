@@ -35,11 +35,9 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
@@ -68,8 +66,8 @@ import org.joda.time.Duration;
             + "(e.g. using bloom filters), which might reduce the space complexity",
     state = StateComplexity.CONSTANT,
     repartitions = 1)
-public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, OutputT>
-    implements CompositeOperator<InputT, OutputT> {
+public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT>
+    implements CompositeOperator<InputT, InputT> {
 
   /**
    * Starts building a nameless {@link Distinct} operator to process the given input dataset.
@@ -102,7 +100,7 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
   }
 
   /** Builder for the 'mapped' step. */
-  public interface MappedBuilder<InputT, OutputT> extends WindowByBuilder<OutputT> {
+  public interface MappedBuilder<InputT, KeyT> extends WindowByBuilder<InputT, KeyT> {
 
     /**
      * Optionally specifies a function to transform the input elements into another type among which
@@ -111,70 +109,70 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
      * <p>This is, while windowing will be applied on basis of original input elements, the distinct
      * operator will be carried out on the transformed elements.
      *
-     * @param <T> the type of the transformed elements
+     * @param <KeyT> the type of the transformed elements
      * @param mapper a transform function applied to input element
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
-    default <T> WindowByBuilder<T> mapped(UnaryFunction<InputT, T> mapper) {
+    default <KeyT> WindowByBuilder<InputT, KeyT> mapped(UnaryFunction<InputT, KeyT> mapper) {
       return mapped(mapper, null);
     }
 
-    <T> WindowByBuilder<T> mapped(
-        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType);
+    <KeyT> WindowByBuilder<InputT, KeyT> mapped(
+        UnaryFunction<InputT, KeyT> mapper, @Nullable TypeDescriptor<KeyT> mappedType);
   }
 
   /** Builder for the 'windowBy' step. */
-  public interface WindowByBuilder<OutputT>
-      extends Builders.WindowBy<TriggerByBuilder<OutputT>>,
-          OptionalMethodBuilder<WindowByBuilder<OutputT>, Builders.Output<OutputT>>,
-          Builders.Output<OutputT> {
+  public interface WindowByBuilder<InputT, KeyT>
+      extends Builders.WindowBy<TriggerByBuilder<InputT>>,
+          OptionalMethodBuilder<WindowByBuilder<InputT, KeyT>, Builders.Output<InputT>>,
+          Builders.Output<InputT> {
 
     @Override
-    <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(WindowFn<Object, T> windowing);
+    <W extends BoundedWindow> TriggerByBuilder<InputT> windowBy(WindowFn<Object, W> windowing);
 
     @Override
-    default Builders.Output<OutputT> applyIf(
-        boolean cond, UnaryFunction<WindowByBuilder<OutputT>, Builders.Output<OutputT>> fn) {
+    default Builders.Output<InputT> applyIf(
+        boolean cond, UnaryFunction<WindowByBuilder<InputT, KeyT>, Builders.Output<InputT>> fn) {
+
       return cond ? requireNonNull(fn).apply(this) : this;
     }
   }
 
   /** Builder for the 'triggeredBy' step. */
-  public interface TriggerByBuilder<OutputT>
-      extends Builders.TriggeredBy<AccumulationModeBuilder<OutputT>> {
+  public interface TriggerByBuilder<T> extends Builders.TriggeredBy<AccumulationModeBuilder<T>> {
 
     @Override
-    AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger);
+    AccumulationModeBuilder<T> triggeredBy(Trigger trigger);
   }
 
   /** Builder for the 'accumulationMode' step. */
-  public interface AccumulationModeBuilder<OutputT>
-      extends Builders.AccumulationMode<WindowedOutputBuilder<OutputT>> {
+  public interface AccumulationModeBuilder<T>
+      extends Builders.AccumulationMode<WindowedOutputBuilder<T>> {
 
     @Override
-    WindowedOutputBuilder<OutputT> accumulationMode(
-        WindowingStrategy.AccumulationMode accumulationMode);
+    WindowedOutputBuilder<T> accumulationMode(WindowingStrategy.AccumulationMode accumulationMode);
   }
 
   /** Builder for 'windowed output' step. */
-  public interface WindowedOutputBuilder<OutputT>
-      extends Builders.WindowedOutput<WindowedOutputBuilder<OutputT>>, Builders.Output<OutputT> {}
+  public interface WindowedOutputBuilder<T>
+      extends Builders.WindowedOutput<WindowedOutputBuilder<T>>, Builders.Output<T> {}
 
-  private static class Builder<InputT, OutputT>
+  private static class Builder<InputT, KeyT>
       implements OfBuilder,
-          MappedBuilder<InputT, OutputT>,
-          WindowByBuilder<OutputT>,
-          TriggerByBuilder<OutputT>,
-          AccumulationModeBuilder<OutputT>,
-          WindowedOutputBuilder<OutputT>,
-          Builders.Output<OutputT> {
+          MappedBuilder<InputT, KeyT>,
+          WindowByBuilder<InputT, KeyT>,
+          TriggerByBuilder<InputT>,
+          AccumulationModeBuilder<InputT>,
+          WindowedOutputBuilder<InputT>,
+          Builders.Output<InputT> {
 
     private final WindowBuilder<InputT> windowBuilder = new WindowBuilder<>();
 
     @Nullable private final String name;
     private PCollection<InputT> input;
-    @Nullable private UnaryFunction<InputT, OutputT> mapper;
-    @Nullable private TypeDescriptor<OutputT> outputType;
+    @Nullable private UnaryFunction<InputT, KeyT> mapper;
+    @Nullable private TypeDescriptor<KeyT> mappedType;
+    @Nullable private TypeDescriptor<InputT> outputType;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -189,106 +187,109 @@ public class Distinct<InputT, OutputT> extends ShuffleOperator<InputT, OutputT, 
     }
 
     @Override
-    public <T> WindowByBuilder<T> mapped(
-        UnaryFunction<InputT, T> mapper, @Nullable TypeDescriptor<T> outputType) {
+    public <K> WindowByBuilder<InputT, K> mapped(
+        UnaryFunction<InputT, K> mapper, @Nullable TypeDescriptor<K> mappedType) {
+
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T> casted = (Builder) this;
-      casted.mapper = requireNonNull(mapper);
-      casted.outputType = outputType;
-      return casted;
+      final Builder<InputT, K> cast = (Builder) this;
+      cast.mapper = requireNonNull(mapper);
+      cast.mappedType = mappedType;
+      return cast;
     }
 
     @Override
-    public <T extends BoundedWindow> TriggerByBuilder<OutputT> windowBy(
-        WindowFn<Object, T> windowFn) {
+    public <W extends BoundedWindow> TriggerByBuilder<InputT> windowBy(
+        WindowFn<Object, W> windowFn) {
+
       windowBuilder.windowBy(windowFn);
       return this;
     }
 
     @Override
-    public AccumulationModeBuilder<OutputT> triggeredBy(Trigger trigger) {
+    public AccumulationModeBuilder<InputT> triggeredBy(Trigger trigger) {
       windowBuilder.triggeredBy(trigger);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> accumulationMode(
+    public WindowedOutputBuilder<InputT> accumulationMode(
         WindowingStrategy.AccumulationMode accumulationMode) {
       windowBuilder.accumulationMode(accumulationMode);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withAllowedLateness(Duration allowedLateness) {
+    public WindowedOutputBuilder<InputT> withAllowedLateness(Duration allowedLateness) {
       windowBuilder.withAllowedLateness(allowedLateness);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withAllowedLateness(
+    public WindowedOutputBuilder<InputT> withAllowedLateness(
         Duration allowedLateness, Window.ClosingBehavior closingBehavior) {
       windowBuilder.withAllowedLateness(allowedLateness, closingBehavior);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withTimestampCombiner(
+    public WindowedOutputBuilder<InputT> withTimestampCombiner(
         TimestampCombiner timestampCombiner) {
       windowBuilder.withTimestampCombiner(timestampCombiner);
       return this;
     }
 
     @Override
-    public WindowedOutputBuilder<OutputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
+    public WindowedOutputBuilder<InputT> withOnTimeBehavior(Window.OnTimeBehavior behavior) {
       windowBuilder.withOnTimeBehavior(behavior);
       return this;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public PCollection<OutputT> output(OutputHint... outputHints) {
+    public PCollection<InputT> output(OutputHint... outputHints) {
       if (mapper == null) {
         this.mapper = (UnaryFunction) UnaryFunction.identity();
       }
-      final Distinct<InputT, OutputT> distinct =
-          new Distinct<>(name, mapper, outputType, windowBuilder.getWindow().orElse(null));
+      final Distinct<InputT, KeyT> distinct =
+          new Distinct<>(
+              name, mapper, outputType, mappedType, windowBuilder.getWindow().orElse(null));
       return OperatorTransform.apply(distinct, PCollectionList.of(input));
     }
   }
 
   private Distinct(
       @Nullable String name,
-      UnaryFunction<InputT, OutputT> mapper,
-      @Nullable TypeDescriptor<OutputT> outputType,
+      UnaryFunction<InputT, KeyT> mapper,
+      @Nullable TypeDescriptor<InputT> outputType,
+      @Nullable TypeDescriptor<KeyT> mappedType,
       @Nullable Window<InputT> window) {
-    super(name, outputType, mapper, outputType, window);
+
+    super(name, outputType, mapper, mappedType, window);
   }
 
   @Override
-  public PCollection<OutputT> expand(PCollectionList<InputT> inputs) {
-    final PCollection<KV<OutputT, Void>> distinct =
-        ReduceByKey.named(getName().orElse(null))
-            .of(PCollectionLists.getOnlyElement(inputs))
-            .keyBy(getKeyExtractor())
-            .valueBy(e -> null, TypeDescriptors.nulls())
-            .combineBy(e -> null)
-            .applyIf(
-                getWindow().isPresent(),
+  public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
+    PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
+    return ReduceByKey.named(getName().orElse(null))
+        .of(input)
+        .keyBy(getKeyExtractor())
+        .valueBy(e -> e, getOutputType().orElse(null))
+        .combineBy(
+            e -> e.findAny().orElseThrow(() -> new IllegalStateException("Processing empty key?")),
+            getOutputType().orElse(null))
+        .applyIf(
+            getWindow().isPresent(),
                 builder -> {
                   @SuppressWarnings("unchecked")
-                  final ReduceByKey.WindowByInternalBuilder<InputT, OutputT, Void> casted =
+                  final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, InputT> cast =
                       (ReduceByKey.WindowByInternalBuilder) builder;
-                  return casted.windowBy(
+                  return cast.windowBy(
                       getWindow()
                           .orElseThrow(
                               () ->
                                   new IllegalStateException(
                                       "Unable to resolve windowing for Distinct expansion.")));
                 })
-            .output();
-    return MapElements.named(getName().orElse("") + "::extract-keys")
-        .of(distinct)
-        .using(KV::getKey, getKeyType().orElse(null))
-        .output();
+        .outputValues();
   }
 }
