@@ -87,7 +87,12 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
+import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -95,6 +100,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceSerializationProxy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -295,13 +301,43 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
-    // maybe init by initializeState
-    if (nonKeyedStateInternals == null) {
-      if (keyCoder != null) {
-        nonKeyedStateInternals =
-            new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-      } else {
-        nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
+    if (keyCoder != null) {
+      nonKeyedStateInternals = new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
+    } else {
+      nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
+    }
+
+    if (getKeyedStateBackend() != null) {
+      int numberOfKeyGroups = getKeyedStateBackend().getNumberOfKeyGroups();
+      KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
+
+      for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
+        DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(streamProvider.getStream());
+
+        int keyGroupIdx = streamProvider.getKeyGroupId();
+        checkArgument(
+            localKeyGroupRange.contains(keyGroupIdx),
+            "Key Group " + keyGroupIdx + " does not belong to the local range.");
+
+        // TODO We read the timers here just to progress the stream in order to restore
+        // FlinkKeyGroupStateInternals below. The timer service is automatically initialized
+        // before calling the initializeState method.
+        InternalTimerServiceSerializationProxy serializationProxy =
+            new InternalTimerServiceSerializationProxy(
+                new HashMap(),
+                getUserCodeClassloader(),
+                numberOfKeyGroups,
+                localKeyGroupRange,
+                this,
+                getProcessingTimeService(),
+                keyGroupIdx);
+        serializationProxy.read(streamProvider.getStream());
+
+        // Read the buffered output state created during checkpointing
+        if (nonKeyedStateInternals instanceof FlinkKeyGroupStateInternals) {
+          ((FlinkKeyGroupStateInternals) nonKeyedStateInternals)
+              .restoreKeyGroupState(keyGroupIdx, div, getUserCodeClassloader());
+        }
       }
     }
 
@@ -693,7 +729,51 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     invokeFinishBundle();
     outputManager.closeBuffer();
 
-    super.snapshotState(context);
+    if (getKeyedStateBackend() != null) {
+      KeyedStateCheckpointOutputStream out;
+
+      try {
+        out = context.getRawKeyedOperatorStateOutput();
+      } catch (Exception exception) {
+        throw new Exception(
+            "Could not open raw keyed operator state stream for " + getOperatorName() + '.',
+            exception);
+      }
+
+      try {
+        KeyGroupsList allKeyGroups = out.getKeyGroupList();
+        for (int keyGroupIdx : allKeyGroups) {
+          out.startNewKeyGroup(keyGroupIdx);
+
+          DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
+
+          timeServiceManager.snapshotStateForKeyGroup(
+              new DataOutputViewStreamWrapper(out), keyGroupIdx);
+
+          if (nonKeyedStateInternals instanceof FlinkKeyGroupStateInternals) {
+            ((FlinkKeyGroupStateInternals) nonKeyedStateInternals)
+                .snapshotKeyGroupState(keyGroupIdx, dov);
+          }
+        }
+      } catch (Exception exception) {
+        throw new Exception(
+            "Could not write timer service of "
+                + getOperatorName()
+                + " to checkpoint state stream.",
+            exception);
+      } finally {
+        try {
+          out.close();
+        } catch (Exception closeException) {
+          LOG.warn(
+              "Could not close raw keyed operator state stream for {}. This "
+                  + "might have prevented deleting some state data.",
+              getOperatorName(),
+              closeException);
+        }
+      }
+    }
+    // Checkpointing is complete. Do not call super.
   }
 
   @Override
