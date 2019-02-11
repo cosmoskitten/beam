@@ -953,8 +953,8 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   private static class BoundedExecutorService implements ExecutorService {
-    private ExecutorService executor;
-    private Semaphore semaphore;
+    private final ExecutorService executor;
+    private final Semaphore semaphore;
 
     BoundedExecutorService(ExecutorService executor, int parallelism) {
       this.executor = executor;
@@ -1040,7 +1040,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     private class SemaphoreRunnable implements Runnable {
-      private Runnable runnable;
+      private final Runnable runnable;
 
       SemaphoreRunnable(Runnable runnable) {
         this.runnable = runnable;
@@ -1062,7 +1062,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     private class SemaphoreCallable<V> implements Callable<V> {
-      private Callable<V> callable;
+      private final Callable<V> callable;
 
       SemaphoreCallable(Callable<V> callable) {
         this.callable = callable;
