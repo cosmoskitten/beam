@@ -32,9 +32,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
@@ -53,6 +55,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,6 +65,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.ToStringHelper;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -466,7 +470,7 @@ public class BigtableIO {
   @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write
-      extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
+      extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<Void>> {
 
     static SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
         enableBulkApiConfigurator(
@@ -661,11 +665,10 @@ public class BigtableIO {
     }
 
     @Override
-    public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+    public PCollection<Void> expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       getBigtableConfig().validate();
 
-      input.apply(ParDo.of(new BigtableWriterFn(getBigtableConfig())));
-      return PDone.in(input.getPipeline());
+      return input.apply(ParDo.of(new BigtableWriterFn(getBigtableConfig())));
     }
 
     @Override
@@ -684,11 +687,40 @@ public class BigtableIO {
       return MoreObjects.toStringHelper(Write.class).add("config", getBigtableConfig()).toString();
     }
 
+    private static class SeenWindow {
+      private BoundedWindow window;
+      private Instant timestamp;
+
+      public SeenWindow(BoundedWindow window, Instant timestamp) {
+        this.window = window;
+        this.timestamp = timestamp;
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        return (o instanceof SeenWindow) && ((SeenWindow) o).window.equals(window);
+      }
+
+      @Override
+      public int hashCode() {
+        return window.hashCode();
+      }
+
+      public BoundedWindow getWindow() {
+        return window;
+      }
+
+      public Instant getTimestamp() {
+        return timestamp;
+      }
+    }
+
     private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
 
       public BigtableWriterFn(BigtableConfig bigtableConfig) {
         this.config = bigtableConfig;
         this.failures = new ConcurrentLinkedQueue<>();
+        this.seenWindows = new HashSet<>();
       }
 
       @StartBundle
@@ -700,10 +732,11 @@ public class BigtableIO {
                   .openForWriting(config.getTableId().get());
         }
         recordsWritten = 0;
+        this.seenWindows.clear();
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
         checkForFailures();
         bigtableWriter
             .writeRecord(c.element())
@@ -714,13 +747,18 @@ public class BigtableIO {
                   }
                 });
         ++recordsWritten;
+        seenWindows.add(new SeenWindow(window, c.timestamp()));
       }
 
       @FinishBundle
-      public void finishBundle() throws Exception {
+      public void finishBundle(FinishBundleContext c) throws Exception {
         bigtableWriter.flush();
         checkForFailures();
         LOG.debug("Wrote {} records", recordsWritten);
+
+        for (SeenWindow sw : seenWindows) {
+          c.output(null, sw.timestamp, sw.window);
+        }
       }
 
       @Teardown
@@ -741,6 +779,7 @@ public class BigtableIO {
       private BigtableService.Writer bigtableWriter;
       private long recordsWritten;
       private final ConcurrentLinkedQueue<BigtableWriteException> failures;
+      private final Set<SeenWindow> seenWindows;
 
       /** If any write has asynchronously failed, fail the bundle with a useful error. */
       private void checkForFailures() throws IOException {
