@@ -268,7 +268,7 @@ Distinct.named("unique-keys-only")
   .of(keyValueInput)
   .mapped(KV::getKey)
   .output();
-// Output will contain:  1, 3, 42
+// Output will contain kvs with keys:  1, 3, 42 with some arbitrary values associated with given keys
 ```
 
 ### `Join`
