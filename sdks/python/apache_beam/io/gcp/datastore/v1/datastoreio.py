@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import sys
 import time
 from builtins import object
 from builtins import round
@@ -44,7 +45,9 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from googledatastore import helper as datastore_helper
 except ImportError:
-  pass
+  if sys.version_info[0] == 3:
+    raise ImportError('Datastore IO is not supported in python 3, '
+                      'please use python 2')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
