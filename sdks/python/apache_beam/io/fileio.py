@@ -120,12 +120,11 @@ class ReadableFile(object):
   def __init__(self, metadata):
     self.metadata = metadata
 
-  def open(self):
+  def open(self, mime_type='application/text'):
     return filesystems.FileSystems.open(self.metadata.path)
 
   def read(self):
     return self.open().read()
-
 
 
 class ReadMatches(beam.PTransform):
