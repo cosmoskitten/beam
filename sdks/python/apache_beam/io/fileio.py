@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from past.builtins import unicode
 
 import apache_beam as beam
+from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
 
@@ -99,19 +100,32 @@ class _ReadMatchesFn(beam.DoFn):
     self._skip_directories = skip_directories
 
   def process(self, file_metadata):
-    path = (file_metadata
-            if isinstance(file_metadata, (str, unicode))
-            else file_metadata.path)
+    metadata = (filesystem.FileMetadata(file_metadata, 0)
+                if isinstance(file_metadata, (str, unicode))
+                else file_metadata)
 
-    if path.endswith('/') and self._skip_directories:
+    if metadata.path.endswith('/') and self._skip_directories:
       return
-    elif path.endswith('/'):
+    elif metadata.path.endswith('/'):
       raise BeamIOError(
           'Directories are not allowed in ReadMatches transform.'
-          'Found %s.' % path)
+          'Found %s.' % metadata.path)
 
     # TODO: Mime type? OTher stuff? Maybe arugments passed in to transform?
-    yield (path, filesystems.FileSystems.open(path))
+    yield ReadableFile(metadata)
+
+
+class ReadableFile(object):
+
+  def __init__(self, metadata):
+    self.metadata = metadata
+
+  def open(self):
+    return filesystems.FileSystems.open(self.metadata.path)
+
+  def read(self):
+    return self.open().read()
+
 
 
 class ReadMatches(beam.PTransform):

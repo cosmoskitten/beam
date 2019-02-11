@@ -119,7 +119,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.Map(lambda f: f[1].read()))
+                    | beam.Map(lambda f: f.read()))
 
       assert_that(content_pc, equal_to([content]))
 
@@ -135,7 +135,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.FlatMap(lambda f: csv.reader(f[1])))
+                    | beam.FlatMap(lambda f: csv.reader(f.open())))
 
       assert_that(content_pc, equal_to(rows))
 
@@ -152,7 +152,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
       contents_pc = (p
                      | beam.Create(files + [tempdir])
                      | fileio.ReadMatches()
-                     | beam.Map(lambda x: x[1].read()))
+                     | beam.Map(lambda x: x.read()))
 
       assert_that(contents_pc, equal_to([content]*2))
 
@@ -170,7 +170,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
         _ = (p
              | beam.Create(files + [tempdir])
              | fileio.ReadMatches(skip_directories=False)
-             | beam.Map(lambda x: x[1].read()))
+             | beam.Map(lambda x: x.read()))
 
 
 class MatchIntegrationTest(unittest.TestCase):
@@ -214,7 +214,6 @@ class MatchIntegrationTest(unittest.TestCase):
                      | 'SingleFile' >> beam.Create([self.INPUT_FILE])
                      | 'MatchOneAll' >> fileio.MatchAll()
                      | fileio.ReadMatches()
-                     | 'GetFileHandler' >> beam.Map(lambda x: x[1])
                      | 'ReadIn' >> beam.Map(lambda x: x.read().split('\n'))
                      | 'Checksums' >> beam.Map(compute_hash))
 
