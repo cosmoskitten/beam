@@ -48,6 +48,25 @@ python setup.py nosetests \
    " \
     --tests apache_beam.testing.load_tests.sideinput_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=apache-beam-io-testing
+    --metrics_dataset=load_test_SMOKE
+    --metrics_table=python_direct_side_input
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=DirectRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.sideinput_test \
+-Prunner=DirectRunner :beam-sdks-python-load-tests:run
+
 To run test on other runner (ex. Dataflow):
 
 python setup.py nosetests \
@@ -72,6 +91,25 @@ python setup.py nosetests \
         " \
     --tests apache_beam.testing.load_tests.sideinput_test
 
+or:
+
+./gradlew -PloadTest.args='
+    --publish_to_big_query=true
+    --project=apache-beam-io-testing
+    --metrics_dataset=load_test_SMOKE
+    --metrics_table=python_direct_sideinput
+    --temp_location=gs://apache-beam-io-testing/testing
+    --input_options=\'
+      {"num_records": 1,
+      "key_size": 1,
+      "value_size":1,
+      "bundle_size_distribution_type": "const",
+      "bundle_size_distribution_param": 1,
+      "force_initial_num_bundles": 1}\'
+    --runner=TestDataflowRunner' \
+-PloadTest.mainClass=
+apache_beam.testing.load_tests.sideinput_test:SideInputTest.test \
+-Prunner=TestDataflowRunner :beam-sdks-python-load-tests:run
 """
 
 from __future__ import absolute_import
