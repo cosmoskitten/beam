@@ -91,10 +91,16 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipeline.PipelineRunMissingException;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -104,6 +110,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1157,6 +1165,62 @@ public class BigtableIOTest {
     Map<ByteString, ByteString> rows = service.getTable(table);
     assertEquals(1, rows.size());
     assertEquals(ByteString.copyFromUtf8(value), rows.get(ByteString.copyFromUtf8(key)));
+  }
+
+  /** Tests that at least one result is emitted per element written in the global window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInGlobalWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
+            .apply("write", defaultWrite.withTableId(table));
+    PAssert.that(results)
+        .inWindow(GlobalWindow.INSTANCE)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+
+    p.run();
+  }
+
+  /** Tests that at least one result is emitted per element written in each window. */
+  @Test
+  public void testWritingEmitsResultsWhenDoneInFixedWindow() throws Exception {
+    final String table = "table";
+    final String key = "key";
+    final String value = "value";
+
+    service.createTable(table);
+
+    Instant elementTimestamp = Instant.parse("2019-06-10T00:00:00");
+    Duration windowDuration = Duration.standardMinutes(1);
+
+    TestStream<KV<ByteString, Iterable<Mutation>>> input =
+        TestStream.create(bigtableCoder)
+            .advanceWatermarkTo(elementTimestamp)
+            .addElements(makeWrite(key, value))
+            .advanceWatermarkTo(elementTimestamp.plus(windowDuration))
+            .addElements(makeWrite(key, value))
+            .advanceWatermarkToInfinity();
+
+    BoundedWindow expectedFirstWindow = new IntervalWindow(elementTimestamp, windowDuration);
+    BoundedWindow expectedSecondWindow = new IntervalWindow(elementTimestamp, windowDuration);
+
+    PCollection<BigtableWriteResult> results =
+        p.apply("rows", input)
+            .apply("window", Window.into(FixedWindows.of(windowDuration)))
+            .apply("write", defaultWrite.withTableId(table));
+    PAssert.that(results)
+        .inWindow(expectedFirstWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+    PAssert.that(results)
+        .inWindow(expectedSecondWindow)
+        .containsInAnyOrder(BigtableWriteResult.create(1));
+
+    p.run();
   }
 
   /** Tests that when writing to a non-existent table, the write fails. */
