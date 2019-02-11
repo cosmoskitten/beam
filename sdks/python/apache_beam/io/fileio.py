@@ -120,12 +120,14 @@ class ReadableFile(object):
   def __init__(self, metadata):
     self.metadata = metadata
 
-  def open(self):
+  def open(self, mime_type='text/plain'):
     return filesystems.FileSystems.open(self.metadata.path)
 
   def read(self):
     return self.open().read()
 
+  def read_utf8(self):
+    return self.open().read().decode('utf-8')
 
 
 class ReadMatches(beam.PTransform):

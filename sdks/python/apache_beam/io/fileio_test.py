@@ -20,8 +20,10 @@
 from __future__ import absolute_import
 
 import csv
+import io
 import logging
 import unittest
+import sys
 
 from nose.plugins.attrib import attr
 
@@ -119,7 +121,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.Map(lambda f: f.read()))
+                    | beam.Map(lambda f: f.read().decode('utf-8')))
 
       assert_that(content_pc, equal_to([content]))
 
@@ -130,12 +132,18 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     dir = '%s/' % self._new_tempdir()
     self._create_temp_file(dir=dir, content=content)
 
+    def get_csv_reader(readable_file):
+      if sys.version_info >= (3, 0):
+        return csv.reader(io.TextIOWrapper(readable_file.open()))
+      else:
+        return csv.reader(readable_file.open())
+
     with TestPipeline() as p:
       content_pc = (p
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.FlatMap(lambda f: csv.reader(f.open())))
+                    | beam.FlatMap(get_csv_reader))
 
       assert_that(content_pc, equal_to(rows))
 
@@ -152,7 +160,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
       contents_pc = (p
                      | beam.Create(files + [tempdir])
                      | fileio.ReadMatches()
-                     | beam.Map(lambda x: x.read()))
+                     | beam.Map(lambda x: x.read().decode('utf-8')))
 
       assert_that(contents_pc, equal_to([content]*2))
 
@@ -170,7 +178,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
         _ = (p
              | beam.Create(files + [tempdir])
              | fileio.ReadMatches(skip_directories=False)
-             | beam.Map(lambda x: x.read()))
+             | beam.Map(lambda x: x.read_utf8()))
 
 
 class MatchIntegrationTest(unittest.TestCase):
@@ -178,7 +186,7 @@ class MatchIntegrationTest(unittest.TestCase):
   INPUT_FILE = 'gs://dataflow-samples/shakespeare/kinglear.txt'
   KINGLEAR_CHECKSUM = 'f418b25f1507f5a901257026b035ac2857a7ab87'
   INPUT_FILE_LARGE = (
-    'gs://dataflow-samples/wikipedia_edits/wiki_data-00000000000*.json')
+      'gs://dataflow-samples/wikipedia_edits/wiki_data-00000000000*.json')
 
   WIKI_FILES = [
       'gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json',
@@ -214,7 +222,7 @@ class MatchIntegrationTest(unittest.TestCase):
                      | 'SingleFile' >> beam.Create([self.INPUT_FILE])
                      | 'MatchOneAll' >> fileio.MatchAll()
                      | fileio.ReadMatches()
-                     | 'ReadIn' >> beam.Map(lambda x: x.read().split('\n'))
+                     | 'ReadIn' >> beam.Map(lambda x: x.read_utf8().split('\n'))
                      | 'Checksums' >> beam.Map(compute_hash))
 
       assert_that(checksum_pc,
