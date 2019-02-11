@@ -20,9 +20,12 @@ package org.apache.beam.sdk.io.text;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.publishToBigQuery;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
@@ -37,7 +40,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
+import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
@@ -123,7 +126,8 @@ public class TextIOIT {
     PCollection<String> consolidatedHashcode =
         testFilenames
             .apply("Read all files", TextIO.readAll().withCompression(AUTO))
-            .apply("Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
+            .apply(
+                "Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
@@ -136,37 +140,48 @@ public class TextIOIT {
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    FileBasedIOITHelper.publishTestMetrics(
-        result,
-        bigQueryTable,
-        bigQueryDataset,
-        FILEIOIT_NAMESPACE,
-        "startTime",
-        "middleTime",
-        "middleTime",
-        "endTime");
-    publishGcsResults(result);
+    gatherAndPublishMetrics(result);
   }
 
-  private void publishGcsResults(PipelineResult result) {
+  private void gatherAndPublishMetrics(PipelineResult result) {
+    String uuid = UUID.randomUUID().toString();
+    Timestamp timestamp = Timestamp.now();
+    List<NamedTestResult> namedTestResults = readMetrics(result, uuid, timestamp);
+    publishToBigQuery(namedTestResults, bigQueryDataset, bigQueryTable);
+    ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp.toString());
+  }
+
+  private List<NamedTestResult> readMetrics(
+      PipelineResult result, String uuid, Timestamp timestamp) {
+    List<NamedTestResult> results = new ArrayList<>();
+
+    MetricsReader reader = new MetricsReader(result, FILEIOIT_NAMESPACE);
+    long writeStartTime = reader.getStartTimeMetric("startTime");
+    long writeEndTime = reader.getEndTimeMetric("middleTime");
+    long readStartTime = reader.getStartTimeMetric("middleTime");
+    long readEndTime = reader.getEndTimeMetric("endTime");
+    double writeTime = (writeEndTime - writeStartTime) / 1000.0;
+    double readTime = (readEndTime - readStartTime) / 1000.0;
+    double copiesPerSec = calculateGcsMetric(result);
+
+    if (copiesPerSec > 0) {
+      results.add(NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec));
+    }
+
+    results.add(NamedTestResult.create(uuid, timestamp.toString(), "read_time", readTime));
+    results.add(NamedTestResult.create(uuid, timestamp.toString(), "write_time", writeTime));
+
+    return results;
+  }
+
+  private double calculateGcsMetric(PipelineResult result) {
     MetricsReader metricsReader =
         new MetricsReader(result, "org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
     long numCopies = metricsReader.getCounterMetric("num_copies");
     long copyTimeMsec = metricsReader.getCounterMetric("copy_time_msec");
     if (numCopies < 0 || copyTimeMsec < 0) {
-      return;
+      return -1;
     }
-    double copiesPerSec = numCopies / (copyTimeMsec / 1e3);
-    LOG.info("GCS copies / sec: {}", copiesPerSec);
-
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      Timestamp timestamp = Timestamp.now();
-      String uuid = UUID.randomUUID().toString();
-      BigQueryResultsPublisher publisher =
-          BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
-      publisher.publish(
-          NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec),
-          bigQueryTable);
-    }
+    return numCopies / (copyTimeMsec / 1e3);
   }
 }
