@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -99,6 +100,13 @@ public class FileBasedIOITHelper {
           NamedTestResult.create(uuid, timestamp.toString(), "write_time", writeTime),
           bigQueryTable);
     }
+  }
+
+  public static void publishToBigQuery(
+      Collection<NamedTestResult> results, String bigQueryDataset, String bigQueryTable) {
+    BigQueryResultsPublisher publisher =
+        BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
+    results.forEach(result -> publisher.publish(result, bigQueryTable));
   }
 
   /** Deletes matching files using the FileSystems API. */
