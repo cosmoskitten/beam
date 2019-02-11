@@ -35,9 +35,11 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
@@ -170,9 +172,13 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
     @Nullable private final String name;
     private PCollection<InputT> input;
-    @Nullable private UnaryFunction<InputT, KeyT> mapper;
+
+    @SuppressWarnings("unchecked")
+    private UnaryFunction<InputT, KeyT> mapper = (UnaryFunction) e -> e;
+
     @Nullable private TypeDescriptor<KeyT> mappedType;
     @Nullable private TypeDescriptor<InputT> outputType;
+    private boolean mapped = false;
 
     Builder(@Nullable String name) {
       this.name = name;
@@ -194,6 +200,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
       final Builder<InputT, K> cast = (Builder) this;
       cast.mapper = requireNonNull(mapper);
       cast.mappedType = mappedType;
+      cast.mapped = true;
       return cast;
     }
 
@@ -252,24 +259,54 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
       }
       final Distinct<InputT, KeyT> distinct =
           new Distinct<>(
-              name, mapper, outputType, mappedType, windowBuilder.getWindow().orElse(null));
+              name, mapper, outputType, mappedType, windowBuilder.getWindow().orElse(null), mapped);
       return OperatorTransform.apply(distinct, PCollectionList.of(input));
     }
   }
+
+  private final boolean mapped;
 
   private Distinct(
       @Nullable String name,
       UnaryFunction<InputT, KeyT> mapper,
       @Nullable TypeDescriptor<InputT> outputType,
       @Nullable TypeDescriptor<KeyT> mappedType,
-      @Nullable Window<InputT> window) {
+      @Nullable Window<InputT> window,
+      boolean mapped) {
 
     super(name, outputType, mapper, mappedType, window);
+    this.mapped = mapped;
   }
 
   @Override
   public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
     PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
+    if (!mapped) {
+      PCollection<KV<InputT, Void>> distinct =
+          ReduceByKey.named(getName().orElse(null))
+              .of(input)
+              .keyBy(e -> e, input.getTypeDescriptor())
+              .valueBy(e -> (Void) null, TypeDescriptors.nulls())
+              .combineBy(e -> (Void) null, TypeDescriptors.nulls())
+              .applyIf(
+                  getWindow().isPresent(),
+                  builder -> {
+                    @SuppressWarnings("unchecked")
+                    final ReduceByKey.WindowByInternalBuilder<InputT, InputT, Void> cast =
+                        (ReduceByKey.WindowByInternalBuilder) builder;
+                    return cast.windowBy(
+                        getWindow()
+                            .orElseThrow(
+                                () ->
+                                    new IllegalStateException(
+                                        "Unable to resolve windowing for Distinct expansion.")));
+                  })
+              .output();
+      return MapElements.named(getName().orElse("") + "::extract-keys")
+          .of(distinct)
+          .using(KV::getKey, input.getTypeDescriptor())
+          .output();
+    }
     return ReduceByKey.named(getName().orElse(null))
         .of(input)
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
@@ -279,17 +316,17 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
             getOutputType().orElse(null))
         .applyIf(
             getWindow().isPresent(),
-                builder -> {
-                  @SuppressWarnings("unchecked")
-                  final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, InputT> cast =
-                      (ReduceByKey.WindowByInternalBuilder) builder;
-                  return cast.windowBy(
-                      getWindow()
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Unable to resolve windowing for Distinct expansion.")));
-                })
+            builder -> {
+              @SuppressWarnings("unchecked")
+              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, InputT> cast =
+                  (ReduceByKey.WindowByInternalBuilder) builder;
+              return cast.windowBy(
+                  getWindow()
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Unable to resolve windowing for Distinct expansion.")));
+            })
         .outputValues();
   }
 }
