@@ -89,7 +89,7 @@ def run(pipeline_args, input_file, output_file):
 
 def wait_for_ready():
   with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
-    grpc.channel_ready_future(channel).result()
+    grpc.channel_ready_future(channel).result(10)
 
 
 if __name__ == '__main__':
