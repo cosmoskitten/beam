@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Distinct;
+import org.apache.beam.sdk.extensions.euphoria.core.client.operator.MapElements;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.values.KV;
@@ -75,12 +76,14 @@ public class DistinctTest extends AbstractOperatorTest {
           @Override
           protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
-            return Distinct.of(input)
-                .mapped(KV::getKey)
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
-                .triggeredBy(DefaultTrigger.of())
-                .discardingFiredPanes()
-                .output();
+            PCollection<KV<Integer, Long>> distinct =
+                Distinct.of(input)
+                    .mapped(KV::getKey)
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
           }
 
           @Override
@@ -114,12 +117,14 @@ public class DistinctTest extends AbstractOperatorTest {
           @Override
           protected PCollection<Integer> getOutput(PCollection<KV<Integer, Long>> input) {
             input = AssignEventTime.of(input).using(KV::getValue).output();
-            return Distinct.of(input)
-                .mapped(KV::getKey)
-                .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
-                .triggeredBy(DefaultTrigger.of())
-                .discardingFiredPanes()
-                .output();
+            PCollection<KV<Integer, Long>> distinct =
+                Distinct.of(input)
+                    .mapped(KV::getKey)
+                    .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
+                    .triggeredBy(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .output();
+            return MapElements.of(distinct).using(KV::getKey).output();
           }
 
           @Override
