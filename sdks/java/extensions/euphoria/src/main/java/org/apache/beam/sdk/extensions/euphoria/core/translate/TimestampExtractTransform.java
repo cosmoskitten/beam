@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * A transform for extracting stamp and applying a user-defined transform on the extracted
@@ -103,6 +104,11 @@ public class TimestampExtractTransform<InputT, OutputT>
   public PCollection<OutputT> expand(PCollection<InputT> input) {
     PCollection<KV<Long, InputT>> in;
     in = input.apply(getName("wrap"), ParDo.of(new Wrap<>()));
+    if (input.getTypeDescriptor() != null) {
+      in =
+          in.setTypeDescriptor(
+              TypeDescriptors.kvs(TypeDescriptors.longs(), input.getTypeDescriptor()));
+    }
     return timestampedTransform.apply(in);
   }
 
