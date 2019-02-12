@@ -282,7 +282,7 @@ public class DocumentationExamplesTest {
 
     // suppose input: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]
     PCollection<KV<Integer, Long>> distinct =
-        Distinct.named("unique-keys-only").of(keyValueInput).mapped(KV::getKey).output();
+        Distinct.named("unique-keys-only").of(keyValueInput).projected(KV::getKey).output();
 
     // Output will contain:  1, 3, 42
     PCollection<Integer> uniqueKeys = MapElements.of(distinct).using(KV::getKey).output();
