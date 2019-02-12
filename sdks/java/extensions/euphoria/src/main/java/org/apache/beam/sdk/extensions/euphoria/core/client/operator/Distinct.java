@@ -138,13 +138,19 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
     default <KeyT> WindowByBuilder<InputT, KeyT> projected(UnaryFunction<InputT, KeyT> transform) {
-      return projected(transform, null);
+      return projected(transform, SelectionPolicy.ANY, null);
     }
 
     default <KeyT> WindowByBuilder<InputT, KeyT> projected(
-        UnaryFunction<InputT, KeyT> transform, @Nullable TypeDescriptor<KeyT> projectedType) {
+        UnaryFunction<InputT, KeyT> transform, TypeDescriptor<KeyT> projectedType) {
 
-      return projected(transform, SelectionPolicy.ANY, projectedType);
+      return projected(transform, SelectionPolicy.ANY, requireNonNull(projectedType));
+    }
+
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform, SelectionPolicy policy) {
+
+      return projected(transform, policy, null);
     }
 
     <KeyT> WindowByBuilder<InputT, KeyT> projected(
@@ -375,9 +381,12 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
         ReduceByKey.named(getName().orElse(null))
             .of(input)
             .keyBy(e -> getKeyExtractor().apply(e.getValue()), getKeyType().orElse(null))
-            .valueBy(e -> e, input.getTypeDescriptor())
+            .valueBy(e -> e, requireNonNull(input.getTypeDescriptor()))
             .combineBy(
-                select, TypeDescriptors.kvs(TypeDescriptors.longs(), getOutputType().orElse(null)))
+                select,
+                getOutputType()
+                    .map(o -> TypeDescriptors.kvs(TypeDescriptors.longs(), o))
+                    .orElse(null))
             .outputValues();
     return MapElements.named(getName().map(n -> n + "::unwrap").orElse(null))
         .of(outputValues)
