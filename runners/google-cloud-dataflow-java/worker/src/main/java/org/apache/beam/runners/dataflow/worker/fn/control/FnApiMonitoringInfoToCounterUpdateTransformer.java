@@ -21,8 +21,8 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.sdk.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 
 /**

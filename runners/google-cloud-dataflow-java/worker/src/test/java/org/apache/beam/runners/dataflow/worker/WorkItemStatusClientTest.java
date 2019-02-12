@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -63,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.D
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.metrics.CounterCell;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

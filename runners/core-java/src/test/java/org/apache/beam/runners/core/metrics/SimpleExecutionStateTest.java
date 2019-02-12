@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;

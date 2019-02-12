@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.runners.core.metrics.CounterCell;
-import org.apache.beam.runners.core.metrics.DirtyState;
-import org.apache.beam.runners.core.metrics.MetricCell;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.CounterCell;
+import org.apache.beam.sdk.metrics.DirtyState;
+import org.apache.beam.sdk.metrics.MetricCell;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /**

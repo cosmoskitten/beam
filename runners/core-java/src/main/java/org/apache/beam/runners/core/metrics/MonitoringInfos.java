@@ -17,14 +17,17 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
 
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.DistributionProtos;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeProtos;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.sdk.metrics.MonitoringInfoMetricName;
 
 /**
  * Helpers for working with {@link Metric}s and converting {@linke MonitoringInfo}s to {@link

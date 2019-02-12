@@ -28,6 +28,13 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @AutoValue
 public abstract class MetricKey implements Serializable {
 
+  //  public abstract String urn();
+  //  public abstract Map<String, String> labels();
+  //
+  //  public boolean isUserMetric() {
+  //    return parseUrn(urn()) != null;
+  //  }
+
   /** The step name that is associated with this metric or Null if none is associated. */
   @Nullable
   public abstract String stepName();

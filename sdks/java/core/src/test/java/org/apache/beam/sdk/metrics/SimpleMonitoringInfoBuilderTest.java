@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -26,7 +26,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link SimpleMonitoringInfoBuilder}. */
+/** Tests for {@link org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder}. */
 @RunWith(JUnit4.class)
 public class SimpleMonitoringInfoBuilderTest {
 

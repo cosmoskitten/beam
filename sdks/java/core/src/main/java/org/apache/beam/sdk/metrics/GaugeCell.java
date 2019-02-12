@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.metrics.Gauge;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
@@ -55,7 +52,7 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
     update(GaugeData.create(value));
   }
 
-  void update(GaugeData data) {
+  public void update(GaugeData data) {
     GaugeData original;
     do {
       original = gaugeValue.get();

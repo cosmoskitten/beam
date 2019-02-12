@@ -15,30 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
- * Tracks the current value (and delta) for a Distribution metric.
+ * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
  *
  * <p>This class generally shouldn't be used directly. The only exception is within a runner where a
- * distribution is being reported for a specific step (rather than the distribution in the current
- * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
- * of indirection.
+ * counter is being reported for a specific step (rather than the counter in the current context).
+ * In that case retrieving the underlying cell and reporting directly to it avoids a step of
+ * indirection.
  */
 @Experimental(Kind.METRICS)
-public class DistributionCell implements Distribution, MetricCell<DistributionData> {
+public class CounterCell implements Counter, MetricCell<Long> {
 
   private final DirtyState dirty = new DirtyState();
-  private final AtomicReference<DistributionData> value =
-      new AtomicReference<>(DistributionData.EMPTY);
+  private final AtomicLong value = new AtomicLong();
   private final MetricName name;
 
   /**
@@ -47,27 +43,34 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
    * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
   @Internal
-  public DistributionCell(MetricName name) {
+  public CounterCell(MetricName name) {
     this.name = name;
   }
 
-  /** Increment the distribution by the given amount. */
+  /**
+   * Increment the counter by the given amount.
+   *
+   * @param n value to increment by. Can be negative to decrement.
+   */
   @Override
-  public void update(long n) {
-    update(DistributionData.singleton(n));
-  }
-
-  @Override
-  public void update(long sum, long count, long min, long max) {
-    update(DistributionData.create(sum, count, min, max));
-  }
-
-  void update(DistributionData data) {
-    DistributionData original;
-    do {
-      original = value.get();
-    } while (!value.compareAndSet(original, original.combine(data)));
+  public void inc(long n) {
+    value.addAndGet(n);
     dirty.afterModification();
+  }
+
+  @Override
+  public void inc() {
+    inc(1);
+  }
+
+  @Override
+  public void dec() {
+    inc(-1);
+  }
+
+  @Override
+  public void dec(long n) {
+    inc(-1 * n);
   }
 
   @Override
@@ -76,7 +79,7 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   }
 
   @Override
-  public DistributionData getCumulative() {
+  public Long getCumulative() {
     return value.get();
   }
 

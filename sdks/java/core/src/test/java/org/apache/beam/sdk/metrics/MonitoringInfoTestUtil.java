@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
 import java.util.HashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
