@@ -334,8 +334,16 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
   @Override
   public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
-    PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
-    input = getWindow().map(input::apply).orElse(input);
+    PCollection<InputT> tmp = PCollectionLists.getOnlyElement(inputs);
+    PCollection<InputT> input =
+        getWindow()
+            .map(
+                w -> {
+                  PCollection<InputT> ret = tmp.apply(w);
+                  ret.setTypeDescriptor(tmp.getTypeDescriptor());
+                  return ret;
+                })
+            .orElse(tmp);
     if (!projected) {
       PCollection<KV<InputT, Void>> distinct =
           ReduceByKey.named(getName().orElse(null))
@@ -382,11 +390,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
             .of(input)
             .keyBy(e -> getKeyExtractor().apply(e.getValue()), getKeyType().orElse(null))
             .valueBy(e -> e, requireNonNull(input.getTypeDescriptor()))
-            .combineBy(
-                select,
-                getOutputType()
-                    .map(o -> TypeDescriptors.kvs(TypeDescriptors.longs(), o))
-                    .orElse(null))
+            .combineBy(select, requireNonNull(input.getTypeDescriptor()))
             .outputValues();
     return MapElements.named(getName().map(n -> n + "::unwrap").orElse(null))
         .of(outputValues)
