@@ -15,22 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction.metrics;
+package org.apache.beam.sdk.metrics;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricFiltering;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.Iterables;
 
 /**
- * Default implementation of {@link MetricResults}, which takes static {@link Iterable}s of
- * counters, distributions, and gauges, and serves queries by applying {@link MetricsFilter}s
- * linearly to them.
+ * Default implementation of {@link org.apache.beam.sdk.metrics.MetricResults}, which takes static
+ * {@link Iterable}s of counters, distributions, and gauges, and serves queries by applying {@link
+ * org.apache.beam.sdk.metrics.MetricsFilter}s linearly to them.
  */
 public class DefaultMetricResults extends MetricResults {
 
