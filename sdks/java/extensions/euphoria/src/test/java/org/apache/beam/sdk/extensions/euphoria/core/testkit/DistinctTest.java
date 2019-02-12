@@ -186,7 +186,7 @@ public class DistinctTest extends AbstractOperatorTest {
 
           @Override
           public List<String> getUnorderedOutput() {
-            return Arrays.asList("2", "1", "3");
+            return Arrays.asList("2.", "1.", "3.");
           }
 
           @Override
