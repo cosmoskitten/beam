@@ -126,6 +126,9 @@ class ReadableFile(object):
   def read(self):
     return self.open().read()
 
+  def read_utf8(self):
+    return self.open().read().decode('utf-8')
+
 
 class ReadMatches(beam.PTransform):
 
