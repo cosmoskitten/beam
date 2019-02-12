@@ -15,41 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link DirtyStateTest}. */
+/** Tests for {@link org.apache.beam.sdk.metrics.CounterCell}. */
 @RunWith(JUnit4.class)
-public class DirtyStateTest {
+public class CounterCellTest {
 
-  private final DirtyState dirty = new DirtyState();
-
-  @Test
-  public void basicPath() {
-    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
-    dirty.afterCommit();
-    assertThat("Should be clean after commit", dirty.beforeCommit(), is(false));
-
-    dirty.afterModification();
-    assertThat("Should be dirty after change", dirty.beforeCommit(), is(true));
-    dirty.afterCommit();
-    assertThat("Should be clean after commit", dirty.beforeCommit(), is(false));
-  }
+  private CounterCell cell = new CounterCell(MetricName.named("hello", "world"));
 
   @Test
-  public void changeAfterBeforeCommit() {
-    assertThat("Should start dirty", dirty.beforeCommit(), is(true));
-    dirty.afterModification();
-    dirty.afterCommit();
-    assertThat(
-        "Changes after beforeCommit should be dirty after afterCommit",
-        dirty.beforeCommit(),
-        is(true));
+  public void testDeltaAndCumulative() {
+    cell.inc(5);
+    cell.inc(7);
+    assertThat(cell.getCumulative(), equalTo(12L));
+    assertThat("getCumulative is idempotent", cell.getCumulative(), equalTo(12L));
+
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
+    assertThat(cell.getCumulative(), equalTo(12L));
+
+    cell.inc(30);
+    assertThat(cell.getCumulative(), equalTo(42L));
+
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
   }
 }

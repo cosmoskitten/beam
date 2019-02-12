@@ -26,6 +26,8 @@ import java.util.HashMap;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

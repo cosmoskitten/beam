@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.DelegatingCounter;
-import org.apache.beam.sdk.metrics.MonitoringInfoMetricName;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntGaugeData;
+import org.joda.time.Instant;
 
-/**
- * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
- * more convenient way to collect the necessary fields to repackage the metric into a MonitoringInfo
- * proto later. Intended for internal use only (SDK and RunnerHarness development).
- */
-public class LabeledMetrics {
-  /**
-   * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
-   */
-  public static Counter counter(MonitoringInfoMetricName metricName) {
-    return new DelegatingCounter(metricName);
+/** Convert gauges between protobuf and SDK representations. */
+public class GaugeProtos {
+  public static GaugeResult fromProto(IntGaugeData gaugeData) {
+    return GaugeResult.create(gaugeData.getValue(), new Instant(gaugeData.getTimestampMs()));
+  }
+
+  public static IntGaugeData toProto(GaugeResult gauge) {
+    return IntGaugeData.newBuilder()
+        .setValue(gauge.getValue())
+        .setTimestampMs(gauge.getTimestamp().getMillis())
+        .build();
   }
 }

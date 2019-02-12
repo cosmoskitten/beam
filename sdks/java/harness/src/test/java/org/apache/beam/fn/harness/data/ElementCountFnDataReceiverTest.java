@@ -26,9 +26,9 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -24,6 +24,8 @@ import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.DistributionData;
+import org.apache.beam.sdk.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
@@ -36,6 +38,7 @@ public abstract class MetricsTranslation {
 
   private MetricsTranslation() {}
 
+  /** Convert some proto user-metric updates to {@link MetricUpdates}. */
   public static MetricUpdates metricUpdatesFromProto(
       String ptransformName, Collection<BeamFnApi.Metrics.User> userMetricUpdates) {
     List<MetricUpdates.MetricUpdate<Long>> counterUpdates = new ArrayList<>();
@@ -73,6 +76,7 @@ public abstract class MetricsTranslation {
     return MetricUpdates.create(counterUpdates, distributionUpdates, gaugeUpdates);
   }
 
+  /** Convert a {@link MetricUpdates} to user-metric update protos. */
   public static Map<String, Collection<BeamFnApi.Metrics.User>> metricUpdatesToProto(
       MetricUpdates metricUpdates) {
     LoadingCache<String, Collection<BeamFnApi.Metrics.User>> fnMetrics =

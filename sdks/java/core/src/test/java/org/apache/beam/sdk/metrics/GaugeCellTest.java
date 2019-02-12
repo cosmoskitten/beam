@@ -15,39 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-/** Tests for {@link CounterCell}. */
-@RunWith(JUnit4.class)
-public class CounterCellTest {
-
-  private CounterCell cell = new CounterCell(MetricName.named("hello", "world"));
+/** Tests for {@link org.apache.beam.sdk.metrics.GaugeCell}. */
+public class GaugeCellTest {
+  private GaugeCell cell = new GaugeCell(MetricName.named("hello", "world"));
 
   @Test
   public void testDeltaAndCumulative() {
-    cell.inc(5);
-    cell.inc(7);
-    assertThat(cell.getCumulative(), equalTo(12L));
-    assertThat("getCumulative is idempotent", cell.getCumulative(), equalTo(12L));
+    cell.set(5);
+    cell.set(7);
+    assertThat(cell.getCumulative().value(), equalTo(GaugeData.create(7).value()));
+    assertThat("getCumulative is idempotent", cell.getCumulative().value(), equalTo(7L));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();
     assertThat(cell.getDirty().beforeCommit(), equalTo(false));
-    assertThat(cell.getCumulative(), equalTo(12L));
 
-    cell.inc(30);
-    assertThat(cell.getCumulative(), equalTo(42L));
+    cell.set(30);
+    assertThat(cell.getCumulative().value(), equalTo(30L));
 
-    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
-    cell.getDirty().afterCommit();
-    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
+    assertThat(
+        "Adding a new value made the cell dirty", cell.getDirty().beforeCommit(), equalTo(true));
   }
 }

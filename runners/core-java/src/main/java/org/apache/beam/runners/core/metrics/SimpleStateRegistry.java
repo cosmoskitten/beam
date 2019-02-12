@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.

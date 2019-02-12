@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.metrics.MetricName;
 
-/** Utility for parsing a URN to a {@link MetricName}. */
+/** Utility for parsing a URN to a {@link org.apache.beam.sdk.metrics.MetricName}. */
 public class MetricUrns {
   /**
-   * Parse a {@link MetricName} from a {@link
+   * Parse a {@link org.apache.beam.sdk.metrics.MetricName} from a {@link
    * org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns.Enum}.
    *
    * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.

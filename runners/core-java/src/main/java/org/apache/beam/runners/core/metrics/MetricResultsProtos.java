@@ -35,6 +35,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Convert {@link MetricResults} to and from {@link BeamFnApi.MetricResults}. */
