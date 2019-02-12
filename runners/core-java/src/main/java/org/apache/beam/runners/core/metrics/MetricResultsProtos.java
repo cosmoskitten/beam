@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.metrics.DefaultMetricResults;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
