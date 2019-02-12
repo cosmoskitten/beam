@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.StateComplexity;
+import org.apache.beam.sdk.extensions.euphoria.core.client.functional.CombinableReduceFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Builders;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.OptionalMethodBuilder;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 
 /**
@@ -51,7 +53,7 @@ import org.joda.time.Duration;
  * <ol>
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
- *   <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction}
+ *   <li>{@code [projected] ..............} compare objects retrieved by this {@link UnaryFunction}
  *       instead of raw input elements
  *   <li>{@code [windowBy] ...............} windowing (see {@link WindowFn}), default is no
  *       windowing
@@ -80,7 +82,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
    * @see #named(String)
    * @see OfBuilder#of(PCollection)
    */
-  public static <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input) {
+  public static <InputT> ProjectedBuilder<InputT, InputT> of(PCollection<InputT> input) {
     return named(null).of(input);
   }
 
@@ -98,11 +100,28 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
   public interface OfBuilder extends Builders.Of {
 
     @Override
-    <InputT> MappedBuilder<InputT, InputT> of(PCollection<InputT> input);
+    <InputT> ProjectedBuilder<InputT, InputT> of(PCollection<InputT> input);
   }
 
-  /** Builder for the 'mapped' step. */
-  public interface MappedBuilder<InputT, KeyT> extends WindowByBuilder<InputT, KeyT> {
+  /**
+   * A policy to be applied when multiple elements exist for the same comparison key. Note that this
+   * can be specified only when specifying the projection, because otherwise complete elements are
+   * compared and therefore it makes no sense to select between identical elements.
+   */
+  public enum SelectionPolicy {
+
+    /** Select any element (non deterministically). */
+    ANY,
+
+    /** Select element with lowest timestamp. */
+    OLDEST,
+
+    /** Select element with highest timestamp. */
+    NEWEST
+  }
+
+  /** Builder for the 'projected' step. */
+  public interface ProjectedBuilder<InputT, KeyT> extends WindowByBuilder<InputT, KeyT> {
 
     /**
      * Optionally specifies a function to transform the input elements into another type among which
@@ -112,15 +131,23 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
      * operator will be carried out on the transformed elements.
      *
      * @param <KeyT> the type of the transformed elements
-     * @param mapper a transform function applied to input element
+     * @param transform a transform function applied to input element
      * @return the next builder to complete the setup of the {@link Distinct} operator
      */
-    default <KeyT> WindowByBuilder<InputT, KeyT> mapped(UnaryFunction<InputT, KeyT> mapper) {
-      return mapped(mapper, null);
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(UnaryFunction<InputT, KeyT> transform) {
+      return projected(transform, null);
     }
 
-    <KeyT> WindowByBuilder<InputT, KeyT> mapped(
-        UnaryFunction<InputT, KeyT> mapper, @Nullable TypeDescriptor<KeyT> mappedType);
+    default <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform, @Nullable TypeDescriptor<KeyT> projectedType) {
+
+      return projected(transform, SelectionPolicy.ANY, projectedType);
+    }
+
+    <KeyT> WindowByBuilder<InputT, KeyT> projected(
+        UnaryFunction<InputT, KeyT> transform,
+        SelectionPolicy policy,
+        @Nullable TypeDescriptor<KeyT> projectedType);
   }
 
   /** Builder for the 'windowBy' step. */
@@ -161,7 +188,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
 
   private static class Builder<InputT, KeyT>
       implements OfBuilder,
-          MappedBuilder<InputT, KeyT>,
+          ProjectedBuilder<InputT, KeyT>,
           WindowByBuilder<InputT, KeyT>,
           TriggerByBuilder<InputT>,
           AccumulationModeBuilder<InputT>,
@@ -174,18 +201,20 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
     private PCollection<InputT> input;
 
     @SuppressWarnings("unchecked")
-    private UnaryFunction<InputT, KeyT> mapper = (UnaryFunction) e -> e;
+    private UnaryFunction<InputT, KeyT> transform = (UnaryFunction) e -> e;
 
-    @Nullable private TypeDescriptor<KeyT> mappedType;
+    private SelectionPolicy policy = null;
+
+    @Nullable private TypeDescriptor<KeyT> projectedType;
     @Nullable private TypeDescriptor<InputT> outputType;
-    private boolean mapped = false;
+    private boolean projected = false;
 
     Builder(@Nullable String name) {
       this.name = name;
     }
 
     @Override
-    public <T> MappedBuilder<T, T> of(PCollection<T> input) {
+    public <T> ProjectedBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       final Builder<T, T> casted = (Builder) this;
       casted.input = requireNonNull(input);
@@ -193,14 +222,17 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
     }
 
     @Override
-    public <K> WindowByBuilder<InputT, K> mapped(
-        UnaryFunction<InputT, K> mapper, @Nullable TypeDescriptor<K> mappedType) {
+    public <K> WindowByBuilder<InputT, K> projected(
+        UnaryFunction<InputT, K> transform,
+        SelectionPolicy policy,
+        @Nullable TypeDescriptor<K> projectedType) {
 
       @SuppressWarnings("unchecked")
       final Builder<InputT, K> cast = (Builder) this;
-      cast.mapper = requireNonNull(mapper);
-      cast.mappedType = mappedType;
-      cast.mapped = true;
+      cast.transform = requireNonNull(transform);
+      cast.policy = requireNonNull(policy);
+      cast.projectedType = projectedType;
+      cast.projected = true;
       return cast;
     }
 
@@ -254,34 +286,47 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
     @Override
     @SuppressWarnings("unchecked")
     public PCollection<InputT> output(OutputHint... outputHints) {
-      if (mapper == null) {
-        this.mapper = (UnaryFunction) UnaryFunction.identity();
+      if (transform == null) {
+        this.transform = (UnaryFunction) UnaryFunction.identity();
       }
       final Distinct<InputT, KeyT> distinct =
           new Distinct<>(
-              name, mapper, outputType, mappedType, windowBuilder.getWindow().orElse(null), mapped);
+              name,
+              transform,
+              outputType,
+              projectedType,
+              windowBuilder.getWindow().orElse(null),
+              policy,
+              projected);
       return OperatorTransform.apply(distinct, PCollectionList.of(input));
     }
   }
 
-  private final boolean mapped;
+  private final boolean projected;
+  private final @Nullable SelectionPolicy policy;
 
   private Distinct(
       @Nullable String name,
-      UnaryFunction<InputT, KeyT> mapper,
+      UnaryFunction<InputT, KeyT> transform,
       @Nullable TypeDescriptor<InputT> outputType,
-      @Nullable TypeDescriptor<KeyT> mappedType,
+      @Nullable TypeDescriptor<KeyT> projectedType,
       @Nullable Window<InputT> window,
-      boolean mapped) {
+      @Nullable SelectionPolicy policy,
+      boolean projected) {
 
-    super(name, outputType, mapper, mappedType, window);
-    this.mapped = mapped;
+    super(name, outputType, transform, projectedType, window);
+    this.projected = projected;
+    this.policy = policy;
+
+    Preconditions.checkState(
+        !projected || policy != null,
+        "Please specify selection policy when using projected distinct.");
   }
 
   @Override
   public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
     PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
-    if (!mapped) {
+    if (!projected) {
       PCollection<KV<InputT, Void>> distinct =
           ReduceByKey.named(getName().orElse(null))
               .of(input)
@@ -307,13 +352,12 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
           .using(KV::getKey, input.getTypeDescriptor())
           .output();
     }
+    final CombinableReduceFunction<InputT> select = getSelectionFunction(policy);
     return ReduceByKey.named(getName().orElse(null))
         .of(input)
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(e -> e, getOutputType().orElse(null))
-        .combineBy(
-            e -> e.findAny().orElseThrow(() -> new IllegalStateException("Processing empty key?")),
-            getOutputType().orElse(null))
+        .combineBy(select, getOutputType().orElse(null))
         .applyIf(
             getWindow().isPresent(),
             builder -> {
@@ -328,5 +372,19 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
                                   "Unable to resolve windowing for Distinct expansion.")));
             })
         .outputValues();
+  }
+
+  private CombinableReduceFunction<InputT> getSelectionFunction(SelectionPolicy policy) {
+    switch (policy) {
+      case ANY:
+        return values ->
+            values.findAny().orElseThrow(() -> new IllegalStateException("Empty reduce values?"));
+      case NEWEST:
+      case OLDEST:
+        throw new UnsupportedOperationException(
+            "Need access to timestamp, which is TBD. Use SelectionPolicy.ANY for now.");
+      default:
+        throw new IllegalArgumentException("Unknown policy " + policy);
+    }
   }
 }
