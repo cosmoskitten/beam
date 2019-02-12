@@ -216,9 +216,9 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
     @Override
     public <T> ProjectedBuilder<T, T> of(PCollection<T> input) {
       @SuppressWarnings("unchecked")
-      final Builder<T, T> casted = (Builder) this;
-      casted.input = requireNonNull(input);
-      return casted;
+      final Builder<T, T> cast = (Builder) this;
+      cast.input = requireNonNull(input);
+      return cast;
     }
 
     @Override
