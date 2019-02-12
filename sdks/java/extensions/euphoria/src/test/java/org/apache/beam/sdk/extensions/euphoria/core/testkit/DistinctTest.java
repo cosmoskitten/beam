@@ -78,7 +78,7 @@ public class DistinctTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             PCollection<KV<Integer, Long>> distinct =
                 Distinct.of(input)
-                    .mapped(KV::getKey)
+                    .projected(KV::getKey)
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                     .triggeredBy(DefaultTrigger.of())
                     .discardingFiredPanes()
@@ -119,7 +119,7 @@ public class DistinctTest extends AbstractOperatorTest {
             input = AssignEventTime.of(input).using(KV::getValue).output();
             PCollection<KV<Integer, Long>> distinct =
                 Distinct.of(input)
-                    .mapped(KV::getKey)
+                    .projected(KV::getKey)
                     .windowBy(FixedWindows.of(org.joda.time.Duration.standardSeconds(1)))
                     .triggeredBy(DefaultTrigger.of())
                     .discardingFiredPanes()
