@@ -393,7 +393,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     try {
       checkFinishBundleTimer.cancel(true);
       FlinkClassloading.deleteStaticCaches();
-      invokeFinishBundle();
       doFnInvoker.invokeTeardown();
     } finally {
       // This releases all task's resources. We need to call this last
@@ -406,7 +405,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void close() throws Exception {
     try {
-
+      invokeFinishBundle();
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
