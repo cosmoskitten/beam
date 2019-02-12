@@ -335,8 +335,8 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
           ReduceByKey.named(getName().orElse(null))
               .of(input)
               .keyBy(e -> e, input.getTypeDescriptor())
-              .valueBy(e -> (Void) null, TypeDescriptors.nulls())
-              .combineBy(e -> (Void) null, TypeDescriptors.nulls())
+              .valueBy(e -> null, TypeDescriptors.nulls())
+              .combineBy(e -> null, TypeDescriptors.nulls())
               .output();
       return MapElements.named(getName().orElse("") + "::extract-keys")
           .of(distinct)
