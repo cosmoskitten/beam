@@ -22,12 +22,12 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MonitoringInfoMetricName;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**

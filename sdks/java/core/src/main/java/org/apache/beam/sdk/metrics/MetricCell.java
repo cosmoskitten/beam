@@ -15,15 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ProtocolMessageEnum;
+import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/** Returns the standard URN of a given enum annotated with [(standard_urn)]. */
-public class BeamUrns {
-  /** Returns the standard URN of a given enum annotated with [(standard_urn)]. */
-  public static String getUrn(ProtocolMessageEnum value) {
-    return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
-  }
+/**
+ * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
+ * specific metric name in a single context.
+ *
+ * @param <DataT> The type of metric data stored (and extracted) from this cell.
+ */
+@Experimental(Kind.METRICS)
+public interface MetricCell<DataT> extends Serializable {
+  /**
+   * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
+   */
+  DirtyState getDirty();
+
+  /** Return the cumulative value of this metric. */
+  DataT getCumulative();
 }

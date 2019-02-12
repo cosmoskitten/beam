@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric.DataCase.COUNTER;
 

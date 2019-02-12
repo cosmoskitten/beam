@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
+import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -33,20 +33,20 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.IntDistributionData;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.metrics.CounterCell;
-import org.apache.beam.runners.core.metrics.DistributionCell;
-import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer.FlinkDistributionGauge;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.CounterCell;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.DistributionCell;
+import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;

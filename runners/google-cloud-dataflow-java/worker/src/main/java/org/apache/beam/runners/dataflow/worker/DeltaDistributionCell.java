@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.runners.core.metrics.DirtyState;
-import org.apache.beam.runners.core.metrics.DistributionCell;
-import org.apache.beam.runners.core.metrics.DistributionData;
-import org.apache.beam.runners.core.metrics.MetricCell;
+import org.apache.beam.sdk.metrics.DirtyState;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.DistributionCell;
+import org.apache.beam.sdk.metrics.DistributionData;
+import org.apache.beam.sdk.metrics.MetricCell;
 import org.apache.beam.sdk.metrics.MetricName;
 
 /**

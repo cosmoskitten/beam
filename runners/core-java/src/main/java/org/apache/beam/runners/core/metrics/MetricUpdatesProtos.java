@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 
 /** Convert {@link MetricUpdates} to a {@link List} of {@link MonitoringInfo}. */
 public class MetricUpdatesProtos {

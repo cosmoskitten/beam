@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.DistributionData;
+import org.apache.beam.sdk.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
