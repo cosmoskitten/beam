@@ -214,7 +214,7 @@ class MatchIntegrationTest(unittest.TestCase):
                      | 'SingleFile' >> beam.Create([self.INPUT_FILE])
                      | 'MatchOneAll' >> fileio.MatchAll()
                      | fileio.ReadMatches()
-                     | 'ReadIn' >> beam.Map(lambda x: x.read().decode('utf-8').split('\n'))
+                     | 'ReadIn' >> beam.Map(lambda x: x.read_utf8().split('\n'))
                      | 'Checksums' >> beam.Map(compute_hash))
 
       assert_that(checksum_pc,

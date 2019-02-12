@@ -120,7 +120,7 @@ class ReadableFile(object):
   def __init__(self, metadata):
     self.metadata = metadata
 
-  def open(self, mime_type='application/text'):
+  def open(self, mime_type='text/plain'):
     return filesystems.FileSystems.open(self.metadata.path)
 
   def read(self):
