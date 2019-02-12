@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.operator.Recommended;
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.base.Shuffle
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.hint.OutputHint;
 import org.apache.beam.sdk.extensions.euphoria.core.client.util.PCollectionLists;
 import org.apache.beam.sdk.extensions.euphoria.core.translate.OperatorTransform;
+import org.apache.beam.sdk.extensions.euphoria.core.translate.TimestampExtractTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -326,6 +329,7 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
   @Override
   public PCollection<InputT> expand(PCollectionList<InputT> inputs) {
     PCollection<InputT> input = PCollectionLists.getOnlyElement(inputs);
+    input = getWindow().map(input::apply).orElse(input);
     if (!projected) {
       PCollection<KV<InputT, Void>> distinct =
           ReduceByKey.named(getName().orElse(null))
@@ -333,58 +337,65 @@ public class Distinct<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, InputT
               .keyBy(e -> e, input.getTypeDescriptor())
               .valueBy(e -> (Void) null, TypeDescriptors.nulls())
               .combineBy(e -> (Void) null, TypeDescriptors.nulls())
-              .applyIf(
-                  getWindow().isPresent(),
-                  builder -> {
-                    @SuppressWarnings("unchecked")
-                    final ReduceByKey.WindowByInternalBuilder<InputT, InputT, Void> cast =
-                        (ReduceByKey.WindowByInternalBuilder) builder;
-                    return cast.windowBy(
-                        getWindow()
-                            .orElseThrow(
-                                () ->
-                                    new IllegalStateException(
-                                        "Unable to resolve windowing for Distinct expansion.")));
-                  })
               .output();
       return MapElements.named(getName().orElse("") + "::extract-keys")
           .of(distinct)
           .using(KV::getKey, input.getTypeDescriptor())
           .output();
     }
-    final CombinableReduceFunction<InputT> select = getSelectionFunction(policy);
+    UnaryFunction<PCollection<InputT>, PCollection<InputT>> transformFn = getTransformFn();
+    return transformFn.apply(input);
+  }
+
+  private UnaryFunction<PCollection<InputT>, PCollection<InputT>> getTransformFn() {
+    switch (policy) {
+      case NEWEST:
+      case OLDEST:
+        String name = getName().orElse(null);
+        return input -> input.apply(TimestampExtractTransform.of(name, this::reduceTimestamped));
+      case ANY:
+        return this::reduceSelectingAny;
+      default:
+        throw new IllegalArgumentException("Unknown policy " + policy);
+    }
+  }
+
+  private PCollection<InputT> reduceSelectingAny(PCollection<InputT> input) {
     return ReduceByKey.named(getName().orElse(null))
         .of(input)
         .keyBy(getKeyExtractor(), getKeyType().orElse(null))
         .valueBy(e -> e, getOutputType().orElse(null))
-        .combineBy(select, getOutputType().orElse(null))
-        .applyIf(
-            getWindow().isPresent(),
-            builder -> {
-              @SuppressWarnings("unchecked")
-              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, InputT> cast =
-                  (ReduceByKey.WindowByInternalBuilder) builder;
-              return cast.windowBy(
-                  getWindow()
-                      .orElseThrow(
-                          () ->
-                              new IllegalStateException(
-                                  "Unable to resolve windowing for Distinct expansion.")));
-            })
+        .combineBy(values -> nonEmpty(values.findAny()), getOutputType().orElse(null))
         .outputValues();
   }
 
-  private CombinableReduceFunction<InputT> getSelectionFunction(SelectionPolicy policy) {
-    switch (policy) {
-      case ANY:
-        return values ->
-            values.findAny().orElseThrow(() -> new IllegalStateException("Empty reduce values?"));
-      case NEWEST:
-      case OLDEST:
-        throw new UnsupportedOperationException(
-            "Need access to timestamp, which is TBD. Use SelectionPolicy.ANY for now.");
-      default:
-        throw new IllegalArgumentException("Unknown policy " + policy);
-    }
+  private PCollection<InputT> reduceTimestamped(PCollection<KV<Long, InputT>> input) {
+    CombinableReduceFunction<KV<Long, InputT>> select = getReduceFn();
+    PCollection<KV<Long, InputT>> outputValues =
+        ReduceByKey.named(getName().orElse(null))
+            .of(input)
+            .keyBy(e -> getKeyExtractor().apply(e.getValue()), getKeyType().orElse(null))
+            .valueBy(e -> e, input.getTypeDescriptor())
+            .combineBy(
+                select, TypeDescriptors.kvs(TypeDescriptors.longs(), getOutputType().orElse(null)))
+            .outputValues();
+    return MapElements.named(getName().map(n -> n + "::unwrap").orElse(null))
+        .of(outputValues)
+        .using(KV::getValue, getOutputType().orElse(null))
+        .output();
+  }
+
+  private CombinableReduceFunction<KV<Long, InputT>> getReduceFn() {
+    return policy == SelectionPolicy.NEWEST
+        ? values ->
+            nonEmpty(
+                values.collect(Collectors.maxBy((a, b) -> Long.compare(a.getKey(), b.getKey()))))
+        : values ->
+            nonEmpty(
+                values.collect(Collectors.minBy((a, b) -> Long.compare(a.getKey(), b.getKey()))));
+  }
+
+  private static <T> T nonEmpty(Optional<T> in) {
+    return in.orElseThrow(() -> new IllegalStateException("Empty reduce values?"));
   }
 }
