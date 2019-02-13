@@ -48,4 +48,8 @@ public class SerializablePipelineOptions implements Serializable {
     // TODO https://issues.apache.org/jira/browse/BEAM-2712: remove this call.
     FileSystems.setDefaultPipelineOptions(options);
   }
+
+  @Override public String toString() {
+      return serializedPipelineOptions;
+  }
 }
