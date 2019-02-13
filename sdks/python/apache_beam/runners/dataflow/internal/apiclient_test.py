@@ -248,10 +248,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:' + names.BEAM_FNAPI_CONTAINER_VERSION))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -281,10 +287,16 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(
-        env.proto.workerPools[0].workerHarnessContainerImage,
-        (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-         '/python-fnapi:2.2.0'))
+    if sys.version_info[0] == 3:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python3-fnapi:2.2.0'))
+    else:
+      self.assertEqual(
+          env.proto.workerPools[0].workerHarnessContainerImage,
+          (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+           '/python-fnapi:2.2.0'))
 
     # batch, legacy pipeline.
     pipeline_options = PipelineOptions(
@@ -355,6 +367,47 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('value4', job.proto.labels.additionalProperties[3].value)
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
+
+  def test_experiment_use_multiple_sdk_containers(self):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'use_multiple_sdk_containers'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertIn("use_multiple_sdk_containers", environment.proto.experiments)
+
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'no_use_multiple_sdk_containers'])
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertNotIn(
+        "use_multiple_sdk_containers", environment.proto.experiments)
+
+  @mock.patch('apache_beam.runners.dataflow.internal.apiclient.sys')
+  def test_get_python_sdk_name(self, mock_sys):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--experiments', 'beam_fn_api',
+         '--experiments', 'use_multiple_sdk_containers'])
+    mock_sys.version_info = [2, 333]
+    environment = apiclient.Environment(
+        [], pipeline_options, 1, FAKE_PIPELINE_URL)
+    self.assertEqual('Apache Beam Python 2.333 SDK',
+                     environment._get_python_sdk_name())
 
 
 if __name__ == '__main__':

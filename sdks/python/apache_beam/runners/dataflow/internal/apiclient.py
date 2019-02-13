@@ -154,7 +154,7 @@ class Environment(object):
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='name',
-            value=to_json_value(shared_names.BEAM_SDK_NAME)),
+            value=to_json_value(self._get_python_sdk_name())),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
             key='version', value=to_json_value(beam_version.__version__))])
     # Version information.
@@ -184,8 +184,9 @@ class Environment(object):
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
       # till version 2.4.
-      if ('use_multiple_sdk_containers' not in self.proto.experiments and
-          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+      debug_options_experiments = self.debug_options.experiments
+      if ('use_multiple_sdk_containers' not in debug_options_experiments and
+          'no_use_multiple_sdk_containers' not in debug_options_experiments):
         self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
@@ -278,6 +279,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_python_sdk_name(self):
+    python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
+    return 'Apache Beam Python %s SDK' % python_version
 
 
 class Job(object):
@@ -869,16 +874,25 @@ def get_default_container_image_for_current_sdk(job_type):
     Returns:
       str: Google Cloud Dataflow container image for remote execution.
     """
+  if sys.version_info[0] == 2:
+    version_suffix = ''
+  elif sys.version_info[0] == 3:
+    version_suffix = '3'
+  else:
+    raise Exception('Dataflow only supports Python versions 2 and 3, got: %s'
+                    % sys.version_info[0])
+
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
-    image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
+    fnapi_suffix = '-fnapi'
   else:
-    if sys.version_info[0] == 2:
-      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
-    elif sys.version_info[0] == 3:
-      image_name = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python3'
-    else:
-      raise Exception('Dataflow only supports Python versions 2 and 3.')
+    fnapi_suffix = ''
+
+  image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
+      repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+      version_suffix=version_suffix,
+      fnapi_suffix=fnapi_suffix)
+
   image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 

@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
-task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task preCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     // Basic integration tests to run in PreCommit
     def precommitTests = [
@@ -34,10 +34,14 @@ task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "--processes=2",    // Number of tests running in parallel
         "--process-timeout=1800",   // Timeout of whole command execution
     ]
+    def cmdArgs = project.mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
+    ])
 
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh --test_opts \"${testOpts.join(' ')}\""
+      args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

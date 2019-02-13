@@ -27,6 +27,7 @@ import json
 import logging
 import random
 import re
+import threading
 from builtins import next
 from builtins import object
 
@@ -113,9 +114,15 @@ class DataInputOperation(RunnerIOOperation):
         windowed_coder, target=input_target, data_channel=data_channel)
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
-        operations.ConsumerSet(
+        operations.ConsumerSet.create(
             self.counter_factory, self.name_context.step_name, 0,
             next(iter(itervalues(consumers))), self.windowed_coder)]
+    self.splitting_lock = threading.Lock()
+
+  def start(self):
+    super(DataInputOperation, self).start()
+    self.index = -1
+    self.stop = float('inf')
 
   def process(self, windowed_value):
     self.output(windowed_value)
@@ -123,9 +130,48 @@ class DataInputOperation(RunnerIOOperation):
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
+      with self.splitting_lock:
+        if self.index == self.stop - 1:
+          return
+        self.index += 1
       decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
       self.output(decoded_value)
+
+  def try_split(self, fraction_of_remainder, total_buffer_size):
+    with self.splitting_lock:
+      if total_buffer_size < self.index + 1:
+        total_buffer_size = self.index + 1
+      elif self.stop and total_buffer_size > self.stop:
+        total_buffer_size = self.stop
+      if self.index == -1:
+        # We are "finished" with the (non-existent) previous element.
+        current_element_progress = 1
+      else:
+        # TODO(SDF): Get actual progress of current element.
+        current_element_progress = 0.5
+      # Now figure out where to split.
+      # The units here (except for keep_of_element_remainder) are all in
+      # terms of number of (possibly fractional) elements.
+      remainder = total_buffer_size - self.index - current_element_progress
+      keep = remainder * fraction_of_remainder
+      if current_element_progress < 1:
+        keep_of_element_remainder = keep / (1 - current_element_progress)
+        # If it's less than what's left of the current element,
+        # try splitting at the current element.
+        if keep_of_element_remainder < 1:
+          split = self.receivers[0].try_split(keep_of_element_remainder)
+          if split:
+            element_primary, element_residual = split
+            self.stop = self.index + 1
+            return self.index - 1, element_primary, element_residual, self.stop
+      # Otherwise, split at the closest element boundary.
+      # pylint: disable=round-builtin
+      stop_index = (
+          self.index + max(1, int(round(current_element_progress + keep))))
+      if stop_index < self.stop:
+        self.stop = stop_index
+        return self.stop - 1, None, None, self.stop
 
 
 class _StateBackedIterable(object):
@@ -413,6 +459,7 @@ class BundleProcessor(object):
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
     for op in self.ops.values():
       op.setup()
+    self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
 
@@ -509,7 +556,39 @@ class BundleProcessor(object):
           for op, residual in execution_context.delayed_applications]
 
     finally:
+      # Ensure any in-flight split attempts complete.
+      with self.splitting_lock:
+        pass
       self.state_sampler.stop_if_still_running()
+
+  def try_split(self, bundle_split_request):
+    split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
+    with self.splitting_lock:
+      for op in self.ops.values():
+        if isinstance(op, DataInputOperation):
+          desired_split = bundle_split_request.desired_splits.get(
+              op.target.primitive_transform_reference)
+          if desired_split:
+            split = op.try_split(desired_split.fraction_of_remainder,
+                                 desired_split.estimated_input_elements)
+            if split:
+              (primary_end, element_primary, element_residual, residual_start,
+              ) = split
+              if element_primary:
+                split_response.primary_roots.add().CopyFrom(
+                    self.delayed_bundle_application(
+                        *element_primary).application)
+              if element_residual:
+                split_response.residual_roots.add().CopyFrom(
+                    self.delayed_bundle_application(*element_residual))
+              split_response.channel_splits.extend([
+                  beam_fn_api_pb2.ProcessBundleSplitResponse.ChannelSplit(
+                      ptransform_id=op.target.primitive_transform_reference,
+                      input_id=op.target.name,
+                      last_primary_element=primary_end,
+                      first_residual_element=residual_start)])
+
+    return split_response
 
   def delayed_bundle_application(self, op, deferred_remainder):
     ptransform_id, main_input_tag, main_input_coder, outputs = op.input_info

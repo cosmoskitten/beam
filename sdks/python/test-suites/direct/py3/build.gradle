@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-apply plugin: org.apache.beam.gradle.BeamModulePlugin
+plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv.
@@ -24,11 +24,15 @@ project.ext.python3 = true
 
 def runScriptsDir = "${project.rootDir}/sdks/python/scripts"
 
-task precommitIT(dependsOn: ['sdist', 'installGcpTest']) {
+task postCommitIT(dependsOn: 'installGcpTest') {
   // Run IT tests with TestDirectRunner in batch in Python 3.
   doLast {
+    def batchTests = [
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
+    ]
     def testOpts = [
-        "--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "--tests=${batchTests.join(',')}",
         "--nocapture",    // Print stdout instantly
     ]
     def argMap = ["runner": "TestDirectRunner",

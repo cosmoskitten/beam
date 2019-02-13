@@ -486,21 +486,41 @@ class FnApiRunner(runner.PipelineRunner):
         raise NotImplementedError(buffer_id)
       return pcoll_buffers[buffer_id]
 
+    def get_input_coder_impl(transform_id):
+      return context.coders[safe_coders[
+          beam_fn_api_pb2.RemoteGrpcPort.FromString(
+              process_bundle_descriptor.transforms[transform_id].spec.payload
+          ).coder_id
+      ]].get_impl()
+
     for k in range(self._bundle_repeat):
       try:
         controller.state.checkpoint()
         BundleManager(
-            controller, lambda pcoll_id: [], process_bundle_descriptor,
-            self._progress_frequency, k).process_bundle(data_input, data_output)
+            controller, lambda pcoll_id: [], get_input_coder_impl,
+            process_bundle_descriptor, self._progress_frequency, k
+        ).process_bundle(data_input, data_output)
       finally:
         controller.state.restore()
 
-    result = BundleManager(
-        controller, get_buffer, process_bundle_descriptor,
+    result, splits = BundleManager(
+        controller, get_buffer, get_input_coder_impl, process_bundle_descriptor,
         self._progress_frequency).process_bundle(
             data_input, data_output)
 
+    def input_for(ptransform_id, input_id):
+      input_pcoll = process_bundle_descriptor.transforms[
+          ptransform_id].inputs[input_id]
+      for read_id, proto in process_bundle_descriptor.transforms.items():
+        if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
+            and input_pcoll in proto.outputs.values()):
+          return read_id, 'out'
+      raise RuntimeError(
+          'No IO transform feeds %s' % ptransform_id)
+
     last_result = result
+    last_sent = data_input
+
     while True:
       deferred_inputs = collections.defaultdict(list)
       for transform_id, timer_writes in stage.timer_pcollections:
@@ -530,21 +550,49 @@ class FnApiRunner(runner.PipelineRunner):
           deferred_inputs[transform_id, 'out'] = [out.get()]
           written_timers[:] = []
 
-      # Queue any delayed bundle applications.
+      # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
-        # Find the io transform that feeds this transform.
-        # TODO(SDF): Memoize?
-        application = delayed_application.application
-        input_pcoll = process_bundle_descriptor.transforms[
-            application.ptransform_id].inputs[application.input_id]
-        for input_id, proto in process_bundle_descriptor.transforms.items():
-          if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
-              and input_pcoll in proto.outputs.values()):
-            deferred_inputs[input_id, 'out'].append(application.element)
-            break
-        else:
-          raise RuntimeError(
-              'No IO transform feeds %s' % application.ptransform_id)
+        deferred_inputs[
+            input_for(
+                delayed_application.application.ptransform_id,
+                delayed_application.application.input_id)
+        ].append(delayed_application.application.element)
+
+      # Queue any runner-initiated delayed bundle applications.
+      prev_stops = {}
+      for split in splits:
+        for delayed_application in split.residual_roots:
+          deferred_inputs[
+              input_for(
+                  delayed_application.application.ptransform_id,
+                  delayed_application.application.input_id)
+          ].append(delayed_application.application.element)
+        for channel_split in split.channel_splits:
+          coder_impl = get_input_coder_impl(channel_split.ptransform_id)
+          # TODO(SDF): This requires determanistic ordering of buffer iteration.
+          # TODO(SDF): The return split is in terms of indices.  Ideally,
+          # a runner could map these back to actual positions to effectively
+          # describe the two "halves" of the now-split range.  Even if we have
+          # to buffer each element we send (or at the very least a bit of
+          # metadata, like position, about each of them) this should be doable
+          # if they're already in memory and we are bounding the buffer size
+          # (e.g. to 10mb plus whatever is eagerly read from the SDK).  In the
+          # case of non-split-points, we can either immediately replay the
+          # "non-split-position" elements or record them as we do the other
+          # delayed applications.
+
+          # Decode and recode to split the encoded buffer by element index.
+          all_elements = list(coder_impl.decode_all(b''.join(last_sent[
+              channel_split.ptransform_id, channel_split.input_id])))
+          residual_elements = all_elements[
+              channel_split.first_residual_element : prev_stops.get(
+                  channel_split.ptransform_id, len(all_elements)) + 1]
+          if residual_elements:
+            deferred_inputs[
+                channel_split.ptransform_id, channel_split.input_id].append(
+                    coder_impl.encode_all(residual_elements))
+          prev_stops[
+              channel_split.ptransform_id] = channel_split.last_primary_element
 
       if deferred_inputs:
         # The worker will be waiting on these inputs as well.
@@ -552,12 +600,14 @@ class FnApiRunner(runner.PipelineRunner):
           if other_input not in deferred_inputs:
             deferred_inputs[other_input] = []
         # TODO(robertwb): merge results
-        last_result = BundleManager(
+        last_result, splits = BundleManager(
             controller,
             get_buffer,
+            get_input_coder_impl,
             process_bundle_descriptor,
             self._progress_frequency,
             True).process_bundle(deferred_inputs, data_output)
+        last_sent = deferred_inputs
       else:
         break
 
@@ -959,6 +1009,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
         self.control_address, worker_count=self._num_threads)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
+    self.worker_thread.daemon = True
     self.worker_thread.start()
 
   def stop_worker(self):
@@ -1059,7 +1110,10 @@ class WorkerHandlerManager(object):
 
   def close_all(self):
     for controller in set(self._cached_handlers.values()):
-      controller.close()
+      try:
+        controller.close()
+      except Exception:
+        logging.info("Error closing controller %s" % controller, exc_info=True)
     self._cached_handlers = {}
 
 
@@ -1070,15 +1124,36 @@ class ExtendedProvisionInfo(object):
     self.artifact_staging_dir = artifact_staging_dir
 
 
+_split_managers = []
+
+
+@contextlib.contextmanager
+def split_manager(stage_name, split_manager):
+  """Registers a split manager to control the flow of elements to a given stage.
+
+  Used for testing.
+
+  A split manager should be a coroutine yielding desired split fractions,
+  receiving the corresponding split results. Currently, only one input is
+  supported.
+  """
+  try:
+    _split_managers.append((stage_name, split_manager))
+    yield
+  finally:
+    _split_managers.pop()
+
+
 class BundleManager(object):
 
   _uid_counter = 0
 
   def __init__(
-      self, controller, get_buffer, bundle_descriptor, progress_frequency=None,
-      skip_registration=False):
+      self, controller, get_buffer, get_input_coder_impl, bundle_descriptor,
+      progress_frequency=None, skip_registration=False):
     self._controller = controller
     self._get_buffer = get_buffer
+    self._get_input_coder_impl = get_input_coder_impl
     self._bundle_descriptor = bundle_descriptor
     self._registered = skip_registration
     self._progress_frequency = progress_frequency
@@ -1099,14 +1174,27 @@ class BundleManager(object):
           process_bundle_registration)
       self._registered = True
 
-    # Write all the input data to the channel.
-    for (transform_id, name), elements in inputs.items():
-      data_out = self._controller.data_plane_handler.output_stream(
-          process_bundle_id, beam_fn_api_pb2.Target(
-              primitive_transform_reference=transform_id, name=name))
-      for element_data in elements:
-        data_out.write(element_data)
-      data_out.close()
+    unique_names = set(
+        t.unique_name for t in self._bundle_descriptor.transforms.values())
+    for stage_name, candidate in reversed(_split_managers):
+      if (stage_name in unique_names
+          or (stage_name + '/Process') in unique_names):
+        split_manager = candidate
+        break
+    else:
+      split_manager = None
+
+    if not split_manager:
+      # Write all the input data to the channel immediately.
+      for (transform_id, name), elements in inputs.items():
+        data_out = self._controller.data_plane_handler.output_stream(
+            process_bundle_id, beam_fn_api_pb2.Target(
+                primitive_transform_reference=transform_id, name=name))
+        for element_data in elements:
+          data_out.write(element_data)
+        data_out.close()
+
+    split_results = []
 
     # Actually start the bundle.
     if registration_future and registration_future.get().error:
@@ -1119,6 +1207,64 @@ class BundleManager(object):
 
     with ProgressRequester(
         self._controller, process_bundle_id, self._progress_frequency):
+      if split_manager:
+        (read_transform_id, name), buffer_data = only_element(inputs.items())
+        num_elements = len(list(
+            self._get_input_coder_impl(read_transform_id).decode_all(
+                b''.join(buffer_data))))
+
+        # Start the split manager in case it wants to set any breakpoints.
+        split_manager_generator = split_manager(num_elements)
+        try:
+          split_fraction = next(split_manager_generator)
+          done = False
+        except StopIteration:
+          done = True
+
+        # Send all the data.
+        data_out = self._controller.data_plane_handler.output_stream(
+            process_bundle_id,
+            beam_fn_api_pb2.Target(
+                primitive_transform_reference=read_transform_id, name=name))
+        data_out.write(b''.join(buffer_data))
+        data_out.close()
+
+        # Execute the requested splits.
+        while not done:
+          if split_fraction is None:
+            split_result = None
+          else:
+            split_request = beam_fn_api_pb2.InstructionRequest(
+                process_bundle_split=
+                beam_fn_api_pb2.ProcessBundleSplitRequest(
+                    instruction_reference=process_bundle_id,
+                    desired_splits={
+                        read_transform_id:
+                        beam_fn_api_pb2.ProcessBundleSplitRequest.DesiredSplit(
+                            fraction_of_remainder=split_fraction,
+                            estimated_input_elements=num_elements)
+                    }))
+            split_response = self._controller.control_handler.push(
+                split_request).get()
+            for t in (0.05, 0.1, 0.2):
+              waiting = ('Instruction not running', 'not yet scheduled')
+              if any(msg in split_response.error for msg in waiting):
+                time.sleep(t)
+                split_response = self._controller.control_handler.push(
+                    split_request).get()
+            if 'Unknown process bundle' in split_response.error:
+              # It may have finished too fast.
+              split_result = None
+            elif split_response.error:
+              raise RuntimeError(split_response.error)
+            else:
+              split_result = split_response.process_bundle_split
+              split_results.append(split_result)
+          try:
+            split_fraction = split_manager_generator.send(split_result)
+          except StopIteration:
+            break
+
       # Gather all output data.
       expected_targets = [
           beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
@@ -1140,7 +1286,8 @@ class BundleManager(object):
 
     if result.error:
       raise RuntimeError(result.error)
-    return result
+
+    return result, split_results
 
 
 class ProgressRequester(threading.Thread):

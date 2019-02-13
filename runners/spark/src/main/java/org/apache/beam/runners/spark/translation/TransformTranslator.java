@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -132,28 +133,32 @@ public final class TransformTranslator {
         final WindowedValue.WindowedValueCoder<V> wvCoder =
             WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
 
-        // --- group by key only.
-        Long bundleSize =
-            context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
-        Partitioner partitioner =
-            (bundleSize > 0)
-                ? new HashPartitioner(context.getSparkContext().defaultParallelism())
-                : null;
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
-            GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
+        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
+        if (windowingStrategy.getWindowFn().isNonMerging()
+            && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW) {
+          // we can have a memory sensitive translation for non-merging windows
+          groupedByKey =
+              GroupNonMergingWindowsFunctions.groupByKeyAndWindow(
+                  inRDD, keyCoder, coder.getValueCoder(), windowingStrategy);
+        } else {
 
-        // --- now group also by window.
-        // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
-        JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedAlsoByWindow =
-            groupedByKey.flatMap(
-                new SparkGroupAlsoByWindowViaOutputBufferFn<>(
-                    windowingStrategy,
-                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
-                    SystemReduceFn.buffering(coder.getValueCoder()),
-                    context.getSerializableOptions(),
-                    accum));
+          // --- group by key only.
+          Partitioner partitioner = getPartitioner(context);
+          JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKeyOnly =
+              GroupCombineFunctions.groupByKeyOnly(inRDD, keyCoder, wvCoder, partitioner);
 
-        context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
+          // --- now group also by window.
+          // for batch, GroupAlsoByWindow uses an in-memory StateInternals.
+          groupedByKey =
+              groupedByKeyOnly.flatMap(
+                  new SparkGroupAlsoByWindowViaOutputBufferFn<>(
+                      windowingStrategy,
+                      new TranslationUtils.InMemoryStateInternalsFactory<>(),
+                      SystemReduceFn.buffering(coder.getValueCoder()),
+                      context.getSerializableOptions(),
+                      accum));
+        }
+        context.putDataset(transform, new BoundedDataset<>(groupedByKey));
       }
 
       @Override
@@ -260,7 +265,7 @@ public final class TransformTranslator {
             outRdd =
                 jsc.parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.windowFunction());
+                    .map(WindowedValue::valueInGlobalWindow);
           } else {
             outRdd = jsc.emptyRDD();
           }
@@ -377,6 +382,7 @@ public final class TransformTranslator {
                   (KvCoder) context.getInput(transform).getCoder(),
                   windowingStrategy.getWindowFn().windowCoder(),
                   (JavaRDD) inRDD,
+                  getPartitioner(context),
                   (MultiDoFnFunction) multiDoFnFunction);
         } else {
           all = inRDD.mapPartitionsToPair(multiDoFnFunction);
@@ -420,6 +426,7 @@ public final class TransformTranslator {
       KvCoder<K, V> kvCoder,
       Coder<? extends BoundedWindow> windowCoder,
       JavaRDD<WindowedValue<KV<K, V>>> kvInRDD,
+      Partitioner partitioner,
       MultiDoFnFunction<KV<K, V>, OutputT> doFnFunction) {
     Coder<K> keyCoder = kvCoder.getKeyCoder();
 
@@ -427,7 +434,7 @@ public final class TransformTranslator {
         WindowedValue.FullWindowedValueCoder.of(kvCoder.getValueCoder(), windowCoder);
 
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
-        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, null);
+        GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder, partitioner);
 
     return groupRDD
         .map(
@@ -548,6 +555,15 @@ public final class TransformTranslator {
         return "repartition(...)";
       }
     };
+  }
+
+  @Nullable
+  private static Partitioner getPartitioner(EvaluationContext context) {
+    Long bundleSize =
+        context.getSerializableOptions().get().as(SparkPipelineOptions.class).getBundleSize();
+    return (bundleSize > 0)
+        ? null
+        : new HashPartitioner(context.getSparkContext().defaultParallelism());
   }
 
   private static final Map<String, TransformEvaluator<?>> EVALUATORS = new HashMap<>();
