@@ -143,19 +143,7 @@ public class SimpleMonitoringInfoBuilder {
   }
 
   public SimpleMonitoringInfoBuilder handleMetricKey(MetricKey key) {
-    MetricName metricName = key.metricName();
-    if (metricName instanceof MonitoringInfoMetricName) {
-      MonitoringInfoMetricName name = (MonitoringInfoMetricName) metricName;
-      builder.setUrn(name.getUrn()).putAllLabels(name.getLabels());
-    } else {
-      setUrnForUserMetric(metricName.getNamespace(), metricName.getName());
-      String ptransform = key.stepName();
-      if (ptransform != null) {
-        setPTransformLabel(ptransform);
-      } else {
-        LOG.warn("User metric {} without step name set", metricName);
-      }
-    }
+    builder.setUrn(key.metricName().urn());
     return this;
   }
 

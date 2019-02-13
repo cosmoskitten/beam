@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MonitoringInfos.keyFromMonitoringInfo;
 import static org.apache.beam.runners.core.metrics.MonitoringInfos.processMetric;
 
 import java.util.Map;
@@ -34,7 +33,6 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
@@ -87,7 +85,7 @@ public class MetricResultsProtos {
   /** Convert a {@link MetricResults} to a {@linke BeamFnApi.MetricResults}. */
   public static BeamFnApi.MetricResults toProto(MetricResults metricResults) {
     BeamFnApi.MetricResults.Builder builder = BeamFnApi.MetricResults.newBuilder();
-    MetricQueryResults results = metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults results = metricResults.allMetrics();
     results
         .getCounters()
         .forEach(counter -> process(builder, counter, SimpleMonitoringInfoBuilder::setInt64Value));
@@ -179,7 +177,7 @@ public class MetricResultsProtos {
     }
 
     public void add(MonitoringInfo monitoringInfo, Boolean committed) {
-      add(keyFromMonitoringInfo(monitoringInfo), monitoringInfo.getMetric(), committed);
+      add(MetricKey.of(monitoringInfo), monitoringInfo.getMetric(), committed);
     }
 
     public void add(MetricKey metricKey, Metric metric, Boolean committed) {
