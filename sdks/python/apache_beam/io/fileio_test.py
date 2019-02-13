@@ -230,8 +230,6 @@ class MatchIntegrationTest(unittest.TestCase):
                   label='Assert Checksums')
 
 
-
-
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
