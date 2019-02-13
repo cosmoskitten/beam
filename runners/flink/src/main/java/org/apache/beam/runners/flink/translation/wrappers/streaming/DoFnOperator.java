@@ -171,8 +171,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   protected transient FlinkTimerInternals timerInternals;
 
-  private transient StateInternals nonKeyedStateInternals;
-
   private transient long pushedBackWatermark;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
@@ -295,16 +293,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
-    // maybe init by initializeState
-    if (nonKeyedStateInternals == null) {
-      if (keyCoder != null) {
-        nonKeyedStateInternals =
-            new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-      } else {
-        nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
-      }
-    }
-
     if (!sideInputs.isEmpty()) {
 
       FlinkBroadcastStateInternals sideInputStateInternals =
@@ -322,7 +310,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       setPushedBackWatermark(Long.MAX_VALUE);
     }
 
-    outputManager = outputManagerFactory.create(output, nonKeyedStateInternals);
+    final StateInternals outputManagerStateInternals;
+    if (keyCoder != null) {
+      outputManagerStateInternals =
+          new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
+    } else {
+      outputManagerStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
+    }
+    outputManager = outputManagerFactory.create(output, outputManagerStateInternals);
 
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
@@ -435,7 +430,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+    if (!sideInputs.isEmpty()) {
 
       List<WindowedValue<InputT>> pushedBackElements =
           pushedBackElementsHandler.getElements().collect(Collectors.toList());
@@ -806,7 +801,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       for (KV<Integer, WindowedValue<?>> taggedElem : bufferState.read()) {
         emit(idsToTags.get(taggedElem.getKey()), (WindowedValue) taggedElem.getValue());
       }
-      bufferState.clear();
+      // We don't have to worry about cleaning because FlinkKeyGroupStateInternals takes care of it
     }
 
     private <T> void emit(TupleTag<T> tag, WindowedValue<T> value) {
