@@ -295,14 +295,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
-    // maybe init by initializeState
-    if (nonKeyedStateInternals == null) {
-      if (keyCoder != null) {
-        nonKeyedStateInternals =
-            new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-      } else {
-        nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
-      }
+    if (keyCoder != null) {
+      nonKeyedStateInternals = new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
+    } else {
+      nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
     }
 
     if (!sideInputs.isEmpty()) {
@@ -806,7 +802,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       for (KV<Integer, WindowedValue<?>> taggedElem : bufferState.read()) {
         emit(idsToTags.get(taggedElem.getKey()), (WindowedValue) taggedElem.getValue());
       }
-      bufferState.clear();
+      // We don't have to worry about cleaning because FlinkKeyGroupStateInternals takes care of it
     }
 
     private <T> void emit(TupleTag<T> tag, WindowedValue<T> value) {
