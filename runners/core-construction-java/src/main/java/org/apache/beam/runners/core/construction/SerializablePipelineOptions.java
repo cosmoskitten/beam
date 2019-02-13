@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Holds a {@link PipelineOptions} in JSON serialized form and calls {@link
@@ -31,10 +34,19 @@ public class SerializablePipelineOptions implements Serializable {
 
   private final String serializedPipelineOptions;
   private transient PipelineOptions options;
+  private final ObjectMapper MAPPER =
+      new ObjectMapper()
+          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   public SerializablePipelineOptions(PipelineOptions options) {
-    this.serializedPipelineOptions = PipelineOptionsSerializationUtils.serializeToJson(options);
+    this.serializedPipelineOptions = serializeToJson(options);
     this.options = options;
+    FileSystems.setDefaultPipelineOptions(options);
+  }
+
+  public SerializablePipelineOptions(String json) {
+    this.serializedPipelineOptions = json;
+    this.options = deserializeFromJson(json);
     FileSystems.setDefaultPipelineOptions(options);
   }
 
@@ -44,12 +56,29 @@ public class SerializablePipelineOptions implements Serializable {
 
   private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
     is.defaultReadObject();
-    this.options = PipelineOptionsSerializationUtils.deserializeFromJson(serializedPipelineOptions);
+    this.options = deserializeFromJson(serializedPipelineOptions);
     // TODO https://issues.apache.org/jira/browse/BEAM-2712: remove this call.
     FileSystems.setDefaultPipelineOptions(options);
   }
 
-  @Override public String toString() {
-      return serializedPipelineOptions;
+  @Override
+  public String toString() {
+    return serializedPipelineOptions;
+  }
+
+  private String serializeToJson(PipelineOptions options) {
+    try {
+      return MAPPER.writeValueAsString(options);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Failed to serialize PipelineOptions", e);
+    }
+  }
+
+  private PipelineOptions deserializeFromJson(String options) {
+    try {
+      return MAPPER.readValue(options, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Failed to deserialize PipelineOptions", e);
+    }
   }
 }
