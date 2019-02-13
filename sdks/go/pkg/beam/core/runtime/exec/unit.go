@@ -64,7 +64,7 @@ type Root interface {
 type ElementProcessor interface {
 	// Call processes a single element. If GBK or CoGBK result, the values
 	// are populated. Otherwise, they're empty.
-	ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error
+	ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error
 }
 
 // Node represents an single-bundle processing unit. Each node contains
