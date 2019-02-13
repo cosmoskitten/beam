@@ -24,9 +24,9 @@ import static org.mockito.Mockito.when;
 import java.io.Serializable;
 import java.util.HashMap;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class LabeledMetricsTest implements Serializable {
     assertNull(MetricsEnvironment.getCurrentContainer());
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name = MetricName.of(urn);
 
     Counter counter = LabeledMetrics.counter(name);
     counter.inc();
@@ -57,7 +57,7 @@ public class LabeledMetricsTest implements Serializable {
   public void testOperationsUpdateCounterFromContainerWhenContainerIsPresent() {
     HashMap<String, String> labels = new HashMap<String, String>();
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
+    MetricName name = MetricName.of(urn);
 
     MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
     Counter mockCounter = Mockito.mock(Counter.class);

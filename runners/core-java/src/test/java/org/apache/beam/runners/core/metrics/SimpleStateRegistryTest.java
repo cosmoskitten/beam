@@ -20,11 +20,11 @@ package org.apache.beam.runners.core.metrics;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MonitoringInfoMatchers;
 import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.sdk.metrics.labels.MetricLabels;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -35,23 +35,22 @@ public class SimpleStateRegistryTest {
   @Test
   public void testExecutionTimeUrnsBuildMonitoringInfos() throws Exception {
     String testPTransformId = "pTransformId";
-    HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, testPTransformId);
+    MetricLabels labels = MetricLabels.ptransform(testPTransformId);
     SimpleExecutionState startState =
         new SimpleExecutionState(
             ExecutionStateTracker.START_STATE_NAME,
             SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN,
-            labelsMetadata);
+            labels.map());
     SimpleExecutionState processState =
         new SimpleExecutionState(
             ExecutionStateTracker.PROCESS_STATE_NAME,
             SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN,
-            labelsMetadata);
+            labels.map());
     SimpleExecutionState finishState =
         new SimpleExecutionState(
             ExecutionStateTracker.FINISH_STATE_NAME,
             SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN,
-            labelsMetadata);
+            labels.map());
 
     SimpleStateRegistry testObject = new SimpleStateRegistry();
     testObject.register(startState);
