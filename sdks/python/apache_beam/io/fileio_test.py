@@ -20,8 +20,10 @@
 from __future__ import absolute_import
 
 import csv
+import io
 import logging
 import unittest
+import sys
 
 from nose.plugins.attrib import attr
 
@@ -130,12 +132,18 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     dir = '%s/' % self._new_tempdir()
     self._create_temp_file(dir=dir, content=content)
 
+    def get_csv_reader(readable_file):
+      if sys.version_info >= (3, 0):
+        return csv.reader(io.TextIOBase(readable_file.open()))
+      else:
+        return csv.reader(readable_file.open())
+
     with TestPipeline() as p:
       content_pc = (p
                     | beam.Create([dir])
                     | fileio.MatchAll()
                     | fileio.ReadMatches()
-                    | beam.FlatMap(lambda f: csv.reader(f.open())))
+                    | beam.FlatMap(get_csv_reader))
 
       assert_that(content_pc, equal_to(rows))
 
