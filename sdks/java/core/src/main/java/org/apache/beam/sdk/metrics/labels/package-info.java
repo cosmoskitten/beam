@@ -15,22 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
-
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.DelegatingCounter;
-import org.apache.beam.sdk.metrics.MetricName;
-
-/**
- * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
- * more convenient way to collect the necessary fields to repackage the metric into a MonitoringInfo
- * proto later. Intended for internal use only (SDK and RunnerHarness development).
- */
-public class LabeledMetrics {
-  /**
-   * Create a metric that can be incremented and decremented, and is aggregated by taking the sum.
-   */
-  public static Counter counter(MetricName metricName) {
-    return new DelegatingCounter(metricName);
-  }
-}
+/** Utilities for working with metric ptransform- and pcollection-labels. */
+package org.apache.beam.sdk.metrics.labels;

@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
 
@@ -33,8 +32,7 @@ public class SparkBeamMetricTest {
         new MetricResult<Object>() {
           @Override
           public MetricKey getKey() {
-            return MetricKey.create(
-                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()"));
+            return MetricKey.ptransform("myStep.one.two(three)", "myNameSpace//", "myName()");
           }
 
           @Override

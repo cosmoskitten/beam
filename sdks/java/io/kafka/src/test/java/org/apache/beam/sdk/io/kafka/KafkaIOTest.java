@@ -927,7 +927,7 @@ public class KafkaIOTest {
     MetricName backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId).getName();
     MetricName backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId).getName();
 
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults metrics = result.metrics().allMetrics();
 
     Iterable<MetricResult<Long>> counters = metrics.getCounters();
 
@@ -962,12 +962,8 @@ public class KafkaIOTest {
         result
             .metrics()
             .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            backlogElementsOfSplit.getNamespace(),
-                            backlogElementsOfSplit.getName()))
-                    .build());
+                MetricsFilter.user(
+                    backlogElementsOfSplit.getNamespace(), backlogElementsOfSplit.getName()));
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogElementsMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
@@ -976,11 +972,8 @@ public class KafkaIOTest {
         result
             .metrics()
             .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            backlogBytesOfSplit.getNamespace(), backlogBytesOfSplit.getName()))
-                    .build());
+                MetricsFilter.user(
+                    backlogBytesOfSplit.getNamespace(), backlogBytesOfSplit.getName()));
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
@@ -990,12 +983,9 @@ public class KafkaIOTest {
         result
             .metrics()
             .queryMetrics(
-                MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(
-                            KafkaUnboundedReader.METRIC_NAMESPACE,
-                            KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
-                    .build());
+                MetricsFilter.user(
+                    KafkaUnboundedReader.METRIC_NAMESPACE,
+                    KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC));
 
     assertThat(commitsEnqueuedMetrics.getCounters(), IsIterableWithSize.iterableWithSize(1));
     assertThat(

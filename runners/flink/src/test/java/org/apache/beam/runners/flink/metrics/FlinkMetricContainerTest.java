@@ -75,7 +75,7 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testMetricNameGeneration() {
-    MetricKey key = MetricKey.create("step", MetricName.named("namespace", "name"));
+    MetricKey key = MetricKey.ptransform("step", MetricName.named("namespace", "name"));
     String name = getFlinkMetricNameString(key);
     assertThat(name, is("namespace.name"));
   }
@@ -86,7 +86,7 @@ public class FlinkMetricContainerTest {
     when(metricGroup.counter("namespace.name")).thenReturn(flinkCounter);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
+    MetricsContainer step = container.ptransformContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Counter counter = step.getCounter(metricName);
     counter.inc();
@@ -104,7 +104,7 @@ public class FlinkMetricContainerTest {
     when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
+    MetricsContainer step = container.ptransformContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Gauge gauge = step.getGauge(metricName);
 
@@ -120,7 +120,7 @@ public class FlinkMetricContainerTest {
   @Test
   public void testMonitoringInfoUpdate() {
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
+    MetricsContainer step = container.ptransformContainer("step");
 
     SimpleCounter userCounter = new SimpleCounter();
     when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
@@ -153,7 +153,7 @@ public class FlinkMetricContainerTest {
   @Test
   public void testDropUnexpectedMonitoringInfoTypes() {
     FlinkMetricContainer flinkContainer = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = flinkContainer.getMetricsContainer("step");
+    MetricsContainer step = flinkContainer.ptransformContainer("step");
 
     MonitoringInfo intCounter =
         MonitoringInfo.newBuilder()
@@ -231,7 +231,7 @@ public class FlinkMetricContainerTest {
     when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = container.getMetricsContainer("step");
+    MetricsContainer step = container.ptransformContainer("step");
     MetricName metricName = MetricName.named("namespace", "name");
     Distribution distribution = step.getDistribution(metricName);
 

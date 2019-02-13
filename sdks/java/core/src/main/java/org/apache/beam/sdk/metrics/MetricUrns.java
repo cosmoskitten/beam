@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import javax.annotation.Nullable;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /** Utility for parsing a URN to a {@link org.apache.beam.sdk.metrics.MetricName}. */
 public class MetricUrns {
@@ -43,25 +45,10 @@ public class MetricUrns {
   public static final String PTRANSFORM_LABEL =
       getLabelString(BeamFnApi.MonitoringInfo.MonitoringInfoLabels.PTRANSFORM);
 
-  /**
-   * Parse a {@link org.apache.beam.sdk.metrics.MetricName} from a {@link
-   * org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns.Enum}.
-   *
-   * <p>Should be consistent with {@code parse_namespace_and_name} in monitoring_infos.py.
-   */
-  @Nullable
-  public static MetricName parseUrn(String urn) {
-    if (urn.startsWith(USER_METRIC_URN_PREFIX)) {
-      urn = urn.substring(USER_METRIC_URN_PREFIX.length());
-    } else {
-      return null;
-    }
-    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
-    String[] pieces = urn.split(":", 2);
-    if (pieces.length != 2) {
-      throw new IllegalArgumentException("Invalid metric URN: " + urn);
-    }
-    return MetricName.named(pieces[0], pieces[1]);
+  public static String urn(String namespace, String name) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return String.join(":", USER_METRIC_URN_PREFIX, namespace, name);
   }
 
   /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */
