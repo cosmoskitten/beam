@@ -261,7 +261,7 @@ class PipeStream(object):
       return
     elif whence == os.SEEK_SET and offset == self.position:
       return
-    raise NotImplementedError
+    raise NotImplementedError('offet: %s, whence %s' % (offset, whence))
 
   def _check_open(self):
     if self.closed:
