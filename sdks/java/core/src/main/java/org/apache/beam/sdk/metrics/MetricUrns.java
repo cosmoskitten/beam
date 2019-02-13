@@ -18,8 +18,12 @@
 package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
+import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /** Utility for parsing a URN to a {@link org.apache.beam.sdk.metrics.MetricName}. */
 public class MetricUrns {
@@ -36,11 +40,30 @@ public class MetricUrns {
     } else {
       return null;
     }
-    // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
-    String[] pieces = urn.split(":", 2);
-    if (pieces.length != 2) {
-      throw new IllegalArgumentException("Invalid metric URN: " + urn);
+    List<String> pieces = Splitter.on(':').splitToList(urn);
+    if (pieces.size() != 2) {
+      throw new IllegalArgumentException(
+          "Invalid metric URN: " + urn + ". Expected two ':'-delimited segments (namespace, name)");
     }
-    return MetricName.named(pieces[0], pieces[1]);
+    return MetricName.named(pieces.get(0), pieces.get(1));
+  }
+
+  //  public static Collection<String> urnPieces(String urn) {
+  //    List<String> pieces = Splitter.on(':').splitToList(urn);
+  //    int idx = 0;
+  //    if (pieces.get(idx).equals("beam")) {
+  //      idx += 1;
+  //      if (pieces.get(idx).equals("metric")) {
+  //        idx += 1;
+  //      }
+  //    }
+  //
+  //    return pieces.subList(idx, pieces.size());
+  //  }
+
+  public static String urn(String namespace, String name) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return String.join(":", USER_COUNTER_URN_PREFIX, namespace, name);
   }
 }

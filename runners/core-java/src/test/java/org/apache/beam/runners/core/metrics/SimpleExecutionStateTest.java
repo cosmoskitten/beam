@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -37,14 +38,13 @@ public class SimpleExecutionStateTest {
   public void testLabelsAndNameAreExtracted() {
     String stateName = "myState";
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put("k1", "v1");
-    labelsMetadata.put("k2", "v2");
+    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, "step");
     SimpleExecutionState testObject = new SimpleExecutionState(stateName, null, labelsMetadata);
 
     assertEquals(testObject.getStateName(), stateName);
-    assertEquals(2, testObject.getLabels().size());
-    assertThat(testObject.getLabels(), hasEntry("k1", "v1"));
-    assertThat(testObject.getLabels(), hasEntry("k2", "v2"));
+    Map<String, String> extracted = testObject.getLabels();
+    assertEquals(2, extracted.size());
+    assertThat(extracted, hasEntry("PTRANSFORM", "step"));
   }
 
   @Test
