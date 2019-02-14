@@ -418,14 +418,12 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 
-
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
       [3, 5, 2])
   def test_interpreter_version_check_passes_py352(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
-
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
@@ -434,7 +432,6 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 
-
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
       [3, 9, 0])
@@ -442,7 +439,6 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ["--experiment=ignore_py3_minor_version"])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
-
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
