@@ -114,8 +114,8 @@ def main():
 
   try:
     server = subprocess.Popen([
-      'java', '-jar', known_args.expansion_service_jar,
-      EXPANSION_SERVICE_PORT])
+        'java', '-jar', known_args.expansion_service_jar,
+        EXPANSION_SERVICE_PORT])
 
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()
