@@ -22,8 +22,8 @@ from __future__ import absolute_import
 import csv
 import io
 import logging
-import unittest
 import sys
+import unittest
 
 from nose.plugins.attrib import attr
 
@@ -31,9 +31,9 @@ import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.test_utils import compute_hash
 
 
 class MatchTest(_TestCaseWithTempDirCleanUp):
