@@ -133,6 +133,9 @@ public class CassandraIO {
     abstract String password();
 
     @Nullable
+    abstract String encryptedPassword();
+
+    @Nullable
     abstract PasswordDecrypter passwordDecrypter();
 
     @Nullable
@@ -201,10 +204,16 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
+    /** Specify the encrypted password used for authentication. */
+    public Read<T> withEncryptedPassword(String encryptedPassword) {
+      checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
+      return builder().setEncryptedPassword(encryptedPassword).build();
+    }
+
     /**
-     * Specify the password decrypter used to retrieve the raw password. It delayed the decryption
-     * of the password when connecting to the cluster, which ensures that the raw password is never
-     * serialized in the pipeline.
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
+     * decryption of the password when connecting to the cluster, which ensures that the raw
+     * password is never serialized in the pipeline.
      */
     public Read<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
       checkArgument(passwordDecrypter != null, "passwordDecrypter can not be null");
@@ -272,6 +281,8 @@ public class CassandraIO {
       abstract Builder<T> setUsername(String username);
 
       abstract Builder<T> setPassword(String password);
+
+      abstract Builder<T> setEncryptedPassword(String encryptedPassword);
 
       abstract Builder<T> setPasswordDecrypter(PasswordDecrypter passwordDecrypter);
 
@@ -366,6 +377,9 @@ public class CassandraIO {
     abstract String password();
 
     @Nullable
+    abstract String encryptedPassword();
+
+    @Nullable
     abstract PasswordDecrypter passwordDecrypter();
 
     @Nullable
@@ -458,10 +472,16 @@ public class CassandraIO {
       return builder().setPassword(password).build();
     }
 
+    /** Specify the encrypted password used for authentication. */
+    public Mutate<T> withEncryptedPassword(String encryptedPassword) {
+      checkArgument(encryptedPassword != null, "encryptedPassword can not be null");
+      return builder().setEncryptedPassword(encryptedPassword).build();
+    }
+
     /**
-     * Specify the password decrypter used to retrieve the raw password. It delayed the decryption
-     * of the password when connecting to the cluster, which ensures that the raw password is never
-     * serialized in the pipeline.
+     * Specify the password decrypter used to decrypt the encrypted password. It delayed the
+     * decryption of the password when connecting to the cluster, which ensures that the raw
+     * password is never serialized in the pipeline.
      */
     public Mutate<T> withPasswordDecrypter(PasswordDecrypter passwordDecrypter) {
       checkArgument(passwordDecrypter != null, "passwordDecrypter can not be null");
@@ -560,6 +580,8 @@ public class CassandraIO {
       abstract Builder<T> setUsername(String username);
 
       abstract Builder<T> setPassword(String password);
+
+      abstract Builder<T> setEncryptedPassword(String encryptedPassword);
 
       abstract Builder<T> setPasswordDecrypter(PasswordDecrypter passwordDecrypter);
 

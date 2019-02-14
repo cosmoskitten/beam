@@ -112,7 +112,7 @@ public class CassandraIOIT implements Serializable {
 
   /** Tests writing then reading data for a Cassandra database. */
   @Test
-  public void test_writeThenRead_nominalCase() {
+  public void testWriteThenRead() {
     runWrite(
         CassandraIO.<Scientist>write()
             .withHosts(options.getCassandraHost())
@@ -133,7 +133,7 @@ public class CassandraIOIT implements Serializable {
 
   /** Tests writing then reading data for a Cassandra database with password decryption. */
   @Test
-  public void test_writeThenRead_withPasswordDecryption() {
+  public void testWriteThenReadWithPasswordDecryption() {
     String sessionWriteUID = "session-write-" + UUID.randomUUID();
     PasswordDecrypter writePwdDecrypter = Mockito.spy(new TestPasswordDecrypter(sessionWriteUID));
 
@@ -144,7 +144,7 @@ public class CassandraIOIT implements Serializable {
             .withKeyspace(KEYSPACE)
             .withEntity(Scientist.class)
             .withUsername(USERNAME)
-            .withPassword(ENCRYPTED_PASSWORD)
+            .withEncryptedPassword(ENCRYPTED_PASSWORD)
             .withPasswordDecrypter(writePwdDecrypter));
 
     Assert.assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionWriteUID));
@@ -162,7 +162,7 @@ public class CassandraIOIT implements Serializable {
             .withEntity(Scientist.class)
             .withCoder(SerializableCoder.of(Scientist.class))
             .withUsername(USERNAME)
-            .withPassword(ENCRYPTED_PASSWORD)
+            .withEncryptedPassword(ENCRYPTED_PASSWORD)
             .withPasswordDecrypter(readPwdDecrypter));
 
     Assert.assertTrue(1L <= TestPasswordDecrypter.getNbCallsBySession(sessionReadUID));

@@ -22,7 +22,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Class used to decrypt the Cassandra password. */
+/** Class used in the tests to decrypt the Cassandra password. */
 public class TestPasswordDecrypter implements PasswordDecrypter {
 
   /**

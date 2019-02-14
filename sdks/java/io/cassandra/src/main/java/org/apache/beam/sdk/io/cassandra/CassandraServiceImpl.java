@@ -74,6 +74,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               source.spec.port(),
               source.spec.username(),
               source.spec.password(),
+              source.spec.encryptedPassword(),
               source.spec.passwordDecrypter(),
               source.spec.localDc(),
               source.spec.consistencyLevel());
@@ -146,6 +147,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             spec.port(),
             spec.username(),
             spec.password(),
+            spec.encryptedPassword(),
             spec.passwordDecrypter(),
             spec.localDc(),
             spec.consistencyLevel())) {
@@ -185,6 +187,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             spec.port(),
             spec.username(),
             spec.password(),
+            spec.encryptedPassword(),
             spec.passwordDecrypter(),
             spec.localDc(),
             spec.consistencyLevel())) {
@@ -280,6 +283,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       int port,
       String username,
       String password,
+      String encryptedPassword,
       PasswordDecrypter passwordDecrypter,
       String localDc,
       String consistencyLevel) {
@@ -287,8 +291,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
         Cluster.builder().addContactPoints(hosts.toArray(new String[0])).withPort(port);
 
     if (username != null) {
-      if (passwordDecrypter != null) {
-        password = passwordDecrypter.decrypt(password);
+      if (encryptedPassword != null && passwordDecrypter != null) {
+        password = passwordDecrypter.decrypt(encryptedPassword);
       }
       builder.withAuthProvider(new PlainTextAuthProvider(username, password));
     }
@@ -435,6 +439,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
               spec.port(),
               spec.username(),
               spec.password(),
+              spec.encryptedPassword(),
               spec.passwordDecrypter(),
               spec.localDc(),
               spec.consistencyLevel());
