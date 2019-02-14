@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.common;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -29,8 +28,6 @@ import java.util.Set;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.testutils.NamedTestResult;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -66,13 +63,6 @@ public class FileBasedIOITHelper {
     public void processElement(ProcessContext c) {
       c.output(String.format("IO IT Test line of text. Line seed: %s", c.element()));
     }
-  }
-
-  public static void publishToBigQuery(
-      Collection<NamedTestResult> results, String bigQueryDataset, String bigQueryTable) {
-    BigQueryResultsPublisher publisher =
-        BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema());
-    results.forEach(result -> publisher.publish(result, bigQueryTable));
   }
 
   /** Deletes matching files using the FileSystems API. */

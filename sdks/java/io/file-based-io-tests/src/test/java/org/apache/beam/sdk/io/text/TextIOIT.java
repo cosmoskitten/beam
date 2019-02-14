@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.text;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.publishToBigQuery;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -83,6 +83,7 @@ public class TextIOIT {
   private static Integer numShards;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static boolean gatherGcsPerformanceMetrics;
   private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
@@ -97,6 +98,7 @@ public class TextIOIT {
     numShards = options.getNumberOfShards();
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
   }
 
   @Test
@@ -147,7 +149,10 @@ public class TextIOIT {
     String uuid = UUID.randomUUID().toString();
     Timestamp timestamp = Timestamp.now();
     List<NamedTestResult> namedTestResults = readMetrics(result, uuid, timestamp);
-    publishToBigQuery(namedTestResults, bigQueryDataset, bigQueryTable);
+    if (bigQueryDataset != null && bigQueryTable != null) {
+      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
+          .publish(namedTestResults, bigQueryTable);
+    }
     ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp.toString());
   }
 
@@ -160,22 +165,23 @@ public class TextIOIT {
     long writeEndTime = reader.getEndTimeMetric("middleTime");
     long readStartTime = reader.getStartTimeMetric("middleTime");
     long readEndTime = reader.getEndTimeMetric("endTime");
-    double writeTime = (writeEndTime - writeStartTime) / 1000.0;
-    double readTime = (readEndTime - readStartTime) / 1000.0;
-    double copiesPerSec = calculateGcsMetric(result);
+    double writeTime = (writeEndTime - writeStartTime) / 1e3;
+    double readTime = (readEndTime - readStartTime) / 1e3;
+    if (gatherGcsPerformanceMetrics) {
+      double copiesPerSec = calculateGcsCopies(result);
 
-    if (copiesPerSec > 0) {
-      results.add(
-          NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec));
+      if (copiesPerSec > 0) {
+        results.add(
+            NamedTestResult.create(uuid, timestamp.toString(), "copies_per_sec", copiesPerSec));
+      }
     }
-
     results.add(NamedTestResult.create(uuid, timestamp.toString(), "read_time", readTime));
     results.add(NamedTestResult.create(uuid, timestamp.toString(), "write_time", writeTime));
 
     return results;
   }
 
-  private double calculateGcsMetric(PipelineResult result) {
+  private double calculateGcsCopies(PipelineResult result) {
     MetricsReader metricsReader =
         new MetricsReader(result, "org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystem");
     long numCopies = metricsReader.getCounterMetric("num_copies");
