@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import collections
 import time
 
 from google.protobuf import timestamp_pb2
@@ -241,6 +242,39 @@ def to_key(monitoring_info_proto):
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = [i for i in monitoring_info_proto.labels.items()]
+  key_items = list(monitoring_info_proto.labels.items())
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
+
+
+_KNOWN_COMBINERS = {
+    SUM_INT64_TYPE: lambda a, b: Metric(
+        counter_data=CounterData(
+            int64_value=
+            a.counter_data.int64_value + b.counter_data.int64_value)),
+    # TODO: Distributions, etc.
+}
+
+
+def consolidate(metrics, key=to_key):
+  grouped = collections.defaultdict(list)
+  for metric in metrics:
+    grouped[key(metric)].append(metric)
+  for values in grouped.values():
+    if len(values) == 1:
+      yield values[0]
+    else:
+      combiner = _KNOWN_COMBINERS.get(values[0].type)
+      if combiner:
+        def merge(a, b):
+          return MonitoringInfo(
+              urn=a.urn,
+              type=a.type,
+              labels=dict((label, value) for label, value in a.labels.items()
+                          if b.labels.get(label) == value),
+              metric=combiner(a.metric, b.metric),
+              timestamp=max(a.timestamp, b.timestamp))
+        yield reduce(merge, values)
+      else:
+        for value in values:
+          yield value
