@@ -118,8 +118,11 @@ task preCommit() {
 task portablePreCommit() {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
+  dependsOn ':beam-sdks-java-container:docker'
+  dependsOn ':beam-runners-core-construction-java:jarTestExpansionService'
   dependsOn portableWordCountTask('portableWordCountBatch', false, false)
   dependsOn portableWordCountTask('portableWordCountStreaming', true, false)
+  dependsOn portableWordCountTask('portableWordCountBatchCrossLanguage', false, true)
 }
 
 
