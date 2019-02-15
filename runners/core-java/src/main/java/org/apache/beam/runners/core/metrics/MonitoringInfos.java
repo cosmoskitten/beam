@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.DistributionProtos;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeProtos;
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 
 /**
- * Helpers for working with {@link Metric}s and converting {@linke MonitoringInfo}s to {@link
+ * Helpers for working with {@link Metric}s and converting {@link MonitoringInfo}s to {@link
  * MetricKey}s.
  */
 public class MonitoringInfos {

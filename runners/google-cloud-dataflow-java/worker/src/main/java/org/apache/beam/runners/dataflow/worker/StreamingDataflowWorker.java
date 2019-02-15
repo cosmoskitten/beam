@@ -500,8 +500,8 @@ public class StreamingDataflowWorker {
     private void translateKnownStepCounters(CounterUpdate stepCounterUpdate) {
       CounterStructuredName structuredName =
           stepCounterUpdate.getStructuredNameAndMetadata().getName();
-      if (THROTTLING_MSECS_METRIC_NAME.getNamespace().equals(structuredName.getOriginNamespace())
-          && THROTTLING_MSECS_METRIC_NAME.getName().equals(structuredName.getName())) {
+      if (THROTTLING_MSECS_METRIC_NAME.namespace().equals(structuredName.getOriginNamespace())
+          && THROTTLING_MSECS_METRIC_NAME.name().equals(structuredName.getName())) {
         long msecs = DataflowCounterUpdateExtractor.splitIntToLong(stepCounterUpdate.getInteger());
         if (msecs > 0) {
           throttledMsecs.addValue(msecs);

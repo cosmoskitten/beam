@@ -68,7 +68,7 @@ class SparkBeamMetric implements Metric {
       renderedStepName = renderedStepName.substring(0, renderedStepName.length() - 1);
     }
     MetricName metricName = metricResult.getName();
-    return (renderedStepName + "." + metricName.getNamespace() + "." + metricName.getName())
+    return (renderedStepName + "." + metricName.namespace() + "." + metricName.name())
         .replaceAll(ILLEGAL_CHARACTERS, "_");
   }
 }

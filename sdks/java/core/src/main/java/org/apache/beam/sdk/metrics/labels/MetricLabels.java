@@ -31,8 +31,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
  * Interface around the allowed sets of labels that a metric may have.
  *
  * <p>Supported types:
- * <li>{@link MetricLabels.PTransform PTRANSFORM only}
- * <li>{@link MetricLabels.PCollection PCOLLECTION only}
+ *
+ * <ol>
+ *   <li>{@link MetricLabels.PTransform PTRANSFORM only}
+ *   <li>{@link MetricLabels.PCollection PCOLLECTION only}
+ * </ol>
  */
 public abstract class MetricLabels implements Serializable {
   /** Only instantiate this class as one of the concrete types below. */
@@ -64,7 +67,7 @@ public abstract class MetricLabels implements Serializable {
   }
 
   public String toString(String openLabels, String labelKVDelimiter, String closeLabels) {
-    return String.format("%s%s%s%s", openLabels, key(), value(), closeLabels);
+    return String.format("%s%s%s%s%s", openLabels, key(), labelKVDelimiter, value(), closeLabels);
   }
 
   public static MetricLabels ptransform(String ptransform) {

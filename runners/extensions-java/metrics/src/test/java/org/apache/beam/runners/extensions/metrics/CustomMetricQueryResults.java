@@ -36,90 +36,31 @@ class CustomMetricQueryResults extends MetricQueryResults {
     this.isCommittedSupported = isCommittedSupported;
   }
 
+  private <T> List<MetricResult<T>> makeResults(MetricKey key, T committed, T attempted) {
+    return Collections.singletonList(
+        isCommittedSupported
+            ? MetricResult.create(key, committed, attempted)
+            : MetricResult.attempted(key, attempted));
+  }
+
   @Override
   public List<MetricResult<Long>> getCounters() {
-    return Collections.singletonList(
-        new MetricResult<Long>() {
-
-          @Override
-          public MetricKey getKey() {
-            return MetricKey.ptransform("s1", "ns", "n1");
-          }
-
-          @Override
-          public Long getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return 10L;
-          }
-
-          @Override
-          public Long getAttempted() {
-            return 20L;
-          }
-        });
+    return makeResults(MetricKey.ptransform("s1", "ns", "n1"), 10L, 20L);
   }
 
   @Override
   public List<MetricResult<DistributionResult>> getDistributions() {
-    return Collections.singletonList(
-        new MetricResult<DistributionResult>() {
-
-          @Override
-          public MetricKey getKey() {
-            return MetricKey.ptransform("s2", "ns", "n2");
-          }
-
-          @Override
-          public DistributionResult getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return DistributionResult.create(10L, 2L, 5L, 8L);
-          }
-
-          @Override
-          public DistributionResult getAttempted() {
-            return DistributionResult.create(25L, 4L, 3L, 9L);
-          }
-        });
+    return makeResults(
+        MetricKey.ptransform("s2", "ns", "n2"),
+        DistributionResult.create(10L, 2L, 5L, 8L),
+        DistributionResult.create(25L, 4L, 3L, 9L));
   }
 
   @Override
   public List<MetricResult<GaugeResult>> getGauges() {
-    return Collections.singletonList(
-        new MetricResult<GaugeResult>() {
-
-          @Override
-          public MetricKey getKey() {
-            return MetricKey.ptransform("s3", "ns", "n3");
-          }
-
-          @Override
-          public GaugeResult getCommitted() {
-            if (!isCommittedSupported) {
-              // This is what getCommitted code is like for AccumulatedMetricResult on runners
-              // that do not support committed metrics
-              throw new UnsupportedOperationException(
-                  "This runner does not currently support committed"
-                      + " metrics results. Please use 'attempted' instead.");
-            }
-            return GaugeResult.create(100L, new Instant(345862800L));
-          }
-
-          @Override
-          public GaugeResult getAttempted() {
-            return GaugeResult.create(120L, new Instant(345862800L));
-          }
-        });
+    return makeResults(
+        MetricKey.ptransform("s3", "ns", "n3"),
+        GaugeResult.create(100L, new Instant(345862800L)),
+        GaugeResult.create(120L, new Instant(345862800L)));
   }
 }

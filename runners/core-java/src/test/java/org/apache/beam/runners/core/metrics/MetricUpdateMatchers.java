@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.util.Objects;
-import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -35,7 +34,7 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(name, item.getKey().metricName().getName())
+        return Objects.equals(name, item.getKey().metricName().name())
             && Objects.equals(update, item.getUpdate());
       }
 
@@ -61,8 +60,8 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(namespace, item.getKey().metricName().getNamespace())
-            && Objects.equals(name, item.getKey().metricName().getName())
+        return Objects.equals(namespace, item.getKey().metricName().namespace())
+            && Objects.equals(name, item.getKey().metricName().name())
             && Objects.equals(step, item.getKey().stepName())
             && Objects.equals(update, item.getUpdate());
       }

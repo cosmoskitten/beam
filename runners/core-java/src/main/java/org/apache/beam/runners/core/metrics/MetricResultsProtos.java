@@ -22,7 +22,6 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfos.processMetric
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
@@ -34,7 +33,6 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
 
 /** Convert {@link MetricResults} to and from {@link BeamFnApi.MetricResults}. */
 public class MetricResultsProtos {
@@ -82,7 +80,7 @@ public class MetricResultsProtos {
 
   // Convert between proto- and SDK-representations of MetricResults
 
-  /** Convert a {@link MetricResults} to a {@linke BeamFnApi.MetricResults}. */
+  /** Convert a {@link MetricResults} to a {@link BeamFnApi.MetricResults}. */
   public static BeamFnApi.MetricResults toProto(MetricResults metricResults) {
     BeamFnApi.MetricResults.Builder builder = BeamFnApi.MetricResults.newBuilder();
     MetricQueryResults results = metricResults.allMetrics();
@@ -101,39 +99,6 @@ public class MetricResultsProtos {
     return builder.build();
   }
 
-  private static class MutableMetricResult<T> extends MetricResult<T> {
-    private final MetricKey key;
-    @Nullable private T committed;
-    @Nullable private T attempted;
-
-    public <U> MutableMetricResult(MetricKey key) {
-      this.key = key;
-    }
-
-    @Override
-    public MetricKey getKey() {
-      return key;
-    }
-
-    @Override
-    public T getCommitted() {
-      return committed;
-    }
-
-    @Override
-    public T getAttempted() {
-      return attempted;
-    }
-
-    public void setCommitted(T committed) {
-      this.committed = committed;
-    }
-
-    public void setAttempted(T attempted) {
-      this.attempted = attempted;
-    }
-  }
-
   /**
    * Helper for converting {@link BeamFnApi.MetricResults} to {@link MetricResults}.
    *
@@ -142,11 +107,10 @@ public class MetricResultsProtos {
    * to performing that pivot.
    */
   private static class PTransformMetricResultsBuilder {
-    private final Map<MetricKey, MutableMetricResult<Long>> counters = new ConcurrentHashMap<>();
-    private final Map<MetricKey, MutableMetricResult<DistributionResult>> distributions =
+    private final Map<MetricKey, MetricResult<Long>> counters = new ConcurrentHashMap<>();
+    private final Map<MetricKey, MetricResult<DistributionResult>> distributions =
         new ConcurrentHashMap<>();
-    private final Map<MetricKey, MutableMetricResult<GaugeResult>> gauges =
-        new ConcurrentHashMap<>();
+    private final Map<MetricKey, MetricResult<GaugeResult>> gauges = new ConcurrentHashMap<>();
 
     public PTransformMetricResultsBuilder(BeamFnApi.MetricResults metrics) {
       add(metrics.getAttemptedList(), false);
@@ -154,11 +118,11 @@ public class MetricResultsProtos {
     }
 
     public Map<MetricKey, MetricResult<Long>> getCounters() {
-      return (Map) counters;
+      return counters;
     }
 
     public Map<MetricKey, MetricResult<DistributionResult>> getDistributions() {
-      return (Map) distributions;
+      return distributions;
     }
 
     public MetricResults build() {
@@ -167,7 +131,7 @@ public class MetricResultsProtos {
     }
 
     public Map<MetricKey, MetricResult<GaugeResult>> getGauges() {
-      return (Map) gauges;
+      return gauges;
     }
 
     public void add(Iterable<MonitoringInfo> monitoringInfos, Boolean committed) {
@@ -189,13 +153,12 @@ public class MetricResultsProtos {
     }
 
     public <T> void add(
-        MetricKey key, T value, Boolean committed, Map<MetricKey, MutableMetricResult<T>> map) {
-      MutableMetricResult<T> result = new MutableMetricResult<>(key);
-      result = MoreObjects.firstNonNull(map.putIfAbsent(key, result), result);
+        MetricKey key, T value, Boolean committed, Map<MetricKey, MetricResult<T>> map) {
       if (committed) {
-        result.setCommitted(value);
+        MetricResult<T> result = map.get(key);
+        map.put(key, result.setCommitted(value));
       } else {
-        result.setAttempted(value);
+        map.put(key, MetricResult.attempted(key, value));
       }
     }
   }
