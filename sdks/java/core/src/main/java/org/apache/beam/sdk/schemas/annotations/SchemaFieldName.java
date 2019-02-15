@@ -33,10 +33,11 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * <p>For example, a Java POJO with a field that we want in our schema but under a different name.
  *
  * <pre><code>
- *   {@literal @}DefaultSchema(JavaBeanSchema.class)
+ *  {@literal @}DefaultSchema(JavaBeanSchema.class)
  *   class MyClass {
  *     public String user;
- *     {@literal @}SchemaFieldName("age")
+ *
+ *    {@literal @}SchemaFieldName("age")
  *     public int ageInYears;
  *   }
  * </code></pre>

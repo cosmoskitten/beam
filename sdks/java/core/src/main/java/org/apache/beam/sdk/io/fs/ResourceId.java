@@ -74,9 +74,9 @@ public interface ResourceId extends Serializable {
    * <ul>
    *   <li>{@code resourceId.resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)} returns the
    *       parent directory of this {@code ResourceId}.
-   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_FILE)} returns a
+   *   <li>{@code resourceId.resolve("*", StandardResolveOptions.RESOLVE_FILE)} returns a
    *       {@code ResourceId} which matches all files in this {@code ResourceId}.
-   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_DIRECTORY)}
+   *   <li>{@code resourceId.resolve("*", StandardResolveOptions.RESOLVE_DIRECTORY)}
    *       returns a {@code ResourceId} which matches all directories in this {@code ResourceId}.
    * </ul>
    *
