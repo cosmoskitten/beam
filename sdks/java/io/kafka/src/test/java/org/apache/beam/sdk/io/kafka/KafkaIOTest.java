@@ -722,15 +722,15 @@ public class KafkaIOTest {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.inNamespace(elementsRead.getNamespace()))
+                    .addNameFilter(MetricNameFilter.inNamespace(elementsRead.namespace()))
                     .build());
 
     assertThat(
         metrics.getCounters(),
         hasItem(
             attemptedMetricsResult(
-                elementsRead.getNamespace(),
-                elementsRead.getName(),
+                elementsRead.namespace(),
+                elementsRead.name(),
                 "readFromKafka",
                 (long) numElements)));
   }
@@ -935,35 +935,30 @@ public class KafkaIOTest {
         counters,
         hasItem(
             attemptedMetricsResult(
-                elementsRead.getNamespace(), elementsRead.getName(), readStep, 1000L)));
+                elementsRead.namespace(), elementsRead.name(), readStep, 1000L)));
 
     assertThat(
         counters,
         hasItem(
             attemptedMetricsResult(
-                elementsReadBySplit.getNamespace(),
-                elementsReadBySplit.getName(),
-                readStep,
-                1000L)));
+                elementsReadBySplit.namespace(), elementsReadBySplit.name(), readStep, 1000L)));
+
+    assertThat(
+        counters,
+        hasItem(attemptedMetricsResult(bytesRead.namespace(), bytesRead.name(), readStep, 12000L)));
 
     assertThat(
         counters,
         hasItem(
             attemptedMetricsResult(
-                bytesRead.getNamespace(), bytesRead.getName(), readStep, 12000L)));
-
-    assertThat(
-        counters,
-        hasItem(
-            attemptedMetricsResult(
-                bytesReadBySplit.getNamespace(), bytesReadBySplit.getName(), readStep, 12000L)));
+                bytesReadBySplit.namespace(), bytesReadBySplit.name(), readStep, 12000L)));
 
     MetricQueryResults backlogElementsMetrics =
         result
             .metrics()
             .queryMetrics(
                 MetricsFilter.user(
-                    backlogElementsOfSplit.getNamespace(), backlogElementsOfSplit.getName()));
+                    backlogElementsOfSplit.namespace(), backlogElementsOfSplit.name()));
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogElementsMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
@@ -972,8 +967,7 @@ public class KafkaIOTest {
         result
             .metrics()
             .queryMetrics(
-                MetricsFilter.user(
-                    backlogBytesOfSplit.getNamespace(), backlogBytesOfSplit.getName()));
+                MetricsFilter.user(backlogBytesOfSplit.namespace(), backlogBytesOfSplit.name()));
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
@@ -1502,17 +1496,14 @@ public class KafkaIOTest {
               .metrics()
               .queryMetrics(
                   MetricsFilter.builder()
-                      .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.getNamespace()))
+                      .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.namespace()))
                       .build());
 
       assertThat(
           metrics.getCounters(),
           hasItem(
               attemptedMetricsResult(
-                  elementsWritten.getNamespace(),
-                  elementsWritten.getName(),
-                  "writeToKafka",
-                  1000L)));
+                  elementsWritten.namespace(), elementsWritten.name(), "writeToKafka", 1000L)));
 
       completionThread.shutdown();
     }

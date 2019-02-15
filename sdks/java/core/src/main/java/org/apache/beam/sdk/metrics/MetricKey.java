@@ -48,17 +48,17 @@ public abstract class MetricKey implements Serializable {
   }
 
   @Nullable
-  private String ptransform() {
+  public String ptransform() {
     return labels().ptransform();
   }
 
   @Nullable
-  private String pcollection() {
+  public String pcollection() {
     return labels().pcollection();
   }
 
   public boolean isUserMetric() {
-    return metricName() != null;
+    return metricName().isUserMetric();
   }
 
   @Override
@@ -67,7 +67,16 @@ public abstract class MetricKey implements Serializable {
   }
 
   public String toString(String delimiter) {
-    return toString(delimiter, delimiter, delimiter, delimiter);
+    if (isUserMetric()) {
+      return String.join(delimiter, stepName(), metricName().namespace(), metricName().name());
+    }
+    if (ptransform() != null) {
+      return String.join(delimiter, ptransform(), metricName().toString(delimiter));
+    }
+    if (pcollection() != null) {
+      return String.join(delimiter, pcollection(), metricName().toString(delimiter));
+    }
+    return toString(delimiter, delimiter, delimiter, "");
   }
 
   /**
@@ -75,10 +84,10 @@ public abstract class MetricKey implements Serializable {
    *
    * <p>Defaults to "[namespace]:[name]{PTRANSFORM:[transform name]}":
    *
-   * <p>- {@param urnDelimiter} is the ":" between "[namespace]" and "[name]" - {@param openLabels}
-   * and {@param closeLabels} are the "{" and "}", resp., which bracket the labels associated with
-   * this metric (currently always ["PTRANSFORM"] xor ["PCOLLECTION"]. - {@param labelKVDelimiter}
-   * is the ":" between "PTRANSFORM" and "[transform name]"
+   * <p>- {@code urnDelimiter} is the ":" between "[namespace]" and "[name]" - {@code openLabels}
+   * and {@code closeLabels} are the "{" and "}", resp., which bracket the labels associated with
+   * this metric (currently always ["PTRANSFORM"] xor ["PCOLLECTION"]. - {@code labelKVDelimiter} is
+   * the ":" between "PTRANSFORM" and "[transform name]"
    */
   public String toString(
       String urnDelimiter, String openLabels, String labelKVDelimiter, String closeLabels) {

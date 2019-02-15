@@ -48,22 +48,17 @@ public class MetricUrns {
     return MetricName.named(pieces.get(0), pieces.get(1));
   }
 
-  //  public static Collection<String> urnPieces(String urn) {
-  //    List<String> pieces = Splitter.on(':').splitToList(urn);
-  //    int idx = 0;
-  //    if (pieces.get(idx).equals("beam")) {
-  //      idx += 1;
-  //      if (pieces.get(idx).equals("metric")) {
-  //        idx += 1;
-  //      }
-  //    }
-  //
-  //    return pieces.subList(idx, pieces.size());
-  //  }
-
+  /** @return The metric URN for a user metric, with a proper URN prefix. */
   public static String urn(String namespace, String name) {
     checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return String.join(":", USER_COUNTER_URN_PREFIX, namespace, name);
+    String fixedMetricNamespace = namespace.replace(':', '_');
+    String fixedMetricName = name.replace(':', '_');
+    StringBuilder sb = new StringBuilder();
+    sb.append(USER_COUNTER_URN_PREFIX);
+    sb.append(fixedMetricNamespace);
+    sb.append(':');
+    sb.append(fixedMetricName);
+    return sb.toString();
   }
 }

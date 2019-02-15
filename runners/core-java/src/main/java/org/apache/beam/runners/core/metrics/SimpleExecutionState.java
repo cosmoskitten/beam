@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL;
-
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.sdk.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
@@ -35,8 +36,8 @@ import org.slf4j.LoggerFactory;
  */
 public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;
+  private Map<String, String> labelsMetadata;
   private String urn;
-  private Map<String, String> labels;
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleExecutionState.class);
 
@@ -57,12 +58,15 @@ public class SimpleExecutionState extends ExecutionState {
   /**
    * @param stateName A state name to be used in lull logging when stuck in a state.
    * @param urn A optional string urn for an execution time metric.
-   * @param labels arbitrary metadata to use for reporting purposes.
+   * @param labelsMetadata arbitrary metadata to use for reporting purposes.
    */
-  public SimpleExecutionState(String stateName, String urn, Map<String, String> labels) {
+  public SimpleExecutionState(String stateName, String urn, Map<String, String> labelsMetadata) {
     super(stateName);
     this.urn = urn;
-    this.labels = labels;
+    this.labelsMetadata = labelsMetadata;
+    if (this.labelsMetadata == null) {
+      this.labelsMetadata = new HashMap<String, String>();
+    }
   }
 
   public String getUrn() {
@@ -70,7 +74,7 @@ public class SimpleExecutionState extends ExecutionState {
   }
 
   public Map<String, String> getLabels() {
-    return labels;
+    return Collections.unmodifiableMap(labelsMetadata);
   }
 
   @Override
@@ -85,7 +89,8 @@ public class SimpleExecutionState extends ExecutionState {
   @VisibleForTesting
   public String getLullMessage(Thread trackedThread, Duration millis) {
     // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
-    String userStepName = this.labels.getOrDefault(PTRANSFORM_LABEL, null);
+    String userStepName =
+        this.labelsMetadata.getOrDefault(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, null);
     StringBuilder message = new StringBuilder();
     message.append("Processing stuck");
     if (userStepName != null) {

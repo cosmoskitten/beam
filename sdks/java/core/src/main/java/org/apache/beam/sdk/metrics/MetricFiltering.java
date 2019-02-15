@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.util.Collection;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
 
 /**
@@ -40,8 +42,15 @@ public class MetricFiltering {
   public static boolean matches(MetricsFilter filter, MetricKey key) {
     return filter == null
         || (matchesName(key.metricName(), filter.names())
-            && key.stepName() != null
-            && matchesScope(key.stepName(), filter.steps()));
+            && key.ptransform() != null
+            && matchesScope(key.ptransform(), filter.steps()));
+  }
+
+  public static <T> Iterable<MetricResult<T>> filter(
+      Collection<MetricResult<T>> results, MetricsFilter filter) {
+    return results.stream()
+        .filter(result -> matches(filter, result.getKey()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -94,8 +103,8 @@ public class MetricFiltering {
       if (
       // TODO(ryan): allow querying for system metrics by name or regex?
       metricName.isUserMetric()
-          && (nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
-          && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
+          && (nameFilter.getName() == null || nameFilter.getName().equals(metricName.name()))
+          && Objects.equal(metricName.namespace(), nameFilter.getNamespace())) {
         return true;
       }
     }
