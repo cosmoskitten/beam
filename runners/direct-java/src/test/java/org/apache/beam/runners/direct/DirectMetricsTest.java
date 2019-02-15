@@ -26,8 +26,8 @@ import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.beam.runners.core.metrics.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
-import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeData;
@@ -152,7 +152,8 @@ public class DirectMetricsTest {
             ImmutableList.of()));
 
     MetricQueryResults results =
-        metrics.queryMetrics(MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
+        metrics.queryMetrics(
+            MetricsFilter.builder().addNameFilter(inNamespace(NAME1.namespace())).build());
 
     assertThat(
         results.getCounters(),

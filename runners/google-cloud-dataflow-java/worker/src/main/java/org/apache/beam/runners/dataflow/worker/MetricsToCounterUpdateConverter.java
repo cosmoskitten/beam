@@ -98,10 +98,10 @@ public class MetricsToCounterUpdateConverter {
     name.setMetadata(new CounterMetadata().setKind(kind.toString()));
     name.setName(
         new CounterStructuredName()
-            .setName(metricName.getName())
+            .setName(metricName.name())
             .setOriginalStepName(metricKey.stepName())
             .setOrigin(Origin.USER.toString())
-            .setOriginNamespace(metricName.getNamespace()));
+            .setOriginNamespace(metricName.namespace()));
     return name;
   }
 }

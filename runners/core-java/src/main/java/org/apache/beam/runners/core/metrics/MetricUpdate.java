@@ -15,31 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
-import com.fasterxml.jackson.annotation.JsonFilter;
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import java.io.Serializable;
+import org.apache.beam.sdk.metrics.MetricKey;
 
-/** The results of a single current metric. */
-@Experimental(Kind.METRICS)
-@JsonFilter("committedMetrics")
+/**
+ * Representation of a single metric update.
+ *
+ * @param <T> The type of value representing the update.
+ */
 @AutoValue
-public abstract class DefaultMetricResult<T> extends MetricResult<T> {
-  @Override
+public abstract class MetricUpdate<T> implements Serializable {
+
+  /** The key being updated. */
   public abstract MetricKey getKey();
+  /** The value of the update. */
+  public abstract T getUpdate();
 
-  @Override
-  @Nullable
-  public abstract T getCommitted();
-
-  @Override
-  @Nullable
-  public abstract T getAttempted();
-
-  public static <T> DefaultMetricResult<T> create(MetricKey key, T committed, T attempted) {
-    return new AutoValue_DefaultMetricResult<>(key, committed, attempted);
+  public static <T> MetricUpdate<T> create(MetricKey key, T update) {
+    return new AutoValue_MetricUpdate<T>(key, update);
   }
 }

@@ -38,9 +38,9 @@ public class CounterCell implements Counter, MetricCell<Long> {
   private final MetricName name;
 
   /**
-   * Generally, runners should construct instances using the methods in {@link
-   * MetricsContainerImpl}, unless they need to define their own version of {@link
-   * MetricsContainer}. These constructors are *only* public so runners can instantiate.
+   * Generally, runners should construct instances using the methods in {@link MetricsContainer},
+   * unless they need to define their own version of {@link MetricsContainer}. These constructors
+   * are *only* public so runners can instantiate.
    */
   @Internal
   public CounterCell(MetricName name) {
