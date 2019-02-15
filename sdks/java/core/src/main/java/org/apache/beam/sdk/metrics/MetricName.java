@@ -21,15 +21,15 @@ import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 
 /**
- * Wrapper for {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo} URN.
+ * Wrapper for {@link MonitoringInfo} URN.
  *
  * <p>"User" metrics (URN {@link MetricUrns#USER_METRIC_URN_PREFIX}) are defined by a "namespace"
  * and "name", and are the most commonly dealt with by user code, so structured constructors and
@@ -48,42 +48,49 @@ public abstract class MetricName implements Serializable {
 
   @Nullable private String namespace;
 
+  public Boolean isUserMetric() {
+    if (namespace == null || name == null) {
+      parseUrn();
+    }
+    return namespace != null && name != null;
+  }
+
+  /** @return the parsed namespace from the user metric URN, otherwise null. */
+  public String namespace() {
+    if (namespace == null) {
+      parseUrn();
+    }
+    verifyUserMetric();
+    return namespace;
+  }
+  /** @return the parsed name from the user metric URN, otherwise null. */
+  public String name() {
+    if (name == null) {
+      parseUrn();
+    }
+    verifyUserMetric();
+    return name;
+  }
+
   /** Parse the urn field into "namespace" and "name" fields. */
   private void parseUrn() {
     String urn = urn();
     if (urn.startsWith(USER_METRIC_URN_PREFIX)) {
-      List<String> split = new ArrayList<String>(Arrays.asList(urn.split(":")));
-      this.name = split.get(split.size() - 1);
-      this.namespace = split.get(split.size() - 2);
+      urn = urn.substring(USER_METRIC_URN_PREFIX.length());
+    } else {
+      return;
     }
+    List<String> pieces = Splitter.on(':').splitToList(urn);
+    if (pieces.size() != 2) {
+      throw new IllegalArgumentException(
+          "Invalid metric URN: " + urn + ". Expected two ':'-delimited segments (namespace, name)");
+    }
+    namespace = pieces.get(0);
+    name = pieces.get(1);
   }
 
-  public Boolean isUserMetric() {
-    if (this.namespace == null) {
-      parseUrn();
-    }
-    return this.namespace != null;
-  }
-
-  /** @return the parsed namespace from the user metric URN, otherwise null. */
-  public String getNamespace() {
-    if (this.namespace == null) {
-      parseUrn();
-    }
-    checkAccess();
-    return this.namespace;
-  }
-  /** @return the parsed name from the user metric URN, otherwise null. */
-  public String getName() {
-    if (this.name == null) {
-      parseUrn();
-    }
-    checkAccess();
-    return this.name;
-  }
-
-  public void checkAccess() {
-    if (this.namespace == null || this.name == null) {
+  private void verifyUserMetric() {
+    if (!isUserMetric()) {
       throw new IllegalStateException(
           String.format("Asking for name of a nameless MonitoringInfo metric): %s", urn()));
     }
@@ -95,7 +102,10 @@ public abstract class MetricName implements Serializable {
   }
 
   public String toString(String delimiter) {
-    return String.format("%s%s%s", getNamespace(), delimiter, getName());
+    if (isUserMetric()) {
+      return String.format("%s%s%s", namespace(), delimiter, name());
+    }
+    return urn();
   }
 
   public static MetricName of(String urn) {

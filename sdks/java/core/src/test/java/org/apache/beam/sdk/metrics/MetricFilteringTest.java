@@ -96,7 +96,7 @@ public class MetricFilteringTest {
             MetricsFilter.builder()
                 .addNameFilter(MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
                 .build(),
-            MetricKey.ptransform("anyStep", MetricFilteringTest.class, "myMetricName")));
+            MetricKey.ptransform("anyStep", MetricFiltering.class, "myMetricName")));
   }
 
   @Test

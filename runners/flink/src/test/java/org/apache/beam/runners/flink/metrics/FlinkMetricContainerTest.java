@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.metrics;
 
 import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlinkMetricNameString;
-import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 import static org.hamcrest.CoreMatchers.is;
@@ -75,15 +74,15 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testMetricNameGeneration() {
-    MetricKey key = MetricKey.ptransform("step", MetricName.named("namespace", "name"));
+    MetricKey key = MetricKey.ptransform("step", "namespace", "name");
     String name = getFlinkMetricNameString(key);
-    assertThat(name, is("namespace.name"));
+    assertThat(name, is("step.namespace.name"));
   }
 
   @Test
   public void testCounter() {
     SimpleCounter flinkCounter = new SimpleCounter();
-    when(metricGroup.counter("namespace.name")).thenReturn(flinkCounter);
+    when(metricGroup.counter("step.namespace.name")).thenReturn(flinkCounter);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.ptransformContainer("step");
@@ -101,7 +100,7 @@ public class FlinkMetricContainerTest {
   public void testGauge() {
     FlinkMetricContainer.FlinkGauge flinkGauge =
         new FlinkMetricContainer.FlinkGauge(GaugeResult.empty());
-    when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
+    when(metricGroup.gauge(eq("step.namespace.name"), anyObject())).thenReturn(flinkGauge);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.ptransformContainer("step");
@@ -123,24 +122,20 @@ public class FlinkMetricContainerTest {
     MetricsContainer step = container.ptransformContainer("step");
 
     SimpleCounter userCounter = new SimpleCounter();
-    when(metricGroup.counter("ns1.metric1")).thenReturn(userCounter);
+    when(metricGroup.counter("step.ns1.metric1")).thenReturn(userCounter);
 
     SimpleCounter elemCounter = new SimpleCounter();
-    when(metricGroup.counter("beam.metric:element_count:v1")).thenReturn(elemCounter);
+    when(metricGroup.counter("pcoll.beam:metric:element_count:v1")).thenReturn(elemCounter);
 
-    SimpleMonitoringInfoBuilder userCountBuilder = new SimpleMonitoringInfoBuilder();
-    userCountBuilder.setUrnForUserMetric("ns1", "metric1");
-    userCountBuilder.setInt64Value(111);
-    userCountBuilder.setPTransformLabel("step");
-    MonitoringInfo userCountMonitoringInfo = userCountBuilder.build();
+    MonitoringInfo userCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder()
+            .userMetric("step", "ns1", "metric1")
+            .setInt64Value(111)
+            .build();
     assertNotNull(userCountMonitoringInfo);
 
-    SimpleMonitoringInfoBuilder elemCountBuilder = new SimpleMonitoringInfoBuilder();
-    elemCountBuilder.setUrn(ELEMENT_COUNT_URN);
-    elemCountBuilder.setInt64Value(222);
-    elemCountBuilder.setPTransformLabel("step");
-    elemCountBuilder.setPCollectionLabel("pcoll");
-    MonitoringInfo elemCountMonitoringInfo = elemCountBuilder.build();
+    MonitoringInfo elemCountMonitoringInfo =
+        new SimpleMonitoringInfoBuilder().forElementCount("pcoll").setInt64Value(222).build();
     assertNotNull(elemCountMonitoringInfo);
 
     assertThat(userCounter.getCount(), is(0L));
@@ -153,25 +148,25 @@ public class FlinkMetricContainerTest {
   @Test
   public void testDropUnexpectedMonitoringInfoTypes() {
     FlinkMetricContainer flinkContainer = new FlinkMetricContainer(runtimeContext);
-    MetricsContainer step = flinkContainer.ptransformContainer("step");
+    MetricsContainer container = flinkContainer.ptransformContainer("step");
 
-    MonitoringInfo intCounter =
+    MonitoringInfo counter1 =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_METRIC_URN_PREFIX + "ns1:int_counter")
+            .setUrn(USER_METRIC_URN_PREFIX + "ns1:counter1")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(Metric.newBuilder().setCounter(111))
             .build();
 
-    MonitoringInfo doubleCounter =
+    MonitoringInfo counter2 =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_METRIC_URN_PREFIX + "ns2:double_counter")
+            .setUrn(USER_METRIC_URN_PREFIX + "ns2:counter2")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(Metric.newBuilder().setCounter(222))
             .build();
 
-    MonitoringInfo intDistribution =
+    MonitoringInfo distribution =
         MonitoringInfo.newBuilder()
-            .setUrn(USER_METRIC_URN_PREFIX + "ns3:int_distribution")
+            .setUrn(USER_METRIC_URN_PREFIX + "ns3:distribution")
             .putLabels(PTRANSFORM_LABEL, "step")
             .setMetric(
                 Metric.newBuilder()
@@ -183,30 +178,35 @@ public class FlinkMetricContainerTest {
                             .setMax(5)))
             .build();
 
-    // Mock out the counter that Flink returns; the distribution gets created by
+    // Mock out the counters that Flink returns; the distribution gets created by
     // FlinkMetricContainer, not by Flink itself, so we verify it in a different way below
-    SimpleCounter counter = new SimpleCounter();
-    when(metricGroup.counter("ns1.int_counter")).thenReturn(counter);
+    SimpleCounter flinkCounter1 = new SimpleCounter();
+    SimpleCounter flinkCounter2 = new SimpleCounter();
+    when(metricGroup.counter("step.ns1.counter1")).thenReturn(flinkCounter1);
+    when(metricGroup.counter("step.ns2.counter2")).thenReturn(flinkCounter2);
 
-    flinkContainer.updateMetrics(ImmutableList.of(intCounter, doubleCounter, intDistribution));
+    flinkContainer.updateMetrics(ImmutableList.of(counter1, counter2, distribution));
 
-    // Flink's MetricGroup should only have asked for one counter (the integer-typed one) to be
-    // created (the double-typed one is dropped currently)
-    verify(metricGroup).counter(eq("ns1.int_counter"));
+    verify(metricGroup).counter(eq("step.ns1.counter1"));
+    verify(metricGroup).counter(eq("step.ns2.counter2"));
 
     // Verify that the counter injected into flink has the right value
-    assertThat(counter.getCount(), is(111L));
+    assertThat(flinkCounter1.getCount(), is(111L));
+    assertThat(flinkCounter2.getCount(), is(222L));
 
-    // Verify the counter in the java SDK MetricsContainer
-    long count =
-        ((CounterCell) step.getCounter(MetricName.named("ns1", "int_counter"))).getCumulative();
-    assertThat(count, is(111L));
+    // Verify the counters in the java SDK MetricsContainer
+    long count1 =
+        ((CounterCell) container.getCounter(MetricName.named("ns1", "counter1"))).getCumulative();
+    assertThat(count1, is(111L));
+    long count2 =
+        ((CounterCell) container.getCounter(MetricName.named("ns2", "counter2"))).getCumulative();
+    assertThat(count2, is(222L));
 
     // The one Flink distribution that gets created is a FlinkDistributionGauge; here we verify its
     // initial (and in this test, final) value
     verify(metricGroup)
         .gauge(
-            eq("ns3.int_distribution"),
+            eq("step.ns3.distribution"),
             argThat(
                 new ArgumentMatcher<FlinkDistributionGauge>() {
                   @Override
@@ -219,7 +219,7 @@ public class FlinkMetricContainerTest {
 
     // Verify that the Java SDK MetricsContainer holds the same information
     DistributionData distributionData =
-        ((DistributionCell) step.getDistribution(MetricName.named("ns3", "int_distribution")))
+        ((DistributionCell) container.getDistribution(MetricName.named("ns3", "distribution")))
             .getCumulative();
     assertThat(distributionData, is(DistributionData.create(30, 10, 1, 5)));
   }
@@ -228,7 +228,7 @@ public class FlinkMetricContainerTest {
   public void testDistribution() {
     FlinkMetricContainer.FlinkDistributionGauge flinkGauge =
         new FlinkMetricContainer.FlinkDistributionGauge(DistributionResult.IDENTITY_ELEMENT);
-    when(metricGroup.gauge(eq("namespace.name"), anyObject())).thenReturn(flinkGauge);
+    when(metricGroup.gauge(eq("step.namespace.name"), anyObject())).thenReturn(flinkGauge);
 
     FlinkMetricContainer container = new FlinkMetricContainer(runtimeContext);
     MetricsContainer step = container.ptransformContainer("step");

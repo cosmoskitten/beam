@@ -165,9 +165,11 @@ public class FlinkMetricContainer {
     String flinkMetricName = getFlinkMetricNameString(metricKey);
 
     // update flink metric
-    Counter counter =
-        flinkCounterCache.computeIfAbsent(
-            flinkMetricName, n -> runtimeContext.getMetricGroup().counter(n));
+    Counter counter = flinkCounterCache.get(flinkMetricName);
+    if (counter == null) {
+      counter = runtimeContext.getMetricGroup().counter(flinkMetricName);
+      flinkCounterCache.put(flinkMetricName, counter);
+    }
     counter.dec(counter.getCount());
     counter.inc(attempted);
   }
@@ -201,7 +203,6 @@ public class FlinkMetricContainer {
   }
 
   static String getFlinkMetricNameString(MetricKey metricKey) {
-    MetricName metricName = metricKey.metricName();
     return metricKey.toString(METRIC_KEY_SEPARATOR);
   }
 

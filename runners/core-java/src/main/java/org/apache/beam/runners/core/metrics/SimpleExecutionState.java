@@ -19,6 +19,8 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
@@ -35,8 +37,8 @@ import org.slf4j.LoggerFactory;
  */
 public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;
-  private String urn;
   private Map<String, String> labelsMetadata;
+  private String urn;
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleExecutionState.class);
 
@@ -63,6 +65,9 @@ public class SimpleExecutionState extends ExecutionState {
     super(stateName);
     this.urn = urn;
     this.labelsMetadata = labelsMetadata;
+    if (this.labelsMetadata == null) {
+      this.labelsMetadata = new HashMap<>();
+    }
   }
 
   public String getUrn() {
@@ -70,7 +75,7 @@ public class SimpleExecutionState extends ExecutionState {
   }
 
   public Map<String, String> getLabels() {
-    return labelsMetadata;
+    return Collections.unmodifiableMap(labelsMetadata);
   }
 
   @Override

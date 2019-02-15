@@ -295,8 +295,8 @@ public class MetricsGraphiteSink implements MetricsSink {
         String.format(
             "beam.%s.%s.%s.%s.%s",
             metricType,
-            metric.getName().getNamespace(),
-            metric.getName().getName(),
+            metric.getName().namespace(),
+            metric.getName().name(),
             committedOrAttemped,
             valueType);
 

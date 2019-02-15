@@ -45,10 +45,18 @@ public class MetricUrns {
   public static final String PTRANSFORM_LABEL =
       getLabelString(BeamFnApi.MonitoringInfo.MonitoringInfoLabels.PTRANSFORM);
 
+  /** @return The metric URN for a user metric, with a proper URN prefix. */
   public static String urn(String namespace, String name) {
     checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return String.join(":", USER_METRIC_URN_PREFIX, namespace, name);
+    String fixedMetricNamespace = namespace.replace(':', '_');
+    String fixedMetricName = name.replace(':', '_');
+    StringBuilder sb = new StringBuilder();
+    sb.append(USER_METRIC_URN_PREFIX);
+    sb.append(fixedMetricNamespace);
+    sb.append(':');
+    sb.append(fixedMetricName);
+    return sb.toString();
   }
 
   /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */

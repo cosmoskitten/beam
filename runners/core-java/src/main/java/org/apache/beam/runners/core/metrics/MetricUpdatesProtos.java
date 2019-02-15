@@ -26,20 +26,20 @@ import org.apache.beam.sdk.metrics.MetricKey;
 /** Convert {@link MetricUpdates} to a {@link List} of {@link MonitoringInfo}. */
 public class MetricUpdatesProtos {
   private static <T> MonitoringInfo addMetric(
-      MetricUpdates.MetricUpdate<T> metricUpdate, BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
+      MetricUpdate<T> metricUpdate, BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
     MetricKey metricKey = metricUpdate.getKey();
-    builder.handleMetricKey(metricKey);
+    SimpleMonitoringInfoBuilder builder =
+        new SimpleMonitoringInfoBuilder().setTimestampToNow().handleMetricKey(metricKey);
 
     fn.accept(builder, metricUpdate.getUpdate());
-    return builder.setTimestampToNow().build();
+    return builder.build();
   }
 
   private static <T> void fromMetrics(
       ArrayList<MonitoringInfo> monitoringInfos,
-      Iterable<MetricUpdates.MetricUpdate<T>> metrics,
+      Iterable<MetricUpdate<T>> metrics,
       BiConsumer<SimpleMonitoringInfoBuilder, T> fn) {
-    for (MetricUpdates.MetricUpdate<T> metric : metrics) {
+    for (MetricUpdate<T> metric : metrics) {
       MonitoringInfo monitoringInfo = addMetric(metric, fn);
       if (monitoringInfo != null) {
         monitoringInfos.add(monitoringInfo);
