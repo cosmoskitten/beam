@@ -47,14 +47,13 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
  * <p>For example, if your class is JavaBean, the JavaBeanSchema provider class knows how to vend
  * schemas for this class. You can annotate it as follows:
  *
- * <pre><code>
- *   {@literal @}DefaultSchema(JavaBeanSchema.class)
- *   class MyClass {
- *     public String getFoo();
- *     void setFoo(String foo);
- *           ....
- *   }
- * </code></pre>
+ * <pre>{@code @DefaultSchema(JavaBeanSchema.class)
+ * class MyClass {
+ *   public String getFoo();
+ *   void setFoo(String foo);
+ *         ....
+ * }
+ * }</pre>
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
