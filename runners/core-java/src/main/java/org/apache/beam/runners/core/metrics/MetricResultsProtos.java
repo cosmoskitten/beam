@@ -70,6 +70,9 @@ public class MetricResultsProtos {
         metricResult.getAttempted(),
         set,
         BeamFnApi.MetricResults.Builder::addAttempted);
+    if (!metricResult.supportsCommitted()) {
+      return;
+    }
     process(
         builder,
         metricKey,
