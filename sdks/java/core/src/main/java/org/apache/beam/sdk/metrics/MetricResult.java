@@ -62,6 +62,11 @@ public abstract class MetricResult<T> {
     }
 
     @Override
+    public boolean supportsCommitted() {
+      return false;
+    }
+
+    @Override
     public abstract V getAttempted();
 
     @Override
@@ -85,6 +90,11 @@ public abstract class MetricResult<T> {
   public abstract static class AttemptedAndCommitted<V> extends MetricResult<V> {
     @Override
     public abstract MetricKey getKey();
+
+    @Override
+    public boolean supportsCommitted() {
+      return true;
+    }
 
     @Override
     protected abstract V getCommitedOrNull();
@@ -113,6 +123,8 @@ public abstract class MetricResult<T> {
     }
     return committed;
   }
+
+  public abstract boolean supportsCommitted();
 
   @Nullable
   protected abstract T getCommitedOrNull();
