@@ -17,26 +17,29 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import com.codahale.metrics.Metric;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
 class SparkBeamMetric implements Metric {
-  private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9\\._-]";
-  private static final String ILLEGAL_CHARACTERS_AND_PERIOD = "[^A-Za-z0-9_-]";
+  private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
@@ -62,13 +65,16 @@ class SparkBeamMetric implements Metric {
 
   @VisibleForTesting
   String renderName(MetricResult<?> metricResult) {
-    String renderedStepName =
-        metricResult.getKey().toString().replaceAll(ILLEGAL_CHARACTERS_AND_PERIOD, "_");
-    if (renderedStepName.endsWith("_")) {
-      renderedStepName = renderedStepName.substring(0, renderedStepName.length() - 1);
+    MetricKey key = metricResult.getKey();
+    MetricName name = key.metricName();
+    List<String> pieces =
+        ImmutableList.of(key.labels().value(), name.namespace(), name.name()).stream()
+            .map(str -> str.replaceAll(ILLEGAL_CHARACTERS, "_"))
+            .collect(toList());
+    String label = pieces.get(0);
+    if (label.endsWith("_")) {
+      pieces.set(0, label.substring(0, label.length() - 1));
     }
-    MetricName metricName = metricResult.getName();
-    return (renderedStepName + "." + metricName.namespace() + "." + metricName.name())
-        .replaceAll(ILLEGAL_CHARACTERS, "_");
+    return String.join(".", pieces);
   }
 }

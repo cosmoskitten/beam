@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.junit.Test;
 
@@ -31,10 +30,7 @@ public class SparkBeamMetricTest {
   public void testRenderName() {
     MetricResult<Object> metricResult =
         MetricResult.create(
-            MetricKey.ptransform(
-                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
-            123,
-            456);
+            MetricKey.ptransform("myStep.one.two(three)", "myNameSpace//", "myName()"), 123, 456);
     String renderedName = new SparkBeamMetric().renderName(metricResult);
     assertThat(
         "Metric name was not rendered correctly",
