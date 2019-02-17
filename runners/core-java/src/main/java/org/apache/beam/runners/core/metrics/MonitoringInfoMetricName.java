@@ -60,7 +60,7 @@ public class MonitoringInfoMetricName extends MetricName {
    * <p>TODO(ryan): duplicated with {@link MetricUrns}
    */
   private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
+    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);

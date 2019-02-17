@@ -339,7 +339,7 @@ message MonitoringInfoSpecs {
   enum Enum {
     // TODO(ajamato): Add the PTRANSFORM name as a required label after
     // upgrading the python SDK.
-    USER_COUNTER = 0 [(monitoring_info_spec) = {
+    USER_METRIC = 0 [(monitoring_info_spec) = {
       urn: "beam:metric:user:",
       type_urns: [ "beam:metrics:sum_int_64", "beam:metrics:distribution_int_64", "beam:metrics:latest_int_64" ]
     }];
@@ -462,8 +462,7 @@ message MonitoringInfo {
 message MonitoringInfoUrns {
   enum Enum {
     // User-metric URNs have this format: 'beam:metric:user:<namespace>:<name>'.
-    // TODO(ryan): remove "COUNTER" designation from this URN name
-    USER_COUNTER_URN_PREFIX = 0
+    USER_METRIC_URN_PREFIX = 0
         [(org.apache.beam.model.pipeline.v1.beam_urn) = "beam:metric:user:"];
 
     ELEMENT_COUNT = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
