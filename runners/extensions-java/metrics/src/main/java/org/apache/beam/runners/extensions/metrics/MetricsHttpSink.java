@@ -80,10 +80,6 @@ public class MetricsHttpSink implements MetricsSink {
    * system metrics.
    */
   public static class MetricNameSerializer extends StdSerializer<MetricName> {
-    public MetricNameSerializer() {
-      this(null);
-    }
-
     public MetricNameSerializer(Class<MetricName> t) {
       super(t);
     }
@@ -107,10 +103,6 @@ public class MetricsHttpSink implements MetricsSink {
    * or "pcollection" field with the corresponding label.
    */
   public static class MetricKeySerializer extends StdSerializer<MetricKey> {
-    public MetricKeySerializer() {
-      this(null);
-    }
-
     public MetricKeySerializer(Class<MetricKey> t) {
       super(t);
     }
@@ -140,13 +132,9 @@ public class MetricsHttpSink implements MetricsSink {
   public static class MetricResultSerializer extends StdSerializer<MetricResult> {
     private final MetricKeySerializer keySerializer;
 
-    public MetricResultSerializer() {
-      this(null);
-    }
-
     public MetricResultSerializer(Class<MetricResult> t) {
       super(t);
-      keySerializer = new MetricKeySerializer();
+      keySerializer = new MetricKeySerializer(MetricKey.class);
     }
 
     @Override
@@ -164,9 +152,9 @@ public class MetricsHttpSink implements MetricsSink {
 
   private String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     SimpleModule module = new JodaModule();
-    module.addSerializer(MetricName.class, new MetricNameSerializer());
-    module.addSerializer(MetricKey.class, new MetricKeySerializer());
-    module.addSerializer(MetricResult.class, new MetricResultSerializer());
+    module.addSerializer(new MetricNameSerializer(MetricName.class));
+    module.addSerializer(new MetricKeySerializer(MetricKey.class));
+    module.addSerializer(new MetricResultSerializer(MetricResult.class));
     objectMapper.registerModule(module);
     objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
