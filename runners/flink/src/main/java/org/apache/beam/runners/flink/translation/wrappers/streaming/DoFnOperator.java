@@ -173,6 +173,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   protected transient FlinkTimerInternals timerInternals;
 
+  private transient StateInternals nonKeyedStateInternals;
+
   private transient long pushedBackWatermark;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
@@ -298,6 +300,16 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
+    // maybe init by initializeState
+    if (nonKeyedStateInternals == null) {
+      if (keyCoder != null) {
+        nonKeyedStateInternals =
+            new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
+      } else {
+        nonKeyedStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
+      }
+    }
+
     if (!sideInputs.isEmpty()) {
 
       FlinkBroadcastStateInternals sideInputStateInternals =
@@ -315,14 +327,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       setPushedBackWatermark(Long.MAX_VALUE);
     }
 
-    final StateInternals outputManagerStateInternals;
-    if (keyCoder != null) {
-      outputManagerStateInternals =
-          new FlinkKeyGroupStateInternals<>(keyCoder, getKeyedStateBackend());
-    } else {
-      outputManagerStateInternals = new FlinkSplitStateInternals<>(getOperatorStateBackend());
-    }
-    outputManager = outputManagerFactory.create(output, outputManagerStateInternals);
+    outputManager = outputManagerFactory.create(output, nonKeyedStateInternals);
 
     // StatefulPardo or WindowDoFn
     if (keyCoder != null) {
@@ -436,7 +441,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty()) {
+    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
 
       List<WindowedValue<InputT>> pushedBackElements =
           pushedBackElementsHandler.getElements().collect(Collectors.toList());
@@ -684,18 +689,13 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void snapshotState(StateSnapshotContext context) throws Exception {
+
     // Forced finish a bundle in checkpoint barrier otherwise may lose data.
     // Careful, it use OperatorState or KeyGroupState to store outputs, So it
     // must be called before their snapshot.
-    // If keyed state is used, must only be done if a key has already been set
-    // by a previous element. If there are no previous elements the active key
-    // is null and we can't buffer elements in finalizeBundle.
-    // TODO Move this to prepareSnapshotPreBarrier when we drop Flink 1.5 support
-    if (getKeyedStateBackend() == null || getKeyedStateBackend().getCurrentKey() != null) {
-      outputManager.openBuffer();
-      invokeFinishBundle();
-      outputManager.closeBuffer();
-    }
+    outputManager.openBuffer();
+    invokeFinishBundle();
+    outputManager.closeBuffer();
 
     super.snapshotState(context);
   }
