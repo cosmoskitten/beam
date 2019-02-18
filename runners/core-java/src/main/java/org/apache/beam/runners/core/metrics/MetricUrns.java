@@ -32,11 +32,13 @@ public class MetricUrns {
   public static MetricName parseUrn(String urn) {
     if (urn.startsWith(USER_COUNTER_URN_PREFIX)) {
       urn = urn.substring(USER_COUNTER_URN_PREFIX.length());
+    } else {
+      throw new IllegalArgumentException("Invalid user-metric URN: " + urn);
     }
     // If it is not a user counter, just use the first part of the URN, i.e. 'beam'
     String[] pieces = urn.split(":", 2);
     if (pieces.length != 2) {
-      throw new IllegalArgumentException("Invalid metric URN: " + urn);
+      throw new IllegalArgumentException("Invalid user-metric URN: " + urn);
     }
     return MetricName.named(pieces[0], pieces[1]);
   }
