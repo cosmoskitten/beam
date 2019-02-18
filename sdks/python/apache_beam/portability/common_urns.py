@@ -23,6 +23,7 @@ from builtins import object
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.portability.api import standard_window_fns_pb2
 
 
@@ -81,3 +82,6 @@ monitoring_infos = PropertiesFromEnumType(
     beam_fn_api_pb2.MonitoringInfoUrns.Enum)
 monitoring_info_types = PropertiesFromEnumType(
     beam_fn_api_pb2.MonitoringInfoTypeUrns.Enum)
+
+generate_sequence = PropertiesFromPayloadType(
+    external_transforms_pb2.GenerateSequencePayload)
