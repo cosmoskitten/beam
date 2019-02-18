@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -96,6 +97,24 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     abstract Builder setMaxReadTime(Duration maxReadTime);
 
     abstract GenerateSequence build();
+  }
+
+  public static GenerateSequence fromExternal(ExternalTransforms.GenerateSequencePayload payload) {
+    Builder builder = GenerateSequence.from(payload.getStart()).toBuilder();
+    if (payload.getStopProvided()) {
+      builder.setTo(payload.getStopValue());
+    }
+    if (payload.getElementsPerPeriodProvided()) {
+      builder.setElementsPerPeriod(payload.getElementsPerPeriodValue());
+    }
+    if (payload.hasPeriod()) {
+      builder.setPeriod(Duration.standardSeconds(payload.getPeriod().getSeconds()));
+    }
+    if (payload.hasMaxReadTime()) {
+      builder.setMaxReadTime(Duration.standardSeconds(payload.getMaxReadTime().getSeconds()));
+    }
+    // TODO Configure timestamp_fn
+    return builder.build();
   }
 
   /** Specifies the minimum number to generate (inclusive). */
