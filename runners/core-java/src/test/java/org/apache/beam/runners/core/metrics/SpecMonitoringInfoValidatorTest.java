@@ -48,7 +48,7 @@ public class SpecMonitoringInfoValidatorTest {
   public void validateReturnsNoErrorOnValidMonitoringInfo() {
     MonitoringInfo testInput =
         MonitoringInfo.newBuilder()
-            .setUrn(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX + "someCounter")
+            .setUrn(SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX + "someCounter")
             .setType(SimpleMonitoringInfoBuilder.SUM_INT64_TYPE_URN)
             .putLabels("dummy", "value")
             .build();

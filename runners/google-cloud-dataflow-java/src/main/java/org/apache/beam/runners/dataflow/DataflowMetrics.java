@@ -29,10 +29,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -143,8 +143,7 @@ class DataflowMetrics extends MetricResults {
         DistributionResult value = getDistributionValue(committed);
         distributionResults.add(
             DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
+                metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
@@ -157,8 +156,7 @@ class DataflowMetrics extends MetricResults {
         Long value = getCounterValue(committed);
         counterResults.add(
             DataflowMetricResult.create(
-                metricKey.metricName(),
-                metricKey.stepName(),
+                metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
@@ -330,14 +328,9 @@ class DataflowMetrics extends MetricResults {
   }
 
   @AutoValue
-  abstract static class DataflowMetricResult<T> implements MetricResult<T> {
-    // need to define these here so they appear in the correct order
-    // and the generated constructor is usable and consistent
+  abstract static class DataflowMetricResult<T> extends MetricResult<T> {
     @Override
-    public abstract MetricName getName();
-
-    @Override
-    public abstract String getStep();
+    public abstract MetricKey getKey();
 
     @Nullable
     protected abstract T committedInternal();
@@ -356,10 +349,8 @@ class DataflowMetrics extends MetricResults {
       return committed;
     }
 
-    public static <T> MetricResult<T> create(
-        MetricName name, String scope, T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
-          name, scope, committed, attempted);
+    public static <T> MetricResult<T> create(MetricKey key, T committed, T attempted) {
+      return new AutoValue_DataflowMetrics_DataflowMetricResult<T>(key, committed, attempted);
     }
   }
 }

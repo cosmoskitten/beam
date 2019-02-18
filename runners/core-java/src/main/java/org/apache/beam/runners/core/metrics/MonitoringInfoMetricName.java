@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
@@ -41,7 +43,7 @@ public class MonitoringInfoMetricName extends MetricName {
   @Nullable private String namespace;
   private HashMap<String, String> labels = new HashMap<String, String>();
 
-  private MonitoringInfoMetricName(String urn, HashMap<String, String> labels) {
+  private MonitoringInfoMetricName(String urn, Map<String, String> labels) {
     checkArgument(!Strings.isNullOrEmpty(urn), "MonitoringInfoMetricName urn must be non-empty");
     checkArgument(labels != null, "MonitoringInfoMetricName labels must be non-null");
     // TODO(ajamato): Move SimpleMonitoringInfoBuilder to beam-runner-core-construction-java
@@ -52,9 +54,13 @@ public class MonitoringInfoMetricName extends MetricName {
     }
   }
 
-  /** Parse the urn field into a name and namespace field. */
+  /**
+   * Parse the urn field into a name and namespace field.
+   *
+   * <p>TODO(ryan): duplicated with {@link MetricUrns}
+   */
   private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX)) {
+    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);
@@ -89,8 +95,13 @@ public class MonitoringInfoMetricName extends MetricName {
     return this.labels;
   }
 
-  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
+  public static MonitoringInfoMetricName named(String urn, Map<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
+  }
+
+  /** @return a MetricName for a specific urn and labels map. */
+  public static MonitoringInfoMetricName create(MonitoringInfo monitoringInfo) {
+    return new MonitoringInfoMetricName(monitoringInfo.getUrn(), monitoringInfo.getLabelsMap());
   }
 
   @Override
