@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.runners.core.metrics.MetricUrns.parseUrn;
+import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricUrns;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /**
@@ -62,7 +63,7 @@ public class MonitoringInfoMetricName extends MetricName {
    * <p>TODO(ryan): duplicated with {@link MetricUrns}
    */
   private void parseUrn() {
-    if (this.urn.startsWith(SimpleMonitoringInfoBuilder.USER_METRIC_URN_PREFIX)) {
+    if (this.urn.startsWith(USER_METRIC_URN_PREFIX)) {
       List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
       this.name = split.get(split.size() - 1);
       this.namespace = split.get(split.size() - 2);

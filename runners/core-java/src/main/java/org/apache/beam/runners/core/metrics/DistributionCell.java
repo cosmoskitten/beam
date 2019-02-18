@@ -62,7 +62,7 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     update(DistributionData.create(sum, count, min, max));
   }
 
-  void update(DistributionData data) {
+  public void update(DistributionData data) {
     DistributionData original;
     do {
       original = value.get();

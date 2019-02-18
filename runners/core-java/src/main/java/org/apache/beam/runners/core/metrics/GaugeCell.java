@@ -55,7 +55,7 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
     update(GaugeData.create(value));
   }
 
-  void update(GaugeData data) {
+  public void update(GaugeData data) {
     GaugeData original;
     do {
       original = gaugeValue.get();

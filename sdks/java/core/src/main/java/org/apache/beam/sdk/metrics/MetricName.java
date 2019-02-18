@@ -26,9 +26,17 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
 
 /**
- * The name of a metric consists of a {@link #getNamespace} and a {@link #getName}. The {@link
- * #getNamespace} allows grouping related metrics together and also prevents collisions between
- * multiple metrics with the same name.
+ * <<<<<<< HEAD The name of a metric consists of a {@link #getNamespace} and a {@link #getName}. The
+ * {@link #getNamespace} allows grouping related metrics together and also prevents collisions
+ * between multiple metrics with the same name. ======= Wrapper for {@link MonitoringInfo} URN.
+ *
+ * <p>"User" metrics (URN {@link MetricUrns#USER_METRIC_URN_PREFIX}) are defined by a "namespace"
+ * and "name", and are the most commonly dealt with by user code, so structured constructors and
+ * accessors are provided in terms of those strings.
+ *
+ * <p>The {@link #namespace} allows grouping related metrics together and also prevents collisions
+ * between multiple metrics with the same name. >>>>>>> b5a24a36a1... mv metric URN constants from
+ * SimpleMonitoringInfoBuilder to MetricUrns
  */
 @Experimental(Kind.METRICS)
 @AutoValue
