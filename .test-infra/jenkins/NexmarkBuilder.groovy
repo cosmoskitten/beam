@@ -36,6 +36,7 @@ class NexmarkBuilder {
     SPARK("SparkRunner", ":beam-runners-spark"),
     FLINK("FlinkRunner", ":beam-runners-flink_2.11"),
     DIRECT("DirectRunner", ":beam-runners-direct-java")
+    GEARPUMP("TestGearpumpRunner", ":beam-runners-gearpump")
 
     private final String option
     private final String dependency
@@ -78,6 +79,16 @@ class NexmarkBuilder {
 
     options.put('queryLanguage', 'sql')
     suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, options)
+  }
+
+  static void streamingOnlyJob(context, Runner runner, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
+    Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+    options.put('streaming', true)
+
+    suite(context, "NEXMARK IN STREAMING MODE USING ${runner} RUNNER", runner, options)
+
+    options.put('queryLanguage', 'sql')
+    suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, options)
   }
 
   private

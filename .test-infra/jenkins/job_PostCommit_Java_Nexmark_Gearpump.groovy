@@ -66,5 +66,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Ge
           'enforceEncodability' : true,
           'enforceImmutability' : true
   ]
-  Nexmark.standardJob(delegate, Nexmark.Runner.GEARPUMP, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
+  Nexmark.streamingOnlyJob(delegate, Nexmark.Runner.GEARPUMP, JOB_SPECIFIC_OPTIONS, Nexmark.TriggeringContext.PR)
 }
