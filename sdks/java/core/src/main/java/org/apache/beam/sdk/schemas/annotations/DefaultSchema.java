@@ -61,6 +61,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 @SuppressWarnings("rawtypes")
 @Experimental(Kind.SCHEMAS)
 public @interface DefaultSchema {
+
+  /** The schema provider implementation that knows how to vend schemas for the annotated class. */
   @CheckForNull
   Class<? extends SchemaProvider> value();
 

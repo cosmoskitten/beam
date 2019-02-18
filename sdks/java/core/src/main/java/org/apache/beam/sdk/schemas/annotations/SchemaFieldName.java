@@ -50,6 +50,8 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @SuppressWarnings("rawtypes")
 @Experimental(Kind.SCHEMAS)
 public @interface SchemaFieldName {
+
+  /** The name to use for the generated schema field. */
   @Nonnull
   String value();
 }
