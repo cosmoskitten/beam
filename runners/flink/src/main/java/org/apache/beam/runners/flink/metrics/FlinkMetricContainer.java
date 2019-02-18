@@ -203,7 +203,7 @@ public class FlinkMetricContainer {
 
   static String getFlinkMetricNameString(MetricKey metricKey) {
     MetricName metricName = metricKey.metricName();
-    return metricKey.stepName() + METRIC_KEY_SEPARATOR + metricName.toString();
+    return metricKey.toString(METRIC_KEY_SEPARATOR);
   }
 
   /** Flink {@link Gauge} for {@link DistributionResult}. */
