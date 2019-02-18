@@ -31,6 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -105,6 +106,10 @@ public class FlinkMetricContainer {
           if (monitoringInfo.hasMetric()) {
             String urn = monitoringInfo.getUrn();
             MetricName metricName = parseUrn(urn);
+            if (metricName == null) {
+              LOG.info("Skipping non-user metric: {}", urn);
+              return;
+            }
             Metric metric = monitoringInfo.getMetric();
             if (metric.hasCounterData()) {
               CounterData counterData = metric.getCounterData();
