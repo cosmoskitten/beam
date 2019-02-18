@@ -29,6 +29,7 @@ import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -62,6 +63,15 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    */
   public interface ExpansionServiceRegistrar {
     Map<String, TransformProvider> knownTransforms();
+  }
+
+  /** Registers a single test transformation. */
+  @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
+  public static class RegisteredTransforms implements ExpansionService.ExpansionServiceRegistrar {
+    @Override
+    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+      return ImmutableMap.of("generate_seq_urn", spec -> GenerateSequence.fromExternal(spec));
+    }
   }
 
   /**
