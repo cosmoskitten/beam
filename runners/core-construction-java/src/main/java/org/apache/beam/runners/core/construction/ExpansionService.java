@@ -27,13 +27,16 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
@@ -64,6 +67,19 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Map<String, TransformProvider> knownTransforms();
   }
 
+  /** Registers the external transforms. */
+  @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
+  public static class RegisteredTransforms implements ExpansionService.ExpansionServiceRegistrar {
+
+    private static final String generateSequenceUrn =
+        BeamUrns.getUrn(ExternalTransforms.GenerateSequencePayload.Enum.PROPERTIES);
+
+    @Override
+    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+      return ImmutableMap.of(generateSequenceUrn, spec -> GenerateSequence.fromExternal(spec));
+    }
+  }
+
   /**
    * Provides a mapping of {@link RunnerApi.FunctionSpec} to a {@link PTransform}, together with
    * mappings of its inputs and outputs to maps of PCollections.
@@ -71,7 +87,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * @param <InputT> input {@link PValue} type of the transform
    * @param <OutputT> output {@link PValue} type of the transform
    */
-  public interface TransformProvider<InputT extends PValue, OutputT extends PValue> {
+  public interface TransformProvider<InputT extends PInput, OutputT extends PValue> {
 
     default InputT createInput(Pipeline p, Map<String, PCollection<?>> inputs) {
       if (inputs.size() == 0) {
