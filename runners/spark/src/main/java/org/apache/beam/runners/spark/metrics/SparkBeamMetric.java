@@ -32,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
@@ -46,8 +45,7 @@ class SparkBeamMetric implements Metric {
     Map<String, Object> metrics = new HashMap<>();
     MetricResults metricResults =
         asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
-    MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults metricQueryResults = metricResults.allMetrics();
     for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
       metrics.put(renderName(metricResult), metricResult.getAttempted());
     }

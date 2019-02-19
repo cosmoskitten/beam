@@ -32,7 +32,6 @@ import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 
 /** Convert {@link MetricResults} to and from {@link BeamFnApi.MetricResults}. */
 public class MetricResultsProtos {
@@ -83,7 +82,7 @@ public class MetricResultsProtos {
   /** Convert a {@link MetricResults} to a {@link BeamFnApi.MetricResults}. */
   public static BeamFnApi.MetricResults toProto(MetricResults metricResults) {
     BeamFnApi.MetricResults.Builder builder = BeamFnApi.MetricResults.newBuilder();
-    MetricQueryResults results = metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults results = metricResults.allMetrics();
     results
         .getCounters()
         .forEach(counter -> process(builder, counter, SimpleMonitoringInfoBuilder::setInt64Value));

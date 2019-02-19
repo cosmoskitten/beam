@@ -150,8 +150,7 @@ public class FlinkMetricContainer {
    */
   void updateMetrics() {
     MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
-    MetricQueryResults metricQueryResults =
-        metricResults.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults metricQueryResults = metricResults.allMetrics();
 
     updateMetrics(metricQueryResults.getCounters(), this::updateCounter);
     updateMetrics(metricQueryResults.getDistributions(), this::updateDistribution);
