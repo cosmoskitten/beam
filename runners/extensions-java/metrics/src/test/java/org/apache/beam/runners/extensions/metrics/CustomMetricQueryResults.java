@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
@@ -44,7 +43,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
 
           @Override
           public MetricKey getKey() {
-            return MetricKey.create("s1", MetricName.named("ns1", "n1"));
+            return MetricKey.ptransform("s1", "ns1", "n1");
           }
 
           @Override
@@ -73,7 +72,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
 
           @Override
           public MetricKey getKey() {
-            return MetricKey.create("s2", MetricName.named("ns1", "n2"));
+            return MetricKey.ptransform("s2", "ns1", "n2");
           }
 
           @Override
@@ -102,7 +101,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
 
           @Override
           public MetricKey getKey() {
-            return MetricKey.create("s3", MetricName.named("ns1", "n3"));
+            return MetricKey.ptransform("s3", "ns1", "n3");
           }
 
           @Override
