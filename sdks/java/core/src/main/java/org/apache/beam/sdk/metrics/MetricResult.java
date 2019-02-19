@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -43,8 +44,18 @@ public abstract class MetricResult<T> {
    * <p>Not all runners will support committed metrics. If they are not supported, the runner will
    * throw an {@link UnsupportedOperationException}.
    */
+  public T getCommitted() {
+    T committed = getCommittedOrNull();
+    if (committed == null) {
+      throw new UnsupportedOperationException(
+          "This runner does not currently support committed"
+              + " metrics results. Please use 'attempted' instead.");
+    }
+    return committed;
+  }
+
   @Nullable
-  public abstract T getCommitted();
+  protected abstract T getCommittedOrNull();
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
   @Nullable
@@ -53,11 +64,29 @@ public abstract class MetricResult<T> {
   public <V> MetricResult<V> transform(Function<T, V> fn) {
     return MetricResult.create(
         getKey(),
-        getCommitted() == null ? null : fn.apply(getCommitted()),
+        getCommittedOrNull() == null ? null : fn.apply(getCommittedOrNull()),
         getAttempted() == null ? null : fn.apply(getAttempted()));
   }
 
-  public static <T> MetricResult<T> create(MetricKey key, T committed, T attempted) {
+  private static <T> T combine(T l, T r, BiFunction<T, T, T> combine) {
+    if (l == null) {
+      return r;
+    }
+    if (r == null) {
+      return l;
+    }
+    return combine.apply(l, r);
+  }
+
+  public MetricResult<T> combine(MetricResult<T> other, BiFunction<T, T, T> combine) {
+    return MetricResult.create(
+        getKey(),
+        MetricResult.combine(getCommittedOrNull(), other.getCommittedOrNull(), combine),
+        MetricResult.combine(getAttempted(), other.getAttempted(), combine));
+  }
+
+  public static <T> MetricResult<T> create(
+      MetricKey key, @Nullable T committed, @Nullable T attempted) {
     return DefaultMetricResult.create(key, committed, attempted);
   }
 }

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObje
 import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -142,7 +141,7 @@ class DataflowMetrics extends MetricResults {
         // distribution metric
         DistributionResult value = getDistributionValue(committed);
         distributionResults.add(
-            DataflowMetricResult.create(
+            MetricResult.create(
                 metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
@@ -155,7 +154,7 @@ class DataflowMetrics extends MetricResults {
         // counter metric
         Long value = getCounterValue(committed);
         counterResults.add(
-            DataflowMetricResult.create(
+            MetricResult.create(
                 metricKey,
                 isStreamingJob ? null : value, // Committed
                 value)); // Attempted
@@ -324,33 +323,6 @@ class DataflowMetrics extends MetricResults {
           extractor.getCounterResults(),
           extractor.getDistributionResults(),
           extractor.getGaugeResults());
-    }
-  }
-
-  @AutoValue
-  abstract static class DataflowMetricResult<T> extends MetricResult<T> {
-    @Override
-    public abstract MetricKey getKey();
-
-    @Nullable
-    protected abstract T committedInternal();
-
-    @Override
-    public abstract T getAttempted();
-
-    @Override
-    public T getCommitted() {
-      T committed = committedInternal();
-      if (committed == null) {
-        throw new UnsupportedOperationException(
-            "This runner does not currently support committed"
-                + " metrics results. Please use 'attempted' instead.");
-      }
-      return committed;
-    }
-
-    public static <T> MetricResult<T> create(MetricKey key, T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<T>(key, committed, attempted);
     }
   }
 }

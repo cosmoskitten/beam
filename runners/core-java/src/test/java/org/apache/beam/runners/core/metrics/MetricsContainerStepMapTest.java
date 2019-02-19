@@ -17,8 +17,11 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.clearTimestamp;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
@@ -184,7 +187,19 @@ public class MetricsContainerStepMapTest {
     c1.inc(5);
 
     List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
-    assertThat(testObject.getMonitoringInfos(), containsInAnyOrder(expected.toArray()));
+
+    expected.add(
+        clearTimestamp(
+            new SimpleMonitoringInfoBuilder()
+                .setUrnForUserMetric("ns", "name1")
+                .setInt64Value(5)
+                .build()));
+
+    assertThat(
+        stream(testObject.getMonitoringInfos().spliterator(), false)
+            .map(SimpleMonitoringInfoBuilder::clearTimestamp)
+            .collect(toList()),
+        containsInAnyOrder(expected.toArray()));
   }
 
   @Test
@@ -217,7 +232,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.clearTimestamp(mi));
+      actual.add(clearTimestamp(mi));
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

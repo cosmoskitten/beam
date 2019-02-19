@@ -248,11 +248,7 @@ public class MetricsContainerStepMap implements Serializable {
         MetricResult<Long> update = updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (counters.containsKey(key)) {
           MetricResult<Long> current = counters.get(key);
-          update =
-              MetricResult.create(
-                  key,
-                  update.getAttempted() + current.getAttempted(),
-                  update.getCommitted() + current.getCommitted());
+          update = update.combine(current, (l, r) -> l + r);
         }
         counters.put(key, update);
       }
@@ -269,11 +265,7 @@ public class MetricsContainerStepMap implements Serializable {
         MetricResult<DistributionData> update = updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (distributions.containsKey(key)) {
           MetricResult<DistributionData> current = distributions.get(key);
-          update =
-              MetricResult.create(
-                  key,
-                  update.getAttempted().combine(current.getAttempted()),
-                  update.getCommitted().combine(current.getCommitted()));
+          update = update.combine(current, DistributionData::combine);
         }
         distributions.put(key, update);
       }
@@ -290,49 +282,9 @@ public class MetricsContainerStepMap implements Serializable {
         MetricResult<GaugeData> update = updateToAttemptedAndCommittedFn.apply(metricUpdate);
         if (gauges.containsKey(key)) {
           MetricResult<GaugeData> current = gauges.get(key);
-          update =
-              MetricResult.create(
-                  key,
-                  update.getAttempted().combine(current.getAttempted()),
-                  update.getCommitted().combine(current.getCommitted()));
+          update = update.combine(current, GaugeData::combine);
         }
         gauges.put(key, update);
-      }
-    }
-
-    /** Accumulated implementation of {@link MetricResult}. */
-    private static class AccumulatedMetricResult<T> extends MetricResult<T> {
-      private final MetricKey key;
-      private final T attempted;
-      private final @Nullable T committed;
-      private final boolean isCommittedSupported;
-
-      private AccumulatedMetricResult(
-          MetricKey key, T attempted, @Nullable T committed, boolean isCommittedSupported) {
-        this.key = key;
-        this.attempted = attempted;
-        this.committed = committed;
-        this.isCommittedSupported = isCommittedSupported;
-      }
-
-      @Override
-      public MetricKey getKey() {
-        return key;
-      }
-
-      @Override
-      public T getCommitted() {
-        if (!isCommittedSupported) {
-          throw new UnsupportedOperationException(
-              "This runner does not currently support committed"
-                  + " metrics results. Please use 'attempted' instead.");
-        }
-        return committed;
-      }
-
-      @Override
-      public T getAttempted() {
-        return attempted;
       }
     }
   }

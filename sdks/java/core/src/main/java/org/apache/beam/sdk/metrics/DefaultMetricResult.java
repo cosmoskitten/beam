@@ -33,13 +33,14 @@ public abstract class DefaultMetricResult<T> extends MetricResult<T> {
 
   @Override
   @Nullable
-  public abstract T getCommitted();
+  public abstract T getCommittedOrNull();
 
   @Override
   @Nullable
   public abstract T getAttempted();
 
-  public static <T> DefaultMetricResult<T> create(MetricKey key, T committed, T attempted) {
+  public static <T> DefaultMetricResult<T> create(
+      MetricKey key, @Nullable T committed, @Nullable T attempted) {
     return new AutoValue_DefaultMetricResult<>(key, committed, attempted);
   }
 }

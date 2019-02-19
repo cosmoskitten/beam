@@ -30,23 +30,11 @@ public class SparkBeamMetricTest {
   @Test
   public void testRenderName() throws Exception {
     MetricResult<Object> metricResult =
-        new MetricResult<Object>() {
-          @Override
-          public MetricKey getKey() {
-            return MetricKey.create(
-                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()"));
-          }
-
-          @Override
-          public Object getCommitted() {
-            return null;
-          }
-
-          @Override
-          public Object getAttempted() {
-            return null;
-          }
-        };
+        MetricResult.create(
+            MetricKey.create(
+                "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
+            null,
+            null);
     String renderedName = new SparkBeamMetric().renderName(metricResult);
     assertThat(
         "Metric name was not rendered correctly",
