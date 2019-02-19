@@ -343,7 +343,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
-  possible_classes = [type, TypeConstraint]
+  possible_classes = [type, TypeConstraint, CompositeTypeHint]
   if sys.version_info[0] == 2:
     # Access from __dict__ to avoid py27-lint3 compatibility checker complaint.
     possible_classes.append(types.__dict__["ClassType"])
