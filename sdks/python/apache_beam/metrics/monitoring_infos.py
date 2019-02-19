@@ -257,6 +257,13 @@ _KNOWN_COMBINERS = {
 }
 
 
+def max_timestamp(a, b):
+  if a.ToNanoseconds() > b.ToNanoseconds():
+    return a
+  else:
+    return b
+
+
 def consolidate(metrics, key=to_key):
   grouped = collections.defaultdict(list)
   for metric in metrics:
@@ -275,7 +282,7 @@ def consolidate(metrics, key=to_key):
               labels=dict((label, value) for label, value in a.labels.items()
                           if b.labels.get(label) == value),
               metric=combiner(a.metric, b.metric),
-              timestamp=max(a.timestamp, b.timestamp))
+              timestamp=max_timestamp(a.timestamp, b.timestamp))
         yield reduce(merge, values)
       else:
         for value in values:

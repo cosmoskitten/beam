@@ -402,7 +402,6 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
 
-
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (p
