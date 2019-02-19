@@ -74,10 +74,11 @@ def run(argv=None):
       ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
        'or DATASET.TABLE.'))
 
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
   method = ('DEFAULT'
             if 'Dataflow' in known_args.runner
             else 'STREAMING_INSERTS')
-  known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
