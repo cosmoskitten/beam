@@ -48,10 +48,13 @@ public class MetricUrns {
   public static final String PCOLLECTION_LABEL = getLabelString(PCOLLECTION);
   public static final String PTRANSFORM_LABEL = getLabelString(PTRANSFORM);
 
+  /** @return The metric URN for a user metric, with a proper URN prefix. */
   public static String urn(String namespace, String name) {
     checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return String.format("%s%s:%s", USER_METRIC_URN_PREFIX, namespace, name);
+    String fixedMetricNamespace = namespace.replace(':', '_');
+    String fixedMetricName = name.replace(':', '_');
+    return String.format("%s%s:%s", USER_METRIC_URN_PREFIX, fixedMetricNamespace, fixedMetricName);
   }
 
   /** Returns the label string constant defined in the MonitoringInfoLabel enum proto. */

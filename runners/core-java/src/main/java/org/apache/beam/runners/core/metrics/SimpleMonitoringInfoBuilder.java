@@ -25,7 +25,7 @@ import static org.apache.beam.sdk.metrics.MetricUrns.LATEST_INT64_TYPE_URN;
 import static org.apache.beam.sdk.metrics.MetricUrns.PCOLLECTION_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.PTRANSFORM_LABEL;
 import static org.apache.beam.sdk.metrics.MetricUrns.SUM_INT64_TYPE_URN;
-import static org.apache.beam.sdk.metrics.MetricUrns.USER_METRIC_URN_PREFIX;
+import static org.apache.beam.sdk.metrics.MetricUrns.urn;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -102,18 +102,6 @@ public class SimpleMonitoringInfoBuilder {
     this.validateAndDropInvalid = validateAndDropInvalid;
   }
 
-  /** @return The metric URN for a user metric, with a proper URN prefix. */
-  public static String userMetricUrn(String metricNamespace, String metricName) {
-    String fixedMetricNamespace = metricNamespace.replace(':', '_');
-    String fixedMetricName = metricName.replace(':', '_');
-    StringBuilder sb = new StringBuilder();
-    sb.append(USER_METRIC_URN_PREFIX);
-    sb.append(fixedMetricNamespace);
-    sb.append(':');
-    sb.append(fixedMetricName);
-    return sb.toString();
-  }
-
   /**
    * Sets the urn of the MonitoringInfo.
    *
@@ -136,7 +124,7 @@ public class SimpleMonitoringInfoBuilder {
    * @param name
    */
   public SimpleMonitoringInfoBuilder setUrnForUserMetric(String namespace, String name) {
-    this.builder.setUrn(userMetricUrn(namespace, name));
+    this.builder.setUrn(urn(namespace, name));
     return this;
   }
 
