@@ -36,28 +36,31 @@ class CustomMetricQueryResults extends MetricQueryResults {
     this.isCommittedSupported = isCommittedSupported;
   }
 
+  private <T> List<MetricResult<T>> makeResults(MetricKey key, T committed, T attempted) {
+    return Collections.singletonList(
+        isCommittedSupported
+            ? MetricResult.create(key, committed, attempted)
+            : MetricResult.attempted(key, attempted));
+  }
+
   @Override
   public List<MetricResult<Long>> getCounters() {
-    return Collections.singletonList(
-        MetricResult.create(
-            MetricKey.ptransform("s1", "ns1", "n1"), isCommittedSupported ? 10L : null, 20L));
+    return makeResults(MetricKey.ptransform("s1", "ns", "n1"), 10L, 20L);
   }
 
   @Override
   public List<MetricResult<DistributionResult>> getDistributions() {
-    return Collections.singletonList(
-        MetricResult.create(
-            MetricKey.ptransform("s2", "ns1", "n2"),
-            isCommittedSupported ? DistributionResult.create(10L, 2L, 5L, 8L) : null,
-            DistributionResult.create(25L, 4L, 3L, 9L)));
+    return makeResults(
+        MetricKey.ptransform("s2", "ns", "n2"),
+        DistributionResult.create(10L, 2L, 5L, 8L),
+        DistributionResult.create(25L, 4L, 3L, 9L));
   }
 
   @Override
   public List<MetricResult<GaugeResult>> getGauges() {
-    return Collections.singletonList(
-        MetricResult.create(
-            MetricKey.ptransform("s3", "ns1", "n3"),
-            isCommittedSupported ? GaugeResult.create(100L, new Instant(345862800L)) : null,
-            GaugeResult.create(120L, new Instant(345862800L))));
+    return makeResults(
+        MetricKey.ptransform("s3", "ns", "n3"),
+        GaugeResult.create(100L, new Instant(345862800L)),
+        GaugeResult.create(120L, new Instant(345862800L)));
   }
 }

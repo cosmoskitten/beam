@@ -23,12 +23,13 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
 
 /**
- * Wrapper for {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo} URN.
+ * Wrapper for {@link MonitoringInfo} URN.
  *
  * <p>"User" metrics (URN {@link MetricUrns#USER_METRIC_URN_PREFIX}) are defined by a "namespace"
  * and "name", and are the most commonly dealt with by user code, so structured constructors and

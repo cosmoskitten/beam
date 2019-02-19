@@ -152,19 +152,12 @@ public class MetricResultsProtos {
 
     public <T> void add(
         MetricKey key, T value, Boolean committed, Map<MetricKey, MetricResult<T>> map) {
-      MetricResult<T> current = map.get(key);
-      MetricResult<T> update =
-          MetricResult.create(key, committed ? value : null, committed ? null : value);
-      map.put(
-          key,
-          current.combine(
-              update,
-              (l, r) -> {
-                throw new IllegalStateException(
-                    String.format(
-                        "Multiple %s updates for %s: %s, %s",
-                        committed ? "committed" : "attempted", key, l, r));
-              }));
+      if (committed) {
+        MetricResult<T> result = map.get(key);
+        map.put(key, result.setCommitted(value));
+      } else {
+        map.put(key, MetricResult.attempted(key, value));
+      }
     }
   }
 

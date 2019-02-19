@@ -27,10 +27,10 @@ import org.junit.Test;
 /** Test SparkBeamMetric. */
 public class SparkBeamMetricTest {
   @Test
-  public void testRenderName() throws Exception {
+  public void testRenderName() {
     MetricResult<Object> metricResult =
         MetricResult.create(
-            MetricKey.ptransform("myStep.one.two(three)", "myNameSpace//", "myName()"), null, null);
+            MetricKey.ptransform("myStep.one.two(three)", "myNameSpace//", "myName()"), 123, 456);
     String renderedName = new SparkBeamMetric().renderName(metricResult);
     assertThat(
         "Metric name was not rendered correctly",

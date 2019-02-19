@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.fasterxml.jackson.annotation.JsonFilter;
+import com.google.auto.value.AutoValue;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.annotation.Nullable;
@@ -25,8 +26,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * The results of a single current metric. TODO(BEAM-6265): Decouple wire formats from internal
- * formats, remove usage of MetricName.
+ * The results of a single {@link MetricKey metric}.
+ *
+ * <p>Contains two implementations, @{@link Attempted} and {@link AttemptedAndCommitted}, for use
+ * with runners that support "committed" metrics vs those that don't.
+ *
+ * <p>TODO(BEAM-6265): Decouple wire formats from internal formats, remove usage of MetricName.
  */
 @Experimental(Kind.METRICS)
 @JsonFilter("committedMetrics")
@@ -37,6 +42,62 @@ public abstract class MetricResult<T> {
   };
 
   public abstract MetricKey getKey();
+
+  /**
+   * {@link MetricResult} that only stores an "attempted" metric value; used by runners that don't
+   * support "committed" metrics.
+   *
+   * <p>Also used as an intermediate step while constructing metrics that ultimately contain a
+   * "committed" value as well.
+   */
+  @AutoValue
+  public abstract static class Attempted<V> extends MetricResult<V> {
+    @Override
+    public abstract MetricKey getKey();
+
+    @Nullable
+    @Override
+    protected V getCommittedOrNull() {
+      return null;
+    }
+
+    @Override
+    public abstract V getAttempted();
+
+    @Override
+    public Attempted<V> addAttempted(V update, BiFunction<V, V, V> combine) {
+      return attempted(getKey(), combine.apply(getAttempted(), update));
+    }
+
+    @Override
+    public AttemptedAndCommitted<V> addCommitted(V update, BiFunction<V, V, V> combine) {
+      return create(getKey(), update, getAttempted());
+    }
+
+    @Override
+    public <W> MetricResult<W> transform(Function<V, W> fn) {
+      return MetricResult.attempted(getKey(), fn.apply(getAttempted()));
+    }
+  }
+
+  /** {@link MetricResult} for runners that support both "attempted" and "committed" metrics. */
+  @AutoValue
+  public abstract static class AttemptedAndCommitted<V> extends MetricResult<V> {
+    @Override
+    public abstract MetricKey getKey();
+
+    @Override
+    protected abstract V getCommittedOrNull();
+
+    @Override
+    public abstract V getAttempted();
+
+    @Override
+    public <W> MetricResult<W> transform(Function<V, W> fn) {
+      return MetricResult.create(
+          getKey(), fn.apply(getCommittedOrNull()), fn.apply(getAttempted()));
+    }
+  }
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
@@ -58,14 +119,23 @@ public abstract class MetricResult<T> {
   protected abstract T getCommittedOrNull();
 
   /** Return the value of this metric across all attempts of executing all parts of the pipeline. */
-  @Nullable
   public abstract T getAttempted();
 
   public <V> MetricResult<V> transform(Function<T, V> fn) {
-    return MetricResult.create(
-        getKey(),
-        getCommittedOrNull() == null ? null : fn.apply(getCommittedOrNull()),
-        getAttempted() == null ? null : fn.apply(getAttempted()));
+    throw new UnsupportedOperationException(
+        "MetricResult.transform() must be implemented by subclasses");
+  }
+
+  public MetricResult<T> addAttempted(T update, BiFunction<T, T, T> combine) {
+    return create(getKey(), getCommitted(), combine.apply(getAttempted(), update));
+  }
+
+  public AttemptedAndCommitted<T> setCommitted(T update) {
+    return create(getKey(), update, getAttempted());
+  }
+
+  public AttemptedAndCommitted<T> addCommitted(T update, BiFunction<T, T, T> combine) {
+    return create(getKey(), combine.apply(getCommitted(), update), getAttempted());
   }
 
   private static <T> T combine(T l, T r, BiFunction<T, T, T> combine) {
@@ -85,8 +155,20 @@ public abstract class MetricResult<T> {
         MetricResult.combine(getAttempted(), other.getAttempted(), combine));
   }
 
+  public static <T> AttemptedAndCommitted<T> create(MetricKey key, T committed, T attempted) {
+    return new AutoValue_MetricResult_AttemptedAndCommitted<T>(key, committed, attempted);
+  }
+
   public static <T> MetricResult<T> create(
-      MetricKey key, @Nullable T committed, @Nullable T attempted) {
-    return DefaultMetricResult.create(key, committed, attempted);
+      MetricKey key, Boolean isCommittedSupported, T attempted) {
+    if (isCommittedSupported) {
+      return create(key, attempted, attempted);
+    } else {
+      return attempted(key, attempted);
+    }
+  }
+
+  public static <T> Attempted<T> attempted(MetricKey key, T attempted) {
+    return new AutoValue_MetricResult_Attempted<T>(key, attempted);
   }
 }

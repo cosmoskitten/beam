@@ -43,7 +43,7 @@ public class SimpleExecutionStateTest {
 
     assertEquals(testObject.getStateName(), stateName);
     Map<String, String> extracted = testObject.getLabels();
-    assertEquals(2, extracted.size());
+    assertEquals(1, extracted.size());
     assertThat(extracted, hasEntry("PTRANSFORM", "step"));
   }
 
