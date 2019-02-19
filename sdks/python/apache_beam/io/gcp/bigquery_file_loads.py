@@ -181,12 +181,21 @@ class WriteRecordsToFile(beam.DoFn):
         'coder': self.coder.__class__.__name__
     }
 
+  def _get_hashable_destination(self, destination):
+    if isinstance(destination, bigquery_api.TableReference):
+      return '%s:%s.%s' % (
+          destination.projectId, destination.datasetId, destination.tableId)
+    else:
+      return destination
+
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
   def process(self, element, file_prefix):
     destination = element[0]
     row = element[1]
+
+    key_destination = self._get_hashable_destination(destination)
 
     if destination in self._destination_to_file_writer:
       writer = self._destination_to_file_writer[destination]

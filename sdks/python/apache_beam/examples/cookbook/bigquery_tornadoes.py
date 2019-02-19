@@ -87,7 +87,8 @@ def run(argv=None):
         known_args.output,
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+        method='STREAMING_INSERTS')
 
     # Run the pipeline (all operations are deferred until run() is called).
 
