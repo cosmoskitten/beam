@@ -32,6 +32,7 @@ import random
 import sys
 import time
 import traceback
+import warnings
 from builtins import next
 from builtins import object
 from builtins import range
@@ -189,6 +190,8 @@ def with_exponential_backoff(
           # sys.exc_info() function returns a tuple with three elements:
           # exception type, exception value, and exception traceback.
           exn_traceback = sys.exc_info()[2]
+          warnings.warn('exception caused retry: {}'.format(exn))
+          warnings.warn('traceback: {}'.format(exn_traceback))
           try:
             try:
               sleep_interval = next(retry_intervals)

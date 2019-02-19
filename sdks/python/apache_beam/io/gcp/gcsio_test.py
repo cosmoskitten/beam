@@ -121,10 +121,10 @@ class FakeGcsObjects(object):
 
       download.GetRange = get_range_callback
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def Insert(self, insert_request, upload=None):  # pylint: disable=invalid-name
     assert upload is not None
     generation = self.get_last_generation(insert_request.bucket,
@@ -272,6 +272,19 @@ class TestGCSPathParser(unittest.TestCase):
   def test_bad_gcs_path_object_optional(self):
     for path in self.BAD_GCS_PATHS:
       self.assertRaises(ValueError, gcsio.parse_gcs_path, path, True)
+
+
+def test_flaky_1000_times():
+  test_class = TestGCSIO()
+  test_funcs = [
+    test_class.check_list_prefix,
+    test_class.check_rename
+  ]
+  for test_func in test_funcs:
+    for i in range(1000):
+      test_class.setUp()
+      test_func.__func__.description = ':'.join([test_func.__name__, str(i)])
+      yield test_func, i
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -486,7 +499,7 @@ class TestGCSIO(unittest.TestCase):
       self.assertTrue(
           gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-  def test_rename(self):
+  def check_rename(self, _):
     src_file_name = 'gs://gcsio-test/source'
     dest_file_name = 'gs://gcsio-test/dest'
     file_size = 1024
@@ -532,10 +545,10 @@ class TestGCSIO(unittest.TestCase):
           f.read(end - start + 1), random_file.contents[start:end + 1])
       self.assertEqual(f.tell(), end + 1)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def test_file_iterator(self):
     file_name = 'gs://gcsio-test/iterating_file'
     lines = []
@@ -557,10 +570,10 @@ class TestGCSIO(unittest.TestCase):
 
     self.assertEqual(read_lines, line_count)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def test_file_read_line(self):
     file_name = 'gs://gcsio-test/read_line_file'
     lines = []
@@ -613,10 +626,10 @@ class TestGCSIO(unittest.TestCase):
       f.seek(start)
       self.assertEqual(f.readline(), lines[line_index][chars_left:])
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def test_file_write(self):
     file_name = 'gs://gcsio-test/write_file'
     file_size = 5 * 1024 * 1024 + 2000
@@ -631,10 +644,10 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(
         self.client.objects.get_file(bucket, name).contents, contents)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def test_file_close(self):
     file_name = 'gs://gcsio-test/close_file'
     file_size = 5 * 1024 * 1024 + 2000
@@ -648,10 +661,10 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(
         self.client.objects.get_file(bucket, name).contents, contents)
 
-  @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                   'This test still needs to be fixed on Python 3'
-                   'TODO: BEAM-5627')
+  # @unittest.skipIf(sys.version_info[0] == 3 and
+  #                  os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+  #                  'This test still needs to be fixed on Python 3'
+  #                  'TODO: BEAM-5627')
   def test_file_flush(self):
     file_name = 'gs://gcsio-test/flush_file'
     file_size = 5 * 1024 * 1024 + 2000
@@ -689,7 +702,7 @@ class TestGCSIO(unittest.TestCase):
       with self.gcs.open(file_name) as f:
         f.read(0 // 0)
 
-  def test_list_prefix(self):
+  def check_list_prefix(self, _):
     bucket_name = 'gcsio-test'
     objects = [
         ('cow/cat/fish', 2),
