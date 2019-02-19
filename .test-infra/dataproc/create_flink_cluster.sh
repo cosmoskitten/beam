@@ -24,7 +24,7 @@
 #    $4: SDK Harness' images to pull on dataproc workers (python,java,go)
 #    $5: Url to Flink .tar archive to be installed on the cluster
 #    $6: Number of Flink workers
-#    $7: Number of Flink slots
+#    $7: Number of Flink slots per worker
 #    $8: Detached mode: should the SSH tunnel run in detached mode?
 #
 #    Example usage:
@@ -136,7 +136,7 @@ function create_cluster() {
 
 function main() {
   upload_init_actions
-  #create_cluster # Comment this line to use existing cluster.
+  create_cluster # Comment this line to use existing cluster.
   get_leader
   start_tunnel
 }
