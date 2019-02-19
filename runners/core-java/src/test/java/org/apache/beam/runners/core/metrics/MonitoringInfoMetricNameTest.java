@@ -39,8 +39,6 @@ public class MonitoringInfoMetricNameTest implements Serializable {
     String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
     MonitoringInfoMetricName name =
         (MonitoringInfoMetricName) MonitoringInfoMetricName.named(urn, labels);
-    assertEquals(null, name.getName());
-    assertEquals(null, name.getNamespace());
     assertEquals(labels, name.getLabels());
     assertEquals(urn, name.getUrn());
 

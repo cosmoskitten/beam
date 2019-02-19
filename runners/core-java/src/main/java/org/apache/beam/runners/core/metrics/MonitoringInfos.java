@@ -22,9 +22,9 @@ import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.P
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 
 /**
  * Helpers for working with {@link Metric}s and converting {@link MonitoringInfo}s to {@link

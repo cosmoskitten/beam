@@ -27,11 +27,11 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metric;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -161,7 +161,7 @@ public class FlinkMetricContainer {
   private <T> void updateMetrics(
       Iterable<MetricResult<T>> metricResults, BiConsumer<MetricKey, T> fn) {
     for (MetricResult<T> metricResult : metricResults) {
-      MetricKey key = MetricKey.create(metricResult.getStep(), metricResult.getName());
+      MetricKey key = metricResult.getKey();
       fn.accept(key, metricResult.getAttempted());
     }
   }

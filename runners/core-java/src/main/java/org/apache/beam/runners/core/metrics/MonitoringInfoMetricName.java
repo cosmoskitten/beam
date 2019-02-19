@@ -18,13 +18,9 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
-import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.USER_COUNTER_URN_PREFIX;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -57,19 +53,28 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** Parse the urn field into a name and namespace field. */
-  private void parseUrn() {
-    if (this.urn.startsWith(USER_COUNTER_URN_PREFIX)) {
-      List<String> split = new ArrayList<String>(Arrays.asList(this.getUrn().split(":")));
-      this.name = split.get(split.size() - 1);
-      this.namespace = split.get(split.size() - 2);
+  private boolean parseUrn(boolean raise) {
+    if (namespace != null && name != null) {
+      return true;
     }
+    MetricName metricName = MetricUrns.parseUrn(getUrn());
+    if (metricName == null) {
+      if (raise) {
+        throw new IllegalStateException(
+            "Attempting to access namespace/name of a non-user metric: " + getUrn());
+      }
+      return false;
+    }
+    namespace = metricName.getNamespace();
+    name = metricName.getName();
+    return true;
   }
 
   /** @return the parsed namespace from the user metric URN, otherwise null. */
   @Override
   public String getNamespace() {
     if (this.namespace == null) {
-      parseUrn();
+      parseUrn(true);
     }
     return this.namespace;
   }
@@ -78,7 +83,7 @@ public class MonitoringInfoMetricName extends MetricName {
   @Override
   public String getName() {
     if (this.name == null) {
-      parseUrn();
+      parseUrn(true);
     }
     return this.name;
   }
@@ -96,8 +101,8 @@ public class MonitoringInfoMetricName extends MetricName {
   /**
    * Polymorphic constructor of {@link MetricName}s.
    *
-   * <p>If `urn` is a {@link SimpleMonitoringInfoBuilder#USER_COUNTER_URN_PREFIX user metric},
-   * return a {@link MetricName} auto-value (which will {@link Object#equals equal} and {@link
+   * <p>If `urn` is a {@link SimpleMonitoringInfoBuilder#USER_METRIC_URN_PREFIX metric}, return a
+   * {@link MetricName} auto-value (which will {@link Object#equals equal} and {@link
    * Object#hashCode hash} consistently with other {@link MetricName}s.
    *
    * <p>Otherwise, return a concrete {@link MonitoringInfoMetricName} representing a "system"
@@ -137,7 +142,7 @@ public class MonitoringInfoMetricName extends MetricName {
 
   @Override
   public String toString(String delimiter) {
-    if (getNamespace() != null && getName() != null) {
+    if (parseUrn(false)) {
       return super.toString(delimiter);
     }
     StringBuilder builder = new StringBuilder();

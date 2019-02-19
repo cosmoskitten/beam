@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.Closeable;
 import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
@@ -47,7 +48,7 @@ public class ElementCountFnDataReceiver<T> implements FnDataReceiver<WindowedVal
       String pCollection,
       MetricsContainerStepMap metricContainerRegistry) {
     this.original = original;
-    HashMap<String, String> labels = new HashMap<String, String>();
+    Map<String, String> labels = new HashMap<String, String>();
     labels.put(SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL, pCollection);
     MetricName metricName =
         MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
