@@ -77,7 +77,8 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   method = ('DEFAULT'
-            if 'Dataflow' in known_args.runner
+            if any('runner' in elm
+                   and 'Dataflow' in elm for elm in pipeline_args)
             else 'STREAMING_INSERTS')
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -93,7 +94,7 @@ def run(argv=None):
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        method=known_args.method)
+        method=method)
 
     # Run the pipeline (all operations are deferred until run() is called).
 
