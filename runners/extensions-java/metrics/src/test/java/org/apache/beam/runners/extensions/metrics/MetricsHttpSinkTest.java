@@ -88,19 +88,19 @@ public class MetricsHttpSinkTest {
     countDownLatch.await();
     String expected =
         "{\"counters\":[{\"attempted\":20,\"committed\":10,\"name\":{\"name\":\"n1\","
-            + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
+            + "\"namespace\":\"ns\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"committed\":"
             + "{\"count\":2,\"max\":8,\"mean\":5.0,\"min\":5,\"sum\":10},\"name\":{\"name\":\"n2\","
-            + "\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
+            + "\"namespace\":\"ns\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
             + "\"1970-01-05T00:04:22.800Z\",\"value\":120},\"committed\":{\"timestamp\":"
             + "\"1970-01-05T00:04:22.800Z\",\"value\":100},\"name\":{\"name\":\"n3\",\"namespace\":"
-            + "\"ns1\"},\"step\":\"s3\"}]}";
+            + "\"ns\"},\"step\":\"s3\"}]}";
     assertEquals("Wrong number of messages sent to HTTP server", 1, messages.size());
     assertEquals("Wrong messages sent to HTTP server", expected, messages.get(0));
   }
 
   @Test
-  public void testWriteMetricsWithCommittedUnSupported() throws Exception {
+  public void testWriteMetricsWithCommittedUnsupported() throws Exception {
     MetricQueryResults metricQueryResults = new CustomMetricQueryResults(false);
     MetricsOptions pipelineOptions = PipelineOptionsFactory.create().as(MetricsOptions.class);
     pipelineOptions.setMetricsHttpSinkUrl(String.format("http://localhost:%s", port));
@@ -110,11 +110,11 @@ public class MetricsHttpSinkTest {
     countDownLatch.await();
     String expected =
         "{\"counters\":[{\"attempted\":20,\"name\":{\"name\":\"n1\","
-            + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
+            + "\"namespace\":\"ns\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
             + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"name\":{\"name\":\"n2\""
-            + ",\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
+            + ",\"namespace\":\"ns\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
             + "\"1970-01-05T00:04:22.800Z\",\"value\":120},\"name\":{\"name\":\"n3\",\"namespace\":"
-            + "\"ns1\"},\"step\":\"s3\"}]}";
+            + "\"ns\"},\"step\":\"s3\"}]}";
     assertEquals("Wrong number of messages sent to HTTP server", 1, messages.size());
     assertEquals("Wrong messages sent to HTTP server", expected, messages.get(0));
   }
