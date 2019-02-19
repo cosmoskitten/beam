@@ -73,6 +73,10 @@ def run(argv=None):
       help=
       ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
        'or DATASET.TABLE.'))
+
+  method = ('DEFAULT'
+            if 'Dataflow' in known_args.runner
+            else 'STREAMING_INSERTS')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -88,7 +92,7 @@ def run(argv=None):
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        method='STREAMING_INSERTS')
+        method=known_args.method)
 
     # Run the pipeline (all operations are deferred until run() is called).
 
