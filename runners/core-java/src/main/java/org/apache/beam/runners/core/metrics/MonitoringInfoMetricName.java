@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -74,10 +73,7 @@ public class MonitoringInfoMetricName extends MetricName {
 
   @Override
   public Boolean isUserMetric() {
-    if (this.namespace == null) {
-      parseUrn();
-    }
-    return this.namespace != null;
+    return parseUrn(false);
   }
 
   /** @return the parsed namespace from the user metric URN, otherwise null. */
@@ -86,7 +82,6 @@ public class MonitoringInfoMetricName extends MetricName {
     if (this.namespace == null) {
       parseUrn(true);
     }
-    checkAccess();
     return this.namespace;
   }
   /** @return the parsed name from the user metric URN, otherwise null. */
@@ -95,24 +90,7 @@ public class MonitoringInfoMetricName extends MetricName {
     if (this.name == null) {
       parseUrn(true);
     }
-    checkAccess();
     return this.name;
-  }
-
-  public void checkAccess() {
-    if (this.namespace == null || this.name == null) {
-      throw new IllegalStateException(
-          String.format(
-              "Asking for name of a nameless MonitoringInfo metric (%s:%s): %s, %s",
-              this.namespace,
-              this.name,
-              this.urn,
-              String.join(
-                  ", ",
-                  getLabels().entrySet().stream()
-                      .map(entry -> entry.getKey() + ": " + entry.getValue())
-                      .collect(Collectors.toList()))));
-    }
   }
 
   /** @return the urn of this MonitoringInfo metric. */
