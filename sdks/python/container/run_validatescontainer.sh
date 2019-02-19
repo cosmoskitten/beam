@@ -23,9 +23,17 @@
 # GCS_LOCATION -> Temporary location to use for service tests.
 # PROJECT      -> Project name to use for dataflow and docker images.
 #
-# Execute from the root of the repository: sdks/python/container/run_validatescontainer.sh
+# Execute from the root of the repository:
+#     test Python2 container: ./sdks/python/container/run_validatescontainer.sh
+#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python3
 
 echo "This script must be executed in the root of beam project. Please set LOCAL_PATH, GCS_LOCATION, and PROJECT as desired."
+
+if [[ $# > 1 || $# == 1 && $1 != "python3" ]]; then
+  echo "To test Python2 container: ./sdks/python/container/run_validatescontainer.sh"
+  echo "To test Python3 container: ./sdks/python/container/run_validatescontainer.sh python3"
+  exit 1
+fi
 
 set -e
 set -v
@@ -47,9 +55,15 @@ gcloud -v
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/python
-echo "Using container $CONTAINER"
-./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
+if [[ -z $1 ]]; then
+  CONTAINER=us.gcr.io/$PROJECT/$USER/python
+  echo "Using Python2 container $CONTAINER"
+  ./gradlew :beam-sdks-python-container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
+else
+  CONTAINER=us.gcr.io/$PROJECT/$USER/python3
+  echo "Using Python3 container $CONTAINER"
+  ./gradlew :beam-sdks-python-container-py3:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Ppython3 --info
+fi
 
 # Verify it exists
 docker images | grep $TAG
@@ -65,9 +79,16 @@ function cleanup_container {
 }
 trap cleanup_container EXIT
 
+echo ">>> Successfully built and push container $CONTAINER"
+
 # Virtualenv for the rest of the script to run setup & e2e test
-virtualenv sdks/python/container
-. sdks/python/container/bin/activate
+if [[ -z $1 ]]; then
+  virtualenv sdks/python/container/py2/venv
+  . sdks/python/container/py2/venv/bin/activate
+else
+  virtualenv sdks/python/container/py3/venv -p python3.5
+  . sdks/python/container/py3/venv/bin/activate
+fi
 cd sdks/python
 pip install -e .[gcp,test]
 
