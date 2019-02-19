@@ -978,4 +978,3 @@ class RetryStrategy(object):
       return True
     else:
       return False
-

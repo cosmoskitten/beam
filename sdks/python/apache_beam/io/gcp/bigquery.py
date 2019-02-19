@@ -941,9 +941,9 @@ bigquery_v2_messages.TableSchema):
 
       outputs = (pcoll
                  | 'AppendDestination' >> beam.Map(
-              lambda x: (table_fn(x), x))  # TODO(pabloem) Use bqfl transf.
+                     lambda x: (table_fn(x), x))  # TODO(pabloem) Use bqfl
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
-              BigQueryWriteFn.FAILED_ROWS, main='main'))
+                     BigQueryWriteFn.FAILED_ROWS, main='main'))
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
