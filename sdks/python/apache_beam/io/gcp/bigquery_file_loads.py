@@ -95,7 +95,7 @@ def _bq_uuid(seed=None):
   if not seed:
     return str(uuid.uuid4()).replace("-", "")
   else:
-    return str(hashlib.md5(seed).hexdigest())
+    return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
 
 class _AppendDestinationsFn(beam.DoFn):
@@ -181,11 +181,22 @@ class WriteRecordsToFile(beam.DoFn):
         'coder': self.coder.__class__.__name__
     }
 
+  def _get_hashable_destination(self, destination):
+    if isinstance(destination, bigquery_api.TableReference):
+      return '%s:%s.%s' % (
+          destination.projectId, destination.datasetId, destination.tableId)
+    else:
+      return destination
+
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
   def process(self, element, file_prefix):
-    destination = element[0]
+    """Take a tuple with (destination, row) and write to file or spill out.
+
+    Destination may be a ``TableReference`` or a string, and row is a
+    Python dictionary for a row to be inserted to BigQuery."""
+    destination = self._get_hashable_destination(element[0])
     row = element[1]
 
     if destination in self._destination_to_file_writer:
