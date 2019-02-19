@@ -95,7 +95,7 @@ def _bq_uuid(seed=None):
   if not seed:
     return str(uuid.uuid4()).replace("-", "")
   else:
-    return str(hashlib.md5(seed).hexdigest())
+    return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
 
 class _AppendDestinationsFn(beam.DoFn):
