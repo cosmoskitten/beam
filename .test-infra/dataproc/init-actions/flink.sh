@@ -21,7 +21,10 @@
 # (and their version) are included in Cloud Dataproc clusters, see the
 # Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
-
+#
+# This file originated from:
+# https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/flink/flink.sh
+#
 set -euxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
