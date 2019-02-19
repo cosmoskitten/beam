@@ -15,22 +15,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.metrics;
-
-import static org.apache.beam.sdk.metrics.MetricUrns.ELEMENT_COUNT_URN;
-
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
-
-/**
- * Provides convenient one line factories for unit tests that need to generate test MonitoringInfos.
- */
-public class MonitoringInfoTestUtil {
-  /** @return A basic MonitoringInfo which matches the testElementCountName. */
-  public static MonitoringInfo testElementCountMonitoringInfo(long value) {
-    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(ELEMENT_COUNT_URN);
-    builder.setPCollectionLabel("testPCollection");
-    builder.setInt64Value(value);
-    return builder.build();
-  }
-}
+/** Utilities for working with metric ptransform- and pcollection-labels. */
+package org.apache.beam.sdk.metrics.labels;

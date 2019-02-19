@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
@@ -41,16 +40,14 @@ class CustomMetricQueryResults extends MetricQueryResults {
   public List<MetricResult<Long>> getCounters() {
     return Collections.singletonList(
         MetricResult.create(
-            MetricKey.create("s1", MetricName.named("ns1", "n1")),
-            isCommittedSupported ? 10L : null,
-            20L));
+            MetricKey.ptransform("s1", "ns1", "n1"), isCommittedSupported ? 10L : null, 20L));
   }
 
   @Override
   public List<MetricResult<DistributionResult>> getDistributions() {
     return Collections.singletonList(
         MetricResult.create(
-            MetricKey.create("s2", MetricName.named("ns1", "n2")),
+            MetricKey.ptransform("s2", "ns1", "n2"),
             isCommittedSupported ? DistributionResult.create(10L, 2L, 5L, 8L) : null,
             DistributionResult.create(25L, 4L, 3L, 9L)));
   }
@@ -59,7 +56,7 @@ class CustomMetricQueryResults extends MetricQueryResults {
   public List<MetricResult<GaugeResult>> getGauges() {
     return Collections.singletonList(
         MetricResult.create(
-            MetricKey.create("s3", MetricName.named("ns1", "n3")),
+            MetricKey.ptransform("s3", "ns1", "n3"),
             isCommittedSupported ? GaugeResult.create(100L, new Instant(345862800L)) : null,
             GaugeResult.create(120L, new Instant(345862800L))));
   }
