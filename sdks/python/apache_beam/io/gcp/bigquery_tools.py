@@ -358,7 +358,7 @@ class BigQueryWrapper(object):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry.retry_on_server_errors_filter)
+      retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def _insert_all_rows(self, project_id, dataset_id, table_id, rows,
                        skip_invalid_rows=False):
     """Calls the insertAll BigQuery API endpoint.
