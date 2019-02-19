@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 import traceback
+import warnings
 from builtins import object
 
 from apache_beam.internal.http_client import get_new_http
@@ -143,6 +144,7 @@ class GcsIO(object):
     if storage_client is not None:
       self.client = storage_client
     self._rewrite_cb = None
+    self.fresh = True
 
   def _set_rewrite_response_callback(self, callback):
     """For testing purposes only. No backward compatibility guarantees.
@@ -477,6 +479,7 @@ class GcsIO(object):
     file_sizes = {}
     counter = 0
     start_time = time.time()
+    warnings.warn("list_prefix triggered at time {}".format(time))
     logging.info("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
