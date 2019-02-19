@@ -197,11 +197,11 @@ class WriteRecordsToFile(beam.DoFn):
 
     key_destination = self._get_hashable_destination(destination)
 
-    if destination in self._destination_to_file_writer:
-      writer = self._destination_to_file_writer[destination]
+    if key_destination in self._destination_to_file_writer:
+      writer = self._destination_to_file_writer[key_destination]
     elif len(self._destination_to_file_writer) < self.max_files_per_bundle:
       (file_path, writer) = _make_new_file_writer(file_prefix, destination)
-      self._destination_to_file_writer[destination] = writer
+      self._destination_to_file_writer[key_destination] = writer
       yield pvalue.TaggedOutput(WriteRecordsToFile.WRITTEN_FILE_TAG,
                                 (destination, file_path))
     else:
@@ -215,7 +215,7 @@ class WriteRecordsToFile(beam.DoFn):
 
     if writer.tell() > self.max_file_size:
       writer.close()
-      self._destination_to_file_writer.pop(destination)
+      self._destination_to_file_writer.pop(key_destination)
 
   def finish_bundle(self):
     for _, writer in iteritems(self._destination_to_file_writer):
