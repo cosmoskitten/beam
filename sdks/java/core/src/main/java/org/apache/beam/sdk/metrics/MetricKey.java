@@ -49,13 +49,13 @@ public abstract class MetricKey implements Serializable {
 
   /** The ptransform name that is associated with this metric, or Null if none is associated. */
   @Nullable
-  private String ptransform() {
+  public String ptransform() {
     return labels().ptransform();
   }
 
   /** The pcollection name that is associated with this metric, or Null if none is associated. */
   @Nullable
-  private String pcollection() {
+  public String pcollection() {
     return labels().pcollection();
   }
 

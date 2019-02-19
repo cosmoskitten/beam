@@ -117,6 +117,10 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder userMetric(String ptransform, String namespace, String name) {
+    return setUrn(urn(namespace, name)).setPTransformLabel(ptransform);
+  }
+
   /**
    * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
    *
@@ -183,6 +187,10 @@ public class SimpleMonitoringInfoBuilder {
     // TODO(ajamato): Add validation that it is a valid pTransform name in the bundle descriptor.
     setLabel(PTRANSFORM_LABEL, pTransform);
     return this;
+  }
+
+  public SimpleMonitoringInfoBuilder forElementCount(String pCollection) {
+    return setLabel(PCOLLECTION_LABEL, pCollection).setUrn(ELEMENT_COUNT_URN);
   }
 
   /** Sets the PCOLLECTION MonitoringInfo label to the given param. */
