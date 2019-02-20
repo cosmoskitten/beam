@@ -48,7 +48,7 @@ def smokeTestConfigurations = [
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
                         metrics_dataset     : 'load_test_SMOKE',
-                        bigQueryTable       : 'python_dataflow_gbk',
+                        metrics_table       : 'python_dataflow_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
                                 '"value_size":1,' +
