@@ -44,6 +44,7 @@ task run(type: Exec) {
     }
 
     environment "LOAD_TEST_ENABLED", 'true'
+    println "Running command python ${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
 
     commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
     ignoreExitValue true
