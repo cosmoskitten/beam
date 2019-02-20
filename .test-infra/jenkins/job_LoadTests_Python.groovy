@@ -62,7 +62,7 @@ def smokeTestConfigurations = [
 
 // This method is required to avoid escaping quotations in specifying run configuration
 static Map<String, ?> parseStringOptions(options) {
-    options.collectEntries { it.value instanceof String ? [(it.key):"\\\\\'${it.value.toString()}\\\\\'"] : [(it.key):it.value.toString()] }
+    options.collectEntries { it.value instanceof String ? [(it.key):"\\\'${it.value.toString()}\\\'"] : [(it.key):it.value.toString()] }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -75,6 +75,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
     for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
+        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner, parseStringOptions(testConfiguration.jobProperties), testConfiguration.itClass)
     }
 }
