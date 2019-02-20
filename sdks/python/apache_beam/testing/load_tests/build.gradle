@@ -35,16 +35,17 @@ task run(type: Exec) {
 
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
 
+    setWorkingDir "${project.rootDir}/sdks/python"
+
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
         dependsOn 'sdist'
-        loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
+        loadTestArgs +=" --sdk_location=build/apache-beam.tar.gz"
     }
 
-    setWorkingDir "${project.rootDir}/sdks/python"
     environment "LOAD_TEST_ENABLED", 'true'
 
-    commandLine 'sh', '-c', ". ${project.ext.envdir}/bin/activate && python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
+    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
     ignoreExitValue true
 
     doLast {
