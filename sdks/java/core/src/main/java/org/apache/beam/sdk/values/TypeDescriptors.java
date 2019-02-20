@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.ProcessFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * A utility class for creating {@link TypeDescriptor} objects for different types, such as Java
@@ -394,6 +395,13 @@ public class TypeDescriptors {
         new TypeVariableExtractor<ProcessFunction<InputT, OutputT>, InputT>() {});
   }
 
+  /** @deprecated binary compatibility adapter for {@link #inputOf(ProcessFunction)} */
+  @Deprecated
+  public static <InputT, OutputT> TypeDescriptor<InputT> inputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return inputOf((ProcessFunction<InputT, OutputT>) fn);
+  }
+
   /**
    * Returns a type descriptor for the output of the given {@link ProcessFunction}, subject to Java
    * type erasure: may contain unresolved type variables if the type was erased.
@@ -404,6 +412,13 @@ public class TypeDescriptors {
         fn,
         ProcessFunction.class,
         new TypeVariableExtractor<ProcessFunction<InputT, OutputT>, OutputT>() {});
+  }
+
+  /** @deprecated binary compatibility adapter for {@link #outputOf(ProcessFunction) } */
+  @Deprecated
+  public static <InputT, OutputT> TypeDescriptor<OutputT> outputOf(
+      SerializableFunction<InputT, OutputT> fn) {
+    return outputOf((ProcessFunction<InputT, OutputT>) fn);
   }
 
   /** Like {@link #inputOf(ProcessFunction)} but for {@link Contextful.Fn}. */
