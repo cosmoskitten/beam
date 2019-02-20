@@ -94,7 +94,7 @@ def run(argv=None):
         schema='month:INTEGER, tornado_count:INTEGER',
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        method=method)
+        gs_location=known_args.gcs_location)
 
     # Run the pipeline (all operations are deferred until run() is called).
 
