@@ -33,9 +33,10 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionAsMapHandler;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionElement;
-import org.apache.beam.sdk.transforms.WithExceptions.Result;
+import org.apache.beam.sdk.transforms.FlatMapElements.FlatMapWithFailures;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionAsMapHandler;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -332,10 +333,10 @@ public class FlatMapElementsTest implements Serializable {
     }
   }
 
-  /** Test of {@link FlatMapElements#withExceptions()} with a pre-built exception handler. */
+  /** Test of {@link FlatMapWithFailures} with a pre-built exception handler. */
   @Test
   @Category(NeedsRunner.class)
-  public void testFlatMapWithExceptionsMap() throws Exception {
+  public void testFlatMapWithFailuresMap() throws Exception {
 
     Result<PCollection<Integer>, KV<Integer, Map<String, String>>> result =
         pipeline
@@ -350,11 +351,11 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * Test of {@link FlatMapElements#withExceptions()} with handling defined via lambda expression.
+   * Test of {@link FlatMapWithFailures} with handling defined via lambda expression.
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testFlatMapWithExceptionsLambda() {
+  public void testFlatMapWithFailuresLambda() {
     Result<PCollection<Integer>, KV<Integer, String>> result =
         pipeline
             .apply(Create.of(0, 2, 3))
@@ -366,17 +367,17 @@ public class FlatMapElementsTest implements Serializable {
                     .exceptionsVia(f -> KV.of(f.element(), f.exception().getMessage())));
 
     PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
-    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
     pipeline.run();
   }
 
   /**
-   * Test of {@link FlatMapElements#withExceptions()} with a {@link SimpleFunction} and no {@code
+   * Test of {@link FlatMapWithFailures()} with a {@link SimpleFunction} and no {@code
    * into} call.
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testFlatMapWithExceptionsSimpleFunction() {
+  public void testFlatMapWithFailuresSimpleFunction() {
     Result<PCollection<Integer>, KV<Integer, String>> result =
         pipeline
             .apply(Create.of(0, 2, 3))
@@ -392,13 +393,13 @@ public class FlatMapElementsTest implements Serializable {
                         }));
 
     PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
-    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
 
     pipeline.run();
   }
 
   @Test
-  public void testFlatMapWithExceptionsDisplayData() {
+  public void testFlatMapWithFailuresDisplayData() {
     InferableFunction<Integer, List<Integer>> inferableFn =
         new InferableFunction<Integer, List<Integer>>() {
           @Override
@@ -425,7 +426,7 @@ public class FlatMapElementsTest implements Serializable {
           }
         };
 
-    FlatMapElements.FlatMapWithExceptions<?, ?, ?> mapWithExceptions =
+    FlatMapWithFailures<?, ?, ?> mapWithExceptions =
         FlatMapElements.via(inferableFn).exceptionsVia(exceptionHandler);
     assertThat(
         DisplayData.from(mapWithExceptions), hasDisplayItem("class", inferableFn.getClass()));

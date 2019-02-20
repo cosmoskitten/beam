@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -168,10 +168,10 @@ public class MapElements<InputT, OutputT>
    * an exception handler. If the handler does not provide sufficient type information, the user
    * must also call {@code into} to define a type descriptor for the error collection.
    *
-   * <p>See {@link WithExceptions} documentation for usage patterns of the returned {@link
-   * WithExceptions.Result}.
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
    *
-   * @return a {@link WithExceptions.Result} wrapping the output and error collections
+   * @return a {@link WithFailures.Result} wrapping the output and error collections
    */
   @Experimental(Kind.WITH_EXCEPTIONS)
   public MapWithExceptions<InputT, OutputT, ?> withExceptions() {
@@ -182,7 +182,7 @@ public class MapElements<InputT, OutputT>
   @Experimental(Kind.WITH_EXCEPTIONS)
   public static class MapWithExceptions<InputT, OutputT, FailureT>
       extends PTransform<
-          PCollection<InputT>, WithExceptions.Result<PCollection<OutputT>, FailureT>> {
+          PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
@@ -252,7 +252,7 @@ public class MapElements<InputT, OutputT>
      *     MapElements.into(TypeDescriptors.integers())
      *                .via((String word) -> 1 / word.length())
      *                .withExceptions()
-     *                .via(new WithExceptions.ExceptionAsMapHandler<String>() {}));
+     *                .via(new WithFailures.ExceptionAsMapHandler<String>() {}));
      * PCollection<KV<String, Map<String, String>>> errors = result.errors();
      * }</pre>
      */
@@ -268,7 +268,7 @@ public class MapElements<InputT, OutputT>
     }
 
     @Override
-    public WithExceptions.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
+    public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
       final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
       final TupleTag<FailureT> failureTag;
       if (failureType == null) {
@@ -330,7 +330,7 @@ public class MapElements<InputT, OutputT>
               ParDo.of(doFn)
                   .withOutputTags(outputTag, TupleTagList.of(failureTag))
                   .withSideInputs(this.fn.getRequirements().getSideInputs()));
-      return WithExceptions.Result.of(tuple, outputTag, failureTag);
+      return WithFailures.Result.of(tuple, outputTag, failureTag);
     }
 
     @Override

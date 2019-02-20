@@ -23,7 +23,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -176,31 +176,31 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /**
-   * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
-   * mapping elements, with the given type descriptor used for the error collection, but the
+   * Returns a new {@link FlatMapWithFailures} transform that catches exceptions raised while
+   * mapping elements, with the given type descriptor used for the failure collection but the
    * exception handler yet to be specified using {@link
-   * FlatMapWithExceptions#exceptionsVia(ProcessFunction)}.
+   * FlatMapWithFailures#exceptionsVia(ProcessFunction)}.
    *
-   * <p>See {@link WithExceptions} documentation for usage patterns of the returned {@link
-   * WithExceptions.Result}.
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
    */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
-  public <NewFailureT> FlatMapWithExceptions<InputT, OutputT, NewFailureT> exceptionsInto(
+  public <NewFailureT> FlatMapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
-    return new FlatMapWithExceptions<>(
+    return new FlatMapWithFailures<>(
         fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
   }
 
   /**
-   * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
+   * Returns a new {@link FlatMapWithFailures} transform that catches exceptions raised while
    * mapping elements, passing the raised exception instance and the input element being processed
-   * through the given {@code exceptionHandler} and emitting the result to an error collection.
+   * through the given {@code exceptionHandler} and emitting the result to an failure collection.
    *
    * <p>This method takes advantage of the type information provided by {@link InferableFunction},
    * meaning that a call to {@link #exceptionsInto(TypeDescriptor)} may not be necessary.
    *
-   * <p>See {@link WithExceptions} documentation for usage patterns of the returned {@link
-   * WithExceptions.Result}.
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
    *
    * <p>Example usage:
    *
@@ -208,16 +208,17 @@ public class FlatMapElements<InputT, OutputT>
    * Result<PCollection<String>, String>> result = words.apply(
    *     FlatMapElements
    *         .into(TypeDescriptors.strings())
+   *         // Could throw ArrayIndexOutOfBoundsException
    *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
-   *         .withExceptionHandler(new WithExceptions.ExceptionAsMapHandler<String>() {}));
+   *         .withExceptionHandler(new WithFailures.ExceptionAsMapHandler<String>() {}));
    * PCollection<String> output = result.output();
-   * PCollection<String> errors = result.errors();
+   * PCollection<String> failures = result.failures();
    * }</pre>
    */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
-  public <FailureT> FlatMapWithExceptions<InputT, OutputT, FailureT> exceptionsVia(
+  public <FailureT> FlatMapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
-    return new FlatMapWithExceptions<>(
+    return new FlatMapWithFailures<>(
         fn,
         originalFnForDisplayData,
         inputType,
@@ -228,9 +229,9 @@ public class FlatMapElements<InputT, OutputT>
 
   /** A {@code PTransform} that adds exception handling to {@link FlatMapElements}. */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
-  public static class FlatMapWithExceptions<InputT, OutputT, FailureT>
+  public static class FlatMapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<
-          PCollection<InputT>, WithExceptions.Result<PCollection<OutputT>, FailureT>> {
+          PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
@@ -239,7 +240,7 @@ public class FlatMapElements<InputT, OutputT>
     @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
     @Nullable private final ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
 
-    FlatMapWithExceptions(
+    FlatMapWithFailures(
         @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
         Object originalFnForDisplayData,
         TypeDescriptor<InputT> inputType,
@@ -255,9 +256,9 @@ public class FlatMapElements<InputT, OutputT>
     }
 
     /**
-     * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
+     * Returns a new {@link FlatMapWithFailures} transform that catches exceptions raised while
      * mapping elements, passing the raised exception instance and the input element being processed
-     * through the given {@code exceptionHandler} and emitting the result to an error collection.
+     * through the given {@code exceptionHandler} and emitting the result to a failure collection.
      *
      * <p>Example usage:
      *
@@ -269,25 +270,26 @@ public class FlatMapElements<InputT, OutputT>
      *         .exceptionsInto(TypeDescriptors.strings())
      *         .exceptionsVia(ee -> e.exception().getMessage());
      * PCollection<String> output = result.output();
-     * PCollection<String> errors = result.errors();
+     * PCollection<String> failures = result.failures();
      * }</pre>
      */
-    public FlatMapWithExceptions<InputT, OutputT, FailureT> exceptionsVia(
+    public FlatMapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
         ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
-      return new FlatMapWithExceptions<>(
+      return new FlatMapWithFailures<>(
           fn, originalFnForDisplayData, inputType, outputType, exceptionHandler, failureType);
     }
 
     @Override
-    public WithExceptions.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
+    public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
+      checkArgument(exceptionHandler != null, ".withExceptionHandler() is required");
       MapFn doFn = new MapFn();
       PCollectionTuple tuple =
           input.apply(
-              FlatMapWithExceptions.class.getSimpleName(),
+              FlatMapWithFailures.class.getSimpleName(),
               ParDo.of(doFn)
-                  .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.errorTag))
+                  .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.failureTag))
                   .withSideInputs(this.fn.getRequirements().getSideInputs()));
-      return WithExceptions.Result.of(tuple, doFn.outputTag, doFn.errorTag);
+      return WithFailures.Result.of(tuple, doFn.outputTag, doFn.failureTag);
     }
 
     @Override
@@ -304,18 +306,18 @@ public class FlatMapElements<InputT, OutputT>
     }
 
     /** A concrete TupleTag that allows coder inference based on failureType. */
-    private class ErrorTag extends TupleTag<FailureT> {
+    private class FailureTag extends TupleTag<FailureT> {
       @Override
       public TypeDescriptor<FailureT> getTypeDescriptor() {
         return failureType;
       }
     }
 
-    /** A DoFn implementation that handles exceptions and outputs a secondary error collection. */
+    /** A DoFn implementation that handles exceptions and outputs a secondary failure collection. */
     private class MapFn extends DoFn<InputT, OutputT> {
 
       final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
-      final TupleTag<FailureT> errorTag = new ErrorTag();
+      final TupleTag<FailureT> failureTag = new FailureTag();
 
       @ProcessElement
       public void processElement(@Element InputT element, MultiOutputReceiver r, ProcessContext c)
@@ -327,7 +329,7 @@ public class FlatMapElements<InputT, OutputT>
         } catch (Exception e) {
           exceptionWasThrown = true;
           ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
-          r.get(errorTag).output(exceptionHandler.apply(exceptionElement));
+          r.get(failureTag).output(exceptionHandler.apply(exceptionElement));
         }
         // We make sure our outputs occur outside the try block, since runners may implement
         // fusion by having output() directly call the body of another DoFn, potentially catching
@@ -341,7 +343,7 @@ public class FlatMapElements<InputT, OutputT>
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.delegate(FlatMapWithExceptions.this);
+        builder.delegate(FlatMapWithFailures.this);
       }
 
       @Override
@@ -357,7 +359,7 @@ public class FlatMapElements<InputT, OutputT>
                 + "this probably means that getOutputTypeDescriptor() was called after "
                 + "serialization/deserialization, but it is only available prior to "
                 + "serialization, for constructing a pipeline and inferring coders",
-            FlatMapWithExceptions.class.getSimpleName());
+            FlatMapWithFailures.class.getSimpleName());
         return outputType;
       }
     }

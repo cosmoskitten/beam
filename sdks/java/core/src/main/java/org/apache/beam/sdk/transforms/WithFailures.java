@@ -38,14 +38,14 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * A collection of utilities for writing transforms that can handle exceptions raised during
  * processing of elements.
  *
- * <p>Consuming transforms such as {@link MapElements.MapWithExceptions} follow the general pattern
+ * <p>Consuming transforms such as {@link MapElements.MapWithFailures} follow the general pattern
  * of taking in a user-defined exception handler of type {@code
- * ProcessFunction<ExceptionElement<InputT>, ErrorOutputT} where the input {@link ExceptionElement}
+ * ProcessFunction<ExceptionElement<InputT>, FailureOutputT} where the input {@link ExceptionElement}
  * contains an exception along with the input element that was being processed when the exception
  * was raised. This handler is responsible for producing some output element that captures relevant
- * details of the error and can be encoded as part of an error output {@link PCollection}.
- * Transforms can then package together their output and error collections in a {@link
- * WithExceptions.Result} that avoids users needing to interact with {@code TupleTag}s and indexing
+ * details of the failure and can be encoded as part of a failure output {@link PCollection}.
+ * Transforms can then package together their output and failure collections in a {@link
+ * WithFailures.Result} that avoids users needing to interact with {@code TupleTag}s and indexing
  * into a {@link PCollectionTuple}.
  *
  * <p>Exception handlers can narrow their scope by rethrowing the passed {@link
@@ -53,26 +53,29 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * Unhandled exceptions will generally bubble up to a top-level {@link
  * org.apache.beam.sdk.Pipeline.PipelineExecutionException} that halts progress.
  *
- * <p>Users can take advantage of {@link Result#errorsTo(List)} for fluent chaining of transforms
+ * <p>Users can take advantage of {@link Result#failuresTo(List)} for fluent chaining of transforms
  * that handle exceptions:
  *
  * <pre>{@code
  * PCollection<Integer> input = ...
- * List<PCollection<Map<String, String>> errorCollections = new ArrayList<>();
- * input.apply(MapElements...withExceptions()...)
- *      .errorsTo(errorCollections)
- *      .apply(MapElements...withExceptions()...)
- *      .errorsTo(errorCollections);
- * PCollection<Map<String, String>> errors = PCollectionList.of(errorCollections)
- *      .apply("FlattenErrorCollections", Flatten.pCollections());
+ * List<PCollection<Map<String, String>> failureCollections = new ArrayList<>();
+ * input.apply(MapElements...withExceptionHandler()...)
+ *      .failuresTo(failureCollections)
+ *      .apply(MapElements...withExceptionHandler()...)
+ *      .failuresTo(failureCollections);
+ * PCollection<Map<String, String>> failures = PCollectionList.of(failureCollections)
+ *      .apply("FlattenFailureCollections", Flatten.pCollections());
  * }</pre>
  */
 @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
-public class WithExceptions {
+public class WithFailures {
 
   /**
    * The value type passed as input to exception handlers. It wraps an exception together with the
    * input element that was being processed at the time the exception was raised.
+   *
+   * <p>Exception handlers may want to re-raise the exception and catch only specific subclasses
+   * in order to limit the scope of handled exceptions or access subclass-specific data.
    */
   @AutoValue
   public abstract static class ExceptionElement<T> {
@@ -81,7 +84,7 @@ public class WithExceptions {
     public abstract Exception exception();
 
     public static <T> ExceptionElement<T> of(T element, Exception exception) {
-      return new AutoValue_WithExceptions_ExceptionElement<>(element, exception);
+      return new AutoValue_WithFailures_ExceptionElement<>(element, exception);
     }
   }
 
@@ -92,7 +95,7 @@ public class WithExceptions {
    *
    * <p>Extends {@link SimpleFunction} so that full type information is captured. Map and {@link KV}
    * coders are well supported by Beam, so coder inference can be successfully applied if the
-   * consuming transform passes type information to the error collection's {@link TupleTag}.
+   * consuming transform passes type information to the failure collection's {@link TupleTag}.
    *
    * <p>The keys populated in the map are "className", "message", and "stackTrace" of the exception.
    */
@@ -114,10 +117,10 @@ public class WithExceptions {
    * a collection of elements that failed the transform.
    *
    * @param <OutputT> Output type
-   * @param <ErrorElementT> Element type for the error {@code PCollection}
+   * @param <FailureElementT> Element type for the failure {@code PCollection}
    */
   @AutoValue
-  public abstract static class Result<OutputT extends POutput, ErrorElementT>
+  public abstract static class Result<OutputT extends POutput, FailureElementT>
       implements PInput, POutput {
 
     public abstract OutputT output();
@@ -125,35 +128,35 @@ public class WithExceptions {
     @Nullable
     abstract TupleTag<?> outputTag();
 
-    public abstract PCollection<ErrorElementT> errors();
+    public abstract PCollection<FailureElementT> failures();
 
-    abstract TupleTag<ErrorElementT> errorsTag();
+    abstract TupleTag<FailureElementT> failuresTag();
 
-    public static <OutputT extends POutput, ErrorElementT> Result<OutputT, ErrorElementT> of(
-        OutputT output, PCollection<ErrorElementT> errors) {
-      return new AutoValue_WithExceptions_Result<>(
-          output, null, errors, new TupleTag<ErrorElementT>());
+    public static <OutputT extends POutput, FailureElementT> Result<OutputT, FailureElementT> of(
+        OutputT output, PCollection<FailureElementT> failures) {
+      return new AutoValue_WithFailures_Result<>(
+          output, null, failures, new TupleTag<FailureElementT>());
     }
 
-    public static <OutputElementT, ErrorElementT>
-        Result<PCollection<OutputElementT>, ErrorElementT> of(
-            PCollection<OutputElementT> output, PCollection<ErrorElementT> errors) {
-      return new AutoValue_WithExceptions_Result<>(
-          output, new TupleTag<OutputElementT>(), errors, new TupleTag<ErrorElementT>());
+    public static <OutputElementT, FailureElementT>
+        Result<PCollection<OutputElementT>, FailureElementT> of(
+            PCollection<OutputElementT> output, PCollection<FailureElementT> failures) {
+      return new AutoValue_WithFailures_Result<>(
+          output, new TupleTag<OutputElementT>(), failures, new TupleTag<FailureElementT>());
     }
 
-    public static <OutputElementT, ErrorElementT>
-        Result<PCollection<OutputElementT>, ErrorElementT> of(
+    public static <OutputElementT, FailureElementT>
+        Result<PCollection<OutputElementT>, FailureElementT> of(
             PCollectionTuple tuple,
             TupleTag<OutputElementT> outputTag,
-            TupleTag<ErrorElementT> errorTag) {
-      return new AutoValue_WithExceptions_Result<>(
-          tuple.get(outputTag), outputTag, tuple.get(errorTag), errorTag);
+            TupleTag<FailureElementT> failureTag) {
+      return new AutoValue_WithFailures_Result<>(
+          tuple.get(outputTag), outputTag, tuple.get(failureTag), failureTag);
     }
 
-    /** Adds the error collection to the passed list and returns just the output collection. */
-    public OutputT errorsTo(List<PCollection<ErrorElementT>> errorCollections) {
-      errorCollections.add(errors());
+    /** Adds the failure collection to the passed list and returns just the output collection. */
+    public OutputT failuresTo(List<PCollection<FailureElementT>> failureCollections) {
+      failureCollections.add(failures());
       return output();
     }
 
@@ -165,7 +168,7 @@ public class WithExceptions {
     @Override
     public Map<TupleTag<?>, PValue> expand() {
       Map<TupleTag<?>, PValue> values = new HashMap<>();
-      values.put(errorsTag(), errors());
+      values.put(failuresTag(), failures());
       if (outputTag() != null && output() instanceof PValue) {
         values.put(outputTag(), (PValue) output());
       }

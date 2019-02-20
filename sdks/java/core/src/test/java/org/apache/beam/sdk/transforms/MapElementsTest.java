@@ -36,8 +36,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionElement;
-import org.apache.beam.sdk.transforms.WithExceptions.Result;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
@@ -534,13 +534,13 @@ public class MapElementsTest implements Serializable {
                 MapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> 1 / i)
                     .withExceptions()
-                    .via(new WithExceptions.ExceptionAsMapHandler<Integer>() {}));
+                    .via(new WithFailures.ExceptionAsMapHandler<Integer>() {}));
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
     Map<String, String> expectedFailureInfo =
         ImmutableMap.of("className", "java.lang.ArithmeticException");
-    PAssert.thatSingleton(result.errors())
+    PAssert.thatSingleton(result.failures())
         .satisfies(
             kv -> {
               assertEquals(Integer.valueOf(0), kv.getKey());
@@ -571,7 +571,7 @@ public class MapElementsTest implements Serializable {
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
-    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
 
     pipeline.run();
   }
@@ -600,7 +600,7 @@ public class MapElementsTest implements Serializable {
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
-    PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
+    PAssert.that(result.failures()).containsInAnyOrder(KV.of(0, "/ by zero"));
 
     pipeline.run();
   }

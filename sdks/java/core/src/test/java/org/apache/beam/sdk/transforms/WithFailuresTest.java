@@ -29,7 +29,7 @@ import java.util.Map;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.WithExceptions.ExceptionAsMapHandler;
+import org.apache.beam.sdk.transforms.WithFailures.ExceptionAsMapHandler;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -41,13 +41,13 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link WithExceptions}. */
+/** Tests for {@link WithFailures}. */
 @RunWith(JUnit4.class)
-public class WithExceptionsTest implements Serializable {
+public class WithFailuresTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  /** Test of {@link WithExceptions.Result#errorsTo(List)}. */
+  /** Test of {@link WithFailures.Result#failuresTo(List)}. */
   @Test
   @Category(NeedsRunner.class)
   public void testExceptionAsMap() {
@@ -60,7 +60,7 @@ public class WithExceptionsTest implements Serializable {
                     .via((Integer i) -> 1 / i)
                     .withExceptions()
                     .via(new ExceptionAsMapHandler<Integer>() {}))
-            .errorsTo(errorCollections);
+            .failuresTo(errorCollections);
 
     PAssert.that(output).containsInAnyOrder(1);
 
