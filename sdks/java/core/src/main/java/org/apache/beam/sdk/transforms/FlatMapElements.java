@@ -176,24 +176,51 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /**
-   * Return a modified {@code PTransform} that catches exceptions raised while mapping elements.
+   * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
+   * mapping elements, with the given type descriptor used for the error collection, but the
+   * exception handler yet to be specified using {@link
+   * FlatMapWithExceptions#exceptionsVia(ProcessFunction)}.
    *
-   * <p>The user must call {@code via} on the returned {@link FlatMapWithExceptions} instance to
-   * define an exception handler. If the handler does not provide sufficient type information, the
-   * user must also call {@code into} to define a type descriptor for the error collection.
+   * <p>See {@link WithExceptions} documentation for usage patterns of the returned {@link
+   * WithExceptions.Result}.
+   */
+  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  public <NewFailureT> FlatMapWithExceptions<InputT, OutputT, NewFailureT> exceptionsInto(
+      TypeDescriptor<NewFailureT> failureTypeDescriptor) {
+    return new FlatMapWithExceptions<>(
+        fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
+  }
+
+  /**
+   * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
+   * mapping elements, passing the raised exception instance and the input element being processed
+   * through the given {@code exceptionHandler} and emitting the result to an error collection.
+   *
+   * <p>This method takes advantage of the type information provided by {@link InferableFunction},
+   * meaning that a call to {@link #exceptionsInto(TypeDescriptor)} may not be necessary.
    *
    * <p>See {@link WithExceptions} documentation for usage patterns of the returned {@link
    * WithExceptions.Result}.
    *
-   * @return a {@link WithExceptions.Result} wrapping the output and error collections
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * Result<PCollection<String>, String>> result = words.apply(
+   *     FlatMapElements
+   *         .into(TypeDescriptors.strings())
+   *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
+   *         .withExceptionHandler(new WithExceptions.ExceptionAsMapHandler<String>() {}));
+   * PCollection<String> output = result.output();
+   * PCollection<String> errors = result.errors();
+   * }</pre>
    */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
-  public FlatMapWithExceptions<InputT, OutputT, ?> withExceptions() {
+  public <FailureT> FlatMapWithExceptions<InputT, OutputT, FailureT> exceptionsVia(InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new FlatMapWithExceptions<>(
-        fn, originalFnForDisplayData, inputType, outputType, null, null);
+        fn, originalFnForDisplayData, inputType, outputType, exceptionHandler, exceptionHandler.getOutputTypeDescriptor());
   }
 
-  /** Implementation of {@link FlatMapElements#withExceptions()}. */
+  /** A {@code PTransform} that adds exception handling to {@link FlatMapElements}. */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
   public static class FlatMapWithExceptions<InputT, OutputT, FailureT>
       extends PTransform<
@@ -222,64 +249,27 @@ public class FlatMapElements<InputT, OutputT>
     }
 
     /**
-     * Returns a new {@link FlatMapWithExceptions} transform with the given type descriptor for the
-     * error collection, but the exception handler yet to be specified using {@link
-     * #via(ProcessFunction)}.
-     */
-    public <NewFailureT> FlatMapWithExceptions<InputT, OutputT, NewFailureT> into(
-        TypeDescriptor<NewFailureT> failureTypeDescriptor) {
-      return new FlatMapWithExceptions<>(
-          fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
-    }
-
-    /**
-     * Returns a {@code PTransform} that catches exceptions raised while mapping elements, passing
-     * the raised exception instance and the input element being processed through the given {@code
-     * exceptionHandler} and emitting the result to an error collection.
+     * Returns a new {@link FlatMapWithExceptions} transform that catches exceptions raised while
+     * mapping elements, passing the raised exception instance and the input element being processed
+     * through the given {@code exceptionHandler} and emitting the result to an error collection.
      *
      * <p>Example usage:
      *
      * <pre>{@code
      * Result<PCollection<String>, String>> result = words.apply(
-     *     FlatMapElements.into(TypeDescriptors.strings())
-     *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
-     *         .withExceptions()
+     *     FlatMapElements
      *         .into(TypeDescriptors.strings())
-     *         .via(ee -> e.exception().getMessage()));
+     *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
+     *         .exceptionsInto(TypeDescriptors.strings())
+     *         .exceptionsVia(ee -> e.exception().getMessage());
+     * PCollection<String> output = result.output();
      * PCollection<String> errors = result.errors();
      * }</pre>
      */
-    public FlatMapWithExceptions<InputT, OutputT, FailureT> via(
+    public FlatMapWithExceptions<InputT, OutputT, FailureT> exceptionsVia(
         ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
       return new FlatMapWithExceptions<>(
           fn, originalFnForDisplayData, inputType, outputType, exceptionHandler, failureType);
-    }
-
-    /**
-     * Like {@link #via(ProcessFunction)}, but takes advantage of the type information provided by
-     * {@link InferableFunction}, meaning that a call to {@link #into(TypeDescriptor)} may not be
-     * necessary.
-     *
-     * <p>Example usage:
-     *
-     * <pre>{@code
-     * Result<PCollection<Integer>, KV<String, Map<String, String>>> result = words.apply(
-     *     FlatMapElements.into(TypeDescriptors.strings())
-     *         .via((String line) -> Arrays.asList(Arrays.copyOfRange(line.split(" "), 1, 5)))
-     *         .withExceptions()
-     *         .via(new WithExceptions.ExceptionAsMapHandler<String>() {}));
-     * PCollection<KV<String, Map<String, String>>> errors = result.errors();
-     * }</pre>
-     */
-    public <NewFailureT> FlatMapWithExceptions<InputT, OutputT, NewFailureT> via(
-        InferableFunction<ExceptionElement<InputT>, NewFailureT> exceptionHandler) {
-      return new FlatMapWithExceptions<>(
-          fn,
-          originalFnForDisplayData,
-          inputType,
-          outputType,
-          exceptionHandler,
-          exceptionHandler.getOutputTypeDescriptor());
     }
 
     @Override
@@ -307,17 +297,19 @@ public class FlatMapElements<InputT, OutputT>
       }
     }
 
-    class ErrorTag extends TupleTag<FailureT> {
+    /** A concrete TupleTag that allows coder inference based on failureType. */
+    private class ErrorTag extends TupleTag<FailureT> {
       @Override
       public TypeDescriptor<FailureT> getTypeDescriptor() {
         return failureType;
       }
     }
 
-    class MapFn extends DoFn<InputT, OutputT> {
+    /** A DoFn implementation that handles exceptions and outputs a secondary error collection. */
+    private class MapFn extends DoFn<InputT, OutputT> {
 
       final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
-      final TupleTag<FailureT> errorTag = (failureType == null) ? new TupleTag<>() : new ErrorTag();
+      final TupleTag<FailureT> errorTag = new ErrorTag();
 
       @ProcessElement
       public void processElement(
@@ -331,6 +323,9 @@ public class FlatMapElements<InputT, OutputT>
           ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
           r.get(errorTag).output(exceptionHandler.apply(exceptionElement));
         }
+        // We make sure our outputs occur outside the try block, since runners may implement
+        // fusion by having output() directly call the body of another DoFn, potentially catching
+        // exceptions unrelated to this transform.
         if (!exceptionWasThrown) {
           for (OutputT output : res) {
             r.get(outputTag).output(output);
