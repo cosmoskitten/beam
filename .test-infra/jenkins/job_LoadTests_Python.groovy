@@ -30,12 +30,12 @@ def smokeTestConfigurations = [
                         project          : 'apache-beam-io-testing',
                         metrics_dataset  : 'load_test_SMOKE',
                         metrics_table    : 'python_direct_gbk',
-                        input_options    : '{"num_records": 100000,' +
+                        input_options    : '\'{"num_records": 100000,' +
                                             '"key_size": 1,' +
                                             '"value_size":1,' +
                                             '"bundle_size_distribution_type": "const",' +
                                             '"bundle_size_distribution_param": 1,' +
-                                            '"force_initial_num_bundles": 10}',
+                                            '"force_initial_num_bundles": 10}\'',
 
                 ]
         ],
@@ -49,12 +49,12 @@ def smokeTestConfigurations = [
                         publish_to_big_query    : true,
                         metrics_dataset         : 'load_test_SMOKE',
                         bigQueryTable           : 'python_dataflow_gbk',
-                        input_options           : '{"num_records": 100000,' +
+                        input_options           : '\'{"num_records": 100000,' +
                                                     '"key_size": 1,' +
                                                     '"value_size":1,' +
                                                     '"bundle_size_distribution_type": "const",' +
                                                     '"bundle_size_distribution_param": 1,' +
-                                                    '"force_initial_num_bundles": 10}',
+                                                    '"force_initial_num_bundles": 10}\'',
                         maxNumWorkers    : 10,
                 ]
         ],
@@ -75,6 +75,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
     for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner, parseStringOptions(testConfiguration.jobProperties), testConfiguration.itClass)
+        loadTestsBuilder.loadTestPython(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass)
     }
 }
