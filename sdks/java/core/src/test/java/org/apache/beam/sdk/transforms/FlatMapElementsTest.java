@@ -343,8 +343,7 @@ public class FlatMapElementsTest implements Serializable {
             .apply(
                 FlatMapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
-                    .withExceptions()
-                    .via(new ExceptionAsMapHandler<Integer>() {}));
+                    .exceptionsVia(new ExceptionAsMapHandler<Integer>() {}));
 
     PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
     pipeline.run();
@@ -362,10 +361,9 @@ public class FlatMapElementsTest implements Serializable {
             .apply(
                 FlatMapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
-                    .withExceptions()
-                    .into(
+                    .exceptionsInto(
                         TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()))
-                    .via(f -> KV.of(f.element(), f.exception().getMessage())));
+                    .exceptionsVia(f -> KV.of(f.element(), f.exception().getMessage())));
 
     PAssert.that(result.output()).containsInAnyOrder(2, -2, 3, -3);
     PAssert.that(result.errors()).containsInAnyOrder(KV.of(0, "/ by zero"));
@@ -385,8 +383,7 @@ public class FlatMapElementsTest implements Serializable {
             .apply(
                 FlatMapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> ImmutableList.of(i + 1 / i, -i - 1 / i))
-                    .withExceptions()
-                    .via(
+                    .exceptionsVia(
                         new SimpleFunction<ExceptionElement<Integer>, KV<Integer, String>>() {
                           @Override
                           public KV<Integer, String> apply(ExceptionElement<Integer> failure) {
@@ -429,7 +426,7 @@ public class FlatMapElementsTest implements Serializable {
         };
 
     FlatMapElements.FlatMapWithExceptions<?, ?, ?> mapWithExceptions =
-        FlatMapElements.via(inferableFn).withExceptions().via(exceptionHandler);
+        FlatMapElements.via(inferableFn).exceptionsVia(exceptionHandler);
     assertThat(
         DisplayData.from(mapWithExceptions), hasDisplayItem("class", inferableFn.getClass()));
     assertThat(
