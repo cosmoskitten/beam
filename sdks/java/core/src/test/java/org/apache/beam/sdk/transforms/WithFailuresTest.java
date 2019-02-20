@@ -58,8 +58,7 @@ public class WithFailuresTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> 1 / i)
-                    .withExceptions()
-                    .via(new ExceptionAsMapHandler<Integer>() {}))
+                    .exceptionsVia(new ExceptionAsMapHandler<Integer>() {}))
             .failuresTo(errorCollections);
 
     PAssert.that(output).containsInAnyOrder(1);

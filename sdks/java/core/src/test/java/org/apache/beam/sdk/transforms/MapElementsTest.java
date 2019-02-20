@@ -36,6 +36,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
+import org.apache.beam.sdk.transforms.MapElements.MapWithFailures;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -523,7 +524,7 @@ public class MapElementsTest implements Serializable {
     }
   }
 
-  /** Test of {@link MapElements#withExceptions()} using a pre-built exception handler. */
+  /** Test of {@link MapWithFailures()} using a pre-built exception handler. */
   @Test
   @Category(NeedsRunner.class)
   public void testExceptionAsMap() {
@@ -533,8 +534,7 @@ public class MapElementsTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> 1 / i)
-                    .withExceptions()
-                    .via(new WithFailures.ExceptionAsMapHandler<Integer>() {}));
+                    .exceptionsVia(new WithFailures.ExceptionAsMapHandler<Integer>() {}));
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
@@ -554,7 +554,7 @@ public class MapElementsTest implements Serializable {
     pipeline.run();
   }
 
-  /** Test of {@link MapElements#withExceptions()} with handling defined via lambda expression. */
+  /** Test of {@link MapWithFailures()} with handling defined via lambda expression. */
   @Test
   @Category(NeedsRunner.class)
   public void testMapWithExceptionsLambda() {
@@ -564,10 +564,9 @@ public class MapElementsTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> 1 / i)
-                    .withExceptions()
-                    .into(
+                    .exceptionsInto(
                         TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()))
-                    .via(f -> KV.of(f.element(), f.exception().getMessage())));
+                    .exceptionsVia(f -> KV.of(f.element(), f.exception().getMessage())));
 
     PAssert.that(result.output()).containsInAnyOrder(1);
 
@@ -577,7 +576,7 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
-   * Test of {@link MapElements#withExceptions()} with a {@link SimpleFunction} and no {@code into}
+   * Test of {@link MapWithFailures()} with a {@link SimpleFunction} and no {@code into}
    * call.
    */
   @Test
@@ -589,8 +588,7 @@ public class MapElementsTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptors.integers())
                     .via((Integer i) -> 1 / i)
-                    .withExceptions()
-                    .via(
+                    .exceptionsVia(
                         new SimpleFunction<ExceptionElement<Integer>, KV<Integer, String>>() {
                           @Override
                           public KV<Integer, String> apply(ExceptionElement<Integer> failure) {
@@ -633,14 +631,14 @@ public class MapElementsTest implements Serializable {
           }
         };
 
-    MapElements.MapWithExceptions<?, ?, ?> mapWithExceptions =
-        MapElements.via(inferableFn).withExceptions().via(exceptionHandler);
+    MapWithFailures<?, ?, ?> mapWithFailures =
+        MapElements.via(inferableFn).exceptionsVia(exceptionHandler);
     assertThat(
-        DisplayData.from(mapWithExceptions), hasDisplayItem("class", inferableFn.getClass()));
+        DisplayData.from(mapWithFailures), hasDisplayItem("class", inferableFn.getClass()));
     assertThat(
-        DisplayData.from(mapWithExceptions),
+        DisplayData.from(mapWithFailures),
         hasDisplayItem("exceptionHandler.class", exceptionHandler.getClass()));
-    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("foo", "baz"));
-    assertThat(DisplayData.from(mapWithExceptions), hasDisplayItem("bar", "buz"));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("foo", "baz"));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("bar", "buz"));
   }
 }

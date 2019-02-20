@@ -162,25 +162,61 @@ public class MapElements<InputT, OutputT>
   }
 
   /**
-   * Return a modified {@code PTransform} that catches exceptions raised while mapping elements.
+   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while
+   * mapping elements, with the given type descriptor used for the failure collection but the
+   * exception handler yet to be specified using {@link
+   * MapWithFailures#exceptionsVia(ProcessFunction)}.
    *
-   * <p>The user must call {@code via} on the returned {@link MapWithExceptions} instance to define
-   * an exception handler. If the handler does not provide sufficient type information, the user
-   * must also call {@code into} to define a type descriptor for the error collection.
+   * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
+   * WithFailures.Result}.
+   */
+  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
+      TypeDescriptor<NewFailureT> failureTypeDescriptor) {
+    return new MapWithFailures<>(
+        fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
+  }
+
+  /**
+   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while
+   * mapping elements, passing the raised exception instance and the input element being processed
+   * through the given {@code exceptionHandler} and emitting the result to an failure collection.
+   *
+   * <p>This method takes advantage of the type information provided by {@link InferableFunction},
+   * meaning that a call to {@link #exceptionsInto(TypeDescriptor)} may not be necessary.
    *
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    *
-   * @return a {@link WithFailures.Result} wrapping the output and error collections
+   * <p>Example usage:
+   *
+   * <pre>{@code
+   * Result<PCollection<String>, String>> result = words.apply(
+   *     MapElements
+   *         .into(TypeDescriptors.integers())
+   *         // Could throw ArithmeticException
+   *         .via((String word) -> 1 / word.length)
+   *         .withExceptionHandler(new WithFailures.ExceptionAsMapHandler<String>() {}));
+   * PCollection<Integer> output = result.output();
+   * PCollection<String> failures = result.failures();
+   * }</pre>
    */
-  @Experimental(Kind.WITH_EXCEPTIONS)
-  public MapWithExceptions<InputT, OutputT, ?> withExceptions() {
-    return new MapWithExceptions<>(fn, originalFnForDisplayData, inputType, outputType, null, null);
+  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
+      InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
+    return new MapWithFailures<>(
+        fn,
+        originalFnForDisplayData,
+        inputType,
+        outputType,
+        exceptionHandler,
+        exceptionHandler.getOutputTypeDescriptor());
   }
 
-  /** Implementation of {@link MapElements#withExceptions()}. */
+
+  /** A {@code PTransform} that adds exception handling to {@link MapElements}. */
   @Experimental(Kind.WITH_EXCEPTIONS)
-  public static class MapWithExceptions<InputT, OutputT, FailureT>
+  public static class MapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<
           PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
@@ -191,7 +227,7 @@ public class MapElements<InputT, OutputT>
     private final Contextful<Fn<InputT, OutputT>> fn;
     @Nullable private final ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler;
 
-    MapWithExceptions(
+    MapWithFailures(
         Contextful<Fn<InputT, OutputT>> fn,
         Object originalFnForDisplayData,
         TypeDescriptor<InputT> inputType,
@@ -207,130 +243,40 @@ public class MapElements<InputT, OutputT>
     }
 
     /**
-     * Returns a new {@link MapWithExceptions} transform with the given type descriptor for the
-     * error collection, but the exception handler yet to be specified using {@link
-     * #via(ProcessFunction)}.
-     */
-    public <NewFailureT> MapWithExceptions<InputT, OutputT, NewFailureT> into(
-        TypeDescriptor<NewFailureT> failureTypeDescriptor) {
-      return new MapWithExceptions<>(
-          fn, originalFnForDisplayData, inputType, outputType, null, failureTypeDescriptor);
-    }
-
-    /**
      * Returns a {@code PTransform} that catches exceptions raised while mapping elements, passing
      * the raised exception instance and the input element being processed through the given {@code
-     * exceptionHandler} and emitting the result to an error collection.
+     * exceptionHandler} and emitting the result to a failure collection.
      *
      * <p>Example usage:
      *
      * <pre>{@code
      * Result<PCollection<Integer>, String> result = words.apply(
-     *     MapElements.into(TypeDescriptors.integers())
-     *                .via((String word) -> 1 / word.length())
-     *                .withExceptions()
-     *                .into(TypeDescriptors.strings())
-     *                .via(ee -> e.exception().getMessage()));
-     * PCollection<String> errors = result.errors();
+     *     MapElements
+     *         .into(TypeDescriptors.integers())
+     *         // Could throw ArithmeticException
+     *         .via((String word) -> 1 / word.length())
+     *         .exceptionsInto(TypeDescriptors.strings())
+     *         .exceptionsVia(ee -> e.exception().getMessage()));
+     * PCollection<Integer> output = result.output();
+     * PCollection<String> failures = result.failures();
      * }</pre>
      */
-    public MapWithExceptions<InputT, OutputT, FailureT> via(
+    public MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
         ProcessFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
-      return new MapWithExceptions<>(
+      return new MapWithFailures<>(
           fn, originalFnForDisplayData, inputType, outputType, exceptionHandler, failureType);
-    }
-
-    /**
-     * Like {@link #via(ProcessFunction)}, but takes advantage of the type information provided by
-     * {@link InferableFunction}, meaning that a call to {@link #into(TypeDescriptor)} may not be
-     * necessary.
-     *
-     * <p>Example usage:
-     *
-     * <pre>{@code
-     * Result<PCollection<Integer>, KV<String, Map<String, String>>> result = words.apply(
-     *     MapElements.into(TypeDescriptors.integers())
-     *                .via((String word) -> 1 / word.length())
-     *                .withExceptions()
-     *                .via(new WithFailures.ExceptionAsMapHandler<String>() {}));
-     * PCollection<KV<String, Map<String, String>>> errors = result.errors();
-     * }</pre>
-     */
-    public <NewFailureT> MapWithExceptions<InputT, OutputT, NewFailureT> via(
-        InferableFunction<ExceptionElement<InputT>, NewFailureT> exceptionHandler) {
-      return new MapWithExceptions<>(
-          fn,
-          originalFnForDisplayData,
-          inputType,
-          outputType,
-          exceptionHandler,
-          exceptionHandler.getOutputTypeDescriptor());
     }
 
     @Override
     public WithFailures.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
-      final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
-      final TupleTag<FailureT> failureTag;
-      if (failureType == null) {
-        failureTag = new TupleTag<>();
-      } else {
-        failureTag =
-            new TupleTag<FailureT>() {
-              @Override
-              public TypeDescriptor<FailureT> getTypeDescriptor() {
-                return failureType;
-              }
-            };
-      }
-      DoFn<InputT, OutputT> doFn =
-          new DoFn<InputT, OutputT>() {
-            @ProcessElement
-            public void processElement(
-                @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
-                throws Exception {
-              OutputT processed = null;
-              boolean exceptionWasThrown = false;
-              try {
-                processed = fn.getClosure().apply(element, Fn.Context.wrapProcessContext(c));
-              } catch (Exception e) {
-                exceptionWasThrown = true;
-                ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
-                receiver.get(failureTag).output(exceptionHandler.apply(exceptionElement));
-              }
-              if (!exceptionWasThrown) {
-                receiver.get(outputTag).output(processed);
-              }
-            }
-
-            @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
-              builder.delegate(MapWithExceptions.this);
-            }
-
-            @Override
-            public TypeDescriptor<InputT> getInputTypeDescriptor() {
-              return inputType;
-            }
-
-            @Override
-            public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-              checkState(
-                  outputType != null,
-                  "%s output type descriptor was null; "
-                      + "this probably means that getOutputTypeDescriptor() was called after "
-                      + "serialization/deserialization, but it is only available prior to "
-                      + "serialization, for constructing a pipeline and inferring coders",
-                  MapWithExceptions.class.getSimpleName());
-              return outputType;
-            }
-          };
+      MapFn doFn = new MapFn();
       PCollectionTuple tuple =
           input.apply(
-              MapWithExceptions.class.getSimpleName(),
+              MapWithFailures.class.getSimpleName(),
               ParDo.of(doFn)
-                  .withOutputTags(outputTag, TupleTagList.of(failureTag))
+                  .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.failureTag))
                   .withSideInputs(this.fn.getRequirements().getSideInputs()));
-      return WithFailures.Result.of(tuple, outputTag, failureTag);
+      return WithFailures.Result.of(tuple, doFn.outputTag, doFn.failureTag);
     }
 
     @Override
@@ -345,5 +291,63 @@ public class MapElements<InputT, OutputT>
         builder.include("exceptionHandler", (HasDisplayData) exceptionHandler);
       }
     }
+
+    /** A concrete TupleTag that allows coder inference based on failureType. */
+    private class FailureTag extends TupleTag<FailureT> {
+      @Override
+      public TypeDescriptor<FailureT> getTypeDescriptor() {
+        return failureType;
+      }
+    }
+
+    /** A DoFn implementation that handles exceptions and outputs a secondary failure collection. */
+    private class MapFn extends DoFn<InputT, OutputT> {
+
+      final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
+      final TupleTag<FailureT> failureTag = new FailureTag();
+
+      @ProcessElement
+      public void processElement(@Element InputT element, MultiOutputReceiver r, ProcessContext c)
+          throws Exception {
+        boolean exceptionWasThrown = false;
+        OutputT result = null;
+        try {
+          result = fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
+        } catch (Exception e) {
+          exceptionWasThrown = true;
+          ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
+          r.get(failureTag).output(exceptionHandler.apply(exceptionElement));
+        }
+        // We make sure our output occurs outside the try block, since runners may implement
+        // fusion by having output() directly call the body of another DoFn, potentially catching
+        // exceptions unrelated to this transform.
+        if (!exceptionWasThrown) {
+            r.get(outputTag).output(result);
+        }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.delegate(MapWithFailures.this);
+      }
+
+      @Override
+      public TypeDescriptor<InputT> getInputTypeDescriptor() {
+        return inputType;
+      }
+
+      @Override
+      public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+        checkState(
+            outputType != null,
+            "%s output type descriptor was null; "
+                + "this probably means that getOutputTypeDescriptor() was called after "
+                + "serialization/deserialization, but it is only available prior to "
+                + "serialization, for constructing a pipeline and inferring coders",
+            MapWithFailures.class.getSimpleName());
+        return outputType;
+      }
+    }
+
   }
 }
