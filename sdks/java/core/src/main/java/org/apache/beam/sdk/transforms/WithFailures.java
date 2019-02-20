@@ -38,15 +38,15 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  * A collection of utilities for writing transforms that can handle exceptions raised during
  * processing of elements.
  *
- * <p>Consuming transforms such as {@link MapElements.MapWithFailures} follow the general pattern
- * of taking in a user-defined exception handler of type {@code
- * ProcessFunction<ExceptionElement<InputT>, FailureOutputT} where the input {@link ExceptionElement}
- * contains an exception along with the input element that was being processed when the exception
- * was raised. This handler is responsible for producing some output element that captures relevant
- * details of the failure and can be encoded as part of a failure output {@link PCollection}.
- * Transforms can then package together their output and failure collections in a {@link
- * WithFailures.Result} that avoids users needing to interact with {@code TupleTag}s and indexing
- * into a {@link PCollectionTuple}.
+ * <p>Consuming transforms such as {@link MapElements.MapWithFailures} follow the general pattern of
+ * taking in a user-defined exception handler of type {@code
+ * ProcessFunction<ExceptionElement<InputT>, FailureOutputT} where the input {@link
+ * ExceptionElement} contains an exception along with the input element that was being processed
+ * when the exception was raised. This handler is responsible for producing some output element that
+ * captures relevant details of the failure and can be encoded as part of a failure output {@link
+ * PCollection}. Transforms can then package together their output and failure collections in a
+ * {@link WithFailures.Result} that avoids users needing to interact with {@code TupleTag}s and
+ * indexing into a {@link PCollectionTuple}.
  *
  * <p>Exception handlers can narrow their scope by rethrowing the passed {@link
  * ExceptionElement#exception()} and catching only specific subclasses of {@code Exception}.
@@ -74,8 +74,8 @@ public class WithFailures {
    * The value type passed as input to exception handlers. It wraps an exception together with the
    * input element that was being processed at the time the exception was raised.
    *
-   * <p>Exception handlers may want to re-raise the exception and catch only specific subclasses
-   * in order to limit the scope of handled exceptions or access subclass-specific data.
+   * <p>Exception handlers may want to re-raise the exception and catch only specific subclasses in
+   * order to limit the scope of handled exceptions or access subclass-specific data.
    */
   @AutoValue
   public abstract static class ExceptionElement<T> {

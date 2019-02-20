@@ -162,10 +162,9 @@ public class MapElements<InputT, OutputT>
   }
 
   /**
-   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while
-   * mapping elements, with the given type descriptor used for the failure collection but the
-   * exception handler yet to be specified using {@link
-   * MapWithFailures#exceptionsVia(ProcessFunction)}.
+   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while mapping
+   * elements, with the given type descriptor used for the failure collection but the exception
+   * handler yet to be specified using {@link MapWithFailures#exceptionsVia(ProcessFunction)}.
    *
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
@@ -178,9 +177,9 @@ public class MapElements<InputT, OutputT>
   }
 
   /**
-   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while
-   * mapping elements, passing the raised exception instance and the input element being processed
-   * through the given {@code exceptionHandler} and emitting the result to an failure collection.
+   * Returns a new {@link MapWithFailures} transform that catches exceptions raised while mapping
+   * elements, passing the raised exception instance and the input element being processed through
+   * the given {@code exceptionHandler} and emitting the result to an failure collection.
    *
    * <p>This method takes advantage of the type information provided by {@link InferableFunction},
    * meaning that a call to {@link #exceptionsInto(TypeDescriptor)} may not be necessary.
@@ -213,12 +212,10 @@ public class MapElements<InputT, OutputT>
         exceptionHandler.getOutputTypeDescriptor());
   }
 
-
   /** A {@code PTransform} that adds exception handling to {@link MapElements}. */
   @Experimental(Kind.WITH_EXCEPTIONS)
   public static class MapWithFailures<InputT, OutputT, FailureT>
-      extends PTransform<
-          PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
+      extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;
@@ -322,7 +319,7 @@ public class MapElements<InputT, OutputT>
         // fusion by having output() directly call the body of another DoFn, potentially catching
         // exceptions unrelated to this transform.
         if (!exceptionWasThrown) {
-            r.get(outputTag).output(result);
+          r.get(outputTag).output(result);
         }
       }
 
@@ -348,6 +345,5 @@ public class MapElements<InputT, OutputT>
         return outputType;
       }
     }
-
   }
 }

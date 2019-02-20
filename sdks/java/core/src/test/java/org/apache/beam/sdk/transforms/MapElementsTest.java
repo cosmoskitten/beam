@@ -575,10 +575,7 @@ public class MapElementsTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Test of {@link MapWithFailures()} with a {@link SimpleFunction} and no {@code into}
-   * call.
-   */
+  /** Test of {@link MapWithFailures()} with a {@link SimpleFunction} and no {@code into} call. */
   @Test
   @Category(NeedsRunner.class)
   public void testMapWithExceptionsSimpleFunction() {
@@ -633,8 +630,7 @@ public class MapElementsTest implements Serializable {
 
     MapWithFailures<?, ?, ?> mapWithFailures =
         MapElements.via(inferableFn).exceptionsVia(exceptionHandler);
-    assertThat(
-        DisplayData.from(mapWithFailures), hasDisplayItem("class", inferableFn.getClass()));
+    assertThat(DisplayData.from(mapWithFailures), hasDisplayItem("class", inferableFn.getClass()));
     assertThat(
         DisplayData.from(mapWithFailures),
         hasDisplayItem("exceptionHandler.class", exceptionHandler.getClass()));

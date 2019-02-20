@@ -230,8 +230,7 @@ public class FlatMapElements<InputT, OutputT>
   /** A {@code PTransform} that adds exception handling to {@link FlatMapElements}. */
   @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
   public static class FlatMapWithFailures<InputT, OutputT, FailureT>
-      extends PTransform<
-          PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
+      extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 
     private final transient TypeDescriptor<InputT> inputType;
     private final transient TypeDescriptor<OutputT> outputType;

@@ -350,9 +350,7 @@ public class FlatMapElementsTest implements Serializable {
     pipeline.run();
   }
 
-  /**
-   * Test of {@link FlatMapWithFailures} with handling defined via lambda expression.
-   */
+  /** Test of {@link FlatMapWithFailures} with handling defined via lambda expression. */
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapWithFailuresLambda() {
@@ -372,8 +370,7 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
-   * Test of {@link FlatMapWithFailures()} with a {@link SimpleFunction} and no {@code
-   * into} call.
+   * Test of {@link FlatMapWithFailures()} with a {@link SimpleFunction} and no {@code into} call.
    */
   @Test
   @Category(NeedsRunner.class)
