@@ -27,6 +27,10 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java TextIO Performance Test',
                 prTriggerPhase    : 'Run Java TextIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'textioit_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000'
                 ]
 
@@ -39,6 +43,10 @@ def testsConfigurations = [
                 prCommitStatusName : 'Java CompressedTextIO Performance Test',
                 prTriggerPhase     : 'Run Java CompressedTextIO Performance Test',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'compressed_textioit_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         compressionType: 'GZIP'
                 ]
@@ -53,6 +61,7 @@ def testsConfigurations = [
                 extraPipelineArgs: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'many_files_textioit_results',
+                        reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         numberOfShards: '1000'
