@@ -20,6 +20,7 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import CronJobBuilder
 
 def loadTestConfigurations = [
         [
@@ -203,8 +204,19 @@ def loadTestConfigurations = [
         ]
 ]
 
+// Cron job for all GBK Dataflow batch load tests
+CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
+  description('Runs Java GBK load tests on Dataflow runner in batch mode')
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+
+  for (testConfiguration in loadTestConfigurations) {
+    loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+  }
+}
+
+// Phrase triggered job for all GBK Dataflow batch load tests
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_LoadTests_Java_GBK_Dataflow_Batch',
+        'beam_LoadTests_Java_GBK_Dataflow_Batch_PR',
         'Run Load Tests Java GBK Dataflow Batch',
         'Load Tests Java GBK Dataflow Batch suite',
         this
