@@ -284,70 +284,14 @@ public class FlatMapElements<InputT, OutputT>
 
     @Override
     public WithExceptions.Result<PCollection<OutputT>, FailureT> expand(PCollection<InputT> input) {
-      final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
-      final TupleTag<FailureT> failureTag;
-      if (failureType == null) {
-        failureTag = new TupleTag<>();
-      } else {
-        failureTag =
-            new TupleTag<FailureT>() {
-              @Override
-              public TypeDescriptor<FailureT> getTypeDescriptor() {
-                return failureType;
-              }
-            };
-      }
-      DoFn<InputT, OutputT> doFn =
-          new DoFn<InputT, OutputT>() {
-            @ProcessElement
-            public void processElement(
-                @Element InputT element, MultiOutputReceiver receiver, ProcessContext c)
-                throws Exception {
-              boolean exceptionWasThrown = false;
-              Iterable<OutputT> res = null;
-              try {
-                res = fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
-              } catch (Exception e) {
-                exceptionWasThrown = true;
-                ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
-                receiver.get(failureTag).output(exceptionHandler.apply(exceptionElement));
-              }
-              if (!exceptionWasThrown) {
-                for (OutputT output : res) {
-                  receiver.get(outputTag).output(output);
-                }
-              }
-            }
-
-            @Override
-            public void populateDisplayData(DisplayData.Builder builder) {
-              builder.delegate(FlatMapWithExceptions.this);
-            }
-
-            @Override
-            public TypeDescriptor<InputT> getInputTypeDescriptor() {
-              return inputType;
-            }
-
-            @Override
-            public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-              checkState(
-                  outputType != null,
-                  "%s output type descriptor was null; "
-                      + "this probably means that getOutputTypeDescriptor() was called after "
-                      + "serialization/deserialization, but it is only available prior to "
-                      + "serialization, for constructing a pipeline and inferring coders",
-                  FlatMapWithExceptions.class.getSimpleName());
-              return outputType;
-            }
-          };
+      MapFn doFn = new MapFn();
       PCollectionTuple tuple =
           input.apply(
               FlatMapWithExceptions.class.getSimpleName(),
               ParDo.of(doFn)
-                  .withOutputTags(outputTag, TupleTagList.of(failureTag))
+                  .withOutputTags(doFn.outputTag, TupleTagList.of(doFn.errorTag))
                   .withSideInputs(this.fn.getRequirements().getSideInputs()));
-      return WithExceptions.Result.of(tuple, outputTag, failureTag);
+      return WithExceptions.Result.of(tuple, doFn.outputTag, doFn.errorTag);
     }
 
     @Override
@@ -362,5 +306,60 @@ public class FlatMapElements<InputT, OutputT>
         builder.include("exceptionHandler", (HasDisplayData) exceptionHandler);
       }
     }
+
+    class ErrorTag extends TupleTag<FailureT> {
+      @Override
+      public TypeDescriptor<FailureT> getTypeDescriptor() {
+        return failureType;
+      }
+    }
+
+    class MapFn extends DoFn<InputT, OutputT> {
+
+      final TupleTag<OutputT> outputTag = new TupleTag<OutputT>() {};
+      final TupleTag<FailureT> errorTag = (failureType == null) ? new TupleTag<>() : new ErrorTag();
+
+      @ProcessElement
+      public void processElement(
+          @Element InputT element, MultiOutputReceiver r, ProcessContext c) throws Exception {
+        boolean exceptionWasThrown = false;
+        Iterable<OutputT> res = null;
+        try {
+          res = fn.getClosure().apply(c.element(), Fn.Context.wrapProcessContext(c));
+        } catch (Exception e) {
+          exceptionWasThrown = true;
+          ExceptionElement<InputT> exceptionElement = ExceptionElement.of(element, e);
+          r.get(errorTag).output(exceptionHandler.apply(exceptionElement));
+        }
+        if (!exceptionWasThrown) {
+          for (OutputT output : res) {
+            r.get(outputTag).output(output);
+          }
+        }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.delegate(FlatMapWithExceptions.this);
+      }
+
+      @Override
+      public TypeDescriptor<InputT> getInputTypeDescriptor() {
+        return inputType;
+      }
+
+      @Override
+      public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+        checkState(
+            outputType != null,
+            "%s output type descriptor was null; "
+                + "this probably means that getOutputTypeDescriptor() was called after "
+                + "serialization/deserialization, but it is only available prior to "
+                + "serialization, for constructing a pipeline and inferring coders",
+            FlatMapWithExceptions.class.getSimpleName());
+        return outputType;
+      }
+    }
+
   }
 }
