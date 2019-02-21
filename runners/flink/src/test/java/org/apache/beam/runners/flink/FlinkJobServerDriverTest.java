@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import org.apache.beam.runners.flink.FlinkJobServerDriver.FlinkServerConfiguration;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
 import org.junit.Test;
 import org.slf4j.Logger;

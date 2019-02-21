@@ -74,23 +74,36 @@ public abstract class JobServerDriver implements Runnable {
 
     @Option(
         name = "--artifact-service-enabled",
-        usage = "When false, the artifact staging service will not be started and set to null"
-    )
+        usage = "When false, the artifact staging service will not be started and set to null")
     private boolean artifactServiceEnabled = true;
 
-    public boolean isArtifactServiceEnabled() { return artifactServiceEnabled; }
+    public boolean isArtifactServiceEnabled() {
+      return artifactServiceEnabled;
+    }
 
-    public String getHost() { return host; }
+    public String getHost() {
+      return host;
+    }
 
-    public int getPort() { return port; }
+    public int getPort() {
+      return port;
+    }
 
-    public int getArtifactPort() { return artifactPort; }
+    public int getArtifactPort() {
+      return artifactPort;
+    }
 
-    public String getArtifactStagingPath() { return artifactStagingPath; }
+    public String getArtifactStagingPath() {
+      return artifactStagingPath;
+    }
 
-    public boolean isCleanArtifactsPerJob() { return cleanArtifactsPerJob; }
+    public boolean isCleanArtifactsPerJob() {
+      return cleanArtifactsPerJob;
+    }
 
-    public Long getSdkWorkerParallelism() { return this.sdkWorkerParallelism; }
+    public Long getSdkWorkerParallelism() {
+      return this.sdkWorkerParallelism;
+    }
   }
 
   protected static ServerFactory createJobServerFactory(ServerConfiguration configuration) {
@@ -174,20 +187,18 @@ public abstract class JobServerDriver implements Runnable {
 
   private InMemoryJobService createJobService() throws IOException {
     JobInvoker invoker = createJobInvoker();
-    Function<String, String> stagingServiceTokenProvider = (String session) -> {
-      try {
-        return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
-            session, configuration.artifactStagingPath);
-      } catch (Exception exn) {
-        throw new RuntimeException(exn);
-      }
-    };
+    Function<String, String> stagingServiceTokenProvider =
+        (String session) -> {
+          try {
+            return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+                session, configuration.artifactStagingPath);
+          } catch (Exception exn) {
+            throw new RuntimeException(exn);
+          }
+        };
     if (!configuration.artifactServiceEnabled) {
       return InMemoryJobService.create(
-          null,
-          stagingServiceTokenProvider,
-          (String stagingSessionToken) -> {},
-          invoker);
+          null, stagingServiceTokenProvider, (String stagingSessionToken) -> {}, invoker);
     }
     artifactStagingServer = createArtifactStagingService();
     return InMemoryJobService.create(
