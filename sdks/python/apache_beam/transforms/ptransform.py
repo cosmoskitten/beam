@@ -46,7 +46,8 @@ import threading
 from builtins import hex
 from builtins import object
 from builtins import zip
-from functools import reduce, wraps
+from functools import reduce
+from functools import wraps
 
 from google.protobuf import message
 

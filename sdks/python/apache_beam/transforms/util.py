@@ -51,10 +51,13 @@ from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
+from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.function_alias import function_alias
 
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
+    'Distinct',
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
@@ -193,12 +196,17 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 
 
 @ptransform_fn
-def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
-  """Produces a PCollection containing the unique elements of a PCollection."""
+def Distinct(pcoll):  # pylint: disable=invalid-name
+  """Produces a PCollection containing distinct elements of a PCollection."""
   return (pcoll
           | 'ToPairs' >> Map(lambda v: (v, None))
           | 'Group' >> CombinePerKey(lambda vs: None)
-          | 'RemoveDuplicates' >> Keys())
+          | 'Distinct' >> Keys())
+
+
+# Alias for Distinct PTransform
+RemoveDuplicates = deprecated(since='2.11', current='Distinct')\
+  (function_alias(Distinct, 'RemoveDuplicates'))
 
 
 class _BatchSizeEstimator(object):
