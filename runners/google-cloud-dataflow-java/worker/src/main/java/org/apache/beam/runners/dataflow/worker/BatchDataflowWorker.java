@@ -223,7 +223,9 @@ public class BatchDataflowWorker implements Closeable {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
-      if (DataflowRunner.hasExperiment(options, "use_executable_stage_bundle_execution")) {
+      // TODO: Remove before merge. This is to make sure ExecutableStage part gets triggered.
+      if (true) {
+        // if (DataflowRunner.hasExperiment(options, "use_executable_stage_bundle_execution")) {
         sdkFusedStage = new CreateExecutableStageNodeFunction(pipeline, idGenerator);
         transformToRunnerNetwork =
             new CreateRegisterFnOperationFunction(
