@@ -49,7 +49,7 @@ public class TestExpansionService {
     }
   }
 
-  /** Exposes Java's GenerateSequence transform */
+  /** Exposes Java's GenerateSequence transform. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
   public static class RegisteredTransforms implements ExpansionService.ExpansionServiceRegistrar {
 
