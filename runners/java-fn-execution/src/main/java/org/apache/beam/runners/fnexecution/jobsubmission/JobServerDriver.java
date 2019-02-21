@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -70,6 +71,14 @@ public abstract class JobServerDriver implements Runnable {
         name = "--sdk-worker-parallelism",
         usage = "Default parallelism for SDK worker processes (see portable pipeline options)")
     private Long sdkWorkerParallelism = 1L;
+
+    @Option(
+        name = "--artifact-service-enabled",
+        usage = "When false, the artifact staging service will not be started and set to null"
+    )
+    private boolean artifactServiceEnabled = true;
+
+    public boolean isArtifactServiceEnabled() { return artifactServiceEnabled; }
 
     public String getHost() { return host; }
 
@@ -164,18 +173,26 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   private InMemoryJobService createJobService() throws IOException {
-    artifactStagingServer = createArtifactStagingService();
     JobInvoker invoker = createJobInvoker();
+    Function<String, String> stagingServiceTokenProvider = (String session) -> {
+      try {
+        return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+            session, configuration.artifactStagingPath);
+      } catch (Exception exn) {
+        throw new RuntimeException(exn);
+      }
+    };
+    if (!configuration.artifactServiceEnabled) {
+      return InMemoryJobService.create(
+          null,
+          stagingServiceTokenProvider,
+          (String stagingSessionToken) -> {},
+          invoker);
+    }
+    artifactStagingServer = createArtifactStagingService();
     return InMemoryJobService.create(
         artifactStagingServer.getApiServiceDescriptor(),
-        (String session) -> {
-          try {
-            return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
-                session, configuration.artifactStagingPath);
-          } catch (Exception exn) {
-            throw new RuntimeException(exn);
-          }
-        },
+        stagingServiceTokenProvider,
         (String stagingSessionToken) -> {
           if (configuration.cleanArtifactsPerJob) {
             artifactStagingServer.getService().removeArtifacts(stagingSessionToken);

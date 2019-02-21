@@ -45,6 +45,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getFlinkMasterUrl(), is("[auto]"));
     assertThat(config.getSdkWorkerParallelism(), is(1L));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
+    assertThat(config.isArtifactServiceEnabled(), is(true));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
   }
