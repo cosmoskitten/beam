@@ -105,6 +105,11 @@ public class SdkComponents {
       return;
     }
 
+    mergeFrom(components);
+  }
+
+  /** Merge Components proto into this SdkComponents instance. */
+  public void mergeFrom(RunnerApi.Components components) {
     reservedIds.addAll(components.getTransformsMap().keySet());
     reservedIds.addAll(components.getPcollectionsMap().keySet());
     reservedIds.addAll(components.getWindowingStrategiesMap().keySet());

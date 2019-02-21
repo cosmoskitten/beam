@@ -1531,6 +1531,7 @@ class BeamModulePlugin implements Plugin<Project> {
        */
       project.evaluationDependsOn(":beam-sdks-java-core")
       project.evaluationDependsOn(":beam-runners-core-java")
+      project.evaluationDependsOn(":beam-runners-core-construction-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
       def name = config.name
       def beamTestPipelineOptions = [
@@ -1550,7 +1551,7 @@ class BeamModulePlugin implements Plugin<Project> {
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions)
         classpath = config.testClasspathConfiguration
-        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+        testClassesDirs = project.files(project.project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-java").sourceSets.test.output.classesDirs, project.project(":beam-runners-core-construction-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
         // increase maxHeapSize as this is directly correlated to direct memory,
