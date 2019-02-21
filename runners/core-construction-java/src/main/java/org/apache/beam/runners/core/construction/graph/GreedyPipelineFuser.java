@@ -39,7 +39,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.OutputDeduplicator.DeduplicationResult;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -186,14 +185,6 @@ public class GreedyPipelineFuser {
         "Transform %s is not at the root of the graph (consumes %s)",
         rootNode.getId(),
         rootNode.getTransform().getInputsMap());
-    checkArgument(
-        !pipeline.getEnvironment(rootNode).isPresent(),
-        "%s requires all root nodes to be runner-implemented %s primitives, "
-            + "but transform %s executes in environment %s",
-        GreedyPipelineFuser.class.getSimpleName(),
-        PTransformTranslation.IMPULSE_TRANSFORM_URN,
-        rootNode.getId(),
-        pipeline.getEnvironment(rootNode));
     Set<PTransformNode> unfused = new HashSet<>();
     unfused.add(rootNode);
     NavigableSet<CollectionConsumer> environmentNodes = new TreeSet<>();
