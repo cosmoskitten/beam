@@ -230,7 +230,7 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class ValueWithRecordIdKeySelector<T>
+  static class ValueWithRecordIdKeySelector<T>
       implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
           ResultTypeQueryable<ByteBuffer> {
 
@@ -1291,7 +1291,7 @@ class FlinkStreamingTransformTranslators {
       return unboundedSourceWrapper;
     }
 
-    private UnboundedSourceWrapperNoValueWithRecordId(
+    UnboundedSourceWrapperNoValueWithRecordId(
         UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper) {
       this.unboundedSourceWrapper = unboundedSourceWrapper;
     }
