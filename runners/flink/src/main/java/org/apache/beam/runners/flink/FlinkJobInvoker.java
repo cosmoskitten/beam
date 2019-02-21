@@ -91,7 +91,7 @@ public class FlinkJobInvoker implements JobInvoker {
         executorService,
         pipeline,
         flinkOptions,
-        serverConfig.flinkConfDir,
+        serverConfig.getFlinkConfDir(),
         detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
   }
 }

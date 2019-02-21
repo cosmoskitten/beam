@@ -35,7 +35,7 @@ public abstract class JobServerDriver implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobServerDriver.class);
 
-  @VisibleForTesting protected ServerConfiguration configuration;
+  @VisibleForTesting public ServerConfiguration configuration;
 
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
@@ -45,35 +45,43 @@ public abstract class JobServerDriver implements Runnable {
   /** Configuration for the jobServer. */
   public static class ServerConfiguration {
     @Option(name = "--job-host", usage = "The job server host name")
-    String host = "localhost";
+    private String host = "localhost";
 
     @Option(
         name = "--job-port",
         usage = "The job service port. 0 to use a dynamic port. (Default: 8099)")
-    int port = 8099;
+    private int port = 8099;
 
     @Option(
         name = "--artifact-port",
         usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)")
-    int artifactPort = 8098;
+    private int artifactPort = 8098;
 
     @Option(name = "--artifacts-dir", usage = "The location to store staged artifact files")
-    String artifactStagingPath =
+    private String artifactStagingPath =
         Paths.get(System.getProperty("java.io.tmpdir"), "beam-artifact-staging").toString();
 
     @Option(
         name = "--clean-artifacts-per-job",
         usage = "When true, remove each job's staged artifacts when it completes")
-    boolean cleanArtifactsPerJob = false;
+    private boolean cleanArtifactsPerJob = false;
 
     @Option(
         name = "--sdk-worker-parallelism",
         usage = "Default parallelism for SDK worker processes (see portable pipeline options)")
-    Long sdkWorkerParallelism = 1L;
+    private Long sdkWorkerParallelism = 1L;
 
-    public Long getSdkWorkerParallelism() {
-      return this.sdkWorkerParallelism;
-    }
+    public String getHost() { return host; }
+
+    public int getPort() { return port; }
+
+    public int getArtifactPort() { return artifactPort; }
+
+    public String getArtifactStagingPath() { return artifactStagingPath; }
+
+    public boolean isCleanArtifactsPerJob() { return cleanArtifactsPerJob; }
+
+    public Long getSdkWorkerParallelism() { return this.sdkWorkerParallelism; }
   }
 
   protected static ServerFactory createJobServerFactory(ServerConfiguration configuration) {

@@ -37,7 +37,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
   /** Flink runner-specific Configuration for the jobServer. */
   public static class FlinkServerConfiguration extends ServerConfiguration {
     @Option(name = "--flink-master-url", usage = "Flink master url to submit job.")
-    String flinkMasterUrl = "[auto]";
+    private String flinkMasterUrl = "[auto]";
 
     String getFlinkMasterUrl() {
       return this.flinkMasterUrl;
@@ -49,7 +49,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
             "Directory containing Flink YAML configuration files. "
                 + "These properties will be set to all jobs submitted to Flink and take precedence "
                 + "over configurations in FLINK_CONF_DIR.")
-    String flinkConfDir = null;
+    private String flinkConfDir = null;
 
     @Nullable
     String getFlinkConfDir() {
