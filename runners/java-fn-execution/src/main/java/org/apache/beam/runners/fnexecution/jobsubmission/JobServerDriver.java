@@ -73,12 +73,12 @@ public abstract class JobServerDriver implements Runnable {
     private Long sdkWorkerParallelism = 1L;
 
     @Option(
-        name = "--artifact-service-enabled",
-        usage = "When false, the artifact staging service will not be started and set to null")
-    private boolean artifactServiceEnabled = true;
+        name = "--artifact-service-disabled",
+        usage = "When true, the artifact staging service will not be started and set to null")
+    private boolean artifactServiceDisabled = false;
 
-    public boolean isArtifactServiceEnabled() {
-      return artifactServiceEnabled;
+    public boolean isArtifactServiceDisabled() {
+      return artifactServiceDisabled;
     }
 
     public String getHost() {
@@ -196,7 +196,7 @@ public abstract class JobServerDriver implements Runnable {
             throw new RuntimeException(exn);
           }
         };
-    if (!configuration.artifactServiceEnabled) {
+    if (configuration.artifactServiceDisabled) {
       return InMemoryJobService.create(
           null, stagingServiceTokenProvider, (String stagingSessionToken) -> {}, invoker);
     }
