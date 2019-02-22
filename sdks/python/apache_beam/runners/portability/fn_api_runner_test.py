@@ -48,6 +48,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
+
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
 else:
@@ -545,6 +546,7 @@ class FnApiRunnerTest(unittest.TestCase):
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
     pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(len(x)))
 
+
     res = p.run()
     res.wait_until_finish()
     c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
@@ -561,6 +563,80 @@ class FnApiRunnerTest(unittest.TestCase):
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
+
+
+  def test_element_count_metrics(self):
+    class GenerateTwoOutputs(beam.DoFn):
+      def process(self, element):
+        from apache_beam import pvalue
+        yield str(element) + '1'
+        yield pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield pvalue.TaggedOutput('SecondOutput', str(element) + '2.2')
+        yield pvalue.TaggedOutput('ThirdOutput', str(element) + '3.1')
+
+    class PrintElements(beam.DoFn):
+      def process(self, element):
+        logging.debug(element)
+        yield element
+
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    pcoll = p | beam.Create(['a1', 'a2'])
+
+    # pylint: disable=expression-not-assigned
+    pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
+        GenerateTwoOutputs()).with_outputs('SecondOutput',
+                                           'ThirdOutput',
+                                           main='FirstAndMainOutput'))
+
+    # Actually feed pcollection to pardo
+    secondOutput, thirdOutput, firstOutput = (pcoll | pardo)
+
+    # consume some of elements
+    merged = ((firstOutput, secondOutput, thirdOutput) | beam.Flatten())
+    merged | ('PrintingStep') >> beam.ParDo(PrintElements())
+    secondOutput | ('PrintingStep2') >> beam.ParDo(PrintElements())
+
+    res = p.run()
+    res.wait_until_finish()
+
+    result_metrics = res.monitoring_metrics()
+
+    def assert_contains_metric(src, urn, pcollection, value):
+      for item in src:
+        if item.urn == urn:
+          if item.labels['PCOLLECTION'] == pcollection:
+            self.assertEquals(item.metric.counter_data.int64_value, value)
+            return True
+      return False
+
+    counters = result_metrics.monitoring_infos()
+
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'Impulse',
+                               1))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_1',
+                               2))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_2',
+                               2))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_3',
+                               2))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_4',
+                               4))
+
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
