@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -38,11 +39,28 @@ public abstract class DistributionResult {
     return (1.0 * getSum()) / getCount();
   }
 
+  public IntDistributionData toProto() {
+    return IntDistributionData.newBuilder()
+        .setMin(getMin())
+        .setMax(getMax())
+        .setCount(getCount())
+        .setSum(getSum())
+        .build();
+  }
+
   /** The IDENTITY_ELEMENT is used to start accumulating distributions. */
   public static final DistributionResult IDENTITY_ELEMENT =
       create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
 
   public static DistributionResult create(long sum, long count, long min, long max) {
     return new AutoValue_DistributionResult(sum, count, min, max);
+  }
+
+  public static DistributionResult create(IntDistributionData distributionData) {
+    return create(
+        distributionData.getSum(),
+        distributionData.getCount(),
+        distributionData.getMin(),
+        distributionData.getMax());
   }
 }

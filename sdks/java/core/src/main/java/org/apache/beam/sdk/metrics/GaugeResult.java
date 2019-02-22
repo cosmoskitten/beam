@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Timestamp;
 import org.joda.time.Instant;
 
 /** The result of a {@link Gauge} metric. */
@@ -32,6 +33,10 @@ public abstract class GaugeResult {
 
   public static GaugeResult create(long value, Instant timestamp) {
     return new AutoValue_GaugeResult(value, timestamp);
+  }
+
+  public static GaugeResult create(long value, Timestamp timestamp) {
+    return create(value, new Instant(timestamp.getSeconds() * 1000 + timestamp.getNanos() / 1000));
   }
 
   public static GaugeResult empty() {
