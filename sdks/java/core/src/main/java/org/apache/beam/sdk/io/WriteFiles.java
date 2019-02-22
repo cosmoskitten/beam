@@ -144,6 +144,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setNumShardsProvider(null)
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
+        .setNoSpilling(false)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
         .build();
   }
@@ -161,6 +162,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract boolean getNoSpilling();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -181,6 +184,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -271,6 +276,19 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return toBuilder().setWindowedWrites(true).build();
   }
 
+  /**
+   * Returns a new {@link WriteFiles} that writes all data without spilling, simplifying the
+   * pipeline.
+   *
+   * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
+   *
+   * <p>If this option is specified, {@link #withMaxNumWritersPerBundle(int)} is ignored possibly
+   * causing a large number of file writers. Use with caution.
+   */
+  public WriteFiles<UserT, DestinationT, OutputT> withNoSpilling() {
+    return toBuilder().setNoSpilling(true).build();
+  }
+
   @Override
   public void validate(PipelineOptions options) {
     getSink().validate(options);
@@ -326,7 +344,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         (getComputeNumShards() == null && getNumShardsProvider() == null)
             ? input.apply(
                 "WriteUnshardedBundlesToTempFiles",
-                new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
+                new WriteUnshardedBundlesToTempFiles(
+                    getNoSpilling(), destinationCoder, fileResultCoder))
             : input.apply(
                 "WriteShardedBundlesToTempFiles",
                 new WriteShardedBundlesToTempFiles(
@@ -392,26 +411,36 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteUnshardedBundlesToTempFiles
       extends PTransform<PCollection<UserT>, PCollection<FileResult<DestinationT>>> {
+    private final boolean noSpilling;
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
 
     private WriteUnshardedBundlesToTempFiles(
-        Coder<DestinationT> destinationCoder, Coder<FileResult<DestinationT>> fileResultCoder) {
+        boolean noSpilling,
+        Coder<DestinationT> destinationCoder,
+        Coder<FileResult<DestinationT>> fileResultCoder) {
+      this.noSpilling = noSpilling;
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
     }
 
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
+      if (noSpilling) {
+        return input
+            .apply(
+                "WritedUnshardedBundles",
+                ParDo.of(new WriteUnshardedTempFilesFn(null, destinationCoder))
+                    .withSideInputs(getSideInputs()))
+            .setCoder(fileResultCoder);
+      }
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
           new TupleTag<>("unwrittenRecords");
       PCollectionTuple writeTuple =
           input.apply(
               "WriteUnshardedBundles",
-              ParDo.of(
-                      new WriteUnshardedTempFilesWithSpillingFn(
-                          unwrittenRecordsTag, destinationCoder))
+              ParDo.of(new WriteUnshardedTempFilesFn(unwrittenRecordsTag, destinationCoder))
                   .withSideInputs(getSideInputs())
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittenRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
@@ -453,9 +482,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Writes all the elements in a bundle using a {@link Writer} produced by the {@link
    * WriteOperation} associated with the {@link FileBasedSink}.
    */
-  private class WriteUnshardedTempFilesWithSpillingFn
-      extends DoFn<UserT, FileResult<DestinationT>> {
-    private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
+  private class WriteUnshardedTempFilesFn extends DoFn<UserT, FileResult<DestinationT>> {
+    @Nullable private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private final Coder<DestinationT> destinationCoder;
 
     // Initialized in startBundle()
@@ -463,8 +491,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
-    WriteUnshardedTempFilesWithSpillingFn(
-        TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
+    WriteUnshardedTempFilesFn(
+        @Nullable TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
         Coder<DestinationT> destinationCoder) {
       this.unwrittenRecordsTag = unwrittenRecordsTag;
       this.destinationCoder = destinationCoder;
@@ -489,7 +517,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
-        if (writers.size() <= getMaxNumWritersPerBundle()) {
+        if (unwrittenRecordsTag == null || writers.size() <= getMaxNumWritersPerBundle()) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
               "Opening writer {} for window {} pane {} destination {}",
