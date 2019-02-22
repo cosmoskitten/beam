@@ -41,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -57,6 +58,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
+import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -65,6 +67,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -154,6 +157,11 @@ public class FlinkBatchPortablePipelineTranslator
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
+    // Remove once Reads can be wrapped in SDFs
+    translatorMap.put(
+        PTransformTranslation.READ_TRANSFORM_URN,
+        FlinkBatchPortablePipelineTranslator::translateRead);
+
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
 
@@ -585,6 +593,43 @@ public class FlinkBatchPortablePipelineTranslator
 
     context.addDataSet(
         Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values()), dataSource);
+  }
+
+  private static <T> void translateRead(
+      PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
+    String outputPCollectionId =
+        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
+    PCollectionNode collectionNode =
+        PipelineNode.pCollection(
+            outputPCollectionId,
+            pipeline.getComponents().getPcollectionsOrThrow(outputPCollectionId));
+
+    Coder<WindowedValue<T>> outputCoder;
+    try {
+      outputCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, pipeline.getComponents());
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to instantiate output code for source", e);
+    }
+
+    BoundedSource boundedSource;
+    try {
+      boundedSource =
+          ReadTranslation.boundedSourceFromProto(
+              RunnerApi.ReadPayload.parseFrom(transform.getTransform().getSpec().getPayload()));
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to extract BoundedSource from ReadPayload.", e);
+    }
+
+    ExecutionEnvironment env = context.getExecutionEnvironment();
+    String name = transform.getTransform().getUniqueName();
+    DataSource<? extends WindowedValue<T>> dataSource =
+        new DataSource<>(
+            env,
+            new SourceInputFormat<>(name, boundedSource, context.getPipelineOptions()),
+            new CoderTypeInformation<>(outputCoder),
+            name);
+
+    context.addDataSet(outputPCollectionId, dataSource);
   }
 
   /**
