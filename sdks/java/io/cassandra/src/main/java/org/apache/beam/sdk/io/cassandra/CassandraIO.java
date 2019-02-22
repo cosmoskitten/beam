@@ -257,6 +257,18 @@ public class CassandraIO {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
+    /**
+     * Specify a string with a partial {@code Where} clause. Note: Cassandra places restrictions on
+     * the {@code Where} clause you may use. (e.g. filter on a primary/clustering column only etc.)
+     *
+     * @param where Partial {@code Where} clause. Optional - If unspecified will not filter the
+     *     data.
+     * @see http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause
+     * @throws com.datastax.driver.core.exceptions.InvalidQueryException If {@code Where} clause
+     *     makes the generated query invalid. Please Consult {@link
+     *     http://cassandra.apache.org/doc/4.0/cql/dml.html#where-clause} for more info on correct
+     *     usage of the {@code Where} clause.
+     */
     public Read<T> withWhere(String where) {
       checkArgument(where != null, "where can not be null");
       return builder().setWhere(where).build();
