@@ -34,8 +34,19 @@ from apache_beam.io import filesystem
 from apache_beam.io import filesystems
 from apache_beam.io.filesystem import BeamIOError
 
+__all__ = ['EmptyMatchTreatment',
+           'MatchFiles',
+           'MatchAll',
+           'ReadableFile',
+           'ReadMatches']
+
 
 class EmptyMatchTreatment(object):
+  """How to treat empty matches in ``MatchAll`` and ``MatchFiles`` transforms.
+
+  If empty matches are disallowed, an error will be thrown if a pattern does not
+  match any files."""
+
   ALLOW = 'ALLOW'
   DISALLOW = 'DISALLOW'
   ALLOW_IF_WILDCARD = 'ALLOW_IF_WILDCARD'
@@ -70,6 +81,10 @@ class _MatchAllFn(beam.DoFn):
 
 
 class MatchFiles(beam.PTransform):
+  """Matches a file pattern using ``FileSystems.match``.
+
+  This ``PTransform`` returns a ``PCollection`` of matching files in the form
+  of ``FileMetadata`` objects."""
 
   def __init__(self, file_pattern, empty_match_treatment=None):
     self._file_pattern = file_pattern
@@ -83,6 +98,10 @@ class MatchFiles(beam.PTransform):
 
 
 class MatchAll(beam.PTransform):
+  """Matches file patterns from the input PCollection via ``FileSystems.match``.
+
+  This ``PTransform`` returns a ``PCollection`` of matching files in the form
+  of ``FileMetadata`` objects."""
 
   def __init__(self, empty_match_treatment=None):
     self._empty_match_treatment = (empty_match_treatment
@@ -111,11 +130,12 @@ class _ReadMatchesFn(beam.DoFn):
           'Directories are not allowed in ReadMatches transform.'
           'Found %s.' % metadata.path)
 
-    # TODO: Mime type? OTher stuff? Maybe arugments passed in to transform?
+    # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
     yield ReadableFile(metadata)
 
 
 class ReadableFile(object):
+  """A utility class for accessing files."""
 
   def __init__(self, metadata):
     self.metadata = metadata
@@ -131,6 +151,9 @@ class ReadableFile(object):
 
 
 class ReadMatches(beam.PTransform):
+  """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
+
+   This helps read in a file's contents or obtain a file descriptor."""
 
   def __init__(self, compression=None, skip_directories=True):
     self._compression = compression
