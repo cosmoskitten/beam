@@ -53,7 +53,6 @@ def testsConfigurations = [
                 extraPipelineArgs: [
                         bigQueryDataset: 'beam_performance',
                         bigQueryTable: 'many_files_textioit_results',
-                        reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         numberOfShards: '1000'
