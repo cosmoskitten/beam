@@ -44,7 +44,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getFlinkMasterUrl(), is("[auto]"));
     assertThat(config.getSdkWorkerParallelism(), is(1L));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
-    assertThat(config.isArtifactServiceEnabled(), is(true));
+    assertThat(config.isArtifactServiceDisabled(), is(false));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
   }
@@ -81,8 +81,8 @@ public class FlinkJobServerDriverTest {
     assertThat(driver.configuration, is(config));
   }
 
-  @Test(timeout = 30_000)
-  public void testJobServerDriver() throws Exception {
+  private void testJobServerDriver(
+      String[] inputParams, String[] expectedOutputs, String[] forbiddenOutputs) throws Exception {
     FlinkJobServerDriver driver = null;
     Thread driverThread = null;
     final PrintStream oldOut = System.err;
@@ -90,19 +90,27 @@ public class FlinkJobServerDriverTest {
     PrintStream newOut = new PrintStream(baos);
     try {
       System.setErr(newOut);
-      driver = FlinkJobServerDriver.fromParams(new String[] {"--job-port=0", "--artifact-port=0"});
+      driver = FlinkJobServerDriver.fromParams(inputParams);
       driverThread = new Thread(driver);
       driverThread.start();
-      boolean success = false;
-      while (!success) {
+      // wait for all expected outputs to appear
+      while (true) {
         newOut.flush();
         String output = baos.toString(Charsets.UTF_8.name());
-        if (output.contains("JobService started on localhost:")
-            && output.contains("ArtifactStagingService started on localhost:")) {
-          success = true;
-        } else {
-          Thread.sleep(100);
+        for (String forbiddenOutput : forbiddenOutputs) {
+          assertThat(output.contains(forbiddenOutput), is(false));
         }
+        boolean success = true;
+        for (String expectedOutput : expectedOutputs) {
+          if (!output.contains(expectedOutput)) {
+            success = false;
+            break;
+          }
+        }
+        if (success) {
+          break;
+        }
+        Thread.sleep(100);
       }
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
@@ -119,5 +127,23 @@ public class FlinkJobServerDriverTest {
         driverThread.join();
       }
     }
+  }
+
+  @Test(timeout = 30_000)
+  public void testJobServerDriver_withArtifactService() throws Exception {
+    String[] inputParams = new String[] {"--job-port=0", "--artifact-port=0"};
+    String[] expectedOutputs =
+        new String[] {
+          "JobService started on localhost:", "ArtifactStagingService started on localhost:"
+        };
+    testJobServerDriver(inputParams, expectedOutputs, new String[] {});
+  }
+
+  @Test(timeout = 30_000)
+  public void testJobServerDriver_withoutArtifactService() throws Exception {
+    String[] inputParams = new String[] {"--job-port=0", "--artifact-service-disabled"};
+    String[] expectedOutputs = new String[] {"JobService started on localhost:"};
+    String[] forbiddenOutputs = new String[] {"ArtifactStagingService started on localhost:"};
+    testJobServerDriver(inputParams, expectedOutputs, forbiddenOutputs);
   }
 }
