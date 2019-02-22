@@ -1375,6 +1375,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
     self._gauges = {}
     self._user_metrics_only = user_metrics_only
     self._init_metrics_from_monitoring_infos(step_monitoring_infos)
+    self._monitoring_infos = step_monitoring_infos
 
   def _init_metrics_from_monitoring_infos(self, step_monitoring_infos):
     for smi in step_monitoring_infos.values():
@@ -1414,6 +1415,13 @@ class FnApiMetrics(metrics.metric.MetricResults):
     return {self.COUNTERS: counters,
             self.DISTRIBUTIONS: distributions,
             self.GAUGES: gauges}
+
+  def monitoring_infos(self):
+    def flatten(src):
+      return [item for sublist in src for item in sublist]
+
+    return flatten(self._monitoring_infos.values())
+
 
 
 class RunnerResult(runner.PipelineResult):
