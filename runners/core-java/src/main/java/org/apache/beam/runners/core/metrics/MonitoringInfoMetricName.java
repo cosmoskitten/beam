@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder.PCOLLECTION_LABEL;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -120,11 +121,23 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   @Override
-  public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append(this.urn.toString());
-    builder.append(" ");
-    builder.append(this.labels.toString());
-    return builder.toString();
+  public String toString(String delimiter) {
+    StringBuilder sb = new StringBuilder();
+    // NOTE(ryan): this is a temporary work-around while Java Metric classes don't directly
+    // correspond to MonitoringInfo components.
+    // MetricKey and MetricResult key metrics with a ptransform ("step") name and {namespace,name}
+    // (MetricName).
+    // MonitoringInfoMetricName expands the latter to include any MonitoringInfo URN, but also
+    // stores system (non-user) metrics' associated labels.
+    // If a metric has a PTRANSFORM label, that will be incorporated in the toString representation
+    // by higher levels of this stack (e.g. MetricKey).
+    // The only other label in use today is the PCOLLECTION label, so we add it here if present.
+    // Longer term, MetricKey will store all such labels, and incorporate them in the toString() as
+    // appropriate.
+    if (labels.containsKey(PCOLLECTION_LABEL)) {
+      sb.append(labels.get(PCOLLECTION_LABEL)).append(delimiter);
+    }
+    sb.append(urn.replaceAll(":", delimiter));
+    return sb.toString();
   }
 }

@@ -39,7 +39,14 @@ public abstract class MetricKey implements Serializable {
 
   @Override
   public String toString() {
-    return String.format("%s:%s", stepName(), metricName());
+    return toString(":");
+  }
+
+  public String toString(String delimiter) {
+    if (stepName() == null) {
+      return metricName().toString(delimiter);
+    }
+    return String.join(delimiter, stepName(), metricName().toString(delimiter));
   }
 
   public static MetricKey create(MetricResult<?> result) {
