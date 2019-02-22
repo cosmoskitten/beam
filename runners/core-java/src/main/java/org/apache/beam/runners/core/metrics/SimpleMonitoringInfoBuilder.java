@@ -29,6 +29,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoSpecs;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoTypeUrns;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfoUrns;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +74,10 @@ public class SimpleMonitoringInfoBuilder {
       BeamUrns.getUrn(MonitoringInfoUrns.Enum.USER_COUNTER_URN_PREFIX);
   public static final String SUM_INT64_TYPE_URN =
       BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.SUM_INT64_TYPE);
+  public static final String DISTRIBUTION_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.DISTRIBUTION_INT64_TYPE);
+  public static final String LATEST_INT64_TYPE_URN =
+      BeamUrns.getUrn(MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
       new HashMap<String, MonitoringInfoSpec>();
@@ -135,6 +143,23 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder handleMetricKey(MetricKey key) {
+    MetricName metricName = key.metricName();
+    if (metricName instanceof MonitoringInfoMetricName) {
+      MonitoringInfoMetricName name = (MonitoringInfoMetricName) metricName;
+      builder.setUrn(name.getUrn()).putAllLabels(name.getLabels());
+    } else {
+      setUrnForUserMetric(metricName.getNamespace(), metricName.getName());
+      String ptransform = key.stepName();
+      if (ptransform != null) {
+        setPTransformLabel(ptransform);
+      } else {
+        LOG.warn("User metric {} without step name set", metricName);
+      }
+    }
+    return this;
+  }
+
   /**
    * Sets the urn of the MonitoringInfo to a proper user metric URN for the given params.
    *
@@ -163,6 +188,36 @@ public class SimpleMonitoringInfoBuilder {
   /** Sets the the appropriate type URN for sum int64 counters. */
   public SimpleMonitoringInfoBuilder setInt64TypeUrn() {
     this.builder.setType(SUM_INT64_TYPE_URN);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionData value) {
+    return setIntDistributionValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(DistributionResult value) {
+    return setIntDistributionValue(DistributionProtos.toProto(value));
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setIntDistributionValue(BeamFnApi.IntDistributionData value) {
+    this.builder.getMetricBuilder().getDistributionDataBuilder().setIntDistributionData(value);
+    this.builder.setType(DISTRIBUTION_INT64_TYPE_URN);
+    return this;
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeData value) {
+    return setGaugeValue(value.extractResult());
+  }
+
+  public SimpleMonitoringInfoBuilder setGaugeValue(GaugeResult value) {
+    return setGaugeValue(value.getValue());
+  }
+
+  /** Sets the int64Value of the CounterData in the MonitoringInfo, and the appropraite type URN. */
+  public SimpleMonitoringInfoBuilder setGaugeValue(long value) {
+    this.builder.getMetricBuilder().getCounterDataBuilder().setInt64Value(value);
+    this.builder.setType(LATEST_INT64_TYPE_URN);
     return this;
   }
 
