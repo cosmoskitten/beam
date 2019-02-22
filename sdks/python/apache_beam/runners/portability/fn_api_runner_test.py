@@ -562,6 +562,77 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
 
+  def test_element_count_metrics(self):
+    class GenerateTwoOutputs(beam.DoFn):
+      def process(self, element):
+        yield str(element) + '1'
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
+
+    class PrintElements(beam.DoFn):
+      def process(self, element):
+        logging.debug(element)
+        yield element
+
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    pcoll = p | beam.Create(['a1', 'a2'])
+
+    # pylint: disable=expression-not-assigned
+    pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
+        GenerateTwoOutputs()).with_outputs('SecondOutput',
+                                           'ThirdOutput',
+                                           main='FirstAndMainOutput'))
+
+    # Actually feed pcollection to pardo
+    second_outpu, third_output, first_output = (pcoll | pardo)
+
+    # consume some of elements
+    merged = ((first_output, second_outpu, third_output) | beam.Flatten())
+    merged | ('PrintingStep') >> beam.ParDo(PrintElements())
+    second_outpu | ('PrintingStep2') >> beam.ParDo(PrintElements())
+
+    res = p.run()
+    res.wait_until_finish()
+
+    result_metrics = res.monitoring_metrics()
+
+    def assert_contains_metric(src, urn, pcollection, value):
+      for item in src:
+        if item.urn == urn:
+          if item.labels['PCOLLECTION'] == pcollection:
+            self.assertEqual(item.metric.counter_data.int64_value, value,
+                             str(("Metric has incorrect value", value, item)))
+            return
+      self.fail(str(("Metric not found", urn, pcollection, src)))
+
+    counters = result_metrics.monitoring_infos()
+    self.assertEqual(len([x for x in counters if
+                          x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                          and
+                          monitoring_infos.PCOLLECTION_LABEL not in x.labels]),
+                     0)
+
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'Impulse', 1)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_1', 2)
+
+    # Skipping other pcollections due to non-deterministic naming for multiple
+    # outputs.
+
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_5', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_6', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_7', 2)
+
   def test_non_user_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
@@ -681,15 +752,20 @@ class FnApiRunnerTest(unittest.TestCase):
 
       def assert_has_monitoring_info(
           monitoring_infos, urn, labels, value=None, ge_value=None):
+        def contains_labels(monitoring_info, labels):
+          return len([x for x in labels.items() if
+                      x[0] in monitoring_info.labels and monitoring_info.labels[
+                          x[0]] == x[1]]) == len(labels)
+
         # TODO(ajamato): Consider adding a matcher framework
         found = 0
-        for m in monitoring_infos:
-          if m.labels == labels and m.urn == urn:
+        for mi in monitoring_infos:
+          if contains_labels(mi, labels) and mi.urn == urn:
             if (ge_value is not None and
-                m.metric.counter_data.int64_value >= ge_value):
+                mi.metric.counter_data.int64_value >= ge_value):
               found = found + 1
             elif (value is not None and
-                  m.metric.counter_data.int64_value == value):
+                  mi.metric.counter_data.int64_value == value):
               found = found + 1
         ge_value_str = {'ge_value' : ge_value} if ge_value else ''
         value_str = {'value' : value} if value else ''
