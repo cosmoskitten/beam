@@ -752,6 +752,55 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
+class EventRecorder(object):
+  def __init__(self):
+    self.work_path = os.getcwd() + '/EventRecorder'
+    if os.path.exists(self.work_path):
+      self.cleanup()
+    os.mkdir(self.work_path)
+
+  def record(self, file_name):
+    file_path = os.path.join(self.work_path, str(file_name) + '.txt')
+    open(file_path, 'a').close()
+
+  def events(self):
+    return sorted(os.listdir(self.work_path))
+
+  def cleanup(self):
+    for file in os.listdir(self.work_path):
+      os.remove(os.path.join(self.work_path, file))
+    os.rmdir(self.work_path)
+
+class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+
+  def test_finalize(self):
+    event_recorder = EventRecorder()
+    elements_list = [1, 2]
+    expected_res = sorted([str(element) + '.txt' for element in elements_list])
+
+    class FinalizableDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.record(element))
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizableDoFn()))
+      p.run().wait_until_finish()
+
+    results = event_recorder.events()
+    event_recorder.cleanup()
+    assert results == expected_res
+
 
 class FnApiRunnerSplitTest(unittest.TestCase):
 

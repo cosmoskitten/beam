@@ -186,11 +186,11 @@ class SdkHarness(object):
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
-        # Delete the instruction_id <-> worker mapping
-        self._instruction_id_vs_worker.pop(work.instruction_id, None)
-        # Put the worker back in the free worker pool
-        self.workers.put(worker)
-
+        if not worker.active_bundle_processors:
+          # Delete the instruction_id <-> worker mapping
+          self._instruction_id_vs_worker.pop(work.instruction_id, None)
+          # Put the worker back in the free worker pool
+          self.workers.put(worker)
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle[request.instruction_id] = time.time()
@@ -199,6 +199,9 @@ class SdkHarness(object):
         "Currently using %s threads." % len(self._process_thread_pool._threads))
 
   def _request_process_bundle_split(self, request):
+    self._request_process_bundle_action(request)
+
+  def _request_finalize_bundle(self, request):
     self._request_process_bundle_action(request)
 
   def _request_process_bundle_progress(self, request):
@@ -221,6 +224,12 @@ class SdkHarness(object):
                 instruction_reference in self._unscheduled_process_bundle else
                 'Unknown process bundle instruction {}').format(
                     instruction_reference)), request)
+      if request.WhichOneof('request') == 'finalize_bundle':
+        worker = self._instruction_id_vs_worker[instruction_reference]
+        # Delete the instruction_id <-> worker mapping
+        self._instruction_id_vs_worker.pop(instruction_reference, None)
+        # Put the worker back in the free worker pool
+        self.workers.put(worker)
 
     self._progress_thread_pool.submit(task)
 
@@ -313,13 +322,15 @@ class SdkWorker(object):
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id):
         with self.maybe_profile(instruction_id):
-          delayed_applications = bundle_processor.process_bundle(instruction_id)
+          delayed_applications, requests_finalization = \
+            bundle_processor.process_bundle(instruction_id)
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                   residual_roots=delayed_applications,
                   metrics=bundle_processor.metrics(),
-                  monitoring_infos=bundle_processor.monitoring_infos()))
+                  monitoring_infos=bundle_processor.monitoring_infos(),
+                  requires_finalization=requests_finalization))
       # TODO(boyuanz): Don't release here if finalize is needed.
       self.bundle_processor_cache.release(instruction_id)
       return response
@@ -349,6 +360,17 @@ class SdkWorker(object):
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             metrics=processor.metrics() if processor else None,
             monitoring_infos=processor.monitoring_infos() if processor else []))
+
+  def finalize_bundle(self, request, instruction_id):
+    processor = self.active_bundle_processors.get(request.instruction_reference)
+    if processor:
+      finalize_response = processor.finalize_bundle()
+      del self.active_bundle_processors[request.instruction_reference]
+      processor.reset()
+      self.cached_bundle_processors[processor.process_bundle_descriptor.id].append(processor)
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=instruction_id,
+          finalize_bundle=finalize_response)
 
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):
