@@ -540,6 +540,9 @@ class DoOperation(Operation):
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
+  def finalize(self):
+    self.dofn_receiver.finalize()
+
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
