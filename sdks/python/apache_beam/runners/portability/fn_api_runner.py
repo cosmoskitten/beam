@@ -1284,6 +1284,15 @@ class BundleManager(object):
       logging.debug('Wait for the bundle to finish.')
       result = result_future.get()
 
+      if result.process_bundle.requires_finalization:
+        finalize_request = beam_fn_api_pb2.InstructionRequest(
+            finalize_bundle=
+            beam_fn_api_pb2.FinalizeBundleRequest(
+                instruction_reference=process_bundle_id
+            ))
+        self._controller.control_handler.push(
+            finalize_request)
+
     if result.error:
       raise RuntimeError(result.error)
 

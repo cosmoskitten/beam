@@ -147,9 +147,11 @@ class MethodWrapper(object):
       method_name: name of the method as a string.
     """
 
-    if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
-      raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
-                       'a \'RestrictionProvider\'. Received %r instead.'
+    if not isinstance(obj_to_invoke,
+                      (DoFn, RestrictionProvider, DoFn.BundleFinalizerParam)):
+      raise ValueError('\'obj_to_invoke\' has to be a \'DoFn\' or '
+                       'a \'RestrictionProvider\' or '
+                       'a \'BundleFinalizerParam\'. Received %r instead.'
                        % obj_to_invoke)
 
     fullargspec = core.get_function_arguments(
@@ -237,6 +239,16 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
+    self._bundle_finalizer = self.get_bundle_finalizer()
+    if self._bundle_finalizer:
+      self.finalize_method = MethodWrapper(
+          self._bundle_finalizer, 'finalize_bundle')
+
+  def get_bundle_finalizer(self):
+    result = _find_param_with_default(self.process_method,
+                                      default_as_type=DoFn.BundleFinalizerParam)
+    return result[1] if result else None
+
   def get_restriction_provider(self):
     result = _find_param_with_default(self.process_method,
                                       default_as_type=RestrictionProvider)
@@ -276,6 +288,9 @@ class DoFnSignature(object):
 
   def is_stateful_dofn(self):
     return self._is_stateful_dofn
+
+  def is_request_finalization(self):
+    return self._bundle_finalizer is not None
 
   def has_timers(self):
     _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
@@ -364,6 +379,9 @@ class DoFnInvoker(object):
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
+  def invoke_finalize_bundle(self):
+    self.signature.finalize_method.method_value()
+
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
@@ -381,6 +399,9 @@ class DoFnInvoker(object):
 
   def invoke_create_tracker(self, restriction):
     return self.signature.create_tracker_method.method_value(restriction)
+
+  def invoke_finalize(self):
+    return self.signature.finalize_method.method_value()
 
 
 def _find_param_with_default(
@@ -728,6 +749,9 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self._reraise_augmented(exn)
 
+  def finalize(self):
+    self.do_fn_invoker.invoke_bundle_finalize()
+
   def process_with_restriction(self, windowed_value):
     element, restriction = windowed_value.value
     return self.do_fn_invoker.invoke_process(
@@ -756,6 +780,9 @@ class DoFnRunner(Receiver):
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
+
+  def finalize(self):
+    self._invoke_bundle_method(self.do_fn_invoker.invoke_finalize_bundle)
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:

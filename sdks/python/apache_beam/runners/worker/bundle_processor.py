@@ -456,13 +456,14 @@ class BundleProcessor(object):
     self.state_sampler = statesampler.StateSampler(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
-    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+    self.ops, self._bundle_finalizers = \
+      self.create_execution_tree(self.process_bundle_descriptor)
+    self.requires_finalization = (len(self._bundle_finalizers) > 0)
     for op in self.ops.values():
       op.setup()
     self.splitting_lock = threading.Lock()
 
   def create_execution_tree(self, descriptor):
-
     transform_factory = BeamTransformFactory(
         descriptor, self.data_channel_factory, self.counter_factory,
         self.state_sampler, self.state_handler)
@@ -498,10 +499,23 @@ class BundleProcessor(object):
            for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
-    return collections.OrderedDict([
+    def get_bundle_finalizer_operaions(transforms, operations_dict):
+      bundle_finalizers = []
+      for id, proto in transforms.items():
+        if proto.spec.urn == common_urns.primitives.PAR_DO.urn and \
+            proto_utils.parse_Bytes(
+                proto.spec.payload,
+                beam_runner_api_pb2.ParDoPayload).requests_finalization:
+          bundle_finalizers.append(operations_dict[id])
+      return bundle_finalizers
+
+    operations_dict = collections.OrderedDict([
         (transform_id, get_operation(transform_id))
         for transform_id in sorted(
             descriptor.transforms, key=topological_height, reverse=True)])
+    bundle_finalizers = get_bundle_finalizer_operaions(descriptor.transforms,
+                                                       operations_dict)
+    return operations_dict, bundle_finalizers
 
   def reset(self):
     self.counter_factory.reset()
@@ -553,13 +567,19 @@ class BundleProcessor(object):
 
       return [
           self.delayed_bundle_application(op, residual)
-          for op, residual in execution_context.delayed_applications]
+          for op, residual in execution_context.delayed_applications], \
+             self.requires_finalization
 
     finally:
       # Ensure any in-flight split attempts complete.
       with self.splitting_lock:
         pass
       self.state_sampler.stop_if_still_running()
+
+  def finalize_bundle(self):
+    for op in self._bundle_finalizers:
+      op.finalize()
+    return beam_fn_api_pb2.FinalizeBundleResponse()
 
   def try_split(self, bundle_split_request):
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
