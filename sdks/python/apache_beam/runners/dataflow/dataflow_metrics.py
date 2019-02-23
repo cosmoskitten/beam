@@ -232,7 +232,6 @@ class DataflowMetrics(MetricResults):
     self._populate_metrics(response, metric_results, user_metrics=False)
     return metric_results
 
-
   def query(self, filter=None):
     metric_results = []
     response = self._get_metrics_from_dataflow()
