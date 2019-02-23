@@ -17,46 +17,29 @@
  */
 package org.apache.beam.runners.samza;
 
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.CANCELLED;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.DONE;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.FAILED;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.RUNNING;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.STARTING;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.STOPPED;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.UNRECOGNIZED;
-import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.UPDATED;
-
-import java.util.function.Consumer;
-import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
-import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Invocation of a Samza job via {@link SamzaRunner}. */
-public class SamzaJobInvocation implements JobInvocation {
+/**
+ * Invocation of a Samza job via {@link SamzaRunner}.
+ */
+public class SamzaJobInvocation extends JobInvocation {
+
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvocation.class);
-  private static final IdGenerator idGenerator = IdGenerators.incrementingLongs();
 
   private final SamzaPipelineOptions options;
-  private final RunnerApi.Pipeline originalPipeline;
-  private volatile SamzaPipelineResult pipelineResult;
-  private final String id;
 
-  public SamzaJobInvocation(RunnerApi.Pipeline pipeline, SamzaPipelineOptions options, String id) {
-    this.originalPipeline = pipeline;
-    this.options = options;
-    this.id = id;
-  }
-
-  private SamzaPipelineResult invokeSamzaJob() {
+  @Override
+  protected PipelineResult run(final Pipeline pipeline) {
     // Fused pipeline proto.
-    final RunnerApi.Pipeline fusedPipeline =
-        GreedyPipelineFuser.fuse(originalPipeline).toPipeline();
+    final RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
     LOG.info("Portable pipeline to run:");
     LOG.info(PortablePipelineDotRenderer.toDotString(fusedPipeline));
     // the pipeline option coming from sdk will set the sdk specific runner which will break
@@ -71,58 +54,13 @@ public class SamzaJobInvocation implements JobInvocation {
     }
   }
 
-  @Override
-  public void start() {
-    LOG.info("Starting job invocation {}", getId());
-    pipelineResult = invokeSamzaJob();
-  }
-
-  @Override
-  public String getId() {
-    return id;
-  }
-
-  @Override
-  public void cancel() {
-    try {
-      if (pipelineResult != null) {
-        pipelineResult.cancel();
-      }
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to cancel job.", e);
-    }
-  }
-
-  @Override
-  public JobApi.JobState.Enum getState() {
-    if (pipelineResult == null) {
-      return STARTING;
-    }
-    switch (pipelineResult.getState()) {
-      case RUNNING:
-        return RUNNING;
-      case FAILED:
-        return FAILED;
-      case DONE:
-        return DONE;
-      case STOPPED:
-        return STOPPED;
-      case UPDATED:
-        return UPDATED;
-      case CANCELLED:
-        return CANCELLED;
-      default:
-        return UNRECOGNIZED;
-    }
-  }
-
-  @Override
-  public void addStateListener(Consumer<JobApi.JobState.Enum> stateStreamObserver) {
-    LOG.info("state listener not yet implemented. Directly use getState() instead");
-  }
-
-  @Override
-  public synchronized void addMessageListener(Consumer<JobApi.JobMessage> messageStreamObserver) {
-    LOG.info("message listener not yet implemented.");
+  public SamzaJobInvocation(
+      String id,
+      String retrievalToken,
+      ListeningExecutorService executorService,
+      RunnerApi.Pipeline pipeline,
+      SamzaPipelineOptions options) {
+    super(id, retrievalToken, executorService, pipeline);
+    this.options = options;
   }
 }
