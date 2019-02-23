@@ -26,6 +26,7 @@ import unittest
 from builtins import object
 
 import mock
+import hamcrest as hc
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -33,6 +34,11 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
+from apache_beam.testing import metric_result_matchers
+from hamcrest.core.core.allof import all_of
+from hamcrest import has_item
+from hamcrest import assert_that
+
 
 
 class DictToObject(object):
@@ -49,6 +55,8 @@ class DictToObject(object):
 
 class TestDataflowMetrics(unittest.TestCase):
 
+  # TODO(BEAM-6734): Write a dump tool to generate this fake data, or
+  # somehow make this easier to maintain.
   ONLY_COUNTERS_LIST = {"metrics": [
       {"name": {"context":
                 {"additionalProperties": [
@@ -202,6 +210,103 @@ class TestDataflowMetrics(unittest.TestCase):
        "updateTime": "2017-03-22T18:47:06.402Z"
       },
   ]}
+  SYSTEM_COUNTERS_LIST = {"metrics": [
+      # ElementCount
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
+                    {"key": "output_user_name",
+                     "value": "ToIsmRecordForMultimap-out0"}
+                    ]
+                },
+                "name": "ElementCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 42},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "ToIsmRecordForMultimap-out0-ElementCount"},
+                    {"key": "output_user_name",
+                     "value": "ToIsmRecordForMultimap-out0"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "ElementCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 42},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      # MeanByteCount
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "Read-out0-MeanByteCount"},
+                    {"key": "output_user_name",
+                     "value": "GroupByKey/Read-out0"}
+                    ]
+                },
+                "name": "MeanByteCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 31},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value":  "Read-out0-MeanByteCount"},
+                    {"key": "output_user_name",
+                     "value": "GroupByKey/Read-out0"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "MeanByteCount",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 31},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      # ExecutionTime
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "step",
+                     "value":  "write/Write/Write"},
+                    ]
+                },
+                "name": "ExecutionTime_ProcessElement",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 1000},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "step",
+                     "value":  "write/Write/Write"},
+                    {"key": "tentative",
+                     "value": "true"}
+                    ]
+                },
+                "name": "ExecutionTime_ProcessElement",
+                "origin": "dataflow/v1b3"
+               },
+       "scalar": {"integer_value": 1000},
+       "distribution": None,
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+  ]}
 
   def setup_mock_client_result(self, counter_list=None):
     mock_client = mock.Mock()
@@ -277,6 +382,40 @@ class TestDataflowMetrics(unittest.TestCase):
                      sorted(expected_counters,
                             key=lambda x: x.key.metric.name))
 
+  def test_system_counters_set_labels_and_step_name(self):
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.SYSTEM_COUNTERS_LIST)
+    test_object = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+    all_metrics = test_object.all_metrics()
+
+    matchers = [
+        all_of(
+            metric_result_matchers.has_name('ElementCount'),
+            metric_result_matchers.has_labels({
+                'original_name' : 'ToIsmRecordForMultimap-out0-ElementCount',
+                'output_user_name' : 'ToIsmRecordForMultimap-out0'
+            }),
+            metric_result_matchers.is_committed_counter(42),
+            metric_result_matchers.is_attempted_counter(42)
+        ),
+        all_of(
+            metric_result_matchers.has_name('MeanByteCount'),
+            metric_result_matchers.has_labels({
+                'original_name' : 'Read-out0-MeanByteCount',
+                'output_user_name' : 'GroupByKey/Read-out0'
+            }),
+            metric_result_matchers.is_committed_counter(31),
+            metric_result_matchers.is_attempted_counter(31)
+        ),
+        all_of(
+            metric_result_matchers.has_name('ExecutionTime_ProcessElement'),
+            metric_result_matchers.has_step_name('write/Write/Write'),
+            metric_result_matchers.is_committed_counter(1000),
+            metric_result_matchers.is_attempted_counter(1000)
+        ),
+    ]
+    errors = metric_result_matchers.verify_all(all_metrics, matchers)
+    self.assertFalse(errors, errors)
 
 if __name__ == '__main__':
   unittest.main()

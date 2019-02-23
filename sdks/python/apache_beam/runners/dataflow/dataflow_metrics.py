@@ -23,7 +23,12 @@ service.
 
 from __future__ import absolute_import
 
+import json
+import logging
 import numbers
+import pprint
+import types
+
 from collections import defaultdict
 
 from future.utils import iteritems
@@ -34,6 +39,9 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
+from google.protobuf import json_format
+from google.protobuf import text_format
+
 
 
 def _get_match(proto, filter_fn):
@@ -49,6 +57,11 @@ def _get_match(proto, filter_fn):
     raise ValueError('Too many matches')
 
   return query[0]
+
+
+# V1b3 MetricStructuredName keys to accept and copy to the MetricKey labels.
+WHITELISTED_LABELS = [
+    'execution_step', 'original_name', 'output_user_name', 'step']
 
 
 class DataflowMetrics(MetricResults):
@@ -97,7 +110,9 @@ class DataflowMetrics(MetricResults):
 
   def _get_metric_key(self, metric):
     """Populate the MetricKey object for a queried metric result."""
-    try:
+    step = ""
+    name = metric.name.name # Always extract a name
+    try: # Try to extract the user step name.
       # If ValueError is thrown within this try-block, it is because of
       # one of the following:
       # 1. Unable to translate the step name. Only happening with improperly
@@ -108,23 +123,39 @@ class DataflowMetrics(MetricResults):
       step = _get_match(metric.name.context.additionalProperties,
                         lambda x: x.key == 'step').value
       step = self._translate_step_name(step)
+    except ValueError:
+      pass
+
+    namespace = "dataflow/v1b3" # Try to extract namespace or add a default.
+    try:
       namespace = _get_match(metric.name.context.additionalProperties,
                              lambda x: x.key == 'namespace').value
-      name = metric.name.name
     except ValueError:
-      return None
+      pass
 
-    return MetricKey(step, MetricName(namespace, name))
+    labels = dict()
+    for kv in metric.name.context.additionalProperties:
+      if kv.key in WHITELISTED_LABELS:
+        labels[kv.key] = kv.value
+    # Package everything besides namespace and name the labels as well,
+    # including unmodified step names to assist in integration the exact
+    # unmodified values which come from dataflow.
+    return MetricKey(step, MetricName(namespace, name), labels=labels)
 
-  def _populate_metric_results(self, response):
-    """Take a list of metrics, and convert it to a list of MetricResult."""
-    user_metrics = [metric
-                    for metric in response.metrics
-                    if metric.name.origin == 'user']
+  def _populate_metrics(self, response, result, user_metrics=False):
+    """Move user metrics from response to results as MetricResults."""
+    if user_metrics:
+      metrics = [metric
+                 for metric in response.metrics
+                 if metric.name.origin == 'user']
+    else:
+      metrics = [metric
+                 for metric in response.metrics
+                 if metric.name.origin == 'dataflow/v1b3']
 
     # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
-    for metric in user_metrics:
+    for metric in metrics:
       if (metric.name.name.endswith('[MIN]') or
           metric.name.name.endswith('[MAX]') or
           metric.name.name.endswith('[MEAN]') or
@@ -148,7 +179,6 @@ class DataflowMetrics(MetricResults):
       metrics_by_name[metric_key][tentative_or_committed] = metric
 
     # Now we create the MetricResult elements.
-    result = []
     for metric_key, metric in iteritems(metrics_by_name):
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
@@ -158,6 +188,12 @@ class DataflowMetrics(MetricResults):
                                  attempted=attempted,
                                  committed=committed))
 
+  def _populate_metric_results(self, response):
+    """Take a list of metrics, and convert it to a list of MetricResult."""
+    result = []
+    self._populate_metrics(response, result, user_metrics=True)
+    self._populate_metrics(response, result, user_metrics=False)
+    #self._populate_system_metrics(response, result)
     return result
 
   def _get_metric_value(self, metric):
@@ -182,6 +218,32 @@ class DataflowMetrics(MetricResults):
     else:
       return None
 
+  def _create_simple_obj(self, obj):
+    # If its a dictionary or defined class type
+    if hasattr(obj, '__dict__') or isinstance(obj, dict):
+      items = obj.items() if isinstance(obj, dict) else obj.__dict__.items()
+      simple_dict = dict()
+      for key, value in items:
+        #print "ajamato_dbg %s : %s" % (key, value)
+        simple_dict[key] = self._create_simple_obj(value)
+      return simple_dict
+    elif isinstance(obj, (tuple, list, set, frozenset)):
+      simple_list = []
+      for x in obj:
+        simple_list.append(self._create_simple_obj(x))
+      return simple_list
+    else:
+      return obj
+
+  def _pretty_format_job_metrics(self, job_metrics):
+    job_metrics = self._create_simple_obj(obj)
+    return json.dumps(obj, indent=4, sort_keys=True)
+
+  def _pretty_format_job_metrics(self, job_metrics):
+    for metric in metrics:
+      pass
+
+
   def _get_metrics_from_dataflow(self):
     """Return cached metrics or query the dataflow service."""
     try:
@@ -198,11 +260,34 @@ class DataflowMetrics(MetricResults):
     # If the job has terminated, metrics will not change and we can cache them.
     if self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
+
+    # TODO try text_proto.
+    # TODO try whitelisting fields and running the same alg as above.
+
+    """
+    filename = "/usr/local/google/home/ajamato/ajamato_dbg_dump/get_metrics_resp_%s" % job_id
+    text_file = open(filename, "w")
+    text_file.write(str(job_metrics))
+    text_file.close()
+    logging.info('DUMPED get_metrics_resp: %s', filename)
+    logging.info('ajamato type(job_metrics): %s', type(job_metrics))
+
+
+    filename = "/usr/local/google/home/ajamato/ajamato_dbg_dump/get_metrics_resp_PPRINT_%s" % job_id
+    text_file = open(filename, "w")
+    text_file.write(text_format.MessageToString(job_metrics))
+    #text_file.write(self._pretty_format_job_metrics(job_metrics))
+    text_file.close()
+    logging.info('DUMPED get_metrics_resp: %s', filename)
+    """
     return job_metrics
 
-  def query(self, filter=None):
+  def all_metrics(self):
     response = self._get_metrics_from_dataflow()
-    metric_results = self._populate_metric_results(response)
+    return  self._populate_metric_results(response)
+
+  def query(self, filter=None):
+    metric_results = self.all_metrics()
     return {self.COUNTERS: [elm for elm in metric_results
                             if self.matches(filter, elm.key)
                             and DataflowMetrics._is_counter(elm)],
