@@ -69,6 +69,7 @@ from apache_beam.utils import urns
 
 __all__ = [
     'DoFn',
+    'BundleFinalizer',
     'CombineFn',
     'PartitionFn',
     'ParDo',
@@ -325,6 +326,10 @@ class _TimerDoFnParam(_DoFnParam):
     self.timer_spec = timer_spec
     self.param_id = 'TimerParam(%s)' % timer_spec.name
 
+
+class BundleFinalizer(object):
+  def finalize_bundle(self):
+    raise NotImplementedError
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
@@ -1030,7 +1035,9 @@ class ParDo(PTransformWithSideInputs):
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     from apache_beam.runners.common import DoFnSignature
-    is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
+    do_fn_signature = DoFnSignature(self.fn)
+    is_splittable = do_fn_signature.is_splittable_dofn()
+    is_requests_finalization = do_fn_signature.is_request_finalization()
     if is_splittable:
       restriction_coder = (
           DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
@@ -1058,7 +1065,8 @@ class ParDo(PTransformWithSideInputs):
             # are currently implemented.
             side_inputs={
                 "side%s" % ix: si.to_runner_api(context)
-                for ix, si in enumerate(self.side_inputs)}))
+                for ix, si in enumerate(self.side_inputs)},
+            requests_finalization=is_requests_finalization))
 
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)

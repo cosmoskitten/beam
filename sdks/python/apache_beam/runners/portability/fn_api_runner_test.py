@@ -756,6 +756,26 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
 
+class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+
+  def test_finalize(self):
+    class FinalizableDoFn(beam.DoFn, beam.BundleFinalizer):
+      def process(self, element):
+        yield element
+
+      def finalize_bundle(self):
+        logging.info("Call finalize function")
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create([1,2])
+             | beam.ParDo(FinalizableDoFn()))
+
 class FnApiRunnerSplitTest(unittest.TestCase):
 
   def create_pipeline(self):
