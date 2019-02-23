@@ -17,20 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getRootCause;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables.getStackTraceAsString;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -43,16 +35,13 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.FutureCallback;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Invocation of a Flink Job via {@link FlinkRunner}. */
-public class FlinkJobInvocation implements JobInvocation {
+public class FlinkJobInvocation extends JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
 
   public static FlinkJobInvocation create(
@@ -67,18 +56,9 @@ public class FlinkJobInvocation implements JobInvocation {
         id, retrievalToken, executorService, pipeline, pipelineOptions, confDir, filesToStage);
   }
 
-  private final String id;
-  private final String retrievalToken;
-  private final ListeningExecutorService executorService;
-  private final RunnerApi.Pipeline pipeline;
   private final FlinkPipelineOptions pipelineOptions;
   private final String confDir;
   private final List<String> filesToStage;
-  private JobState.Enum jobState;
-  private List<Consumer<JobState.Enum>> stateObservers;
-  private List<Consumer<JobMessage>> messageObservers;
-
-  @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
   private FlinkJobInvocation(
       String id,
@@ -88,20 +68,14 @@ public class FlinkJobInvocation implements JobInvocation {
       FlinkPipelineOptions pipelineOptions,
       @Nullable String confDir,
       List<String> filesToStage) {
-    this.id = id;
-    this.retrievalToken = retrievalToken;
-    this.executorService = executorService;
-    this.pipeline = pipeline;
+    super(id, retrievalToken, executorService, pipeline);
     this.pipelineOptions = pipelineOptions;
     this.confDir = confDir;
     this.filesToStage = filesToStage;
-    this.invocationFuture = null;
-    this.jobState = JobState.Enum.STOPPED;
-    this.stateObservers = new ArrayList<>();
-    this.messageObservers = new ArrayList<>();
   }
 
-  private PipelineResult runPipeline() throws Exception {
+  @Override
+  protected PipelineResult run(final Pipeline pipeline) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
 
     FlinkPortablePipelineTranslator<?> translator;
@@ -111,12 +85,12 @@ public class FlinkJobInvocation implements JobInvocation {
     } else {
       translator = new FlinkStreamingPortablePipelineTranslator();
     }
-    return runPipelineWithTranslator(translator);
+    return runPipelineWithTranslator(pipeline, translator);
   }
 
   private <T extends FlinkPortablePipelineTranslator.TranslationContext>
-      PipelineResult runPipelineWithTranslator(FlinkPortablePipelineTranslator<T> translator)
-          throws Exception {
+      PipelineResult runPipelineWithTranslator(
+          final Pipeline pipeline, FlinkPortablePipelineTranslator<T> translator) throws Exception {
     LOG.info("Translating pipeline to Flink program.");
 
     // Don't let the fuser fuse any subcomponents of native transforms.
@@ -137,9 +111,9 @@ public class FlinkJobInvocation implements JobInvocation {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
-            id,
+            getId(),
             pipelineOptions.getJobName(),
-            retrievalToken,
+            getRetrievalToken(),
             PipelineOptionsTranslation.toProto(pipelineOptions));
 
     FlinkPortablePipelineTranslator.Executor executor =
@@ -175,111 +149,6 @@ public class FlinkJobInvocation implements JobInvocation {
       pipeline
           .getComponentsBuilder()
           .putTransforms(parentId, parentProto.toBuilder().clearSubtransforms().build());
-    }
-  }
-
-  @Override
-  public synchronized void start() {
-    LOG.info("Starting job invocation {}", getId());
-    if (getState() != JobState.Enum.STOPPED) {
-      throw new IllegalStateException(String.format("Job %s already running.", getId()));
-    }
-    setState(JobState.Enum.STARTING);
-    invocationFuture = executorService.submit(this::runPipeline);
-    // TODO: Defer transitioning until the pipeline is up and running.
-    setState(JobState.Enum.RUNNING);
-    Futures.addCallback(
-        invocationFuture,
-        new FutureCallback<PipelineResult>() {
-          @Override
-          public void onSuccess(@Nullable PipelineResult pipelineResult) {
-            if (pipelineResult != null) {
-              checkArgument(
-                  pipelineResult.getState() == PipelineResult.State.DONE,
-                  "Success on non-Done state: " + pipelineResult.getState());
-              setState(JobState.Enum.DONE);
-            } else {
-              setState(JobState.Enum.UNSPECIFIED);
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable throwable) {
-            String message = String.format("Error during job invocation %s.", getId());
-            LOG.error(message, throwable);
-            sendMessage(
-                JobMessage.newBuilder()
-                    .setMessageText(getStackTraceAsString(throwable))
-                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_DEBUG)
-                    .build());
-            sendMessage(
-                JobMessage.newBuilder()
-                    .setMessageText(getRootCause(throwable).toString())
-                    .setImportance(JobMessage.MessageImportance.JOB_MESSAGE_ERROR)
-                    .build());
-            setState(JobState.Enum.FAILED);
-          }
-        },
-        executorService);
-  }
-
-  @Override
-  public String getId() {
-    return id;
-  }
-
-  @Override
-  public synchronized void cancel() {
-    LOG.info("Canceling job invocation {}", getId());
-    if (this.invocationFuture != null) {
-      this.invocationFuture.cancel(true /* mayInterruptIfRunning */);
-      Futures.addCallback(
-          invocationFuture,
-          new FutureCallback<PipelineResult>() {
-            @Override
-            public void onSuccess(@Nullable PipelineResult pipelineResult) {
-              if (pipelineResult != null) {
-                try {
-                  pipelineResult.cancel();
-                } catch (IOException exn) {
-                  throw new RuntimeException(exn);
-                }
-              }
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {}
-          },
-          executorService);
-    }
-  }
-
-  @Override
-  public JobState.Enum getState() {
-    return this.jobState;
-  }
-
-  @Override
-  public synchronized void addStateListener(Consumer<JobState.Enum> stateStreamObserver) {
-    stateStreamObserver.accept(getState());
-    stateObservers.add(stateStreamObserver);
-  }
-
-  @Override
-  public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
-    messageObservers.add(messageStreamObserver);
-  }
-
-  private synchronized void setState(JobState.Enum state) {
-    this.jobState = state;
-    for (Consumer<JobState.Enum> observer : stateObservers) {
-      observer.accept(state);
-    }
-  }
-
-  private synchronized void sendMessage(JobMessage message) {
-    for (Consumer<JobMessage> observer : messageObservers) {
-      observer.accept(message);
     }
   }
 
