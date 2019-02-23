@@ -31,6 +31,7 @@ from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
+from apache_beam.testing import metric_result_matchers
 
 
 class WordCountIT(unittest.TestCase):
@@ -48,7 +49,16 @@ class WordCountIT(unittest.TestCase):
 
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
-    self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
+    result = self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
+    metric_matchers= [
+      all_of(
+        metric_result_matchers.has_labels({'step' : 's31'}),
+        metric_result_matchers.has_name('ExecutionTime_ProcessElement'),
+      )
+    ]
+    errors = metric_result_matchers.verify_all(
+        result.metrics().all_metrics(), metric_matchers)
+    self.assertEqual(errors, 0, str(errors))
 
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -72,7 +82,7 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
+    return run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':
