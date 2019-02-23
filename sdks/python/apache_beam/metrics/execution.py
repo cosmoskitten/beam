@@ -127,6 +127,7 @@ class MetricResult(object):
   def __str__(self):
     return repr(self)
 
+
   @property
   def result(self):
     """Short-hand for falling back to attempted metrics if it seems that
