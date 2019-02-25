@@ -40,7 +40,7 @@ public class DropFields {
   }
 
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
-    private static final List<String> fieldsToDrop;
+    private final List<String> fieldsToDrop;
 
     private Inner(List<String> fieldsToDrop) {
       this.fieldsToDrop = fieldsToDrop;
@@ -85,6 +85,5 @@ public class DropFields {
           o.output(newRow);
       }})).setRowSchema(outputSchema);
     }
-  }
   }
 }

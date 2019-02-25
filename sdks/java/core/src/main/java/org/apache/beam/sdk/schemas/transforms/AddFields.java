@@ -30,6 +30,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
+/** A transform to add new nullable fields to a PCollection's schema. Elements are extended to
+ * have the new schema, with null values used for the new fields.
+ */
 public class AddFields {
   public static <T> Inner<T> of(Field... fields) {
     return of(Arrays.asList(fields));
@@ -68,9 +71,7 @@ public class AddFields {
           List<Object> values = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
           values.addAll(row.getValues());
           values.addAll(nullValues);
-          Row newRow = Row.withSchema(outputSchema)
-              .attachValues(values)
-              .build();
+          Row newRow = Row.withSchema(outputSchema).attachValues(values).build();
           o.output(newRow);
         }})).setRowSchema(outputSchema);
     }

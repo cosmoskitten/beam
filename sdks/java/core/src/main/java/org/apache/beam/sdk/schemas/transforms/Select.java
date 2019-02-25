@@ -70,6 +70,11 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental(Kind.SCHEMAS)
 public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
+  List<Integer> fieldIds;
+  List<String> fieldNames;
+  Map<Integer, String> idAsName;
+  Map<String, String> nameAsName;
+
   private final FieldAccessDescriptor fieldAccessDescriptor;
 
   private Select(FieldAccessDescriptor fieldAccessDescriptor) {
@@ -79,6 +84,13 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
   /** Select a set of top-level field ids from the row. */
   public static <T> Select<T> fieldIds(Integer... ids) {
     return new Select<>(FieldAccessDescriptor.withFieldIds(ids));
+  }
+
+  public static <T> Select<T> fieldId(Integer id) {
+  }
+
+  public static <T> Select<T> fieldIdAs(Integer id, String newName) {
+
   }
 
   /** Select a set of top-level field names from the row. */
@@ -98,6 +110,7 @@ public class Select<T> extends PTransform<PCollection<T>, PCollection<Row>> {
   @Override
   public PCollection<Row> expand(PCollection<T> input) {
     Schema inputSchema = input.getSchema();
+    FieldAccessDescriptor.withFieldIds(fieldIds).wi
     FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(inputSchema);
     Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
 
