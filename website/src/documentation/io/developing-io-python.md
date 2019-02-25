@@ -59,7 +59,7 @@ multiple worker instances in parallel. As such, the code you provide for
      `Source` and `FileBasedSink` subclasses. A minor implementation error can
      lead to data corruption or data loss (such as skipping or duplicating
      records) that can be hard to detect. You can use test harnesses and utility
-     methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py)
+     methods available in the [source_test_utils module](https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/io/source_test_utils.py)
      to develop tests for your source.
 
 In addition, see the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
@@ -84,6 +84,37 @@ Supply the logic for your new source by creating the following classes:
 
 You can find these classes in the
 [apache_beam.io.iobase module](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html).
+
+### Using ParDo
+
+`ParDo` is the recommended way of implementing a Source. Perhaps the easiest way to implement a Source is using a `ParDo` over a generator.
+
+```
+import apache_beam as beam
+import logging
+
+def count(n):
+  for i in range(n):
+    yield i
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Create inputs' >> beam.Create([10])
+      | 'Generate elements' >> beam.ParDo(count)
+      | 'Inspect elements' >> beam.Map(logging.warning)
+  )
+```
+
+<a class="button button--primary" target="_blank"
+  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-pardo.ipynb">
+  Run in Colab
+</a>
+<a class="button button--primary" target="_blank"
+  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-pardo.ipynb">
+  View on GitHub
+</a>
 
 ### Implementing the BoundedSource subclass
 
@@ -174,9 +205,11 @@ The Beam SDK for Python contains some convenient abstract base classes to help y
 
 #### FileBasedSource
 
-`FileBasedSource` is a framework for developing sources for new file types. You can derive your `BoundedSource` class from the [FileBasedSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/filebasedsource.py) class.
+`FileBasedSource` is a framework for developing sources for new file types. You can derive your `BoundedSource` class from the [FileBasedSource](https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/io/filebasedsource.py) class.
 
 To create a source for a new file type, you need to create a sub-class of `FileBasedSource`.  Sub-classes of `FileBasedSource` must implement the method `FileBasedSource.read_records()`.
+
+The following example shows how to create a `FileBasedSource` to read compacted or multi-line JSON files.
 
 ```
 import apache_beam as beam
@@ -215,15 +248,15 @@ with beam.Pipeline() as pipeline:
 ```
 
 <a class="button button--primary" target="_blank"
-  href="https://colab.research.google.com/drive/1hPNfIUnYbQSGClPcGP2fBOU0aF5gRd3k">
-  Run code in Google Colab
+  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-filebasedsource.ipynb">
+  Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-filebasedsource.ipynb">
-  View source on GitHub
+  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-filebasedsource.ipynb">
+  View on GitHub
 </a>
 
-See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
+See [AvroSource](https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
 
 
 ### Reading from a new Source
@@ -283,12 +316,12 @@ with beam.Pipeline() as pipeline:
 ```
 
 <a class="button button--primary" target="_blank"
-  href="https://colab.research.google.com/drive/1GLFB4adNS1oifRklCmyF4MFRQuea6MaV">
-  Run code in Google Colab
+  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-boundedsource.ipynb">
+  Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-boundedsource.ipynb">
-  View source on GitHub
+  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-boundedsource.ipynb">
+  View on GitHub
 </a>
 
 **Note:** When you create a source that end-users are going to use, we
@@ -298,7 +331,41 @@ demonstrated in the example above. Use a wrapping `PTransform` instead.
 exposing your sources, and walks through how to create a wrapper.
 
 
-## Using the FileBasedSink abstraction
+## Implementing the Sink interface
+
+## Using ParDo
+
+`ParDo` is the recommended way of implementing a Sink.
+
+```
+import apache_beam as beam
+import logging
+import random
+import os
+
+if not os.path.exists('outputs'):
+  os.makedirs('outputs')
+
+def write_to_file(key_value):
+  batch_idx, values = key_value
+  with open('outputs/part-{}'.format(batch_idx), 'w') as f:
+    for value in values:
+      f.write('{}\n'.format(value))
+
+# Running locally in the DirectRunner.
+with beam.Pipeline() as pipeline:
+  (
+      pipeline
+      | 'Create inputs' >> beam.Create([i for i in range(10)])
+      | 'Set key to a randomized batch number' >> beam.Map(
+          lambda element: (random.randint(1, 3), element))
+      | 'Group into batches' >> beam.GroupByKey()
+      | 'Write to files' >> beam.ParDo(write_to_file)
+  )
+```
+
+
+### Using the FileBasedSink abstraction
 
 If your data source uses files, you can implement the [FileBasedSink](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.filebasedsink.html)
 abstraction to create a file-based sink. For other sinks, use `ParDo`,
@@ -333,7 +400,7 @@ sinks that interact with files, including:
 `FileSystem` implementations. See the following Beam-provided `FileBasedSink`
 implementation for an example:
 
-  * [TextSink](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py)
+  * [TextSink](https://github.com/{{ site.branch_repo }}/sdks/python/apache_beam/io/textio.py)
 
 
 ## PTransform wrappers {#ptransform-wrappers}
@@ -354,6 +421,8 @@ composite `PTransform` that performs both the read operation and the reshard.
 
 See Beam’s [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
 for additional information about wrapping with a `PTransform`.
+
+### Sources {#ptransform-wrappers-sources}
 
 The following example wraps the source from the above sections in a
 `PTransform` called `ReadFromRangeSource`.
@@ -384,13 +453,15 @@ with beam.Pipeline() as pipeline:
 ```
 
 <a class="button button--primary" target="_blank"
-  href="https://colab.research.google.com/drive/1GLFB4adNS1oifRklCmyF4MFRQuea6MaV">
-  Run code in Google Colab
+  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-boundedsource.ipynb">
+  Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/apache/beam/blob/master/examples/python/notebooks/io/custom-inputs-boundedsource.ipynb">
-  View source on GitHub
+  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/io/custom-inputs-boundedsource.ipynb">
+  View on GitHub
 </a>
+
+### Sinks {#ptransform-wrappers-sinks}
 
 For the sink, rename `SimpleKVSink` to `_SimpleKVSink`. Then, create the wrapper `PTransform`, called `WriteToKVSink`:
 
