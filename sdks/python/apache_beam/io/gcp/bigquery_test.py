@@ -34,6 +34,7 @@ import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -50,42 +51,6 @@ try:
 except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
-
-
-# TODO: REMOVE THESE BEFORE PULL REQUESTINGINTALUIDHSFAO;SRTHGASOEITH
-_DESTINATION_ELEMENT_PAIRS = [
-    # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"beam", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"go"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"scala"}'),
-
-    # DESTINATION 3
-    ('project1:dataset1.table3', '{"name":"spark", "language":"scala"}'),
-
-    # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"spark", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"spark", "language":"scala"}'),
-
-    # DESTINATION 2
-    ('project1:dataset1.table2', '{"name":"beam", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"flink", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"spark", "foundation":"apache"}'),
-]
-
-_NAME_LANGUAGE_ELEMENTS = [
-    json.loads(elm[1])
-    for elm in _DESTINATION_ELEMENT_PAIRS if "language" in elm[1]
-]
-
-_DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
-
-_ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
-
-
-# TODO: END(REMOVE THESE BEFORE PULL REQUESTINGINTALUIDHSFAO;SRTHGASOEITH)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -372,7 +337,6 @@ class WriteToBigQuery(unittest.TestCase):
         beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
     self.assertEqual(expected_dict_schema, dict_schema)
 
-
   def test_table_schema_parsing_end_to_end(self):
     string_field = bigquery.TableFieldSchema(
         name='s', type='STRING', mode='NULLABLE')
@@ -558,7 +522,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
         on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
-      input = p | beam.Create(_ELEMENTS)  # TODO import these form BQFL
+      input = p | beam.Create(_ELEMENTS)
 
       input2 = p | "Broken record" >> beam.Create([bad_record])
 

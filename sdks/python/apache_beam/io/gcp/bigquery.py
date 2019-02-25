@@ -136,17 +136,16 @@ from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options import value_provider as vp
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.window import  GlobalWindows
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.annotations import deprecated
-
 
 __all__ = [
     'TableRowJsonCoder',
@@ -928,7 +927,8 @@ bigquery_v2_messages.TableSchema):
       self.table_reference.projectId = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
-    if standard_options.streaming or self.method == 'STREAMING_INSERTS':
+    if (standard_options.streaming or
+        self.method == WriteToBigQuery.Method.STREAMING_INSERTS):
       # TODO: Support load jobs for streaming pipelines.
       bigquery_write_fn = BigQueryWriteFn(
           batch_size=self.batch_size,
@@ -937,19 +937,19 @@ bigquery_v2_messages.TableSchema):
           kms_key=self.kms_key,
           test_client=self.test_client)
 
-      table_fn = self._get_table_fn()
-
       outputs = (pcoll
-                 | 'AppendDestination' >> beam.Map(
-                     lambda x: (table_fn(x), x))  # TODO(pabloem) Use bqfl
+                 | 'AppendDestination' >> beam.ParDo(
+                     bigquery_tools.AppendDestinationsFn(self.table_reference))
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
+      if standard_options.streaming:
+        raise NotImplementedError(
+            'File Loads to BigQuery are only supported on Batch pipelines.')
+
       from apache_beam.io.gcp import bigquery_file_loads
-      assert not standard_options.streaming, (
-          'File Loads to BigQuery are only supported on Batch pipelines.')
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.get_dict_table_schema(self.schema),
@@ -959,14 +959,6 @@ bigquery_v2_messages.TableSchema):
           max_files_per_bundle=self.max_files_per_bundle,
           gs_location=self.gs_location,
           test_client=self.test_client)
-
-  def _get_table_fn(self):
-    if callable(self.table_reference):
-      return self.table_reference
-    elif not callable(self.table_reference) and self.schema is not None:
-      return lambda x: (self.table_reference, self.schema)
-    else:
-      return lambda x: self.table_reference
 
   def display_data(self):
     res = {}

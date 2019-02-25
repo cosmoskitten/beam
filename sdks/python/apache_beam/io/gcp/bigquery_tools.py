@@ -47,6 +47,7 @@ from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import DoFn
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -978,3 +979,22 @@ class RetryStrategy(object):
       return True
     else:
       return False
+
+
+class AppendDestinationsFn(DoFn):
+  """Adds the destination to an element, making it a KV pair.
+
+  Outputs a PCollection of KV-pairs where the key is a TableReference for the
+  destination, and the value is the record itself.
+
+  Experimental; no backwards compatibility guarantees.
+  """
+
+  def __init__(self, destination):
+    if callable(destination):
+      self.destination = destination
+    else:
+      self.destination = lambda x: destination
+
+  def process(self, element):
+    yield (self.destination(element), element)
