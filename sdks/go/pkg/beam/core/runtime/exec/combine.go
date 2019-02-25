@@ -351,7 +351,7 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	// TODO(BEAM-4468): replace with some better implementation
 	// once adding dependencies is easier.
 	// Arbitrary limit until a broader improvement can be demonstrated.
-	const cacheMax = 2000
+	const cacheMax = 5000
 	if len(n.cache) > cacheMax {
 		// Use Go's random map iteration to have a basic
 		// random eviction policy.
