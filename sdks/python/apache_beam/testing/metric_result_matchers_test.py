@@ -110,8 +110,8 @@ class MetricResultMatchersTest(unittest.TestCase):
         metric_result_matchers.has_name('myName'),
         metric_result_matchers.has_step_name('myStep'),
         metric_result_matchers.has_labels({
-          'pcollection': 'myCollection',
-          'myCustomKey': 'myCustomValue'
+            'pcollection': 'myCollection',
+            'myCustomKey': 'myCustomValue'
         }),
         metric_result_matchers.is_committed_counter(42),
         metric_result_matchers.is_attempted_counter(42)
@@ -125,8 +125,8 @@ class MetricResultMatchersTest(unittest.TestCase):
         is_not(metric_result_matchers.has_name('invalidName')),
         is_not(metric_result_matchers.has_step_name('invalidStep')),
         is_not(metric_result_matchers.has_labels({
-          'invalidPcollection': 'invalidCollection',
-          'invalidCustomKey': 'invalidCustomValue'
+            'invalidPcollection': 'invalidCollection',
+            'invalidCustomKey': 'invalidCustomValue'
         })),
         is_not(metric_result_matchers.is_committed_counter(1000)),
         is_not(metric_result_matchers.is_attempted_counter(1000))
@@ -140,8 +140,8 @@ class MetricResultMatchersTest(unittest.TestCase):
         metric_result_matchers.has_name('myName'),
         metric_result_matchers.has_step_name('myStep'),
         metric_result_matchers.has_labels({
-          'pcollection': 'myCollection',
-          'myCustomKey': 'myCustomValue'
+            'pcollection': 'myCollection',
+            'myCustomKey': 'myCustomValue'
         }),
         metric_result_matchers.is_committed_distribution(12, 5, 0, 6),
         metric_result_matchers.is_attempted_distribution(12, 5, 0, 6)
@@ -155,8 +155,8 @@ class MetricResultMatchersTest(unittest.TestCase):
         is_not(metric_result_matchers.has_name('invalidName')),
         is_not(metric_result_matchers.has_step_name('invalidStep')),
         is_not(metric_result_matchers.has_labels({
-          'invalidPcollection': 'invalidCollection',
-          'invalidCustomKey': 'invalidCustomValue'
+            'invalidPcollection': 'invalidCollection',
+            'invalidCustomKey': 'invalidCustomValue'
         })),
         is_not(metric_result_matchers.is_committed_distribution(
             120, 50, 100, 60)),
@@ -182,9 +182,9 @@ class MetricResultMatchersTest(unittest.TestCase):
         metric_result_matchers.has_step_name(
             equal_to_ignoring_case('MYSTEP')),
         metric_result_matchers.has_labels({
-          equal_to_ignoring_case('PCOLLECTION'): equal_to_ignoring_case(
-              'MYCOLLECTION'),
-          'myCustomKey': equal_to_ignoring_case('MYCUSTOMVALUE')
+            equal_to_ignoring_case('PCOLLECTION'): equal_to_ignoring_case(
+                'MYCOLLECTION'),
+            'myCustomKey': equal_to_ignoring_case('MYCUSTOMVALUE')
         }),
         metric_result_matchers.is_committed_counter(greater_than(0)),
         metric_result_matchers.is_attempted_counter(greater_than(0))
@@ -201,9 +201,9 @@ class MetricResultMatchersTest(unittest.TestCase):
         metric_result_matchers.has_step_name(
             equal_to_ignoring_case('MYSTEP')),
         metric_result_matchers.has_labels({
-          equal_to_ignoring_case('PCOLLECTION'): equal_to_ignoring_case(
-              'MYCOLLECTION'),
-          'myCustomKey': equal_to_ignoring_case('MYCUSTOMVALUE')
+            equal_to_ignoring_case('PCOLLECTION'): equal_to_ignoring_case(
+                'MYCOLLECTION'),
+            'myCustomKey': equal_to_ignoring_case('MYCUSTOMVALUE')
         }),
         metric_result_matchers.is_committed_distribution(
             greater_than(0), greater_than(0),

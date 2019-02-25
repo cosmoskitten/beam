@@ -54,7 +54,6 @@ example usage:
 from __future__ import absolute_import
 
 from apache_beam.typehints import with_input_types
-from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 
 from hamcrest import equal_to
@@ -64,7 +63,6 @@ from hamcrest.core.core.allof import all_of
 from hamcrest.core import string_description
 
 import typing
-import logging
 
 
 def _matcher_or_equal_to(value_or_matcher):
@@ -88,7 +86,7 @@ class MetricResultMatcher(BaseMatcher):
       attempted_value=typing.Tuple[int, Matcher],
       committed_value=typing.Tuple[int, DistributionResult, Matcher])
   def __init__(self, namespace=None, name=None, step=None, label_key=None,
-      label_value=None, attempted_value=None, committed_value=None):
+               label_value=None, attempted_value=None, committed_value=None):
     self.namespace = _matcher_or_equal_to(namespace)
     self.name = _matcher_or_equal_to(name)
     self.step = _matcher_or_equal_to(step)
@@ -99,7 +97,7 @@ class MetricResultMatcher(BaseMatcher):
 
   def _matches(self, metric_result):
     if self.namespace is not None and not self.namespace.matches(
-          metric_result.key.metric.namespace):
+        metric_result.key.metric.namespace):
       return False
     if self.name and not self.name.matches(metric_result.key.metric.name):
       return False
@@ -113,7 +111,7 @@ class MetricResultMatcher(BaseMatcher):
       return False
     if self.label_key:
       matched_keys = [key for key in metric_result.key.labels.keys() if
-                     self.label_key.matches(key)]
+                      self.label_key.matches(key)]
       matched_key = matched_keys[0] if matched_keys else None
       if not matched_key:
         return False
@@ -169,7 +167,7 @@ class DistributionMatcher(BaseMatcher):
     if self.sum_value and not self.sum_value.matches(distribution_result.sum):
       return False
     if self.count_value and not self.count_value.matches(
-          distribution_result.count):
+        distribution_result.count):
       return False
     if self.min_value and not self.min_value.matches(distribution_result.min):
       return False
@@ -214,7 +212,7 @@ def has_namespace(namespace):
 ])
 def has_labels(labels):
   label_matchers = []
-  for (k,v) in labels.iteritems():
+  for (k, v) in labels.items():
     label_matchers.append(MetricResultMatcher(label_key=k, label_value=v))
   return all_of(*label_matchers)
 
@@ -254,10 +252,10 @@ def verify_all(all_metrics, matchers):
   matched_metrics = []
   for matcher in matchers:
     matched_metrics = [mr for mr in all_metrics if matcher.matches(mr)]
-  if not matched_metrics:
-    errors.append('Unable to match metrics for matcher %s' % (
-        string_description.tostring(matcher)))
+    if not matched_metrics:
+      errors.append('Unable to match metrics for matcher %s' % (
+          string_description.tostring(matcher)))
   if errors:
     errors.append('\nActual MetricResults:\n' +
-        '\n'.join([str(mr) for mr in all_metrics]))
+                  '\n'.join([str(mr) for mr in all_metrics]))
   return ''.join(errors)

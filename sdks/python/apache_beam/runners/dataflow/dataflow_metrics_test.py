@@ -26,7 +26,6 @@ import unittest
 from builtins import object
 
 import mock
-import hamcrest as hc
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
@@ -36,8 +35,6 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
 from apache_beam.testing import metric_result_matchers
 from hamcrest.core.core.allof import all_of
-from hamcrest import has_item
-from hamcrest import assert_that
 
 
 

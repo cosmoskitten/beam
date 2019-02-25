@@ -23,11 +23,7 @@ service.
 
 from __future__ import absolute_import
 
-import json
-import logging
 import numbers
-import pprint
-import types
 
 from collections import defaultdict
 
@@ -39,8 +35,6 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
-from google.protobuf import json_format
-from google.protobuf import text_format
 
 
 
@@ -218,32 +212,6 @@ class DataflowMetrics(MetricResults):
     else:
       return None
 
-  def _create_simple_obj(self, obj):
-    # If its a dictionary or defined class type
-    if hasattr(obj, '__dict__') or isinstance(obj, dict):
-      items = obj.items() if isinstance(obj, dict) else obj.__dict__.items()
-      simple_dict = dict()
-      for key, value in items:
-        #print "ajamato_dbg %s : %s" % (key, value)
-        simple_dict[key] = self._create_simple_obj(value)
-      return simple_dict
-    elif isinstance(obj, (tuple, list, set, frozenset)):
-      simple_list = []
-      for x in obj:
-        simple_list.append(self._create_simple_obj(x))
-      return simple_list
-    else:
-      return obj
-
-  def _pretty_format_job_metrics(self, job_metrics):
-    job_metrics = self._create_simple_obj(obj)
-    return json.dumps(obj, indent=4, sort_keys=True)
-
-  def _pretty_format_job_metrics(self, job_metrics):
-    for metric in metrics:
-      pass
-
-
   def _get_metrics_from_dataflow(self):
     """Return cached metrics or query the dataflow service."""
     try:
@@ -260,26 +228,6 @@ class DataflowMetrics(MetricResults):
     # If the job has terminated, metrics will not change and we can cache them.
     if self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
-
-    # TODO try text_proto.
-    # TODO try whitelisting fields and running the same alg as above.
-
-    """
-    filename = "/usr/local/google/home/ajamato/ajamato_dbg_dump/get_metrics_resp_%s" % job_id
-    text_file = open(filename, "w")
-    text_file.write(str(job_metrics))
-    text_file.close()
-    logging.info('DUMPED get_metrics_resp: %s', filename)
-    logging.info('ajamato type(job_metrics): %s', type(job_metrics))
-
-
-    filename = "/usr/local/google/home/ajamato/ajamato_dbg_dump/get_metrics_resp_PPRINT_%s" % job_id
-    text_file = open(filename, "w")
-    text_file.write(text_format.MessageToString(job_metrics))
-    #text_file.write(self._pretty_format_job_metrics(job_metrics))
-    text_file.close()
-    logging.info('DUMPED get_metrics_resp: %s', filename)
-    """
     return job_metrics
 
   def all_metrics(self):
