@@ -109,6 +109,7 @@ def retry_on_server_errors_and_timeout_filter(exception):
       return True
   return retry_on_server_errors_filter(exception)
 
+
 def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
   """Retry on server, timeout and 403 errors.
 
