@@ -70,7 +70,7 @@ class StreamingWordCountIT(unittest.TestCase):
     """Inject numbers as test data to PubSub."""
     logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
     for n in range(num_messages):
-      self.pub_client.publish(self.input_topic.name, str(n))
+      self.pub_client.publish(self.input_topic.name, str(n).encode())
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(self.sub_client,
@@ -81,7 +81,7 @@ class StreamingWordCountIT(unittest.TestCase):
   @attr('IT')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
-    expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
+    expected_msg = [(b'%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
