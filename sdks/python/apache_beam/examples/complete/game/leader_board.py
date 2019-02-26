@@ -120,7 +120,7 @@ class ParseGameEventFn(beam.DoFn):
 
   def process(self, elem):
     try:
-      row = list(csv.reader([elem]))[0]
+      row = list(csv.reader([elem.decode('utf-8')]))[0]
       yield {
           'user': row[0],
           'team': row[1],
