@@ -123,6 +123,7 @@ import collections
 import itertools
 import json
 import logging
+import time
 from builtins import object
 from builtins import zip
 
@@ -145,6 +146,7 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 __all__ = [
@@ -637,6 +639,11 @@ class BigQueryWriteFn(DoFn):
 
     self._observed_tables = set()
 
+    self._backoff_calculator = iter(retry.FuzzedExponentialIntervals(
+        initial_delay_secs=0.2,
+        num_retries=10000,
+        max_delay_secs=1500))
+
   def _create_table_if_needed(self, schema, table_reference):
     str_table_reference = '%s:%s.%s' % (
         table_reference.projectId,
@@ -720,6 +727,11 @@ class BigQueryWriteFn(DoFn):
 
       if not should_retry:
         break
+      else:
+        retry_backoff = next(self._backoff_calculator)
+        logging.info('Sleeping {} seconds before retrying insertion.',
+                     retry_backoff)
+        time.sleep(retry_backoff)
 
     self._total_buffered_rows -= len(self._rows_buffer[destination])
     del self._rows_buffer[destination]
