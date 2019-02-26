@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Google BigQuery IO"
+title: "Google BigQuery I/O connector"
 section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/google-bigquery/
 ---
@@ -20,7 +20,7 @@ limitations under the License.
 
 [Built-in I/O Transforms]({{site.baseurl}}/documentation/io/built-in/)
 
-# Google BigQuery IO
+# Google BigQuery I/O connector
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
@@ -167,11 +167,15 @@ schema](#creating-a-table-schema) covers schemas in more detail.
 ## Reading from BigQuery
 
 BigQueryIO allows you to read from a BigQuery table, or read the results of
-an arbitrary SQL query string. When you apply a BigQueryIO read transform,
-Beam invokes a [BigQuery export request](https://cloud.google.com/bigquery/docs/exporting-data).
-Beam’s use of this API is subject to BigQuery's [Quota](https://cloud.google.com/bigquery/quota-policy#export)
-and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+an arbitrary SQL query string. By default, when you apply a BigQueryIO read
+transform, Beam invokes a [BigQuery export request](https://cloud.google.com/bigquery/docs/exporting-data).
+However, the Beam SDK for Java (version 2.11.0 and later) supports using the
+[BigQuery Storage API](#storage-api) when reading from a table. Using the
+BigQuery Storage API with a query string is not supported.
 
+> Beam’s use of BigQuery APIs is subject to BigQuery's
+> [Quota](https://cloud.google.com/bigquery/quota-policy#export)
+> and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 <!-- Java specific -->
 
@@ -199,7 +203,6 @@ allow you to read from a table, or read fields using a query string.
 `read(SerializableFunction<SchemaAndRecord, T>)` to parse BigQuery rows from
 Avro `GenericRecord` into your custom type, or use `readTableRows()` to parse
 them into JSON `TableRow` objects.
-
 
 <!-- Python specific -->
 
@@ -262,13 +265,43 @@ in the following example:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_bigqueryio_read_query_std_sql
 %}```
 
+### Using the BigQuery Storage API {#storage-api}
+
+The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
+allows you to directly access tables in BigQuery storage. As a result, your
+pipeline can read from BigQuery storage faster than previously possible.
+The Beam SDK for Java (version 2.11.0 and later) supports using the
+[BigQuery Storage API](#storage-api) when reading from a table. Using the
+BigQuery Storage API with a query string is not supported.
+
+***Note:*** The SDK for Python does not support the BigQuery Storage API.
+
+The BigQuery Storage API is distinct from the existing BigQuery API. You must
+[enable the BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api)
+for your Google Cloud Platform project. Then, add
+`.withMethod(Method.DIRECT_READ)` to your pipeline code when you read from a
+BigQuery table. The following example uses `read(SerializableFunction)` and the
+BigQuery Storage API.
+
+```java
+PCollection<KV<String, Long>> output =
+    p.apply(BigQueryIO.read(new ParseKeyValue())
+                      .from(tableSpec)
+                      .withMethod(Method.DIRECT_READ);
+```
+```py
+# The SDK for Python does not support the BigQuery Storage API.
+```
+
 
 ## Writing to BigQuery
 
 BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
-for Java, you can also write different rows to different tables. BigQueryIO
-write transforms use APIs that are subject to BigQuery's [Quota](https://cloud.google.com/bigquery/quota-policy#export)
-and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+for Java, you can also write different rows to different tables.
+
+> BigQueryIO write transforms use APIs that are subject to BigQuery's
+> [Quota](https://cloud.google.com/bigquery/quota-policy#export) and
+> [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 When you apply a write transform, you must provide the following information
 for the destination table(s):
