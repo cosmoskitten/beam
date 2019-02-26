@@ -762,7 +762,7 @@ class FnApiRunnerTest(unittest.TestCase):
         found = 0
         for m in monitoring_infos:
           if len(filter(lambda x: x[0] in m.labels and m.labels[x[0]] == x[1],
-                        labels.iteritems())) == len(labels) and m.urn == urn:
+                        labels.items())) == len(labels) and m.urn == urn:
             if (ge_value is not None and
                 m.metric.counter_data.int64_value >= ge_value):
               found = found + 1

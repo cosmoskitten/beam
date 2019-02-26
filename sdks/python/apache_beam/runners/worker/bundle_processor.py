@@ -658,7 +658,7 @@ class BundleProcessor(object):
         if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
           return
         ptransform_label = monitoring_info.labels[
-          monitoring_infos.PTRANSFORM_LABEL]
+            monitoring_infos.PTRANSFORM_LABEL]
         if not monitoring_infos.TAG_LABEL in monitoring_info.labels:
           return
         tag_label = monitoring_info.labels[monitoring_infos.TAG_LABEL]
@@ -666,13 +666,13 @@ class BundleProcessor(object):
         if not ptransform_label in self.process_bundle_descriptor.transforms:
           return
         if not tag_label in self.process_bundle_descriptor.transforms[
-          ptransform_label].outputs:
+            ptransform_label].outputs:
           return
 
         pcollection_name = \
           self.process_bundle_descriptor.transforms[
-            ptransform_label].outputs[
-            tag_label]
+              ptransform_label].outputs[
+              tag_label]
         monitoring_info.labels['PCOLLECTION'] = pcollection_name
 
     for mi in infosList:
