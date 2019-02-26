@@ -546,7 +546,6 @@ class FnApiRunnerTest(unittest.TestCase):
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
     pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(len(x)))
 
-
     res = p.run()
     res.wait_until_finish()
     c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
@@ -563,7 +562,6 @@ class FnApiRunnerTest(unittest.TestCase):
         dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
     self.assertEqual(dist.committed.mean, 2.0)
     self.assertEqual(gaug.committed.value, 3)
-
 
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
@@ -584,7 +582,6 @@ class FnApiRunnerTest(unittest.TestCase):
       # This test is inherited by others that may not support the same
       # internal way of accessing progress metrics.
       self.skipTest('Metrics not supported.')
-
 
     pcoll = p | beam.Create(['a1', 'a2'])
 
@@ -642,7 +639,6 @@ class FnApiRunnerTest(unittest.TestCase):
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_4',
                                4))
-
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
@@ -765,15 +761,15 @@ class FnApiRunnerTest(unittest.TestCase):
           monitoring_infos, urn, labels, value=None, ge_value=None):
         # TODO(ajamato): Consider adding a matcher framework
         found = 0
-        for m in monitoring_infos:
-          if len(list(
-              filter(lambda x: x[0] in m.labels and m.labels[x[0]] == x[1],
-                     labels.items()))) == len(labels) and m.urn == urn:
+        for mi in monitoring_infos:
+          if len([x for x in labels.items() if
+                  x[0] in m.labels and m.labels[x[0]] == x[1]]) == len(
+                      labels) and mi.urn == urn:
             if (ge_value is not None and
-                m.metric.counter_data.int64_value >= ge_value):
+                mi.metric.counter_data.int64_value >= ge_value):
               found = found + 1
             elif (value is not None and
-                  m.metric.counter_data.int64_value == value):
+                  mi.metric.counter_data.int64_value == value):
               found = found + 1
         ge_value_str = {'ge_value' : ge_value} if ge_value else ''
         value_str = {'value' : value} if value else ''
