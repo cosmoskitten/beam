@@ -1423,7 +1423,6 @@ class FnApiMetrics(metrics.metric.MetricResults):
     return flatten(self._monitoring_infos.values())
 
 
-
 class RunnerResult(runner.PipelineResult):
   def __init__(self, state, monitoring_infos_by_stage, metrics_by_stage):
     super(RunnerResult, self).__init__(state)
