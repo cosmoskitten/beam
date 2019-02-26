@@ -33,6 +33,7 @@ import hashlib
 import itertools
 import logging
 import random
+import sys
 import time
 import uuid
 
@@ -63,7 +64,9 @@ _MAXIMUM_SOURCE_URIS = 10*1000
 def _generate_load_job_name():
   datetime_component = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
   # TODO(pabloem): include job id / pipeline component?
-  return 'beam_load_%s_%s' % (datetime_component, random.randint(0, 100))
+  return 'beam_load_%s_py%s_%s' % (datetime_component,
+                                   sys.version_info[0],
+                                   random.randint(0, 100))
 
 
 def _generate_file_prefix(pipeline_gcs_location):

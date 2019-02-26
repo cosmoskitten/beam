@@ -21,6 +21,7 @@
 from __future__ import absolute_import
 
 import logging
+import sys
 import time
 
 from apache_beam.utils import retry
@@ -55,7 +56,9 @@ def create_bq_dataset(project, dataset_base_name):
     new dataset.
   """
   client = bigquery.Client(project=project)
-  unique_dataset_name = dataset_base_name + str(int(time.time()))
+  unique_dataset_name = '%s_py%s_%s' % (dataset_base_name,
+                                          sys.version_info[0],
+                                          int(time.time()))
   dataset_ref = client.dataset(unique_dataset_name, project=project)
   dataset = bigquery.Dataset(dataset_ref)
   client.create_dataset(dataset)
