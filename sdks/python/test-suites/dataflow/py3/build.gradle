@@ -34,8 +34,30 @@ def basicTestOpts = [
 task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
   doLast {
     def tests = [
-        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
+        "apache_beam.examples.complete.autocomplete_test:AutocompleteTest.test_autocomplete_it",
+        "apache_beam.examples.complete.game.leader_board_it_test:LeaderBoardIT.test_leader_board_it",
+        "apache_beam.examples.complete.game.game_stats_it_test:GameStatsIT.test_game_stats_it",
+        "apache_beam.examples.streaming_wordcount_it_test:StreamingWordCountIT.test_streaming_wordcount_it",
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
+        "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_fnapi_it",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_kms",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_rewrite_token",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_kms",
+        "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_rewrite_token",
+        "apache_beam.examples.complete.game.user_score_it_test:UserScoreIT.test_user_score_it",
+        "apache_beam.examples.complete.game.hourly_team_score_it_test:HourlyTeamScoreIT.test_hourly_team_score_it",
+        "apache_beam.io.gcp.bigquery_io_read_it_test:BigqueryIOReadIT.test_bigquery_read_1M_python",
+        "apache_beam.io.parquetio_it_test:TestParquetIT.test_parquetio_it",
+        "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_multiple_destinations_transform",
+        "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_one_job_fails_all_jobs_fail",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_data_only",
+        "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_with_attributes",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_legacy_sql",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_new_types",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_standard_sql",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([
@@ -43,6 +65,7 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
     ])
     exec {
+      environment 'PYTHONHASHSEED', '0'
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
