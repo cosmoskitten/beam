@@ -105,6 +105,23 @@ test.dependsOn testPy3Cython
 // project.
 testPy3Cython.mustRunAfter testPython3, testPy3Gcp
 
+// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
+//  nose-based test tasks.
+toxTask "testPy2GcpPytest", "py27-gcp-pytest"
+toxTask "testPy3GcpPytest", "py3-gcp-pytest"
+toxTask "testPython2Pytest", "py27-pytest"
+toxTask "testPython3Pytest", "py3-pytest"
+toxTask "testPy2CythonPytest", "py27-cython-pytest"
+toxTask "testPy3CythonPytest", "py3-cython-pytest"
+task pytest() {
+  dependsOn "testPy2GcpPytest"
+  dependsOn "testPy3GcpPytest"
+  dependsOn "testPython2Pytest"
+  dependsOn "testPython3Pytest"
+  dependsOn "testPy2CythonPytest"
+  dependsOn "testPy3CythonPytest"
+}
+
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
