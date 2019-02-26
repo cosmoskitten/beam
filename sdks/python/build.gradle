@@ -63,6 +63,17 @@ test.dependsOn testPy2Cython
 // project.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
+// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
+//  nose-based test tasks.
+toxTask "testPy2GcpPytest", "py27-gcp-pytest"
+toxTask "testPython2Pytest", "py27-pytest"
+toxTask "testPy2CythonPytest", "py27-cython-pytest"
+task pytest() {
+  dependsOn "testPy2GcpPytest"
+  dependsOn "testPython2Pytest"
+  dependsOn "testPy2CythonPytest"
+}
+
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
@@ -92,6 +103,10 @@ def basicTestOpts = [
         "--nocapture",  // print stdout instantly
         "--processes=8",  // run tests in parallel
         "--process-timeout=4500", // timeout of whole command execution
+]
+def basicPytestOpts = [
+        "--color=yes",
+        "--log-cli-level=info",
 ]
 
 task directRunnerIT(dependsOn: 'installGcpTest') {
@@ -226,6 +241,20 @@ task postCommitIT(dependsOn: ['installGcpTest', 'sdist']) {
   doLast {
     def testOpts = basicTestOpts + ["--attr=IT"]
     def cmdArgs = project.mapToArgString(["test_opts": testOpts])
+    exec {
+      executable 'sh'
+      args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+// TODO(BEAM-3713): Temporary pytest task that should eventually replace the
+//   equivalent nose-based task.
+// Run PostCommit integration tests on default runner (TestDataflowRunner)
+task postCommitITPytest(dependsOn: ['installGcpTest', 'sdist']) {
+  doLast {
+    def pytestOpts = basicPytestOpts + ["-m 'postcommit and not no_dataflow'"]
+    def cmdArgs = project.mapToArgString(["pytest_opts": pytestOpts, "pytest": true, "pytest_desc": "postcommit_dataflow"])
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_integration_test.sh $cmdArgs"

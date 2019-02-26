@@ -78,6 +78,10 @@ KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cry
 # provided.
 TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
+PYTEST=false
+PYTEST_OPTS="--log-cli-level=info --color=yes -k test_wordcount_it"
+PYTEST_DESC="default"
+
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -139,6 +143,21 @@ case $key in
         ;;
     --test_opts)
         TEST_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --pytest)
+        PYTEST="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --pytest_desc)
+        PYTEST_DESC="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --pytest_opts)
+        PYTEST_OPTS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -223,7 +242,18 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
-echo ">>>   test options: $TEST_OPTS"
-python setup.py nosetests \
-  --test-pipeline-options="$PIPELINE_OPTS" \
-  $TEST_OPTS
+
+if [[ "$PYTEST" = true ]]; then
+    echo ">>>   pytest options: $PYTEST_OPTS"
+    suite_name="it-$PYTEST_DESC"
+    python setup.py pytest --addopts=" \
+        -o junit_suite_name=$suite_name \
+        --junitxml=$suite_name-pytest.xml \
+        $PYTEST_OPTS \
+        --test-pipeline-options='$PIPELINE_OPTS'"
+else
+    echo ">>>   test options: $TEST_OPTS"
+    python setup.py nosetests \
+      --test-pipeline-options="$PIPELINE_OPTS" \
+      $TEST_OPTS
+fi
