@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import unittest
 
 from nose.plugins.attrib import attr
@@ -60,7 +61,9 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      checksum = result | beam.Map(hash) | beam.CombineGlobally(sum)
+      checksum = (result | beam.Map(lambda k_vs:
+                                    hashlib.md5(k_vs).hexdigest())
+                         | beam.CombineGlobally(sum))
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 
