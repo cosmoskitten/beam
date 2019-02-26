@@ -670,8 +670,7 @@ class BundleProcessor(object):
           return
 
         pcollection_name = \
-          self.process_bundle_descriptor.transforms[
-              ptransform_label].outputs[
+          self.process_bundle_descriptor.transforms[ptransform_label].outputs[
               tag_label]
         monitoring_info.labels['PCOLLECTION'] = pcollection_name
 
