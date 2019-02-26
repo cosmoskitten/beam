@@ -23,6 +23,7 @@ import io.gearpump.cluster.client.ClientContext;
 import io.gearpump.cluster.client.RunningApplication;
 import java.io.IOException;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -63,17 +64,21 @@ public class GearpumpPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) {
-    return waitUntilFinish();
+  public State waitUntilFinish(@Nullable Duration duration) {
+    if (!finished) {
+      if (duration != null) {
+        app.waitUntilFinish(java.time.Duration.ofMillis(duration.getMillis()));
+      } else {
+        app.waitUntilFinish();
+      }
+      finished = true;
+    }
+    return State.DONE;
   }
 
   @Override
   public State waitUntilFinish() {
-    if (!finished) {
-      app.waitUntilFinish();
-      finished = true;
-    }
-    return State.DONE;
+    return waitUntilFinish(null); 
   }
 
   @Override
