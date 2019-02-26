@@ -134,6 +134,7 @@ REQUIRED_TEST_PACKAGES = [
     'parameterized>=0.6.0,<0.7.0',
     'pyhamcrest>=1.9,<2.0',
     'tenacity>=5.0.2,<6.0',
+    'pytest>=4.3.0,<5.0',
     ]
 
 GCP_REQUIREMENTS = [
@@ -201,6 +202,7 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
+    setup_requires=['pytest_runner'],
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
