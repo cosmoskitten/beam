@@ -949,9 +949,11 @@ bigquery_v2_messages.TableSchema):
           kms_key=self.kms_key,
           test_client=self.test_client)
 
+      # TODO: Use utility functions from BQTools
+      table_fn = self._get_table_fn()
+
       outputs = (pcoll
-                 | 'AppendDestination' >> beam.ParDo(
-                     bigquery_tools.AppendDestinationsFn(self.table_reference))
+                 | 'AppendDestination' >> beam.Map(lambda x: (table_fn(x), x))
                  | 'StreamInsertRows' >> ParDo(bigquery_write_fn).with_outputs(
                      BigQueryWriteFn.FAILED_ROWS, main='main'))
 
@@ -971,6 +973,14 @@ bigquery_v2_messages.TableSchema):
           max_files_per_bundle=self.max_files_per_bundle,
           gs_location=self.gs_location,
           test_client=self.test_client)
+
+  def _get_table_fn(self):
+    if callable(self.table_reference):
+      return self.table_reference
+    elif not callable(self.table_reference) and self.schema is not None:
+      return lambda x: (self.table_reference, self.schema)
+    else:
+      return lambda x: self.table_reference
 
   def display_data(self):
     res = {}
