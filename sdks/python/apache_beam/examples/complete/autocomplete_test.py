@@ -30,6 +30,11 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
+def print_ln(element):
+    print(element)
+    return element
+
+
 class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
@@ -60,7 +65,8 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      checksum = result | beam.Map(hash) | beam.CombineGlobally(sum)
+      checksum = (result | beam.Map(print_ln)
+                         | beam.Map(hash) | beam.CombineGlobally(sum))
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 
