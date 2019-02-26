@@ -28,6 +28,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,7 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A service that allows pipeline expand transforms from a remote SDK. */
-public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase {
+public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
+    implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExpansionService.class);
 
@@ -193,6 +195,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       responseObserver.onError(exn);
       throw exn;
     }
+  }
+
+  @Override
+  public void close() throws Exception {
+    // Nothing to do because the expansion service is stateless.
   }
 
   public static void main(String[] args) throws Exception {
