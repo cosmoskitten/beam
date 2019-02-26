@@ -617,6 +617,11 @@ class FnApiRunnerTest(unittest.TestCase):
 
     counters = result_metrics.monitoring_infos()
 
+    import pprint
+    print(">>>>>>>>>>>>>>>>>> Dumping counters")
+    pprint.pprint(counters)
+    print(">>>>>>>>>>>>>>>>>> Done. Dumping counters")
+
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'Impulse',
