@@ -325,13 +325,17 @@ class _TimerDoFnParam(_DoFnParam):
     self.timer_spec = timer_spec
     self.param_id = 'TimerParam(%s)' % timer_spec.name
 
+
 class _BundleFinalizerParam(_DoFnParam):
+  """Bundle Finalization DoFn parameter."""
 
   def __init__(self, callback):
     self.callback = callback
     self.param_id = "FinalizeBundle"
+
   def finalize_bundle(self):
     self.callback()
+
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
