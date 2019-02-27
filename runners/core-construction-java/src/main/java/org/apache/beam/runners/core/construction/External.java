@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -69,9 +70,9 @@ public class External {
     private final Endpoints.ApiServiceDescriptor endpoint;
     private final String namespace;
 
-    private RunnerApi.Components expandedComponents;
-    private RunnerApi.PTransform expandedTransform;
-    private Map<PCollection, String> externalPCollectionIdMap;
+    @Nullable private transient RunnerApi.Components expandedComponents;
+    @Nullable private transient RunnerApi.PTransform expandedTransform;
+    @Nullable private transient Map<PCollection, String> externalPCollectionIdMap;
 
     ExpandableTransform(String urn, byte[] payload, Endpoints.ApiServiceDescriptor endpoint) {
       this.urn = urn;
