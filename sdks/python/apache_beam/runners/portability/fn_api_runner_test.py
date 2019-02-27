@@ -48,7 +48,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
-
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
 else:
@@ -612,6 +611,11 @@ class FnApiRunnerTest(unittest.TestCase):
       return False
 
     counters = result_metrics.monitoring_infos()
+
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>Dumping counters")
+    import pprint
+    pprint.pprint(counters)
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>Done. Dumping counters")
 
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
