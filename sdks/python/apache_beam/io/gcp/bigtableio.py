@@ -257,6 +257,7 @@ class _BigTableSource(iobase.BoundedSource):
 
       for sample_row_key in self.get_sample_row_keys():
         current_size = sample_row_key.offset_bytes - last_offset
+        addition_size += current_size
         if addition_size >= desired_bundle_size:
           end_key = sample_row_key.row_key
           for fraction in self.range_split_fraction(addition_size,
@@ -265,7 +266,6 @@ class _BigTableSource(iobase.BoundedSource):
             yield fraction
           start_key = sample_row_key.row_key
           addition_size = 0
-        addition_size += current_size
         last_offset = sample_row_key.offset_bytes
 
       full_size = [i.offset_bytes for i in self.get_sample_row_keys()][-1]
