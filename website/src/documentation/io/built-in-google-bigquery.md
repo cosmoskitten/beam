@@ -270,24 +270,42 @@ in the following example:
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
 allows you to directly access tables in BigQuery storage. As a result, your
 pipeline can read from BigQuery storage faster than previously possible.
-The Beam SDK for Java (version 2.11.0 and later) supports using the
-[BigQuery Storage API](#storage-api) when reading from a table. Using the
-BigQuery Storage API with a query string is not supported.
+The Beam SDK for Java (version 2.11.0 and later) supports the BigQuery Storage
+API when reading from a table. Using the BigQuery Storage API with a query
+string is not supported.
 
 ***Note:*** The SDK for Python does not support the BigQuery Storage API.
 
 The BigQuery Storage API is distinct from the existing BigQuery API. You must
 [enable the BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api)
-for your Google Cloud Platform project. Then, add
-`.withMethod(Method.DIRECT_READ)` to your pipeline code when you read from a
-BigQuery table. The following example uses `read(SerializableFunction)` and the
-BigQuery Storage API.
+for your Google Cloud Platform project.
+
+Then, use the following methods when you read from a table:
+
+* Required: Specify `withMethod(Method.DIRECT_READ)` to use the BigQuery Storage API for
+  the read operation.
+* Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/),
+  you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
+  proto using the `withReadOptions` method.
+
+The following code snippet reads from a BigQuery table, and specifies
+`TableReadOptions` for column projection and column filtering.
 
 ```java
+// Specify the columns to project and set a predicate filter that restricts
+// which rows are transmitted.
+TableReadOptions readOptions =
+    TableReadOptions.newBuilder()
+        .addSelectedFields("name")
+        .addSelectedFields("number")
+        .setRowRestriction("number > 5")
+        .build();
+
 PCollection<KV<String, Long>> output =
     p.apply(BigQueryIO.read(new ParseKeyValue())
                       .from(tableSpec)
-                      .withMethod(Method.DIRECT_READ);
+                      .withMethod(Method.DIRECT_READ)
+                      .withReadOptions(readOptions);
 ```
 ```py
 # The SDK for Python does not support the BigQuery Storage API.
