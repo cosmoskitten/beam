@@ -672,7 +672,8 @@ class BundleProcessor(object):
         pcollection_name = \
           self.process_bundle_descriptor.transforms[ptransform_label].outputs[
               tag_label]
-        monitoring_info.labels['PCOLLECTION'] = pcollection_name
+        monitoring_info.labels[
+            monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
 
     for mi in infosList:
       inject_pcollection_into_element_count(mi)
