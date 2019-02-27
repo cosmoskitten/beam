@@ -70,6 +70,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.windowedValue(),
           new AvroCoderCloudObjectTranslator(),
           new SerializableCoderCloudObjectTranslator(),
+          new SchemaCoderCloudObjectTranslator(),
           CloudObjectTranslators.iterableLike(CollectionCoder.class),
           CloudObjectTranslators.iterableLike(ListCoder.class),
           CloudObjectTranslators.iterableLike(SetCoder.class),
