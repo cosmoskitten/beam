@@ -35,8 +35,9 @@ class PrecommitJobBuilder {
   /** Overall job timeout. */
   int timeoutMins = 120
 
-  /** If defined, set of path expressions used to trigger the job on commit. */
-  List<String> triggerPathPatterns = []
+  /** If defined, set of path expressions used to trigger the job on commit.
+   * Also if defined, a set of default path triggers will be added to this list. */
+  List<String> triggerPathPatterns = null
 
   /**
    * Define a set of pre-commit jobs.
