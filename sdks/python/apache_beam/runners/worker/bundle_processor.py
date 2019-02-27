@@ -651,9 +651,15 @@ class BundleProcessor(object):
         fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
         all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
 
-    infosList = list(all_monitoring_infos_dict.values())
+    infos_list = list(all_monitoring_infos_dict.values())
 
     def inject_pcollection_into_element_count(monitoring_info):
+      """
+      If provided metric is element count metric:
+      Finds relevant transform output info in current process_bundle_descriptor
+      and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
+      info.
+      """
       if monitoring_info.urn == monitoring_infos.ELEMENT_COUNT_URN:
         if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
           return
@@ -669,16 +675,15 @@ class BundleProcessor(object):
             ptransform_label].outputs:
           return
 
-        pcollection_name = \
-          self.process_bundle_descriptor.transforms[ptransform_label].outputs[
-              tag_label]
+        pcollection_name = (self.process_bundle_descriptor
+                            .transforms[ptransform_label].outputs[tag_label])
         monitoring_info.labels[
             monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
 
-    for mi in infosList:
+    for mi in infos_list:
       inject_pcollection_into_element_count(mi)
 
-    return infosList
+    return infos_list
 
   def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
     actual_output_tags = list(
