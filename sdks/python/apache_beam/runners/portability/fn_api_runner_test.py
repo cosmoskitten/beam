@@ -567,6 +567,7 @@ class FnApiRunnerTest(unittest.TestCase):
       def process(self, element):
         yield str(element) + '1'
         yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
         yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
 
     class PrintElements(beam.DoFn):
@@ -610,6 +611,11 @@ class FnApiRunnerTest(unittest.TestCase):
       return False
 
     counters = result_metrics.monitoring_infos()
+    self.assertEqual(len([x for x in counters if
+                          x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                          and
+                          monitoring_infos.PCOLLECTION_LABEL not in x.labels]),
+                     0)
 
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
@@ -619,26 +625,18 @@ class FnApiRunnerTest(unittest.TestCase):
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_1',
                                2))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_2',
-                               2))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_3',
-                               2))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_4',
-                               2))
+
+    # Skipping other pcollections due to non-deterministic naming for multiple
+    # outputs.
+
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_5',
-                               6))
+                               8))
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_6',
-                               6))
+                               8))
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_7',
