@@ -567,8 +567,7 @@ class FnApiRunnerTest(unittest.TestCase):
       def process(self, element):
         yield str(element) + '1'
         yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
-        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2.2')
-        yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3.1')
+        yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3')
 
     class PrintElements(beam.DoFn):
       def process(self, element):
@@ -612,11 +611,6 @@ class FnApiRunnerTest(unittest.TestCase):
 
     counters = result_metrics.monitoring_infos()
 
-    print(">>>>>>>>>>>>>>>>>>>>>>>>>Dumping counters")
-    import pprint
-    pprint.pprint(counters)
-    print(">>>>>>>>>>>>>>>>>>>>>>>>>Done. Dumping counters")
-
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'Impulse',
@@ -636,7 +630,19 @@ class FnApiRunnerTest(unittest.TestCase):
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                                'ref_PCollection_PCollection_4',
-                               4))
+                               2))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_5',
+                               6))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_6',
+                               6))
+    self.assertTrue(
+        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                               'ref_PCollection_PCollection_7',
+                               2))
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
