@@ -590,12 +590,12 @@ class FnApiRunnerTest(unittest.TestCase):
                                            main='FirstAndMainOutput'))
 
     # Actually feed pcollection to pardo
-    secondOutput, thirdOutput, firstOutput = (pcoll | pardo)
+    second_outpu, third_output, first_output = (pcoll | pardo)
 
     # consume some of elements
-    merged = ((firstOutput, secondOutput, thirdOutput) | beam.Flatten())
+    merged = ((first_output, second_outpu, third_output) | beam.Flatten())
     merged | ('PrintingStep') >> beam.ParDo(PrintElements())
-    secondOutput | ('PrintingStep2') >> beam.ParDo(PrintElements())
+    second_outpu | ('PrintingStep2') >> beam.ParDo(PrintElements())
 
     res = p.run()
     res.wait_until_finish()
@@ -607,8 +607,8 @@ class FnApiRunnerTest(unittest.TestCase):
         if item.urn == urn:
           if item.labels['PCOLLECTION'] == pcollection:
             self.assertEquals(item.metric.counter_data.int64_value, value)
-            return True
-      return False
+            return
+      self.assertFail("Metric not found")
 
     counters = result_metrics.monitoring_infos()
     self.assertEqual(len([x for x in counters if
@@ -617,30 +617,20 @@ class FnApiRunnerTest(unittest.TestCase):
                           monitoring_infos.PCOLLECTION_LABEL not in x.labels]),
                      0)
 
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'Impulse',
-                               1))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_1',
-                               2))
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'Impulse', 1)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_1', 2)
 
     # Skipping other pcollections due to non-deterministic naming for multiple
     # outputs.
 
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_5',
-                               8))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_6',
-                               8))
-    self.assertTrue(
-        assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                               'ref_PCollection_PCollection_7',
-                               2))
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_5', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_6', 8)
+    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
+                           'ref_PCollection_PCollection_7', 2)
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
@@ -761,12 +751,15 @@ class FnApiRunnerTest(unittest.TestCase):
 
       def assert_has_monitoring_info(
           monitoring_infos, urn, labels, value=None, ge_value=None):
+        def contains_labels(monitoring_info, labels):
+          return len([x for x in labels.items() if
+                      x[0] in monitoring_info.labels and monitoring_info.labels[
+                          x[0]] == x[1]]) == len(labels)
+
         # TODO(ajamato): Consider adding a matcher framework
         found = 0
         for mi in monitoring_infos:
-          if len([x for x in labels.items() if
-                  x[0] in m.labels and m.labels[x[0]] == x[1]]) == len(
-                      labels) and mi.urn == urn:
+          if contains_labels(mi, labels) and mi.urn == urn:
             if (ge_value is not None and
                 mi.metric.counter_data.int64_value >= ge_value):
               found = found + 1

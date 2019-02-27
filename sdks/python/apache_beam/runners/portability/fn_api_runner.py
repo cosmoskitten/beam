@@ -1417,10 +1417,8 @@ class FnApiMetrics(metrics.metric.MetricResults):
             self.GAUGES: gauges}
 
   def monitoring_infos(self):
-    def flatten(src):
-      return [item for sublist in src for item in sublist]
-
-    return flatten(self._monitoring_infos.values())
+    return [item for sublist in self._monitoring_infos.values() for item in
+            sublist]
 
 
 class RunnerResult(runner.PipelineResult):
