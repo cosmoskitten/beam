@@ -606,9 +606,10 @@ class FnApiRunnerTest(unittest.TestCase):
       for item in src:
         if item.urn == urn:
           if item.labels['PCOLLECTION'] == pcollection:
-            self.assertEquals(item.metric.counter_data.int64_value, value)
+            self.assertEqual(item.metric.counter_data.int64_value, value,
+                             str(("Metric has incorrect value", value, item)))
             return
-      self.assertFail("Metric not found")
+      self.assertTrue(False, str(("Metric not found", urn, pcollection, src)))
 
     counters = result_metrics.monitoring_infos()
     self.assertEqual(len([x for x in counters if
