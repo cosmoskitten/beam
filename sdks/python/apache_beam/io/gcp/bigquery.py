@@ -729,7 +729,7 @@ class BigQueryWriteFn(DoFn):
         break
       else:
         retry_backoff = next(self._backoff_calculator)
-        logging.info('Sleeping {} seconds before retrying insertion.',
+        logging.info('Sleeping %s seconds before retrying insertion.',
                      retry_backoff)
         time.sleep(retry_backoff)
 
