@@ -166,15 +166,17 @@ schema](#creating-a-table-schema) covers schemas in more detail.
 
 ## Reading from BigQuery
 
-BigQueryIO allows you to read from a BigQuery table, or read the results of
-an arbitrary SQL query string. By default, when you apply a BigQueryIO read
-transform, Beam invokes a [BigQuery export request](https://cloud.google.com/bigquery/docs/exporting-data).
-However, the Beam SDK for Java (version 2.11.0 and later) supports using the
-[BigQuery Storage API](#storage-api) when reading from a table. Using the
-BigQuery Storage API with a query string is not supported.
+BigQueryIO allows you to read from a BigQuery table, or read the results of an
+arbitrary SQL query string. By default, Beam invokes a [BigQuery export
+request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
+BigQueryIO read transform. However, the Beam SDK for Java (version 2.11.0 and
+later) adds support for the beta release of the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
+as an [experimental feature](https://beam.apache.org/releases/javadoc/2.10.0/index.html?org/apache/beam/sdk/annotations/Experimental.html).
+See [Using the BigQuery Storage API](#storage-api) for more information and a
+list of limitations.
 
 > Beam’s use of BigQuery APIs is subject to BigQuery's
-> [Quota](https://cloud.google.com/bigquery/quota-policy#export)
+> [Quota](https://cloud.google.com/bigquery/quota-policy)
 > and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 <!-- Java specific -->
@@ -270,17 +272,29 @@ in the following example:
 The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
 allows you to directly access tables in BigQuery storage. As a result, your
 pipeline can read from BigQuery storage faster than previously possible.
-The Beam SDK for Java (version 2.11.0 and later) supports the BigQuery Storage
-API when reading from a table. Using the BigQuery Storage API with a query
-string is not supported.
 
-***Note:*** The SDK for Python does not support the BigQuery Storage API.
+The Beam SDK for Java (version 2.11.0 and later) adds support for the beta
+release of the BigQuery Storage API as an [experimental feature](https://beam.apache.org/releases/javadoc/2.10.0/index.html?org/apache/beam/sdk/annotations/Experimental.html).
+Beam's support for the BigQuery Storage API has the following limitations:
+
+* The SDK for Python does not support the BigQuery Storage API.
+* You must read from a table. Reading with a query string is not currently
+  supported.
+* Dynamic work re-balancing is not currently supported. As a result, reads might
+  be less efficient in the presence of stragglers.
+
+Because this is currently a Beam experimental feature, export based reads are
+recommended for production jobs.
+
+#### Enabling the API
 
 The BigQuery Storage API is distinct from the existing BigQuery API. You must
 [enable the BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api)
 for your Google Cloud Platform project.
 
-Then, use the following methods when you read from a table:
+#### Updating your code
+
+Use the following methods when you read from a table:
 
 * Required: Specify `withMethod(Method.DIRECT_READ)` to use the BigQuery Storage API for
   the read operation.
@@ -288,24 +302,25 @@ Then, use the following methods when you read from a table:
   you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
   proto using the `withReadOptions` method.
 
-The following code snippet reads from a BigQuery table, and specifies
-`TableReadOptions` for column projection and column filtering.
+The following code snippet is from the [BigQueryTornadoes
+example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
+When the example's read method option is set to `DIRECT_READ`, the pipeline uses
+the BigQuery Storage API and column projection to read public samples of weather
+data from a BigQuery table. You can view the [full source code on
+GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 
 ```java
-// Specify the columns to project and set a predicate filter that restricts
-// which rows are transmitted.
-TableReadOptions readOptions =
-    TableReadOptions.newBuilder()
-        .addSelectedFields("name")
-        .addSelectedFields("number")
-        .setRowRestriction("number > 5")
-        .build();
+   TableReadOptions tableReadOptions =
+       TableReadOptions.newBuilder()
+           .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
+           .build();
 
-PCollection<KV<String, Long>> output =
-    p.apply(BigQueryIO.read(new ParseKeyValue())
-                      .from(tableSpec)
-                      .withMethod(Method.DIRECT_READ)
-                      .withReadOptions(readOptions);
+   rowsFromBigQuery =
+       p.apply(
+            BigQueryIO.readTableRows()
+               .from(options.getInput())
+               .withMethod(Method.DIRECT_READ)
+               .withReadOptions(tableReadOptions));
 ```
 ```py
 # The SDK for Python does not support the BigQuery Storage API.
@@ -318,7 +333,7 @@ BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
 for Java, you can also write different rows to different tables.
 
 > BigQueryIO write transforms use APIs that are subject to BigQuery's
-> [Quota](https://cloud.google.com/bigquery/quota-policy#export) and
+> [Quota](https://cloud.google.com/bigquery/quota-policy) and
 > [Pricing](https://cloud.google.com/bigquery/pricing) policies.
 
 When you apply a write transform, you must provide the following information
