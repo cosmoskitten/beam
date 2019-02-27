@@ -840,7 +840,7 @@ bigquery_v2_messages.TableSchema`
         create_disposition)
     self.write_disposition = BigQueryDisposition.validate_write(
         write_disposition)
-    self.schema = schema
+    self.schema = WriteToBigQuery.get_dict_table_schema(schema)
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
@@ -978,7 +978,7 @@ bigquery_v2_messages.TableSchema):
     if callable(self.table_reference):
       return self.table_reference
     elif not callable(self.table_reference) and self.schema is not None:
-      schema = self.table_schema_to_dict(self.schema)
+      schema = BigQueryWriteFn.get_table_schema(self.schema)
       return lambda x: (self.table_reference, schema)
     else:
       return lambda x: self.table_reference
