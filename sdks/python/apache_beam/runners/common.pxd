@@ -47,9 +47,11 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
+  cdef public MethodWrapper finalize_method
   cdef public object do_fn
   cdef public object timer_methods
   cdef bint _is_stateful_dofn
+  cdef object _bundle_finalizer
 
 
 cdef class DoFnInvoker(object):

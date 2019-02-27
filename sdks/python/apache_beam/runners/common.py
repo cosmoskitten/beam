@@ -239,12 +239,10 @@ class DoFnSignature(object):
         method = timer_spec._attached_callback
         self.timer_methods[timer_spec] = MethodWrapper(do_fn, method.__name__)
 
-    bundle_finalizer = self.get_bundle_finalizer()
-    if bundle_finalizer is None:
-      self._requests_finalization = False
-    else:
-      self._requests_finalization = True
-      self.finalize_method = MethodWrapper(bundle_finalizer, 'finalize_bundle')
+    self._bundle_finalizer = self.get_bundle_finalizer()
+    if self._bundle_finalizer:
+      self.finalize_method = MethodWrapper(
+          self._bundle_finalizer, 'finalize_bundle')
 
   def get_bundle_finalizer(self):
     result = _find_param_with_default(self.process_method,
@@ -292,7 +290,7 @@ class DoFnSignature(object):
     return self._is_stateful_dofn
 
   def is_request_finalization(self):
-    return self._requests_finalization
+    return self._bundle_finalizer is not None
 
   def has_timers(self):
     _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
