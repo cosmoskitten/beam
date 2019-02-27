@@ -453,9 +453,9 @@ project.task('crossLanguagePythonJava') {
   dependsOn 'setupVirtualenv'
   dependsOn ':beam-sdks-java-container:docker'
   dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
-  def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
 
   doLast {
+    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
     exec {
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${testServiceExpansionJar}"
@@ -469,9 +469,9 @@ project.task('crossLanguagePortableWordCount') {
   dependsOn ':beam-sdks-python-container:docker'
   dependsOn ':beam-sdks-java-container:docker'
   dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
-  def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
 
   doLast {
+    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
     def options = [
             "--input=/etc/profile",
             "--output=/tmp/py-wordcount-portable",
