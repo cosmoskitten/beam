@@ -164,7 +164,7 @@ if 'save_module' in dir(dill.dill):
     obj_id = id(obj)
     if not known_module_dicts or '__file__' in obj or '__package__' in obj:
       if obj_id not in known_module_dicts:
-        for m in sys.modules.values():
+        for m in list(sys.modules.values()):
           try:
             if (m
                 and m.__name__ != '__main__'
