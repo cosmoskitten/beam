@@ -566,11 +566,10 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_element_count_metrics(self):
     class GenerateTwoOutputs(beam.DoFn):
       def process(self, element):
-        from apache_beam import pvalue
         yield str(element) + '1'
-        yield pvalue.TaggedOutput('SecondOutput', str(element) + '2')
-        yield pvalue.TaggedOutput('SecondOutput', str(element) + '2.2')
-        yield pvalue.TaggedOutput('ThirdOutput', str(element) + '3.1')
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2')
+        yield beam.pvalue.TaggedOutput('SecondOutput', str(element) + '2.2')
+        yield beam.pvalue.TaggedOutput('ThirdOutput', str(element) + '3.1')
 
     class PrintElements(beam.DoFn):
       def process(self, element):
@@ -613,11 +612,6 @@ class FnApiRunnerTest(unittest.TestCase):
       return False
 
     counters = result_metrics.monitoring_infos()
-
-    import pprint
-    print(">>>>>>>>>>>>>>>>>> Dumping counters")
-    pprint.pprint(counters)
-    print(">>>>>>>>>>>>>>>>>> Done. Dumping counters")
 
     self.assertTrue(
         assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
