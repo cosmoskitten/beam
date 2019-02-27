@@ -24,10 +24,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python_pytest',
     gradleTask: 'pytest',
-    triggerPathPatterns: [
-      // Do not trigger automatically.
-      '^nonexistent$',
-    ]
 )
 builder.build {
   // Publish all test results to Jenkins.
