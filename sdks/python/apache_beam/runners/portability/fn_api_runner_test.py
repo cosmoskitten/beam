@@ -778,6 +778,7 @@ class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
              | beam.ParDo(FinalizableDoFn()))
       assert_that(res, equal_to([1, 2]))
 
+
 class FnApiRunnerSplitTest(unittest.TestCase):
 
   def create_pipeline(self):
