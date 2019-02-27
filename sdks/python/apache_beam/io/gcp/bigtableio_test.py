@@ -35,6 +35,7 @@ try:
 except ImportError:
   Client = None
 
+
 def write_data(project_id, instance_id, table_id, num_of_rows,
                cluster_id, location_id, client_obj=None):
   from google.cloud.bigtable import enums
@@ -102,6 +103,7 @@ class BigtableSourceTest(unittest.TestCase):
       self.bigtable = BigTableSource(BigtableSourceTest.project_id,
                                      BigtableSourceTest.instance_id,
                                      BigtableSourceTest.table_id)
+
   def _bigtable(self):
     return BigtableSourceTest.bigtable
 
@@ -220,6 +222,7 @@ class BigtableSourceTest(unittest.TestCase):
     count = len([row.row_key for row in self.bigtable.read(range_tracker)])
 
     assert count == 10000000
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
