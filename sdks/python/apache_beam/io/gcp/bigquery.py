@@ -978,8 +978,7 @@ bigquery_v2_messages.TableSchema):
     if callable(self.table_reference):
       return self.table_reference
     elif not callable(self.table_reference) and self.schema is not None:
-      schema = BigQueryWriteFn.get_table_schema(self.schema)
-      return lambda x: (self.table_reference, schema)
+      return lambda x: (self.table_reference, self.schema)
     else:
       return lambda x: self.table_reference
 
