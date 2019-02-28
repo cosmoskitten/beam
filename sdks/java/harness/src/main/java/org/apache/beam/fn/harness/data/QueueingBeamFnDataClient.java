@@ -80,6 +80,9 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
         return false;
       }
     }
+    if (!this.queue.isEmpty()) {
+      return false;
+    }
     return true;
   }
 
