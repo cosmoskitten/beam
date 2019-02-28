@@ -20,22 +20,22 @@ package org.apache.beam.runners.samza;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.samza.util.PortablePipelineDotRenderer;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Invocation of a Samza job via {@link SamzaRunner}. */
-public class SamzaJobInvocation extends JobInvocation {
+/** Runs a Samza job via {@link SamzaRunner}. */
+public class SamzaPipelineRunner implements PortablePipelineRunner {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvocation.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineRunner.class);
 
   private final SamzaPipelineOptions options;
 
   @Override
-  protected PipelineResult run(final Pipeline pipeline) {
+  public PipelineResult run(final Pipeline pipeline) {
     // Fused pipeline proto.
     final RunnerApi.Pipeline fusedPipeline = GreedyPipelineFuser.fuse(pipeline).toPipeline();
     LOG.info("Portable pipeline to run:");
@@ -52,13 +52,7 @@ public class SamzaJobInvocation extends JobInvocation {
     }
   }
 
-  public SamzaJobInvocation(
-      String id,
-      String retrievalToken,
-      ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      SamzaPipelineOptions options) {
-    super(id, retrievalToken, executorService, pipeline);
+  public SamzaPipelineRunner(SamzaPipelineOptions options) {
     this.options = options;
   }
 }
