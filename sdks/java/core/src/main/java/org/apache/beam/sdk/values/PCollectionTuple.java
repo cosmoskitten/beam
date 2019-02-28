@@ -277,6 +277,10 @@ public class PCollectionTuple implements PInput, POutput {
     return pcollectionMap.containsKey(tag);
   }
 
+  /**
+   * Returns whether this {@link PCollectionTuple} contains a {@link PCollection} with the given
+   * tag.
+   */
   public <T> boolean has(String tag) {
     return has(new TupleTag<>(tag));
   }
@@ -303,6 +307,11 @@ public class PCollectionTuple implements PInput, POutput {
     return pcollection;
   }
 
+  /**
+   * Returns the {@link PCollection} associated with the given tag in this {@link PCollectionTuple}.
+   * Throws {@link IllegalArgumentException} if there is no such {@link PCollection}, i.e., {@code
+   * !has(tag)}.
+   */
   public <T> PCollection<T> get(String tag) {
     return get(new TupleTag<>(tag));
   }
