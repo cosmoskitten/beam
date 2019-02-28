@@ -30,7 +30,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
@@ -61,11 +60,11 @@ public class ExternalTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandSingleTest() {
-    POutput col =
+    PCollection<Integer> col =
         testPipeline
             .apply(Create.of(1, 2, 3))
             .apply(External.of("simple", new byte[] {}, "localhost:8097"));
-    PAssert.that((PCollection<Integer>) col).containsInAnyOrder(2, 3, 4);
+    PAssert.that(col).containsInAnyOrder(2, 3, 4);
     testPipeline.run();
   }
 
@@ -73,10 +72,9 @@ public class ExternalTest implements Serializable {
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandMultipleTest() {
     PCollection<Integer> numbers =
-        (PCollection<Integer>)
-            testPipeline
-                .apply(Create.of(1, 2, 3))
-                .apply("add one", External.of("simple", new byte[] {}, "localhost:8097"));
+        testPipeline
+            .apply(Create.of(1, 2, 3))
+            .apply("add one", External.of("simple", new byte[] {}, "localhost:8097"));
 
     byte[] three = new byte[] {};
     try {
@@ -86,8 +84,7 @@ public class ExternalTest implements Serializable {
     }
 
     PCollection<Integer> filtered =
-        (PCollection<Integer>)
-            numbers.apply("filter <=3", External.of("le", three, "localhost:8097"));
+        numbers.apply("filter <=3", External.of("le", three, "localhost:8097"));
     PAssert.that(filtered).containsInAnyOrder(2, 3);
     testPipeline.run();
   }

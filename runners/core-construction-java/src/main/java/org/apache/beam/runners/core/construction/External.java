@@ -57,14 +57,59 @@ public class External {
     return namespaceCounter.getAndIncrement();
   }
 
-  public static ExpandableTransform of(String urn, byte[] payload, String endpoint) {
+  public static <OutputT> SingleOutputExpandableTransform<OutputT> of(
+      String urn, byte[] payload, String endpoint) {
     Endpoints.ApiServiceDescriptor apiDesc =
         Endpoints.ApiServiceDescriptor.newBuilder().setUrl(endpoint).build();
-    return new ExpandableTransform(urn, payload, apiDesc);
+    return new SingleOutputExpandableTransform<>(urn, payload, apiDesc, getFreshNamespaceIndex());
+  }
+
+  public static class SingleOutputExpandableTransform<OutputT>
+      extends ExpandableTransform<PCollection<OutputT>> {
+    SingleOutputExpandableTransform(
+        String urn,
+        byte[] payload,
+        Endpoints.ApiServiceDescriptor endpoint,
+        Integer namespaceIndex) {
+      super(urn, payload, endpoint, namespaceIndex);
+    }
+
+    @Override
+    PCollection<OutputT> toOutputCollection(Map<TupleTag<?>, PCollection> output) {
+      checkArgument(output.size() > 0, "output shouldn't be empty.");
+      return Iterables.getOnlyElement(output.values());
+    }
+
+    public MultiOutputExpandableTransform withMultiOutputs() {
+      return new MultiOutputExpandableTransform(
+          getUrn(), getPayload(), getEndpoint(), getNamespaceIndex());
+    }
+  }
+
+  public static class MultiOutputExpandableTransform extends ExpandableTransform<PCollectionTuple> {
+    MultiOutputExpandableTransform(
+        String urn,
+        byte[] payload,
+        Endpoints.ApiServiceDescriptor endpoint,
+        Integer namespaceIndex) {
+      super(urn, payload, endpoint, namespaceIndex);
+    }
+
+    @Override
+    PCollectionTuple toOutputCollection(Map<TupleTag<?>, PCollection> output) {
+      checkArgument(output.size() > 0, "output shouldn't be empty.");
+      PCollection firstElem = Iterables.getOnlyElement(output.values());
+      PCollectionTuple pCollectionTuple = PCollectionTuple.empty(firstElem.getPipeline());
+      for (Map.Entry<TupleTag<?>, PCollection> entry : output.entrySet()) {
+        pCollectionTuple = pCollectionTuple.and(entry.getKey(), entry.getValue());
+      }
+      return pCollectionTuple;
+    }
   }
 
   /** Expandable Transform which calls ExpansionService to expand itself. */
-  public static class ExpandableTransform extends PTransform<PInput, POutput> {
+  public abstract static class ExpandableTransform<OutputT extends POutput>
+      extends PTransform<PInput, OutputT> {
     private final String urn;
     private final byte[] payload;
     private final Endpoints.ApiServiceDescriptor endpoint;
@@ -74,15 +119,19 @@ public class External {
     @Nullable private transient RunnerApi.PTransform expandedTransform;
     @Nullable private transient Map<PCollection, String> externalPCollectionIdMap;
 
-    ExpandableTransform(String urn, byte[] payload, Endpoints.ApiServiceDescriptor endpoint) {
+    ExpandableTransform(
+        String urn,
+        byte[] payload,
+        Endpoints.ApiServiceDescriptor endpoint,
+        Integer namespaceIndex) {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
-      this.namespaceIndex = getFreshNamespaceIndex();
+      this.namespaceIndex = namespaceIndex;
     }
 
     @Override
-    public POutput expand(PInput input) {
+    public OutputT expand(PInput input) {
       Pipeline p = input.getPipeline();
       SdkComponents components = SdkComponents.create(p.getOptions());
       RunnerApi.PTransform.Builder ptransformBuilder =
@@ -148,19 +197,7 @@ public class External {
       return toOutputCollection(outputMapBuilder.build());
     }
 
-    private POutput toOutputCollection(Map<TupleTag<?>, PCollection> output) {
-      checkArgument(output.size() > 0, "output shouldn't be empty.");
-      PCollection firstElem = Iterables.getOnlyElement(output.values());
-      if (output.size() == 1) {
-        return firstElem;
-      } else {
-        PCollectionTuple pCollectionTuple = PCollectionTuple.empty(firstElem.getPipeline());
-        for (Map.Entry<TupleTag<?>, PCollection> entry : output.entrySet()) {
-          pCollectionTuple = pCollectionTuple.and(entry.getKey(), entry.getValue());
-        }
-        return pCollectionTuple;
-      }
-    }
+    abstract OutputT toOutputCollection(Map<TupleTag<?>, PCollection> output);
 
     String getNamespace() {
       return String.format("External_%s", namespaceIndex);
@@ -180,6 +217,22 @@ public class External {
 
     Map<PCollection, String> getExternalPCollectionIdMap() {
       return externalPCollectionIdMap;
+    }
+
+    String getUrn() {
+      return urn;
+    }
+
+    byte[] getPayload() {
+      return payload;
+    }
+
+    Endpoints.ApiServiceDescriptor getEndpoint() {
+      return endpoint;
+    }
+
+    Integer getNamespaceIndex() {
+      return namespaceIndex;
     }
   }
 }
