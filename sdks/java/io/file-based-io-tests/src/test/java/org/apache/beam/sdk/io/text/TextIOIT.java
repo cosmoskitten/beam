@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -99,7 +98,7 @@ public class TextIOIT {
     numShards = options.getNumberOfShards();
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
-    gatherGcsPerformanceMetrics = options.as(GcsOptions.class).getGcsPerformanceMetrics();
+    gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
   }
 
   @Test
