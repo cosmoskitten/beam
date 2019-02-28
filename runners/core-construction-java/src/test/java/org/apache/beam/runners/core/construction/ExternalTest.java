@@ -26,11 +26,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
 import org.apache.beam.sdk.testing.ValidatesRunner;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
@@ -71,11 +68,6 @@ public class ExternalTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
   public void expandMultipleTest() {
-    PCollection<Integer> numbers =
-        testPipeline
-            .apply(Create.of(1, 2, 3))
-            .apply("add one", External.of("simple", new byte[] {}, "localhost:8097"));
-
     byte[] three = new byte[] {};
     try {
       three = "3".getBytes("UTF-8");
@@ -83,20 +75,55 @@ public class ExternalTest implements Serializable {
       Assert.fail(e.getMessage());
     }
 
-    PCollection<Integer> filtered =
-        numbers.apply("filter <=3", External.of("le", three, "localhost:8097"));
-    PAssert.that(filtered).containsInAnyOrder(2, 3);
+    PCollection<Integer> pcol =
+        testPipeline
+            .apply(Create.of(1, 2, 3))
+            .apply("add one", External.of("simple", new byte[] {}, "localhost:8097"))
+            .apply("filter <=3", External.of("le", three, "localhost:8097"));
+
+    PAssert.that(pcol).containsInAnyOrder(2, 3);
+    testPipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  public void expandMultiOutputTest() {
+    PCollectionTuple pTuple =
+        testPipeline
+            .apply(Create.of(1, 2, 3, 4, 5, 6))
+            .apply(External.of("multi", new byte[] {}, "localhost:8097").withMultiOutputs());
+
+    PAssert.that(pTuple.get(new TupleTag<Integer>("aTag") {})).containsInAnyOrder(2, 4, 6);
+    PAssert.that(pTuple.get(new TupleTag<Integer>("bTag") {})).containsInAnyOrder(1, 3, 5);
     testPipeline.run();
   }
 
   /** Test TransformProvider. */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class TestTransforms implements ExpansionService.ExpansionServiceRegistrar {
+  public static class TestTransforms
+      implements ExpansionService.ExpansionServiceRegistrar, Serializable {
+    private final TupleTag<Integer> aTag = new TupleTag<Integer>("aTag") {};
+    private final TupleTag<Integer> bTag = new TupleTag<Integer>("bTag") {};
+
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
           "simple", spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
-          "le", spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())));
+          "le", spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())),
+          "multi",
+              spec ->
+                  ParDo.of(
+                          new DoFn<Integer, Integer>() {
+                            @ProcessElement
+                            public void processElement(ProcessContext c) {
+                              if (c.element() % 2 == 0) {
+                                c.output(c.element());
+                              } else {
+                                c.output(bTag, c.element());
+                              }
+                            }
+                          })
+                      .withOutputTags(aTag, TupleTagList.of(bTag)));
     }
   }
 }

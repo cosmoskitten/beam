@@ -100,7 +100,7 @@ public class External {
     @Override
     PCollectionTuple toOutputCollection(Map<TupleTag<?>, PCollection> output) {
       checkArgument(output.size() > 0, "output shouldn't be empty.");
-      PCollection firstElem = Iterables.getOnlyElement(output.values());
+      PCollection firstElem = Iterables.getFirst(output.values(), null);
       PCollectionTuple pCollectionTuple = PCollectionTuple.empty(firstElem.getPipeline());
       for (Map.Entry<TupleTag<?>, PCollection> entry : output.entrySet()) {
         pCollectionTuple = pCollectionTuple.and(entry.getKey(), entry.getValue());
