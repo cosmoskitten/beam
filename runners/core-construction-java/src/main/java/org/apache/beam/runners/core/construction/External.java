@@ -64,6 +64,7 @@ public class External {
     return new SingleOutputExpandableTransform<>(urn, payload, apiDesc, getFreshNamespaceIndex());
   }
 
+  /** Expandable transform for output type of PCollection. */
   public static class SingleOutputExpandableTransform<OutputT>
       extends ExpandableTransform<PCollection<OutputT>> {
     SingleOutputExpandableTransform(
@@ -86,6 +87,7 @@ public class External {
     }
   }
 
+  /** Expandable transform for output type of PCollectionTuple. */
   public static class MultiOutputExpandableTransform extends ExpandableTransform<PCollectionTuple> {
     MultiOutputExpandableTransform(
         String urn,
@@ -107,7 +109,7 @@ public class External {
     }
   }
 
-  /** Expandable Transform which calls ExpansionService to expand itself. */
+  /** Base Expandable Transform which calls ExpansionService to expand itself. */
   public abstract static class ExpandableTransform<OutputT extends POutput>
       extends PTransform<PInput, OutputT> {
     private final String urn;
