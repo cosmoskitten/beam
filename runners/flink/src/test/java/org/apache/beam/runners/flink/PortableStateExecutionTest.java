@@ -26,7 +26,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -195,8 +194,8 @@ public class PortableStateExecutionTest implements Serializable {
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
-    JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
+    FlinkJobInvocation jobInvocation =
+        FlinkJobInvocation.create(
             "id",
             "none",
             flinkJobExecutor,

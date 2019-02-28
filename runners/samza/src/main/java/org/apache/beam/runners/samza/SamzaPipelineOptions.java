@@ -24,7 +24,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 
-/** Options which can be used to configure a Samza PortablePipelineRunner. */
+/** Options which can be used to configure a Samza PipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(

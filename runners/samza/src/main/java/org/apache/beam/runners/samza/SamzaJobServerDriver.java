@@ -101,9 +101,8 @@ public class SamzaJobServerDriver {
             String invocationId =
                 String.format(
                     "%s_%s", samzaPipelineOptions.getJobName(), UUID.randomUUID().toString());
-            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(samzaPipelineOptions);
-            return new JobInvocation(
-                invocationId, executorService, pipeline, pipelineRunner);
+            return new SamzaJobInvocation(
+                invocationId, retrievalToken, executorService, pipeline, samzaPipelineOptions);
           }
         };
     return InMemoryJobService.create(

@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink;
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -75,7 +74,7 @@ public class FlinkJobInvoker extends JobInvoker {
 
     flinkOptions.setRunner(null);
 
-    return createJobInvocation(
+    return FlinkJobInvocation.create(
         invocationId,
         retrievalToken,
         executorService,
@@ -83,26 +82,5 @@ public class FlinkJobInvoker extends JobInvoker {
         flinkOptions,
         serverConfig.getFlinkConfDir(),
         detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
-  }
-
-  static JobInvocation createJobInvocation(
-      String invocationId,
-      String retrievalToken,
-      ListeningExecutorService executorService,
-      RunnerApi.Pipeline pipeline,
-      FlinkPipelineOptions flinkOptions,
-      @Nullable String confDir,
-      List<String> filesToStage) {
-    FlinkPipelineRunner pipelineRunner = new FlinkPipelineRunner(
-        invocationId,
-        retrievalToken,
-        flinkOptions,
-        confDir,
-        filesToStage);
-    return new JobInvocation(
-        invocationId,
-        executorService,
-        pipeline,
-        pipelineRunner);
   }
 }

@@ -26,7 +26,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -141,8 +140,8 @@ public class PortableExecutionTest implements Serializable {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
     // execute the pipeline
-    JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
+    FlinkJobInvocation jobInvocation =
+        FlinkJobInvocation.create(
             "fakeId",
             "fakeRetrievalToken",
             flinkJobExecutor,

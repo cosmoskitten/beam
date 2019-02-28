@@ -40,36 +40,39 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
-public class JobInvocation {
+public abstract class JobInvocation {
+
+  protected final RunnerApi.Pipeline pipeline;
 
   private static final Logger LOG = LoggerFactory.getLogger(JobInvocation.class);
 
-  private final RunnerApi.Pipeline pipeline;
-  private final PortablePipelineRunner pipelineRunner;
   private final String id;
+  private final String retrievalToken;
   private final ListeningExecutorService executorService;
   private List<Consumer<Enum>> stateObservers;
   private List<Consumer<JobMessage>> messageObservers;
   private JobState.Enum jobState;
   @Nullable private ListenableFuture<PipelineResult> invocationFuture;
 
-  public JobInvocation(
+  protected JobInvocation(
       String id,
+      String retrievalToken,
       ListeningExecutorService executorService,
-      Pipeline pipeline,
-      PortablePipelineRunner pipelineRunner) {
+      Pipeline pipeline) {
     this.id = id;
+    this.retrievalToken = retrievalToken;
     this.executorService = executorService;
     this.pipeline = pipeline;
-    this.pipelineRunner = pipelineRunner;
     this.stateObservers = new ArrayList<>();
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
     this.jobState = JobState.Enum.STOPPED;
   }
 
+  protected abstract PipelineResult run(Pipeline pipeline) throws Exception;
+
   private PipelineResult runPipeline() throws Exception {
-    return pipelineRunner.run(pipeline);
+    return run(pipeline);
   }
 
   /** Start the job. */
@@ -120,6 +123,11 @@ public class JobInvocation {
   /** @return Unique identifier for the job invocation. */
   public String getId() {
     return id;
+  }
+
+  /** @return Token to retrieve artifacts staged via the artifact API. */
+  public String getRetrievalToken() {
+    return retrievalToken;
   }
 
   /** Cancel the job. */

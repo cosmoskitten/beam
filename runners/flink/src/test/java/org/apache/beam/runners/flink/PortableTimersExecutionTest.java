@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
@@ -182,8 +181,8 @@ public class PortableTimersExecutionTest implements Serializable {
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
-    JobInvocation jobInvocation =
-        FlinkJobInvoker.createJobInvocation(
+    FlinkJobInvocation jobInvocation =
+        FlinkJobInvocation.create(
             "id",
             "none",
             flinkJobExecutor,
