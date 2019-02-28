@@ -29,53 +29,41 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Invocation of a Flink Job via {@link FlinkRunner}. */
-public class FlinkJobInvocation extends JobInvocation {
-  private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvocation.class);
+/** Runs a Pipeline on Flink via {@link FlinkRunner}. */
+public class FlinkPipelineRunner implements PortablePipelineRunner {
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
-  public static FlinkJobInvocation create(
-      String id,
-      String retrievalToken,
-      ListeningExecutorService executorService,
-      Pipeline pipeline,
-      FlinkPipelineOptions pipelineOptions,
-      @Nullable String confDir,
-      List<String> filesToStage) {
-    return new FlinkJobInvocation(
-        id, retrievalToken, executorService, pipeline, pipelineOptions, confDir, filesToStage);
-  }
-
+  private final String id;
+  private final String retrievalToken;
   private final FlinkPipelineOptions pipelineOptions;
   private final String confDir;
   private final List<String> filesToStage;
 
-  private FlinkJobInvocation(
+  public FlinkPipelineRunner(
       String id,
       String retrievalToken,
-      ListeningExecutorService executorService,
-      Pipeline pipeline,
       FlinkPipelineOptions pipelineOptions,
       @Nullable String confDir,
       List<String> filesToStage) {
-    super(id, retrievalToken, executorService, pipeline);
+    this.id = id;
+    this.retrievalToken = retrievalToken;
     this.pipelineOptions = pipelineOptions;
     this.confDir = confDir;
     this.filesToStage = filesToStage;
   }
 
   @Override
-  protected PipelineResult run(final Pipeline pipeline) throws Exception {
+  public PipelineResult run(final Pipeline pipeline) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
 
     FlinkPortablePipelineTranslator<?> translator;
@@ -111,9 +99,9 @@ public class FlinkJobInvocation extends JobInvocation {
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
     JobInfo jobInfo =
         JobInfo.create(
-            getId(),
+            id,
             pipelineOptions.getJobName(),
-            getRetrievalToken(),
+            retrievalToken,
             PipelineOptionsTranslation.toProto(pipelineOptions));
 
     FlinkPortablePipelineTranslator.Executor executor =
