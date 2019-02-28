@@ -20,12 +20,14 @@ package org.apache.beam.runners.core.construction;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -33,10 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,12 +60,35 @@ public class ExternalTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
-  public void expandTest() {
+  public void expandSingleTest() {
     POutput col =
         testPipeline
             .apply(Create.of(1, 2, 3))
             .apply(External.of("simple", new byte[] {}, "localhost:8097"));
     PAssert.that((PCollection<Integer>) col).containsInAnyOrder(2, 3, 4);
+    testPipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesCrossLanguageTransforms.class})
+  public void expandMultipleTest() {
+    PCollection<Integer> numbers =
+        (PCollection<Integer>)
+            testPipeline
+                .apply(Create.of(1, 2, 3))
+                .apply("add one", External.of("simple", new byte[] {}, "localhost:8097"));
+
+    byte[] three = new byte[] {};
+    try {
+      three = "3".getBytes("UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      Assert.fail(e.getMessage());
+    }
+
+    PCollection<Integer> filtered =
+        (PCollection<Integer>)
+            numbers.apply("filter <=3", External.of("le", three, "localhost:8097"));
+    PAssert.that(filtered).containsInAnyOrder(2, 3);
     testPipeline.run();
   }
 
@@ -76,7 +98,8 @@ public class ExternalTest implements Serializable {
     @Override
     public Map<String, ExpansionService.TransformProvider> knownTransforms() {
       return ImmutableMap.of(
-          "simple", spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1));
+          "simple", spec -> MapElements.into(TypeDescriptors.integers()).via((Integer x) -> x + 1),
+          "le", spec -> Filter.lessThanEq(Integer.parseInt(spec.getPayload().toStringUtf8())));
     }
   }
 }

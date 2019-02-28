@@ -45,7 +45,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 
 /** Cross-language external transform. */
 public class External {
-  private static final String EXPANDED_TRANSFORM_UNIQUE_NAME = "root";
+  private static final String EXPANDED_TRANSFORM_BASE_NAME = "external";
   private static final String IMPULSE_PREFIX = "IMPULSE";
   private static AtomicInteger namespaceCounter = new AtomicInteger(0);
 
@@ -68,7 +68,7 @@ public class External {
     private final String urn;
     private final byte[] payload;
     private final Endpoints.ApiServiceDescriptor endpoint;
-    private final String namespace;
+    private final Integer namespaceIndex;
 
     @Nullable private transient RunnerApi.Components expandedComponents;
     @Nullable private transient RunnerApi.PTransform expandedTransform;
@@ -78,7 +78,7 @@ public class External {
       this.urn = urn;
       this.payload = payload;
       this.endpoint = endpoint;
-      this.namespace = String.format("External_%s", getFreshNamespaceIndex());
+      this.namespaceIndex = getFreshNamespaceIndex();
     }
 
     @Override
@@ -87,7 +87,7 @@ public class External {
       SdkComponents components = SdkComponents.create(p.getOptions());
       RunnerApi.PTransform.Builder ptransformBuilder =
           RunnerApi.PTransform.newBuilder()
-              .setUniqueName(EXPANDED_TRANSFORM_UNIQUE_NAME)
+              .setUniqueName(EXPANDED_TRANSFORM_BASE_NAME + namespaceIndex)
               .setSpec(
                   RunnerApi.FunctionSpec.newBuilder()
                       .setUrn(urn)
@@ -119,7 +119,7 @@ public class External {
           ExpansionApi.ExpansionRequest.newBuilder()
               .setComponents(components.toComponents())
               .setTransform(ptransformBuilder.build())
-              .setNamespace(namespace)
+              .setNamespace(getNamespace())
               .build();
 
       ExpansionApi.ExpansionResponse response =
@@ -163,7 +163,7 @@ public class External {
     }
 
     String getNamespace() {
-      return namespace;
+      return String.format("External_%s", namespaceIndex);
     }
 
     String getImpulsePrefix() {
