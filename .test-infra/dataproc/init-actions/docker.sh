@@ -22,6 +22,7 @@
 #
 #    This file originated from:
 #    https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/blob/master/docker/docker.sh
+#    (last commit: 6477e6067cc7a08de165117778a251ac2ed6a62f)
 #
 set -euxo pipefail
 

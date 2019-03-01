@@ -24,7 +24,7 @@
 #
 # This file originated from:
 # https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/flink/flink.sh
-#
+# (last commit: 6477e6067cc7a08de165117778a251ac2ed6a62f)
 set -euxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
