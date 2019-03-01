@@ -95,6 +95,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
+  private static final Logger LOG = LoggerFactory.getLogger(RegisterNodeFunction.class);
+
   /** Must match declared fields within {@code ProcessBundleHandler}. */
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
 
@@ -219,7 +221,11 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         ImmutableMap.builder();
     ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
         ImmutableMap.builder();
+    ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContexts = ImmutableMap.builder();
 
+    // For each instruction output node:
+    // 1. Generate new Coder and register it with SDKComponents and ProcessBundleDescriptor.
+    // 2. Generate new PCollectionId and register it with ProcessBundleDescriptor.
     for (InstructionOutputNode node :
         Iterables.filter(input.nodes(), InstructionOutputNode.class)) {
       InstructionOutput instructionOutput = node.getInstructionOutput();
@@ -259,6 +265,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
             e);
       }
 
+      // Generate new PCollection ID and map it to relevant node.
+      // Will later be used to fill PTransform inputs/outputs information.
       String pcollectionId = "generatedPcollection" + idGenerator.getId();
       processBundleDescriptor.putPcollections(
           pcollectionId,
@@ -267,6 +275,13 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               .setWindowingStrategyId(fakeWindowingStrategyId)
               .build());
       nodesToPCollections.put(node, pcollectionId);
+      pcollectionIdToNameContexts.put(
+          pcollectionId,
+          NameContext.create(
+              null,
+              instructionOutput.getOriginalName(),
+              instructionOutput.getSystemName(),
+              instructionOutput.getName()));
     }
     processBundleDescriptor.putAllCoders(sdkComponents.toComponents().getCodersMap());
 
@@ -430,7 +445,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
         RegisterRequest.newBuilder().addProcessBundleDescriptor(processBundleDescriptor).build(),
         ptransformIdToNameContexts.build(),
         ptransformIdToSideInputInfos.build(),
-        ptransformIdToPCollectionViews.build());
+        ptransformIdToPCollectionViews.build(),
+        pcollectionIdToNameContexts.build());
   }
 
   /**
