@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -174,7 +175,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext)
+            new HashMap<String, String>(),mockContext)
         .supportsRestart();
   }
 
@@ -215,7 +216,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     // Ensure that the first time we start we send the register and process bundle requests
     assertThat(requests, empty());
@@ -320,7 +321,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.start();
 
@@ -423,7 +424,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.start();
 
@@ -493,7 +494,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.start();
     // This method blocks till the requests are completed
@@ -613,7 +614,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of("testPTransformId", mockStepContext),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.start();
     verify(mockBeamFnStateDelegator)
@@ -740,7 +741,7 @@ public class RegisterAndProcessBundleOperationTest {
                     FullWindowedValueCoder.of(
                         KvCoder.of(ByteArrayCoder.of(), StringUtf8Coder.of()),
                         GlobalWindow.Coder.INSTANCE))),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.start();
     verify(mockBeamFnStateDelegator)
@@ -791,7 +792,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
     abortReference.set(operation::abort);
     operation.start();
 
@@ -838,7 +839,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
     abortReference.set(operation::abort);
     operation.start();
 
@@ -875,7 +876,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     assertEquals(
         ProcessBundleProgressResponse.getDefaultInstance(),
@@ -897,7 +898,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
-            mockContext);
+            new HashMap<String, String>(),mockContext);
 
     operation.getProcessBundleInstructionId(); // this generates and caches bundleId
 

@@ -44,6 +44,7 @@ def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,
 
 task preCommitLegacyWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-legacy-worker:shadowJar"
+  outputs.upToDateWhen { false }
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-legacy-worker").shadowJar.archivePath
 
   //Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
@@ -57,7 +58,7 @@ task preCommitLegacyWorker(type: Test) {
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
   include "**/WordCountIT.class"
-  include "**/WindowedWordCountIT.class"
+  // include "**/WindowedWordCountIT.class"
   forkEvery 1
   maxParallelForks 4
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
@@ -66,6 +67,7 @@ task preCommitLegacyWorker(type: Test) {
 task preCommitFnApiWorker(type: Test) {
   dependsOn ":beam-runners-google-cloud-dataflow-java-fn-api-worker:shadowJar"
   dependsOn ":beam-runners-google-cloud-dataflow-java:buildAndPushDockerContainer"
+  outputs.upToDateWhen { false }
 
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":beam-runners-google-cloud-dataflow-java-fn-api-worker").shadowJar.archivePath
   def preCommitBeamTestPipelineOptions = [
@@ -78,7 +80,7 @@ task preCommitFnApiWorker(type: Test) {
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
   include "**/WordCountIT.class"
-  include "**/WindowedWordCountIT.class"
+  // include "**/WindowedWordCountIT.class"
   forkEvery 1
   maxParallelForks 4
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)

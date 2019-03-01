@@ -145,7 +145,12 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
    */
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
+    long id  = java.time.Instant.now().toEpochMilli();
+
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
+
+    LOG.error("migryz dumping MonitoringInfoReport");
+    result.forEach(x -> LOG.error("migryz DeprecatedMetricReport: {} {}", id, x));
 
     if ((result != null) && (result.size() > 0)) {
       return result;
@@ -168,6 +173,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
                         MetricsToCounterUpdateConverter.fromDistribution(
                             update.getKey(), true, update.getUpdate()))
                 .collect(Collectors.toList()));
+
+    LOG.error("migryz dumping DeprecatedMetricReport");
+    deprecatedMetrics.forEach(x -> LOG.error("migryz DeprecatedMetricReport: {} {}", id, x));
 
     return deprecatedMetrics;
   }
@@ -341,6 +349,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           grpcWriteOperation.abortWait();
         }
 
+        LOG.error("migryz bundleProcessOperation: {}", bundleProcessOperation.toString());
+
         // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
@@ -400,9 +410,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      * @param monitoringInfos Usually received from FnApi.
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
+      LOG.error("migryz: monitoringInfos" + monitoringInfos.toString());
+
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
-              bundleProcessOperation.getPtransformIdToUserStepContext());
+              this.bundleProcessOperation.getPtransformIdToUserStepContext(),
+              this.bundleProcessOperation.getSdkToDfePCollectionMapping()
+              );
 
       counterUpdates =
           monitoringInfos.stream()
