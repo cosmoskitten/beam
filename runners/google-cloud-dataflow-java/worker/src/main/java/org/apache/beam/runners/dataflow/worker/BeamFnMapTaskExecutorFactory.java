@@ -110,6 +110,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.api.services.dataflow.model.WorkItem;
+
+
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutorFactory.class);
@@ -137,7 +140,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       SinkFactory sinkFactory,
       DataflowExecutionContext<?> executionContext,
       CounterSet counterSet,
-      IdGenerator idGenerator) {
+      IdGenerator idGenerator,
+      Map<String, String> pcollectionSystemToNameMapping) {
 
     // TODO: remove this once we trust the code paths
     checkArgument(
@@ -172,7 +176,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
               instructionRequestHandler,
               grpcStateFnServer.getService(),
               stageName,
-              executionContext));
+              executionContext,
+              pcollectionSystemToNameMapping));
       // Swap out all the RemoteGrpcPort nodes with Operation nodes, note that it is expected
       // that the RegisterFnRequest nodes have already been replaced.
       Networks.replaceDirectedNetworkNodes(
@@ -374,7 +379,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
       final InstructionRequestHandler instructionRequestHandler,
       final StateDelegator beamFnStateDelegator,
       final String stageName,
-      final DataflowExecutionContext<?> executionContext) {
+      final DataflowExecutionContext<?> executionContext,
+      Map<String, String> pcollectionSystemToNameMapping) {
     return new TypeSafeNodeFunction<RegisterRequestNode>(RegisterRequestNode.class) {
       @Override
       public Node typedApply(RegisterRequestNode input) {
@@ -409,16 +415,38 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
+        //todomigryz: create pcollectionid mapping
+        BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
+        // registerRequest.getProcessBundleDescriptorList(); // This contains processBundleDescriptors with mapping to PBD PCollectionNames
+        // check whether I can use network to build pcollection name, otherwise utilize passed-in
+        // mapping
+
+        // pcollectionSystemToNameMapping this is passed pcollection name mapping to use
+
+        List<BeamFnApi.ProcessBundleDescriptor> descriptorList = registerRequest
+            .getProcessBundleDescriptorList();
+
+        Map<String, String> sdkToDfePCollectionName = new HashMap<>();
+        for(BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
+          for(BeamFnApi.PTransform transform : descriptor.getTransforms()) {
+            for(Map.Entry<String, String> entry : transform.getOutputs()) {
+              sdkToDfePCollectionName
+                  .put(entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
+            }
+          }
+        }
+
         return OperationNode.create(
             new RegisterAndProcessBundleOperation(
                 idGenerator,
                 instructionRequestHandler,
                 beamFnStateDelegator,
-                input.getRegisterRequest(),
+                registerRequest,
                 ptransformIdToOperationContexts,
                 ptransformIdToStepContext.build(),
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView,
+                sdkToDfePCollectionName,
                 // TODO: Set NameContext properly for these operations.
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName))));

@@ -17,11 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -315,7 +319,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   @VisibleForTesting
   boolean doWork(WorkItem workItem, WorkItemStatusClient workItemStatusClient) throws IOException {
-    LOG.debug("Executing: {}", workItem);
+    LOG.error("migryz Executing: {}", workItem);
 
     DataflowWorkExecutor worker = null;
     SdkWorkerHarness sdkWorkerHarness = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
@@ -348,6 +352,30 @@ public class BatchDataflowWorker implements Closeable {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
+
+        //todomigryz
+        // workItem.getMapTask() -> build inverse pcollectionIdsMap here and pass it to factory
+        // should be a pain to modify api :(
+
+        List<ParallelInstruction> instructions = workItem.getMapTask().getInstructions();
+
+        Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>(instructions.size());
+
+        for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
+          for (InstructionOutput output : instruction.getOutputs()){
+            if (pcollectionDfeSystemToNameMapping.containsKey(output.getSystemName())) {
+              LOG.warn("Found multiple output mappings for pcollectionKey", output.getSystemName());
+            } else {
+              // DFE prepends system name with "<instructionOriginalName>."
+              final String trimmedName = output.getSystemName()
+                  .substring(instruction.getOriginalName().length() + 1);
+              pcollectionDfeSystemToNameMapping
+                  .put(trimmedName,
+                      output.getName());
+            }
+          }
+        }
+
         worker =
             mapTaskExecutorFactory.create(
                 sdkWorkerHarness.getControlClientHandler(),
@@ -361,7 +389,8 @@ public class BatchDataflowWorker implements Closeable {
                 sinkRegistry,
                 executionContext,
                 counterSet,
-                idGenerator);
+                idGenerator,
+                pcollectionDfeSystemToNameMapping);
       } else if (workItem.getSourceOperationTask() != null) {
         worker =
             SourceOperationExecutorFactory.create(
