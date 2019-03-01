@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -427,6 +428,18 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
               entry.getKey(), executionContext.getStepContext(operationContext));
         }
 
+        ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContext = ImmutableMap
+            .builder();
+        for (Map.Entry<String, NameContext> entry : input.getPCollectionToPartialNameContextMap()
+            .entrySet()) {
+          pcollectionIdToNameContext.put(entry.getKey(),
+              NameContext.create(
+                  stageName,
+                  entry.getValue().originalName(),
+                  entry.getValue().systemName(),
+                  entry.getValue().userName()));
+        }
+
         ImmutableMap<String, DataflowOperationContext> ptransformIdToOperationContexts =
             ptransformIdToOperationContextBuilder.build();
 
@@ -438,16 +451,21 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
+        BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
+        List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
+            registerRequest.getProcessBundleDescriptorList();
+
         return OperationNode.create(
             new RegisterAndProcessBundleOperation(
                 idGenerator,
                 instructionRequestHandler,
                 beamFnStateDelegator,
-                input.getRegisterRequest(),
+                registerRequest,
                 ptransformIdToOperationContexts,
                 ptransformIdToStepContext.build(),
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView,
+                pcollectionIdToNameContext.build(),
                 // TODO: Set NameContext properly for these operations.
                 executionContext.createOperationContext(
                     NameContext.create(stageName, stageName, stageName, stageName))));
