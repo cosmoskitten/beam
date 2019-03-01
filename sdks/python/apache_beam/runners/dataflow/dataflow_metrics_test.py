@@ -35,6 +35,7 @@ from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
 from apache_beam.testing import metric_result_matchers
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
 
 class DictToObject(object):
@@ -385,30 +386,30 @@ class TestDataflowMetrics(unittest.TestCase):
     all_metrics = test_object.all_metrics()
 
     matchers = [
-        all_of(
-            metric_result_matchers.has_name('ElementCount'),
-            metric_result_matchers.has_labels({
+        MetricResultMatcher(
+            name='ElementCount',
+            labels={
                 'original_name' : 'ToIsmRecordForMultimap-out0-ElementCount',
                 'output_user_name' : 'ToIsmRecordForMultimap-out0'
-            }),
-            metric_result_matchers.is_committed_counter(42),
-            metric_result_matchers.is_attempted_counter(42)
+            },
+            attempted=42,
+            committed=42
         ),
-        all_of(
-            metric_result_matchers.has_name('MeanByteCount'),
-            metric_result_matchers.has_labels({
+        MetricResultMatcher(
+            name='MeanByteCount',
+            labels={
                 'original_name' : 'Read-out0-MeanByteCount',
                 'output_user_name' : 'GroupByKey/Read-out0'
-            }),
-            metric_result_matchers.is_committed_counter(31),
-            metric_result_matchers.is_attempted_counter(31)
+            },
+            attempted=31,
+            committed=31
         ),
-        all_of(
-            metric_result_matchers.has_name('ExecutionTime_ProcessElement'),
-            metric_result_matchers.has_step_name('write/Write/Write'),
-            metric_result_matchers.is_committed_counter(1000),
-            metric_result_matchers.is_attempted_counter(1000)
-        ),
+        MetricResultMatcher(
+            name='ExecutionTime_ProcessElement',
+            step='write/Write/Write',
+            attempted=1000,
+            committed=1000
+        )
     ]
     errors = metric_result_matchers.verify_all(all_metrics, matchers)
     self.assertFalse(errors, errors)

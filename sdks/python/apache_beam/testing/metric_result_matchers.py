@@ -108,7 +108,7 @@ class MetricResultMatcher(BaseMatcher):
     if self.step:
       description.append_text(" step: ")
       self.step.describe_to(description)
-    for (k_matcher, v_matcher) in self.label_matchers:
+    for (k_matcher, v_matcher) in self.label_matchers.items():
       description.append_text(" (label_key: ")
       k_matcher.describe_to(description)
       description.append_text(" label_value: ")
