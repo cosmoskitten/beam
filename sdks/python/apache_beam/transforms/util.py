@@ -52,7 +52,6 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.function_alias import function_alias
 
 __all__ = [
     'BatchElements',
@@ -204,9 +203,11 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
           | 'Distinct' >> Keys())
 
 
-# Alias for Distinct PTransform
-RemoveDuplicates = deprecated(since='2.11', current='Distinct')\
-  (function_alias(Distinct, 'RemoveDuplicates'))
+@deprecated(since='2.11', current='Distinct')
+@ptransform_fn
+def RemoveDuplicates(pcoll):
+  """Produces a PCollection containing distinct elements of a PCollection."""
+  return pcoll | 'RemoveDuplicates' >> Distinct()
 
 
 class _BatchSizeEstimator(object):
