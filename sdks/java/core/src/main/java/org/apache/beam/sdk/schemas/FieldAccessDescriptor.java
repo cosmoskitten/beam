@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Precondi
 
 import com.google.auto.value.AutoOneOf;
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.Iterators;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
@@ -332,6 +334,23 @@ public abstract class FieldAccessDescriptor implements Serializable {
         .collect(Collectors.toMap(f -> f.getKey().getFieldId(), f -> f.getValue()));
   }
 
+  /** Returns true if this descriptor references only a single, non-wildcard field. */
+  public boolean referencesSingleField() {
+    if (getAllFields()) {
+      return false;
+    }
+
+    if (getFieldsAccessed().size() == 1 && getNestedFieldsAccessed().isEmpty()) {
+      return true;
+    }
+
+    if (getFieldsAccessed().isEmpty() && getNestedFieldsAccessed().size() == 1) {
+      return getNestedFieldsAccessed().values().iterator().next().referencesSingleField();
+    }
+
+    return false;
+  }
+
   /**
    * Resolve the {@link FieldAccessDescriptor} against a schema.
    *
@@ -512,5 +531,20 @@ public abstract class FieldAccessDescriptor implements Serializable {
           throw new IllegalStateException("Unexpected qualifier type " + qualifier.getKind());
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    if (getAllFields()) {
+      return "*";
+    }
+
+    List<String> singleSelectors = getFieldsAccessed().stream()
+        .map(FieldDescriptor::getFieldName)
+        .collect(Collectors.toList());
+    List<String> nestedSelectors = getNestedFieldsAccessed().entrySet().stream()
+        .map(e -> e.getKey().getFieldName() + "." + e.getValue().toString())
+        .collect(Collectors.toList());;
+   return String.join(", ", Iterables.concat(singleSelectors, nestedSelectors));
   }
 }

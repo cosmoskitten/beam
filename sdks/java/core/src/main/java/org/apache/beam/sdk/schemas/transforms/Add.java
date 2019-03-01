@@ -33,12 +33,12 @@ import org.apache.beam.sdk.values.Row;
 /** A transform to add new nullable fields to a PCollection's schema. Elements are extended to
  * have the new schema, with null values used for the new fields.
  */
-public class AddFields {
-  public static <T> Inner<T> of(Field... fields) {
-    return of(Arrays.asList(fields));
+public class Add {
+  public static <T> Inner<T> fields(Field... fields) {
+    return fields(Arrays.asList(fields));
   }
 
-  public static <T> Inner<T> of(List<Field> fields) {
+  public static <T> Inner<T> fields(List<Field> fields) {
     for (Field field : fields) {
       if (!field.getType().getNullable()) {
         throw new IllegalArgumentException(
@@ -48,6 +48,7 @@ public class AddFields {
     return new Inner<>(fields);
   }
 
+  /** Inner PTransform for AddFields. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
     private final List<Field> newFields;
     private final List<Object> nullValues;

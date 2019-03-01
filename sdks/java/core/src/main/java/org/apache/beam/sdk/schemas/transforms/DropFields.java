@@ -18,72 +18,89 @@
 
 package org.apache.beam.sdk.schemas.transforms;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
+/** A transform to drop fields from a schema.
+ *
+ * <p>This is the inverse of the {@link Select} transform. A list of fields to drop is specified,
+ **/
 public class DropFields {
-  public static <T> Inner<T> of (String... fields) {
-    return of(Arrays.asList(fields));
+  public static <T> Inner<T> fieldNames(String... fields) {
+    return fieldAccess(FieldAccessDescriptor.withFieldNames(fields));
   }
 
-  public static <T> Inner<T> of(List<String> fields) {
-    return new Inner<>(fields);
+  public static <T> Inner<T> fieldNames(List<String> fields) {
+    return fieldAccess(FieldAccessDescriptor.withFieldNames(fields));
+  }
+
+  public static <T> Inner<T> fieldIds(Integer... fieldIds) {
+    return fieldAccess(FieldAccessDescriptor.withFieldIds(fieldIds));
+  }
+
+  public static <T> Inner<T> fieldIds(List<Integer> fields) {
+    return fieldAccess(FieldAccessDescriptor.withFieldIds(fields));
+  }
+
+  public static <T> Inner<T> fieldAccess(FieldAccessDescriptor fieldsToDrop) {
+    return new Inner<>(fieldsToDrop);
   }
 
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<Row>> {
-    private final List<String> fieldsToDrop;
+    private final FieldAccessDescriptor fieldsToDrop;
 
-    private Inner(List<String> fieldsToDrop) {
+    private Inner(FieldAccessDescriptor fieldsToDrop) {
       this.fieldsToDrop = fieldsToDrop;
+    }
+
+    FieldAccessDescriptor complement(Schema inputSchema, FieldAccessDescriptor input) {
+      Set<String> fieldNamesToSelect = Sets.newHashSet();
+      Map<String, FieldAccessDescriptor> nestedFieldsToSelect = Maps.newHashMap();
+      for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
+        if (input.fieldIdsAccessed().contains(i)) {
+          continue;
+        }
+        Field field = inputSchema.getField(i);
+        FieldAccessDescriptor nestedDescriptor = input.nestedFieldsById().get(i);
+        if (nestedDescriptor != null) {
+          FieldType fieldType = inputSchema.getField(i).getType();
+          Preconditions.checkArgument(fieldType.getTypeName().isCompositeType());
+          nestedFieldsToSelect.put(field.getName(), complement(fieldType.getRowSchema(), nestedDescriptor));
+        } else {
+          fieldNamesToSelect.add(field.getName());
+        }
+      }
+      FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withFieldNames(fieldNamesToSelect);
+      for (Map.Entry<String, FieldAccessDescriptor> entry : nestedFieldsToSelect.entrySet()) {
+        fieldAccess = fieldAccess.withNestedField(entry.getKey(), entry.getValue());
+      }
+      return fieldAccess.resolve(inputSchema);
     }
 
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
+      FieldAccessDescriptor selectDescriptor = complement(
+          inputSchema, fieldsToDrop.resolve(inputSchema));
 
-      List<Integer> fieldIdsToDrop = Lists.newArrayList();
-      for (String fieldName : fieldsToDrop) {
-        fieldIdsToDrop.add(inputSchema.indexOf(fieldName));
-      }
-      Collections.sort(fieldIdsToDrop);
-
-      Schema.Builder outputSchemaBuilder = Schema.builder();
-      int currentDropIndex = 0;
-      for (int i = 0; i < input.getSchema().getFieldCount(); ++i) {
-        if (currentDropIndex < fieldIdsToDrop.size()
-            && i == fieldIdsToDrop.get(currentDropIndex)) {
-          ++i;
-        } else {
-          outputSchemaBuilder.addField(input.getSchema().getField(i));
-        }
-      }
-      final Schema outputSchema = outputSchemaBuilder.build();
-
-      return input.apply(ParDo.of(new DoFn<T, Row>() {
-        @ProcessElement
-        public void processElement(@Element Row input, OutputReceiver<Row> o) {
-          List<Object> values = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
-          int currentDropIndex = 0;
-          for (int i = 0; i < input.getSchema().getFieldCount(); ++i) {
-            if (currentDropIndex < fieldIdsToDrop.size()
-              && i == fieldIdsToDrop.get(currentDropIndex)) {
-              ++i;
-            } else {
-              values.add(input.getValue(i));
-            }
-          }
-          Row newRow = Row.withSchema(outputSchema).attachValues(values).build();
-          o.output(newRow);
-      }})).setRowSchema(outputSchema);
+      return Select.<T>fieldAccess(selectDescriptor).expand(input);
     }
   }
 }
