@@ -224,6 +224,8 @@ public class ProcessBundleHandler {
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
+    LOG.error("migryz ProcessBundleDescriptor: {}", bundleDescriptor);
+
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     ExecutionStateTracker stateTracker =
