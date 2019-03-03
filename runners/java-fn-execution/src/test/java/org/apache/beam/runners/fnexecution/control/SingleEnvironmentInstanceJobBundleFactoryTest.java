@@ -39,8 +39,8 @@ import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
@@ -66,8 +66,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
   private ExecutorService executor = Executors.newCachedThreadPool();
 
-  private GrpcFnServer<GrpcDataService> dataServer;
-  private GrpcFnServer<GrpcStateService> stateServer;
+  private GrpcServer<GrpcDataService> dataServer;
+  private GrpcServer<GrpcStateService> stateServer;
   private JobBundleFactory factory;
 
   @Before
@@ -78,10 +78,10 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
-    stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+    stateServer = GrpcServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(

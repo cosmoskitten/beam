@@ -39,12 +39,12 @@ import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ManagedChannelFactory;
 import org.apache.beam.runners.reference.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -142,11 +142,11 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     Runnable cleanup;
     if (Environments.ENVIRONMENT_LOOPBACK.equals(
         options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {
-      GrpcFnServer<ExternalWorkerService> workerService;
+      GrpcServer<ExternalWorkerService> workerService;
       try {
         workerService = new ExternalWorkerService(options).start();
       } catch (Exception exn) {
-        throw new RuntimeException("Failed to start GrpcFnServer for ExternalWorkerService", exn);
+        throw new RuntimeException("Failed to start GrpcServer for ExternalWorkerService", exn);
       }
       LOG.info("Starting worker service at {}", workerService.getApiServiceDescriptor().getUrl());
       options

@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
@@ -50,8 +50,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFactory {
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
-      GrpcFnServer<GrpcDataService> data,
-      GrpcFnServer<GrpcStateService> state,
+      GrpcServer<GrpcDataService> data,
+      GrpcServer<GrpcStateService> state,
       IdGenerator idGenerator) {
     return new SingleEnvironmentInstanceJobBundleFactory(
         environmentFactory, data, state, idGenerator);
@@ -59,8 +59,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
   private final EnvironmentFactory environmentFactory;
 
-  private final GrpcFnServer<GrpcDataService> dataService;
-  private final GrpcFnServer<GrpcStateService> stateService;
+  private final GrpcServer<GrpcDataService> dataService;
+  private final GrpcServer<GrpcStateService> stateService;
 
   private final ConcurrentMap<ExecutableStage, StageBundleFactory> stageBundleFactories =
       new ConcurrentHashMap<>();
@@ -71,8 +71,8 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
   private SingleEnvironmentInstanceJobBundleFactory(
       EnvironmentFactory environmentFactory,
-      GrpcFnServer<GrpcDataService> dataService,
-      GrpcFnServer<GrpcStateService> stateService,
+      GrpcServer<GrpcDataService> dataService,
+      GrpcServer<GrpcStateService> stateService,
       IdGenerator idGenerator) {
     this.environmentFactory = environmentFactory;
     this.dataService = dataService;

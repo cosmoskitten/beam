@@ -21,9 +21,9 @@ import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.NotifyRunnerAvailableRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.NotifyRunnerAvailableResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc.BeamFnExternalWorkerPoolImplBase;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
@@ -77,9 +77,9 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
   @Override
   public void close() {}
 
-  public GrpcFnServer<ExternalWorkerService> start() throws Exception {
-    GrpcFnServer<ExternalWorkerService> server =
-        GrpcFnServer.allocatePortAndCreateFor(this, serverFactory);
+  public GrpcServer<ExternalWorkerService> start() throws Exception {
+    GrpcServer<ExternalWorkerService> server =
+        GrpcServer.allocatePortAndCreateFor(this, serverFactory);
     LOG.debug(
         "Listening for worker start requests at {}.", server.getApiServiceDescriptor().getUrl());
     return server;

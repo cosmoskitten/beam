@@ -38,10 +38,10 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.direct.portable.ReferenceRunner;
 import org.apache.beam.runners.fnexecution.FnService;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
@@ -80,7 +80,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   private final ConcurrentMap<String, ReferenceRunner> runningJobs;
   private final ConcurrentMap<String, JobState.Enum> jobStates;
   private final ExecutorService executor;
-  private final ConcurrentLinkedQueue<GrpcFnServer<BeamFileSystemArtifactStagingService>>
+  private final ConcurrentLinkedQueue<GrpcServer<BeamFileSystemArtifactStagingService>>
       artifactStagingServices;
 
   private ReferenceRunnerJobService(ServerFactory serverFactory, Configuration configuration) {
@@ -106,7 +106,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
 
       String preparationId = request.getJobName() + ThreadLocalRandom.current().nextInt();
-      GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
+      GrpcServer<BeamFileSystemArtifactStagingService> artifactStagingService =
           createArtifactStagingService();
       artifactStagingServices.add(artifactStagingService);
       String stagingSessionToken =
@@ -137,10 +137,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     }
   }
 
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
+  private GrpcServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
       throws Exception {
     BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    return GrpcServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   @Override
@@ -294,7 +294,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       }
     }
     while (!artifactStagingServices.isEmpty()) {
-      GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService =
+      GrpcServer<BeamFileSystemArtifactStagingService> artifactStagingService =
           artifactStagingServices.remove();
       try {
         artifactStagingService.close();

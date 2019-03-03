@@ -34,8 +34,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -70,8 +70,8 @@ public class GrpcDataServiceTest {
     GrpcDataService service =
         GrpcDataService.create(
             Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
-    try (GrpcFnServer<GrpcDataService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
+    try (GrpcServer<GrpcDataService> server =
+        GrpcServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
         clientFutures.add(
@@ -118,8 +118,8 @@ public class GrpcDataServiceTest {
     GrpcDataService service =
         GrpcDataService.create(
             Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
-    try (GrpcFnServer<GrpcDataService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
+    try (GrpcServer<GrpcDataService> server =
+        GrpcServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
         final String instructionReference = Integer.toString(i);

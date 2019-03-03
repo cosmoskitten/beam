@@ -53,11 +53,11 @@ import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides.TransformReplacement;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.direct.ExecutableGraph;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -184,27 +184,27 @@ public class ReferenceRunner {
             .setResourceLimits(Resources.getDefaultInstance())
             .setRetrievalToken(artifactRetrievalToken)
             .build();
-    try (GrpcFnServer<GrpcLoggingService> logging =
-            GrpcFnServer.allocatePortAndCreateFor(
+    try (GrpcServer<GrpcLoggingService> logging =
+            GrpcServer.allocatePortAndCreateFor(
                 GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-        GrpcFnServer<ArtifactRetrievalService> artifact =
-            GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer<ArtifactRetrievalService> artifact =
+            GrpcServer.allocatePortAndCreateFor(
                 BeamFileSystemArtifactRetrievalService.create(), serverFactory);
-        GrpcFnServer<StaticGrpcProvisionService> provisioning =
-            GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer<StaticGrpcProvisionService> provisioning =
+            GrpcServer.allocatePortAndCreateFor(
                 StaticGrpcProvisionService.create(provisionInfo), serverFactory);
-        GrpcFnServer<FnApiControlClientPoolService> control =
-            GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer<FnApiControlClientPoolService> control =
+            GrpcServer.allocatePortAndCreateFor(
                 FnApiControlClientPoolService.offeringClientsToPool(
                     controlClientPool.getSink(),
                     GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
                 serverFactory);
-        GrpcFnServer<GrpcDataService> data =
-            GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer<GrpcDataService> data =
+            GrpcServer.allocatePortAndCreateFor(
                 GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
                 serverFactory);
-        GrpcFnServer<GrpcStateService> state =
-            GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
+        GrpcServer<GrpcStateService> state =
+            GrpcServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory)) {
 
       EnvironmentFactory environmentFactory =
           createEnvironmentFactory(control, logging, artifact, provisioning, controlClientPool);
@@ -242,10 +242,10 @@ public class ReferenceRunner {
   }
 
   private EnvironmentFactory createEnvironmentFactory(
-      GrpcFnServer<FnApiControlClientPoolService> control,
-      GrpcFnServer<GrpcLoggingService> logging,
-      GrpcFnServer<ArtifactRetrievalService> artifact,
-      GrpcFnServer<StaticGrpcProvisionService> provisioning,
+      GrpcServer<FnApiControlClientPoolService> control,
+      GrpcServer<GrpcLoggingService> logging,
+      GrpcServer<ArtifactRetrievalService> artifact,
+      GrpcServer<StaticGrpcProvisionService> provisioning,
       ControlClientPool controlClient) {
     switch (environmentType) {
       case DOCKER:

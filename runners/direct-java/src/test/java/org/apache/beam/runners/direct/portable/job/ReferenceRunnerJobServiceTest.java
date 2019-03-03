@@ -39,8 +39,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
@@ -63,7 +63,7 @@ public class ReferenceRunnerJobServiceTest {
 
   private InProcessServerFactory serverFactory = InProcessServerFactory.create();
   private ReferenceRunnerJobService service;
-  private GrpcFnServer<ReferenceRunnerJobService> server;
+  private GrpcServer<ReferenceRunnerJobService> server;
   private JobServiceBlockingStub stub;
 
   @Before
@@ -73,7 +73,7 @@ public class ReferenceRunnerJobServiceTest {
     configuration.artifactStagingPath =
         Paths.get(runnerTemp.getRoot().toString(), "beam-artifact-staging").toString();
     service = ReferenceRunnerJobService.create(serverFactory, configuration);
-    server = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+    server = GrpcServer.allocatePortAndCreateFor(service, serverFactory);
     stub =
         JobServiceGrpc.newBlockingStub(
             InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());

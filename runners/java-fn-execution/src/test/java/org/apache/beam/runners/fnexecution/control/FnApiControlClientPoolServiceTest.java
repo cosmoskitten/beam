@@ -31,9 +31,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
@@ -52,12 +52,12 @@ public class FnApiControlClientPoolServiceTest {
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
           pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-  private GrpcFnServer<FnApiControlClientPoolService> server;
+  private GrpcServer<FnApiControlClientPoolService> server;
   private BeamFnControlGrpc.BeamFnControlStub stub;
 
   @Before
   public void setup() throws IOException {
-    server = GrpcFnServer.allocatePortAndCreateFor(controlService, InProcessServerFactory.create());
+    server = GrpcServer.allocatePortAndCreateFor(controlService, InProcessServerFactory.create());
     stub =
         BeamFnControlGrpc.newStub(
             InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());

@@ -25,8 +25,8 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
@@ -121,15 +121,15 @@ public class SamzaJobServerDriver {
 
   private void run() throws Exception {
     final InMemoryJobService service = createJobService(config.controlPort);
-    final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    final GrpcServer<InMemoryJobService> jobServiceGrpcServer =
+        GrpcServer.allocatePortAndCreateFor(
             service, ServerFactory.createWithPortSupplier(() -> config.jobPort));
-    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    LOG.info("JobServer started on {}", jobServiceGrpcServer.getApiServiceDescriptor().getUrl());
     try {
-      jobServiceGrpcFnServer.getServer().awaitTermination();
+      jobServiceGrpcServer.getServer().awaitTermination();
     } finally {
       LOG.info("JobServer closing");
-      jobServiceGrpcFnServer.close();
+      jobServiceGrpcServer.close();
     }
   }
 }

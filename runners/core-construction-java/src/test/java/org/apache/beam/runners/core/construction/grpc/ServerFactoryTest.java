@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
+package org.apache.beam.runners.core.construction.grpc;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
@@ -40,7 +40,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
@@ -52,7 +51,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
 
-/** Tests for {@link ServerFactory}. */
+/** Tests for {@link org.apache.beam.runners.core.construction.grpc.ServerFactory}. */
 public class ServerFactoryTest {
 
   private static final BeamFnApi.Elements CLIENT_DATA =

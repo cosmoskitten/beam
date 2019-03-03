@@ -35,9 +35,9 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -75,10 +75,10 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
 
   private transient RemoteStageEvaluatorFactory factory;
   private transient ExecutorService executor;
-  private transient GrpcFnServer<GrpcDataService> dataServer;
-  private transient GrpcFnServer<GrpcStateService> stateServer;
-  private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  private transient GrpcFnServer<GrpcLoggingService> loggingServer;
+  private transient GrpcServer<GrpcDataService> dataServer;
+  private transient GrpcServer<GrpcStateService> stateServer;
+  private transient GrpcServer<FnApiControlClientPoolService> controlServer;
+  private transient GrpcServer<GrpcLoggingService> loggingServer;
   private transient BundleFactory bundleFactory;
 
   @Before
@@ -87,13 +87,13 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
 
     BlockingQueue<InstructionRequestHandler> clientPool = new LinkedBlockingQueue<>();
     controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
                 (workerId, instructionHandler) -> clientPool.put(instructionHandler),
                 GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);
     loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
 
     EnvironmentFactory environmentFactory =
@@ -104,10 +104,10 @@ public class RemoteStageEvaluatorFactoryTest implements Serializable {
             (workerId, timeout) -> clientPool.take());
     executor = Executors.newCachedThreadPool();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
-    stateServer = GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+    stateServer = GrpcServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     bundleFactory = ImmutableListBundleFactory.create();
     JobBundleFactory jobBundleFactory =

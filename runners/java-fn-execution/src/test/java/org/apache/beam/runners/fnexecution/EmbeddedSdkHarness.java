@@ -22,6 +22,9 @@ import java.util.concurrent.Executors;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -49,9 +52,9 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
   }
 
   private ExecutorService executor;
-  private GrpcFnServer<GrpcLoggingService> loggingServer;
-  private GrpcFnServer<GrpcDataService> dataServer;
-  private GrpcFnServer<FnApiControlClientPoolService> controlServer;
+  private GrpcServer<GrpcLoggingService> loggingServer;
+  private GrpcServer<GrpcDataService> dataServer;
+  private GrpcServer<FnApiControlClientPoolService> controlServer;
 
   private SdkHarnessClient client;
 
@@ -75,13 +78,13 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
             clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());
 
     loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
-    controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
+    controlServer = GrpcServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
     InstructionRequestHandler requestHandler =
         EmbeddedEnvironmentFactory.create(

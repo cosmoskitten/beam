@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 public class ReferenceRunnerJobServer {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobServer.class);
   private final ServerConfiguration configuration;
-  private GrpcFnServer<ReferenceRunnerJobService> server;
+  private GrpcServer<ReferenceRunnerJobService> server;
 
   private ReferenceRunnerJobServer(ServerConfiguration configuration) {
     this.configuration = configuration;
@@ -73,7 +73,7 @@ public class ReferenceRunnerJobServer {
         createJobServiceConfig(configuration);
     ReferenceRunnerJobService service =
         ReferenceRunnerJobService.create(serverFactory, jobServiceConfig);
-    try (GrpcFnServer<ReferenceRunnerJobService> server =
+    try (GrpcServer<ReferenceRunnerJobService> server =
         createServer(configuration, serverFactory, service)) {
       System.out.println(
           String.format(
@@ -117,15 +117,15 @@ public class ReferenceRunnerJobServer {
     }
   }
 
-  private static GrpcFnServer<ReferenceRunnerJobService> createServer(
+  private static GrpcServer<ReferenceRunnerJobService> createServer(
       ServerConfiguration configuration,
       ServerFactory serverFactory,
       ReferenceRunnerJobService service)
       throws IOException {
     if (configuration.port <= 0) {
-      return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
+      return GrpcServer.allocatePortAndCreateFor(service, serverFactory);
     }
-    return GrpcFnServer.create(
+    return GrpcServer.create(
         service,
         ApiServiceDescriptor.newBuilder().setUrl("localhost:" + configuration.port).build(),
         serverFactory);

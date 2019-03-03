@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
+package org.apache.beam.runners.core.construction.grpc;
 
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Context;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Contexts;

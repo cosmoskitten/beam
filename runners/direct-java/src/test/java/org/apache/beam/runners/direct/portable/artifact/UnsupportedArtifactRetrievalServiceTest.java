@@ -24,10 +24,10 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessManagedChannelFactory;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,13 +41,13 @@ import org.junit.runners.JUnit4;
 public class UnsupportedArtifactRetrievalServiceTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private GrpcFnServer<ArtifactRetrievalService> server;
+  private GrpcServer<ArtifactRetrievalService> server;
   private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub stub;
 
   @Before
   public void setUp() throws Exception {
     server =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             UnsupportedArtifactRetrievalService.create(), InProcessServerFactory.create());
     stub =
         ArtifactRetrievalServiceGrpc.newStub(

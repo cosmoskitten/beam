@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.expansion;
+package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
@@ -49,7 +49,7 @@ public class TestExpansionService {
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
-    Server server = ServerBuilder.forPort(port).addService(new ExpansionService()).build();
+    Server server = ServerBuilder.forPort(port).addService(ExpansionService()).build();
     server.start();
     server.awaitTermination();
   }

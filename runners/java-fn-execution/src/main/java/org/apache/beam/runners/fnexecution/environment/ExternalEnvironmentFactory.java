@@ -24,7 +24,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ManagedChannelFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -32,7 +33,6 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,10 +43,10 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
 
   public static ExternalEnvironmentFactory create(
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcServer<GrpcLoggingService> loggingServiceServer,
+      GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
     return new ExternalEnvironmentFactory(
@@ -58,18 +58,18 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         clientSource);
   }
 
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
-  private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+  private final GrpcServer<FnApiControlClientPoolService> controlServiceServer;
+  private final GrpcServer<GrpcLoggingService> loggingServiceServer;
+  private final GrpcServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
 
   private ExternalEnvironmentFactory(
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcServer<GrpcLoggingService> loggingServiceServer,
+      GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
     this.controlServiceServer = controlServiceServer;
@@ -145,10 +145,10 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   public static class Provider implements EnvironmentFactory.Provider {
     @Override
     public EnvironmentFactory createEnvironmentFactory(
-        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcServer<GrpcLoggingService> loggingServiceServer,
+        GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return create(

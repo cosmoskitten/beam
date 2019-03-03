@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -58,10 +58,10 @@ public class DockerEnvironmentFactoryTest {
 
   @Mock private DockerCommand docker;
 
-  @Mock private GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  @Mock private GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  @Mock private GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
-  @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+  @Mock private GrpcServer<FnApiControlClientPoolService> controlServiceServer;
+  @Mock private GrpcServer<GrpcLoggingService> loggingServiceServer;
+  @Mock private GrpcServer<ArtifactRetrievalService> retrievalServiceServer;
+  @Mock private GrpcServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock private InstructionRequestHandler client;
   private DockerEnvironmentFactory factory;

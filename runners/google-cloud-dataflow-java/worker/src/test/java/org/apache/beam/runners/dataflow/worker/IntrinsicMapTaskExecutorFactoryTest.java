@@ -176,9 +176,9 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     try (DataflowMapTaskExecutor executor =
         mapTaskExecutorFactory.create(
             null /* beamFnControlClientHandler */,
-            null /* GrpcFnServer<GrpcDataService> */,
+            null /* GrpcServer<GrpcDataService> */,
             null /* ApiServiceDescriptor */,
-            null, /* GrpcFnServer<GrpcStateService> */
+            null, /* GrpcServer<GrpcStateService> */
             mapTaskToNetwork.apply(mapTask),
             options,
             STAGE,

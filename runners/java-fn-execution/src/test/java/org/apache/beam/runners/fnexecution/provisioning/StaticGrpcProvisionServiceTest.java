@@ -29,8 +29,8 @@ import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Disk;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Memory;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ListValue;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.NullValue;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
@@ -80,8 +80,8 @@ public class StaticGrpcProvisionServiceTest {
             .setPipelineOptions(options)
             .setResourceLimits(resourceLimits)
             .build();
-    GrpcFnServer<StaticGrpcProvisionService> server =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<StaticGrpcProvisionService> server =
+        GrpcServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(info), InProcessServerFactory.create());
 
     ProvisionServiceBlockingStub stub =
