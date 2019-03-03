@@ -34,8 +34,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
@@ -57,8 +57,8 @@ public class GrpcLoggingServiceTest {
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
-    try (GrpcFnServer<GrpcLoggingService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
+    try (GrpcServer<GrpcLoggingService> server =
+        GrpcServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
@@ -100,8 +100,8 @@ public class GrpcLoggingServiceTest {
     ConcurrentLinkedQueue<BeamFnApi.LogEntry> logs = new ConcurrentLinkedQueue<>();
     GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
-    try (GrpcFnServer<GrpcLoggingService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
+    try (GrpcServer<GrpcLoggingService> server =
+        GrpcServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
       Collection<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 1; i <= 3; ++i) {
@@ -137,8 +137,8 @@ public class GrpcLoggingServiceTest {
     Collection<Future<Void>> futures = new ArrayList<>();
     final GrpcLoggingService service =
         GrpcLoggingService.forWriter(new CollectionAppendingLogWriter(logs));
-    try (GrpcFnServer<GrpcLoggingService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
+    try (GrpcServer<GrpcLoggingService> server =
+        GrpcServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
 
       for (int i = 1; i <= 3; ++i) {
         final long instructionReference = i;

@@ -26,9 +26,10 @@ import java.util.concurrent.Future;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessManagedChannelFactory;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
@@ -38,7 +39,6 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,23 +52,23 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   private final PipelineOptions options;
 
-  private final GrpcFnServer<GrpcLoggingService> loggingServer;
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServer;
+  private final GrpcServer<GrpcLoggingService> loggingServer;
+  private final GrpcServer<FnApiControlClientPoolService> controlServer;
 
   private final ControlClientPool.Source clientSource;
 
   public static EnvironmentFactory create(
       PipelineOptions options,
-      GrpcFnServer<GrpcLoggingService> loggingServer,
-      GrpcFnServer<FnApiControlClientPoolService> controlServer,
+      GrpcServer<GrpcLoggingService> loggingServer,
+      GrpcServer<FnApiControlClientPoolService> controlServer,
       ControlClientPool.Source clientSource) {
     return new EmbeddedEnvironmentFactory(options, loggingServer, controlServer, clientSource);
   }
 
   private EmbeddedEnvironmentFactory(
       PipelineOptions options,
-      GrpcFnServer<GrpcLoggingService> loggingServer,
-      GrpcFnServer<FnApiControlClientPoolService> controlServer,
+      GrpcServer<GrpcLoggingService> loggingServer,
+      GrpcServer<FnApiControlClientPoolService> controlServer,
       Source clientSource) {
     this.options = options;
     this.loggingServer = loggingServer;
@@ -139,10 +139,10 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
     @Override
     public EnvironmentFactory createEnvironmentFactory(
-        GrpcFnServer<FnApiControlClientPoolService> controlServer,
-        GrpcFnServer<GrpcLoggingService> loggingServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-        GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
+        GrpcServer<FnApiControlClientPoolService> controlServer,
+        GrpcServer<GrpcLoggingService> loggingServer,
+        GrpcServer<ArtifactRetrievalService> retrievalServer,
+        GrpcServer<StaticGrpcProvisionService> provisioningServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return EmbeddedEnvironmentFactory.create(

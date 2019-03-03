@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -70,9 +70,9 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   // temporarily hardcode the worker id before we start supporting multiple workers
   private static final String SAMZA_WORKER_ID = "samza_py_worker_id";
 
-  private GrpcFnServer<FnApiControlClientPoolService> fnControlServer;
-  private GrpcFnServer<GrpcDataService> fnDataServer;
-  private GrpcFnServer<GrpcStateService> fnStateServer;
+  private GrpcServer<FnApiControlClientPoolService> fnControlServer;
+  private GrpcServer<GrpcDataService> fnDataServer;
+  private GrpcServer<GrpcStateService> fnStateServer;
   private ControlClientPool controlClientPool;
   private JobBundleFactory jobBundleFactory;
   private ExecutorService dataExecutor;
@@ -165,19 +165,19 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     dataExecutor = Executors.newCachedThreadPool();
     try {
       fnControlServer =
-          GrpcFnServer.allocatePortAndCreateFor(
+          GrpcServer.allocatePortAndCreateFor(
               FnApiControlClientPoolService.offeringClientsToPool(
                   controlClientPool.getSink(), () -> SAMZA_WORKER_ID),
               ServerFactory.createWithPortSupplier(
                   () -> SamzaRunnerOverrideConfigs.getFnControlPort(options)));
 
       fnDataServer =
-          GrpcFnServer.allocatePortAndCreateFor(
+          GrpcServer.allocatePortAndCreateFor(
               GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
               ServerFactory.createDefault());
 
       fnStateServer =
-          GrpcFnServer.allocatePortAndCreateFor(
+          GrpcServer.allocatePortAndCreateFor(
               GrpcStateService.create(), ServerFactory.createDefault());
     } catch (Exception e) {
       LOG.error("Failed to set up fn api servers", e);

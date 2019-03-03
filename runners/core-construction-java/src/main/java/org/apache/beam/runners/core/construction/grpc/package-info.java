@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** gRPC channel management. */
-package org.apache.beam.sdk.fn.channel;
+/** Classes used to construct GRPC services. */
+package org.apache.beam.runners.core.construction.grpc;

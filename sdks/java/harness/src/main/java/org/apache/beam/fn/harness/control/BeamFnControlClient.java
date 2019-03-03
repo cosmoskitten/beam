@@ -29,7 +29,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.runners.core.construction.grpc.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;

@@ -15,45 +15,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
+package org.apache.beam.runners.core.construction.grpc;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.BindableService;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
 
 /**
- * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
- * service is bound to the {@link GrpcFnServer}.
+ * A {@link Server gRPC Server} which manages a single service. The lifetime of the service is bound
+ * to the {@link GrpcServer}.
  */
-public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
-  /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.
-   */
-  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> allocatePortAndCreateFor(
-      ServiceT service, ServerFactory factory) throws IOException {
+public class GrpcServer<ServiceT extends BindableService & AutoCloseable> implements AutoCloseable {
+  /** Create a {@link GrpcServer} for the provided service running on an arbitrary port. */
+  public static <ServiceT extends BindableService & AutoCloseable>
+      GrpcServer<ServiceT> allocatePortAndCreateFor(ServiceT service, ServerFactory factory)
+          throws IOException {
     ApiServiceDescriptor.Builder apiServiceDescriptor = ApiServiceDescriptor.newBuilder();
     Server server =
         factory.allocateAddressAndCreate(ImmutableList.of(service), apiServiceDescriptor);
-    return new GrpcFnServer<>(server, service, apiServiceDescriptor.build());
+    return new GrpcServer<>(server, service, apiServiceDescriptor.build());
   }
 
   /**
-   * Create a {@link GrpcFnServer} for the provided {@link FnService} which will run at the endpoint
-   * specified in the {@link ApiServiceDescriptor}.
+   * Create a {@link GrpcServer} for the provided service which will run at the endpoint specified
+   * in the {@link ApiServiceDescriptor}.
    */
-  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
+  public static <ServiceT extends BindableService & AutoCloseable> GrpcServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint, ServerFactory factory) throws IOException {
-    return new GrpcFnServer<>(
-        factory.create(ImmutableList.of(service), endpoint), service, endpoint);
+    return new GrpcServer<>(factory.create(ImmutableList.of(service), endpoint), service, endpoint);
   }
 
   /** @deprecated This create function is used for Dataflow migration purpose only. */
   @Deprecated
-  public static <ServiceT extends FnService> GrpcFnServer<ServiceT> create(
+  public static <ServiceT extends BindableService & AutoCloseable> GrpcServer<ServiceT> create(
       ServiceT service, ApiServiceDescriptor endpoint) {
-    return new GrpcFnServer(null, service, endpoint) {
+    return new GrpcServer(null, service, endpoint) {
       @Override
       public void close() throws Exception {}
     };
@@ -63,26 +62,26 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   private final ServiceT service;
   private final ApiServiceDescriptor apiServiceDescriptor;
 
-  private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor) {
+  protected GrpcServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor) {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
   }
 
   /**
-   * Get an {@link ApiServiceDescriptor} describing the endpoint this {@link GrpcFnServer} is bound
+   * Get an {@link ApiServiceDescriptor} describing the endpoint this {@link GrpcServer} is bound
    * to.
    */
   public ApiServiceDescriptor getApiServiceDescriptor() {
     return apiServiceDescriptor;
   }
 
-  /** Get the service exposed by this {@link GrpcFnServer}. */
+  /** Get the service exposed by this {@link GrpcServer}. */
   public ServiceT getService() {
     return service;
   }
 
-  /** Get the underlying {@link Server} contained by this {@link GrpcFnServer}. */
+  /** Get the underlying {@link Server} contained by this {@link GrpcServer}. */
   public Server getServer() {
     return server;
   }

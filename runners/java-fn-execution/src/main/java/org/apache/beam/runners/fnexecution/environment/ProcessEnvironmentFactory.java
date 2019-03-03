@@ -22,7 +22,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -45,10 +45,10 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   public static ProcessEnvironmentFactory create(
       ProcessManager processManager,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcServer<GrpcLoggingService> loggingServiceServer,
+      GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
     return new ProcessEnvironmentFactory(
@@ -62,19 +62,19 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   }
 
   private final ProcessManager processManager;
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
-  private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
+  private final GrpcServer<FnApiControlClientPoolService> controlServiceServer;
+  private final GrpcServer<GrpcLoggingService> loggingServiceServer;
+  private final GrpcServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
 
   private ProcessEnvironmentFactory(
       ProcessManager processManager,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+      GrpcServer<GrpcLoggingService> loggingServiceServer,
+      GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
     this.processManager = processManager;
@@ -150,10 +150,10 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   public static class Provider implements EnvironmentFactory.Provider {
     @Override
     public EnvironmentFactory createEnvironmentFactory(
-        GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-        GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-        GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+        GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+        GrpcServer<GrpcLoggingService> loggingServiceServer,
+        GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return create(

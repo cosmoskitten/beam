@@ -46,9 +46,9 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.junit.After;
@@ -67,16 +67,16 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
   private File root;
   private ServerFactory serverFactory = InProcessServerFactory.create();
 
-  private GrpcFnServer<LocalFileSystemArtifactStagerService> stagerServer;
+  private GrpcServer<LocalFileSystemArtifactStagerService> stagerServer;
 
-  private GrpcFnServer<LocalFileSystemArtifactRetrievalService> retrievalServer;
+  private GrpcServer<LocalFileSystemArtifactRetrievalService> retrievalServer;
   private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub;
 
   @Before
   public void setup() throws Exception {
     root = tmp.newFolder();
     stagerServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             LocalFileSystemArtifactStagerService.forRootDirectory(root), serverFactory);
   }
 
@@ -200,7 +200,7 @@ public class LocalFileSystemArtifactRetrievalServiceTest {
     stager.stage(stagingSessionToken, artifactFiles);
 
     retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             LocalFileSystemArtifactRetrievalService.forRootDirectory(root), serverFactory);
     retrievalStub =
         ArtifactRetrievalServiceGrpc.newStub(

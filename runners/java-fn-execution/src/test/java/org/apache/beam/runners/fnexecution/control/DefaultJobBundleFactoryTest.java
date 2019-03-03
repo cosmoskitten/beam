@@ -37,8 +37,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
@@ -70,22 +70,22 @@ public class DefaultJobBundleFactoryTest {
   @Mock private EnvironmentFactory envFactory;
   @Mock private RemoteEnvironment remoteEnvironment;
   @Mock private InstructionRequestHandler instructionHandler;
-  @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
-  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
-  @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
-  @Mock private GrpcFnServer<GrpcDataService> dataServer;
-  @Mock private GrpcFnServer<GrpcStateService> stateServer;
+  @Mock GrpcServer<FnApiControlClientPoolService> controlServer;
+  @Mock GrpcServer<GrpcLoggingService> loggingServer;
+  @Mock GrpcServer<ArtifactRetrievalService> retrievalServer;
+  @Mock GrpcServer<StaticGrpcProvisionService> provisioningServer;
+  @Mock private GrpcServer<GrpcDataService> dataServer;
+  @Mock private GrpcServer<GrpcStateService> stateServer;
 
   private final Environment environment = Environment.newBuilder().setUrn("dummy:urn").build();
   private final IdGenerator stageIdGenerator = IdGenerators.incrementingLongs();
   private final InstructionResponse instructionResponse =
       InstructionResponse.newBuilder().setInstructionId("instruction-id").build();
   private final EnvironmentFactory.Provider envFactoryProvider =
-      (GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-          GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-          GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
-          GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
+      (GrpcServer<FnApiControlClientPoolService> controlServiceServer,
+          GrpcServer<GrpcLoggingService> loggingServiceServer,
+          GrpcServer<ArtifactRetrievalService> retrievalServiceServer,
+          GrpcServer<StaticGrpcProvisionService> provisioningServiceServer,
           ControlClientPool clientPool,
           IdGenerator idGenerator) -> envFactory;
   private final Map<String, EnvironmentFactory.Provider> envFactoryProviderMap =

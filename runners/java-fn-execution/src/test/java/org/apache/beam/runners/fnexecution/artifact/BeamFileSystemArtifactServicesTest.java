@@ -55,8 +55,8 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.Artif
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
@@ -83,9 +83,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BeamFileSystemArtifactServicesTest {
   private static final int DATA_1KB = 1 << 10;
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> stagingServer;
+  private GrpcServer<BeamFileSystemArtifactStagingService> stagingServer;
   private BeamFileSystemArtifactStagingService stagingService;
-  private GrpcFnServer<BeamFileSystemArtifactRetrievalService> retrievalServer;
+  private GrpcServer<BeamFileSystemArtifactRetrievalService> retrievalServer;
   private BeamFileSystemArtifactRetrievalService retrievalService;
   private ArtifactStagingServiceStub stagingStub;
   private ArtifactStagingServiceBlockingStub stagingBlockingStub;
@@ -99,7 +99,7 @@ public class BeamFileSystemArtifactServicesTest {
   public void setUp() throws Exception {
     stagingService = new BeamFileSystemArtifactStagingService();
     stagingServer =
-        GrpcFnServer.allocatePortAndCreateFor(stagingService, InProcessServerFactory.create());
+        GrpcServer.allocatePortAndCreateFor(stagingService, InProcessServerFactory.create());
     ManagedChannel stagingChannel =
         InProcessChannelBuilder.forName(stagingServer.getApiServiceDescriptor().getUrl()).build();
     stagingStub = ArtifactStagingServiceGrpc.newStub(stagingChannel);
@@ -107,7 +107,7 @@ public class BeamFileSystemArtifactServicesTest {
 
     retrievalService = new BeamFileSystemArtifactRetrievalService();
     retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(retrievalService, InProcessServerFactory.create());
+        GrpcServer.allocatePortAndCreateFor(retrievalService, InProcessServerFactory.create());
     ManagedChannel retrievalChannel =
         InProcessChannelBuilder.forName(retrievalServer.getApiServiceDescriptor().getUrl()).build();
     retrievalStub = ArtifactRetrievalServiceGrpc.newStub(retrievalChannel);

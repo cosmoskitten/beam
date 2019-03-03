@@ -38,11 +38,12 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessManagedChannelFactory;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.*;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
@@ -86,9 +86,9 @@ import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class TimerReceiverTest implements Serializable {
-  private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  private transient GrpcFnServer<GrpcDataService> dataServer;
-  private transient GrpcFnServer<GrpcLoggingService> loggingServer;
+  private transient GrpcServer<FnApiControlClientPoolService> controlServer;
+  private transient GrpcServer<GrpcDataService> dataServer;
+  private transient GrpcServer<GrpcLoggingService> loggingServer;
   private transient GrpcStateService stateDelegator;
   private transient SdkHarnessClient client;
   private transient ExecutorService sdkHarnessExecutor;
@@ -100,16 +100,16 @@ public class TimerReceiverTest implements Serializable {
     ExecutorService serverExecutor = Executors.newCachedThreadPool(threadFactory);
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     stateDelegator = GrpcStateService.create();
     ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
                 clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);

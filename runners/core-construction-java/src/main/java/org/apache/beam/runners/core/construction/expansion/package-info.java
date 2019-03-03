@@ -15,10 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution;
 
-/** Interface to access headers in the client request. */
-public interface HeaderAccessor {
-  /** This method should be called from the request method. */
-  String getSdkWorkerId();
-}
+/** Classes used to expand cross-language transforms. */
+package org.apache.beam.runners.core.construction.expansion;

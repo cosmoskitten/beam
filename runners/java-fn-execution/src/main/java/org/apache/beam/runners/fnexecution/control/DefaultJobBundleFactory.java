@@ -27,9 +27,9 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
@@ -98,12 +98,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   DefaultJobBundleFactory(
       Map<String, EnvironmentFactory.Provider> environmentFactoryMap,
       IdGenerator stageIdGenerator,
-      GrpcFnServer<FnApiControlClientPoolService> controlServer,
-      GrpcFnServer<GrpcLoggingService> loggingServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServer,
-      GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
-      GrpcFnServer<GrpcDataService> dataServer,
-      GrpcFnServer<GrpcStateService> stateServer) {
+      GrpcServer<FnApiControlClientPoolService> controlServer,
+      GrpcServer<GrpcLoggingService> loggingServer,
+      GrpcServer<ArtifactRetrievalService> retrievalServer,
+      GrpcServer<StaticGrpcProvisionService> provisioningServer,
+      GrpcServer<GrpcDataService> dataServer,
+      GrpcServer<GrpcStateService> stateServer) {
     this.environmentFactoryProviderMap = environmentFactoryMap;
     this.executor = Executors.newCachedThreadPool();
     this.clientPool = MapControlClientPool.create();
@@ -197,7 +197,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     static SimpleStageBundleFactory create(
         WrappedSdkHarnessClient wrappedClient,
         ExecutableProcessBundleDescriptor processBundleDescriptor,
-        GrpcFnServer<GrpcStateService> stateServer) {
+        GrpcServer<GrpcStateService> stateServer) {
       @SuppressWarnings("unchecked")
       BundleProcessor processor =
           wrappedClient
@@ -310,26 +310,26 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       throws IOException {
     Preconditions.checkNotNull(serverFactory, "serverFactory can not be null");
 
-    GrpcFnServer<FnApiControlClientPoolService> controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<FnApiControlClientPoolService> controlServer =
+        GrpcServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
                 clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);
-    GrpcFnServer<GrpcLoggingService> loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<GrpcLoggingService> loggingServer =
+        GrpcServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    GrpcFnServer<ArtifactRetrievalService> retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<ArtifactRetrievalService> retrievalServer =
+        GrpcServer.allocatePortAndCreateFor(
             BeamFileSystemArtifactRetrievalService.create(), serverFactory);
-    GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<StaticGrpcProvisionService> provisioningServer =
+        GrpcServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
-    GrpcFnServer<GrpcDataService> dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+    GrpcServer<GrpcDataService> dataServer =
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(executor, OutboundObserverFactory.serverDirect()),
             serverFactory);
-    GrpcFnServer<GrpcStateService> stateServer =
-        GrpcFnServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
+    GrpcServer<GrpcStateService> stateServer =
+        GrpcServer.allocatePortAndCreateFor(GrpcStateService.create(), serverFactory);
 
     ServerInfo serverInfo =
         new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
@@ -346,33 +346,33 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   /** A container for EnvironmentFactory and its corresponding Grpc servers. */
   @AutoValue
   public abstract static class ServerInfo {
-    abstract GrpcFnServer<FnApiControlClientPoolService> getControlServer();
+    abstract GrpcServer<FnApiControlClientPoolService> getControlServer();
 
-    abstract GrpcFnServer<GrpcLoggingService> getLoggingServer();
+    abstract GrpcServer<GrpcLoggingService> getLoggingServer();
 
-    abstract GrpcFnServer<ArtifactRetrievalService> getRetrievalServer();
+    abstract GrpcServer<ArtifactRetrievalService> getRetrievalServer();
 
-    abstract GrpcFnServer<StaticGrpcProvisionService> getProvisioningServer();
+    abstract GrpcServer<StaticGrpcProvisionService> getProvisioningServer();
 
-    abstract GrpcFnServer<GrpcDataService> getDataServer();
+    abstract GrpcServer<GrpcDataService> getDataServer();
 
-    abstract GrpcFnServer<GrpcStateService> getStateServer();
+    abstract GrpcServer<GrpcStateService> getStateServer();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setControlServer(GrpcFnServer<FnApiControlClientPoolService> server);
+      abstract Builder setControlServer(GrpcServer<FnApiControlClientPoolService> server);
 
-      abstract Builder setLoggingServer(GrpcFnServer<GrpcLoggingService> server);
+      abstract Builder setLoggingServer(GrpcServer<GrpcLoggingService> server);
 
-      abstract Builder setRetrievalServer(GrpcFnServer<ArtifactRetrievalService> server);
+      abstract Builder setRetrievalServer(GrpcServer<ArtifactRetrievalService> server);
 
-      abstract Builder setProvisioningServer(GrpcFnServer<StaticGrpcProvisionService> server);
+      abstract Builder setProvisioningServer(GrpcServer<StaticGrpcProvisionService> server);
 
-      abstract Builder setDataServer(GrpcFnServer<GrpcDataService> server);
+      abstract Builder setDataServer(GrpcServer<GrpcDataService> server);
 
-      abstract Builder setStateServer(GrpcFnServer<GrpcStateService> server);
+      abstract Builder setStateServer(GrpcServer<GrpcStateService> server);
 
       abstract ServerInfo build();
     }

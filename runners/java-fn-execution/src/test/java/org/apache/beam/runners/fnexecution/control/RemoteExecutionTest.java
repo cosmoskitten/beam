@@ -52,11 +52,12 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.grpc.GrpcContextHeaderAccessorProvider;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
+import org.apache.beam.runners.core.construction.grpc.InProcessManagedChannelFactory;
+import org.apache.beam.runners.core.construction.grpc.InProcessServerFactory;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
-import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
@@ -80,7 +81,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -143,10 +143,10 @@ public class RemoteExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
-  private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
-  private transient GrpcFnServer<GrpcDataService> dataServer;
-  private transient GrpcFnServer<GrpcStateService> stateServer;
-  private transient GrpcFnServer<GrpcLoggingService> loggingServer;
+  private transient GrpcServer<FnApiControlClientPoolService> controlServer;
+  private transient GrpcServer<GrpcDataService> dataServer;
+  private transient GrpcServer<GrpcStateService> stateServer;
+  private transient GrpcServer<GrpcLoggingService> loggingServer;
   private transient GrpcStateService stateDelegator;
   private transient SdkHarnessClient controlClient;
 
@@ -161,18 +161,18 @@ public class RemoteExecutionTest implements Serializable {
     serverExecutor = Executors.newCachedThreadPool(threadFactory);
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
             serverFactory);
     loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     stateDelegator = GrpcStateService.create();
-    stateServer = GrpcFnServer.allocatePortAndCreateFor(stateDelegator, serverFactory);
+    stateServer = GrpcServer.allocatePortAndCreateFor(stateDelegator, serverFactory);
 
     ControlClientPool clientPool = MapControlClientPool.create();
     controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(
+        GrpcServer.allocatePortAndCreateFor(
             FnApiControlClientPoolService.offeringClientsToPool(
                 clientPool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
             serverFactory);

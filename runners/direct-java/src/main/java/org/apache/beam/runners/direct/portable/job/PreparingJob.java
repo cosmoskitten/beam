@@ -19,7 +19,7 @@ package org.apache.beam.runners.direct.portable.job;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.core.construction.grpc.GrpcServer;
 import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
 import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
 
@@ -36,7 +36,7 @@ abstract class PreparingJob implements AutoCloseable {
 
   abstract String getStagingSessionToken();
 
-  abstract GrpcFnServer<BeamFileSystemArtifactStagingService> getArtifactStagingServer();
+  abstract GrpcServer<BeamFileSystemArtifactStagingService> getArtifactStagingServer();
 
   @Override
   public void close() throws Exception {
@@ -52,7 +52,7 @@ abstract class PreparingJob implements AutoCloseable {
     abstract Builder setStagingSessionToken(String stagingSessionToken);
 
     abstract Builder setArtifactStagingServer(
-        GrpcFnServer<BeamFileSystemArtifactStagingService> server);
+        GrpcServer<BeamFileSystemArtifactStagingService> server);
 
     abstract PreparingJob build();
   }
