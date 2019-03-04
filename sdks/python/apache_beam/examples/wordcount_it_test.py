@@ -24,6 +24,7 @@ import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
+from hamcrest.library.number.ordering_comparison import greater_than
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
@@ -32,6 +33,7 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
 from apache_beam.testing import metric_result_matchers
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
 
 class WordCountIT(unittest.TestCase):
@@ -43,21 +45,71 @@ class WordCountIT(unittest.TestCase):
   # lines read from expected output.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
+  def metric_result_matchers(self):
+    matchers = [
+      # TODO(ajamato): Add a matcher for the 'split' step's ElementCount.
+      MetricResultMatcher( # GroupByKey
+        name='ElementCount',
+        labels={
+            'original_name': 'pair_with_one-out0-ElementCount',
+            'output_user_name': 'pair_with_one-out0'
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+        name='ExecutionTime_ProcessElement',
+        labels={
+            'step': 's9',
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+      # User Metrics
+      MetricResultMatcher(
+        name='empty_lines',
+        namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+        step='s9',
+        labels={
+            'step': 's9',
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+        name='word_lengths',
+        namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+        step='s9',
+        labels={
+            'step': 's9',
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+        name='words',
+        namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+        step='s9',
+        labels={
+            'step': 's9',
+        },
+        attempted=greater_than(0),
+        committed=greater_than(0)
+      ),
+    ]
+    return matchers
+
   @attr('IT')
   def test_wordcount_it(self):
-    self._run_wordcount_it(wordcount.run)
+    result = self._run_wordcount_it(wordcount.run)
+    errors = metric_result_matchers.verify_all(
+        result.metrics().all_metrics(), self.metric_result_matchers())
 
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
     result = self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
-    metric_matchers= [
-      all_of(
-        metric_result_matchers.has_labels({'step' : 's31'}),
-        metric_result_matchers.has_name('ExecutionTime_ProcessElement'),
-      )
-    ]
     errors = metric_result_matchers.verify_all(
-        result.metrics().all_metrics(), metric_matchers)
+        result.metrics().all_metrics(), self.metric_result_matchers())
     self.assertEqual(errors, 0, str(errors))
 
   def _run_wordcount_it(self, run_wordcount, **opts):
