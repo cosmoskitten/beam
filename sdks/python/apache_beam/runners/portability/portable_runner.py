@@ -17,11 +17,13 @@
 
 from __future__ import absolute_import
 
+import atexit
 import functools
 import itertools
 import json
 import logging
 import os
+import subprocess
 import threading
 import time
 from concurrent import futures
@@ -445,15 +447,22 @@ class BeamFnExternalWorkerPoolServicer(
 
   def NotifyRunnerAvailable(self, start_worker_request, context):
     try:
-      worker = sdk_worker.SdkHarness(
-          start_worker_request.control_endpoint.url,
-          worker_count=self._worker_threads,
-          worker_id=start_worker_request.worker_id)
-      worker_thread = threading.Thread(
-          name='run_worker_%s' % start_worker_request.worker_id,
-          target=worker.run)
-      worker_thread.daemon = True
-      worker_thread.start()
+      command = ['python', '-c',
+                 'from apache_beam.runners.worker.sdk_worker '
+                 'import SdkHarness as SH; '
+                 'SH("%s",worker_count=%d,worker_id="%s").run()' % (
+                     start_worker_request.control_endpoint.url,
+                     self._worker_threads,
+                     start_worker_request.worker_id), ]
+      logging.warn("Starting worker with command %s" % (command))
+      process = subprocess.Popen(command, stdout=subprocess.PIPE, )
+
+      def kill_subprocess():
+        process.kill()
+
+      # Register to kill the subprocess on exit.
+      atexit.register(kill_subprocess)
+
       return beam_fn_api_pb2.NotifyRunnerAvailableResponse()
     except Exception as exn:
       return beam_fn_api_pb2.NotifyRunnerAvailableResponse(
