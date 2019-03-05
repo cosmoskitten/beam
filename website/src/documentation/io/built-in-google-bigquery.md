@@ -296,11 +296,11 @@ for your Google Cloud Platform project.
 
 Use the following methods when you read from a table:
 
-* Required: Specify `withMethod(Method.DIRECT_READ)` to use the BigQuery Storage API for
+* Required: Specify [withMethod(Method.DIRECT_READ)](https://beam.apache.org/releases/javadoc/2.11.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-) to use the BigQuery Storage API for
   the read operation.
 * Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/),
   you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
-  proto using the `withReadOptions` method.
+  proto using the [withReadOptions](https://beam.apache.org/releases/javadoc/2.11.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-) method.
 
 The following code snippet is from the [BigQueryTornadoes
 example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
