@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -415,23 +416,19 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
-        //todomigryz: create pcollectionid mapping
         BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
-        // registerRequest.getProcessBundleDescriptorList(); // This contains processBundleDescriptors with mapping to PBD PCollectionNames
-        // check whether I can use network to build pcollection name, otherwise utilize passed-in
-        // mapping
-
-        // pcollectionSystemToNameMapping this is passed pcollection name mapping to use
-
         List<BeamFnApi.ProcessBundleDescriptor> descriptorList = registerRequest
             .getProcessBundleDescriptorList();
 
+        LOG.error("Migryz: building SdkToDfe mapping");
         Map<String, String> sdkToDfePCollectionName = new HashMap<>();
         for(BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
-          for(BeamFnApi.PTransform transform : descriptor.getTransforms()) {
-            for(Map.Entry<String, String> entry : transform.getOutputs()) {
-              sdkToDfePCollectionName
-                  .put(entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
+          for(org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform : descriptor.getTransformsMap().values()) {
+            for(Map.Entry<String, String> entry : transform.getOutputs().entrySet()) {
+              if(pcollectionSystemToNameMapping.containsKey(entry.getKey())) {
+                sdkToDfePCollectionName
+                    .put(entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
+              }
             }
           }
         }

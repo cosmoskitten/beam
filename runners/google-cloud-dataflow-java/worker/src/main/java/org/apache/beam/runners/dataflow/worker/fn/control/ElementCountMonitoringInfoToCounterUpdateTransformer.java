@@ -90,12 +90,12 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urnToCounterNameMapping.keySet().contains(urn)) {
+    if (!urn.equals(supportedUrn)) {
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
     //todomigryz: extract and utilize pcollection label from beam_fn_api.proto
-    if(!sdkToDfePCollectionMapping.containsKey(monitoringInfo.getLabelsMap("PCOLLECTION"))){
+    if(!sdkToDfePCollectionMapping.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))){
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
               + monitoringInfo.toString());
@@ -120,6 +120,10 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
     String counterName = pcollectionName + "-ElementCount";
     NameAndKind name = new NameAndKind();
     name.setName(counterName).setKind("SUM");
+
+    String[] temp = {"migryz: mapped pcollection metric:", pcollectionId, pcollectionName,
+        counterName, monitoringInfo.toString()};
+    LOG.error(String.join(" ][ ", temp));
 
     return new CounterUpdate()
         .setNameAndKind(name)

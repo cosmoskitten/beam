@@ -353,15 +353,13 @@ public class BatchDataflowWorker implements Closeable {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
 
-        //todomigryz
-        // workItem.getMapTask() -> build inverse pcollectionIdsMap here and pass it to factory
-        // should be a pain to modify api :(
-
+        // build DFE System to Name pcollection name mapping
         List<ParallelInstruction> instructions = workItem.getMapTask().getInstructions();
-
         Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>(instructions.size());
-
         for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
+          if (instruction.getOutputs() == null) {
+            continue;
+          }
           for (InstructionOutput output : instruction.getOutputs()){
             if (pcollectionDfeSystemToNameMapping.containsKey(output.getSystemName())) {
               LOG.warn("Found multiple output mappings for pcollectionKey", output.getSystemName());
