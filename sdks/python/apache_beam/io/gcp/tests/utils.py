@@ -60,6 +60,7 @@ def create_bq_dataset(project, dataset_base_name):
   dataset_ref = client.dataset(unique_dataset_name, project=project)
   dataset = bigquery.Dataset(dataset_ref)
   client.create_dataset(dataset)
+  logging.warning("Created bq dataset: {}".format(dataset_ref))
   return dataset_ref
 
 
@@ -76,6 +77,7 @@ def delete_bq_dataset(project, dataset_ref):
   """
   client = bigquery.Client(project=project)
   client.delete_dataset(dataset_ref, delete_contents=True)
+  logging.warning("Deleted bq dataset: {}".format(dataset_ref))
 
 
 @retry.with_exponential_backoff(
