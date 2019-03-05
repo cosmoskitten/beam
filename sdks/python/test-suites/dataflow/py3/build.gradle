@@ -36,6 +36,9 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
     def tests = [
         "apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it",
         "apache_beam.examples.cookbook.bigquery_tornadoes_it_test:BigqueryTornadoesIT.test_bigquery_tornadoes_it",
+        "apache_beam.examples.complete.game.leader_board_it_test:LeaderBoardIT.test_leader_board_it",
+        "apache_beam.io.parquetio_it_test:TestParquetIT.test_parquetio_it",
+        "apache_beam.examples.complete.game.game_stats_it_test:GameStatsIT.test_game_stats_it",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([
