@@ -86,9 +86,10 @@ class TestParquetIT(unittest.TestCase):
 
   @staticmethod
   def _count_verifier(init_size, data_size, x):
-    name, count = x[0], x[1]
+    name, count = x[0].decode('utf-8'), x[1]
     counter = Counter(
-        [string.ascii_uppercase[x%26] for x in range(0, data_size*4, 4)]
+        [string.ascii_uppercase[x%26]
+         for x in range(0, data_size*4, 4)]
     )
     expected_count = counter[name[0]] * init_size
     if count != expected_count:
