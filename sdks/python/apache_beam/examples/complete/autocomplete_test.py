@@ -28,6 +28,7 @@ from apache_beam.examples.complete import autocomplete
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.test_utils import compute_hash
 
 
 class AutocompleteTest(unittest.TestCase):
@@ -60,7 +61,7 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(10)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      checksum = result | beam.Map(hash) | beam.CombineGlobally(sum)
+      checksum = result | beam.CombineGlobally(compute_hash)
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 
