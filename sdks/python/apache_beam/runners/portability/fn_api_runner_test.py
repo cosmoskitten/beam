@@ -769,10 +769,12 @@ class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
           self,
           element,
           bundle_finalizer=beam.DoFn.BundleFinalizerParam()):
-        if element is 1:
-          bundle_finalizer.register(lambda: logging.info("first call %s", element))
-        if element is 2:
-          bundle_finalizer.register(lambda: logging.info("second call %s", element))
+        if element == 1:
+          bundle_finalizer.register(
+              lambda: logging.info("first call %s", element))
+        if element == 2:
+          bundle_finalizer.register(
+              lambda: logging.info("second call %s", element))
         yield element
 
     with self.create_pipeline() as p:
