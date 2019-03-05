@@ -120,6 +120,8 @@ class ParseGameEventFn(beam.DoFn):
 
   def process(self, elem):
     try:
+      if isinstance(elem, bytes):
+        elem = elem.decode('utf-8')
       row = list(csv.reader([elem]))[0]
       yield {
           'user': row[0],
@@ -127,10 +129,11 @@ class ParseGameEventFn(beam.DoFn):
           'score': int(row[2]),
           'timestamp': int(row[3]) / 1000.0,
       }
-    except:  # pylint: disable=bare-except
+    except Exception as ex:  # pylint: disable=bare-except
       # Log and count parse errors
       self.num_parse_errors.inc()
       logging.error('Parse error on "%s"', elem)
+      logging.error(ex)
 
 
 class ExtractAndSumScore(beam.PTransform):
