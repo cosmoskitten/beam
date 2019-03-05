@@ -71,7 +71,7 @@ def run_pipeline(argv, with_attributes, id_label, timestamp_attribute):
     return msg
 
   def modify_data(data):
-    return data + '-seen'
+    return data + b'-seen'
 
   if with_attributes:
     output = messages | 'add_attribute' >> beam.Map(add_attribute)

@@ -74,6 +74,7 @@ _DESTINATION_ELEMENT_PAIRS = [
 _NAME_LANGUAGE_ELEMENTS = [
     json.loads(elm[1])
     for elm in _DESTINATION_ELEMENT_PAIRS if "language" in elm[1]
+    for elm in _DESTINATION_ELEMENT_PAIRS if "language" in elm[1]
 ]
 
 
