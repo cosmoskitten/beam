@@ -278,7 +278,8 @@ class TestAvro(unittest.TestCase):
     self._run_avro_test(file_name, 10000, True, expected_result)
 
   @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   (os.environ.get('RUN_SKIPPED_PY35_TESTS') or
+                    os.environ.get('RUN_SKIPPED_PY36_TESTS') != '1'),
                    'This test still needs to be fixed on Python 3. '
                    'See BEAM-6522')
   def test_split_points(self):
@@ -427,7 +428,8 @@ class TestAvro(unittest.TestCase):
           equal_to(self.RECORDS * 10))
 
   @unittest.skipIf(sys.version_info[0] == 3 and
-                   os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
+                   (os.environ.get('RUN_SKIPPED_PY35_TESTS') or
+                    os.environ.get('RUN_SKIPPED_PY36_TESTS') != '1'),
                    'This test still needs to be fixed on Python 3. '
                    'See BEAM-6522')
   def test_sink_transform(self):
