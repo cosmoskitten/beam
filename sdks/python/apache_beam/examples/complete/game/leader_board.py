@@ -334,6 +334,7 @@ def run(argv=None):
 
     def format_user_score_sums(user_score):
       (user, score) = user_score
+      logging.warning("user score before writing to bq: {}".format(user_score))
       return {'user': user, 'total_score': score}
 
     # Get user scores and write the results to BigQuery
