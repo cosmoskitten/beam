@@ -609,7 +609,7 @@ class FnApiRunnerTest(unittest.TestCase):
             self.assertEqual(item.metric.counter_data.int64_value, value,
                              str(("Metric has incorrect value", value, item)))
             return
-      self.assertTrue(False, str(("Metric not found", urn, pcollection, src)))
+      self.fail(str(("Metric not found", urn, pcollection, src)))
 
     counters = result_metrics.monitoring_infos()
     self.assertEqual(len([x for x in counters if
