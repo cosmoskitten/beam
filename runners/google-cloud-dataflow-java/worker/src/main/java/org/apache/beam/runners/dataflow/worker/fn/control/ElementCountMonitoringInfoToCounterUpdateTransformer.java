@@ -46,11 +46,10 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
    * @param sdkToDfePCollectionMapping Mapping of SDK available PCollection name to DFE pcollection
-   * name.
+   *     name.
    */
   public ElementCountMonitoringInfoToCounterUpdateTransformer(
-      SpecMonitoringInfoValidator specValidator,
-      Map<String, String> sdkToDfePCollectionMapping) {
+      SpecMonitoringInfoValidator specValidator, Map<String, String> sdkToDfePCollectionMapping) {
     this.specValidator = specValidator;
     this.sdkToDfePCollectionMapping = sdkToDfePCollectionMapping;
   }
@@ -90,8 +89,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
     }
 
-    //todomigryz: extract and utilize pcollection label from beam_fn_api.proto
-    if(!sdkToDfePCollectionMapping.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))){
+    // todomigryz: extract and utilize pcollection label from beam_fn_api.proto
+    if (!sdkToDfePCollectionMapping.containsKey(monitoringInfo.getLabelsMap().get("PCOLLECTION"))) {
       return Optional.of(
           "Encountered ElementCount MonitoringInfo with unknown PCollectionId: "
               + monitoringInfo.toString());
@@ -117,8 +116,13 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
     NameAndKind name = new NameAndKind();
     name.setName(counterName).setKind("SUM");
 
-    String[] temp = {"migryz: mapped pcollection metric:", pcollectionId, pcollectionName,
-        counterName, monitoringInfo.toString()};
+    String[] temp = {
+      "migryz: mapped pcollection metric:",
+      pcollectionId,
+      pcollectionName,
+      counterName,
+      monitoringInfo.toString()
+    };
     LOG.error(String.join(" ][ ", temp));
 
     return new CounterUpdate()

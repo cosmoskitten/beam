@@ -48,10 +48,10 @@ public class FnApiMonitoringInfoToCounterUpdateTransformer
     for (String urn : msecTransformer.getSupportedUrns()) {
       this.counterTransformers.put(urn, msecTransformer);
     }
-    this.counterTransformers
-        .put(ElementCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
-            new ElementCountMonitoringInfoToCounterUpdateTransformer(specValidator,
-                sdkToDfePCollectionNameMapping));
+    this.counterTransformers.put(
+        ElementCountMonitoringInfoToCounterUpdateTransformer.getSupportedUrn(),
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            specValidator, sdkToDfePCollectionNameMapping));
   }
 
   /** Allows for injection of user and generic counter transformers for more convenient testing. */

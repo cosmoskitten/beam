@@ -307,6 +307,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
   public Map<String, String> getSdkToDfePCollectionMapping() {
     return this.sdkToDfePCollectionMapping;
   }
+
   public Map<String, DataflowStepContext> getPtransformIdToUserStepContext() {
     return ptransformIdToUserStepContext;
   }

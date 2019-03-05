@@ -111,9 +111,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.api.services.dataflow.model.WorkItem;
-
-
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutorFactory.class);
@@ -417,17 +414,18 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
         BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
-        List<BeamFnApi.ProcessBundleDescriptor> descriptorList = registerRequest
-            .getProcessBundleDescriptorList();
+        List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
+            registerRequest.getProcessBundleDescriptorList();
 
         LOG.error("Migryz: building SdkToDfe mapping");
         Map<String, String> sdkToDfePCollectionName = new HashMap<>();
-        for(BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
-          for(org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform : descriptor.getTransformsMap().values()) {
-            for(Map.Entry<String, String> entry : transform.getOutputs().entrySet()) {
-              if(pcollectionSystemToNameMapping.containsKey(entry.getKey())) {
-                sdkToDfePCollectionName
-                    .put(entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
+        for (BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
+          for (org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform :
+              descriptor.getTransformsMap().values()) {
+            for (Map.Entry<String, String> entry : transform.getOutputs().entrySet()) {
+              if (pcollectionSystemToNameMapping.containsKey(entry.getKey())) {
+                sdkToDfePCollectionName.put(
+                    entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
               }
             }
           }

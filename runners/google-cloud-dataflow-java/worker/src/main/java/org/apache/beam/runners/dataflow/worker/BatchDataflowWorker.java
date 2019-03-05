@@ -360,16 +360,14 @@ public class BatchDataflowWorker implements Closeable {
           if (instruction.getOutputs() == null) {
             continue;
           }
-          for (InstructionOutput output : instruction.getOutputs()){
+          for (InstructionOutput output : instruction.getOutputs()) {
             if (pcollectionDfeSystemToNameMapping.containsKey(output.getSystemName())) {
               LOG.warn("Found multiple output mappings for pcollectionKey", output.getSystemName());
             } else {
               // DFE prepends system name with "<instructionOriginalName>."
-              final String trimmedName = output.getSystemName()
-                  .substring(instruction.getOriginalName().length() + 1);
-              pcollectionDfeSystemToNameMapping
-                  .put(trimmedName,
-                      output.getName());
+              final String trimmedName =
+                  output.getSystemName().substring(instruction.getOriginalName().length() + 1);
+              pcollectionDfeSystemToNameMapping.put(trimmedName, output.getName());
             }
           }
         }

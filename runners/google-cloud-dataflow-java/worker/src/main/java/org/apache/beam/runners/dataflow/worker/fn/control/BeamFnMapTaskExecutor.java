@@ -145,7 +145,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
    */
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
-    long id  = java.time.Instant.now().toEpochMilli();
+    long id = java.time.Instant.now().toEpochMilli();
 
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
 
@@ -415,8 +415,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
               this.bundleProcessOperation.getPtransformIdToUserStepContext(),
-              this.bundleProcessOperation.getSdkToDfePCollectionMapping()
-              );
+              this.bundleProcessOperation.getSdkToDfePCollectionMapping());
 
       counterUpdates =
           monitoringInfos.stream()
