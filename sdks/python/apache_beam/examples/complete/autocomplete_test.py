@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 from nose.plugins.attrib import attr
@@ -33,7 +34,10 @@ from apache_beam.testing.util import equal_to
 class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
-  KINGLEAR_HASH_SUM = 3104188901048578415956
+  if sys.version_info[0] == 2:
+    KINGLEAR_HASH_SUM = 3104188901048578415956
+  else:
+    KINGLEAR_HASH_SUM = -968394223874856419495
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 
   def test_top_prefixes(self):
