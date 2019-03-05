@@ -185,7 +185,7 @@ public class BeamFnMapTaskExecutorTest {
             ImmutableMap.of(),
             ImmutableTable.of(),
             new HashMap<String, String>(),
-mockContext);
+            mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
@@ -289,7 +289,7 @@ mockContext);
             ImmutableMap.of(),
             ImmutableTable.of(),
             new HashMap<String, String>(),
-mockContext);
+            mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
@@ -399,7 +399,7 @@ mockContext);
             ImmutableMap.of(),
             ImmutableTable.of(),
             new HashMap<String, String>(),
-mockContext);
+            mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
@@ -523,7 +523,7 @@ mockContext);
             ImmutableMap.of(),
             ImmutableTable.of(),
             new HashMap<String, String>(),
-mockContext);
+            mockContext);
 
     BeamFnMapTaskExecutor mapTaskExecutor =
         BeamFnMapTaskExecutor.forOperations(
