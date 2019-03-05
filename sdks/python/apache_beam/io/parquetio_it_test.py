@@ -88,7 +88,8 @@ class TestParquetIT(unittest.TestCase):
   def _count_verifier(init_size, data_size, x):
     name, count = x[0], x[1]
     counter = Counter(
-        [string.ascii_uppercase[x%26] for x in range(0, data_size*4, 4)]
+        [string.ascii_uppercase[x%26].encode('utf-8')
+         for x in range(0, data_size*4, 4)]
     )
     expected_count = counter[name[0]] * init_size
     if count != expected_count:
@@ -161,7 +162,7 @@ class ProducerFn(DoFn):
   def get_string(self, length):
     s = []
     for _ in range(length):
-      s.append(string.ascii_uppercase[self._string_index])
+      s.append(string.ascii_uppercase[self._string_index].encode('utf-8'))
       self._string_index = (self._string_index + 1) % 26
     return ''.join(s)
 
