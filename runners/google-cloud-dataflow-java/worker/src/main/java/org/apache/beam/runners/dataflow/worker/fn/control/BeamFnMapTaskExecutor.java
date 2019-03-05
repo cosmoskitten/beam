@@ -149,9 +149,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
 
-    LOG.error("migryz dumping MonitoringInfoReport");
-    result.forEach(x -> LOG.error("migryz DeprecatedMetricReport: {} {}", id, x));
-
     if ((result != null) && (result.size() > 0)) {
       return result;
     }
@@ -173,9 +170,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
                         MetricsToCounterUpdateConverter.fromDistribution(
                             update.getKey(), true, update.getUpdate()))
                 .collect(Collectors.toList()));
-
-    LOG.error("migryz dumping DeprecatedMetricReport");
-    deprecatedMetrics.forEach(x -> LOG.error("migryz DeprecatedMetricReport: {} {}", id, x));
 
     return deprecatedMetrics;
   }
