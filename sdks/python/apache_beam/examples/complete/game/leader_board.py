@@ -87,6 +87,7 @@ import csv
 import logging
 import sys
 import time
+import traceback
 from datetime import datetime
 
 import apache_beam as beam
@@ -120,7 +121,7 @@ class ParseGameEventFn(beam.DoFn):
 
   def process(self, elem):
     try:
-      row = list(csv.reader([elem]))[0]
+      row = list(csv.reader([elem.decode('utf-8')]))[0]
       yield {
           'user': row[0],
           'team': row[1],
@@ -131,6 +132,8 @@ class ParseGameEventFn(beam.DoFn):
       # Log and count parse errors
       self.num_parse_errors.inc()
       logging.error('Parse error on "%s"', elem)
+      logging.error(traceback.extract_stack())
+
 
 
 class ExtractAndSumScore(beam.PTransform):
@@ -195,6 +198,9 @@ class WriteToBigQuery(beam.PTransform):
         | beam.io.WriteToBigQuery(
             self.table_name, self.dataset, self.project, self.get_schema()))
 
+def print_ln(elem):
+    logging.warning(elem)
+    yield elem
 
 # [START window_and_trigger]
 class CalculateTeamScores(beam.PTransform):
@@ -214,6 +220,7 @@ class CalculateTeamScores(beam.PTransform):
     # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
         pcoll
+        | 'TestPrint' >> beam.FlatMap(print_ln)
         # We will get early (speculative) results as well as cumulative
         # processing of late data.
         | 'LeaderboardTeamFixedWindows' >> beam.WindowInto(
@@ -334,6 +341,7 @@ def run(argv=None):
 
     def format_user_score_sums(user_score):
       (user, score) = user_score
+      logging.warning("user score before writing to bq: {}".format(user_score))
       return {'user': user, 'total_score': score}
 
     # Get user scores and write the results to BigQuery
