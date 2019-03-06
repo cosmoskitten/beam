@@ -319,7 +319,7 @@ public class BatchDataflowWorker implements Closeable {
    */
   @VisibleForTesting
   boolean doWork(WorkItem workItem, WorkItemStatusClient workItemStatusClient) throws IOException {
-    LOG.error("migryz Executing: {}", workItem);
+    LOG.debug("Executing: {}", workItem);
 
     DataflowWorkExecutor worker = null;
     SdkWorkerHarness sdkWorkerHarness = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
@@ -353,9 +353,7 @@ public class BatchDataflowWorker implements Closeable {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
 
-        // build DFE System to Name pcollection name mapping
-        List<ParallelInstruction> instructions = workItem.getMapTask().getInstructions();
-        Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>(instructions.size());
+        Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>();
         for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
           if (instruction.getOutputs() == null) {
             continue;

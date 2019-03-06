@@ -305,13 +305,7 @@ public class WorkItemStatusClient {
     // i.e. structuredNameAndMetadata and nameAndKind
     worker.extractMetricUpdates().forEach(appendCounterUpdate);
 
-    ImmutableList<CounterUpdate> result = ImmutableList.copyOf(counterUpdatesMap.values());
-
-    long id = java.time.Instant.now().toEpochMilli();
-    LOG.error("migryz dumping WorkItemStatusCounterUpdates");
-    result.forEach(x -> LOG.error("migryz WIS counterUpdates: {} {}", id, x));
-
-    status.setCounterUpdates(result);
+    status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
   }
 
   private synchronized Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {

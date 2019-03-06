@@ -413,11 +413,9 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
-        BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
         List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
-            registerRequest.getProcessBundleDescriptorList();
+            input.getRegisterRequest().getProcessBundleDescriptorList();
 
-        LOG.error("Migryz: building SdkToDfe mapping");
         Map<String, String> sdkToDfePCollectionName = new HashMap<>();
         for (BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
           for (org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform :

@@ -1205,7 +1205,7 @@ public class StreamingDataflowWorker {
                 context,
                 pendingDeltaCounters,
                 idGenerator,
-                new HashMap<>()); // todomigryz
+                new HashMap<>());
         ReadOperation readOperation = mapTaskExecutor.getReadOperation();
         // Disable progress updates since its results are unused  for streaming
         // and involves starting a thread.

@@ -30,9 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * MonitoringInfo to CounterUpdate transformer capable to transform MSec counters.
- *
- * <p>Use getSupportedUrns to get all urns this class supports.
+ * MonitoringInfo to CounterUpdate transformer capable to transform ElementCount counters.
  */
 public class ElementCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
@@ -52,23 +50,6 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
       SpecMonitoringInfoValidator specValidator, Map<String, String> sdkToDfePCollectionMapping) {
     this.specValidator = specValidator;
     this.sdkToDfePCollectionMapping = sdkToDfePCollectionMapping;
-  }
-
-  /** Allows to inject members for cleaner testing. */
-  @VisibleForTesting
-  protected ElementCountMonitoringInfoToCounterUpdateTransformer(
-      SpecMonitoringInfoValidator specValidator,
-      Map<String, String> sdkToDfePCollectionMapping,
-      Map<String, String> urnToCounterNameMapping) {
-    this.specValidator = specValidator;
-    this.sdkToDfePCollectionMapping = sdkToDfePCollectionMapping;
-  }
-
-  @VisibleForTesting
-  protected Map<String, String> createKnownUrnToCounterNameMapping() {
-    Map<String, String> result = new HashMap<>();
-    result.put("beam:metric:element_count:v1", "-element-count");
-    return result;
   }
 
   /**

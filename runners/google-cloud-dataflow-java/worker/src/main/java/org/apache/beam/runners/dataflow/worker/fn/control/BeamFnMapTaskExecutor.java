@@ -145,8 +145,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
    */
   @Override
   public Iterable<CounterUpdate> extractMetricUpdates() {
-    long id = java.time.Instant.now().toEpochMilli();
-
     List<CounterUpdate> result = progressTracker.extractCounterUpdates();
 
     if ((result != null) && (result.size() > 0)) {
@@ -343,8 +341,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           grpcWriteOperation.abortWait();
         }
 
-        LOG.error("migryz bundleProcessOperation: {}", bundleProcessOperation.toString());
-
         // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
         // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
@@ -404,8 +400,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
      * @param monitoringInfos Usually received from FnApi.
      */
     private void updateMetrics(List<MonitoringInfo> monitoringInfos) {
-      LOG.error("migryz: monitoringInfos" + monitoringInfos.toString());
-
       final MonitoringInfoToCounterUpdateTransformer monitoringInfoToCounterUpdateTransformer =
           new FnApiMonitoringInfoToCounterUpdateTransformer(
               this.bundleProcessOperation.getPtransformIdToUserStepContext(),
