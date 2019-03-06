@@ -590,12 +590,12 @@ class FnApiRunnerTest(unittest.TestCase):
                                            main='FirstAndMainOutput'))
 
     # Actually feed pcollection to pardo
-    second_outpu, third_output, first_output = (pcoll | pardo)
+    second_output, third_output, first_output = (pcoll | pardo)
 
     # consume some of elements
-    merged = ((first_output, second_outpu, third_output) | beam.Flatten())
+    merged = ((first_output, second_output, third_output) | beam.Flatten())
     merged | ('PrintingStep') >> beam.ParDo(PrintElements())
-    second_outpu | ('PrintingStep2') >> beam.ParDo(PrintElements())
+    second_output | ('PrintingStep2') >> beam.ParDo(PrintElements())
 
     res = p.run()
     res.wait_until_finish()
@@ -612,11 +612,10 @@ class FnApiRunnerTest(unittest.TestCase):
       self.fail(str(("Metric not found", urn, pcollection, src)))
 
     counters = result_metrics.monitoring_infos()
-    self.assertEqual(len([x for x in counters if
-                          x.urn == monitoring_infos.ELEMENT_COUNT_URN
-                          and
-                          monitoring_infos.PCOLLECTION_LABEL not in x.labels]),
-                     0)
+    self.assertFalse([x for x in counters if
+                      x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                      and
+                      monitoring_infos.PCOLLECTION_LABEL not in x.labels])
 
     assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
                            'Impulse', 1)
