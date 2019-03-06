@@ -27,6 +27,10 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java TextIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java TextIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'textioit_hdfs_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000'
                 ]
 
@@ -39,6 +43,10 @@ def testsConfigurations = [
                 prCommitStatusName : 'Java CompressedTextIO Performance Test on HDFS',
                 prTriggerPhase     : 'Run Java CompressedTextIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'compressed_textioit_hdfs_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         compressionType: 'GZIP'
                 ]
@@ -51,6 +59,10 @@ def testsConfigurations = [
                 prCommitStatusName: 'Java ManyFilesTextIO Performance Test on HDFS',
                 prTriggerPhase    : 'Run Java ManyFilesTextIO Performance Test HDFS',
                 extraPipelineArgs: [
+                        bigQueryDataset: 'beam_performance',
+                        bigQueryTable: 'many_files_textioit_hdfs_results',
+                        reportGcsPerformanceMetrics: 'true',
+                        gcsPerformanceMetrics: 'true',
                         numberOfRecords: '1000000',
                         numberOfShards: '1000'
                 ]
