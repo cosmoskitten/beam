@@ -17,12 +17,12 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PhraseTriggeringPostcommitBuilder
+import PhraseTriggeringPostCommitBuilder
 
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-PhraseTriggeringPostcommitBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct',
+PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct',
         'Run Direct ValidatesRunner in Java 11', 'Direct Runner ValidatesRunner Tests for Java 11', this) {
 
     description('Runs the ValidatesRunner suite on the Direct runner.')
