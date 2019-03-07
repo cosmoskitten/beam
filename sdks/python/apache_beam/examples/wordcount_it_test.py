@@ -37,11 +37,12 @@ from apache_beam.testing.test_utils import delete_files
 
 
 def common_metric_matchers():
+  """MetricResult matchers common to all tests."""
   matchers = [
-      # TODO(ajamato): Add a matcher for the 'split' step's ElementCount.
-      # TODO(ajamato): Add a matcher for the 'split' step's MeanByteCount.
-      # TODO(ajamato): Add a matcher for the start and finish exec times.
-      # TODO(ajamato): Add a matcher for a user distribution tuple metric.
+      # TODO(ajamato): Matcher for the 'pair_with_one' step's ElementCount.
+      # TODO(ajamato): Matcher for the 'pair_with_one' step's MeanByteCount.
+      # TODO(ajamato): Matcher for the start and finish exec times.
+      # TODO(ajamato): Matcher for a user distribution tuple metric.
       MetricResultMatcher( # GroupByKey.
           name='ElementCount',
           labels={
@@ -78,6 +79,7 @@ def common_metric_matchers():
 
 
 def fn_api_metric_matchers():
+  """MetricResult matchers with adjusted step names for the FN API DF test."""
   matchers = common_metric_matchers()
   matchers.extend([
       # Execution Time Metric for the pair_with_one step.
@@ -94,6 +96,7 @@ def fn_api_metric_matchers():
 
 
 def legacy_metric_matchers():
+  """MetricResult matchers with adjusted step names for the legacy DF test."""
   matchers = common_metric_matchers()
   matchers.extend([
       # Execution Time Metric for the pair_with_one step.
