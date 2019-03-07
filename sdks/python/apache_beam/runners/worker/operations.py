@@ -209,6 +209,12 @@ class Operation(object):
     """Process element in operation."""
     pass
 
+  def finalize_bundle(self):
+    pass
+
+  def needs_finalization(self):
+    return False
+
   def try_split(self, fraction_of_remainder):
     return None
 
@@ -540,8 +546,11 @@ class DoOperation(Operation):
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
-  def finalize(self):
+  def finalize_bundle(self):
     self.dofn_receiver.finalize()
+
+  def needs_finalization(self):
+    return self.dofn_receiver.bundle_finalizer_param.needs_finalization()
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value

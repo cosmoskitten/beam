@@ -340,6 +340,9 @@ class _BundleFinalizerParam(_DoFnParam):
     for callback in self.callbacks:
       callback()
 
+  def needs_finalization(self):
+    return len(self.callbacks) > 0
+
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
@@ -359,16 +362,16 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   TimestampParam = _DoFnParam('TimestampParam')
   WindowParam = _DoFnParam('WindowParam')
   WatermarkReporterParam = _DoFnParam('WatermarkReporterParam')
+  BundleFinalizerParam = _BundleFinalizerParam
 
   DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam]
+                       WindowParam, WatermarkReporterParam, BundleFinalizerParam]
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),
   # DoFn.TimerParam(timer_spec).
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
-  BundleFinalizerParam = _BundleFinalizerParam
 
   @staticmethod
   def from_callable(fn):
@@ -1048,7 +1051,6 @@ class ParDo(PTransformWithSideInputs):
     from apache_beam.runners.common import DoFnSignature
     do_fn_signature = DoFnSignature(self.fn)
     is_splittable = do_fn_signature.is_splittable_dofn()
-    is_requests_finalization = do_fn_signature.is_request_finalization()
     if is_splittable:
       restriction_coder = (
           DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
@@ -1076,8 +1078,7 @@ class ParDo(PTransformWithSideInputs):
             # are currently implemented.
             side_inputs={
                 "side%s" % ix: si.to_runner_api(context)
-                for ix, si in enumerate(self.side_inputs)},
-            requests_finalization=is_requests_finalization))
+                for ix, si in enumerate(self.side_inputs)}))
 
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)

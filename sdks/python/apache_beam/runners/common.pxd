@@ -47,17 +47,15 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
-  cdef public MethodWrapper finalize_method
   cdef public object do_fn
   cdef public object timer_methods
   cdef bint _is_stateful_dofn
-  cdef object _bundle_finalizer
-
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
   cdef object user_state_context
+  cdef object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
@@ -94,7 +92,7 @@ cdef class DoFnRunner(Receiver):
   cdef object step_name
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
-
+  cdef object bundle_finalizer_param
   cpdef process(self, WindowedValue windowed_value)
 
 
