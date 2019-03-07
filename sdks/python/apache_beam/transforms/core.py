@@ -365,7 +365,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   BundleFinalizerParam = _BundleFinalizerParam
 
   DoFnProcessParams = [ElementParam, SideInputParam, TimestampParam,
-                       WindowParam, WatermarkReporterParam, BundleFinalizerParam]
+                       WindowParam, WatermarkReporterParam,
+                       BundleFinalizerParam]
 
   # Parameters to access state and timers.  Not restricted to use only in the
   # .process() method. Usage: DoFn.StateParam(state_spec),

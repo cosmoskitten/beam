@@ -499,9 +499,9 @@ class BundleProcessor(object):
            for consumer in pcoll_consumers[pcoll]])
 
     return collections.OrderedDict([
-      (transform_id, get_operation(transform_id))
-      for transform_id in sorted(
-          descriptor.transforms, key=topological_height, reverse=True)])
+        (transform_id, get_operation(transform_id))
+        for transform_id in sorted(
+            descriptor.transforms, key=topological_height, reverse=True)])
 
   def reset(self):
     self.counter_factory.reset()

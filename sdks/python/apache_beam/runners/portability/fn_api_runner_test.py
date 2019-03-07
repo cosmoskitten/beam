@@ -768,7 +768,7 @@ class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
       def process(
           self,
           element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam()):
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
         if element == 1:
           bundle_finalizer.register(
               lambda: logging.info("first call %s", element))
