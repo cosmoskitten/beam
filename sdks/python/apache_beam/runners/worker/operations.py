@@ -570,6 +570,7 @@ class DoOperation(Operation):
       side_input_map.reset()
     if self.user_state_context:
       self.user_state_context.reset()
+    self.dofn_receiver.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
     metrics = super(DoOperation, self).progress_metrics()

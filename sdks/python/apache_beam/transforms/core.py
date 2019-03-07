@@ -343,6 +343,9 @@ class _BundleFinalizerParam(_DoFnParam):
   def has_callbacks(self):
     return len(self.callbacks) > 0
 
+  def reset(self):
+    self.callbacks.clear()
+
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
