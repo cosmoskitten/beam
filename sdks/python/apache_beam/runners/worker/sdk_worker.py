@@ -350,6 +350,8 @@ class SdkWorker(object):
     if processor:
       finalize_response = processor.finalize_bundle()
       del self.active_bundle_processors[request.instruction_reference]
+      processor.reset()
+      self.cached_bundle_processors[processor.process_bundle_descriptor.id].append(processor)
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           finalize_bundle=finalize_response)
