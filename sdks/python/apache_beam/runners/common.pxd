@@ -51,6 +51,7 @@ cdef class DoFnSignature(object):
   cdef public object timer_methods
   cdef bint _is_stateful_dofn
 
+
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor

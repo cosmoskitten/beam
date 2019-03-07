@@ -1050,8 +1050,7 @@ class ParDo(PTransformWithSideInputs):
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
     from apache_beam.runners.common import DoFnSignature
-    do_fn_signature = DoFnSignature(self.fn)
-    is_splittable = do_fn_signature.is_splittable_dofn()
+    is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
     if is_splittable:
       restriction_coder = (
           DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
