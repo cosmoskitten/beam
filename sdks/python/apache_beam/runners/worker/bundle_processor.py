@@ -680,6 +680,10 @@ class BundleProcessor(object):
         monitoring_info.labels[
             monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
 
+        # Cleaning up labels that are not in specification.
+        monitoring_info.labels.pop(monitoring_infos.PTRANSFORM_LABEL)
+        monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
+
     for mi in infos_list:
       inject_pcollection_into_element_count(mi)
 

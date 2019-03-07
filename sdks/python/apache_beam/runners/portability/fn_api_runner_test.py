@@ -657,7 +657,6 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertEqual(
           1, found, "Did not find exactly 1 metric for %s." % metric_key)
     urns = [
-        monitoring_infos.ELEMENT_COUNT_URN,
         monitoring_infos.START_BUNDLE_MSECS_URN,
         monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
         monitoring_infos.FINISH_BUNDLE_MSECS_URN,
@@ -683,6 +682,7 @@ class FnApiRunnerTest(unittest.TestCase):
       # This test is inherited by others that may not support the same
       # internal way of accessing progress metrics.
       self.skipTest('Progress metrics not supported.')
+      return
 
     _ = (p
          | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
@@ -694,6 +694,7 @@ class FnApiRunnerTest(unittest.TestCase):
              beam.pvalue.TaggedOutput('once', x),
              beam.pvalue.TaggedOutput('twice', x),
              beam.pvalue.TaggedOutput('twice', x)]))
+
     res = p.run()
     res.wait_until_finish()
 
@@ -745,6 +746,7 @@ class FnApiRunnerTest(unittest.TestCase):
       # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
+
       if not has_mi_for_ptransform(pregbk_mis, 'Create/Read'):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
@@ -773,10 +775,10 @@ class FnApiRunnerTest(unittest.TestCase):
             (found, (urn, labels, value_str, ge_value_str),))
 
       # pregbk monitoring infos
-      labels = {'PTRANSFORM' : 'Create/Read', 'TAG' : 'out'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
-      labels = {'PTRANSFORM' : 'Map(sleep)', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
       assert_has_monitoring_info(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
       labels = {'PTRANSFORM' : 'Map(sleep)'}
@@ -785,18 +787,12 @@ class FnApiRunnerTest(unittest.TestCase):
           labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
-      labels = {'PTRANSFORM' : 'GroupByKey/Read', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
       assert_has_monitoring_info(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'None'}
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
       assert_has_monitoring_info(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'once'}
-      assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
-      labels = {'PTRANSFORM' : 'm_out', 'TAG' : 'twice'}
-      assert_has_monitoring_info(
-          postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=2)
     except:
       print(res._monitoring_infos_by_stage)
       raise
