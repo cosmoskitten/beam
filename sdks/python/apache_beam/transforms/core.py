@@ -340,7 +340,7 @@ class _BundleFinalizerParam(_DoFnParam):
     for callback in self.callbacks:
       callback()
 
-  def needs_finalization(self):
+  def has_callbacks(self):
     return len(self.callbacks) > 0
 
 

@@ -148,10 +148,9 @@ class MethodWrapper(object):
     """
 
     if not isinstance(obj_to_invoke,
-                      (DoFn, RestrictionProvider, DoFn.BundleFinalizerParam)):
+                      (DoFn, RestrictionProvider)):
       raise ValueError('\'obj_to_invoke\' has to be a \'DoFn\' or '
-                       'a \'RestrictionProvider\' or '
-                       'a \'BundleFinalizerParam\'. Received %r instead.'
+                       'a \'RestrictionProvider\' or Received %r instead.'
                        % obj_to_invoke)
 
     fullargspec = core.get_function_arguments(

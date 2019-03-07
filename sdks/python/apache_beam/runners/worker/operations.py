@@ -550,7 +550,7 @@ class DoOperation(Operation):
     self.dofn_receiver.finalize()
 
   def needs_finalization(self):
-    return self.dofn_receiver.bundle_finalizer_param.needs_finalization()
+    return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value

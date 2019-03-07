@@ -552,7 +552,7 @@ class BundleProcessor(object):
         op.finish()
 
       for op in self.ops.values():
-        if op.needs_finalization:
+        if op.needs_finalization():
           self.requires_finalization = True
           break
 
