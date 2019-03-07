@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import
 
 import argparse
 import concurrent.futures as futures
@@ -24,11 +25,11 @@ import time
 import grpc
 
 import apache_beam as beam
+import apache_beam.transforms.combiners as combine
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
-import apache_beam.transforms.combiners as combine
 
 
 @ptransform.PTransform.register_urn('count_per_element_bytes', None)
@@ -66,12 +67,12 @@ class SimpleTransform(ptransform.PTransform):
 class MutltiTransform(ptransform.PTransform):
   def expand(self, pcolls):
     return {
-      'main':
-        (pcolls['main1'], pcolls['main2'])
-        | beam.Flatten()
-        | beam.Map(lambda x, s: x + s,
-                   beam.pvalue.AsSingleton(pcolls['side'])),
-      'side': pcolls['side'] | beam.Map(lambda x: x + x),
+        'main':
+            (pcolls['main1'], pcolls['main2'])
+            | beam.Flatten()
+            | beam.Map(lambda x, s: x + s,
+                       beam.pvalue.AsSingleton(pcolls['side'])),
+        'side': pcolls['side'] | beam.Map(lambda x: x + x),
     }
 
   def to_runner_api_parameter(self, unused_context):
@@ -108,11 +109,11 @@ class FibTransform(ptransform.PTransform):
       return p | beam.Create([1])
     else:
       a = p | 'A' >> beam.ExternalTransform(
-        'fib', str(self._level - 1).encode('ascii'),
-        expansion_service.ExpansionServiceServicer())
+          'fib', str(self._level - 1).encode('ascii'),
+          expansion_service.ExpansionServiceServicer())
       b = p | 'B' >> beam.ExternalTransform(
-        'fib', str(self._level - 2).encode('ascii'),
-        expansion_service.ExpansionServiceServicer())
+          'fib', str(self._level - 2).encode('ascii'),
+          expansion_service.ExpansionServiceServicer())
       return (
           (a, b)
           | beam.Flatten()
@@ -134,7 +135,7 @@ def main(unused_argv):
   options = parser.parse_args()
   server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-    expansion_service.ExpansionServiceServicer(PipelineOptions()), server
+      expansion_service.ExpansionServiceServicer(PipelineOptions()), server
   )
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
