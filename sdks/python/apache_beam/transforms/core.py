@@ -330,21 +330,21 @@ class _BundleFinalizerParam(_DoFnParam):
   """Bundle Finalization DoFn parameter."""
 
   def __init__(self):
-    self.callbacks = []
+    self._callbacks = []
     self.param_id = "FinalizeBundle"
 
   def register(self, callback):
-    self.callbacks.append(callback)
+    self._callbacks.append(callback)
 
   def finalize_bundle(self):
-    for callback in self.callbacks:
+    for callback in self._callbacks:
       callback()
 
   def has_callbacks(self):
-    return len(self.callbacks) > 0
+    return len(self._callbacks) > 0
 
   def reset(self):
-    self.callbacks.clear()
+    del self._callbacks[:]
 
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
