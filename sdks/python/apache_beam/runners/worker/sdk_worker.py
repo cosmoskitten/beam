@@ -317,7 +317,7 @@ class SdkWorker(object):
         yield processor
     finally:
       requires_finalization = \
-        self.active_bundle_processors[instruction_id].requires_finalization
+        self.active_bundle_processors[instruction_id].requires_finalization()
       if not requires_finalization:
         del self.active_bundle_processors[instruction_id]
     # Outside the finally block as we only want to re-use on success.
@@ -347,7 +347,7 @@ class SdkWorker(object):
 
   def finalize_bundle(self, request, instruction_id):
     processor = self.active_bundle_processors.get(request.instruction_reference)
-    if processor and processor.requires_finalization:
+    if processor:
       finalize_response = processor.finalize_bundle()
       del self.active_bundle_processors[request.instruction_reference]
       return beam_fn_api_pb2.InstructionResponse(

@@ -460,7 +460,6 @@ class BundleProcessor(object):
     for op in self.ops.values():
       op.setup()
     self.splitting_lock = threading.Lock()
-    self.requires_finalization = False
 
   def create_execution_tree(self, descriptor):
     transform_factory = BeamTransformFactory(
@@ -551,15 +550,9 @@ class BundleProcessor(object):
         logging.debug('finish %s', op)
         op.finish()
 
-      for op in self.ops.values():
-        if op.needs_finalization():
-          self.requires_finalization = True
-          break
-
-      return [
-          self.delayed_bundle_application(op, residual)
-          for op, residual in execution_context.delayed_applications], \
-             self.requires_finalization
+      return ([self.delayed_bundle_application(op, residual)
+               for op, residual in execution_context.delayed_applications],
+              self.requires_finalization())
 
     finally:
       # Ensure any in-flight split attempts complete.
@@ -571,6 +564,9 @@ class BundleProcessor(object):
     for op in self.ops.values():
       op.finalize_bundle()
     return beam_fn_api_pb2.FinalizeBundleResponse()
+
+  def requires_finalization(self):
+    return any(op.needs_finalization() for op in self.ops.values())
 
   def try_split(self, bundle_split_request):
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
