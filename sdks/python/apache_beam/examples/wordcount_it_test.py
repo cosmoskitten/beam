@@ -36,7 +36,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import delete_files
 
 
-def metric_matchers():
+def common_metric_matchers():
   matchers = [
       # TODO(ajamato): Add a matcher for the 'split' step's ElementCount.
       # TODO(ajamato): Add a matcher for the 'split' step's MeanByteCount.
@@ -51,7 +51,36 @@ def metric_matchers():
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
-      # Execution Time Metric for the main step.
+      # User Metrics.
+      MetricResultMatcher(
+          name='empty_lines',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+          name='word_lengths',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+          name='words',
+          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
+          step='split',
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+  ]
+  return matchers
+
+
+def fn_api_metric_matchers():
+  matchers = common_metric_matchers()
+  matchers.extend([
+      # Execution Time Metric for the pair_with_one step.
       MetricResultMatcher(
           name='ExecutionTime_ProcessElement',
           labels={
@@ -60,38 +89,23 @@ def metric_matchers():
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
-      # User Metrics.
+  ])
+  return matchers
+
+
+def legacy_metric_matchers():
+  matchers = common_metric_matchers()
+  matchers.extend([
+      # Execution Time Metric for the pair_with_one step.
       MetricResultMatcher(
-          name='empty_lines',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
+          name='ExecutionTime_ProcessElement',
           labels={
-              'step': 's9',
+              'step': 's2',
           },
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
-      MetricResultMatcher(
-          name='word_lengths',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
-          labels={
-              'step': 's9',
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-      MetricResultMatcher(
-          name='words',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
-          labels={
-              'step': 's9',
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-  ]
+  ])
   return matchers
 
 
@@ -108,14 +122,14 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_it(self):
     result = self._run_wordcount_it(wordcount.run)
     errors = metric_result_matchers.verify_all(
-        result.metrics().all_metrics(), metric_matchers())
+        result.metrics().all_metrics(), legacy_metric_matchers())
     self.assertFalse(errors, str(errors))
 
   @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
     result = self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
     errors = metric_result_matchers.verify_all(
-        result.metrics().all_metrics(), metric_matchers())
+        result.metrics().all_metrics(), fn_api_metric_matchers())
     self.assertFalse(errors, str(errors))
 
   def _run_wordcount_it(self, run_wordcount, **opts):
@@ -140,7 +154,8 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    return run_wordcount(test_pipeline.get_full_options_as_args(**extra_opts))
+    return run_wordcount(
+        test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':
