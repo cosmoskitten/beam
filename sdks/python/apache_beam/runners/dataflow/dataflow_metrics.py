@@ -39,7 +39,6 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.runners.dataflow.internal import apiclient
 
 
 def _get_match(proto, filter_fn):
@@ -254,6 +253,14 @@ def main(argv):
   main method to display MetricResults for a specific --job_id and --project
   which takes only a few seconds.
   """
+  # Import here to avoid adding the dependency for local running scenarios.
+  try:
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+  except ImportError:
+    raise ImportError(
+        'Google Cloud Dataflow runner not available, '
+        'please install apache_beam[gcp]')
   if argv[0] == __file__:
     argv = argv[1:]
   parser = argparse.ArgumentParser()
