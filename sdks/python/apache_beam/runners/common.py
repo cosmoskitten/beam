@@ -147,10 +147,9 @@ class MethodWrapper(object):
       method_name: name of the method as a string.
     """
 
-    if not isinstance(obj_to_invoke,
-                      (DoFn, RestrictionProvider)):
-      raise ValueError('\'obj_to_invoke\' has to be a \'DoFn\' or '
-                       'a \'RestrictionProvider\' or Received %r instead.'
+    if not isinstance(obj_to_invoke, (DoFn, RestrictionProvider)):
+      raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
+                       'a \'RestrictionProvider\'. Received %r instead.'
                        % obj_to_invoke)
 
     fullargspec = core.get_function_arguments(
@@ -369,9 +368,6 @@ class DoFnInvoker(object):
     self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
-  def invoke_finalize_bundle(self):
-    raise NotImplementedError
-
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window,)),
@@ -389,9 +385,6 @@ class DoFnInvoker(object):
 
   def invoke_create_tracker(self, restriction):
     return self.signature.create_tracker_method.method_value(restriction)
-
-  def invoke_finalize(self):
-    return self.signature.finalize_method.method_value()
 
 
 def _find_param_with_default(
