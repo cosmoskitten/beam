@@ -44,6 +44,11 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_batch_rewrite_token",
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_kms",
         "apache_beam.io.gcp.gcsio_integration_test:GcsIOIntegrationTest.test_copy_rewrite_token",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_standard_sql",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_standard_sql_kms_key",
+        "apache_beam.io.gcp.bigquery_io_read_it_test:BigqueryIOReadIT.test_bigquery_read_1M_python",
+        "apache_beam.io.gcp.bigquery_file_loads_test:BigQueryFileLoadsIT.test_one_job_fails_all_jobs_fail",
+        "apache_beam.io.gcp.big_query_query_to_table_it_test:BigQueryQueryToTableIT.test_big_query_legacy_sql",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([
