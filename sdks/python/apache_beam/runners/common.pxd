@@ -56,7 +56,7 @@ cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef OutputProcessor output_processor
   cdef object user_state_context
-  cdef object bundle_finalizer_param
+  cdef public object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
@@ -93,7 +93,7 @@ cdef class DoFnRunner(Receiver):
   cdef object step_name
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
-  cdef object bundle_finalizer_param
+  cdef public object bundle_finalizer_param
   cpdef process(self, WindowedValue windowed_value)
 
 
