@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
@@ -418,18 +419,8 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
         List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
             registerRequest.getProcessBundleDescriptorList();
 
-        Map<String, String> sdkToDfePCollectionName = new HashMap<>();
-        for (BeamFnApi.ProcessBundleDescriptor descriptor : descriptorList) {
-          for (org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform :
-              descriptor.getTransformsMap().values()) {
-            for (Map.Entry<String, String> entry : transform.getOutputs().entrySet()) {
-              if (pcollectionSystemToNameMapping.containsKey(entry.getKey())) {
-                sdkToDfePCollectionName.put(
-                    entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
-              }
-            }
-          }
-        }
+        Map<String, String> sdkToDfePCollectionName = extractSdkToDfePcollectionNameMapping(
+            descriptorList, pcollectionSystemToNameMapping);
 
         return OperationNode.create(
             new RegisterAndProcessBundleOperation(
@@ -447,6 +438,30 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                     NameContext.create(stageName, stageName, stageName, stageName))));
       }
     };
+  }
+
+  /**
+   * @param descriptorList
+   * @param pcollectionSystemToNameMapping PCollection SystemID to DFE PCollection name mapping.
+   * @return FnApi to DFE PCollection name mapping.
+   */
+  private static Map<String, String> extractSdkToDfePcollectionNameMapping(
+      List<ProcessBundleDescriptor> descriptorList,
+      Map<String, String> pcollectionSystemToNameMapping) {
+    //todomigryz add test
+    Map<String, String> sdkToDfePCollectionName = new HashMap<>();
+    for (ProcessBundleDescriptor descriptor : descriptorList) {
+      for (org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform :
+          descriptor.getTransformsMap().values()) {
+        for (Map.Entry<String, String> entry : transform.getOutputs().entrySet()) {
+          if (pcollectionSystemToNameMapping.containsKey(entry.getKey())) {
+            sdkToDfePCollectionName.put(
+                entry.getValue(), pcollectionSystemToNameMapping.get(entry.getKey()));
+          }
+        }
+      }
+    }
+    return sdkToDfePCollectionName;
   }
 
   /** Returns a map from PTransform id to side input reader. */

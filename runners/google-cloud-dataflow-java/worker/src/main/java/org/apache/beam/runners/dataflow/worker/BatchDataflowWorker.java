@@ -353,22 +353,8 @@ public class BatchDataflowWorker implements Closeable {
           LOG.debug("Network as Graphviz .dot: {}", Networks.toDot(network));
         }
 
-        Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>();
-        for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
-          if (instruction.getOutputs() == null) {
-            continue;
-          }
-          for (InstructionOutput output : instruction.getOutputs()) {
-            if (pcollectionDfeSystemToNameMapping.containsKey(output.getSystemName())) {
-              LOG.warn("Found multiple output mappings for pcollectionKey", output.getSystemName());
-            } else {
-              // DFE prepends system name with "<instructionOriginalName>."
-              final String trimmedName =
-                  output.getSystemName().substring(instruction.getOriginalName().length() + 1);
-              pcollectionDfeSystemToNameMapping.put(trimmedName, output.getName());
-            }
-          }
-        }
+        Map<String, String> pcollectionDfeSystemToNameMapping =
+            extractSystemIdToDfePcollectionNameMapping(workItem);
 
         worker =
             mapTaskExecutorFactory.create(
@@ -423,6 +409,31 @@ public class BatchDataflowWorker implements Closeable {
         sdkHarnessRegistry.completeWork(sdkWorkerHarness);
       }
     }
+  }
+
+  /**
+   * @param workItem
+   * @return PCollection SystemId to DFE name mapping.
+   */
+  private static Map<String, String> extractSystemIdToDfePcollectionNameMapping(WorkItem workItem) {
+    //todomigryz add tests
+    Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>();
+    for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
+      if (instruction.getOutputs() == null) {
+        continue;
+      }
+      for (InstructionOutput output : instruction.getOutputs()) {
+        if (pcollectionDfeSystemToNameMapping.containsKey(output.getSystemName())) {
+          LOG.warn("Found multiple output mappings for pcollectionKey", output.getSystemName());
+        } else {
+          // DFE prepends system name with "<instructionOriginalName>."
+          final String trimmedName =
+              output.getSystemName().substring(instruction.getOriginalName().length() + 1);
+          pcollectionDfeSystemToNameMapping.put(trimmedName, output.getName());
+        }
+      }
+    }
+    return pcollectionDfeSystemToNameMapping;
   }
 
   /** Executes the work and report progress. For testing only. */
