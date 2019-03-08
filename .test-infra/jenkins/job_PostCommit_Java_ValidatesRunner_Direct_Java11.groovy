@@ -17,21 +17,20 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PhraseTriggeringPostCommitBuilder
+import PostCommitJobBuilder
 
 
-// This job runs the suite of ValidatesRunner tests against the Dataflow
-// runner.
-PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct',
+// This job runs the suite of ValidatesRunner tests using Java 11 against the Direct
+// runner compiled with Java 8.
+PostCommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direct',
         'Run Direct ValidatesRunner in Java 11', 'Direct Runner ValidatesRunner Tests for Java 11', this) {
 
-    description('Runs the ValidatesRunner suite on the Direct runner.')
+    description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 11.')
 
     def JAVA_11_HOME = '/home/jenkins/tools/java/latest11'
     def JAVA_8_HOME = '/home/jenkins/tools/java/latest1.8'
     // Set common parameters. Sets a 3 hour timeout.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
-    previousNames(/beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle/)
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
     // Publish all test results to Jenkins
     publishers {
