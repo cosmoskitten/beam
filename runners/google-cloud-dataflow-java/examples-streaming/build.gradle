@@ -51,6 +51,7 @@ task windmillPreCommit(type: Test) {
      "--enableStreamingEngine",
   ]
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  include "**/WordCountIT.class"
   forkEvery 1
   maxParallelForks 4
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
