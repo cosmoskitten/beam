@@ -78,7 +78,7 @@ def write_data(project_id, instance_id, table_id, num_of_rows,
     mutation_batcher.flush()
 
 
-@unittest.skipIf(Client is None, 'GCP dependencies are not installed')
+@unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
