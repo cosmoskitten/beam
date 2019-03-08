@@ -760,7 +760,7 @@ class EventRecorder(object):
     self.work_path = os.getcwd() + '/EventRecorder'
     if os.path.exists(self.work_path):
       self.cleanup()
-    os.mkdir(self.work_path, 0777)
+    os.mkdir(self.work_path)
 
   def record(self, file_name):
     file_path = os.path.join(self.work_path, str(file_name) + '.txt')
