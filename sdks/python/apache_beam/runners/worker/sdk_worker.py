@@ -186,7 +186,7 @@ class SdkHarness(object):
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
-        if not worker.active_bundle_processors:
+        if not worker.has_active_processors():
           # Delete the instruction_id <-> worker mapping
           self._instruction_id_vs_worker.pop(work.instruction_id, None)
           # Put the worker back in the free worker pool
@@ -331,8 +331,9 @@ class SdkWorker(object):
                   metrics=bundle_processor.metrics(),
                   monitoring_infos=bundle_processor.monitoring_infos(),
                   requires_finalization=requests_finalization))
-      # TODO(boyuanz): Don't release here if finalize is needed.
-      self.bundle_processor_cache.release(instruction_id)
+      # Don't release here if finalize is needed.
+      if not bundle_processor.requires_finalization():
+        self.bundle_processor_cache.release(instruction_id)
       return response
     except:  # pylint: disable=broad-except
       # Don't re-use bundle processors on failure.
@@ -362,12 +363,11 @@ class SdkWorker(object):
             monitoring_infos=processor.monitoring_infos() if processor else []))
 
   def finalize_bundle(self, request, instruction_id):
-    processor = self.active_bundle_processors.get(request.instruction_reference)
+    processor = self.bundle_processor_cache.lookup(
+        request.instruction_reference)
     if processor:
       finalize_response = processor.finalize_bundle()
-      del self.active_bundle_processors[request.instruction_reference]
-      processor.reset()
-      self.cached_bundle_processors[processor.process_bundle_descriptor.id].append(processor)
+      self.bundle_processor_cache.release(request.instruction_reference)
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
           finalize_bundle=finalize_response)
@@ -383,6 +383,9 @@ class SdkWorker(object):
         yield
     else:
       yield
+
+  def has_active_processors(self):
+    return len(self.bundle_processor_cache.active_bundle_processors) > 0
 
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
