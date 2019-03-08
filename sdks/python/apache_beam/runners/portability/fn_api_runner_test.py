@@ -752,6 +752,7 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
 
+
 class EventRecorder(object):
   def __init__(self):
     self.work_path = os.getcwd() + '/EventRecorder'
@@ -770,6 +771,7 @@ class EventRecorder(object):
     for file in os.listdir(self.work_path):
       os.remove(os.path.join(self.work_path, file))
     os.rmdir(self.work_path)
+
 
 class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
   def create_pipeline(self):
