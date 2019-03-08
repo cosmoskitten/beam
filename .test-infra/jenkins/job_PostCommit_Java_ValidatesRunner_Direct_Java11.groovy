@@ -29,15 +29,12 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Direc
 
     def JAVA_11_HOME = '/home/jenkins/tools/java/latest11'
     def JAVA_8_HOME = '/home/jenkins/tools/java/latest1.8'
-    // Set common parameters. Sets a 3 hour timeout.
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-    // Publish all test results to Jenkins
     publishers {
         archiveJunit('**/build/test-results/**/*.xml')
     }
 
-    // Gradle goals for this job.
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
