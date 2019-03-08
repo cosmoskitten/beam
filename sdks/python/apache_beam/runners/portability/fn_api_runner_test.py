@@ -778,7 +778,29 @@ class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
             default_environment=beam_runner_api_pb2.Environment(
                 urn=python_urns.EMBEDDED_PYTHON_GRPC)))
 
-  def test_finalize(self):
+  def test_no_finalize_call_without_register(self):
+    event_recorder = EventRecorder()
+    elements_list = [1, 2]
+
+    class FinalizebleDoFnWithoutRegister(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        yield element
+
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizebleDoFnWithoutRegister()))
+      assert_that(res, equal_to(elements_list))
+      p.run().wait_until_finish()
+
+    results = event_recorder.events()
+    event_recorder.cleanup()
+    assert results == []
+
+  def test_register_finalizations(self):
     event_recorder = EventRecorder()
     elements_list = [1, 2]
     expected_res = sorted([str(element) + '.txt' for element in elements_list])
@@ -795,6 +817,8 @@ class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
       res = (p
              | beam.Create(elements_list)
              | beam.ParDo(FinalizableDoFn()))
+
+      assert_that(res, equal_to(elements_list))
       p.run().wait_until_finish()
 
     results = event_recorder.events()
