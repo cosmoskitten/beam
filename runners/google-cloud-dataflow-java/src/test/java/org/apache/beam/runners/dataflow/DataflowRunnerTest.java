@@ -44,7 +44,6 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -412,23 +411,20 @@ public class DataflowRunnerTest implements Serializable {
     assertThat(sdkPipelineOptions, hasKey("options"));
     Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
 
-    assertThat(optionsMap, hasEntry("appName", (Object) options.getAppName()));
-    assertThat(optionsMap, hasEntry("project", (Object) options.getProject()));
+    assertThat(optionsMap, hasEntry("appName", options.getAppName()));
+    assertThat(optionsMap, hasEntry("project", options.getProject()));
+    assertThat(
+        optionsMap, hasEntry("pathValidatorClass", options.getPathValidatorClass().getName()));
+    assertThat(optionsMap, hasEntry("runner", options.getRunner().getName()));
+    assertThat(optionsMap, hasEntry("jobName", options.getJobName()));
+    assertThat(optionsMap, hasEntry("tempLocation", options.getTempLocation()));
+    assertThat(optionsMap, hasEntry("stagingLocation", options.getStagingLocation()));
+    assertThat(
+        optionsMap, hasEntry("stableUniqueNames", options.getStableUniqueNames().toString()));
+    assertThat(optionsMap, hasEntry("streaming", options.isStreaming()));
     assertThat(
         optionsMap,
-        hasEntry("pathValidatorClass", (Object) options.getPathValidatorClass().getName()));
-    assertThat(optionsMap, hasEntry("runner", (Object) options.getRunner().getName()));
-    assertThat(optionsMap, hasEntry("jobName", (Object) options.getJobName()));
-    assertThat(optionsMap, hasEntry("tempLocation", (Object) options.getTempLocation()));
-    assertThat(optionsMap, hasEntry("stagingLocation", (Object) options.getStagingLocation()));
-    assertThat(
-        optionsMap,
-        hasEntry("stableUniqueNames", (Object) options.getStableUniqueNames().toString()));
-    assertThat(optionsMap, hasEntry("streaming", (Object) options.isStreaming()));
-    assertThat(
-        optionsMap,
-        hasEntry(
-            "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+        hasEntry("numberOfWorkerHarnessThreads", options.getNumberOfWorkerHarnessThreads()));
   }
 
   @Test
@@ -483,8 +479,7 @@ public class DataflowRunnerTest implements Serializable {
 
     @Override
     public JacksonIncompatible deserialize(
-        JsonParser jsonParser, DeserializationContext deserializationContext)
-        throws IOException, JsonProcessingException {
+        JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
       return new JacksonIncompatible(jsonParser.readValueAs(String.class));
     }
   }
@@ -497,7 +492,7 @@ public class DataflowRunnerTest implements Serializable {
         JacksonIncompatible jacksonIncompatible,
         JsonGenerator jsonGenerator,
         SerializerProvider serializerProvider)
-        throws IOException, JsonProcessingException {
+        throws IOException {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }
@@ -519,7 +514,7 @@ public class DataflowRunnerTest implements Serializable {
         jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
     assertThat(sdkPipelineOptions, hasKey("options"));
     Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
-    assertThat(optionsMap, hasEntry("jacksonIncompatible", (Object) "userCustomTypeTest"));
+    assertThat(optionsMap, hasEntry("jacksonIncompatible", "userCustomTypeTest"));
   }
 
   @Test
@@ -1344,6 +1339,11 @@ public class DataflowRunnerTest implements Serializable {
     // streaming, fnapi
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+
+    options.setUseJava11(true);
+    options.setExperiments(null);
+    options.setStreaming(false);
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-batch/foo"));
   }
 
   @Test
@@ -1399,7 +1399,7 @@ public class DataflowRunnerTest implements Serializable {
     StreamingShardedWriteFactory<Object, Void, Object> factory =
         new StreamingShardedWriteFactory<>(p.getOptions());
     WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
+    PCollection<Object> objs = p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
             AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);

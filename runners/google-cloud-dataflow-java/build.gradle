@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20190110'
+    'dataflow.container_version' : 'beam-master-20190308'
   ]
 }
 
@@ -187,8 +187,7 @@ task validatesRunnerLegacyWorkerJava11Test(type: Test) {
             "--project=${dataflowProject}",
             "--tempRoot=${dataflowValidatesTempRoot}",
             "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=gcr.io/cloud-dataflow/v1beta3/beam-java11-batch@sha256:1c363e3a2a4a5c6d66199e7d254dc9752a697b879ce821882c47671d3db56440",
-
+            "--useJava11=true",
     ])
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
