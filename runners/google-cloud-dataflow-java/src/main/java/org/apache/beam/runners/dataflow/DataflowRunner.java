@@ -958,7 +958,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /** Returns true if the specified experiment is enabled, handling null experiments. */
   public static boolean hasExperiment(DataflowPipelineDebugOptions options, String experiment) {
     List<String> experiments =
-        firstNonNull(options.getExperiments(), Collections.<String>emptyList());
+        firstNonNull(options.getExperiments(), Collections.emptyList());
     return experiments.contains(experiment);
   }
 
@@ -1005,9 +1005,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
     return visitor.boundedness == IsBounded.UNBOUNDED;
-  };
+  }
 
-  /** Returns the DataflowPipelineTranslator associated with this object. */
+    /** Returns the DataflowPipelineTranslator associated with this object. */
   public DataflowPipelineTranslator getTranslator() {
     return translator;
   }
@@ -1801,8 +1801,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
+    } else if (options.isStreaming() && options.getUseJava11()) {
+      return workerHarnessContainerImage.replace("IMAGE", "beam-java11-streaming");
     } else if (options.isStreaming()) {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
+    } else if (options.getUseJava11()) {
+      return workerHarnessContainerImage.replace("IMAGE", "beam-java11-batch");
     } else {
       return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
     }

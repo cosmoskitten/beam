@@ -149,6 +149,11 @@ public interface DataflowPipelineOptions
 
   void setDataflowWorkerJar(String dataflowWorkerJar);
 
+  @Description("Set to true if Dataflow runner needs to use Java 11 enabled docker image")
+  boolean getUseJava11();
+
+  void setUseJava11(boolean useJava11);
+
   /** Set of available Flexible Resource Scheduling goals. */
   enum FlexResourceSchedulingGoal {
     /** No goal specified. */
