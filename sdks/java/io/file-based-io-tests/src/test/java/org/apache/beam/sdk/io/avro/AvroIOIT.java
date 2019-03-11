@@ -92,7 +92,7 @@ public class AvroIOIT {
   private static Integer numberOfTextLines;
   private static String bigQueryDataset;
   private static String bigQueryTable;
-  private static final String AVRO_NAMESPACE = "AvroIOIT";
+  private static final String AVRO_NAMESPACE = AvroIOIT.class.getName();
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 

@@ -22,7 +22,12 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
+import com.google.cloud.Timestamp;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
@@ -32,6 +37,11 @@ import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
+import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -67,10 +77,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TFRecordIOIT {
+  private static final String TFRECORD_NAMESPACE = TFRecordIOIT.class.getName();
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
   private static Compression compressionType;
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -83,6 +96,8 @@ public class TFRecordIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
   }
 
   private static String createFilenamePattern() {
@@ -104,6 +119,9 @@ public class TFRecordIOIT {
             "Produce text lines",
             ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
         .apply("Transform strings to bytes", MapElements.via(new StringToByteArray()))
+        .apply(
+            "Record time before writing",
+            ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "writeTime")))
         .apply("Write content to files", writeTransform);
 
     writePipeline.run().waitUntilFinish();
@@ -112,6 +130,9 @@ public class TFRecordIOIT {
     PCollection<String> consolidatedHashcode =
         readPipeline
             .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
+            .apply(
+                "Record time after reading",
+                ParDo.of(new TimeMonitor<>(TFRECORD_NAMESPACE, "readTime")))
             .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()))
             .apply(Reshuffle.viaRandomKey());
@@ -125,7 +146,40 @@ public class TFRecordIOIT {
             "Delete test files",
             ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
-    readPipeline.run().waitUntilFinish();
+    PipelineResult result = readPipeline.run();
+    result.waitUntilFinish();
+    gatherAndPublishMetricResults(result);
+  }
+
+  private void gatherAndPublishMetricResults(PipelineResult result) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    List<NamedTestResult> testResults = extractMetrics(result, uuid, timestamp);
+    ConsoleResultPublisher.publish(testResults, uuid, timestamp);
+    if (bigQueryDataset != null && bigQueryTable != null) {
+      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
+              .publish(testResults, bigQueryTable);
+    }
+  }
+
+  private List<NamedTestResult> extractMetrics(
+      PipelineResult result, String uuid, String timestamp) {
+    List<NamedTestResult> results = new ArrayList<>();
+    MetricsReader reader = new MetricsReader(result, TFRECORD_NAMESPACE);
+    long writeStart = reader.getStartTimeMetric("writeTime");
+    long readStart = reader.getStartTimeMetric("readTime");
+    long writeEnd = reader.getEndTimeMetric("writeTime");
+    long readEnd = reader.getEndTimeMetric("readTime");
+    double readTime = (readEnd - readStart) / 1e3;
+    double writeTime = (writeEnd - writeStart) / 1e3;
+    double runTime = (readEnd - writeStart) / 1e3;
+
+    results.add(NamedTestResult.create(uuid, timestamp, "write_time", writeTime));
+    results.add(NamedTestResult.create(uuid, timestamp, "read_time", readTime));
+    results.add(NamedTestResult.create(uuid, timestamp, "run_time", runTime));
+
+    return results;
   }
 
   static class StringToByteArray extends SimpleFunction<String, byte[]> {

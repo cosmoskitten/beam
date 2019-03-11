@@ -96,7 +96,7 @@ public class ParquetIOIT {
   private static String bigQueryTable;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
-  private static final String PARQUET_NAMESPACE = "ParquetIOIT";
+  private static final String PARQUET_NAMESPACE = ParquetIOIT.class.getName();
 
   @BeforeClass
   public static void setup() {
