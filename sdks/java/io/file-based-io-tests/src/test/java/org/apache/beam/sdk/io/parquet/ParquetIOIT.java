@@ -168,7 +168,7 @@ public class ParquetIOIT {
     ConsoleResultPublisher.publish(testMetrics, uuid, timestamp);
     if (bigQueryTable != null && bigQueryDataset != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-      .publish(testMetrics, bigQueryTable);
+          .publish(testMetrics, bigQueryTable);
     }
   }
 

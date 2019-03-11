@@ -159,7 +159,7 @@ public class TFRecordIOIT {
     ConsoleResultPublisher.publish(testResults, uuid, timestamp);
     if (bigQueryDataset != null && bigQueryTable != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-              .publish(testResults, bigQueryTable);
+          .publish(testResults, bigQueryTable);
     }
   }
 

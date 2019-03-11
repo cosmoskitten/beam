@@ -157,7 +157,7 @@ public class AvroIOIT {
     ConsoleResultPublisher.publish(testResults, uuid, timestamp);
     if (bigQueryTable != null && bigQueryDataset != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-              .publish(testResults, bigQueryTable);
+          .publish(testResults, bigQueryTable);
     }
   }
 
