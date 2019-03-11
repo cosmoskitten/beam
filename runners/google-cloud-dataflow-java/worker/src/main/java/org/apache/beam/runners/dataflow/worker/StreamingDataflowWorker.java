@@ -1590,8 +1590,9 @@ public class StreamingDataflowWorker {
     if (config.getUserStepToStateFamilyNameMap() != null) {
       stateNameMap.putAll(config.getUserStepToStateFamilyNameMap());
     }
-    if (config.getMaxWorkItemCommitBytes() != null) {
-      setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes());
+    if (config.getMaxWorkItemCommitBytes() != null
+        && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
+      setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
     } else {
       setMaxWorkItemCommitBytes(180 << 20);
     }
