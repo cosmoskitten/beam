@@ -41,11 +41,11 @@ def write_data(project_id, instance_id, table_id, num_of_rows,
                cluster_id, location_id, client_obj=None):
   try:
     from google.cloud.bigtable import enums
-    self.STORAGE_TYPE = enums.StorageType.HDD
-    self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
+    STORAGE_TYPE = enums.StorageType.HDD
+    INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
   except ImportError:
-    self.STORAGE_TYPE = 2
-    self.INSTANCE_TYPE = 2
+    STORAGE_TYPE = 2
+    INSTANCE_TYPE = 2
 
   if client_obj is None:
     client = Client(project=project_id, admin=True)
