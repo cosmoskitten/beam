@@ -93,8 +93,8 @@ class BigtableSourceTest(unittest.TestCase):
 
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
-      self..instance = cls.client.instance(self.instance_id)
-      self.table = cls.instance.table(self.table_id)
+      self..instance = self.client.instance(self.instance_id)
+      self.table = self.instance.table(self.table_id)
 
       cluster_id = 'cluster_id'
       location_id = 'us-central1-a'
@@ -104,16 +104,16 @@ class BigtableSourceTest(unittest.TestCase):
                  num_of_rows, cluster_id, location_id, self.client)
   
     if not hasattr(self, 'bigtable'):
-      self.bigtable = BigTableSource(BigtableSourceTest.project_id,
-                                     BigtableSourceTest.instance_id,
-                                     BigtableSourceTest.table_id)
+      self.bigtable = BigTableSource(self.project_id,
+                                     self.instance_id,
+                                     self.table_id)
 
   def _bigtable(self):
-    return BigtableSourceTest.bigtable
+    return self.bigtable
 
   def test_estimate_size(self):
     get_size = [k.offset_bytes for k in
-                BigtableSourceTest.table.sample_row_keys()][-1]
+                self.table.sample_row_keys()][-1]
     size = self.bigtable.estimate_size()
 
     assert get_size == size
