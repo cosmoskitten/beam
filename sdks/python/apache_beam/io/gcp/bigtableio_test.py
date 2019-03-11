@@ -39,9 +39,13 @@ except ImportError:
 
 def write_data(project_id, instance_id, table_id, num_of_rows,
                cluster_id, location_id, client_obj=None):
-  from google.cloud.bigtable import enums
-  STORAGE_TYPE = enums.StorageType.HDD
-  INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
+  try:
+    from google.cloud.bigtable import enums
+    self.STORAGE_TYPE = enums.StorageType.HDD
+    self.INSTANCE_TYPE = enums.Instance.Type.DEVELOPMENT
+  except ImportError:
+    self.STORAGE_TYPE = 2
+    self.INSTANCE_TYPE = 2
 
   if client_obj is None:
     client = Client(project=project_id, admin=True)
@@ -80,26 +84,25 @@ def write_data(project_id, instance_id, table_id, num_of_rows,
 
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    DEFAULT_TABLE_PREFIX = "pythonreadtest"
-
-    cls.project_id = 'project_id'
-    cls.instance_id = 'instance_id'
-    cls.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
-
-    cls.client = Client(project=cls.project_id, admin=True)
-    cls.instance = cls.client.instance(cls.instance_id)
-    cls.table = cls.instance.table(cls.table_id)
-
-    cluster_id = 'cluster_id'
-    location_id = 'us-central1-a'
-
-    num_of_rows = 10000000
-    write_data(cls.project_id, cls.instance_id, cls.table_id,
-               num_of_rows, cluster_id, location_id, cls.client)
-
   def setUp(self):
+    DEFAULT_TABLE_PREFIX = "pythonreadtest"
+    
+    self.project_id = 'project_id'
+    self.instance_id = 'instance_id'
+    self.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
+
+    if not hasattr(self, 'client'):
+      self.client = Client(project=self.project_id, admin=True)
+      self..instance = cls.client.instance(self.instance_id)
+      self.table = cls.instance.table(self.table_id)
+
+      cluster_id = 'cluster_id'
+      location_id = 'us-central1-a'
+
+      num_of_rows = 10000000
+      write_data(self.project_id, self.instance_id, self.table_id,
+                 num_of_rows, cluster_id, location_id, self.client)
+  
     if not hasattr(self, 'bigtable'):
       self.bigtable = BigTableSource(BigtableSourceTest.project_id,
                                      BigtableSourceTest.instance_id,
