@@ -93,7 +93,7 @@ class BigtableSourceTest(unittest.TestCase):
 
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
-      self..instance = self.client.instance(self.instance_id)
+      self.instance = self.client.instance(self.instance_id)
       self.table = self.instance.table(self.table_id)
 
       cluster_id = 'cluster_id'
