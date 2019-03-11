@@ -414,13 +414,12 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
             ptransformIdToSideInputIdToPCollectionView =
                 buildPTransformIdToSideInputIdToPCollectionView(input);
 
-
         BeamFnApi.RegisterRequest registerRequest = input.getRegisterRequest();
         List<BeamFnApi.ProcessBundleDescriptor> descriptorList =
             registerRequest.getProcessBundleDescriptorList();
 
-        Map<String, String> sdkToDfePCollectionName = extractSdkToDfePcollectionNameMapping(
-            descriptorList, pcollectionSystemToNameMapping);
+        Map<String, String> sdkToDfePCollectionName =
+            extractSdkToDfePcollectionNameMapping(descriptorList, pcollectionSystemToNameMapping);
 
         return OperationNode.create(
             new RegisterAndProcessBundleOperation(
@@ -448,7 +447,7 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
   private static Map<String, String> extractSdkToDfePcollectionNameMapping(
       List<ProcessBundleDescriptor> descriptorList,
       Map<String, String> pcollectionSystemToNameMapping) {
-    //todomigryz add test
+    // todomigryz add test
     Map<String, String> sdkToDfePCollectionName = new HashMap<>();
     for (ProcessBundleDescriptor descriptor : descriptorList) {
       for (org.apache.beam.model.pipeline.v1.RunnerApi.PTransform transform :

@@ -19,19 +19,15 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.NameAndKind;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * MonitoringInfo to CounterUpdate transformer capable to transform ElementCount counters.
- */
+/** MonitoringInfo to CounterUpdate transformer capable to transform ElementCount counters. */
 public class ElementCountMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
@@ -81,11 +77,11 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformer
   }
 
   /**
-   *  Generates CounterUpdate to send to DFE based on ElementCount MonitoringInfo.
+   * Generates CounterUpdate to send to DFE based on ElementCount MonitoringInfo.
    *
-   *  Maps PCollectionID to DFE PCollection name for counter name.
+   * <p>Maps PCollectionID to DFE PCollection name for counter name.
    *
-   *  Currently, PCollectionID mapping is generated based on WorkItem and ProcessBundleDescriptor.
+   * <p>Currently, PCollectionID mapping is generated based on WorkItem and ProcessBundleDescriptor.
    *
    * @param monitoringInfo Monitoring info to transform.
    * @return Relevant CounterUpdate

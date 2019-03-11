@@ -37,11 +37,9 @@ import org.mockito.MockitoAnnotations;
 
 public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
 
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
+  @Rule public final ExpectedException exception = ExpectedException.none();
 
-  @Mock
-  private SpecMonitoringInfoValidator mockSpecValidator;
+  @Mock private SpecMonitoringInfoValidator mockSpecValidator;
 
   @Before
   public void setUp() throws Exception {
@@ -52,8 +50,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
   public void tesTransformReturnsNullIfSpecValidationFails() {
     Map<String, String> pcollectionNameMapping = new HashMap<>();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
-        new ElementCountMonitoringInfoToCounterUpdateTransformer(mockSpecValidator,
-            pcollectionNameMapping);
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            mockSpecValidator, pcollectionNameMapping);
     Optional<String> error = Optional.of("Error text");
     when(mockSpecValidator.validate(any())).thenReturn(error);
     assertEquals(null, testObject.transform(null));
@@ -65,8 +63,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder().setUrn("beam:user:metric:element_count:v1").build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
-        new ElementCountMonitoringInfoToCounterUpdateTransformer(mockSpecValidator,
-            pcollectionNameMapping);
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            mockSpecValidator, pcollectionNameMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
 
     exception.expect(RuntimeException.class);
@@ -83,8 +81,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
             .putLabels("PCOLLECTION", "anyValue")
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
-        new ElementCountMonitoringInfoToCounterUpdateTransformer(mockSpecValidator,
-            pcollectionNameMapping);
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            mockSpecValidator, pcollectionNameMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
     assertEquals(null, testObject.transform(monitoringInfo));
   }
@@ -100,8 +98,8 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
             .putLabels("PCOLLECTION", "anyValue")
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
-        new ElementCountMonitoringInfoToCounterUpdateTransformer(mockSpecValidator,
-            pcollectionNameMapping);
+        new ElementCountMonitoringInfoToCounterUpdateTransformer(
+            mockSpecValidator, pcollectionNameMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
 
     CounterUpdate result = testObject.transform(monitoringInfo);
@@ -113,5 +111,4 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
             + "name=transformedValue-ElementCount}}",
         result.toString());
   }
-
 }

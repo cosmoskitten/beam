@@ -416,7 +416,7 @@ public class BatchDataflowWorker implements Closeable {
    * @return PCollection SystemId to DFE name mapping.
    */
   private static Map<String, String> extractSystemIdToDfePcollectionNameMapping(WorkItem workItem) {
-    //todomigryz add tests
+    // todomigryz add tests
     Map<String, String> pcollectionDfeSystemToNameMapping = new HashMap<>();
     for (ParallelInstruction instruction : workItem.getMapTask().getInstructions()) {
       if (instruction.getOutputs() == null) {
