@@ -726,6 +726,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public void setMaxWorkItemCommitBytes(int maxWorkItemCommitBytes) {
+    LOG.info("Setting maxWorkItemCommitBytes to {}", maxWorkItemCommitBytes);
     this.maxWorkItemCommitBytes = maxWorkItemCommitBytes;
   }
 
@@ -1585,11 +1586,19 @@ public class StreamingDataflowWorker {
     if (workItem == null || !workItem.isPresent() || workItem.get() == null) {
       return;
     }
-    setMaxWorkItemCommitBytes(180 << 20);
     StreamingConfigTask config = workItem.get().getStreamingConfigTask();
     Preconditions.checkState(config != null);
     if (config.getUserStepToStateFamilyNameMap() != null) {
       stateNameMap.putAll(config.getUserStepToStateFamilyNameMap());
+    }
+    if (computation == null) {
+      if (config.getMaxWorkItemCommitBytes() != null
+          && config.getMaxWorkItemCommitBytes() > 0
+          && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
+        setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      } else {
+        setMaxWorkItemCommitBytes(180 << 20);
+      }
     }
     List<StreamingComputationConfig> configs = config.getStreamingComputationConfigs();
     if (configs != null) {
