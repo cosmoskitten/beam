@@ -21,9 +21,14 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
+import com.google.cloud.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -33,6 +38,11 @@ import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
+import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -80,6 +90,9 @@ public class AvroIOIT {
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
+  private static final String AVRO_NAMESPACE = "AvroIOIT";
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -89,6 +102,8 @@ public class AvroIOIT {
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
   }
 
   @Test
@@ -102,6 +117,7 @@ public class AvroIOIT {
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
             .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
             .setCoder(AvroCoder.of(AVRO_SCHEMA))
+            .apply("Collect start time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "writeStart")))
             .apply(
                 "Write Avro records to files",
                 AvroIO.writeGenericRecords(AVRO_SCHEMA)
@@ -109,11 +125,14 @@ public class AvroIOIT {
                     .withOutputFilenames()
                     .withSuffix(".avro"))
             .getPerDestinationOutputFilenames()
+            .apply(
+                "Collect middle time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "middlePoint")))
             .apply(Values.create());
 
     PCollection<String> consolidatedHashcode =
         testFilenames
             .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
+            .apply("Collect end time", ParDo.of(new TimeMonitor<>(AVRO_NAMESPACE, "endPoint")))
             .apply("Parse Avro records to Strings", ParDo.of(new ParseAvroRecordsFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
@@ -125,7 +144,40 @@ public class AvroIOIT {
         ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    gatherAndPublishMetricResults(result);
+  }
+
+  private void gatherAndPublishMetricResults(PipelineResult result) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    List<NamedTestResult> testResults = extractMetrics(result, uuid, timestamp);
+    ConsoleResultPublisher.publish(testResults, uuid, timestamp);
+    if (bigQueryTable != null && bigQueryDataset != null) {
+      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
+              .publish(testResults, bigQueryTable);
+    }
+  }
+
+  private List<NamedTestResult> extractMetrics(
+      PipelineResult result, String uuid, String timestamp) {
+    List<NamedTestResult> results = new ArrayList<>();
+    MetricsReader reader = new MetricsReader(result, AVRO_NAMESPACE);
+    long writeStart = reader.getStartTimeMetric("writeStart");
+    long readStart = reader.getStartTimeMetric("middlePoint");
+    long writeEnd = reader.getEndTimeMetric("middlePoint");
+    long readEnd = reader.getEndTimeMetric("endPoint");
+    double readTime = (readEnd - readStart) / 1e3;
+    double writeTime = (writeEnd - writeStart) / 1e3;
+    double runTime = (readEnd - writeStart) / 1e3;
+
+    results.add(NamedTestResult.create(uuid, timestamp, "write_time", writeTime));
+    results.add(NamedTestResult.create(uuid, timestamp, "read_time", readTime));
+    results.add(NamedTestResult.create(uuid, timestamp, "run_time", runTime));
+
+    return results;
   }
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
