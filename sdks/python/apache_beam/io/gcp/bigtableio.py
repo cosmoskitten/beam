@@ -201,7 +201,7 @@ class _BigTableSource(iobase.BoundedSource):
     return self.table
 
   def estimate_size(self):
-    size = [k.offset_bytes for k in self._getTable().sample_row_keys()][-1]
+    size = [k.offset_bytes for k in self.get_sample_row_keys()][-1]
     return size
 
   def get_sample_row_keys(self):
@@ -301,6 +301,7 @@ class _BigTableSource(iobase.BoundedSource):
           for split_key_range in self.split_range_subranges(current,
                                                             desired_size,
                                                             range_tracker):
+            print(split_key_range)
             yield split_key_range
         start = sample_row.row_key
       l = sample_row.offset_bytes
