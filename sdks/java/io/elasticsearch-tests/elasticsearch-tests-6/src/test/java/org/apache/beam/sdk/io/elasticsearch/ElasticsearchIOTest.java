@@ -39,7 +39,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-
 /*
 Cannot use @RunWith(JUnit4.class) with ESIntegTestCase
 Cannot have @BeforeClass @AfterClass with ESIntegTestCase
@@ -188,11 +187,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   @Test
   public void testWritePartialUpdateWithErrors() throws Exception {
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ConnectionConfiguration connectionConfiguration = ConnectionConfiguration
-        .create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
         new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
     elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.setExpectedException(expectedException);
     elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
   }
 

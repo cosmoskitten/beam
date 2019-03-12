@@ -564,8 +564,16 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (int i = 0; i < numDocs; i++) {
       data.add(String.format("{\"id\" : %s, \"age\" : \"%s\"}", i, "2018-08-10:00:00"));
     }
-
-    try {
+    expectedException.expectCause(isA(IOException.class));
+    expectedException.expectMessage(new CustomMatcher<String>("RegExp matcher") {
+      @Override public boolean matches(Object o) {
+        String message = (String) o;
+        return message.matches(
+            "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
+                + ".*Document id .+: failed to parse .*Caused by: .*"
+                + ".*Document id .+: failed to parse .*Caused by: .*");
+      }
+    });
       pipeline
           .apply(Create.of(data))
           .apply(
@@ -574,15 +582,6 @@ class ElasticsearchIOTestCommon implements Serializable {
                   .withIdFn(new ExtractValueFn("id"))
                   .withUsePartialUpdate(true));
       pipeline.run();
-    } catch (Exception e) {
-      boolean matches =
-          e.getLocalizedMessage()
-              .matches(
-                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
-                      + ".*Document id .+: failed to parse .*Caused by: .*"
-                      + ".*Document id .+: failed to parse .*Caused by: .*");
-      assertTrue(matches);
-    }
   }
 
   /**
