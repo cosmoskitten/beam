@@ -22,9 +22,10 @@ from __future__ import division
 import copy
 import logging
 import math
-import mock
 import unittest
 import uuid
+import mock
+
 
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
@@ -298,12 +299,12 @@ class BigtableSourceTest(unittest.TestCase):
   def setUp(self):
     DEFAULT_TABLE_PREFIX = "pythonreadtest"
 
-    self.project_id = 'grass-clump-479'
-    #self.project_id = 'project_id'
-    self.instance_id = 'python-write-2'
-    #self.instance_id = 'instance_id'
-    self.table_id = 'testmillion7abb2dc3'
-    #self.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
+    #self.project_id = 'grass-clump-479'
+    self.project_id = 'project_id'
+    #self.instance_id = 'python-write-2'
+    self.instance_id = 'instance_id'
+    #self.table_id = 'testmillion7abb2dc3'
+    self.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
 
 
     if not hasattr(self, 'client'):
