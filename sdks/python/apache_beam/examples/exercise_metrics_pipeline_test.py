@@ -18,100 +18,167 @@
 """A word-counting workflow."""
 
 from __future__ import absolute_import
-from __future__ import print_function
 
 import logging
 import time
 import unittest
+import argparse
+
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.testing import metric_result_matchers
+from apache_beam.metrics import Metrics
 from apache_beam.testing.metric_result_matchers import MetricResultMatcher
-from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.metric_result_matchers import DistributionMatcher
 
 
 from nose.plugins.attrib import attr
 from hamcrest.library.number.ordering_comparison import greater_than
 
 
-
-
-
 # TODO see if we can share code with fn_api_runner_test.py
-SLEEP_TIME_MS = 10000
-INPUT = [0, 0, 0, SLEEP_TIME_MS]
+SLEEP_TIME_MS = 1000
+INPUT = [0, 0, 0, 100]
+METRIC_NAMESPACE = (
+    'apache_beam.examples.exercise_metrics_pipeline_test.UserMetricsDoFn')
 
 
-def common_metric_matchers():
+def common_metric_matchers(metric_step_name):
   """MetricResult matchers common to all tests."""
+  # TODO(ajamato): Matcher for the 'metrics' step's ElementCount.
+  # TODO(ajamato): Matcher for the 'metrics' step's MeanByteCount.
+  # TODO(ajamato): Matcher for the start and finish exec times.
+  # TODO(ajamato): Matcher for a gauge metric once implemented in dataflow.
   matchers = [
-      # TODO(ajamato): Matcher for the 'pair_with_one' step's ElementCount.
-      # TODO(ajamato): Matcher for the 'pair_with_one' step's MeanByteCount.
-      # TODO(ajamato): Matcher for the start and finish exec times.
-      # TODO(ajamato): Matcher for a user distribution tuple metric.
-      MetricResultMatcher( # GroupByKey.
+      # Map
+      MetricResultMatcher(
           name='ElementCount',
           labels={
-              'original_name': 'pair_with_one-out0-ElementCount',
-              'output_user_name': 'pair_with_one-out0'
+              'original_name': 'map_to_common_key-out0-ElementCount',
+              'output_user_name': 'map_to_common_key-out0'
           },
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
-      # User Metrics.
       MetricResultMatcher(
-          name='empty_lines',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
+          name='MeanByteCount',
+          labels={
+              'original_name': 'map_to_common_key-out0-MeanByteCount',
+              'output_user_name': 'map_to_common_key-out0'
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      # User Counter Metrics.
+      MetricResultMatcher(
+          name='total_values',
+          namespace=METRIC_NAMESPACE,
+          step='metrics',
+          attempted=sum(INPUT),
+          committed=sum(INPUT)
+      ),
+      MetricResultMatcher(
+          name='ExecutionTime_StartBundle',
+          labels={
+              'step': metric_step_name,  # Step: metric.
+          },
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
       MetricResultMatcher(
-          name='word_lengths',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
+          name='ExecutionTime_ProcessElement',
+          labels={
+              'step': metric_step_name,  # Step: metric.
+          },
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
       MetricResultMatcher(
-          name='words',
-          namespace='apache_beam.examples.wordcount.WordExtractingDoFn',
-          step='split',
+          name='ExecutionTime_FinishBundle',
+          labels={
+              'step': metric_step_name,  # Step: metric.
+          },
           attempted=greater_than(0),
           committed=greater_than(0)
-      ),
+      )
   ]
+
+  pcoll_names = [
+      'GroupByKey/Reify-out0',
+      'GroupByKey/Read-out0',
+      'map_to_common_key-out0',
+      'GroupByKey/GroupByWindow-out0',
+      'GroupByKey/Read-out0',
+      'GroupByKey/Reify-out0'
+  ]
+  for name in pcoll_names:
+    matchers.extend([
+        MetricResultMatcher(
+            name='ElementCount',
+            labels={
+                'output_user_name': name,
+                'original_name': '%s-ElementCount' % name
+            },
+            attempted=greater_than(0),
+            committed=greater_than(0)
+        ),
+        MetricResultMatcher(
+            name='MeanByteCount',
+            labels={
+                'output_user_name': name,
+                'original_name': '%s-MeanByteCount' % name
+            },
+            attempted=greater_than(0),
+            committed=greater_than(0)
+        ),
+    ])
   return matchers
 
 
 def fn_api_metric_matchers():
   """MetricResult matchers with adjusted step names for the FN API DF test."""
-  matchers = common_metric_matchers()
-  matchers.extend([
-      # Execution Time Metric for the pair_with_one step.
-      MetricResultMatcher(
-          name='ExecutionTime_ProcessElement',
-          labels={
-              'step': 's9',
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-  ])
+  matchers = common_metric_matchers('s9')
   return matchers
 
 
 def legacy_metric_matchers():
   """MetricResult matchers with adjusted step names for the legacy DF test."""
-  matchers = common_metric_matchers()
+  # TODO(ajamato): Move these to the common_metric_matchers once implemented
+  # in the FN API.
+  matchers = common_metric_matchers('s2')
   matchers.extend([
-      # Execution Time Metric for the pair_with_one step.
+      # User distribution metric, legacy DF only.
       MetricResultMatcher(
-          name='ExecutionTime_ProcessElement',
+          name='distribution_values',
+          namespace=METRIC_NAMESPACE,
+          step='metrics',
+          attempted=DistributionMatcher(
+              sum_value=sum(INPUT),
+              count_value=len(INPUT),
+              min_value=min(INPUT),
+              max_value=max(INPUT)
+          ),
+          committed=DistributionMatcher(
+              sum_value=sum(INPUT),
+              count_value=len(INPUT),
+              min_value=min(INPUT),
+              max_value=max(INPUT)
+          ),
+      ),
+      # Element count and MeanByteCount for a User ParDo.
+      MetricResultMatcher(
+          name='ElementCount',
           labels={
-              'step': 's2',
+              'output_user_name': 'metrics-out0',
+              'original_name': 'metrics-out0-ElementCount'
+          },
+          attempted=greater_than(0),
+          committed=greater_than(0)
+      ),
+      MetricResultMatcher(
+          name='MeanByteCount',
+          labels={
+              'output_user_name': 'metrics-out0',
+              'original_name': 'metrics-out0-ElementCount'
           },
           attempted=greater_than(0),
           committed=greater_than(0)
@@ -119,39 +186,48 @@ def legacy_metric_matchers():
   ])
   return matchers
 
-class ExerciseMetricsPipelineTest(unittest.TestCase):
 
-  def run_pipeline(self, **opts):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    argv = test_pipeline.get_full_options_as_args(**opts)
-    known_args, pipeline_args = parser.parse_known_args(argv)
+class UserMetricsDoFn(beam.DoFn):
+  """Parse each line of input text into words."""
 
-    # We use the save_main_session option because one or more DoFn's in this
-    # workflow rely on global context (e.g., a module imported at module level).
-    pipeline_options = PipelineOptions(pipeline_args)
-    pipeline_options.view_as(SetupOptions).save_main_session = True
-    p = beam.Pipeline(options=pipeline_options)
-    _ = (p
-         | 'create' >> beam.Create(INPUT)
-         | 'sleep' >> beam.Map(time.sleep)
-         | 'map_to_common_key' >> beam.Map(lambda x: ('key', x))
-         | 'group' >> beam.GroupByKey()
-         | 'out_data' >> beam.FlatMap(lambda x: [
-            1, 2, 3, 4, 5,
-            beam.pvalue.TaggedOutput('once', x),
-            beam.pvalue.TaggedOutput('twice', x),
-            beam.pvalue.TaggedOutput('twice', x)]))
-    result = p.run()
-    result.wait_until_finish()
-    return result
+  def __init__(self):
+    self.total_metric = Metrics.counter(self.__class__, 'total_values')
+    self.dist_metric = Metrics.distribution(
+        self.__class__, 'distribution_values')
+    self.latest_metric = Metrics.gauge(self.__class__, 'latest_value')
 
-  @attr('IT')
-  def test_metrics_it(self):
-    self.run_pipeline()
+  def start_bundle(self):
+    time.sleep(SLEEP_TIME_MS / 1000)
 
-  @attr('IT', 'ValidatesContainer')
-  def test_metrics_fnapi_it(self):
-    self.run_pipeline(experiment='beam_fn_api')
+  def process(self, element):
+    """Returns the processed element and increments the metrics."""
+    elem_int = int(element)
+    self.total_metric.inc(elem_int)
+    self.dist_metric.update(elem_int)
+    self.latest_metric.set(elem_int)
+    time.sleep(SLEEP_TIME_MS / 1000)
+    return [elem_int]
+
+  def finish_bundle(self):
+    time.sleep(SLEEP_TIME_MS / 1000)
+
+
+def apply_and_run(pipeline):
+  """Given an initialized Pipeline applies transforms and runs it."""
+  _ = (pipeline
+       | beam.Create(INPUT)
+       | 'metrics' >> (beam.ParDo(UserMetricsDoFn()))
+       | 'map_to_common_key' >> beam.Map(lambda x: ('key', x))
+       | beam.GroupByKey()
+       | 'm_out' >> beam.FlatMap(lambda x: [
+          1, 2, 3, 4, 5,
+          beam.pvalue.TaggedOutput('once', x),
+          beam.pvalue.TaggedOutput('twice', x),
+          beam.pvalue.TaggedOutput('twice', x)])
+       )
+  result = pipeline.run()
+  result.wait_until_finish()
+  return result
 
 
 if __name__ == '__main__':
