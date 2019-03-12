@@ -85,6 +85,12 @@ test.dependsOn testPy2Gcp
 toxTask "testPy35Gcp", "py35-gcp"
 test.dependsOn testPy35Gcp
 
+toxTask "testPy36Gcp", "py36-gcp"
+test.dependsOn testPy36Gcp
+
+toxTask "testPy37Gcp", "py37-gcp"
+test.dependsOn testPy37Gcp
+
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
 
@@ -93,6 +99,9 @@ test.dependsOn testPython35
 
 toxTask "testPython36", "py36"
 test.dependsOn testPython36
+
+toxTask "testPython37", "py37"
+test.dependsOn testPython37
 
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
@@ -108,22 +117,41 @@ test.dependsOn testPy35Cython
 // project.
 testPy35Cython.mustRunAfter testPython35, testPy35Gcp
 
+toxTask "testPy36Cython", "py36-cython"
+test.dependsOn testPy36Cython
+// Ensure that testPy36Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy36Cython.mustRunAfter testPython36, testPy36Gcp
+
+toxTask "testPy37Cython", "py37-cython"
+test.dependsOn testPy37Cython
+// Ensure that testPy37Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy37Cython.mustRunAfter testPython37, testPy37Gcp
+
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
 toxTask "cover", "cover"
 
 task preCommit() {
-  dependsOn "docs"
-  dependsOn "testPy2Cython"
-  dependsOn "testPy35Cython"
-  dependsOn "testPython2"
-  dependsOn "testPython35"
+//  dependsOn "docs"
+//  dependsOn "testPy2Cython"
+//  dependsOn "testPy35Cython"
+//  dependsOn "testPython2"
+//  dependsOn "testPython35"
   dependsOn "testPython36"
-  dependsOn "testPy2Gcp"
-  dependsOn "testPy35Gcp"
-  dependsOn "lint"
-  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
+  dependsOn "testPython37"
+  dependsOn "testPy36Gcp"
+  dependsOn "testPy37Gcp"
+  dependsOn "testPy36Cython"
+  dependsOn "testPy37Cython"
+//  dependsOn "testPy2Gcp"
+//  dependsOn "testPy35Gcp"
+//  dependsOn "lint"
+//  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
