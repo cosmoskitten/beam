@@ -25,9 +25,10 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
+  mavenCentral()
   jcenter()
   maven { url "https://plugins.gradle.org/m2/" }
-  maven { url "http://repo.spring.io/plugins-release" }
+  //  maven { url "http://repo.spring.io/plugins-release" }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
