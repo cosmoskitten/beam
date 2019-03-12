@@ -131,27 +131,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     this.expectedException = expectedException;
   }
 
-  void setIndexMapping(String[] addresses) throws IOException {
-    HttpHost[] hosts = new HttpHost[addresses.length];
-    int i = 0;
-    for (String address : addresses) {
-      URL url = new URL(address);
-      hosts[i] = new HttpHost(url.getHost(), url.getPort(), url.getProtocol());
-      i++;
-    }
-    RestClientBuilder restClientBuilder = RestClient.builder(hosts);
-    RestClient restClient = restClientBuilder.build();
-    String endpoint = String.format("/%s", UPDATE_INDEX);
-    String requestString =
-        String.format(
-            "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"}}}}}", UPDATE_TYPE);
-    HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
-    Request request = new Request("PUT", endpoint);
-    request.setEntity(requestBody);
-    restClient.performRequest(request);
-    restClient.close();
-  }
-
   void testSplit(final int desiredBundleSizeBytes) throws Exception {
     if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
@@ -576,7 +555,10 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors(ConnectionConfiguration connectionConfiguration) {
+  void testWritePartialUpdateWithErrors() throws Exception{
+    // put a mapping to simulate error of insertion
+    ElasticSearchIOTestUtils.setIndexMapping(restClient, connectionConfiguration.getIndex());
+
     // partial documents containing the ID and age only
     List<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
