@@ -128,7 +128,6 @@ def run(argv=None):
     if query_result['distributions']:
       word_lengths_dist = query_result['distributions'][0]
       logging.info('average word length: %d', word_lengths_dist.result.mean)
-  return result
 
 
 if __name__ == '__main__':
