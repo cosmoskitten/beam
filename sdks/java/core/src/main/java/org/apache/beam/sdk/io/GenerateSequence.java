@@ -17,18 +17,20 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.model.pipeline.v1.ExternalTransforms.GenerateSequencePayload.ElementsPerPeriodCase.ELEMENTS_PER_PERIOD_VALUE;
-import static org.apache.beam.model.pipeline.v1.ExternalTransforms.GenerateSequencePayload.StopCase.STOP_VALUE;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -101,22 +103,44 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     abstract GenerateSequence build();
   }
 
-  public static GenerateSequence fromExternal(ExternalTransforms.GenerateSequencePayload payload) {
-    Builder builder = GenerateSequence.from(payload.getStart()).toBuilder();
-    if (payload.getStopCase() == STOP_VALUE) {
-      builder.setTo(payload.getStopValue());
+  /** Exposes GenerateSequence as an external transform for cross-language usage. */
+  @AutoService(ExternalTransformRegistrar.class)
+  public static class External implements ExternalTransformRegistrar {
+
+    @Override
+    public Map<String, Class<? extends ExternalConfigBuilder>> knownBuilders() {
+      return ImmutableMap.of(
+          "beam:external:java:generate_sequence:v1", ExternalConfiguration.class);
     }
-    if (payload.getElementsPerPeriodCase() == ELEMENTS_PER_PERIOD_VALUE) {
-      builder.setElementsPerPeriod(payload.getElementsPerPeriodValue());
+
+    /** Parameters class to expose the transform to an external SDK. */
+    public static class ExternalConfiguration
+        implements ExternalConfigBuilder<PBegin, PCollection<Long>> {
+
+      public Long start;
+
+      @Nullable public Long stop;
+
+      @Nullable public Long period;
+
+      @Nullable public Long maxReadTime;
+
+      @Override
+      public GenerateSequence build() {
+        Preconditions.checkNotNull(start, "Parameters 'from' must not be null.");
+        Builder builder = GenerateSequence.from(start).toBuilder();
+        if (stop != null) {
+          builder.setTo(stop);
+        }
+        if (period != null) {
+          builder.setPeriod(Duration.millis(period));
+        }
+        if (maxReadTime != null) {
+          builder.setMaxReadTime(Duration.millis(maxReadTime));
+        }
+        return builder.build();
+      }
     }
-    if (payload.hasPeriod()) {
-      builder.setPeriod(Duration.standardSeconds(payload.getPeriod().getSeconds()));
-    }
-    if (payload.hasMaxReadTime()) {
-      builder.setMaxReadTime(Duration.standardSeconds(payload.getMaxReadTime().getSeconds()));
-    }
-    // TODO Configure timestamp_fn
-    return builder.build();
   }
 
   /** Specifies the minimum number to generate (inclusive). */

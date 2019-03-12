@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -27,12 +28,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.io.ExternalConfigBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -45,6 +52,7 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -68,6 +76,77 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    */
   public interface ExpansionServiceRegistrar {
     Map<String, TransformProvider> knownTransforms();
+  }
+
+  /**
+   * Exposes Java transforms via {@link org.apache.beam.sdk.expansion.ExternalTransformRegistrar}.
+   */
+  @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
+  public static class ExternalTransformRegistrarLoader
+      implements ExpansionService.ExpansionServiceRegistrar {
+
+    @Override
+    public Map<String, ExpansionService.TransformProvider> knownTransforms() {
+      ImmutableMap.Builder<String, ExpansionService.TransformProvider> builder =
+          ImmutableMap.builder();
+      for (ExternalTransformRegistrar registrar :
+          ServiceLoader.load(ExternalTransformRegistrar.class)) {
+        for (Map.Entry<String, Class<? extends ExternalConfigBuilder>> entry :
+            registrar.knownBuilders().entrySet()) {
+          String urn = entry.getKey();
+          Class<? extends ExternalConfigBuilder> builderClass = entry.getValue();
+          builder.put(
+              urn,
+              spec -> {
+                try {
+                  ExternalTransforms.ExternalConfigurationPayload payload =
+                      ExternalTransforms.ExternalConfigurationPayload.parseFrom(spec.getPayload());
+                  return translate(payload, builderClass);
+                } catch (Exception e) {
+                  throw new RuntimeException(
+                      String.format("Failed to build transform %s from spec %s", urn, spec), e);
+                }
+              });
+        }
+      }
+      return builder.build();
+    }
+
+    private static PTransform translate(
+        ExternalTransforms.ExternalConfigurationPayload payload,
+        Class<? extends ExternalConfigBuilder> builderClass)
+        throws Exception {
+      Preconditions.checkState(
+          ExternalConfigBuilder.class.isAssignableFrom(builderClass),
+          "Provided identifier %s is not an ExternalConfigBuilder.",
+          builderClass.getName());
+      ExternalConfigBuilder configObject = builderClass.getDeclaredConstructor().newInstance();
+
+      for (Map.Entry<String, ExternalTransforms.ConfigValue> entry :
+          payload.getConfigurationMap().entrySet()) {
+        String fieldName = entry.getKey();
+        String coderUrn = entry.getValue().getCoderUrn();
+        final Coder coder;
+        if (BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT).equals(coderUrn)) {
+          coder = VarLongCoder.of();
+        } else {
+          // TODO Support other coders
+          throw new RuntimeException("Unsupported coder urn " + coderUrn);
+        }
+        Field field;
+        try {
+          field = builderClass.getField(fieldName);
+        } catch (NoSuchFieldException e) {
+          throw new RuntimeException(
+              String.format(
+                  "The configuration class %s does not have a field %s", builderClass, fieldName),
+              e);
+        }
+        field.set(configObject, coder.decode(entry.getValue().getPayload().newInput()));
+      }
+
+      return configObject.build();
+    }
   }
 
   /**
