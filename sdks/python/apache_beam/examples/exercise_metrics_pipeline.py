@@ -19,24 +19,16 @@
 
 from __future__ import absolute_import
 
-import logging
 import time
-import unittest
-import argparse
 
+from hamcrest.library.number.ordering_comparison import greater_than
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 from apache_beam.testing.metric_result_matchers import DistributionMatcher
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
-
-from nose.plugins.attrib import attr
-from hamcrest.library.number.ordering_comparison import greater_than
-
-
-# TODO see if we can share code with fn_api_runner_test.py
-SLEEP_TIME_MS = 1000
+SLEEP_TIME_SECS = 1
 INPUT = [0, 0, 0, 100]
 METRIC_NAMESPACE = (
     'apache_beam.examples.exercise_metrics_pipeline_test.UserMetricsDoFn')
@@ -197,7 +189,7 @@ class UserMetricsDoFn(beam.DoFn):
     self.latest_metric = Metrics.gauge(self.__class__, 'latest_value')
 
   def start_bundle(self):
-    time.sleep(SLEEP_TIME_MS / 1000)
+    time.sleep(SLEEP_TIME_SECS)
 
   def process(self, element):
     """Returns the processed element and increments the metrics."""
@@ -205,11 +197,11 @@ class UserMetricsDoFn(beam.DoFn):
     self.total_metric.inc(elem_int)
     self.dist_metric.update(elem_int)
     self.latest_metric.set(elem_int)
-    time.sleep(SLEEP_TIME_MS / 1000)
+    time.sleep(SLEEP_TIME_SECS)
     return [elem_int]
 
   def finish_bundle(self):
-    time.sleep(SLEEP_TIME_MS / 1000)
+    time.sleep(SLEEP_TIME_SECS)
 
 
 def apply_and_run(pipeline):
@@ -220,18 +212,11 @@ def apply_and_run(pipeline):
        | 'map_to_common_key' >> beam.Map(lambda x: ('key', x))
        | beam.GroupByKey()
        | 'm_out' >> beam.FlatMap(lambda x: [
-          1, 2, 3, 4, 5,
-          beam.pvalue.TaggedOutput('once', x),
-          beam.pvalue.TaggedOutput('twice', x),
-          beam.pvalue.TaggedOutput('twice', x)])
-       )
+           1, 2, 3, 4, 5,
+           beam.pvalue.TaggedOutput('once', x),
+           beam.pvalue.TaggedOutput('twice', x),
+           beam.pvalue.TaggedOutput('twice', x)])
+      )
   result = pipeline.run()
   result.wait_until_finish()
   return result
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
-
-

@@ -31,6 +31,7 @@ from collections import defaultdict
 
 from future.utils import iteritems
 
+from apache_beam.examples import exercise_metrics_pipeline
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
@@ -39,11 +40,7 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-
-from apache_beam.examples import exercise_metrics_pipeline_test
 from apache_beam.testing import metric_result_matchers
-
-
 
 
 def _get_match(proto, filter_fn):
@@ -281,10 +278,9 @@ def main(argv):
   #flags.job_id = '2019-03-11_17_14_46-12647281399525786125'
   #matchers = exercise_metrics_pipeline_test.fn_api_metric_matchers()
 
-
   # legacy
   flags.job_id = '2019-03-11_17_22_17-7309195052354046065'
-  matchers = exercise_metrics_pipeline_test.legacy_metric_matchers()
+  matchers = exercise_metrics_pipeline.legacy_metric_matchers()
 
   # Get a Dataflow API client and set its project and job_id in the options.
   options = PipelineOptions()
