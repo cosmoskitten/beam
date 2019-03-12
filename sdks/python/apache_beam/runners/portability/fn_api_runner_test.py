@@ -33,8 +33,10 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.examples import exercise_metrics_pipeline_test
 from apache_beam.io import restriction_trackers
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics import Metrics
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
@@ -47,6 +49,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
+
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -675,6 +678,7 @@ class FnApiRunnerTest(unittest.TestCase):
   # this test is flaky when state duration is low.
   # Since increasing state duration significantly would also slow down
   # the test suite, we are retrying twice on failure as a mitigation.
+  # TODO share pipeline.
   @retry(reraise=True, stop=stop_after_attempt(3))
   def test_progress_metrics(self):
     p = self.create_pipeline()
@@ -683,7 +687,9 @@ class FnApiRunnerTest(unittest.TestCase):
       # internal way of accessing progress metrics.
       self.skipTest('Progress metrics not supported.')
       return
+    res = exercise_metrics_pipeline_test.apply_and_run(p)
 
+    """
     _ = (p
          | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
          | beam.Map(time.sleep)
@@ -694,9 +700,9 @@ class FnApiRunnerTest(unittest.TestCase):
              beam.pvalue.TaggedOutput('once', x),
              beam.pvalue.TaggedOutput('twice', x),
              beam.pvalue.TaggedOutput('twice', x)]))
-
     res = p.run()
     res.wait_until_finish()
+    """
 
     def has_mi_for_ptransform(monitoring_infos, ptransform):
       for mi in monitoring_infos:
