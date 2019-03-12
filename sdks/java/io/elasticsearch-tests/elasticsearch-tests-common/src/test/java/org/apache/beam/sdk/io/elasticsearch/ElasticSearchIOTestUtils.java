@@ -22,18 +22,15 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticSearchIOTestUtils {
@@ -257,5 +254,4 @@ class ElasticSearchIOTestUtils {
     request.setEntity(requestBody);
     restClient.performRequest(request);
   }
-
 }

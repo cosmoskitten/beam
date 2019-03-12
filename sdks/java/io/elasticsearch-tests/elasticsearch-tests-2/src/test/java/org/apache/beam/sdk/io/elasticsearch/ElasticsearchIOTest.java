@@ -200,11 +200,13 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   public void testWritePartialUpdateWithErrors() throws Exception {
     // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ConnectionConfiguration connectionConfiguration = ConnectionConfiguration
-        .create(new String[] {"http://" + ES_IP + ":" + esHttpPort}, UPDATE_INDEX, UPDATE_TYPE);
+    ConnectionConfiguration connectionConfiguration =
+        ConnectionConfiguration.create(
+            new String[] {"http://" + ES_IP + ":" + esHttpPort}, UPDATE_INDEX, UPDATE_TYPE);
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
     elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
+    elasticsearchIOTestCommonWithErrors.setExpectedException(expectedException);
     elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
   }
 

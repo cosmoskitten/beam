@@ -40,7 +40,6 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,13 +59,10 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
-import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 import org.hamcrest.CustomMatcher;
 import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
@@ -555,7 +551,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors() throws Exception{
+  void testWritePartialUpdateWithErrors() throws Exception {
     // put a mapping to simulate error of insertion
     ElasticSearchIOTestUtils.setIndexMapping(restClient, connectionConfiguration.getIndex());
 
@@ -564,25 +560,26 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (int i = 0; i < numDocs; i++) {
       data.add(String.format("{\"id\" : %s, \"age\" : \"%s\"}", i, "2018-08-10:00:00"));
     }
-
-    try {
-      pipeline
-          .apply(Create.of(data))
-          .apply(
-              ElasticsearchIO.write()
-                  .withConnectionConfiguration(connectionConfiguration)
-                  .withIdFn(new ExtractValueFn("id"))
-                  .withUsePartialUpdate(true));
-      pipeline.run();
-    } catch (Exception e) {
-      boolean matches =
-          e.getLocalizedMessage()
-              .matches(
-                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
-                      + ".*Document id .+: failed to parse .*Caused by: .*"
-                      + ".*Document id .+: failed to parse .*Caused by: .*");
-      assertTrue(matches);
-    }
+    expectedException.expectCause(isA(IOException.class));
+    expectedException.expectMessage(
+        new CustomMatcher<String>("RegExp matcher") {
+          @Override
+          public boolean matches(Object o) {
+            String message = (String) o;
+            return message.matches(
+                "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
+                    + ".*Document id .+: failed to parse .*Caused by: .*"
+                    + ".*Document id .+: failed to parse .*Caused by: .*");
+          }
+        });
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withUsePartialUpdate(true));
+    pipeline.run();
   }
 
   /**
