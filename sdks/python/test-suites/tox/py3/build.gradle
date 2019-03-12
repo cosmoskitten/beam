@@ -42,10 +42,10 @@ toxTask "testPy3Cython", "py3-cython"
 test.dependsOn testPy3Cython
 // Ensure that testPy3Cython runs exclusively to other tests.
 testPy3Cython.mustRunAfter testPython3, testPy3Gcp
-testPy3Cython.mustRunAfter ':beam-sdks-python:testPy2Cython'
 
 task preCommitPy3() {
     dependsOn "testPython3"
     dependsOn "testPy3Gcp"
+    dependsOn "testPy3Cython"
     dependsOn "lint"
 }

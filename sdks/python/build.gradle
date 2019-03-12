@@ -39,7 +39,7 @@ build.dependsOn buildPython
 
 /*************************************************************************************************/
 // Unit tests for Python 2
-// See Python 3 tests in test-suites/toxpy3/build.gradle
+// See Python 3 tests in test-suites/tox-py3/build.gradle
 
 task lint {}
 check.dependsOn lint
@@ -70,6 +70,7 @@ task preCommitPy2() {
   dependsOn "docs"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
+  dependsOn "testPy2Cython"
   dependsOn "lint"
 }
 

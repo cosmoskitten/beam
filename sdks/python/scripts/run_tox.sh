@@ -27,7 +27,7 @@
 if [[ $# < 1 || $# > 2 ]]; then
   printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location>]"
   printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
-  printf "\n\tsdk_location: [optional] SDK artifact location to install dependencies.\n"
+  printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
   exit 1
 fi
 
@@ -38,7 +38,7 @@ if [[ $PWD != *sdks/python* ]]; then
 fi
 
 # Go to the Apache Beam Python SDK root
-if [[ "*sdks/python" != $PWD ]]; then
+if [[ $PWD != *sdks/python ]]; then
   cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
 fi
 
