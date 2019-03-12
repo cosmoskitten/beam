@@ -74,7 +74,8 @@ public class BeamRuleSets {
           ProjectCalcMergeRule.INSTANCE,
           FilterToCalcRule.INSTANCE,
           ProjectToCalcRule.INSTANCE,
-          CalcRemoveRule.INSTANCE,
+          // disabled due to https://issues.apache.org/jira/browse/BEAM-6810
+          // CalcRemoveRule.INSTANCE,
           CalcMergeRule.INSTANCE,
 
           // push a filter into a join
