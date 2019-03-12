@@ -148,9 +148,9 @@ public class S3WritableByteChannelTest {
     assertTrue(atMostOne(false, false));
     assertFalse(atMostOne(true, true, true));
     assertFalse(atMostOne(true, true, false));
-    assertFalse(atMostOne(true, false, true));
+    assertFalse(atMostOne(true, true));
     assertTrue(atMostOne(true, false, false));
-    assertFalse(atMostOne(false, true, true));
+    assertFalse(atMostOne(true, true));
     assertTrue(atMostOne(false, true, false));
     assertTrue(atMostOne(false, false, true));
     assertTrue(atMostOne(false, false, false));
