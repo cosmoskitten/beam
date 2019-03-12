@@ -70,6 +70,7 @@ task preCommitPy2() {
   dependsOn "docs"
   dependsOn "testPython2"
   dependsOn "testPy2Gcp"
+  dependsOn "testPy2Cython"
   dependsOn "lint"
 }
 
