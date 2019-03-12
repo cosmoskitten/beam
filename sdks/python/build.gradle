@@ -38,8 +38,34 @@ build.dependsOn buildPython
 
 
 /*************************************************************************************************/
-// Unit tests for Python 2
-// See Python 3 tests in test-suites/tox
+// Unit testing
+
+def pythonSdkDeps = files(
+    fileTree(dir: 'apache_beam', includes: ['**/*.py', '**/*.pyx', '**/*.pxd']),
+    fileTree(dir: 'apache_beam/testing/data'),
+    fileTree(dir: "${project.rootDir}/model"),
+    fileTree(dir: 'scripts'),
+    ".pylintrc",
+    "MANIFEST.in",
+    "gen_protos.py",
+    "setup.cfg",
+    "setup.py",
+    "test_config.py",
+    "tox.ini")
+
+def toxTask = {
+  name, tox_env -> tasks.create(name) {
+    dependsOn = ['setupVirtualenv']
+    doLast {
+      exec {
+        executable 'sh'
+        args '-c', ". ${project.ext.envdir}/bin/activate && ./scripts/run_tox.sh $tox_env"
+      }
+    }
+    inputs.files pythonSdkDeps
+    outputs.files fileTree(dir: "${project.rootDir}/sdks/python/target/.tox/${tox_env}/log/")
+  }
+}
 
 task lint {}
 check.dependsOn lint
@@ -50,11 +76,32 @@ lint.dependsOn lintPy27
 toxTask "lintPy27_3", "py27-lint3"
 lint.dependsOn lintPy27_3
 
+toxTask "lintPy35", "py35-lint"
+lint.dependsOn lintPy35
+
 toxTask "testPy2Gcp", "py27-gcp"
 test.dependsOn testPy2Gcp
 
+toxTask "testPy35Gcp", "py35-gcp"
+test.dependsOn testPy35Gcp
+
+toxTask "testPy36Gcp", "py36-gcp"
+test.dependsOn testPy36Gcp
+
+toxTask "testPy37Gcp", "py37-gcp"
+test.dependsOn testPy37Gcp
+
 toxTask "testPython2", "py27"
 test.dependsOn testPython2
+
+toxTask "testPython35", "py35"
+test.dependsOn testPython35
+
+toxTask "testPython36", "py36"
+test.dependsOn testPython36
+
+toxTask "testPython37", "py37"
+test.dependsOn testPython37
 
 toxTask "testPy2Cython", "py27-cython"
 test.dependsOn testPy2Cython
@@ -63,24 +110,55 @@ test.dependsOn testPy2Cython
 // project.
 testPy2Cython.mustRunAfter testPython2, testPy2Gcp
 
+toxTask "testPy35Cython", "py35-cython"
+test.dependsOn testPy35Cython
+// Ensure that testPy35Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy35Cython.mustRunAfter testPython35, testPy35Gcp
+
+toxTask "testPy36Cython", "py36-cython"
+test.dependsOn testPy36Cython
+// Ensure that testPy36Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy36Cython.mustRunAfter testPython36, testPy36Gcp
+
+toxTask "testPy37Cython", "py37-cython"
+test.dependsOn testPy37Cython
+// Ensure that testPy37Cython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testPy37Cython.mustRunAfter testPython37, testPy37Gcp
+
 toxTask "docs", "docs"
 assemble.dependsOn docs
 
 toxTask "cover", "cover"
 
-task preCommitPy2() {
-  dependsOn "docs"
-  dependsOn "testPy2Cython"
-  dependsOn "testPython2"
-  dependsOn "testPy2Gcp"
-  dependsOn "lint"
+task preCommit() {
+//  dependsOn "docs"
+//  dependsOn "testPy2Cython"
+//  dependsOn "testPy35Cython"
+//  dependsOn "testPython2"
+//  dependsOn "testPython35"
+  dependsOn "testPython36"
+  dependsOn "testPython37"
+  dependsOn "testPy36Gcp"
+  dependsOn "testPy37Gcp"
+  dependsOn "testPy36Cython"
+  dependsOn "testPy37Cython"
+//  dependsOn "testPy2Gcp"
+//  dependsOn "testPy35Gcp"
+//  dependsOn "lint"
+//  dependsOn ":beam-sdks-python-test-suites-dataflow:preCommitIT"
 }
 
 task portablePreCommit() {
   dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
   dependsOn ':beam-sdks-python-container:docker'
-  dependsOn portableWordCountTask('portableWordCountBatch', false)
-  dependsOn portableWordCountTask('portableWordCountStreaming', true)
+  dependsOn portableWordCountTask('portableWordCountBatch', false, false)
+  dependsOn portableWordCountTask('portableWordCountStreaming', true, false)
 }
 
 
@@ -158,13 +236,13 @@ task directRunnerIT(dependsOn: 'installGcpTest') {
 //    ./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099
 //
 task portableWordCount {
-  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"))
+  dependsOn portableWordCountTask('portableWordCountExample', project.hasProperty("streaming"), project.hasProperty("crossLanguage"))
 }
 
-def portableWordCountTask(name, streaming) {
+def portableWordCountTask(name, streaming, crossLanguage) {
   tasks.create(name) {
     dependsOn = ['installGcpTest']
-    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker']
+    mustRunAfter = [':beam-runners-flink_2.11-job-server-container:docker', ':beam-sdks-python-container:docker', ':beam-sdks-java-container:docker', ':beam-runners-core-construction-java:buildTestExpansionServiceJar']
     doLast {
       // TODO: Figure out GCS credentials and use real GCS input and output.
       def options = [
@@ -180,11 +258,14 @@ def portableWordCountTask(name, streaming) {
       else
         // workaround for local file output in docker container
         options += ["--environment_cache_millis=10000"]
+      if (crossLanguage)
+        options += ["--expansion_service_jar=${project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath}"]
       if (project.hasProperty("jobEndpoint"))
         options += ["--job_endpoint=${project.property('jobEndpoint')}"]
+      def wordcountMain = crossLanguage ? "apache_beam.examples.wordcount_xlang" : "apache_beam.examples.wordcount"
       exec {
         executable 'sh'
-        args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount ${options.join(' ')}"
+        args '-c', ". ${project.ext.envdir}/bin/activate && python -m ${wordcountMain} ${options.join(' ')}"
         // TODO: Check that the output file is generated and runs.
       }
     }
@@ -407,39 +488,10 @@ project.task('crossLanguagePythonJava') {
   dependsOn 'setupVirtualenv'
   dependsOn ':beam-sdks-java-container:docker'
   dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
-
   doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
     exec {
       executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${testServiceExpansionJar}"
-    }
-  }
-}
-
-project.task('crossLanguagePortableWordCount') {
-  dependsOn 'setupVirtualenv'
-  dependsOn ':beam-runners-flink_2.11-job-server-container:docker'
-  dependsOn ':beam-sdks-python-container:docker'
-  dependsOn ':beam-sdks-java-container:docker'
-  dependsOn ':beam-runners-core-construction-java:buildTestExpansionServiceJar'
-
-  doLast {
-    def testServiceExpansionJar = project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath
-    def options = [
-            "--input=/etc/profile",
-            "--output=/tmp/py-wordcount-portable",
-            "--runner=PortableRunner",
-            "--experiments=worker_threads=100",
-            "--parallelism=2",
-            "--shutdown_sources_on_final_watermark",
-            "--environment_cache_millis=10000",
-            "--expansion_service_jar=${testServiceExpansionJar}",
-    ]
-    exec {
-      executable 'sh'
-      args '-c', ". ${project.ext.envdir}/bin/activate && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
-      // TODO: Check that the output file is generated and runs.
+      args '-c', ". ${project.ext.envdir}/bin/activate && pip install -e .[test] && python -m apache_beam.transforms.external_test --expansion_service_jar=${project(":beam-runners-core-construction-java:").buildTestExpansionServiceJar.archivePath}"
     }
   }
 }
