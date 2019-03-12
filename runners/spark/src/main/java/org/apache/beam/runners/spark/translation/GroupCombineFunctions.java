@@ -129,7 +129,8 @@ public class GroupCombineFunctions {
           final SparkKeyedCombineFn<K, InputT, AccumT, ?> sparkCombineFn,
           final Coder<K> keyCoder,
           final Coder<AccumT> aCoder,
-          final WindowingStrategy<?, ?> windowingStrategy) {
+          final WindowingStrategy<?, ?> windowingStrategy,
+          @Nullable Partitioner partitioner) {
 
     final WindowedValue.FullWindowedValueCoder<KV<K, AccumT>> wkvaCoder =
         WindowedValue.FullWindowedValueCoder.of(
@@ -146,20 +147,40 @@ public class GroupCombineFunctions {
     JavaPairRDD<K, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
         rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue());
 
-    JavaPairRDD<K, SerializableAccumulator<KV<K, AccumT>>> accumulatedResult =
-        inRddDuplicatedKeyPair.combineByKey(
-            input ->
-                SerializableAccumulator.of(sparkCombineFn.createCombiner(input), iterAccumCoder),
-            (acc, input) ->
-                SerializableAccumulator.of(
-                    sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
-                    iterAccumCoder),
-            (acc1, acc2) ->
-                SerializableAccumulator.of(
-                    sparkCombineFn.mergeCombiners(
-                        acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
-                    iterAccumCoder));
+    JavaPairRDD<K, SerializableAccumulator<KV<K, AccumT>>> accumulatedResult;
+    if (partitioner == null) {
+      accumulatedResult =
+          inRddDuplicatedKeyPair.combineByKey(
+              input ->
+                  SerializableAccumulator.of(sparkCombineFn.createCombiner(input), iterAccumCoder),
+              (acc, input) ->
+                  SerializableAccumulator.of(
+                      sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
+                      iterAccumCoder),
+              (acc1, acc2) ->
+                  SerializableAccumulator.of(
+                      sparkCombineFn.mergeCombiners(
+                          acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
+                      iterAccumCoder)
+          );
+    } else {
+      accumulatedResult =
+          inRddDuplicatedKeyPair.combineByKey(
+              input ->
+                  SerializableAccumulator.of(sparkCombineFn.createCombiner(input), iterAccumCoder),
+              (acc, input) ->
+                  SerializableAccumulator.of(
+                      sparkCombineFn.mergeValue(input, acc.getOrDecode(iterAccumCoder)),
+                      iterAccumCoder),
+              (acc1, acc2) ->
+                  SerializableAccumulator.of(
+                      sparkCombineFn.mergeCombiners(
+                          acc1.getOrDecode(iterAccumCoder), acc2.getOrDecode(iterAccumCoder)),
+                      iterAccumCoder),
+              partitioner
+          );
 
+    }
     return accumulatedResult.mapToPair(i -> new Tuple2<>(i._1, i._2.getOrDecode(iterAccumCoder)));
   }
 
