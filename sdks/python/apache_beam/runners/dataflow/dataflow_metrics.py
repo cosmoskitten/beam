@@ -31,7 +31,7 @@ from collections import defaultdict
 
 from future.utils import iteritems
 
-from apache_beam.examples import exercise_metrics_pipeline
+from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
@@ -280,7 +280,7 @@ def main(argv):
 
   # legacy
   flags.job_id = '2019-03-11_17_22_17-7309195052354046065'
-  matchers = exercise_metrics_pipeline.legacy_metric_matchers()
+  matchers = dataflow_exercise_metrics_pipeline.legacy_metric_matchers()
 
   # Get a Dataflow API client and set its project and job_id in the options.
   options = PipelineOptions()

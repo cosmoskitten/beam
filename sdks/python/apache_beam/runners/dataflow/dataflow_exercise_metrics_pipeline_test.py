@@ -25,7 +25,7 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.examples import exercise_metrics_pipeline
+from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing import metric_result_matchers
@@ -45,14 +45,14 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     pipeline_options = PipelineOptions(pipeline_args)
     pipeline_options.view_as(SetupOptions).save_main_session = True
     p = beam.Pipeline(options=pipeline_options)
-    return exercise_metrics_pipeline.apply_and_run(p)
+    return dataflow_exercise_metrics_pipeline.apply_and_run(p)
 
   @attr('IT')
   def test_metrics_it(self):
     result = self.run_pipeline()
     errors = metric_result_matchers.verify_all(
         result.metrics().all_metrics(),
-        exercise_metrics_pipeline.legacy_metric_matchers())
+        dataflow_exercise_metrics_pipeline.legacy_metric_matchers())
     self.assertFalse(errors, str(errors))
 
   @attr('IT', 'ValidatesContainer')
@@ -60,7 +60,7 @@ class ExerciseMetricsPipelineTest(unittest.TestCase):
     result = self.run_pipeline(experiment='beam_fn_api')
     errors = metric_result_matchers.verify_all(
         result.metrics().all_metrics(),
-        exercise_metrics_pipeline.fn_api_metric_matchers())
+        dataflow_exercise_metrics_pipeline.fn_api_metric_matchers())
     self.assertFalse(errors, str(errors))
 
 

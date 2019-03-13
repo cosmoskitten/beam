@@ -30,8 +30,8 @@ from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 
 SLEEP_TIME_SECS = 1
 INPUT = [0, 0, 0, 100]
-METRIC_NAMESPACE = (
-    'apache_beam.examples.exercise_metrics_pipeline_test.UserMetricsDoFn')
+METRIC_NAMESPACE = ('apache_beam.runners.dataflow.'
+                    'dataflow_exercise_metrics_pipeline.UserMetricsDoFn')
 
 
 def common_metric_matchers(metric_step_name):
@@ -41,25 +41,6 @@ def common_metric_matchers(metric_step_name):
   # TODO(ajamato): Matcher for the start and finish exec times.
   # TODO(ajamato): Matcher for a gauge metric once implemented in dataflow.
   matchers = [
-      # Map
-      MetricResultMatcher(
-          name='ElementCount',
-          labels={
-              'original_name': 'map_to_common_key-out0-ElementCount',
-              'output_user_name': 'map_to_common_key-out0'
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
-      MetricResultMatcher(
-          name='MeanByteCount',
-          labels={
-              'original_name': 'map_to_common_key-out0-MeanByteCount',
-              'output_user_name': 'map_to_common_key-out0'
-          },
-          attempted=greater_than(0),
-          committed=greater_than(0)
-      ),
       # User Counter Metrics.
       MetricResultMatcher(
           name='total_values',
@@ -170,7 +151,7 @@ def legacy_metric_matchers():
           name='MeanByteCount',
           labels={
               'output_user_name': 'metrics-out0',
-              'original_name': 'metrics-out0-ElementCount'
+              'original_name': 'metrics-out0-MeanByteCount'
           },
           attempted=greater_than(0),
           committed=greater_than(0)
