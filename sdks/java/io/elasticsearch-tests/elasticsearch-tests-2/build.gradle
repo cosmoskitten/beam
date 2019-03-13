@@ -26,7 +26,7 @@ ext.summary = "Tests of ElasticsearchIO on Elasticsearch 2.x"
 
 def jna_version = "4.1.0"
 def log4j_version = "2.6.2"
-def elastic_search_version = "2.4.1"
+def elastic_search_version = "2.4.6"
 
 dependencies {
   testCompile project(path: ":beam-sdks-java-io-elasticsearch-tests-common", configuration: "shadowTest")
