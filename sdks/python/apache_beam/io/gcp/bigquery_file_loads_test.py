@@ -37,7 +37,6 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -147,8 +146,8 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-            lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
-                       x[1]))
+              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+                         x[1]))
       )
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
@@ -188,8 +187,8 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-          lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
-                     x[1])))
+              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+                         x[1])))
 
       # Only table1 and table3 get files. table2 records get spilled.
       assert_that(files_per_dest,
@@ -258,8 +257,8 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-          lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
-                     x[1])))
+              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+                         x[1])))
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
                             ('project1:dataset1.table2', 2),
