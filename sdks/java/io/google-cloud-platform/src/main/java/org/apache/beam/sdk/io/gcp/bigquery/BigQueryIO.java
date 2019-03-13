@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
@@ -68,6 +69,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSc
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
+import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -730,8 +733,6 @@ public class BigQueryIO {
           BigQueryHelpers.verifyTablePresence(datasetService, table.get());
         } else if (getQuery() != null) {
           checkArgument(
-              getMethod() != Method.DIRECT_READ, "Cannot read query results with DIRECT_READ");
-          checkArgument(
               getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
@@ -774,8 +775,6 @@ public class BigQueryIO {
               BigQueryOptions.class.getSimpleName());
         }
       } else {
-        checkArgument(
-            getMethod() != Method.DIRECT_READ, "Method must not be DIRECT_READ if query is set");
         checkArgument(getQuery() != null, "Either from() or fromQuery() is required");
         checkArgument(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
@@ -787,15 +786,13 @@ public class BigQueryIO {
       final Coder<T> coder = inferCoder(p.getCoderRegistry());
 
       if (getMethod() == Method.DIRECT_READ) {
-        return p.apply(
-            org.apache.beam.sdk.io.Read.from(
-                BigQueryStorageTableSource.create(
-                    getTableProvider(),
-                    getReadOptions(),
-                    getParseFn(),
-                    coder,
-                    getBigQueryServices())));
+        return expandForDirectRead(input, coder);
       }
+
+      checkArgument(
+          getReadOptions() == null,
+          "Invalid BigQueryIO.Read: Specifies table read options, "
+              + "which only applies when using Method.DIRECT_READ");
 
       final PCollectionView<String> jobIdTokenView;
       PCollection<String> jobIdTokenCollection;
@@ -910,6 +907,75 @@ public class BigQueryIO {
               }
             }
           };
+      return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
+    }
+
+    private PCollection<T> expandForDirectRead(PBegin input, Coder<T> outputCoder) {
+      ValueProvider<TableReference> tableProvider = getTableProvider();
+      Pipeline p = input.getPipeline();
+      if (tableProvider != null) {
+        // No job ID is required. Read directly from BigQuery storage.
+        return p.apply(
+            org.apache.beam.sdk.io.Read.from(
+                BigQueryStorageTableSource.create(
+                    tableProvider,
+                    getReadOptions(),
+                    getParseFn(),
+                    outputCoder,
+                    getBigQueryServices())));
+      }
+
+      checkArgument(
+          getReadOptions() == null,
+          "Invalid BigQueryIO.Read: Specifies table read options, "
+              + "which only applies when reading from a table");
+
+      checkArgument(
+          !getWithTemplateCompatibility(),
+          "Invalid BigQueryIO.Read: Specifies template compatibility, "
+              + "which is not supported with Method.DIRECT_READ");
+
+      String staticJobUuid = BigQueryHelpers.randomUUIDString();
+
+      PCollectionView<String> jobIdTokenView =
+          p.apply("TriggerIdCreation", Create.of(staticJobUuid))
+              .apply("ViewId", View.asSingleton());
+
+      PCollection<T> rows =
+          p.apply(
+              org.apache.beam.sdk.io.Read.from(
+                  BigQueryStorageQuerySource.create(
+                      staticJobUuid,
+                      getQuery(),
+                      getFlattenResults(),
+                      getUseLegacySql(),
+                      MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
+                      getQueryLocation(),
+                      getKmsKey(),
+                      getParseFn(),
+                      outputCoder,
+                      getBigQueryServices())));
+
+      PassThroughThenCleanup.CleanupOperation cleanupOperation =
+          new CleanupOperation() {
+            @Override
+            void cleanup(ContextContainer c) throws Exception {
+              BigQueryOptions options = c.getPipelineOptions().as(BigQueryOptions.class);
+              String jobUuid = c.getJobId();
+
+              TableReference tempTable =
+                  createTempTableReference(
+                      options.getProject(), createJobIdToken(options.getJobName(), jobUuid));
+
+              DatasetService datasetService = getBigQueryServices().getDatasetService(options);
+              LOG.info("Deleting temporary table with query results {}", tempTable);
+              datasetService.deleteTable(tempTable);
+              LOG.info(
+                  "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+              datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+            }
+          };
+
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
