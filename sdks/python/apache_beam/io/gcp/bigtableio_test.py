@@ -24,8 +24,8 @@ import logging
 import math
 import unittest
 import uuid
-import mock
 
+import mock
 
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
