@@ -22,6 +22,7 @@ from __future__ import division
 import logging
 import unittest
 import uuid
+import sys
 
 import mock
 
@@ -38,8 +39,10 @@ try:
   from google.cloud.bigtable.row_set import RowRange
 except ImportError:
   Client = None
+  Table = None
 
 
+@unittest.skipIf(Table is None, 'GCP Bigtable dependencies are not installed')
 @unittest.skipIf(Client is None, 'GCP Bigtable dependencies are not installed')
 class BigtableSourceTest(unittest.TestCase):
   def setUp(self):
