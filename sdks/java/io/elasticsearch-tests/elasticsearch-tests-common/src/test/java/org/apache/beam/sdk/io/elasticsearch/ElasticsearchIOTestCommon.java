@@ -40,7 +40,6 @@ import static org.junit.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,13 +59,10 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
-import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 import org.hamcrest.CustomMatcher;
 import org.joda.time.Duration;
 import org.junit.rules.ExpectedException;
@@ -555,7 +551,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors() throws Exception{
+  void testWritePartialUpdateWithErrors() throws Exception {
     // put a mapping to simulate error of insertion
     ElasticSearchIOTestUtils.setIndexMapping(restClient, connectionConfiguration.getIndex());
 
