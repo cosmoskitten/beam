@@ -417,6 +417,7 @@ class BigtableSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.start_position(), start_position)
     self.assertEqual(range_tracker.stop_position(), stop_position)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
