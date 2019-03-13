@@ -47,22 +47,22 @@ python setup.py nosetests \
 
 or:
 
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=gbk
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.group_by_key_test \
--Prunner=DirectRunner :beam-sdks-python-load-tests:run
+  ./gradlew -PloadTest.args='
+      --publish_to_big_query=true
+      --project=...
+      --metrics_dataset=python_load_tests
+      --metrics_table=gbk
+      --input_options=\'
+        {"num_records": 1,
+        "key_size": 1,
+        "value_size":1,
+        "bundle_size_distribution_type": "const",
+        "bundle_size_distribution_param": 1,
+        "force_initial_num_bundles": 1}\'
+      --runner=DirectRunner' \
+  -PloadTest.mainClass=
+  apache_beam.testing.load_tests.group_by_key_test \
+  -Prunner=DirectRunner :beam-sdks-python-load-tests:run
 
 To run test on other runner (ex. Dataflow):
 
@@ -109,7 +109,6 @@ apache_beam.testing.load_tests.group_by_key_test \
 
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import unittest
@@ -117,48 +116,14 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
-from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.load_tests.load_test import LoadTest
 
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
   load_test_enabled = True
 
-
 @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
-class GroupByKeyTest(unittest.TestCase):
-  def parseTestPipelineOptions(self):
-    return {
-        'numRecords': self.input_options.get('num_records'),
-        'keySizeBytes': self.input_options.get('key_size'),
-        'valueSizeBytes': self.input_options.get('value_size'),
-        'bundleSizeDistribution': {
-            'type': self.input_options.get(
-                'bundle_size_distribution_type', 'const'
-            ),
-            'param': self.input_options.get('bundle_size_distribution_param', 0)
-        },
-        'forceNumInitialBundles': self.input_options.get(
-            'force_initial_num_bundles', 0
-        )
-    }
-
-  def setUp(self):
-    self.pipeline = TestPipeline()
-    self.input_options = json.loads(self.pipeline.get_option('input_options'))
-
-    self.metrics_monitor = self.pipeline.get_option('publish_to_big_query')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
-
-    if not self.metrics_monitor or str(self.metrics_monitor) != 'true':
-      logging.info('Metrics will not be collected')
-    else:
-      self.metrics_monitor = MetricsReader(
-          project_name=self.pipeline.get_option('project'),
-          bq_table=self.metrics_namespace,
-          bq_dataset=self.pipeline.get_option('metrics_dataset'),
-      )
-
+class GroupByKeyTest(LoadTest):
   def testGroupByKey(self):
     # pylint: disable=expression-not-assigned
     (self.pipeline
@@ -171,11 +136,6 @@ class GroupByKeyTest(unittest.TestCase):
          lambda elm: [(elm[0], v) for v in elm[1]])
      | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
     )
-
-    result = self.pipeline.run()
-    result.wait_until_finish()
-    if self.metrics_monitor is not None:
-      self.metrics_monitor.send_metrics(result)
 
 
 if __name__ == '__main__':
