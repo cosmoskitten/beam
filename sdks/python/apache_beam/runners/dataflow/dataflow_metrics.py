@@ -31,7 +31,6 @@ from collections import defaultdict
 
 from future.utils import iteritems
 
-from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
@@ -40,7 +39,6 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.testing import metric_result_matchers
 
 
 def _get_match(proto, filter_fn):
@@ -92,20 +90,15 @@ class DataflowMetrics(MetricResults):
 
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
-    logging.info('_translate_step_name-1')
     if not self._job_graph:
       raise ValueError('Could not translate the internal step name.')
 
     try:
-      logging.info('_translate_step_name0 %s', internal_name)
       step = _get_match(self._job_graph.proto.steps,
                         lambda x: x.name == internal_name)
-      logging.info('_translate_step_name1 %s. %s', internal_name, step)
       user_step_name = _get_match(
           step.properties.additionalProperties,
           lambda x: x.key == 'user_name').value.string_value
-      logging.info('_translate_step_name1 %s. %s. %s',
-                   internal_name, step, user_step_name)
     except ValueError:
       raise ValueError('Could not translate the internal step name.')
     return user_step_name
@@ -274,14 +267,6 @@ def main(argv):
                       help='The project name to query metrics for.')
   flags = parser.parse_args(argv)
 
-  # fn api
-  #flags.job_id = '2019-03-11_17_14_46-12647281399525786125'
-  #matchers = exercise_metrics_pipeline_test.fn_api_metric_matchers()
-
-  # legacy
-  flags.job_id = '2019-03-11_17_22_17-7309195052354046065'
-  matchers = dataflow_exercise_metrics_pipeline.legacy_metric_matchers()
-
   # Get a Dataflow API client and set its project and job_id in the options.
   options = PipelineOptions()
   gcloud_options = options.view_as(GoogleCloudOptions)
@@ -293,12 +278,6 @@ def main(argv):
                flags.job_id, flags.project)
   for metric_result in all_metrics:
     logging.info(metric_result)
-
-  errors = metric_result_matchers.verify_all(
-      all_metrics,
-      matchers)
-  logging.info('#Errors: %s', len(errors))
-  logging.info(str(errors))
 
 
 if __name__ == '__main__':

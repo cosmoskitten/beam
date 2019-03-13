@@ -25,9 +25,9 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.dataflow import dataflow_exercise_metrics_pipeline
 from apache_beam.testing import metric_result_matchers
 from apache_beam.testing.test_pipeline import TestPipeline
 
