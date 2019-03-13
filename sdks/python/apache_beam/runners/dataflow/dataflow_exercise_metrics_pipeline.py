@@ -34,7 +34,7 @@ METRIC_NAMESPACE = ('apache_beam.runners.dataflow.'
                     'dataflow_exercise_metrics_pipeline.UserMetricsDoFn')
 
 
-def common_metric_matchers(metric_step_name):
+def common_metric_matchers():
   """MetricResult matchers common to all tests."""
   # TODO(ajamato): Matcher for the 'metrics' step's ElementCount.
   # TODO(ajamato): Matcher for the 'metrics' step's MeanByteCount.
@@ -51,25 +51,19 @@ def common_metric_matchers(metric_step_name):
       ),
       MetricResultMatcher(
           name='ExecutionTime_StartBundle',
-          labels={
-              'step': metric_step_name,  # Step: metric.
-          },
+          step='metrics',
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
       MetricResultMatcher(
           name='ExecutionTime_ProcessElement',
-          labels={
-              'step': metric_step_name,  # Step: metric.
-          },
+          step='metrics',
           attempted=greater_than(0),
           committed=greater_than(0)
       ),
       MetricResultMatcher(
           name='ExecutionTime_FinishBundle',
-          labels={
-              'step': metric_step_name,  # Step: metric.
-          },
+          step='metrics',
           attempted=greater_than(0),
           committed=greater_than(0)
       )
@@ -109,7 +103,7 @@ def common_metric_matchers(metric_step_name):
 
 def fn_api_metric_matchers():
   """MetricResult matchers with adjusted step names for the FN API DF test."""
-  matchers = common_metric_matchers('s9')
+  matchers = common_metric_matchers()
   return matchers
 
 
@@ -117,7 +111,7 @@ def legacy_metric_matchers():
   """MetricResult matchers with adjusted step names for the legacy DF test."""
   # TODO(ajamato): Move these to the common_metric_matchers once implemented
   # in the FN API.
-  matchers = common_metric_matchers('s2')
+  matchers = common_metric_matchers()
   matchers.extend([
       # User distribution metric, legacy DF only.
       MetricResultMatcher(
