@@ -561,11 +561,11 @@ class ElasticsearchIOTestCommon implements Serializable {
       data.add(String.format("{\"id\" : %s, \"age\" : \"%s\"}", i, "2018-08-10:00:00"));
     }
     expectedException.expectCause(isA(IOException.class));
-    expectedException.expectMessage(
-        new CustomMatcher<String>("RegExp matcher") {
+    expectedException.expectCause(
+        new CustomMatcher<Exception>("RegExp matcher") {
           @Override
           public boolean matches(Object o) {
-            String message = (String) o;
+            String message = ((Exception) o).getMessage();
             return message.matches(
                 "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
                     + ".*Document id .+: failed to parse .*Caused by: .*"
