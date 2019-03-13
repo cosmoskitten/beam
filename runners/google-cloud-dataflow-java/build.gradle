@@ -295,6 +295,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/*KmsKeyIT.class'
@@ -337,6 +338,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
