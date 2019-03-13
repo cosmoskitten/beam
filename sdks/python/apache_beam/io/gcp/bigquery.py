@@ -784,11 +784,11 @@ class WriteToBigQuery(PTransform):
       project (str): The ID of the project containing this table or
         :data:`None` if the table reference is specified entirely by the table
         argument.
-      schema (str,dict,TableSchema,ValueProvider): The schema to be used if the
+      schema (str,dict,ValueProvider): The schema to be used if the
         BigQuery table to write has to be created. This can be either specified
         as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
-        or a python dictionary.
+        or a python dictionary, or the string or dictionary itself.
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
         separated list of fields. Here ``'type'`` should specify the BigQuery

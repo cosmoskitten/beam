@@ -232,7 +232,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
     for row in rows:
       if writer is None:
         (file_path, writer) = _make_new_file_writer(file_prefix, destination)
-        yield (destination, file_path)
+        yield (element[0], file_path)
 
       writer.write(self.coder.encode(row))
       writer.write(b'\n')
