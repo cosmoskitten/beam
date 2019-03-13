@@ -77,7 +77,8 @@ _NAME_LANGUAGE_ELEMENTS = [
 
 
 _DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
+    set([bigquery_tools.parse_table_reference(elm[0])
+         for elm in _DESTINATION_ELEMENT_PAIRS]))
 
 
 _ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])

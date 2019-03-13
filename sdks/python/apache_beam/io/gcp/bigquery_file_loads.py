@@ -189,7 +189,7 @@ class WriteRecordsToFile(beam.DoFn):
                                 (element[0], file_path))
     else:
       yield pvalue.TaggedOutput(
-          WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
+          WriteRecordsToFile.UNWRITTEN_RECORD_TAG, (destination, row))
       return
 
     # TODO(pabloem): Is it possible for this to throw exception?
@@ -223,7 +223,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
     self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def process(self, element, file_prefix):
-    destination = element[0]
+    destination = bigquery_tools.parse_table_reference(element[0])
     rows = element[1]
 
     writer = None
