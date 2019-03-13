@@ -188,7 +188,12 @@ class BigtableSourceTest(unittest.TestCase):
 
   def __read_list(self):
     for i in range(72496, 72500):
-      yield PartialRowData(b'beam_key'+str(i))
+      key = 'beam_key'+str(i)
+      if sys.version_info < (3, 0):
+        key = bytes(key)
+      else:
+        key = bytes(key, 'utf8')
+      yield PartialRowData(key)
 
   @mock.patch.object(Table, 'read_rows')
   def test_read(self, mock_read_rows):
