@@ -302,8 +302,6 @@ class BigtableSourceTest(unittest.TestCase):
     self.instance_id = 'instance_id'
     #self.table_id = 'testmillion7abb2dc3'
     self.table_id = DEFAULT_TABLE_PREFIX + str(uuid.uuid4())[:8]
-
-
     if not hasattr(self, 'client'):
       self.client = Client(project=self.project_id, admin=True)
       self.instance = self.client.instance(self.instance_id)
@@ -418,8 +416,6 @@ class BigtableSourceTest(unittest.TestCase):
 
     self.assertEqual(range_tracker.start_position(), start_position)
     self.assertEqual(range_tracker.stop_position(), stop_position)
-
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
