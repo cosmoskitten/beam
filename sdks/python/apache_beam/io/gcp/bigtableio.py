@@ -301,7 +301,6 @@ class _BigTableSource(iobase.BoundedSource):
           for split_key_range in self.split_range_subranges(current,
                                                             desired_size,
                                                             range_tracker):
-            print(split_key_range)
             yield split_key_range
         start = sample_row.row_key
       l = sample_row.offset_bytes

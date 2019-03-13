@@ -109,7 +109,6 @@ class BigTableSource(iobase.BoundedSource):
                   or by casting to a :class:`list` and can be cancelled by
                   calling ``cancel()``.
     '''
-    print('Get Sample Row Keys')
     return self._getTable().sample_row_keys()
 
   def get_range_tracker(self, start_position, stop_position):
@@ -159,7 +158,6 @@ class BigTableSource(iobase.BoundedSource):
                                                     desired_bundle_size,
                                                     start_key, end_key):
             ret = fraction
-            print(ret)
             yield ret
           start_key = sample_row_key.row_key
           addition_size = 0
@@ -171,7 +169,6 @@ class BigTableSource(iobase.BoundedSource):
       else:
         last_bundle_size = full_size - current_size
       ret = iobase.SourceBundle(last_bundle_size, self, start_key, end_key)
-      print(ret)
       yield ret
 
   def split_range_size(self, desired_size, sample_row_keys, range_):
@@ -313,10 +310,10 @@ class BigtableSourceTest(unittest.TestCase):
       self.table = self.instance.table(self.table_id)
 
   def sample_row_keys(self):
-    keys = ['beam_key0672496', 'beam_key1582279', 'beam_key22',
-            'beam_key2874203', 'beam_key3475534', 'beam_key4440786',
-            'beam_key51', 'beam_key56', 'beam_key65', 'beam_key7389168',
-            'beam_key8105103', 'beam_key9007992', '']
+    keys = [b'beam_key0672496', b'beam_key1582279', b'beam_key22',
+            b'beam_key2874203', b'beam_key3475534', b'beam_key4440786',
+            b'beam_key51', b'beam_key56', b'beam_key65', b'beam_key7389168',
+            b'beam_key8105103', b'beam_key9007992', b'']
 
     for (i, key) in enumerate(keys):
       sample_row = SampleRowKeysResponse()
