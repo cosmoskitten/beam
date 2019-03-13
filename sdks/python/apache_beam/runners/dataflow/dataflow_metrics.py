@@ -57,8 +57,9 @@ def _get_match(proto, filter_fn):
 
 
 # V1b3 MetricStructuredName keys to accept and copy to the MetricKey labels.
+STEP_LABEL = 'step'
 STRUCTURED_NAME_LABELS = [
-    'execution_step', 'original_name', 'output_user_name', 'step']
+    'execution_step', 'original_name', 'output_user_name']
 
 
 class DataflowMetrics(MetricResults):
@@ -107,6 +108,7 @@ class DataflowMetrics(MetricResults):
     """Populate the MetricKey object for a queried metric result."""
     step = ""
     name = metric.name.name # Always extract a name
+    labels = dict()
     try: # Try to extract the user step name.
       # If ValueError is thrown within this try-block, it is because of
       # one of the following:
@@ -116,7 +118,7 @@ class DataflowMetrics(MetricResults):
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
       step = _get_match(metric.name.context.additionalProperties,
-                        lambda x: x.key == 'step').value
+                        lambda x: x.key == STEP_LABEL).value
       step = self._translate_step_name(step)
     except ValueError:
       pass
@@ -128,7 +130,6 @@ class DataflowMetrics(MetricResults):
     except ValueError:
       pass
 
-    labels = dict()
     for kv in metric.name.context.additionalProperties:
       if kv.key in STRUCTURED_NAME_LABELS:
         labels[kv.key] = kv.value
