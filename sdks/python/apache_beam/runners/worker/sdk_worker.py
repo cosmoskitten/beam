@@ -82,7 +82,6 @@ class SdkHarness(object):
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._process_thread_pool = futures.ThreadPoolExecutor(
         max_workers=self._worker_count)
-    self._instruction_id_vs_worker = {}
     self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
@@ -180,17 +179,12 @@ class SdkHarness(object):
       worker = self.workers.get()
       # Get the first work item in the queue
       work = self._process_bundle_queue.get()
-      # add the instuction_id vs worker map for progress reporting lookup
-      self._instruction_id_vs_worker[work.instruction_id] = worker
       self._unscheduled_process_bundle.pop(work.instruction_id, None)
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
-        if not worker.has_active_processors():
-          # Delete the instruction_id <-> worker mapping
-          self._instruction_id_vs_worker.pop(work.instruction_id, None)
-          # Put the worker back in the free worker pool
-          self.workers.put(worker)
+        # Put the worker back in the free worker pool
+        self.workers.put(worker)
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
     self._unscheduled_process_bundle[request.instruction_id] = time.time()
@@ -212,11 +206,13 @@ class SdkHarness(object):
     def task():
       instruction_reference = getattr(
           request, request.WhichOneof('request')).instruction_reference
-      if instruction_reference in self._instruction_id_vs_worker:
-        self._execute(
-            lambda: self._instruction_id_vs_worker[
-                instruction_reference
-            ].do_instruction(request), request)
+      if instruction_reference not in self._unscheduled_process_bundle:
+        worker = self.workers.get()
+        try:
+          self._execute(
+              lambda: worker.do_instruction(request), request)
+        finally:
+          self.workers.put(worker)
       else:
         self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=(
@@ -224,12 +220,6 @@ class SdkHarness(object):
                 instruction_reference in self._unscheduled_process_bundle else
                 'Unknown process bundle instruction {}').format(
                     instruction_reference)), request)
-      if request.WhichOneof('request') == 'finalize_bundle':
-        worker = self._instruction_id_vs_worker[instruction_reference]
-        # Delete the instruction_id <-> worker mapping
-        self._instruction_id_vs_worker.pop(instruction_reference, None)
-        # Put the worker back in the free worker pool
-        self.workers.put(worker)
 
     self._progress_thread_pool.submit(task)
 
@@ -366,11 +356,19 @@ class SdkWorker(object):
     processor = self.bundle_processor_cache.lookup(
         request.instruction_reference)
     if processor:
-      finalize_response = processor.finalize_bundle()
-      self.bundle_processor_cache.release(request.instruction_reference)
+      try:
+        finalize_response = processor.finalize_bundle()
+        self.bundle_processor_cache.release(request.instruction_reference)
+        return beam_fn_api_pb2.InstructionResponse(
+            instruction_id=instruction_id,
+            finalize_bundle=finalize_response)
+      except:
+        self.bundle_processor_cache.discard(request.instruction_reference)
+        raise
+    else:
       return beam_fn_api_pb2.InstructionResponse(
           instruction_id=instruction_id,
-          finalize_bundle=finalize_response)
+          error='Instruction not running: %s' % instruction_id)
 
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):
