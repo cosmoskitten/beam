@@ -36,6 +36,7 @@ from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -282,14 +283,22 @@ class Operation(object):
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
-      (unused_mean, sum, count) = (
+
+      (unused_mean, sum, count, min, max) = (
           self.receivers[0].opcounter.mean_byte_counter.value())
-      sampled_byte_count = monitoring_infos.int64_distribution2(
+      metric = metrics_pb2.Metric(
+          distribution_data=metrics_pb2.DistributionData(
+              int_distribution_data=metrics_pb2.IntDistributionData(
+                  count=count,
+                  sum=sum,
+                  min=min,
+                  max=max
+              )
+          )
+      )
+      sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_COUNT_URN,
-          sum,
-          count,
-          0, # min
-          0, # max
+          metric,
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
@@ -613,14 +622,21 @@ class DoOperation(Operation):
         )
         infos[monitoring_infos.to_key(mi)] = mi
 
-        (unused_mean, sum, count) = (
+        (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        sampled_byte_count = monitoring_infos.int64_distribution2(
+        metric = metrics_pb2.Metric(
+            distribution_data=metrics_pb2.DistributionData(
+                int_distribution_data=metrics_pb2.IntDistributionData(
+                    count=count,
+                    sum=sum,
+                    min=min,
+                    max=max
+                )
+            )
+        )
+        sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_COUNT_URN,
-            sum,
-            count,
-            0,
-            0,
+            metric,
             ptransform=transform_id,
             tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
           )

@@ -135,32 +135,6 @@ def int64_counter(urn, metric, ptransform='', tag=''):
     )
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
-
-# TODO rename, share with other method, make it easier to use.
-def int64_distribution2(urn, sum, count, min, max, ptransform='', tag=''):
-  """Return the distribution monitoring info for the URN, metric and labels.
-
-  Args:
-    urn: The URN of the monitoring info/metric.
-    metric: The metric proto field to use in the monitoring info.
-        Or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
-  """
-  labels = create_labels(ptransform=ptransform, tag=tag)
-  metric = Metric(
-      distribution_data=metrics_pb2.DistributionData(
-          int_distribution_data=metrics_pb2.IntDistributionData(
-              count=count,
-              sum=sum,
-              min=min,
-              max=max
-          )
-      )
-  )
-  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, metric, labels)
-
-
 def int64_distribution(urn, metric, ptransform='', tag=''):
   """Return the distribution monitoring info for the URN, metric and labels.
 
