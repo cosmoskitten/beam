@@ -31,8 +31,6 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
-import com.datastax.driver.mapping.Mapper;
-import com.datastax.driver.mapping.MappingManager;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -49,6 +47,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.cassandra.mapper.DefaultObjectMapperFactory;
+import org.apache.beam.sdk.io.cassandra.mapper.Mapper;
+import org.apache.beam.sdk.io.cassandra.mapper.MapperFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -172,6 +173,9 @@ public class CassandraIO {
     @Nullable
     abstract Integer minNumberOfSplits();
 
+    @Nullable
+    abstract MapperFactory<T> customMapperFactory();
+
     abstract Builder<T> builder();
 
     /** Specify the hosts of the Apache Cassandra instances. */
@@ -286,6 +290,14 @@ public class CassandraIO {
       return builder().setMinNumberOfSplits(minNumberOfSplits).build();
     }
 
+    public Read<T> withCustomMapperFactory(MapperFactory<T> mapperFactory) {
+      checkArgument(
+          mapperFactory != null,
+          "CassandraIO.withCustomMapperFactory"
+              + "(withCustomMapperFactory) called with null value");
+      return builder().setCustomMapperFactory(mapperFactory).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument((hosts() != null && port() != null), "WithHosts() and withPort() are required");
@@ -326,6 +338,8 @@ public class CassandraIO {
       abstract Builder<T> setWhere(String where);
 
       abstract Builder<T> setMinNumberOfSplits(Integer minNumberOfSplits);
+
+      abstract Builder<T> setCustomMapperFactory(MapperFactory<T> mapperFactory);
 
       abstract Read<T> build();
     }
@@ -663,15 +677,13 @@ public class CassandraIO {
           futures.add(session.executeAsync(query));
         }
 
-        final MappingManager mappingManager = new MappingManager(session);
-        Mapper mapper = mappingManager.mapper(source.spec.entity());
+        final Mapper<T> mapper = getMapper(session, source.spec.entity());
 
         for (ResultSetFuture result : futures) {
           if (iterator == null) {
-            iterator = mapper.map(result.getUninterruptibly()).iterator();
+            iterator = mapper.map(result.getUninterruptibly());
           } else {
-            iterator =
-                Iterators.concat(iterator, mapper.map(result.getUninterruptibly()).iterator());
+            iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()));
           }
         }
 
@@ -710,6 +722,15 @@ public class CassandraIO {
       @Override
       public CassandraIO.CassandraSource<T> getCurrentSource() {
         return source;
+      }
+
+      private Mapper<T> getMapper(Session session, Class<T> enitity) {
+        if (source.spec.customMapperFactory() != null) {
+          return source.spec.customMapperFactory().getMapper(session, enitity);
+        } else {
+          DefaultObjectMapperFactory<T> factory = new DefaultObjectMapperFactory<T>();
+          return factory.getMapper(session, enitity);
+        }
       }
     }
   }
@@ -757,6 +778,9 @@ public class CassandraIO {
     abstract String consistencyLevel();
 
     abstract MutationType mutationType();
+
+    @Nullable
+    abstract MapperFactory<T> customMapperFactory();
 
     abstract Builder<T> builder();
 
@@ -877,6 +901,16 @@ public class CassandraIO {
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
+    public Write<T> withCustomMapperFactory(MapperFactory<T> mapperFactory) {
+      checkArgument(
+          mapperFactory != null,
+          "CassandraIO."
+              + getMutationTypeName()
+              + "().withCustomMapperFactory"
+              + "(withCustomMapperFactory) called with null value");
+      return builder().setCustomMapperFactory(mapperFactory).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       checkState(
@@ -943,6 +977,8 @@ public class CassandraIO {
       abstract Builder<T> setConsistencyLevel(String consistencyLevel);
 
       abstract Builder<T> setMutationType(MutationType mutationType);
+
+      abstract Builder<T> setCustomMapperFactory(MapperFactory<T> mapperFactory);
 
       abstract Write<T> build();
     }
@@ -1042,10 +1078,11 @@ public class CassandraIO {
 
     private final Cluster cluster;
     private final Session session;
-    private final MappingManager mappingManager;
+    private final MapperFactory<T> mapperFactory;
     private List<ListenableFuture<Void>> mutateFutures;
     private final BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator;
     private final String operationName;
+    private final Class<T> entitiyClass;
 
     Mutator(
         Write<T> spec,
@@ -1062,20 +1099,26 @@ public class CassandraIO {
               spec.localDc(),
               spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
-      this.mappingManager = new MappingManager(session);
+      this.entitiyClass = spec.entity();
+      if (spec.customMapperFactory() != null) {
+        this.mapperFactory = spec.customMapperFactory();
+      } else {
+        this.mapperFactory = new DefaultObjectMapperFactory<T>();
+      }
       this.mutateFutures = new ArrayList<>();
       this.mutator = mutator;
       this.operationName = operationName;
     }
 
     /**
-     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the {@link
-     * MappingManager}. This method uses {@link Mapper#saveAsync(Object)} method, which is
-     * asynchronous. Beam will wait for all futures to complete, to guarantee all writes have
-     * succeeded.
+     * Mutate the entity to the Cassandra instance, using {@link Mapper} obtained with the the
+     * Mapper factory, the DefaultObjectMapperFactory uses {@link
+     * com.datastax.driver.mapping.MappingManager}. This method uses {@link
+     * Mapper#saveAsync(Object)} method, which is asynchronous. Beam will wait for all futures to
+     * complete, to guarantee all writes have succeeded.
      */
     void mutate(T entity) throws ExecutionException, InterruptedException {
-      Mapper<T> mapper = (Mapper<T>) mappingManager.mapper(entity.getClass());
+      Mapper<T> mapper = mapperFactory.getMapper(session, entitiyClass);
       this.mutateFutures.add(mutator.apply(mapper, entity));
       if (this.mutateFutures.size() == CONCURRENT_ASYNC_QUERIES) {
         // We reached the max number of allowed in flight queries.
