@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import base64
+import datetime
 import logging
 import random
 import sys
@@ -75,13 +76,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, language FROM %s" % output_table_2,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d])]
@@ -125,13 +126,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_1,
+            query="SELECT name, language FROM %s" % output_table_1,
             data=[(d['name'], d['language'])
                   for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % output_table_2,
+            query="SELECT name, foundation FROM %s" % output_table_2,
             data=[(d['name'], d['foundation'])
                   for d in _ELEMENTS
                   if 'foundation' in d])]
@@ -277,10 +278,14 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT bytes, date, time FROM %s" % output_table,
-            data=[(b'xyw=', '2011-01-01', '23:59:59.999999', ),
-                  (b'abc=', '2000-01-01', '00:00:00', ),
-                  (b'dec=', '3000-12-31', '23:59:59.990000',),
-                  (b'\xab\xac\xad', '2000-01-01', '00:00:00',)])]
+            data=[(b'xyw=', datetime.date(2011, 1, 1),
+                   datetime.time(23, 59, 59, 999999), ),
+                  (b'abc=', datetime.date(2000, 1, 1),
+                   datetime.time(0, 0, 0), ),
+                  (b'dec=', datetime.date(3000, 12, 31),
+                   datetime.time(23, 59, 59, 990000), ),
+                  (b'\xab\xac\xad', datetime.date(2000, 1, 1),
+                   datetime.time(0, 0, 0), )])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))
@@ -314,10 +319,14 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT bytes, date, time FROM %s" % output_table,
-            data=[(b'xyw=', '2011-01-01', '23:59:59.999999',),
-                  (b'abc=', '2000-01-01', '00:00:00',),
-                  (b'dec=', '3000-12-31', '23:59:59.990000',),
-                  (b'\xab\xac\xad', '2000-01-01', '00:00:00',)])]
+            data=[(b'xyw=', datetime.date(2011, 1, 1),
+                   datetime.time(23, 59, 59, 999999), ),
+                  (b'abc=', datetime.date(2000, 1, 1),
+                   datetime.time(0, 0, 0), ),
+                  (b'dec=', datetime.date(3000, 12, 31),
+                   datetime.time(23, 59, 59, 990000), ),
+                  (b'\xab\xac\xad', datetime.date(2000, 1, 1),
+                   datetime.time(0, 0, 0), )])]
 
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*pipeline_verifiers))
@@ -418,7 +427,6 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
     self.bigquery_client.insert_rows(
         self.project, self.dataset_id, tablename, table_data)
-
 
   @attr('IT')
   def test_big_query_read(self):
