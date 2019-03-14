@@ -172,7 +172,40 @@ class MeanInt64Accumulator(object):
       self.sum %= 2**64
       if self.sum >= INT64_MAX:
         self.sum -= 2**64
-    return self.sum // self.count if self.count else _NAN
+    mean = self.sum // self.count if self.count else _NAN
+    return mean, self.sum, self.count
+
+
+class DistributionInt64Accumulator(object):
+  def __init__(self):
+    self.sum = 0
+    self.count = 0
+    self.min = INT64_MAX
+    self.max = INT64_MIN
+
+  def add_input(self, element):
+    element = int(element)
+    if not INT64_MIN <= element <= INT64_MAX:
+      raise OverflowError(element)
+    self.sum += element
+    self.count += 1
+    self.min = min(self.min, element)
+    self.max = max(self.max, element)
+
+  def merge(self, accumulators):
+    for accumulator in accumulators:
+      self.sum += accumulator.sum
+      self.count += accumulator.count
+      self.min = min(self.min, accumulator.min)
+      self.max = max(self.max, accumulator.max)
+
+  def extract_output(self):
+    if not INT64_MIN <= self.sum <= INT64_MAX:
+      self.sum %= 2**64
+      if self.sum >= INT64_MAX:
+        self.sum -= 2**64
+    mean = self.sum // self.count if self.count else _NAN
+    return mean, self.sum, self.count, self.min, self.max
 
 
 class DistributionInt64Accumulator(object):
