@@ -312,7 +312,6 @@ public class CassandraIOTest implements Serializable {
 
     Callable<Void> asyncTask =
         () -> {
-          System.out.println("NOOP");
           return (null);
         };
 
