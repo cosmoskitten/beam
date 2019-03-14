@@ -35,6 +35,8 @@ from apache_beam.portability.api.metrics_pb2 import CounterData
 from apache_beam.portability.api.metrics_pb2 import Metric
 from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
+SAMPLED_BYTE_SIZE_URN = (
+    common_urns.monitoring_info_specs.SAMPLED_BYTE_SIZE.spec.urn)
 ELEMENT_COUNT_URN = common_urns.monitoring_info_specs.ELEMENT_COUNT.spec.urn
 START_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.START_BUNDLE_MSECS.spec.urn)
