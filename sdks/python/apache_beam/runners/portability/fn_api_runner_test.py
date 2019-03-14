@@ -31,6 +31,9 @@ import unittest
 import uuid
 from builtins import range
 
+import hamcrest
+from hamcrest.core.matcher import Matcher
+from hamcrest.core.string_description import StringDescription
 from tenacity import retry
 from tenacity import stop_after_attempt
 
@@ -56,7 +59,83 @@ else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
+def _matcher_or_equal_to(value_or_matcher):
+  """Pass-thru for matchers, and wraps value inputs in an equal_to matcher."""
+  if value_or_matcher is None:
+    return None
+  if isinstance(value_or_matcher, Matcher):
+    return value_or_matcher
+  return hamcrest.equal_to(value_or_matcher)
+
+
 class FnApiRunnerTest(unittest.TestCase):
+
+  def has_urn_and_labels(self, mi, urn, labels):
+    def contains_labels(monitoring_info, labels):
+      # Check all the labels and their values exist in the monitoring_info
+      return len([x for x in labels.items() if
+                  x[0] in monitoring_info.labels and monitoring_info.labels[
+                      x[0]] == x[1]]) == len(labels)
+    return contains_labels(mi, labels) and mi.urn == urn
+
+  def assert_has_counter(
+      self, monitoring_infos, urn, labels, value=None, ge_value=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    found = 0
+    for mi in monitoring_infos:
+      if self.has_urn_and_labels(mi, urn, labels):
+        if ge_value is not None:
+          if mi.metric.counter_data.int64_value >= ge_value:
+            found = found + 1
+        elif value is not None:
+          if mi.metric.counter_data.int64_value == value:
+            found = found + 1
+        else:
+          found = found + 1
+    ge_value_str = {'ge_value' : ge_value} if ge_value else ''
+    value_str = {'value' : value} if value else ''
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, value_str, ge_value_str),))
+
+  def assert_has_distribution(
+      self, monitoring_infos, urn, labels,
+      sum=None, count=None, min=None, max=None):
+    # TODO(ajamato): Consider adding a matcher framework
+    sum = _matcher_or_equal_to(sum)
+    count = _matcher_or_equal_to(count)
+    min = _matcher_or_equal_to(min)
+    max = _matcher_or_equal_to(max)
+    found = 0
+    description = StringDescription()
+    for mi in monitoring_infos:
+      if self.has_urn_and_labels(mi, urn, labels):
+        int_dist = mi.metric.distribution_data.int_distribution_data
+        increment = 1
+        if sum is not None:
+          description.append_text(' sum: ')
+          sum.describe_to(description)
+          if not sum.matches(int_dist.sum):
+            increment = 0
+        if count is not None:
+          description.append_text(' count: ')
+          count.describe_to(description)
+          if not count.matches(int_dist.count):
+            increment = 0
+        if min is not None:
+          description.append_text(' min: ')
+          min.describe_to(description)
+          if not min.matches(int_dist.min):
+            increment = 0
+        if max is not None:
+          description.append_text(' max: ')
+          max.describe_to(description)
+          if not max.matches(int_dist.max):
+            increment = 0
+        found += increment
+    self.assertEqual(
+        1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
+        (found, (urn, labels, str(description)),))
 
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
@@ -629,7 +708,9 @@ class FnApiRunnerTest(unittest.TestCase):
       # internal way of accessing progress metrics.
       self.skipTest('Metrics not supported.')
 
-    pcoll = p | beam.Create(['a1', 'a2'])
+    # Produce enough elements to make sure byte sampling occurs.
+    num_source_elems = 10000
+    pcoll = p | beam.Create(['a%d' % i for i in range(num_source_elems)])
 
     # pylint: disable=expression-not-assigned
     pardo = ('StepThatDoesTwoOutputs' >> beam.ParDo(
@@ -650,35 +731,106 @@ class FnApiRunnerTest(unittest.TestCase):
 
     result_metrics = res.monitoring_metrics()
 
-    def assert_contains_metric(src, urn, pcollection, value):
-      for item in src:
-        if item.urn == urn:
-          if item.labels['PCOLLECTION'] == pcollection:
-            self.assertEqual(item.metric.counter_data.int64_value, value,
-                             str(("Metric has incorrect value", value, item)))
-            return
-      self.fail(str(("Metric not found", urn, pcollection, src)))
-
     counters = result_metrics.monitoring_infos()
+    # All element count and byte count metrics must have a PCOLLECTION_LABEL.
     self.assertFalse([x for x in counters if
-                      x.urn == monitoring_infos.ELEMENT_COUNT_URN
+                      x.urn in [monitoring_infos.ELEMENT_COUNT_URN,
+                                monitoring_infos.SAMPLED_BYTE_SIZE_URN]
                       and
                       monitoring_infos.PCOLLECTION_LABEL not in x.labels])
+    try:
+      labels = {'PCOLLECTION' : 'Impulse'}
+      self.assert_has_counter(
+          counters, monitoring_infos.ELEMENT_COUNT_URN, labels, 1)
 
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'Impulse', 1)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_1', 2)
+      # Create/Read, "out" output.
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
-    # Skipping other pcollections due to non-deterministic naming for multiple
-    # outputs.
+      # GenerateTwoOutputs, main output.
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
 
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_5', 8)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_6', 8)
-    assert_contains_metric(counters, monitoring_infos.ELEMENT_COUNT_URN,
-                           'ref_PCollection_PCollection_7', 2)
+      # GenerateTwoOutputs, "SecondOutput" output.
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_3'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 2 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # GenerateTwoOutputs, "ThirdOutput" output.
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_4'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # Skipping other pcollections due to non-deterministic naming for multiple
+      # outputs.
+      # Flatten/Read, main output.
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_5'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # PrintingStep, main output
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, 4 * num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+
+      # PrintingStep2, main output
+      labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
+      self.assert_has_counter(
+          counters,
+          monitoring_infos.ELEMENT_COUNT_URN, labels, num_source_elems)
+      self.assert_has_distribution(
+          counters, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels,
+          min=hamcrest.greater_than(0),
+          max=hamcrest.greater_than(0),
+          sum=hamcrest.greater_than(0),
+          count=hamcrest.greater_than(0))
+    except:
+      print(res._monitoring_infos_by_stage)
+      raise
 
   def test_non_user_metrics(self):
     p = self.create_pipeline()
@@ -799,48 +951,36 @@ class FnApiRunnerTest(unittest.TestCase):
         # The monitoring infos above are actually unordered. Swap.
         pregbk_mis, postgbk_mis = postgbk_mis, pregbk_mis
 
-      def assert_has_monitoring_info(
-          monitoring_infos, urn, labels, value=None, ge_value=None):
-        def contains_labels(monitoring_info, labels):
-          return len([x for x in labels.items() if
-                      x[0] in monitoring_info.labels and monitoring_info.labels[
-                          x[0]] == x[1]]) == len(labels)
-
-        # TODO(ajamato): Consider adding a matcher framework
-        found = 0
-        for mi in monitoring_infos:
-          if contains_labels(mi, labels) and mi.urn == urn:
-            if (ge_value is not None and
-                mi.metric.counter_data.int64_value >= ge_value):
-              found = found + 1
-            elif (value is not None and
-                  mi.metric.counter_data.int64_value == value):
-              found = found + 1
-        ge_value_str = {'ge_value' : ge_value} if ge_value else ''
-        value_str = {'value' : value} if value else ''
-        self.assertEqual(
-            1, found, "Found (%s) Expected only 1 monitoring_info for %s." %
-            (found, (urn, labels, value_str, ge_value_str),))
-
       # pregbk monitoring infos
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_1'}
-      assert_has_monitoring_info(
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
+      self.assert_has_distribution(
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_2'}
-      assert_has_monitoring_info(
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=4)
+      self.assert_has_distribution(
+          pregbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
       labels = {'PTRANSFORM' : 'Map(sleep)'}
-      assert_has_monitoring_info(
+      self.assert_has_counter(
           pregbk_mis, monitoring_infos.TOTAL_MSECS_URN,
           labels, ge_value=4 * DEFAULT_SAMPLING_PERIOD_MS)
 
       # postgbk monitoring infos
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_6'}
-      assert_has_monitoring_info(
+      self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
+      self.assert_has_distribution(
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
+
       labels = {'PCOLLECTION' : 'ref_PCollection_PCollection_7'}
-      assert_has_monitoring_info(
+      self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
+      self.assert_has_distribution(
+          postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
     except:
       print(res._monitoring_infos_by_stage)
       raise

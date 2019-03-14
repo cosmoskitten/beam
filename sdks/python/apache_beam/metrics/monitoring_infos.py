@@ -35,6 +35,8 @@ from apache_beam.portability.api.metrics_pb2 import CounterData
 from apache_beam.portability.api.metrics_pb2 import Metric
 from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
+SAMPLED_BYTE_SIZE_URN = (
+    common_urns.monitoring_info_specs.SAMPLED_BYTE_SIZE.spec.urn)
 ELEMENT_COUNT_URN = common_urns.monitoring_info_specs.ELEMENT_COUNT.spec.urn
 START_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.START_BUNDLE_MSECS.spec.urn)
@@ -184,6 +186,20 @@ def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
                          name=name)
   return create_monitoring_info(USER_DISTRIBUTION_COUNTER_URN,
                                 DISTRIBUTION_INT64_TYPE, metric, labels)
+
+
+def int64_distribution(urn, metric, ptransform=None, tag=None):
+  """Return a distribution monitoring info for the URN, metric and labels.
+
+  Args:
+    urn: The URN of the monitoring info/metric.
+    metric: The metric proto field to use in the monitoring info.
+    ptransform: The ptransform/step name used as a label.
+    tag: The output tag name, used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, tag=tag)
+  return create_monitoring_info(
+      urn, DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
 def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
