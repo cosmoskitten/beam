@@ -33,12 +33,19 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
@@ -48,6 +55,8 @@ import javax.management.remote.JMXServiceURL;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.cassandra.CassandraIO.CassandraSource.TokenRange;
+import org.apache.beam.sdk.io.cassandra.mapper.Mapper;
+import org.apache.beam.sdk.io.cassandra.mapper.MapperFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -312,6 +321,113 @@ public class CassandraIOTest implements Serializable {
     for (Row row : results) {
       assertTrue(row.getString("person_name").matches("Name (\\d*)"));
     }
+  }
+
+  static AtomicInteger COUNTER = new AtomicInteger();
+
+  private static class NOOPMapperFactory implements MapperFactory<String>, Serializable {
+
+    @Override
+    public Mapper getMapper(Session session, Class entity) {
+      return new NOOPMapper();
+    }
+  }
+
+  private static class NOOPMapper implements Mapper<String>, Serializable {
+
+    private ListeningExecutorService executor =
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
+
+    Callable<Void> asyncTask =
+        () -> {
+          System.out.println("NOOP");
+          return (null);
+        };
+
+    @Override
+    public Iterator map(ResultSet resultSet) {
+      if (!resultSet.isExhausted()) {
+        resultSet.iterator().forEachRemaining(r -> COUNTER.getAndIncrement());
+      }
+      return new ArrayList<>().iterator();
+    }
+
+    @Override
+    public ListenableFuture<Void> deleteAsync(String entity) {
+      COUNTER.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
+
+    @Override
+    public ListenableFuture<Void> saveAsync(String entity) {
+      COUNTER.incrementAndGet();
+      return executor.submit(asyncTask);
+    }
+  }
+
+  @Test
+  public void testCustomMapperImplRead() throws Exception {
+    insertRecords();
+    COUNTER.set(0);
+
+    MapperFactory<String> factory = new NOOPMapperFactory();
+
+    pipeline.apply(
+        CassandraIO.<String>read()
+            .withHosts(Arrays.asList(CASSANDRA_HOST))
+            .withPort(CASSANDRA_PORT)
+            .withUsername(CASSANDRA_USERNAME)
+            .withEncryptedPassword(CASSANDRA_ENCRYPTED_PASSWORD)
+            .withKeyspace(CASSANDRA_KEYSPACE)
+            .withTable(CASSANDRA_TABLE)
+            .withCoder(SerializableCoder.of(String.class))
+            .withEntity(String.class)
+            .withCustomMapperFactory(factory));
+    pipeline.run();
+
+    assertEquals(NUM_ROWS, COUNTER.intValue());
+  }
+
+  @Test
+  public void testCustomMapperImplWrite() throws Exception {
+    insertRecords();
+    COUNTER.set(0);
+
+    MapperFactory<String> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withCustomMapperFactory(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, COUNTER.intValue());
+  }
+
+  @Test
+  public void testCustomMapperImplDelete() throws Exception {
+    insertRecords();
+    COUNTER.set(0);
+
+    MapperFactory<String> factory = new NOOPMapperFactory();
+
+    pipeline
+        .apply(Create.of(""))
+        .apply(
+            CassandraIO.<String>write()
+                .withHosts(Arrays.asList(CASSANDRA_HOST))
+                .withPort(CASSANDRA_PORT)
+                .withKeyspace(CASSANDRA_KEYSPACE)
+                .withCustomMapperFactory(factory)
+                .withEntity(String.class));
+    pipeline.run();
+
+    assertEquals(1, COUNTER.intValue());
   }
 
   @Test
