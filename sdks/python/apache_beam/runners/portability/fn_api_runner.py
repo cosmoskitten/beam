@@ -437,6 +437,7 @@ class FnApiRunner(runner.PipelineRunner):
         windowing_strategies=dict(
             pipeline_components.windowing_strategies.items()),
         environments=dict(pipeline_components.environments.items()))
+    print('ajamato process_bundle_descriptor %s' % process_bundle_descriptor)
 
     if controller.state_api_service_descriptor():
       process_bundle_descriptor.state_api_service_descriptor.url = (
