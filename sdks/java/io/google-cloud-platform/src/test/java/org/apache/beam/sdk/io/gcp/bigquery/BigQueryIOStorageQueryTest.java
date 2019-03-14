@@ -607,7 +607,7 @@ public class BigQueryIOStorageQueryTest {
             fakeBigQueryServices);
 
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("BigQuery query source must be split before reading");
+    thrown.expectMessage("BigQuery storage source must be split before reading");
     querySource.createReader(options);
   }
 
