@@ -18,12 +18,18 @@ from __future__ import absolute_import
 
 import json
 import logging
+import os
 import unittest
 
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
+load_test_enabled = False
+if os.environ.get('LOAD_TEST_ENABLED') == 'true':
+  load_test_enabled = True
 
+
+@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class LoadTest(unittest.TestCase):
   def parseTestPipelineOptions(self, options=None):
     if not options:

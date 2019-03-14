@@ -116,7 +116,6 @@ or:
 from __future__ import absolute_import
 
 import logging
-import os
 import unittest
 
 import apache_beam as beam
@@ -124,12 +123,7 @@ from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
   def setUp(self):
     self.output = self.pipeline.get_option('output')
