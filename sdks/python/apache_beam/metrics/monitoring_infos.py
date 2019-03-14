@@ -31,10 +31,12 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import GaugeResult
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.portability.api.metrics_pb2 import CounterData
 from apache_beam.portability.api.metrics_pb2 import Metric
 from apache_beam.portability.api.metrics_pb2 import MonitoringInfo
 
+SAMPLED_BYTE_COUNT_URN = common_urns.monitoring_infos.SAMPLED_BYTE_COUNT.urn
 ELEMENT_COUNT_URN = common_urns.monitoring_infos.ELEMENT_COUNT.urn
 START_BUNDLE_MSECS_URN = common_urns.monitoring_infos.START_BUNDLE_MSECS.urn
 PROCESS_BUNDLE_MSECS_URN = common_urns.monitoring_infos.PROCESS_BUNDLE_MSECS.urn
@@ -132,6 +134,31 @@ def int64_counter(urn, metric, ptransform='', tag=''):
         )
     )
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
+
+
+# TODO rename, share with other method, make it easier to use.
+def int64_distribution2(urn, sum, count, min, max, ptransform='', tag=''):
+  """Return the distribution monitoring info for the URN, metric and labels.
+
+  Args:
+    urn: The URN of the monitoring info/metric.
+    metric: The metric proto field to use in the monitoring info.
+        Or an int value.
+    ptransform: The ptransform/step name used as a label.
+    tag: The output tag name, used as a label.
+  """
+  labels = create_labels(ptransform=ptransform, tag=tag)
+  metric = Metric(
+      distribution_data=metrics_pb2.DistributionData(
+          int_distribution_data=metrics_pb2.IntDistributionData(
+              count=count,
+              sum=sum,
+              min=min,
+              max=max
+          )
+      )
+  )
+  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
 def int64_distribution(urn, metric, ptransform='', tag=''):

@@ -266,23 +266,39 @@ class Operation(object):
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
-        self.element_count_monitoring_infos(transform_id))
+        self.pcollection_count_monitoring_infos(transform_id))
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def element_count_monitoring_infos(self, transform_id):
+  def pcollection_count_monitoring_infos(self, transform_id):
     """Returns the element count MonitoringInfo collected by this operation."""
     if len(self.receivers) == 1:
       # If there is exactly one output, we can unambiguously
       # fix its name later, which we do.
       # TODO(robertwb): Plumb the actual name here.
-      mi = monitoring_infos.int64_counter(
+      elem_count_mi = monitoring_infos.int64_counter(
           monitoring_infos.ELEMENT_COUNT_URN,
           self.receivers[0].opcounter.element_counter.value(),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
-      return {monitoring_infos.to_key(mi) : mi}
+      (unused_mean, sum, count) = (
+          self.receivers[0].opcounter.mean_byte_counter.value())
+      sampled_byte_count = monitoring_infos.int64_distribution2(
+          monitoring_infos.SAMPLED_BYTE_COUNT_URN,
+          sum,
+          count,
+          0, # min
+          0, # max
+          ptransform=transform_id,
+          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+      )
+      #import pdb
+      #pdb.set_trace()
+      return {
+        monitoring_infos.to_key(elem_count_mi) : elem_count_mi,
+        monitoring_infos.to_key(sampled_byte_count) : sampled_byte_count
+      }
     return {}
 
   def user_monitoring_infos(self, transform_id):
@@ -596,6 +612,21 @@ class DoOperation(Operation):
             tag=str(tag)
         )
         infos[monitoring_infos.to_key(mi)] = mi
+
+        (unused_mean, sum, count) = (
+            receiver.opcounter.mean_byte_counter.value())
+        sampled_byte_count = monitoring_infos.int64_distribution2(
+            monitoring_infos.SAMPLED_BYTE_COUNT_URN,
+            sum,
+            count,
+            0,
+            0,
+            ptransform=transform_id,
+            tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
+          )
+        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
+        #import pdb
+        #pdb.set_trace()
     return infos
 
 
@@ -651,7 +682,8 @@ class SdfProcessElements(DoOperation):
     for receiver in self.tagged_receivers.values():
       elements = receiver.opcounter.element_counter.value()
       if elements > 0:
-        total += elements * receiver.opcounter.mean_byte_counter.value()
+        (mean, sum, count) = receiver.opcounter.mean_byte_counter.value()
+        total += elements * mean
     return total
 
 
