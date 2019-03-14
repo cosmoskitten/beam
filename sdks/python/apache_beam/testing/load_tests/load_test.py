@@ -18,10 +18,15 @@ from __future__ import absolute_import
 
 import json
 import logging
+import os
 import unittest
 
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
+
+load_test_enabled = False
+if os.environ.get('LOAD_TEST_ENABLED') == 'true':
+  load_test_enabled = True
 
 
 class LoadTest(unittest.TestCase):
@@ -45,6 +50,7 @@ class LoadTest(unittest.TestCase):
     }
 
   @classmethod
+  @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
   def setUpClass(cls):
     cls.pipeline = TestPipeline()
     cls.input_options = json.loads(cls.pipeline.get_option('input_options'))
@@ -63,6 +69,7 @@ class LoadTest(unittest.TestCase):
       )
 
   @classmethod
+  @unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
   def tearDownClass(cls):
     result = cls.pipeline.run()
     result.wait_until_finish()

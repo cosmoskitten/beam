@@ -97,8 +97,9 @@ class MetricsReader(object):
   def publish_metrics(self, result):
     metrics = result.metrics().query()
     insert_dicts = self._prepare_all_metrics(metrics)
-    for publisher in self.publishers:
-      publisher.publish(insert_dicts)
+    if len(insert_dicts):
+      for publisher in self.publishers:
+        publisher.publish(insert_dicts)
 
   def _prepare_all_metrics(self, metrics):
     submit_timestamp = time.time()

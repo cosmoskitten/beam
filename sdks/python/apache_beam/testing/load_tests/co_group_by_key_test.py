@@ -150,6 +150,7 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 
 INPUT_TAG = 'pc1'
 CO_INPUT_TAG = 'pc2'
+
 load_test_enabled = False
 if os.environ.get('LOAD_TEST_ENABLED') == 'true':
   load_test_enabled = True
