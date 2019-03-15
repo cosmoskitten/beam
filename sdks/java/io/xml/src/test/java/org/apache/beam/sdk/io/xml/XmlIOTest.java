@@ -128,7 +128,7 @@ public class XmlIOTest {
         PCollection<Bird> readBack =
             readPipeline.apply(
                 XmlIO.<Bird>read()
-                    .from(new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*")
+                    .from(readPipeline.newProvider(new File(tmpFolder.getRoot(), "birds").getAbsolutePath() + "*"))
                     .withRecordClass(Bird.class)
                     .withRootElement("birds")
                     .withRecordElement("bird")
