@@ -324,7 +324,7 @@ class DoFnInvoker(object):
         user_state_context: The UserStateContext instance for the current
                             Stateful DoFn.
         bundle_finalizer_param: The param that passed to a process method, which
-                                allows a callback registered.
+                                allows a callback to be registered.
     """
     side_inputs = side_inputs or []
     default_arg_values = signature.process_method.defaults
