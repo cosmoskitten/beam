@@ -241,10 +241,10 @@ class _BigTableSource(iobase.BoundedSource):
     # The row_set is variable to get only certain ranges of rows, this
     # variable is set in the constructor of this class.
     if self.beam_options['row_set'] is not None:
-      for sample_row_key in self.beam_options['row_set'].row_ranges:
+      for row_range in self.beam_options['row_set'].row_ranges:
         for row_split in self.split_range_size(desired_bundle_size,
                                                self.get_sample_row_keys(),
-                                               sample_row_key):
+                                               row_range):
           yield row_split
     else:
       addition_size = 0
