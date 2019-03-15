@@ -19,7 +19,9 @@ package org.apache.beam.runners.core.construction.expansion;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -39,7 +41,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
-import org.apache.beam.sdk.io.ExternalConfigBuilder;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -52,6 +54,8 @@ import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Converter;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
@@ -82,7 +86,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    * Exposes Java transforms via {@link org.apache.beam.sdk.expansion.ExternalTransformRegistrar}.
    */
   @AutoService(ExpansionService.ExpansionServiceRegistrar.class)
-  public static class ExternalTransformRegistrarLoader
+  public static class ExternalTransformRegistrarLoader<ConfigT>
       implements ExpansionService.ExpansionServiceRegistrar {
 
     @Override
@@ -91,10 +95,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           ImmutableMap.builder();
       for (ExternalTransformRegistrar registrar :
           ServiceLoader.load(ExternalTransformRegistrar.class)) {
-        for (Map.Entry<String, Class<? extends ExternalConfigBuilder>> entry :
+        for (Map.Entry<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> entry :
             registrar.knownBuilders().entrySet()) {
           String urn = entry.getKey();
-          Class<? extends ExternalConfigBuilder> builderClass = entry.getValue();
+          Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass = entry.getValue();
           builder.put(
               urn,
               spec -> {
@@ -114,17 +118,44 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     private static PTransform translate(
         ExternalTransforms.ExternalConfigurationPayload payload,
-        Class<? extends ExternalConfigBuilder> builderClass)
+        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass)
         throws Exception {
       Preconditions.checkState(
-          ExternalConfigBuilder.class.isAssignableFrom(builderClass),
-          "Provided identifier %s is not an ExternalConfigBuilder.",
+          ExternalTransformBuilder.class.isAssignableFrom(builderClass),
+          "Provided identifier %s is not an ExternalTransformBuilder.",
           builderClass.getName());
-      ExternalConfigBuilder configObject = builderClass.getDeclaredConstructor().newInstance();
 
+      Object configObject = initConfiguration(builderClass);
+      populateConfiguration(configObject, payload);
+      return buildTransform(builderClass, configObject);
+    }
+
+    private static Object initConfiguration(
+        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass) throws Exception {
+      for (Method method : builderClass.getMethods()) {
+        if (method.getName().equals("buildExternal")) {
+          Preconditions.checkState(
+              method.getParameterCount() == 1,
+              "Build method for ExternalTransformBuilder %s must have exactly one parameter, but had %s parameters.",
+              builderClass.getSimpleName(),
+              method.getParameterCount());
+          Class<?> configurationClass = method.getParameterTypes()[0];
+          if (Object.class.equals(configurationClass)) {
+            continue;
+          }
+          return configurationClass.getDeclaredConstructor().newInstance();
+        }
+      }
+      throw new RuntimeException("Couldn't find build method on ExternalTransformBuilder.");
+    }
+
+    private static void populateConfiguration(
+        Object config, ExternalTransforms.ExternalConfigurationPayload payload) throws Exception {
+      Converter<String, String> camelCaseConverter =
+          CaseFormat.LOWER_UNDERSCORE.converterTo(CaseFormat.LOWER_CAMEL);
       for (Map.Entry<String, ExternalTransforms.ConfigValue> entry :
           payload.getConfigurationMap().entrySet()) {
-        String fieldName = entry.getKey();
+        String fieldName = camelCaseConverter.convert(entry.getKey());
         String coderUrn = entry.getValue().getCoderUrn();
         final Coder coder;
         if (BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT).equals(coderUrn)) {
@@ -135,17 +166,28 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         }
         Field field;
         try {
-          field = builderClass.getField(fieldName);
+          field = config.getClass().getField(fieldName);
         } catch (NoSuchFieldException e) {
           throw new RuntimeException(
               String.format(
-                  "The configuration class %s does not have a field %s", builderClass, fieldName),
+                  "The configuration class %s does not have a field %s",
+                  config.getClass(), fieldName),
               e);
         }
-        field.set(configObject, coder.decode(entry.getValue().getPayload().newInput()));
+        field.set(config, coder.decode(entry.getValue().getPayload().newInput()));
       }
+    }
 
-      return configObject.build();
+    private static PTransform buildTransform(
+        Class<? extends ExternalTransformBuilder<?, ?, ?>> builderClass, Object configObject)
+        throws Exception {
+      Constructor<? extends ExternalTransformBuilder<?, ?, ?>> constructor =
+          builderClass.getDeclaredConstructor();
+      constructor.setAccessible(true);
+      ExternalTransformBuilder<?, ?, ?> externalTransformBuilder = constructor.newInstance();
+      Method buildMethod = builderClass.getMethod("buildExternal", configObject.getClass());
+      buildMethod.setAccessible(true);
+      return (PTransform) buildMethod.invoke(externalTransformBuilder, configObject);
     }
   }
 
