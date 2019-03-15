@@ -47,6 +47,7 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_data_only",
         "apache_beam.io.gcp.pubsub_integration_test:PubSubIntegrationTest.test_streaming_with_attributes",
         "apache_beam.io.parquetio_it_test:TestParquetIT.test_parquetio_it",
+        "apache_beam.examples.complete.autocomplete_test:AutocompleteTest.test_autocomplete_it",
     ]
     def testOpts = basicTestOpts + ["--tests=${tests.join(',')}"]
     def cmdArgs = project.mapToArgString([
@@ -54,6 +55,8 @@ task postCommitIT(dependsOn: ['sdist', 'installGcpTest']) {
         "sdk_location": "${project.buildDir}/apache-beam.tar.gz"
     ])
     exec {
+      // Set hash seed to 0 to assure reproducible hash results in tests
+      environment 'PYTHONHASHSEED', '0'
       executable 'sh'
       args '-c', ". ${project.ext.envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
