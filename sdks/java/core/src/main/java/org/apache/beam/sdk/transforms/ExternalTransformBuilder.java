@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 /** An interface for building a transform from an externally provided configuration. */
-public interface ExternalConfigBuilder<InputT extends PInput, OutputT extends POutput> {
+public interface ExternalTransformBuilder<ConfigT, InputT extends PInput, OutputT extends POutput> {
 
   /** Builds the transform after it has been configured. */
-  PTransform<InputT, OutputT> build();
+  PTransform<InputT, OutputT> buildExternal(ConfigT configuration);
 }
