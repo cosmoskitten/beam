@@ -568,9 +568,13 @@ class BundleProcessor(object):
       self.state_sampler.stop_if_still_running()
 
   def finalize_bundle(self):
-    for op in self.ops.values():
-      op.finalize_bundle()
-    return beam_fn_api_pb2.FinalizeBundleResponse()
+    try:
+      for op in self.ops.values():
+        op.finalize_bundle()
+    except Exception as e:
+      logging.warn("Got exception from finalization call: %s", e)
+    finally:
+      return beam_fn_api_pb2.FinalizeBundleResponse()
 
   def requires_finalization(self):
     return any(op.needs_finalization() for op in self.ops.values())
