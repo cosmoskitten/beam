@@ -204,6 +204,13 @@ public class BigQueryIOStorageQueryTest {
     assertEquals("kms_key", typedRead.getKmsKey());
   }
 
+  @Test
+  public void testQueryBasedSourceWithTemplateCompatibility() throws Exception {
+    TypedRead<TableRow> typedRead = getDefaultTypedRead().withTemplateCompatibility();
+    checkTypedReadQueryObject(typedRead, DEFAULT_QUERY);
+    assertTrue(typedRead.getWithTemplateCompatibility());
+  }
+
   private TypedRead<TableRow> getDefaultTypedRead() {
     return BigQueryIO.read(new TableRowParser())
         .fromQuery(DEFAULT_QUERY)
@@ -224,17 +231,6 @@ public class BigQueryIOStorageQueryTest {
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies table read options, "
             + "which only applies when reading from a table");
-    p.apply(typedRead);
-    p.run();
-  }
-
-  @Test
-  public void testBuildQueryBasedSourceWithTemplateCompatibility() throws Exception {
-    TypedRead<TableRow> typedRead = getDefaultTypedRead().withTemplateCompatibility();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Invalid BigQueryIO.Read: Specifies template compatibility, "
-            + "which is not supported with Method.DIRECT_READ");
     p.apply(typedRead);
     p.run();
   }
@@ -613,6 +609,15 @@ public class BigQueryIOStorageQueryTest {
 
   @Test
   public void testReadFromBigQueryIO() throws Exception {
+    doReadFromBigQueryIO(false);
+  }
+
+  @Test
+  public void testReadFromBigQueryIOWithTemplateCompatibility() throws Exception {
+    doReadFromBigQueryIO(true);
+  }
+
+  private void doReadFromBigQueryIO(boolean templateCompatibility) throws Exception {
 
     TableReference sourceTableRef = BigQueryHelpers.parseTableSpec("project:dataset.table");
 
@@ -682,16 +687,21 @@ public class BigQueryIOStorageQueryTest {
     when(fakeStorageClient.createReadSession(any())).thenReturn(readSession);
     when(fakeStorageClient.readRows(expectedReadRowsRequest)).thenReturn(readRowsResponses);
 
-    PCollection<KV<String, Long>> output =
-        p.apply(
-            BigQueryIO.read(new ParseKeyValue())
-                .fromQuery(encodedQuery)
-                .withMethod(Method.DIRECT_READ)
-                .withTestServices(
-                    new FakeBigQueryServices()
-                        .withDatasetService(fakeDatasetService)
-                        .withJobService(fakeJobService)
-                        .withStorageClient(fakeStorageClient)));
+    BigQueryIO.TypedRead<KV<String, Long>> typedRead =
+        BigQueryIO.read(new ParseKeyValue())
+            .fromQuery(encodedQuery)
+            .withMethod(Method.DIRECT_READ)
+            .withTestServices(
+                new FakeBigQueryServices()
+                    .withDatasetService(fakeDatasetService)
+                    .withJobService(fakeJobService)
+                    .withStorageClient(fakeStorageClient));
+
+    if (templateCompatibility) {
+      typedRead = typedRead.withTemplateCompatibility();
+    }
+
+    PCollection<KV<String, Long>> output = p.apply(typedRead);
 
     PAssert.that(output)
         .containsInAnyOrder(
