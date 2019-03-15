@@ -29,12 +29,16 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -51,8 +55,10 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -64,6 +70,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJso
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningDestinations;
@@ -689,6 +696,21 @@ public class BigQueryIO {
       return source;
     }
 
+    private BigQueryStorageQuerySource<T> createStorageQuerySource(
+        String stepUuid, Coder<T> outputCoder) {
+      return BigQueryStorageQuerySource.create(
+          stepUuid,
+          getQuery(),
+          getFlattenResults(),
+          getUseLegacySql(),
+          MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
+          getQueryLocation(),
+          getKmsKey(),
+          getParseFn(),
+          outputCoder,
+          getBigQueryServices());
+    }
+
     private static final String QUERY_VALIDATION_FAILURE_ERROR =
         "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
             + " pipeline, This validation can be disabled using #withoutValidation.";
@@ -930,31 +952,137 @@ public class BigQueryIO {
           "Invalid BigQueryIO.Read: Specifies table read options, "
               + "which only applies when reading from a table");
 
-      checkArgument(
-          !getWithTemplateCompatibility(),
-          "Invalid BigQueryIO.Read: Specifies template compatibility, "
-              + "which is not supported with Method.DIRECT_READ");
+      //
+      // N.B. All of the code below exists because the BigQuery storage API can't (yet) read from
+      // all anonymous tables, so we need the job ID to reason about the name of the destination
+      // table for the query to read the data and subsequently delete the table and dataset. Once
+      // the storage API can handle anonymous tables, the storage source should be modified to use
+      // anonymous tables and all of the code related to job ID generation and table and dataset
+      // cleanup can be removed.
+      //
 
-      String staticJobUuid = BigQueryHelpers.randomUUIDString();
+      PCollectionView<String> jobIdTokenView;
+      PCollection<T> rows;
 
-      PCollectionView<String> jobIdTokenView =
-          p.apply("TriggerIdCreation", Create.of(staticJobUuid))
-              .apply("ViewId", View.asSingleton());
+      if (!getWithTemplateCompatibility()) {
+        // Create a singleton job ID token at pipeline construction time.
+        String staticJobUuid = BigQueryHelpers.randomUUIDString();
+        jobIdTokenView =
+            p.apply("TriggerIdCreation", Create.of(staticJobUuid))
+                .apply("ViewId", View.asSingleton());
+        // Apply the traditional Source model.
+        rows =
+            p.apply(
+                org.apache.beam.sdk.io.Read.from(
+                    createStorageQuerySource(staticJobUuid, outputCoder)));
+      } else {
+        // Create a singleton job ID token at pipeline execution time.
+        PCollection<String> jobIdTokenCollection =
+            p.apply("TriggerIdCreation", Create.of("ignored"))
+                .apply(
+                    "CreateJobId",
+                    MapElements.via(
+                        new SimpleFunction<String, String>() {
+                          @Override
+                          public String apply(String input) {
+                            return BigQueryHelpers.randomUUIDString();
+                          }
+                        }));
 
-      PCollection<T> rows =
-          p.apply(
-              org.apache.beam.sdk.io.Read.from(
-                  BigQueryStorageQuerySource.create(
-                      staticJobUuid,
-                      getQuery(),
-                      getFlattenResults(),
-                      getUseLegacySql(),
-                      MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
-                      getQueryLocation(),
-                      getKmsKey(),
-                      getParseFn(),
-                      outputCoder,
-                      getBigQueryServices())));
+        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.asSingleton());
+
+        TupleTag<Stream> streamsTag = new TupleTag<>();
+        TupleTag<ReadSession> readSessionTag = new TupleTag<>();
+        TupleTag<String> tableSchemaTag = new TupleTag<>();
+
+        PCollectionTuple tuple =
+            jobIdTokenCollection.apply(
+                "RunQueryJob",
+                ParDo.of(
+                        new DoFn<String, Stream>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) throws Exception {
+                            BigQueryOptions options =
+                                c.getPipelineOptions().as(BigQueryOptions.class);
+                            String jobUuid = c.element();
+                            // Execute the query and get the destination table holding the results.
+                            BigQueryStorageQuerySource<T> querySource =
+                                createStorageQuerySource(jobUuid, outputCoder);
+                            Table queryResultTable = querySource.getTargetTable(options);
+
+                            // Create a read session without specifying a desired stream count and
+                            // let the BigQuery storage server pick the number of streams.
+                            CreateReadSessionRequest request =
+                                CreateReadSessionRequest.newBuilder()
+                                    .setParent("projects/" + options.getProject())
+                                    .setTableReference(
+                                        BigQueryHelpers.toTableRefProto(
+                                            queryResultTable.getTableReference()))
+                                    .setRequestedStreams(0)
+                                    .build();
+
+                            ReadSession readSession;
+                            try (StorageClient storageClient =
+                                getBigQueryServices().getStorageClient(options)) {
+                              readSession = storageClient.createReadSession(request);
+                            }
+
+                            for (Stream stream : readSession.getStreamsList()) {
+                              c.output(stream);
+                            }
+
+                            c.output(readSessionTag, readSession);
+                            c.output(
+                                tableSchemaTag,
+                                BigQueryHelpers.toJsonString(queryResultTable.getSchema()));
+                          }
+                        })
+                    .withOutputTags(
+                        streamsTag, TupleTagList.of(readSessionTag).and(tableSchemaTag)));
+
+        tuple.get(streamsTag).setCoder(ProtoCoder.of(Stream.class));
+        tuple.get(readSessionTag).setCoder(ProtoCoder.of(ReadSession.class));
+        tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
+
+        PCollectionView<ReadSession> readSessionView =
+            tuple.get(readSessionTag).apply("ReadSessionView", View.asSingleton());
+        PCollectionView<String> tableSchemaView =
+            tuple.get(tableSchemaTag).apply("TableSchemaView", View.asSingleton());
+
+        rows =
+            tuple
+                .get(streamsTag)
+                .apply(Reshuffle.viaRandomKey())
+                .apply(
+                    ParDo.of(
+                            new DoFn<Stream, T>() {
+                              @ProcessElement
+                              public void processElement(ProcessContext c) throws Exception {
+                                ReadSession readSession = c.sideInput(readSessionView);
+                                TableSchema tableSchema =
+                                    BigQueryHelpers.fromJsonString(
+                                        c.sideInput(tableSchemaView), TableSchema.class);
+                                Stream stream = c.element();
+
+                                BigQueryStorageStreamSource<T> streamSource =
+                                    BigQueryStorageStreamSource.create(
+                                        readSession,
+                                        stream,
+                                        tableSchema,
+                                        getParseFn(),
+                                        outputCoder,
+                                        getBigQueryServices());
+
+                                BoundedSource.BoundedReader<T> reader =
+                                    streamSource.createReader(c.getPipelineOptions());
+                                for (boolean more = reader.start(); more; more = reader.advance()) {
+                                  c.output(reader.getCurrent());
+                                }
+                              }
+                            })
+                        .withSideInputs(readSessionView, tableSchemaView))
+                .setCoder(outputCoder);
+      }
 
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new CleanupOperation() {
