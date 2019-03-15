@@ -59,6 +59,12 @@ class FnApiRunnerTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
+  def create_pipeline_with_grpc(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(
+            default_environment=beam_runner_api_pb2.Environment(
+                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
@@ -726,6 +732,48 @@ class FnApiRunnerTest(unittest.TestCase):
       print(res._monitoring_infos_by_stage)
       raise
 
+  def test_duplicated_callbacks(self):
+    event_recorder = EventRecorder(tempfile.gettempdir())
+    event_recorder.record('test')
+    elements_list = ['1', '2']
+
+    class FinalizebleDoFnWithSameRegister(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.delete_file())
+        yield element
+
+    with self.create_pipeline_with_grpc() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizebleDoFnWithSameRegister()))
+      assert_that(res, equal_to(['1', '2']))
+
+  def test_register_finalizations(self):
+    event_recorder = EventRecorder(tempfile.gettempdir())
+    elements_list = ['1', '2']
+    expected_res = '1\n2\n'
+
+    class FinalizableDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
+        bundle_finalizer.register(lambda: event_recorder.record(element))
+        yield element
+
+    with self.create_pipeline_with_grpc() as p:
+      res = (p
+             | beam.Create(elements_list)
+             | beam.ParDo(FinalizableDoFn()))
+
+      assert_that(res, equal_to(elements_list))
+
+    results = event_recorder.events()
+    self.assertEquals(results, expected_res)
+
 
 class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
 
@@ -751,81 +799,6 @@ class FnApiRunnerTestWithBundleRepeat(FnApiRunnerTest):
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3))
-
-
-class EventRecorder(object):
-  def __init__(self):
-    self.work_path = os.getcwd() + '/EventRecorder'
-    if os.path.exists(self.work_path):
-      self.cleanup()
-    os.mkdir(self.work_path)
-
-  def record(self, file_name):
-    file_path = os.path.join(self.work_path, str(file_name) + '.txt')
-    open(file_path, 'a').close()
-
-  def events(self):
-    return sorted(os.listdir(self.work_path))
-
-  def cleanup(self):
-    for file in os.listdir(self.work_path):
-      os.remove(os.path.join(self.work_path, file))
-    os.rmdir(self.work_path)
-
-
-class FnApiRunnerFinalizeBundleTest(FnApiRunnerTest):
-  def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=beam_runner_api_pb2.Environment(
-                urn=python_urns.EMBEDDED_PYTHON_GRPC)))
-
-  def test_no_finalize_call_without_register(self):
-    event_recorder = EventRecorder()
-    elements_list = [1, 2]
-
-    class FinalizebleDoFnWithoutRegister(beam.DoFn):
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizebleDoFnWithoutRegister()))
-      assert_that(res, equal_to(elements_list))
-      p.run().wait_until_finish()
-
-    results = event_recorder.events()
-    event_recorder.cleanup()
-    assert results == []
-
-  def test_register_finalizations(self):
-    event_recorder = EventRecorder()
-    elements_list = [1, 2]
-    expected_res = sorted([str(element) + '.txt' for element in elements_list])
-
-    class FinalizableDoFn(beam.DoFn):
-      def process(
-          self,
-          element,
-          bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.record(element))
-        yield element
-
-    with self.create_pipeline() as p:
-      res = (p
-             | beam.Create(elements_list)
-             | beam.ParDo(FinalizableDoFn()))
-
-      assert_that(res, equal_to(elements_list))
-      p.run().wait_until_finish()
-
-    results = event_recorder.events()
-    event_recorder.cleanup()
-    assert results == expected_res
 
 
 class FnApiRunnerSplitTest(unittest.TestCase):
@@ -1082,6 +1055,34 @@ _pickled_element_counters = {}
 
 def _unpickle_element_counter(name):
   return _pickled_element_counters[name]
+
+class EventRecorder(object):
+  """Used to be registered as a callback in bundle finalization.
+
+  The reason why records are written into a tmp file is, the in-memory dataset
+  cannot keep callback records when passing into one DoFn.
+  """
+  def __init__(self, tmp_dir):
+    self.tmp_dir = tmp_dir
+    self.file_path = os.path.join(self.tmp_dir, uuid.uuid4().hex + '.txt')
+
+  def record(self, content):
+    tmp_file = open(self.file_path, 'a')
+    tmp_file.write(content + '\n')
+    tmp_file.close()
+
+  def events(self):
+    tmp_file = open(self.file_path, 'r')
+    content = tmp_file.read()
+    tmp_file.close()
+    self.delete_file()
+    return content
+
+  def delete_file(self):
+    try:
+      os.remove(self.file_path)
+    except:
+      raise Exception('Trying to delete non-exist file')
 
 
 if __name__ == '__main__':
