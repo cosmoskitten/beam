@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.expansion;
 
 import java.util.Map;
-import org.apache.beam.sdk.io.ExternalConfigBuilder;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 
 /**
- * A registrar which contains a mapping from URNs to available {@link ExternalConfigBuilder}s.
+ * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.
  * Should be used with {@link com.google.auto.service.AutoService}.
  */
 public interface ExternalTransformRegistrar {
 
-  /** A mapping from URN to an {@link ExternalConfigBuilder} class. */
-  Map<String, Class<? extends ExternalConfigBuilder>> knownBuilders();
+  /** A mapping from URN to an {@link ExternalTransformBuilder} class. */
+  Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders();
 }

@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -87,7 +88,9 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   abstract Builder toBuilder();
 
   @AutoValue.Builder
-  abstract static class Builder {
+  abstract static class Builder
+      implements ExternalTransformBuilder<
+          External.ExternalConfiguration, PBegin, PCollection<Long>> {
     abstract Builder setFrom(long from);
 
     abstract Builder setTo(long to);
@@ -101,45 +104,47 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
     abstract Builder setMaxReadTime(Duration maxReadTime);
 
     abstract GenerateSequence build();
+
+    @Override
+    public GenerateSequence buildExternal(External.ExternalConfiguration config) {
+      Preconditions.checkNotNull(config.start, "Parameters 'from' must not be null.");
+      setFrom(config.start);
+      setTo(-1);
+      setElementsPerPeriod(0);
+      if (config.stop != null) {
+        setTo(config.stop);
+      }
+      if (config.period != null) {
+        setPeriod(Duration.millis(config.period));
+      }
+      if (config.maxReadTime != null) {
+        setMaxReadTime(Duration.millis(config.maxReadTime));
+      }
+      if (config.elements_per_period != null) {
+        setElementsPerPeriod(config.elements_per_period);
+      }
+      return build();
+    }
   }
 
   /** Exposes GenerateSequence as an external transform for cross-language usage. */
   @AutoService(ExternalTransformRegistrar.class)
   public static class External implements ExternalTransformRegistrar {
 
+    public static final String URN = "beam:external:java:generate_sequence:v1";
+
     @Override
-    public Map<String, Class<? extends ExternalConfigBuilder>> knownBuilders() {
-      return ImmutableMap.of(
-          "beam:external:java:generate_sequence:v1", ExternalConfiguration.class);
+    public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+      return ImmutableMap.of(URN, AutoValue_GenerateSequence.Builder.class);
     }
 
     /** Parameters class to expose the transform to an external SDK. */
-    public static class ExternalConfiguration
-        implements ExternalConfigBuilder<PBegin, PCollection<Long>> {
-
+    public static class ExternalConfiguration {
       public Long start;
-
       @Nullable public Long stop;
-
       @Nullable public Long period;
-
       @Nullable public Long maxReadTime;
-
-      @Override
-      public GenerateSequence build() {
-        Preconditions.checkNotNull(start, "Parameters 'from' must not be null.");
-        Builder builder = GenerateSequence.from(start).toBuilder();
-        if (stop != null) {
-          builder.setTo(stop);
-        }
-        if (period != null) {
-          builder.setPeriod(Duration.millis(period));
-        }
-        if (maxReadTime != null) {
-          builder.setMaxReadTime(Duration.millis(maxReadTime));
-        }
-        return builder.build();
-      }
+      @Nullable public Long elements_per_period;
     }
   }
 
