@@ -382,9 +382,6 @@ class SdkWorker(object):
     else:
       yield
 
-  def has_active_processors(self):
-    return len(self.bundle_processor_cache.active_bundle_processors) > 0
-
 
 class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
