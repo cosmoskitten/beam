@@ -144,7 +144,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setNumShardsProvider(null)
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
-        .setNoSpilling(false)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
         .build();
   }
@@ -162,8 +161,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
-
-  abstract boolean getNoSpilling();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -184,8 +181,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
-
-    abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -278,15 +273,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   /**
    * Returns a new {@link WriteFiles} that writes all data without spilling, simplifying the
-   * pipeline.
+   * pipeline. This option should not be used with {@link #withMaxNumWritersPerBundle(int)} and it
+   * will eliminate this limit possibly causing many writers to be opened. Use with caution.
    *
    * <p>This option only applies to writes {@link #withRunnerDeterminedSharding()}.
-   *
-   * <p>If this option is specified, {@link #withMaxNumWritersPerBundle(int)} is ignored possibly
-   * causing a large number of file writers. Use with caution.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withNoSpilling() {
-    return toBuilder().setNoSpilling(true).build();
+    return toBuilder().setMaxNumWritersPerBundle(-1).build();
   }
 
   @Override
@@ -344,8 +337,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         (getComputeNumShards() == null && getNumShardsProvider() == null)
             ? input.apply(
                 "WriteUnshardedBundlesToTempFiles",
-                new WriteUnshardedBundlesToTempFiles(
-                    getNoSpilling(), destinationCoder, fileResultCoder))
+                new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
             : input.apply(
                 "WriteShardedBundlesToTempFiles",
                 new WriteShardedBundlesToTempFiles(
@@ -411,22 +403,18 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteUnshardedBundlesToTempFiles
       extends PTransform<PCollection<UserT>, PCollection<FileResult<DestinationT>>> {
-    private final boolean noSpilling;
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
 
     private WriteUnshardedBundlesToTempFiles(
-        boolean noSpilling,
-        Coder<DestinationT> destinationCoder,
-        Coder<FileResult<DestinationT>> fileResultCoder) {
-      this.noSpilling = noSpilling;
+        Coder<DestinationT> destinationCoder, Coder<FileResult<DestinationT>> fileResultCoder) {
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
     }
 
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
-      if (noSpilling) {
+      if (getMaxNumWritersPerBundle() < 0) {
         return input
             .apply(
                 "WritedUnshardedBundles",
@@ -517,7 +505,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       WriterKey<DestinationT> key = new WriterKey<>(window, c.pane(), destination);
       Writer<DestinationT, OutputT> writer = writers.get(key);
       if (writer == null) {
-        if (unwrittenRecordsTag == null || writers.size() <= getMaxNumWritersPerBundle()) {
+        if (getMaxNumWritersPerBundle() < 0 || writers.size() <= getMaxNumWritersPerBundle()) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
               "Opening writer {} for window {} pane {} destination {}",
