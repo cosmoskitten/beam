@@ -29,6 +29,7 @@ from future.builtins import range
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam.transforms import window
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -38,6 +39,7 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.typehints import TypeCheckError
 
 
 class CombineTest(unittest.TestCase):
@@ -391,6 +393,102 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+
+class TestLatest(unittest.TestCase):
+
+  def test_globally(self):
+    l = [
+      window.GlobalWindows.windowed_value(1, 100),
+      window.GlobalWindows.windowed_value(2, 200),
+      window.GlobalWindows.windowed_value(3, 300)
+    ]
+    with TestPipeline() as p:
+      pc = p | Create(l)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([3]))
+
+  def test_globally_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l)
+      latest = pc | combine.Latest.Globally()
+      assert_that(latest, equal_to([None]))
+
+  def test_per_key(self):
+    l = [
+      window.GlobalWindows.windowed_value(('a', 1), 100),
+      window.GlobalWindows.windowed_value(('b', 2), 200),
+      window.GlobalWindows.windowed_value(('a', 3), 300)
+    ]
+    with TestPipeline() as p:
+      pc = p | Create(l)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([('a', 3), ('b', 2)]))
+
+  def test_per_key_empty(self):
+    l = []
+    with TestPipeline() as p:
+      pc = p | Create(l)
+      latest = pc | combine.Latest.PerKey()
+      assert_that(latest, equal_to([]))
+
+  def test_per_key_type_violation(self):
+    l_dict = [
+      window.GlobalWindows.windowed_value({'a': 1}, 100),
+      window.GlobalWindows.windowed_value({'b': 2}, 100),
+      window.GlobalWindows.windowed_value({'a': 3}, 100)
+    ]
+    l_3_tuple = [
+      window.GlobalWindows.windowed_value((1, 2, 3), 100),
+      window.GlobalWindows.windowed_value((4, 5, 6), 100),
+      window.GlobalWindows.windowed_value((7, 8, 9), 100),
+    ]
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_dict)
+        latest = pc | combine.Latest.PerKey()
+
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l_3_tuple)
+        latest = pc | combine.Latest.PerKey()
+
+
+class TestLatestCombineFn(unittest.TestCase):
+
+  def setUp(self):
+    self.fn = combine.LatestCombineFn()
+
+  def test_create_accumulator(self):
+    accumulator = self.fn.create_accumulator()
+    self.assertEquals(accumulator, (None, window.MIN_TIMESTAMP))
+
+  def test_add_input(self):
+    accumulator = self.fn.create_accumulator()
+    element = (1, 100)
+    new_accumulator = self.fn.add_input(accumulator, element)
+    self.assertEquals(new_accumulator, (1, 100))
+
+  def test_merge_accumulators(self):
+    accumulators = [
+      (1, 100),
+      (2, 200),
+      (3, 300)
+    ]
+    merged_accumulator = self.fn.merge_accumulators(accumulators)
+    self.assertEquals(merged_accumulator, (3, 300))
+
+  def test_extract_output(self):
+    accumulator = (1, 100)
+    output = self.fn.extract_output(accumulator)
+    self.assertEquals(output, 1)
+
+  def test_input_type_violation(self):
+    l = [1, 2, 3]
+    with self.assertRaises(TypeCheckError):
+      with TestPipeline() as p:
+        pc = p | Create(l)
+        combined = pc | beam.CombineGlobally(self.fn)
 
 if __name__ == '__main__':
   unittest.main()
