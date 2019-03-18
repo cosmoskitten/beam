@@ -82,6 +82,7 @@ class SdkHarness(object):
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._process_thread_pool = futures.ThreadPoolExecutor(
         max_workers=self._worker_count)
+    self._finalize_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
@@ -138,6 +139,7 @@ class SdkHarness(object):
     # Wait until existing requests are processed.
     self._progress_thread_pool.shutdown()
     self._process_thread_pool.shutdown()
+    self._finalize_thread_pool.shutdown()
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
     self._responses.put(no_more_work)
@@ -193,15 +195,15 @@ class SdkHarness(object):
         "Currently using %s threads." % len(self._process_thread_pool._threads))
 
   def _request_process_bundle_split(self, request):
-    self._request_process_bundle_action(request)
+    self._request_process_bundle_action(request, self._progress_thread_pool)
 
   def _request_finalize_bundle(self, request):
-    self._request_process_bundle_action(request)
+    self._request_process_bundle_action(request, self._finalize_thread_pool)
 
   def _request_process_bundle_progress(self, request):
-    self._request_process_bundle_action(request)
+    self._request_process_bundle_action(request, self._progress_thread_pool)
 
-  def _request_process_bundle_action(self, request):
+  def _request_process_bundle_action(self, request, thread_pool):
 
     def task():
       instruction_reference = getattr(
@@ -221,7 +223,7 @@ class SdkHarness(object):
                 'Unknown process bundle instruction {}').format(
                     instruction_reference)), request)
 
-    self._progress_thread_pool.submit(task)
+    thread_pool.submit(task)
 
   def _monitor_process_bundle(self):
     """
