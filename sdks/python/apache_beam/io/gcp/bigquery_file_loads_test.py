@@ -120,7 +120,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       destinations = (
           dest_file_pc
           | "GetDests" >> beam.Map(
-              lambda x: bqfl.WriteRecordsToFile.get_hashable_destination(x[0])))
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -146,7 +146,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1]))
       )
       assert_that(files_per_dest,
@@ -187,7 +187,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1])))
 
       # Only table1 and table3 get files. table2 records get spilled.
@@ -236,7 +236,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       destinations = (
           output_pc
           | "GetDests" >> beam.Map(
-              lambda x: bqfl.WriteRecordsToFile.get_hashable_destination(x[0])))
+              lambda x: bigquery_tools.get_hashable_destination(x[0])))
       assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
                   label='check destinations ')
 
@@ -257,7 +257,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bqfl.WriteRecordsToFile.get_hashable_destination(x[0]),
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
                          x[1])))
       assert_that(files_per_dest,
                   equal_to([('project1:dataset1.table1', 4),
@@ -311,7 +311,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           dest_files
           | "GetDests" >> beam.Map(
               lambda x: (
-                  bqfl.WriteRecordsToFile.get_hashable_destination(x[0]), x[1]))
+                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
           | "GetUniques" >> beam.combiners.Count.PerKey()
           | "GetFinalDests" >>beam.Keys())
 
