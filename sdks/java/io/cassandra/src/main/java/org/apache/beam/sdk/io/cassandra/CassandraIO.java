@@ -1084,10 +1084,7 @@ public class CassandraIO {
     private final String operationName;
     private final Class<T> entitiyClass;
 
-    Mutator(
-        Write<T> spec,
-        BiFunction<Mapper<T>, T, Future<Void>> mutator,
-        String operationName) {
+    Mutator(Write<T> spec, BiFunction<Mapper<T>, T, Future<Void>> mutator, String operationName) {
       this.cluster =
           getCluster(
               spec.hosts(),
