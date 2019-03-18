@@ -18,8 +18,9 @@
 package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.ExecutableStageTranslation.generateNameFromStagePayload;
-import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.createOutputMap;
-import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.core.construction.PipelineTranslatorUtils.createOutputMap;
+import static org.apache.beam.runners.core.construction.PipelineTranslatorUtils.getStagePayload;
+import static org.apache.beam.runners.core.construction.PipelineTranslatorUtils.getWindowingStrategy;
 import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
 import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
 
@@ -309,14 +310,7 @@ public class FlinkBatchPortablePipelineTranslator
     UnionCoder unionCoder = UnionCoder.of(unionCoders);
     TypeInformation<RawUnionValue> typeInformation = new CoderTypeInformation<>(unionCoder);
 
-    RunnerApi.ExecutableStagePayload stagePayload;
-    try {
-      stagePayload =
-          RunnerApi.ExecutableStagePayload.parseFrom(
-              transform.getTransform().getSpec().getPayload());
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    RunnerApi.ExecutableStagePayload stagePayload = getStagePayload(transform);
 
     String inputPCollectionId = stagePayload.getInput();
     Coder<WindowedValue<InputT>> windowedInputCoder =
