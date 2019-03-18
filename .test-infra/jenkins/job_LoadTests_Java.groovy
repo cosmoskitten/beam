@@ -211,7 +211,8 @@ def loadTestJob = { scope ->
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
   for (testConfiguration in loadTestConfigurations) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
+    context = scope instanceof PhraseTriggeringPostCommitBuilder ? CommonTestProperties.TriggeringContext.PR : CommonTestProperties.TriggeringContext.POST_COMMIT
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, context)
   }
 }
 
