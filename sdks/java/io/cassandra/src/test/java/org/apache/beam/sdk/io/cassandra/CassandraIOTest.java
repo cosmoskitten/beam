@@ -323,7 +323,7 @@ public class CassandraIOTest implements Serializable {
     }
   }
 
-  static AtomicInteger COUNTER = new AtomicInteger();
+  static AtomicInteger counter = new AtomicInteger();
 
   private static class NOOPMapperFactory implements MapperFactory<String>, Serializable {
 
@@ -346,20 +346,20 @@ public class CassandraIOTest implements Serializable {
     @Override
     public Iterator map(ResultSet resultSet) {
       if (!resultSet.isExhausted()) {
-        resultSet.iterator().forEachRemaining(r -> COUNTER.getAndIncrement());
+        resultSet.iterator().forEachRemaining(r -> counter.getAndIncrement());
       }
       return new ArrayList<>().iterator();
     }
 
     @Override
     public Future<Void> deleteAsync(String entity) {
-      COUNTER.incrementAndGet();
+      counter.incrementAndGet();
       return executor.submit(asyncTask);
     }
 
     @Override
     public Future<Void> saveAsync(String entity) {
-      COUNTER.incrementAndGet();
+      counter.incrementAndGet();
       return executor.submit(asyncTask);
     }
   }
@@ -367,7 +367,7 @@ public class CassandraIOTest implements Serializable {
   @Test
   public void testCustomMapperImplRead() throws Exception {
     insertRecords();
-    COUNTER.set(0);
+    counter.set(0);
 
     MapperFactory<String> factory = new NOOPMapperFactory();
 
@@ -382,13 +382,13 @@ public class CassandraIOTest implements Serializable {
             .withCustomMapperFactory(factory));
     pipeline.run();
 
-    assertEquals(NUM_ROWS, COUNTER.intValue());
+    assertEquals(NUM_ROWS, counter.intValue());
   }
 
   @Test
   public void testCustomMapperImplWrite() throws Exception {
     insertRecords();
-    COUNTER.set(0);
+    counter.set(0);
 
     MapperFactory<String> factory = new NOOPMapperFactory();
 
@@ -403,13 +403,13 @@ public class CassandraIOTest implements Serializable {
                 .withEntity(String.class));
     pipeline.run();
 
-    assertEquals(1, COUNTER.intValue());
+    assertEquals(1, counter.intValue());
   }
 
   @Test
   public void testCustomMapperImplDelete() throws Exception {
     insertRecords();
-    COUNTER.set(0);
+    counter.set(0);
 
     MapperFactory<String> factory = new NOOPMapperFactory();
 
@@ -424,7 +424,7 @@ public class CassandraIOTest implements Serializable {
                 .withEntity(String.class));
     pipeline.run();
 
-    assertEquals(1, COUNTER.intValue());
+    assertEquals(1, counter.intValue());
   }
 
   @Test
