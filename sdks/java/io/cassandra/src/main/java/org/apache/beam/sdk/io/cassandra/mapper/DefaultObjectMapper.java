@@ -23,7 +23,7 @@ import java.util.concurrent.Future;
 
 /**
  * Default Object mapper implementation that uses the <a
- * href="https://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper"/>Cassandra
+ * href="https://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper">Cassandra
  * Object Mapper</a> for mapping POJOs to CRUD events in Cassandra.
  *
  * @see org.apache.beam.sdk.io.cassandra.mapper.DefaultObjectMapperFactory
