@@ -33,7 +33,6 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Serializable;
@@ -46,6 +45,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
@@ -324,13 +324,13 @@ public class CassandraIOTest implements Serializable {
     }
 
     @Override
-    public ListenableFuture<Void> deleteAsync(String entity) {
+    public Future<Void> deleteAsync(String entity) {
       COUNTER.incrementAndGet();
       return executor.submit(asyncTask);
     }
 
     @Override
-    public ListenableFuture<Void> saveAsync(String entity) {
+    public Future<Void> saveAsync(String entity) {
       COUNTER.incrementAndGet();
       return executor.submit(asyncTask);
     }
