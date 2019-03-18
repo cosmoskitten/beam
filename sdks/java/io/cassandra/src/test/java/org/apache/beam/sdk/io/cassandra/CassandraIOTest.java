@@ -375,7 +375,6 @@ public class CassandraIOTest implements Serializable {
         CassandraIO.<String>read()
             .withHosts(Arrays.asList(CASSANDRA_HOST))
             .withPort(CASSANDRA_PORT)
-            .withUsername(CASSANDRA_USERNAME)
             .withKeyspace(CASSANDRA_KEYSPACE)
             .withTable(CASSANDRA_TABLE)
             .withCoder(SerializableCoder.of(String.class))
