@@ -160,11 +160,11 @@ public class DataflowSideInputReadCounter implements SideInputReadCounter {
 
   @Override
   public Closeable enter() {
-    checkState();
     // Only update status from tracked thread to avoid race condition and inconsistent state updates
     if (executionContext.getExecutionStateTracker().getTrackedThread() != Thread.currentThread()) {
       return () -> {};
     }
+    checkState();
     return executionContext.getExecutionStateTracker().enterState(currentExecutionState);
   }
 
