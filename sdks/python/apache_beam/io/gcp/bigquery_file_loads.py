@@ -542,7 +542,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         pcoll
         | "ApplyGlobalWindow" >> beam.WindowInto(beam.window.GlobalWindows())
         | "AppendDestination" >> beam.ParDo(bigquery_tools.AppendDestinationsFn(
-            self.destination))
+            bigquery_tools.get_hashable_destination(self.destination)))
         | beam.ParDo(
             WriteRecordsToFile(max_files_per_bundle=self.max_files_per_bundle,
                                max_file_size=self.max_file_size,
