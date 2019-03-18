@@ -140,11 +140,31 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
 
     /** Parameters class to expose the transform to an external SDK. */
     public static class ExternalConfiguration {
-      public Long start;
-      @Nullable public Long stop;
-      @Nullable public Long period;
-      @Nullable public Long maxReadTime;
-      @Nullable public Long elementsPerPeriod;
+      private Long start;
+      @Nullable private Long stop;
+      @Nullable private Long period;
+      @Nullable private Long maxReadTime;
+      @Nullable private Long elementsPerPeriod;
+
+      public void setStart(Long start) {
+        this.start = start;
+      }
+
+      public void setStop(@Nullable Long stop) {
+        this.stop = stop;
+      }
+
+      public void setPeriod(@Nullable Long period) {
+        this.period = period;
+      }
+
+      public void setMaxReadTime(@Nullable Long maxReadTime) {
+        this.maxReadTime = maxReadTime;
+      }
+
+      public void setElementsPerPeriod(@Nullable Long elementsPerPeriod) {
+        this.elementsPerPeriod = elementsPerPeriod;
+      }
     }
   }
 

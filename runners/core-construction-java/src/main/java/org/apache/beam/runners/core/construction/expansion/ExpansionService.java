@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction.expansion;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
@@ -39,6 +38,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
@@ -158,23 +158,35 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         String fieldName = camelCaseConverter.convert(entry.getKey());
         String coderUrn = entry.getValue().getCoderUrn();
         final Coder coder;
+        final Class type;
+        SdkComponents sdkComponents = SdkComponents.create();
+        String id = sdkComponents.registerCoder(VarIntCoder.of());
+        RehydratedComponents rehydratedComponents =
+            RehydratedComponents.forComponents(sdkComponents.toComponents());
+        rehydratedComponents.getCoder(id);
+
+        Coder<?> rehydratedCoder = rehydratedComponents.getCoder(id);
         if (BeamUrns.getUrn(RunnerApi.StandardCoders.Enum.VARINT).equals(coderUrn)) {
           coder = VarLongCoder.of();
+          type = Long.class;
         } else {
-          // TODO Support other coders
+          // TODO Use RehydratedComponents with coder ids instead
           throw new RuntimeException("Unsupported coder urn " + coderUrn);
         }
-        Field field;
+        String setterName =
+            "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        Method method;
         try {
-          field = config.getClass().getField(fieldName);
-        } catch (NoSuchFieldException e) {
+          // retrieve the setter for this field
+          method = config.getClass().getMethod(setterName, type);
+        } catch (NoSuchMethodException e) {
           throw new RuntimeException(
               String.format(
-                  "The configuration class %s does not have a field %s",
-                  config.getClass(), fieldName),
+                  "The configuration class %s is missing a setter %s for %s",
+                  config.getClass(), setterName, fieldName),
               e);
         }
-        field.set(config, coder.decode(entry.getValue().getPayload().newInput()));
+        method.invoke(config, coder.decode(entry.getValue().getPayload().newInput()));
       }
     }
 

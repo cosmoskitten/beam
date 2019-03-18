@@ -32,23 +32,24 @@ class GenerateSequence(ExternalTransform):
                elements_per_period=None, max_read_time=None,
                expansion_service=None):
     coder = VarIntCoder()
+    coder_urn = 'beam:coder:varint:v1'
     args = {
         'start':
             ConfigValue(
-                coder_urn='beam:coder:varint:v1',
+                coder_urn=coder_urn,
                 payload=coder.encode(start))
     }
     if stop:
       args['stop'] = ConfigValue(
-          coder_urn='beam:coder:varint:v1',
+          coder_urn=coder_urn,
           payload=coder.encode(stop))
     if elements_per_period:
       args['elements_per_period'] = ConfigValue(
-          coder_urn='beam:coder:varint:v1',
+          coder_urn=coder_urn,
           payload=coder.encode(elements_per_period))
     if max_read_time:
       args['max_read_time'] = ConfigValue(
-          coder_urn='beam:coder:varint:v1',
+          coder_urn=coder_urn,
           payload=coder.encode(max_read_time))
 
     payload = ExternalConfigurationPayload(configuration=args)

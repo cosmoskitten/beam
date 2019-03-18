@@ -157,12 +157,10 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-4781")
 
     def test_external_transform(self):
-      # options = super(FlinkRunnerTest, self).create_options()
-      # options._all_options['shutdown_sources_on_final_watermark'] = True
-      # options._all_options['parallelism'] = 1
-      # options._all_options['streaming'] = True
+      options = self.create_options()
+      options._all_options['parallelism'] = 1
+      options._all_options['streaming'] = True
 
-      self.create_options()
       expansion_address = "localhost:" + str(FlinkRunnerTest.expansion_port)
 
       with self.create_pipeline() as p:

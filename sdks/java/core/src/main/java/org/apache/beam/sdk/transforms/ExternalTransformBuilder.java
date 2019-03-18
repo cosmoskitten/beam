@@ -17,10 +17,26 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-/** An interface for building a transform from an externally provided configuration. */
+/**
+ * An interface for building a transform from an externally provided configuration.
+ *
+ * <p>Classes which implement this interface will be instantiated externally and require a zero-args
+ * constructor. The {@code buildExternal} method will be called with the configuration object as a
+ * parameter.
+ *
+ * <p>This builder needs to be registered alongside with a URN through {@link
+ * ExternalTransformRegistrar}. Note that the configuration requires setters for all configuration
+ * parameters, e.g. if there is a parameter "start", there should be a corresponding setter
+ * "setStart".
+ *
+ * @param <ConfigT> A configuration object which will be populated with the external configuration.
+ * @param <InputT> The input type of the externally configured PTransform.
+ * @param <OutputT> The output type of the externally configured PTransform.
+ */
 public interface ExternalTransformBuilder<ConfigT, InputT extends PInput, OutputT extends POutput> {
 
   /** Builds the transform after it has been configured. */
