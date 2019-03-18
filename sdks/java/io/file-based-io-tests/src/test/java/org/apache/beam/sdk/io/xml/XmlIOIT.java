@@ -24,9 +24,10 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOITMetrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
@@ -43,8 +45,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
-import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -172,38 +172,46 @@ public class XmlIOIT {
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    gatherAndPublishMetricResults(result);
+    collectAndPublishResults(result);
   }
 
-  private void gatherAndPublishMetricResults(PipelineResult result) {
+  private void collectAndPublishResults(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
     String timestamp = Timestamp.now().toString();
 
-    List<NamedTestResult> testResults = extractMetrics(result, uuid, timestamp);
-    ConsoleResultPublisher.publish(testResults, uuid, timestamp);
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(testResults, bigQueryTable);
-    }
+    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
+        fillMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE)
+        .publish(bigQueryDataset, bigQueryTable);
   }
 
-  private List<NamedTestResult> extractMetrics(
-      PipelineResult result, String uuid, String timestamp) {
-    List<NamedTestResult> results = new ArrayList<>();
-    MetricsReader reader = new MetricsReader(result, XMLIOIT_NAMESPACE);
-    long writeStart = reader.getStartTimeMetric("writeStart");
-    long readStart = reader.getStartTimeMetric("readStart");
-    long writeEnd = reader.getEndTimeMetric("writeEnd");
-    long readEnd = reader.getEndTimeMetric("readEnd");
-    double readTime = (readEnd - readStart) / 1e3;
-    double writeTime = (writeEnd - writeStart) / 1e3;
-    double runTime = (readEnd - writeStart) / 1e3;
+  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long writeEnd = reader.getEndTimeMetric("writeEnd");
+          double writeTime = (writeEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+        });
 
-    results.add(NamedTestResult.create(uuid, timestamp, "write_time", writeTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "read_time", readTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "run_time", runTime));
+    suppliers.add(
+        reader -> {
+          long readStart = reader.getStartTimeMetric("readStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
+          double readTime = (readEnd - readStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+        });
 
-    return results;
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long readEnd = reader.getEndTimeMetric("readEnd");
+          double runTime = (readEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+    return suppliers;
   }
 
   private static class LongToBird extends SimpleFunction<Long, Bird> {
