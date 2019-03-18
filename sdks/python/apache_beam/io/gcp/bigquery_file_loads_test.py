@@ -39,6 +39,7 @@ from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
+from apache_beam.options import value_provider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -406,17 +407,19 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (input |
            "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_1
-                                if 'language' in x
-                                else output_table_2),
+               table=lambda x:
+               (value_provider.StaticValueProvider(str, output_table_1)
+                if 'language' in x
+                else value_provider.StaticValueProvider(str, output_table_2)),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
       _ = (input |
            "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_3
-                                if 'language' in x
-                                else output_table_4),
+               table=lambda x:
+               (value_provider.StaticValueProvider(str, output_table_3)
+                if 'language' in x
+                else value_provider.StaticValueProvider(str, output_table_4)),
                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                max_file_size=20,
