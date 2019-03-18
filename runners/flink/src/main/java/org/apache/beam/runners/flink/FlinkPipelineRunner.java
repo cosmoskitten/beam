@@ -40,27 +40,21 @@ import org.slf4j.LoggerFactory;
 public class FlinkPipelineRunner implements PortablePipelineRunner {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
-  private final String id;
-  private final String retrievalToken;
   private final FlinkPipelineOptions pipelineOptions;
   private final String confDir;
   private final List<String> filesToStage;
 
   public FlinkPipelineRunner(
-      String id,
-      String retrievalToken,
       FlinkPipelineOptions pipelineOptions,
       @Nullable String confDir,
       List<String> filesToStage) {
-    this.id = id;
-    this.retrievalToken = retrievalToken;
     this.pipelineOptions = pipelineOptions;
     this.confDir = confDir;
     this.filesToStage = filesToStage;
   }
 
   @Override
-  public PipelineResult run(final Pipeline pipeline) throws Exception {
+  public PipelineResult run(final Pipeline pipeline, JobInfo jobInfo) throws Exception {
     MetricsEnvironment.setMetricsSupported(false);
 
     FlinkPortablePipelineTranslator<?> translator;
@@ -70,12 +64,13 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     } else {
       translator = new FlinkStreamingPortablePipelineTranslator();
     }
-    return runPipelineWithTranslator(pipeline, translator);
+    return runPipelineWithTranslator(pipeline, jobInfo, translator);
   }
 
   private <T extends FlinkPortablePipelineTranslator.TranslationContext>
       PipelineResult runPipelineWithTranslator(
-          final Pipeline pipeline, FlinkPortablePipelineTranslator<T> translator) throws Exception {
+          final Pipeline pipeline, JobInfo jobInfo, FlinkPortablePipelineTranslator<T> translator)
+          throws Exception {
     LOG.info("Translating pipeline to Flink program.");
 
     // Don't let the fuser fuse any subcomponents of native transforms.
@@ -88,12 +83,6 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
                 .anyMatch(proto -> ExecutableStage.URN.equals(proto.getSpec().getUrn()))
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
-    JobInfo jobInfo =
-        JobInfo.create(
-            id,
-            pipelineOptions.getJobName(),
-            retrievalToken,
-            PipelineOptionsTranslation.toProto(pipelineOptions));
 
     FlinkPortablePipelineTranslator.Executor executor =
         translator.translate(
