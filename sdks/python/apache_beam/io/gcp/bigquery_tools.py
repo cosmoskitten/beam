@@ -186,6 +186,26 @@ def parse_table_reference(table, dataset=None, project=None):
   return table_reference
 
 
+def get_hashable_destination(destination):
+  """Parses a table reference into a (project, dataset, table) tuple.
+
+  Args:
+    destination: Either a TableReference object from the bigquery API.
+      The object has the following attributes: projectId, datasetId, and
+      tableId. Or a string representing the destination containing
+      'PROJECT:DATASET.TABLE'.
+
+  Returns:
+    A string representing the destination containing
+    'PROJECT:DATASET.TABLE'.
+  """
+  if isinstance(destination, bigquery.TableReference):
+    return '%s:%s.%s' % (
+        destination.projectId, destination.datasetId, destination.tableId)
+  else:
+    return destination
+
+
 # -----------------------------------------------------------------------------
 # BigQueryWrapper.
 
