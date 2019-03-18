@@ -32,7 +32,6 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.google.auto.value.AutoValue;
-import com.google.common.util.concurrent.ListenableFuture;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,6 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -1113,14 +1113,14 @@ public class CassandraIO {
     private final Cluster cluster;
     private final Session session;
     private final MapperFactory<T> mapperFactory;
-    private List<ListenableFuture<Void>> mutateFutures;
-    private final BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator;
+    private List<Future<Void>> mutateFutures;
+    private final BiFunction<Mapper<T>, T, Future<Void>> mutator;
     private final String operationName;
     private final Class<T> entitiyClass;
 
     Mutator(
         Write<T> spec,
-        BiFunction<Mapper<T>, T, ListenableFuture<Void>> mutator,
+        BiFunction<Mapper<T>, T, Future<Void>> mutator,
         String operationName) {
       this.cluster =
           getCluster(
@@ -1180,7 +1180,7 @@ public class CassandraIO {
     }
 
     private void waitForFuturesToFinish() throws ExecutionException, InterruptedException {
-      for (ListenableFuture<Void> future : mutateFutures) {
+      for (Future<Void> future : mutateFutures) {
         future.get();
       }
     }

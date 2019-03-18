@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.cassandra.mapper;
 
 import com.datastax.driver.core.ResultSet;
-import com.google.common.util.concurrent.ListenableFuture;
 import java.util.Iterator;
+import java.util.concurrent.Future;
 
 /**
  * This interface allows you to create custom object mappers for the Beam CassandraIO.
@@ -30,7 +30,7 @@ public interface Mapper<T> {
 
   Iterator<T> map(ResultSet resultSet);
 
-  ListenableFuture<Void> deleteAsync(T entity);
+  Future<Void> deleteAsync(T entity);
 
-  ListenableFuture<Void> saveAsync(T entity);
+  Future<Void> saveAsync(T entity);
 }

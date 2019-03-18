@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.cassandra.mapper;
 
 import com.datastax.driver.core.ResultSet;
-import com.google.common.util.concurrent.ListenableFuture;
 import java.util.Iterator;
+import java.util.concurrent.Future;
 
 /**
  * Default Object mapper implementation that uses the <a
@@ -42,12 +42,12 @@ public class DefaultObjectMapper<T> implements Mapper<T> {
   }
 
   @Override
-  public ListenableFuture<Void> deleteAsync(T entity) {
+  public Future<Void> deleteAsync(T entity) {
     return datastaxMapper.deleteAsync(entity);
   }
 
   @Override
-  public ListenableFuture<Void> saveAsync(T entity) {
+  public Future<Void> saveAsync(T entity) {
     return datastaxMapper.saveAsync(entity);
   }
 }
