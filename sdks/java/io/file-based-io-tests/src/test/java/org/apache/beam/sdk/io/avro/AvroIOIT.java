@@ -22,9 +22,10 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashF
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -36,13 +37,12 @@ import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOITMetrics;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
-import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -146,38 +146,48 @@ public class AvroIOIT {
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    gatherAndPublishMetricResults(result);
+    collectAndPublishMetrics(result);
   }
 
-  private void gatherAndPublishMetricResults(PipelineResult result) {
+  private void collectAndPublishMetrics(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
     String timestamp = Timestamp.now().toString();
 
-    List<NamedTestResult> testResults = extractMetrics(result, uuid, timestamp);
-    ConsoleResultPublisher.publish(testResults, uuid, timestamp);
-    if (bigQueryTable != null && bigQueryDataset != null) {
-      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(testResults, bigQueryTable);
-    }
+    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
+        fillMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE)
+        .publish(bigQueryDataset, bigQueryTable);
   }
 
-  private List<NamedTestResult> extractMetrics(
-      PipelineResult result, String uuid, String timestamp) {
-    List<NamedTestResult> results = new ArrayList<>();
-    MetricsReader reader = new MetricsReader(result, AVRO_NAMESPACE);
-    long writeStart = reader.getStartTimeMetric("writeStart");
-    long readStart = reader.getStartTimeMetric("middlePoint");
-    long writeEnd = reader.getEndTimeMetric("middlePoint");
-    long readEnd = reader.getEndTimeMetric("endPoint");
-    double readTime = (readEnd - readStart) / 1e3;
-    double writeTime = (writeEnd - writeStart) / 1e3;
-    double runTime = (readEnd - writeStart) / 1e3;
+  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
 
-    results.add(NamedTestResult.create(uuid, timestamp, "write_time", writeTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "read_time", readTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "run_time", runTime));
+    suppliers.add(
+        (reader) -> {
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          long writeEnd = reader.getEndTimeMetric("middlePoint");
+          double writeTime = (writeEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+        });
 
-    return results;
+    suppliers.add(
+        (reader) -> {
+          long readEnd = reader.getEndTimeMetric("endPoint");
+          long readStart = reader.getStartTimeMetric("middlePoint");
+          double readTime = (readEnd - readStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+        });
+
+    suppliers.add(
+        (reader) -> {
+          long readEnd = reader.getEndTimeMetric("endPoint");
+          long writeStart = reader.getStartTimeMetric("writeStart");
+          double runTime = (readEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    return suppliers;
   }
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
