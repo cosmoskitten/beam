@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
@@ -206,26 +205,15 @@ def loadTestConfigurations = [
         ]
 ]
 
-def loadTestJob = { scope, triggeringContext ->
-  scope.description('Runs Java GBK load tests on Dataflow runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-  for (testConfiguration in loadTestConfigurations) {
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
-  }
-}
-
-CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
-}
-
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Java_GBK_Dataflow_Batch',
         'Run Load Tests Java GBK Dataflow Batch',
         'Load Tests Java GBK Dataflow Batch suite',
         this
 ) {
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, loadTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "batch")
 }
 
-
+CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 12 * * *', this) {
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.JAVA, loadTestConfigurations, CommonTestProperties.TriggeringContext.POST_COMMIT, "GBK", "batch")
+}
