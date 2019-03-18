@@ -677,6 +677,7 @@ class BigQueryWriteFn(DoFn):
       self._create_table_if_needed(
           bigquery_tools.parse_table_reference(destination),
           schema)
+    destination = bigquery_tools.get_hashable_destination(destination)
 
     row = element[1]
     self._rows_buffer[destination].append(row)
@@ -700,6 +701,7 @@ class BigQueryWriteFn(DoFn):
   def _flush_batch(self, destination):
 
     # Flush the current batch of rows to BigQuery.
+    destination = bigquery_tools.get_hashable_destination(destination)
     rows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
