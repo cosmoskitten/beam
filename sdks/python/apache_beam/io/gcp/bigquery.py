@@ -671,18 +671,19 @@ class BigQueryWriteFn(DoFn):
 
   def process(self, element, unused_create_fn_output=None):
     destination = element[0]
+    table_reference = bigquery_tools.parse_table_reference(destination)
     if isinstance(destination, tuple):
       schema = destination[1]
-      destination = destination[0]
+      table_reference = bigquery_tools.parse_table_reference(destination[0])
       self._create_table_if_needed(
-          bigquery_tools.parse_table_reference(destination),
+          table_reference,
           schema)
 
     row = element[1]
-    self._rows_buffer[destination].append(row)
+    self._rows_buffer[table_reference].append(row)
     self._total_buffered_rows += 1
-    if len(self._rows_buffer[destination]) >= self._max_batch_size:
-      return self._flush_batch(destination)
+    if len(self._rows_buffer[table_reference]) >= self._max_batch_size:
+      return self._flush_batch(table_reference)
     elif self._total_buffered_rows >= self._max_buffered_rows:
       return self._flush_all_batches()
 
@@ -693,22 +694,22 @@ class BigQueryWriteFn(DoFn):
     logging.debug('Attempting to flush to all destinations. Total buffered: %s',
                   self._total_buffered_rows)
 
-    return itertools.chain(*[self._flush_batch(destination)
-                             for destination in list(self._rows_buffer.keys())
-                             if self._rows_buffer[destination]])
+    return itertools.chain(*[self._flush_batch(table_reference)
+                             for table_reference
+                             in list(self._rows_buffer.keys())
+                             if self._rows_buffer[table_reference]])
 
-  def _flush_batch(self, destination):
+  def _flush_batch(self, table_reference):
 
     # Flush the current batch of rows to BigQuery.
-    rows = self._rows_buffer[destination]
-    table_reference = bigquery_tools.parse_table_reference(destination)
+    rows = self._rows_buffer[table_reference]
 
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '')
 
     logging.debug('Flushing data to %s. Total %s rows.',
-                  destination, len(rows))
+                  table_reference, len(rows))
 
     while True:
       # TODO: Figure out an insertId to make calls idempotent.
@@ -735,12 +736,13 @@ class BigQueryWriteFn(DoFn):
                      retry_backoff)
         time.sleep(retry_backoff)
 
-    self._total_buffered_rows -= len(self._rows_buffer[destination])
-    del self._rows_buffer[destination]
+    self._total_buffered_rows -= len(self._rows_buffer[table_reference])
+    del self._rows_buffer[table_reference]
 
     return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
                                 GlobalWindows.windowed_value(
-                                    (destination, row))) for row in failed_rows]
+                                    (table_reference, row)))
+            for row in failed_rows]
 
 
 class WriteToBigQuery(PTransform):
