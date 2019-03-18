@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def testConfigurations = [
+def loadTestConfigurations = [
         [
                 title        : 'GroupByKey Python Load test: 2GB of 10B records',
                 itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
@@ -40,9 +39,9 @@ def testConfigurations = [
                                 '"value_size": 9}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -62,9 +61,9 @@ def testConfigurations = [
                                 '"value_size": 90}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -84,9 +83,9 @@ def testConfigurations = [
                                 '"value_size": 900000}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -106,9 +105,9 @@ def testConfigurations = [
                                 '"value_size": 90}\'',
                         iterations          : 1,
                         fanout              : 4,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -128,9 +127,9 @@ def testConfigurations = [
                                 '"value_size": 90}\'',
                         iterations          : 1,
                         fanout              : 8,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -150,9 +149,9 @@ def testConfigurations = [
                                 '"value_size": 90}\'',
                         iterations          : 4,
                         fanout              : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
         [
@@ -166,29 +165,28 @@ def testConfigurations = [
                         temp_location       : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query: true,
                         metrics_dataset     : 'load_test',
-                        metrics_table       : 'python_dataflow_batch_gbk_6',
+                        metrics_table       : 'python_dataflow_batch_gbk_7',
                         input_options       : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
                         iterations          : 4,
                         fanout              : 1,
-                        maxNumWorkers       : 5,
-                        numWorkers          : 5,
-                        autoscalingAlgorithm: "NONE"
+                        max_num_workers       : 5,
+                        num_workers          : 5,
+                        autoscaling_algorithm: "NONE"
                 ]
         ],
 ]
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_Python_LoadTests_Batch_Combine',
-        'Run Python Load Tests Batch Combine',
-        'Python Load Tests Batch Combine',
+        'beam_Python_LoadTests_GBK_Dataflow_Batch',
+        'Run Python Load Tests GBK Dataflow Batch',
+        'Load Tests Python GBK Dataflow Batch suite',
         this
 ) {
-    description("Runs Python batch combine load tests")
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "batch")
+}
 
-    for (testConfiguration in smokeTestConfigurations) {
-        loadTestsBuilder.loadTest(delegate, testConfiguration.title, testConfiguration.runner,testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, CommonTestProperties.TriggeringContext.PR)
-    }
+CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations, CommonTestProperties.TriggeringContext.POST_COMMIT, "GBK", "batch")
 }
