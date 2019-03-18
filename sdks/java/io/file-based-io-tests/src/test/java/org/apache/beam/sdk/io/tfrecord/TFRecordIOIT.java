@@ -24,9 +24,10 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOI
 
 import com.google.cloud.Timestamp;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -35,13 +36,12 @@ import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOITMetrics;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
-import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -148,38 +148,47 @@ public class TFRecordIOIT {
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     PipelineResult result = readPipeline.run();
     result.waitUntilFinish();
-    gatherAndPublishMetricResults(result);
+    collectAndPublishMetrics(result);
   }
 
-  private void gatherAndPublishMetricResults(PipelineResult result) {
+  private void collectAndPublishMetrics(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
     String timestamp = Timestamp.now().toString();
 
-    List<NamedTestResult> testResults = extractMetrics(result, uuid, timestamp);
-    ConsoleResultPublisher.publish(testResults, uuid, timestamp);
-    if (bigQueryDataset != null && bigQueryTable != null) {
-      BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
-          .publish(testResults, bigQueryTable);
-    }
+    Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
+        fillMetricSuppliers(uuid, timestamp);
+    new IOITMetrics(metricSuppliers, result, TFRECORD_NAMESPACE)
+        .publish(bigQueryDataset, bigQueryTable);
   }
 
-  private List<NamedTestResult> extractMetrics(
-      PipelineResult result, String uuid, String timestamp) {
-    List<NamedTestResult> results = new ArrayList<>();
-    MetricsReader reader = new MetricsReader(result, TFRECORD_NAMESPACE);
-    long writeStart = reader.getStartTimeMetric("writeTime");
-    long readStart = reader.getStartTimeMetric("readTime");
-    long writeEnd = reader.getEndTimeMetric("writeTime");
-    long readEnd = reader.getEndTimeMetric("readTime");
-    double readTime = (readEnd - readStart) / 1e3;
-    double writeTime = (writeEnd - writeStart) / 1e3;
-    double runTime = (readEnd - writeStart) / 1e3;
+  private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeTime");
+          long writeEnd = reader.getEndTimeMetric("writeTime");
+          double writeTime = (writeEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "write_time", writeTime);
+        });
 
-    results.add(NamedTestResult.create(uuid, timestamp, "write_time", writeTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "read_time", readTime));
-    results.add(NamedTestResult.create(uuid, timestamp, "run_time", runTime));
+    suppliers.add(
+        reader -> {
+          long readStart = reader.getStartTimeMetric("readTime");
+          long readEnd = reader.getEndTimeMetric("readTime");
+          double readTime = (readEnd - readStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "read_time", readTime);
+        });
 
-    return results;
+    suppliers.add(
+        reader -> {
+          long writeStart = reader.getStartTimeMetric("writeTime");
+          long readEnd = reader.getEndTimeMetric("readTime");
+          double runTime = (readEnd - writeStart) / 1e3;
+          return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
+        });
+
+    return suppliers;
   }
 
   static class StringToByteArray extends SimpleFunction<String, byte[]> {
