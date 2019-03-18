@@ -244,12 +244,14 @@ class ElasticSearchIOTestUtils {
     return searchResult.path("hits").path("total").asInt();
   }
 
-  public static void setIndexMapping(RestClient restClient, String index, String type) throws IOException {
+  public static void setIndexMapping(RestClient restClient, String index, String type)
+      throws IOException {
     String endpoint = String.format("/%s", index);
     String requestString =
         String.format(
             "{\"mappings\":{\"%s\":{\"properties\":{\"age\":{\"type\":\"long\"},"
-                + " \"scientist\":{\"type\":\"text\"}, \"id\":{\"type\":\"long\"}}}}}", type);
+                + " \"scientist\":{\"type\":\"text\"}, \"id\":{\"type\":\"long\"}}}}}",
+            type);
     HttpEntity requestBody = new NStringEntity(requestString, ContentType.APPLICATION_JSON);
     Request request = new Request("PUT", endpoint);
     request.setEntity(requestBody);
