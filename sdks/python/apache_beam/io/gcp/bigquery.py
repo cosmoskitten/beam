@@ -677,11 +677,11 @@ class BigQueryWriteFn(DoFn):
       self._create_table_if_needed(
           bigquery_tools.parse_table_reference(destination),
           schema)
-
+    destination_str = bigquery_tools.get_hashable_destination(destination)
     row = element[1]
-    self._rows_buffer[destination].append(row)
+    self._rows_buffer[destination_str].append(row)
     self._total_buffered_rows += 1
-    if len(self._rows_buffer[destination]) >= self._max_batch_size:
+    if len(self._rows_buffer[destination_str]) >= self._max_batch_size:
       return self._flush_batch(destination)
     elif self._total_buffered_rows >= self._max_buffered_rows:
       return self._flush_all_batches()
@@ -700,7 +700,8 @@ class BigQueryWriteFn(DoFn):
   def _flush_batch(self, destination):
 
     # Flush the current batch of rows to BigQuery.
-    rows = self._rows_buffer[destination]
+    destination_str = bigquery_tools.get_hashable_destination(destination)
+    rows = self._rows_buffer[destination_str]
     table_reference = bigquery_tools.parse_table_reference(destination)
 
     if table_reference.projectId is None:
@@ -735,8 +736,8 @@ class BigQueryWriteFn(DoFn):
                      retry_backoff)
         time.sleep(retry_backoff)
 
-    self._total_buffered_rows -= len(self._rows_buffer[destination])
-    del self._rows_buffer[destination]
+    self._total_buffered_rows -= len(self._rows_buffer[destination_str])
+    del self._rows_buffer[destination_str]
 
     return [pvalue.TaggedOutput(BigQueryWriteFn.FAILED_ROWS,
                                 GlobalWindows.windowed_value(
