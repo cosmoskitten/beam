@@ -301,8 +301,15 @@ message StandardPTransforms {
 
     // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
     // and restrictions.
-    // Input: KV(element, restriction); output: DoFn's output.
+    // Input: KV(KV(element, restriction), weight); output: DoFn's output.
     PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
+
+    // Adds estimated floating point weights, or sizes to each restriction.
+    // A reasonable value is the number of bytes expected to be produced
+    // by this (element, restriction) pair.
+    // Input: KV(element, restriction)
+    // Output: KV(KV(element, restriction), weight))
+    SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_size_restrictions:v1"];
   }
 }
 
