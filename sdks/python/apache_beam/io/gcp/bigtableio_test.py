@@ -24,9 +24,8 @@ import sys
 import unittest
 import mock
 
-from beam_bigtable import BigTableSource
 import apache_beam.io.source_test_utils as source_test_utils
-#from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
+from apache_beam.io.gcp.bigtableio import _BigTableSource as BigTableSource
 from apache_beam.io.range_trackers import LexicographicKeyRangeTracker
 
 
@@ -257,6 +256,7 @@ class BigtableSourceTest(unittest.TestCase):
     source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position,
         perform_multi_threaded_test=False)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
