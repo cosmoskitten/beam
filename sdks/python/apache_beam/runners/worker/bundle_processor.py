@@ -452,6 +452,7 @@ def only_element(iterable):
 
 class BundleProcessor(object):
   """A class for processing bundles of elements."""
+
   def __init__(
       self, process_bundle_descriptor, state_handler, data_channel_factory):
     self.process_bundle_descriptor = process_bundle_descriptor
@@ -718,6 +719,7 @@ class ExecutionContext(object):
 
 class BeamTransformFactory(object):
   """Factory for turning transform_protos into executable operations."""
+
   def __init__(self, descriptor, data_channel_factory, counter_factory,
                state_sampler, state_handler):
     self.descriptor = descriptor
