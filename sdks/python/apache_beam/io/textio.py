@@ -92,7 +92,7 @@ class _TextSource(filebasedsource.FileBasedSource):
                min_bundle_size,
                compression_type,
                strip_trailing_newlines,
-               coder,
+               coder=None,
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
@@ -199,7 +199,8 @@ class _TextSource(filebasedsource.FileBasedSource):
         if num_bytes_to_next_record > 0:
           next_record_start_position += num_bytes_to_next_record
 
-        yield self._coder.decode(record)
+        yield self._coder.decode(record) \
+          if self._coder else record.decode('utf-8')
         if num_bytes_to_next_record < 0:
           break
 
@@ -215,7 +216,8 @@ class _TextSource(filebasedsource.FileBasedSource):
       while True:
         record, num_bytes_to_next_record = self._read_record(file_to_read,
                                                              read_buffer)
-        decoded_line = self._coder.decode(record)
+        decoded_line = self._coder.decode(record) \
+          if self._coder else record.decode('utf-8')
         if not self._header_matcher(decoded_line):
           # We've read past the header section at this point, so go back a line.
           file_to_read.seek(position)
@@ -440,7 +442,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=None,
       skip_header_lines=0,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
@@ -462,7 +464,8 @@ class ReadAllFromText(PTransform):
       skip_header_lines: Number of header lines to skip. Same number is skipped
         from each source file. Must be 0 or higher. Large number of skipped
         lines might impact performance.
-      coder: Coder used to decode each line.
+      coder: Coder used to decode each line. The data is decoded as utf-8 string
+        by default.
     """
     super(ReadAllFromText, self).__init__(**kwargs)
     source_from_file = partial(
@@ -501,7 +504,7 @@ class ReadFromText(PTransform):
       min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=None,
       validate=True,
       skip_header_lines=0,
       **kwargs):
@@ -527,6 +530,7 @@ class ReadFromText(PTransform):
         skipped from each source file. Must be 0 or higher. Large number of
         skipped lines might impact performance.
       coder (~apache_beam.coders.coders.Coder): Coder used to decode each line.
+        The data is decoded as utf-8 string by default.
     """
 
     super(ReadFromText, self).__init__(**kwargs)

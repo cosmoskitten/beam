@@ -17,7 +17,11 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(shadowClosure: {
+  dependencies {
+    exclude(project(path: ":beam-sdks-java-core", configuration: "shadow"))
+  }
+})
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Parquet"
 ext.summary = "IO to read and write on Parquet storage format."
