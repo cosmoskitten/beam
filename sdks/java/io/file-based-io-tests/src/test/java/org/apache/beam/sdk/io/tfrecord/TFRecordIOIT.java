@@ -157,7 +157,7 @@ public class TFRecordIOIT {
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, TFRECORD_NAMESPACE)
+    new IOITMetrics(metricSuppliers, result, TFRECORD_NAMESPACE, uuid, timestamp)
         .publish(bigQueryDataset, bigQueryTable);
   }
 

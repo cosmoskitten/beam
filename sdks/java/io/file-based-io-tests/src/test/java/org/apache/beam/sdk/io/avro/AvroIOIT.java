@@ -155,7 +155,7 @@ public class AvroIOIT {
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE)
+    new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE, uuid, timestamp)
         .publish(bigQueryDataset, bigQueryTable);
   }
 

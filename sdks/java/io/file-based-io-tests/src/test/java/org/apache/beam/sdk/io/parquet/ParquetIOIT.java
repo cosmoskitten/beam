@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.parquet;
 
-import static org.apache.avro.data.Json.SCHEMA;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
@@ -167,7 +166,7 @@ public class ParquetIOIT {
     String timestamp = Timestamp.now().toString();
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE)
+    new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp)
         .publish(bigQueryDataset, bigQueryTable);
   }
 

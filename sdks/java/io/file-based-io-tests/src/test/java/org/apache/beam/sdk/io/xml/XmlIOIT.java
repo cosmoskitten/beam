@@ -181,7 +181,7 @@ public class XmlIOIT {
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE)
+    new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE, uuid, timestamp)
         .publish(bigQueryDataset, bigQueryTable);
   }
 

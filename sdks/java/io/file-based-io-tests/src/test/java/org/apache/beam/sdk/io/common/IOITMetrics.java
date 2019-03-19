@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.common;
 
-import com.google.cloud.Timestamp;
 import java.util.Collection;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -33,25 +31,29 @@ public class IOITMetrics {
   private final Set<Function<MetricsReader, NamedTestResult>> metricSuppliers;
   private final PipelineResult result;
   private final String namespace;
+  private String uuid;
+  private String timestamp;
 
   public IOITMetrics(
       Set<Function<MetricsReader, NamedTestResult>> metricSuppliers,
       PipelineResult result,
-      String namespace) {
+      String namespace,
+      String uuid,
+      String timestamp) {
     this.metricSuppliers = metricSuppliers;
     this.result = result;
     this.namespace = namespace;
+    this.uuid = uuid;
+    this.timestamp = timestamp;
   }
 
   public void publish(String bigQueryDataset, String bigQueryTable) {
-    String uuid = UUID.randomUUID().toString();
-    Timestamp timestamp = Timestamp.now();
     MetricsReader reader = new MetricsReader(result, namespace);
     Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
     if (bigQueryDataset != null && bigQueryTable != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
           .publish(namedTestResults, bigQueryTable);
     }
-    ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp.toString());
+    ConsoleResultPublisher.publish(namedTestResults, uuid, timestamp);
   }
 }

@@ -153,7 +153,7 @@ public class TextIOIT {
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp.toString());
 
-    new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE)
+    new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString())
         .publish(bigQueryDataset, bigQueryTable);
   }
 
